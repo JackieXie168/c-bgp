@@ -103,7 +103,7 @@ void as_destroy(SAS ** ppAS)
       route_destroy_count++;
       route_destroy((SRoute **) &(*ppAS)->pLocalNetworks->data[iIndex]);
     }
-    _array_destroy((SArray **) &(*ppAS)->pLocalNetworks);
+    ptr_array_destroy(&(*ppAS)->pLocalNetworks);
     FREE(*ppAS);
     *ppAS= NULL;
   }

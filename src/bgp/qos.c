@@ -29,7 +29,7 @@ unsigned int BGP_OPTIONS_QOS_AGGR_LIMIT= 2;
  * AS-SET containing the AS-Num of all the ASes traversed by one of
  * the aggregated routes.
  */
-SRoute * qos_route_aggregate(SPtrArray * pRoutes, SRoute * pBestRoute)
+SRoute * qos_route_aggregate(SRoutes * pRoutes, SRoute * pBestRoute)
 {
   SRoute * pAggrRoute;
   int iIndex;
@@ -38,12 +38,12 @@ SRoute * qos_route_aggregate(SPtrArray * pRoutes, SRoute * pBestRoute)
 				      ptr_array_length(pRoutes));
   qos_delay_t tDelay;
   
-  assert(ptr_array_length(pRoutes) >= 1);
+  assert(routes_list_get_num(pRoutes) >= 1);
 
   // Aggregate Delay
   tDelay.tMean= 0;
   tDelay.uWeight= 0;
-  for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
+  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
     tDelay.tMean+= pRoute->tDelay.uWeight*pRoute->tDelay.tMean;
     tDelay.uWeight+= pRoute->tDelay.uWeight;
@@ -58,7 +58,7 @@ SRoute * qos_route_aggregate(SPtrArray * pRoutes, SRoute * pBestRoute)
   pAggrRoute->tDelay= tDelay;
   pAggrRoute->tDelay.tDelay= pBestRoute->tDelay.tDelay;
   path_destroy(&pAggrRoute->pASPath);
-  pAggrRoute->pASPath= path_aggregate(ppPaths, ptr_array_length(pRoutes));
+  pAggrRoute->pASPath= path_aggregate(ppPaths, routes_list_get_num(pRoutes));
   FREE(ppPaths);
 
   return pAggrRoute;
@@ -218,12 +218,12 @@ int qos_route_compare_delay(void * pItem1, void * pItem2,
  * Run the decision process on the P first rules to find which one is
  * the best one.
  */
-int qos_decision_process_delay(SAS * pAS, SPtrArray * pRoutes,
+int qos_decision_process_delay(SAS * pAS, SRoutes * pRoutes,
 			       unsigned int uNumRoutes)
 {
   int iIndex, iIndexLast;
   SRoute * pRoute, * pCurrentRoute;
-  SPtrArray * pAggrRoutes/*, * pOthRoutes*/;
+  SRoutes * pAggrRoutes/*, * pOthRoutes*/;
 
   AS_LOG_DEBUG(pAS, " > qos_decision_process_delay\n");
 
@@ -233,7 +233,7 @@ int qos_decision_process_delay(SAS * pAS, SPtrArray * pRoutes,
   _array_sort((SArray *) pRoutes, qos_route_compare_delay);
 
   // If there are more routes than can be aggregated, select a subset
-  if (ptr_array_length(pRoutes) > uNumRoutes) {
+  if (routes_list_get_num(pRoutes) > uNumRoutes) {
 
     // Find the higher P < M...
     iIndexLast= 0;
@@ -265,7 +265,7 @@ int qos_decision_process_delay(SAS * pAS, SPtrArray * pRoutes,
 
   }
 
-  pAggrRoutes= (SPtrArray *) _array_copy((SArray *) pRoutes);
+  pAggrRoutes= (SRoutes *) _array_copy((SArray *) pRoutes);
 
   // Find best route
   qos_decision_process_tie_break(pAS, pRoutes, 1);
@@ -278,7 +278,7 @@ int qos_decision_process_delay(SAS * pAS, SPtrArray * pRoutes,
     ((SRoute *) pRoutes->data[0])->pAggrRoute=
       qos_route_aggregate(pAggrRoutes, (SRoute *) pRoutes->data[0]);
   } else
-    _array_destroy((SArray **) &pAggrRoutes);
+    routes_list_destroy(&pAggrRoutes);
 
   AS_LOG_DEBUG(pAS, " < qos_decision_process_delay\n");
     
@@ -418,7 +418,7 @@ void qos_decision_process_disseminate_to_peer(SAS * pAS,
  * Must go to the end of the function to select a unique best route,
  * but keep N good routes to aggregate
  */
-void qos_decision_process_tie_break(SAS * pAS, SPtrArray * pRoutes,
+void qos_decision_process_tie_break(SAS * pAS, SRoutes * pRoutes,
 				    unsigned int uNumRoutes)
 {
   int iIndex;
@@ -479,7 +479,7 @@ void qos_decision_process_disseminate(SAS * pAS, SPrefix sPrefix,
 
   int iIndex, iIndex2;
   SPeer * pPeer;
-  SPtrArray * pAggrRoutes= NULL;
+  SRoutes * pAggrRoutes= NULL;
   SRoute * pEBGPRoute= NULL;
   int iRedistributionType;
   int iAggregateIBGP;
@@ -577,8 +577,8 @@ void qos_decision_process_disseminate(SAS * pAS, SPrefix sPrefix,
  */
 int qos_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 {
-  SPtrArray * pRoutes= ptr_array_create_ref(0);
-  SPtrArray * pEBGPRoutes= ptr_array_create_ref(0);
+  SRoutes * pRoutes= routes_list_create();
+  SRoutes * pEBGPRoutes= routes_list_create();
   int iIndex;
   SPeer * pPeer;
   SRoute * pRoute, * pOldRoute;
@@ -695,8 +695,8 @@ int qos_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 
   // *** unlock all Adj-RIB-Ins ***
   
-  _array_destroy((SArray **) &pRoutes);
-  _array_destroy((SArray **) &pEBGPRoutes);
+  routes_list_destroy(&pRoutes);
+  routes_list_destroy(&pEBGPRoutes);
   
   AS_LOG_DEBUG(pAS, " < qos_decision_process.end\n");
   
@@ -756,7 +756,7 @@ void _qos_test()
   SRoute * pRoute1;
   SRoute * pRoute2;
   SRoute * pRoute3;
-  SPtrArray * pRoutes;
+  SRoutes * pRoutes;
   SRoute * pAggrRoute;
   SPrefix sPrefix;
   int iIndex;
@@ -803,7 +803,7 @@ void _qos_test()
 
   route_dump(stdout, pAggrRoute); fprintf(stdout, "\n");
 
-  ptr_array_destroy(&pRoutes);
+  routes_list_destroy(&pRoutes);
   route_destroy(&pRoute1);
   route_destroy(&pRoute2);
   route_destroy(&pRoute3);
