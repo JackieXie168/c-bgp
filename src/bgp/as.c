@@ -756,7 +756,7 @@ void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
   LOG_WARNING("\n");
   */
 
-  assert(node_rt_del_route(pRouter->pNode, sPrefix,
+  assert(!node_rt_del_route(pRouter->pNode, sPrefix,
 			   NULL, NET_ROUTE_BGP));
 }
 
