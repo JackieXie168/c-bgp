@@ -1143,3 +1143,46 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   return iResult;
 }
 
+// -----[ cbgp_jni_routes_list_function ]----------------------------
+int cbgp_jni_routes_list_function(void * pItem, void * pContext)
+{
+  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  jobject joRoute;
+
+  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, *(SRoute **) pItem)) == NULL)
+    return -1;
+
+  return cbgp_jni_ArrayList_add(pCtx->jEnv, pCtx->joVector, joRoute);
+}
+
+// -----[ loadMRT ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    loadMRT
+ * Signature: (Ljava/lang/String;)Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
+  (JNIEnv *env , jobject obj, jstring jsFileName)
+{
+  jobject joArrayList= NULL;
+  SRoutes * pRoutes;
+  const jbyte * pcFileName;
+  SRouteDumpCtx sCtx;
+
+  pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
+  if ((pRoutes= mrtd_load_routes(pcFileName, 0, NULL)) != NULL) {
+    joArrayList= cbgp_jni_new_ArrayList(env);
+    sCtx.jEnv= env;
+    sCtx.joVector= joArrayList;
+    if (routes_list_for_each(pRoutes, cbgp_jni_routes_list_function, &sCtx) != 0)
+      joArrayList= NULL;
+  }
+  (*env)->ReleaseStringUTFChars(env, jsFileName, pcFileName);
+
+  // TODO: clean whole list !!! (routes_list are only references...)
+  routes_list_destroy(&pRoutes);
+
+  fprintf(stderr, "Conversion to Java finished\n");
+
+  return joArrayList;
+}

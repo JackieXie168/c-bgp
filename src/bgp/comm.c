@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 27/01/2005
+// @lastdate 25/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -130,7 +130,8 @@ void comm_dump2(FILE * pStream, comm_t tCommunity, int iText)
       fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
     }
   } else {
-    fprintf(pStream, "%u", tCommunity);
+    fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
+    //fprintf(pStream, "%u", tCommunity);
   }
 }
 

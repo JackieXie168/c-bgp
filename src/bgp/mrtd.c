@@ -2,8 +2,9 @@
 // @(#)mrtd.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 12/02/2005
+// @lastdate 25/02/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -20,6 +21,7 @@
 
 #include <bgp/as_t.h>
 #include <bgp/as.h>
+#include <bgp/filter.h>
 #include <bgp/peer.h>
 #include <bgp/comm.h>
 #include <bgp/mrtd.h>
@@ -28,6 +30,15 @@
 #include <bgp/route.h>
 #include <bgp/routes_list.h>
 #include <net/prefix.h>
+
+#ifdef HAVE_BGPDUMP
+# include <sys/types.h>
+# include <sys/socket.h>
+# include <arpa/inet.h>
+# include <external/bgpdump_lib.h>
+# include <external/bgpdump_formats.h>
+# include <netinet/in.h>
+#endif
 
 static STokenizer * pLineTokenizer= NULL;
 static STokenizer * pCommTokenizer= NULL;
@@ -470,12 +481,13 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
   return pMsg;
 }
 
-// ----- mrtd_load_routes -------------------------------------------
+// ----- mrtd_ascii_load_routes -------------------------------------
 /**
  * This function loads all the routes from a table dump in MRT
- * format.
+ * format. The filename must have previously been converted to ASCII
+ * using 'route_btoa -m'.
  */
-SPtrArray * mrtd_load_routes(SBGPRouter * pRouter, char * pcFileName)
+SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter, char * pcFileName)
 {
   FILE * pFile;
   SRoutes * pRoutes= NULL;
@@ -488,7 +500,7 @@ SPtrArray * mrtd_load_routes(SBGPRouter * pRouter, char * pcFileName)
   pFile= fopen(pcFileName, "r");
   if (pFile != NULL) {
 
-    pRoutes= routes_list_create();
+    pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
 
     while ((!feof(pFile)) && (!iError)) {
       if (fgets(acFileLine, sizeof(acFileLine), pFile) == NULL)
@@ -519,6 +531,227 @@ SPtrArray * mrtd_load_routes(SBGPRouter * pRouter, char * pcFileName)
   }
   return pRoutes;
 }
+
+/////////////////////////////////////////////////////////////////////
+//
+// BINARY MRT (based on libbgpdump-1.4)
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ mrtd_process_community ]-----------------------------------
+/**
+ *
+ */
+SCommunities * mrtd_process_community(struct community * com)
+{
+  SCommunities * pCommunities= NULL;
+  int iIndex;
+  u_int32_t comval;
+
+  for (iIndex = 0; iIndex < com->size; iIndex++) {
+
+    if (pCommunities == NULL)
+      pCommunities= comm_create();
+    
+    memcpy(&comval, com_nthval(com, iIndex), sizeof (u_int32_t));
+    comm_add(pCommunities, ntohl(comval));
+    
+  }
+
+  return pCommunities;
+}
+
+// -----[ mrtd_process_aspath ]--------------------------------------
+/**
+ * Convert a bgpdump aspath to a C-BGP as-path. Note: this function is
+ * based on Dan Ardelean's code to convert an aspath to a string.
+ *
+ * This function only supports SETs and SEQUENCEs. If such a segment
+ * is found, the function will fail (and return NULL).
+ */
+SPath * mrtd_process_aspath(struct aspath * path)
+{
+  SPath * pPath= NULL;
+  SPathSegment * pSegment;
+  void * pnt;
+  void * end;
+  struct assegment *assegment;
+  int iIndex;
+  int iResult= 0;
+
+  /* empty AS-path */
+  if (path->length == 0)
+    return NULL;
+
+  /* Set initial pointers */
+  pnt= path->data;
+  end= pnt + path->length;
+
+  while (pnt < end) {
+    
+    /* Process next segment... */
+    assegment= (struct assegment *) pnt;
+    
+    /* Get the AS-path segment type. */
+    if (assegment->type == AS_SET) {
+      pSegment= path_segment_create(AS_PATH_SEGMENT_SET,
+				    assegment->length);
+    } else if (assegment->type == AS_SEQUENCE) {
+      pSegment= path_segment_create(AS_PATH_SEGMENT_SEQUENCE,
+				    assegment->length);
+    } else {
+      iResult= -1;
+      break;
+    }
+    
+    /* Check the AS-path segment length. */
+    if ((pnt + (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE) > end) {
+      iResult= -1;
+      break;
+    }
+
+    /* Copy each AS number into the AS-path segment */
+    for (iIndex= 0; iIndex < assegment->length; iIndex++)
+      pSegment->auValue[assegment->length-iIndex-1]=
+	ntohs(assegment->asval[iIndex]);
+
+    /* Add the segment to the AS-path */
+    if (pPath == NULL)
+      pPath= path_create();
+    path_add_segment(pPath, pSegment);
+
+    /* Go to next segment... */
+    pnt+= (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE;
+  }
+
+  /* If something went wrong, clean current AS-path */
+  if ((iResult != 0) && (pPath != NULL)) {
+    path_destroy(&pPath);
+    pPath= NULL;
+  }
+
+  return pPath;
+}
+
+// -----[ mrtd_process_table_dump ]----------------------------------
+/**
+ * Convert an MRT TABLE DUMP to a C-BGP route.
+ *
+ * This function currently only supports IPv4 address familly. In
+ * addition, the function only retrive the following attributes:
+ * next-hop, origin, local-pref, med, as-path
+ *
+ * todo: conversion of communities
+ */
+SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
+{
+  BGPDUMP_MRTD_TABLE_DUMP * pTableDump= &pEntry->body.mrtd_table_dump;
+  SBGPPeer * pPeer;
+  SRoute * pRoute= NULL;
+  SPrefix sPrefix;
+  origin_type_t tOrigin;
+  net_addr_t tNextHop;
+
+  if (pEntry->subtype == AFI_IP) {
+
+    pPeer= peer_create(pTableDump->peer_as,
+		       ntohl(pTableDump->peer_ip.v4_addr.s_addr),
+		       NULL, 0);
+
+    sPrefix.tNetwork= ntohl(pTableDump->prefix.v4_addr.s_addr);
+    sPrefix.uMaskLen= pTableDump->mask;
+    if (pEntry->attr == NULL)
+      return NULL;
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0)
+      tOrigin= (origin_type_t) pEntry->attr->origin;
+    else
+      return NULL;
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0)
+      tNextHop= ntohl(pEntry->attr->nexthop.s_addr);
+    else
+      return NULL;
+
+    pRoute= route_create(sPrefix, pPeer, tNextHop, tOrigin);
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
+      pRoute->pASPath= mrtd_process_aspath(pEntry->attr->aspath);
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
+      route_localpref_set(pRoute, pEntry->attr->local_pref);
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
+      route_med_set(pRoute, pEntry->attr->med);
+
+    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
+      pRoute->pCommunities= mrtd_process_community(pEntry->attr->community);
+
+  }
+
+  return pRoute;
+}
+
+// -----[ mrtd_process_entry ]---------------------------------------
+/**
+ * Convert a bgpdump entry to a route. Only supports entries of type
+ * TABLE DUMP, for adress family AF_IP (IPv4).
+ */
+SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry)
+{
+  SRoute * pRoute= NULL;
+
+  if (pEntry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
+      pRoute= mrtd_process_table_dump(pEntry);
+  }
+
+  return pRoute;
+}
+
+// -----[ mrtd_load_routes ]-----------------------------------------
+/**
+ *
+ */
+#ifdef HAVE_BGPDUMP
+SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
+			   SFilterMatcher * pMatcher)
+{
+  BGPDUMP * fDump;
+  BGPDUMP_ENTRY * pDumpEntry= NULL;
+  SRoute * pRoute;
+  SRoutes * pRoutes= NULL;
+
+  if ((fDump= bgpdump_open_dump(pcFileName)) == NULL)
+    return NULL;
+
+  do {
+    pDumpEntry= bgpdump_read_next(fDump);
+    if (pDumpEntry != NULL) {
+      pRoute= mrtd_process_entry(pDumpEntry);
+      if (pRoute != NULL) {
+	if (iOnlyDump) {
+	  if ((pMatcher == NULL) ||
+	      filter_matcher_apply(pMatcher, NULL, pRoute)) {
+	    route_dump(stdout, pRoute);
+	    fprintf(stdout, "\n");
+	  }
+	  route_destroy(&pRoute);
+	} else {
+	  if (pRoutes == NULL)
+	    pRoutes= routes_list_create(0);
+	  routes_list_append(pRoutes, pRoute);
+	}
+      }
+	
+      bgpdump_free_mem(pDumpEntry);
+    }
+  } while(fDump->eof == 0);
+  
+  bgpdump_close_dump(fDump);
+
+  return pRoutes;
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION

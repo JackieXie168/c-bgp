@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 27/01/2005
+// @lastdate 23/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,13 +15,29 @@
 #include <bgp/route.h>
 #include <bgp/routes_list.h>
 
+// -----[ routes_list_item_destroy ]---------------------------------
+void routes_list_item_destroy(void * pItem)
+{
+  route_destroy((SRoute **) pItem);
+}
+
 // ----- routes_list_create -----------------------------------------
 /**
+ * Create an array of routes. The created array of routes support a
+ * single option.
  *
+ * Options:
+ * - ROUTER_LIST_OPTION_REF: if this flag is set, the function creates
+ *                           an array of references to existing
+ *                           routes.
  */
-SRoutes * routes_list_create()
+SRoutes * routes_list_create(uint8_t uOptions)
 {
-  return (SRoutes *) ptr_array_create_ref(0);
+  if (uOptions & ROUTES_LIST_OPTION_REF) {
+    return (SRoutes *) ptr_array_create_ref(0);
+  } else {
+    return (SRoutes *) ptr_array_create(0, NULL, routes_list_item_destroy);
+  }
 }
 
 // ----- routes_list_destroy ----------------------------------------
@@ -72,4 +88,14 @@ void routes_list_dump(FILE * pStream, SRoutes * pRoutes)
     route_dump(pStream, (SRoute *) pRoutes->data[iIndex]);
     fprintf(pStream, "\n");
   }
+}
+
+// -----[ routes_list_for_each ]-------------------------------------
+/**
+ * Call the given function for each route contained in the list.
+ */
+int routes_list_for_each(SRoutes * pRoutes, FArrayForEach fForEach,
+			 void * pContext)
+{
+  return _array_for_each((SArray *) pRoutes, fForEach, pContext);
 }

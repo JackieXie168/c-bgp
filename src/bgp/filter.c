@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 13/02/2005
+// @lastdate 25/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -228,10 +228,6 @@ void filter_destroy(SFilter ** ppFilter)
   }
 }
 
-int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
-			 SRoute * pRoute);
-int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
-			SRoute * pRoute);
 // ----- filter_rule_apply ------------------------------------------
 /**
  * result:

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 13/02/2005
+// @lastdate 23/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -46,6 +46,8 @@ uint8_t BGP_OPTIONS_NLRI= BGP_NLRI_BE;
 uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF= 0;
 uint8_t BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
 uint8_t BGP_OPTIONS_SHOW_MODE = ROUTE_SHOW_CISCO;
+uint8_t BGP_OPTIONS_RIB_OUT= 1;
+//#define NO_RIB_OUT
 
 // ----- bgp_router_peers_compare -----------------------------------
 /**
@@ -676,9 +678,74 @@ void bgp_router_decision_process_tie_break(SBGPRouter * pRouter,
   dp_rule_final(pRouter, pRoutes);
 }
 
-// ----- bgp_router_decision_process_disseminate_to_peer ------------
+// -----[ bgp_router_peer_rib_out_remove ]---------------------------
+/**
+ * Check in the peer's Adj-RIB-in if it has received from this router
+ * a route towards the given prefix.
+ */
+int bgp_router_peer_rib_out_remove(SBGPRouter * pRouter,
+				   SBGPPeer * pPeer,
+				   SPrefix sPrefix)
+{
+  int iWithdrawRequired= 0;
+#ifdef NO_RIB_OUT
+  SNetwork * pNetwork= network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
+  SBGPRouter * pPeerRouter;
+  SBGPPeer * pThePeer;
+#endif
+
+#ifndef NO_RIB_OUT
+  if (rib_find_exact(pPeer->pAdjRIBOut, sPrefix) != NULL) {
+    rib_remove_route(pPeer->pAdjRIBOut, sPrefix);
+    iWithdrawRequired= 1;
+  }
+#else
+  pNode= network_find_node(pNetwork, pPeer->tAddr);
+  assert(pNode != NULL);
+  pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  assert(pProtocol != NULL);
+  pPeerRouter= (SBGPRouter *) pProtocol->pHandler;
+  assert(pPeerRouter != NULL);
+  pThePeer= bgp_router_find_peer(pPeerRouter, pRouter->pNode->tAddr);
+  assert(pThePeer != NULL);
+  
+  if (rib_find_exact(pThePeer->pAdjRIBIn, sPrefix) != NULL)
+    iWithdrawRequired= 1;
+#endif
+
+  return iWithdrawRequired;
+}
+
+// -----[ bgp_router_peer_rib_out_replace ]--------------------------
 /**
  *
+ */
+void bgp_router_peer_rib_out_replace(SBGPRouter * pRouter,
+				     SBGPPeer * pPeer,
+				     SRoute * pNewRoute)
+{
+#ifndef NO_RIB_OUT
+  rib_replace_route(pPeer->pAdjRIBOut, pNewRoute);
+#endif  
+}
+
+// ----- bgp_router_decision_process_disseminate_to_peer ------------
+/**
+ * This function is responsible for the dissemination of a route to a
+ * peer. The route is only propagated if the session with the peer is
+ * in state ESTABLISHED.
+ *
+ * If the route is NULL, the function will send an explicit withdraw
+ * to the peer if a route for the same prefix was previously sent to
+ * this peer.
+ *
+ * If the route is not NULL, the function will check if it can be
+ * advertised to this peer (checking with output filters). If the
+ * route is accepted, it is sent to the peer. Otherwise, an explicit
+ * withdraw is sent if a route for the same prefix was previously sent
+ * to this peer.
  */
 void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 						     SPrefix sPrefix,
@@ -695,8 +762,7 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 
     if (pRoute == NULL) {
       // A route was advertised to this peer => explicit withdraw
-      if (rib_find_exact(pPeer->pAdjRIBOut, sPrefix) != NULL) {
-	rib_remove_route(pPeer->pAdjRIBOut, sPrefix);
+      if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
 	peer_withdraw_prefix(pPeer, sPrefix);
 	LOG_DEBUG("\texplicit-withdraw\n");
       }
@@ -705,14 +771,13 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
       pNewRoute= route_copy(pRoute);
       if (bgp_router_advertise_to_peer(pRouter, pPeer, pNewRoute) == 0) {
 	LOG_DEBUG("\treplaced\n");
-	rib_replace_route(pPeer->pAdjRIBOut, pNewRoute);
+	bgp_router_peer_rib_out_replace(pRouter, pPeer, pNewRoute);
       } else {
 	route_destroy_count++;
 	route_destroy(&pNewRoute);
 	LOG_DEBUG("\tfiltered\n");
-	if (rib_find_exact(pPeer->pAdjRIBOut, sPrefix) != NULL) {
+	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
 	  LOG_DEBUG("\texplicit-withdraw\n");
-	  rib_remove_route(pPeer->pAdjRIBOut, sPrefix);
 	  peer_withdraw_prefix(pPeer, sPrefix);
 	}
       }
@@ -934,7 +999,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   // *** lock all Adj-RIB-Ins ***
 
   /* Build list of eligible routes */
-  pRoutes= routes_list_create();
+  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
 
     pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
@@ -1728,7 +1793,7 @@ void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
  */
 int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter)
 {
-  SRoutes * pRoutes= mrtd_load_routes(pRouter, pcFileName);
+  SRoutes * pRoutes= mrtd_ascii_load_routes(pRouter, pcFileName);
   SRoute * pRoute;
   int iIndex;
 
@@ -1898,7 +1963,7 @@ SRoute * bgp_router_bm_route(SBGPRouter * pRouter, SPrefix sPrefix,
 
   sBoundedPrefix.tNetwork= sPrefix.tNetwork;
 
-  pRoutes= routes_list_create();
+  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
 
   /* Select routes that match the prefix with a bound on the prefix
      length */

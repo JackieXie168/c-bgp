@@ -30,13 +30,13 @@ else
   OPT_EFENCE =
 endif
 
-SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
+SUBDIRS = bgp cli external net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
 
 AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL)
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES =
-libcsim_la_LIBADD = -lgds -lpcre bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
+libcsim_la_LIBADD = -lgds -lpcre bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
 libcsim_la_LDFLAGS = -no-undefined
 
 bin_PROGRAMS = cbgp

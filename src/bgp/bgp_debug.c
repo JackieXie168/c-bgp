@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/04/2004
-// @lastdate 13/02/2005
+// @lastdate 23/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   }
 
   // Build list of eligible routes received from peers
-  pRoutes= routes_list_create();
+  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
