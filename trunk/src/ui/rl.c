@@ -50,7 +50,7 @@ char * rl_gets(char * pcPrompt)
     pcLineRead= (char *) malloc(MAX_LINE_READ*sizeof(char));
 
   /* Get at most MAX_LINE_READ-1 characters from stdin */
-  fgets(stdin, MAX_LINE_READ, pcLineRead);
+  fgets(pcLineRead, MAX_LINE_READ, stdin);
 #endif
 
   return (pcLineRead);
