@@ -172,8 +172,21 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
   // NOT YET IMPLEMENTED
   // WARNING: MED can only be compared between routes from the same AS
   // !!!
-
+  // This constraint may be changed by two options :
+  //   1) with the option always-compare-med. 
+  //     In this case, the med is always compared between two routes even if
+  //     they're not announced by the sames AS.
+  //   2) the deterministic MED Cisco option.
+  //     The router has to group each route by AS. Secondly, it has to elect the
+  //     best route of each group and then continuing the rules of the
+  //     tie-break.
+  //
+  // WARNING : if the two options are set, the MED of the best routes of each
+  // group has to be compared too.
+  // 
+  
   /*
+   
   // Calculate lowest MED
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
