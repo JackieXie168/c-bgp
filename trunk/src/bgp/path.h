@@ -34,6 +34,8 @@ extern int path_add_segment(SPath * pPath, SPathSegment *pSegment);
 extern int path_append(SPath ** ppPath, uint16_t uAS);
 // ----- path_contains ----------------------------------------------
 extern int path_contains(SPath * pPath, uint16_t uAS);
+// ----- path_dump_string -------------------------------------------
+char * path_dump_string(SPath * pPath, uint8_t uReverse);
 // ----- path_dump --------------------------------------------------
 extern void path_dump(FILE * pStream, SPath * pPath,
 		      uint8_t uReverse);

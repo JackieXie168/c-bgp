@@ -11,6 +11,8 @@
 #include <net/network.h>
 #include <net/routing.h>
 
+#include <string.h>
+
 // ----- rt_perror -------------------------------------------------------
 /**
  *
@@ -61,6 +63,31 @@ void route_info_destroy(SNetRouteInfo ** ppRouteInfo)
   }
 }
 
+// ----- route_type_dump_string --------------------------------------------
+/**
+ *
+ */
+char * route_type_dump_string(net_route_type_t tType)
+{
+  char * cType = MALLOC(7);
+
+  switch (tType) {
+  case NET_ROUTE_STATIC:
+    strcpy(cType, "STATIC");
+    break;
+  case NET_ROUTE_IGP:
+    strcpy(cType, "IGP");
+    break;
+  case NET_ROUTE_BGP:
+    strcpy(cType, "BGP");
+    break;
+  default:
+    strcpy(cType, "???");
+  }
+  return cType;
+}
+
+
 // ----- route_type_dump --------------------------------------------
 /**
  *
@@ -81,6 +108,28 @@ void route_type_dump(FILE * pStream, net_route_type_t tType)
     fprintf(pStream, "???");
   }
 }
+
+// ----- route_info_dump_string --------------------------------------------
+/**
+ *
+ */
+char * route_info_dump_string(SNetRouteInfo * pRouteInfo)
+{
+  char * cRoute = MALLOC(1024), * cCharTmp;
+  uint32_t icRoutePtr = 0;
+
+  cCharTmp = ip_address_dump_string(pRouteInfo->pNextHopIf->tAddr);
+  strcpy(cRoute, cCharTmp);
+  icRoutePtr = strlen(cRoute);
+  FREE(cCharTmp);
+  icRoutePtr += sprintf(cRoute+icRoutePtr, "\t%u\t", pRouteInfo->uWeight);
+  cCharTmp = route_type_dump_string(pRouteInfo->tType);
+  strcpy(cRoute+icRoutePtr, cCharTmp);
+  FREE(cCharTmp);
+
+  return cRoute;
+}
+
 
 // ----- route_info_dump --------------------------------------------
 /**
@@ -243,6 +292,34 @@ void rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
     fprintf(pStream, "\n");
   }
 }
+
+// ----- rt_info_list_dump_string ------------------------------------------
+char * rt_info_list_dump_string(SPrefix sPrefix,
+		       SNetRouteInfoList * pRouteInfoList)
+{
+  char * cInfo = MALLOC(1024), * cCharTmp;
+  int iIndex;
+  uint32_t icInfoPtr = 0;
+
+  for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
+       iIndex++) {
+    cCharTmp = ip_prefix_dump_string(sPrefix);
+    strcpy(cInfo+icInfoPtr, cCharTmp);
+    icInfoPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+
+    strcpy(cInfo+icInfoPtr++, "\t");
+
+    cCharTmp = route_info_dump_string((SNetRouteInfo *) pRouteInfoList->data[iIndex]);
+    strcpy(cInfo+icInfoPtr, cCharTmp);
+    icInfoPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+
+    strcpy(cInfo+icInfoPtr++, "\n");
+  }
+  return cInfo;
+}
+
 
 // ----- rt_il_dst --------------------------------------------------
 void rt_il_dst(void ** ppItem)
@@ -440,6 +517,82 @@ int rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
   rt_info_list_dump(pStream, sPrefix, pRIList);
   return 0;
 }
+
+typedef struct {
+  char * cDump;
+} SRTDump;
+
+// ----- rt_dump_string_for_each -------------------------------------------
+int rt_dump_string_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
+		     void * pContext)
+{
+  SRTDump * pCtx = (SRTDump *) pContext;
+  SNetRouteInfoList * pRIList= (SNetRouteInfoList *) pItem;
+  SPrefix sPrefix;
+  uint32_t iLen, icDumpPtr;
+  char * cCharTmp;
+
+  sPrefix.tNetwork= uKey;
+  sPrefix.uMaskLen= uKeyLen;
+  
+  if (pCtx->cDump == NULL) {
+    icDumpPtr = 0;
+    pCtx->cDump = MALLOC(1024);
+  } else {
+    icDumpPtr = iLen = strlen(pCtx->cDump);
+    iLen += 1024;
+    pCtx->cDump = REALLOC(pCtx->cDump, iLen);
+  }
+
+  cCharTmp = rt_info_list_dump_string(sPrefix, pRIList);
+  strcpy((pCtx->cDump)+icDumpPtr, cCharTmp);
+  FREE(cCharTmp);
+
+  return 0;
+}
+
+
+// ----- rt_dump_string ----------------------------------------------------
+/**
+ *
+ */
+char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix)
+{
+  SNetRouteInfo * pRouteInfo;
+  SRTDump pCtx ;
+  char * cCharTmp;
+  uint32_t iLen;
+
+  pCtx.cDump = NULL;
+
+  if (sPrefix.uMaskLen == 0) {
+    radix_tree_for_each((SRadixTree *) pRT, rt_dump_string_for_each, &pCtx);
+  } else if (sPrefix.uMaskLen == 32) {
+    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
+    iLen = 0;
+    if (pRouteInfo != NULL) {
+      cCharTmp = route_info_dump_string(pRouteInfo);
+      iLen = strlen(cCharTmp);
+      pCtx.cDump = MALLOC(iLen+1);
+      strcpy(pCtx.cDump, cCharTmp);
+      FREE(cCharTmp);
+    }
+    strcpy((pCtx.cDump)+iLen, "\n");
+  } else {
+    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
+    iLen = 0;
+    if (pRouteInfo != NULL) {
+      cCharTmp = route_info_dump_string(pRouteInfo);
+      iLen = strlen(cCharTmp);
+      pCtx.cDump = MALLOC(iLen+1);
+      strcpy(pCtx.cDump, cCharTmp);
+      FREE(cCharTmp);
+    }
+    strcpy((pCtx.cDump)+iLen, "\n");
+  }
+  return pCtx.cDump;
+}
+
 
 // ----- rt_dump ----------------------------------------------------
 /**

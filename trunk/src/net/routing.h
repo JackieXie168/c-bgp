@@ -66,6 +66,8 @@ extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 // ----- rt_del_route -----------------------------------------------
 extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
 			SNetLink * pNextHopIf, net_route_type_t tType);
+// ----- rt_dump_string ----------------------------------------------------
+char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix);
 // ----- rt_dump ----------------------------------------------------
 extern void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix);
 

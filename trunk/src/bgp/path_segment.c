@@ -54,6 +54,57 @@ SPathSegment * path_segment_copy(SPathSegment * pSegment)
   return pNewSegment;
 }
 
+// ----- path_segment_dump_string ------------------------------------------
+/**
+ * Dump an AS-Path segment.
+ */
+char * path_segment_dump_string(SPathSegment * pSegment,
+		       uint8_t uReverse)
+{
+  char * cSegment = MALLOC(255);
+  uint8_t icSegPtr = 0;
+  int iIndex;
+
+  switch (pSegment->uType) {
+  case AS_PATH_SEGMENT_SEQUENCE:
+    if (uReverse) {
+      for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
+	icSegPtr += sprintf(cSegment, "%u", pSegment->auValue[iIndex-1]);
+	if (iIndex > 1)
+	  strcpy(cSegment+icSegPtr++, " ");
+      }
+    } else {
+      for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
+	if (iIndex > 0)
+	  strcpy(cSegment+icSegPtr++, " ");
+	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex]);
+      }
+    }
+    break;
+  case AS_PATH_SEGMENT_SET:
+    strcpy(cSegment+icSegPtr++, "{");
+    if (uReverse) {
+      for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
+	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex-1]);
+	if (iIndex > 1)
+	  strcpy(cSegment+icSegPtr++, " ");
+      }
+    } else {
+      for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
+	if (iIndex > 0)
+	  strcpy(cSegment+icSegPtr++, " ");
+	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex]);
+      }
+    }
+    strcpy(cSegment+icSegPtr++, "}");
+    break;
+  default:
+    abort();
+  }
+  return cSegment;
+}
+
+
 // ----- path_segment_dump ------------------------------------------
 /**
  * Dump an AS-Path segment.

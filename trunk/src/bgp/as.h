@@ -120,6 +120,8 @@ int bgp_router_scan_rib(SBGPRouter * pRouter);
 extern void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_dump_peers --------------------------------------
 extern void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter);
+// ----- bgp_router_dump_rib_string ----------------------------------------
+char * bgp_router_dump_rib_string(SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib ----------------------------------------
 extern void bgp_router_dump_rib(FILE * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib_address --------------------------------

@@ -41,6 +41,9 @@ extern void path_segment_destroy(SPathSegment ** ppSegment);
  */
 extern SPathSegment * path_segment_copy(SPathSegment * pSegment);
 
+// ---- path_segment_dump_string -----------------------------------
+char * path_segment_dump_string(SPathSegment * pSegment,
+		       uint8_t uReverse);
 // ----- path_segment_dump ------------------------------------------
 /**
  * Dump an AS-Path segment.

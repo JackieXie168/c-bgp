@@ -526,6 +526,74 @@ void route_dump(FILE * pStream, SRoute * pRoute)
     fprintf(pStream, "(null)");
 }
 
+// ----- route_dump_string ------------------------------------------
+/**
+ *
+ */
+char * route_dump_string(SRoute * pRoute)
+{
+  char * cDump = MALLOC(255), * cCharTmp;
+  uint8_t icDumpPtr =0;
+
+  if (pRoute != NULL) {
+
+    // Status code:
+    // '*' - valid (feasible)
+    // 'i' - internal (learned through 'add network')
+    if (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL)) {
+      strcpy(cDump, "i");
+      icDumpPtr++;
+    } else if (route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))
+      strcpy(cDump+icDumpPtr++, "*");
+    else strcpy(cDump+icDumpPtr++, " ");
+
+    // Best ?
+    if (route_flag_get(pRoute, ROUTE_FLAG_BEST))
+      strcpy(cDump+icDumpPtr++, ">");
+    else
+      strcpy(cDump+icDumpPtr++, " ");
+
+    strcpy(cDump+icDumpPtr++, " ");
+
+    // Prefix
+    //ip_prefix_dump(pStream, pRoute->sPrefix);
+    cCharTmp = ip_prefix_dump_string(pRoute->sPrefix);
+    strcpy(cDump+icDumpPtr, cCharTmp);
+    icDumpPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+
+
+    // Next-Hop
+    strcpy(cDump+icDumpPtr++, "\t");
+
+    cCharTmp = ip_address_dump_string(pRoute->tNextHop);
+    strcpy(cDump+icDumpPtr, cCharTmp);
+    icDumpPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+
+    // Local-Pref & Multi-Exit-Distriminator
+    icDumpPtr += sprintf(cDump+icDumpPtr, "\t%u\t%u\t", pRoute->uLocalPref, pRoute->uMED);
+
+    // AS-Path
+    cCharTmp = path_dump_string(pRoute->pASPath, 1);
+    strcpy(cDump+icDumpPtr, cCharTmp);
+    icDumpPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+
+    // Origin
+    strcpy(cDump+icDumpPtr++, "\t");
+    switch (pRoute->uOriginType) {
+    case ROUTE_ORIGIN_IGP: strcpy(cDump+icDumpPtr++, "i"); break;
+    case ROUTE_ORIGIN_EGP: strcpy(cDump+icDumpPtr++, "e"); break;
+    case ROUTE_ORIGIN_INCOMPLETE: strcpy(cDump+icDumpPtr++, "?"); break;
+    }
+
+  } else
+    strcpy(cDump, "(null)");
+
+  return cDump;
+}
+
 // ----- route_dump_mrtd --------------------------------------------
 /**
  * Dump a route in MRTD format. The output has thus the following

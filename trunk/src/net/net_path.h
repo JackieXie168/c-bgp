@@ -27,5 +27,6 @@ extern SNetPath * net_path_copy(SNetPath * pPath);
 extern int net_path_length(SNetPath * pPath);
 // ----- path_dump ----------------------------------------------
 extern void net_path_dump(FILE * pStream, SNetPath * pPath);
-
+// ----- net_path_dump_string ---------------------------------------
+char * net_path_dump_string(SNetPath * pPath);
 #endif

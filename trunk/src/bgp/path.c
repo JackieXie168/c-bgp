@@ -196,6 +196,48 @@ int path_at(SPath * pPath, int iPosition, uint16_t uAS)
   return -1;
 }
 
+// ----- path_dump_string --------------------------------------------------
+/**
+ * Dump the given AS-Path to the given ouput stream.
+ */
+char * path_dump_string(SPath * pPath, uint8_t uReverse)
+{
+  int iIndex;
+  char * cPath = MALLOC(255), * cCharTmp;
+  uint8_t icPathPtr = 0;
+
+  if (pPath == NULL) {
+    strcpy(cPath, "null");
+  } else {
+    if (uReverse) {
+      for (iIndex= path_num_segments(pPath); iIndex > 0;
+	   iIndex--) {
+	cCharTmp = path_segment_dump_string((SPathSegment *) pPath->data[iIndex-1],
+			  uReverse);
+	strcpy(cPath, cCharTmp);
+	icPathPtr += strlen(cCharTmp);
+	FREE(cCharTmp);
+	
+	if (iIndex > 1)
+	  strcpy(cPath+icPathPtr++, " ");
+      }
+    } else {
+      for (iIndex= 0; iIndex < path_num_segments(pPath);
+	   iIndex++) {
+	if (iIndex > 0)
+	  strcpy(cPath+icPathPtr++, " ");
+	cCharTmp = path_segment_dump_string((SPathSegment *) pPath->data[iIndex],
+			  uReverse);
+	strcpy(cPath, cCharTmp);
+	icPathPtr += strlen(cCharTmp);
+	FREE(cCharTmp);
+      }
+    }
+  }
+  return cPath;
+}
+
+
 // ----- path_dump --------------------------------------------------
 /**
  * Dump the given AS-Path to the given ouput stream.

@@ -495,6 +495,21 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
   flushir(pStream);
 }
 
+// ----- node_rt_dump_string -----------------------------------------------
+/**
+ *
+ */
+char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix)
+{
+  char * cRT = NULL;
+
+  if (pNode->pRT != NULL)
+    cRT = rt_dump_string(pNode->pRT, sPrefix);
+
+  return cRT;
+}
+
+
 // ----- node_rt_lookup ---------------------------------------------
 /**
  * This function looks for the next-hop that must be used to reach a

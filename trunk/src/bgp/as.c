@@ -1327,6 +1327,7 @@ void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter)
 typedef struct {
   SBGPRouter * pRouter;
   FILE * pStream;
+  char * cDump;
 } SRouteDumpCtx;
 
 // ----- bgp_router_dump_route --------------------------------------
@@ -1346,6 +1347,35 @@ int bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
+// ----- bgp_router_dump_route_string --------------------------------------
+/**
+ *
+ */
+int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
+			  void * pItem, void * pContext)
+{
+  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  uint32_t iPtr;
+  char * cCharTmp;
+
+  if (pCtx->cDump == NULL) {
+    pCtx->cDump = MALLOC(255);
+    iPtr = 0;
+  } else {
+    iPtr = strlen(pCtx->cDump);
+    iPtr += 255;
+    pCtx->cDump = REALLOC(pCtx->cDump, iPtr);
+  }
+
+  cCharTmp = route_dump_string((SRoute *) pItem);
+  strcpy((pCtx->cDump)+iPtr, cCharTmp);
+  iPtr += strlen(cCharTmp);
+  strcpy((pCtx->cDump)+iPtr, "\n");
+
+  return 0;
+}
+
+
 // ----- bgp_router_dump_rib ----------------------------------------
 /**
  *
@@ -1360,6 +1390,20 @@ void bgp_router_dump_rib(FILE * pStream, SBGPRouter * pRouter)
   flushir(pStream);
 }
 
+// ----- bgp_router_dump_rib_string ----------------------------------------
+/**
+ *
+ */
+char * bgp_router_dump_rib_string(SBGPRouter * pRouter)
+{
+  SRouteDumpCtx sCtx;
+  sCtx.pRouter= pRouter;
+  sCtx.cDump = NULL;
+  rib_for_each(pRouter->pLocRIB, bgp_router_dump_route_string, &sCtx);
+
+  return sCtx.cDump;
+
+}
 // ----- bgp_router_dump_rib_address --------------------------------
 /**
  *
