@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 31/01/2005
+// @lastdate 01/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -764,7 +764,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 
   /* Get the previous route if it exists */
   pOldRouteInfo= rt_find_exact(pRouter->pNode->pRT, pRoute->sPrefix,
-			      NET_ROUTE_BGP);
+			       NET_ROUTE_BGP);
   if (pOldRouteInfo != NULL) {
     if (pOldRouteInfo->pNextHopIf == pNextHopIf)
       return;
@@ -1347,6 +1347,43 @@ SRIB * bgp_router_prefixes(SBGPRouter * pRouter)
   return pPrefixes;
 }
 
+// ----- bgp_router_scan_sessions -----------------------------------
+/*
+ * This function scans the peering sessions and checks that the peer
+ * router is still reachable. If it is not, the sessions is shutted
+ * down.
+ */
+int bgp_router_scan_sessions(SBGPRouter * pRouter)
+{
+  int iIndex;
+  SBGPPeer * pPeer;
+  
+  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+    pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
+
+    if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
+
+      /* Check that the peer is reachable (that is, there is a route
+	 towards the peer). If not, shutdown the peering. */
+      if (node_rt_lookup(pRouter->pNode, pPeer->tAddr) == NULL) {
+	assert(!peer_close_session(pPeer));
+	pPeer->uSessionState= SESSION_STATE_ACTIVE;
+      }
+
+    } else if (pPeer->uSessionState == SESSION_STATE_ACTIVE) {
+
+      /* Check that the peer is reachable (that is, there is a route
+	 towards the peer). If yes, open the session. */
+      if (node_rt_lookup(pRouter->pNode, pPeer->tAddr) != NULL)
+	assert(!peer_open_session(pPeer));
+
+    }
+
+  }
+
+  return 0;
+}
+
 // ----- bgp_router_scan_rib ----------------------------------------
 /**
  * This function scans the RIB of the BGP router in order to find
@@ -1359,6 +1396,9 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   int iIndex;
   int iResult;
   SRIB * pPrefixes;
+
+  /* Scan peering sessions */
+  bgp_router_scan_sessions(pRouter);
 
   /* initialize context */
   sCtx.pRouter= pRouter;

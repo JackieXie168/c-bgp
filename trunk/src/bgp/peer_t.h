@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 24/05/2004
+// @lastdate 01/02/2005
 // ==================================================================
 
 #ifndef __PEER_T_H__
@@ -16,8 +16,9 @@
 #define SESSION_STATE_IDLE        0
 #define SESSION_STATE_OPENWAIT    1
 #define SESSION_STATE_ESTABLISHED 2
+#define SESSION_STATE_ACTIVE      3
 
-extern char * SESSION_STATES[3];
+extern char * SESSION_STATES[4];
 
 #define PEER_TYPE_CUSTOMER 0
 #define PEER_TYPE_PROVIDER 1
@@ -37,5 +38,6 @@ extern char * SESSION_STATES[3];
 
 struct TPeer;
 typedef struct TPeer SPeer;
+typedef SPeer SBGPPeer;
 
 #endif

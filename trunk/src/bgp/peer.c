@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 27/01/2005
+// @lastdate 01/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,10 +25,11 @@
 #include <bgp/qos.h>
 #include <bgp/route.h>
 
-char * SESSION_STATES[3]= {
+char * SESSION_STATES[4]= {
   "IDLE",
   "OPENWAIT",
-  "ESTABLISHED"
+  "ESTABLISHED",
+  "ACTIVE"
 };
 
 // ----- peer_create ------------------------------------------------
@@ -120,7 +121,8 @@ int peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
  */
 int peer_open_session(SPeer * pPeer)
 {
-  if (pPeer->uSessionState == SESSION_STATE_IDLE) {
+  if ((pPeer->uSessionState == SESSION_STATE_IDLE) ||
+      (pPeer->uSessionState == SESSION_STATE_ACTIVE)) {
     pPeer->uSessionState= SESSION_STATE_OPENWAIT;
 
     /* Send an OPEN message to the peer (except for virtual peers) */
@@ -143,6 +145,11 @@ int peer_open_session(SPeer * pPeer)
 int peer_close_session(SPeer * pPeer)
 {
   if (pPeer->uSessionState != SESSION_STATE_IDLE) {
+
+    if (pPeer->uSessionState == SESSION_STATE_ACTIVE) {
+      pPeer->uSessionState= SESSION_STATE_IDLE;
+      return 0;
+    }
     
     LOG_DEBUG("> AS%d.peer_close_session.begin\n", pPeer->pLocalAS->uNumber);
     LOG_DEBUG("\tpeer: AS%d\n", pPeer->uRemoteAS);
@@ -165,6 +172,16 @@ int peer_close_session(SPeer * pPeer)
 
 /////////////////////////////////////////////////////////////////////
 // BGP SESSION MANAGEMENT FUNCTIONS
+//
+// One peering session may be in one of 4 states:
+//   IDLE       : the session is not established (and administratively
+//                down)
+//   ACTIVE     : the session is not established due to a network
+//                problem 
+//   OPENWAIT   : the router has sent an OPEN message to the peer
+//                router and awaits an OPEN message reply, or a
+//   ESTABLISHED: the router has received an OPEN message or an UPDATE
+//                message while being in OPENWAIT state.
 /////////////////////////////////////////////////////////////////////
 
 // ----- peer_session_open_rcvd -------------------------------------
@@ -184,7 +201,7 @@ void peer_session_open_rcvd(SPeer * pPeer)
 
   LOG_INFO("BGP_MSG_RCVD: OPEN\n");
   switch (pPeer->uSessionState) {
-  case SESSION_STATE_IDLE:
+  case SESSION_STATE_ACTIVE:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
 
     bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
@@ -229,6 +246,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
     peer_clear_adjribin(pPeer);
     break;
   case SESSION_STATE_IDLE:
+  case SESSION_STATE_ACTIVE:
     break;
   default:
     LOG_FATAL("Error: CLOSE received while in %s state\n",
