@@ -7,6 +7,7 @@
 // ==================================================================
 
 #include <assert.h>
+#include <string.h>
 
 #include <libgds/array.h>
 #include <libgds/memory.h>
