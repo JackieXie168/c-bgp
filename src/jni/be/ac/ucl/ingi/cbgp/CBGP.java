@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 19/02/2005
+// @lastdate 21/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -439,6 +439,8 @@ public class CBGP
     }
 
     static {
+	System.loadLibrary("pcre");
+	System.loadLibrary("gds");
 	System.loadLibrary("csim");
     }
 }
