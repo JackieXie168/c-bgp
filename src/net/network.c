@@ -351,7 +351,11 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
     pProtocol= protocols_get(pNode->pProtocols, pMessage->uProtocol);
 
     if (pProtocol == NULL) {
-      LOG_SEVERE("Error: unknown protocol %u\n", pMessage->uProtocol);
+      LOG_SEVERE("Error: message for unknown protocol %u\n", pMessage->uProtocol);
+      LOG_SEVERE("Error: received by ");
+      LOG_ENABLED_SEVERE() ip_address_dump(log_get_stream(pMainLog),
+					   pNode->tAddr);
+      LOG_SEVERE("\n");
       iResult= NET_ERROR_UNKNOWN_PROTOCOL;
     } else
       iResult= pProtocol->fHandleEvent(pProtocol->pHandler, pMessage);
