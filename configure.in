@@ -43,8 +43,7 @@ AC_ARG_ENABLE(jni,
       [enable JNI support]
    ), cbgp_config_jni="$enableval",
 )
-AC_MSG_WARN("Debug [$cbgp_config_jni]")
-if test "cbgp_config_jni" == "yes"; then
+if test "$cbgp_config_jni" == "yes"; then
    AC_PROG_JAVAH()
    AC_CHECK_HEADER(jni.h, jni_header_ok=yes, jni_header_ok=no)
    if test "$jni_header_ok" != "yes"; then
