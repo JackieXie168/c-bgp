@@ -3,12 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 11/02/2005
+// @lastdate 18/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <jni/jni_util.h>
 
 #include <bgp/as_t.h>
 #include <bgp/peer.h>
@@ -16,6 +18,13 @@
 #include <net/link.h>
 #include <net/network.h>
 #include <jni.h>
+
+#define CLASS_ASPath "be/ac/ucl/ingi/cbgp/ASPath"
+#define CONSTR_ASPath "()V"
+#define METHOD_ASPath_append "(Lbe/ac/ucl/ingi/cbgp/ASPathSegment;)V"
+
+#define CLASS_ASPathSegment "be/ac/ucl/ingi/cbgp/ASPathSegment"
+#define CONSTR_ASPathSegment "(I)V"
 
 #define CLASS_IPPrefix "be/ac/ucl/ingi/cbgp/IPPrefix"
 #define CONSTR_IPPrefix "(BBBBB)V"
@@ -30,12 +39,166 @@
 #define CONSTR_IPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
                         "Lbe/ac/ucl/ingi/cbgp/IPAddress;B)V"
 
+#define CLASS_IPTrace "be/ac/ucl/ingi/cbgp/IPTrace"
+#define CONSTR_IPTrace "(Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;III)V"
+#define METHOD_IPTrace_append "(Lbe/ac/ucl/ingi/cbgp/IPAddress;)V"
+
 #define CLASS_BGPPeer "be/ac/ucl/ingi/cbgp/BGPPeer"
 #define CONSTR_BGPPeer "(Lbe/ac/ucl/ingi/cbgp/IPAddress;IB)V"
 
 #define CLASS_BGPRoute "be/ac/ucl/ingi/cbgp/BGPRoute"
 #define CONSTR_BGPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
-                        "Lbe/ac/ucl/ingi/cbgp/IPAddress;JJZZB)V"
+                        "Lbe/ac/ucl/ingi/cbgp/IPAddress;JJZZB" \
+                        "Lbe/ac/ucl/ingi/cbgp/ASPath;)V"
+
+// -----[ cbgp_jni_new ]---------------------------------------------
+/**
+ * Creates a new Java Object.
+ */
+jobject cbgp_jni_new(JNIEnv * env,
+		     const char * pcClass,
+		     const char * pcConstr,
+		     ...)
+{
+  va_list ap;
+  jclass jcObject;
+  jmethodID jmObject;
+
+  va_start(ap, pcConstr);
+
+  /* Get the object's class */
+  if ((jcObject= (*env)->FindClass(env, pcClass)) == NULL)
+    return NULL;
+
+  /* Get the constructor */
+  if ((jmObject= (*env)->GetMethodID(env, jcObject,
+				     "<init>", pcConstr)) == NULL)
+    return NULL;
+
+  /* Build new object... */
+  return (*env)->NewObjectV(env, jcObject, jmObject, ap);
+}
+
+// -----[ cbgp_jni_call_void ]---------------------------------------
+/**
+ * Call a void method of the given object.
+ */
+int cbgp_jni_call_void(JNIEnv * env, jobject joObject,
+		       const char * pcMethod,
+		       const char * pcSignature, ...)
+{
+  va_list ap;
+  jclass jcObject;
+  jmethodID jmObject;
+
+  va_start(ap, pcSignature);
+
+  /* Get the object's class */
+  if ((jcObject= (*env)->GetObjectClass(env, joObject)) == NULL)
+    return -1;
+
+  /* Get the method */
+  if ((jmObject= (*env)->GetMethodID(env, jcObject, pcMethod,
+				     pcSignature)) == NULL)
+    return -1;
+
+  /* Call the method */
+  (*env)->CallVoidMethodV(env, joObject, jmObject, ap);
+
+  return 0;
+}
+
+// -----[ cbgp_jni_new_ASPath ]--------------------------------------
+/**
+ * Build a new ASPath object from a C-BGP AS-Path.
+ */
+jobject cbgp_jni_new_ASPath(JNIEnv * env, SPath * pPath)
+{
+  jobject joASPath;
+  int iIndex;
+  SPathSegment * pSegment;
+
+  /* Build new ASPath object */
+  if ((joASPath= cbgp_jni_new(env, CLASS_ASPath, CONSTR_ASPath)) == NULL)
+    return NULL;
+
+  /* Append all AS-Path segments */
+  for (iIndex= 0; iIndex < path_num_segments(pPath); iIndex++) {
+    pSegment= (SPathSegment *) pPath->data[iIndex];
+    if (cbgp_jni_ASPath_append(env, joASPath, pSegment) != 0)
+      return NULL;
+  }
+
+  return joASPath;
+}
+
+// -----[ cbgp_jni_ASPath_append ]-----------------------------------
+/**
+ * Append an AS-Path segment to an ASPath object.
+ */
+int cbgp_jni_ASPath_append(JNIEnv * env, jobject joASPath,
+			   SPathSegment * pSegment)
+{
+  jobject joASPathSeg;
+
+  /* Convert the AS-Path segment to an ASPathSegment object. */
+  if ((joASPathSeg= cbgp_jni_new_ASPathSegment(env, pSegment)) == NULL)
+    return -1;
+
+  return cbgp_jni_call_void(env, joASPath,
+			    "append", METHOD_ASPath_append,
+			    joASPathSeg);
+}
+
+// -----[ cbgp_jni_new_ASPathSegment ]-------------------------------
+jobject cbgp_jni_new_ASPathSegment(JNIEnv * env, SPathSegment * pSegment)
+{
+  jclass class_ASPathSeg;
+  jmethodID id_ASPathSeg;
+  jobject obj_ASPathSeg;
+  int iIndex;
+
+  if ((class_ASPathSeg= (*env)->FindClass(env, CLASS_ASPathSegment)) == NULL)
+    return NULL;
+
+  if ((id_ASPathSeg= (*env)->GetMethodID(env, class_ASPathSeg, "<init>", CONSTR_ASPathSegment)) == NULL)
+    return NULL;
+
+  if ((obj_ASPathSeg= (*env)->NewObject(env, class_ASPathSeg, id_ASPathSeg,
+					(jint) pSegment->uType)) == NULL)
+    return NULL;
+
+  /* Append all AS-Path segment elements */
+  for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
+    if (cbgp_jni_ASPathSegment_append(env, obj_ASPathSeg,
+				  pSegment->auValue[iIndex]) != 0)
+      return NULL;
+  }
+
+  return obj_ASPathSeg;
+}
+
+// -----[ cbgp_jni_ASPathSegment_append ]----------------------------
+/**
+ *
+ */
+int cbgp_jni_ASPathSegment_append(JNIEnv * env, jobject joASPathSeg,
+				  uint16_t uAS)
+{
+  jclass jcASPathSeg;
+  jmethodID jmASPathSeg;
+
+  if ((jcASPathSeg= (*env)->GetObjectClass(env, joASPathSeg)) == NULL)
+    return -1;
+  if ((jmASPathSeg= (*env)->GetMethodID(env, jcASPathSeg, "append",
+					"(I)V")) == NULL)
+    return -1;
+
+  (*env)->CallVoidMethod(env, joASPathSeg, jmASPathSeg, (jint) uAS);
+
+  return 0;
+}
 
 // -----[ cbgp_jni_new_IPPrefix ]------------------------------------
 /**
@@ -164,6 +327,56 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix, SNetRouteInfo * pRou
   return obj_IPRoute;
 }
 
+// -----[ cbgp_jni_IPTrace_for_each ]--------------------------------
+int cbgp_jni_IPTrace_for_each(void * pItem, void * pContext)
+{
+  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  net_addr_t tAddress= *(net_addr_t *) pItem;
+  jobject joAddress;
+
+  if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, tAddress)) == NULL)
+    return -1;
+
+  return cbgp_jni_call_void(pCtx->jEnv, pCtx->joVector,
+			    "append",
+			    METHOD_IPTrace_append,
+			    joAddress);
+}
+
+// -----[ cbgp_jni_new_IPTrace ]-------------------------------------
+/**
+ *
+ */
+jobject cbgp_jni_new_IPTrace(JNIEnv * env, net_addr_t tSrc,
+			     net_addr_t tDst, SNetPath * pPath,
+			     int iStatus, net_link_delay_t tDelay,
+			     net_link_delay_t tWeight)
+{
+  jobject joIPTrace;
+  jobject joSrc, joDst;
+  SRouteDumpCtx sCtx;
+
+  /* Convert src/dst to Java objects */
+  if ((joSrc= cbgp_jni_new_IPAddress(env, tSrc)) == NULL)
+    return NULL;
+  if ((joDst= cbgp_jni_new_IPAddress(env, tDst)) == NULL)
+    return NULL;
+
+  /* Create new IPTrace object */
+  if ((joIPTrace= cbgp_jni_new(env, CLASS_IPTrace, CONSTR_IPTrace,
+			       joSrc, joDst, (jint) iStatus,
+			       (jint) tDelay, (jint) tWeight)) == NULL)
+    return NULL;
+
+  /* Add hops */
+  sCtx.jEnv= env;
+  sCtx.joVector= joIPTrace;
+  if (net_path_for_each(pPath, cbgp_jni_IPTrace_for_each, &sCtx) != 0)
+    return NULL;
+
+  return joIPTrace;
+}
+
 // -----[ cbgp_jni_new_BGPPeer ]-------------------------------------
 /**
  * This function creates a new instance of the BGPPeer object from a
@@ -171,32 +384,17 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix, SNetRouteInfo * pRou
  */
 jobject cbgp_jni_new_BGPPeer(JNIEnv * env, SPeer * pPeer)
 {
-  jclass class_BGPPeer;
-  jmethodID id_BGPPeer;
-  jobject obj_BGPPeer;
+  jobject joIPAddress;
 
   /* Convert peer attributes to Java objects */
-  jobject obj_IPAddress= cbgp_jni_new_IPAddress(env, pPeer->tAddr);
-
-  /* Check that the conversion was successful */
-  if (obj_IPAddress == NULL)
+  if ((joIPAddress= cbgp_jni_new_IPAddress(env, pPeer->tAddr)) == NULL)
     return NULL;
 
   /* Create new BGPPeer object */
-  if ((class_BGPPeer= (*env)->FindClass(env, CLASS_BGPPeer)) == NULL)
-    return NULL;
-
-  if ((id_BGPPeer= (*env)->GetMethodID(env, class_BGPPeer, "<init>",
-				   CONSTR_BGPPeer)) == NULL)
-    return NULL;
-
-  if ((obj_BGPPeer= (*env)->NewObject(env, class_BGPPeer, id_BGPPeer,
-				      obj_IPAddress,
-				      (jint) pPeer->uRemoteAS,
-				      (jbyte) pPeer->uSessionState)) == NULL)
-    return NULL;
-
-  return obj_BGPPeer;
+  return cbgp_jni_new(env, CLASS_BGPPeer, CONSTR_BGPPeer,
+			   joIPAddress,
+			   (jint) pPeer->uRemoteAS,
+			   (jbyte) pPeer->uSessionState);
 }
 
 // -----[ cbgp_jni_new_BGPRoute ]------------------------------------
@@ -209,10 +407,17 @@ jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
   jclass class_BGPRoute;
   jmethodID id_BGPRoute;
   jobject obj_BGPRoute;
+  jobject joASPath;
 
   /* Convert route attributes to Java objects */
   jobject obj_IPPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
   jobject obj_IPAddress= cbgp_jni_new_IPAddress(env, route_nexthop_get(pRoute));
+  if (pRoute->pASPath != NULL) {
+    if ((joASPath= cbgp_jni_new_ASPath(env, pRoute->pASPath)) == NULL)
+      return NULL;
+  } else {
+    joASPath= NULL;
+  }
 
   /* Check that the conversion was successful */
   if ((obj_IPPrefix == NULL) || (obj_IPAddress == NULL))
@@ -232,7 +437,8 @@ jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
 				       (jlong) route_med_get(pRoute),
 				       (route_flag_get(pRoute, ROUTE_FLAG_BEST))?JNI_TRUE:JNI_FALSE,
 				       (route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))?JNI_TRUE:JNI_FALSE,
-				       route_origin_get(pRoute))) == NULL)
+				       route_origin_get(pRoute),
+				       joASPath)) == NULL)
     return NULL;
 
   return obj_BGPRoute;

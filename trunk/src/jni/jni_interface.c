@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 14/02/2005
+// @lastdate 18/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -355,6 +355,45 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
 
   return joVector;
 }
+
+// -----[ netNodeRecordRoute ]---------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netNodeRecordRoute
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
+  (JNIEnv * env, jobject obj, jstring jsNodeAddr, jstring sDstAddr)
+{
+  SNetNode * pNode;
+  jobject joIPTrace;
+  net_addr_t tDstAddr;
+  SNetPath * pPath;
+  net_link_delay_t tDelay;
+  net_link_delay_t tWeight;
+  int iStatus;
+
+  /* Get the node */
+  if ((pNode= cbgp_jni_net_node_from_string(env, jsNodeAddr)) == NULL)
+    return  NULL;
+
+  /* Convert the destination */
+  if (ip_jstring_to_address(env, sDstAddr, &tDstAddr) != 0)
+    return NULL;
+
+  /* Trace the IP-level route */
+  iStatus= node_record_route(pNode, tDstAddr, &pPath, &tDelay, &tWeight);
+
+  /* Convert to an IPTrace object */
+  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, tDstAddr,
+				  pPath, iStatus, tDelay, tWeight);
+    
+
+  net_path_destroy(&pPath);
+
+  return joIPTrace;
+}
+
 
 // -----[ bgpAddRouter ]---------------------------------------------
 /**

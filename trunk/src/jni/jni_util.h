@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 11/02/2005
+// @lastdate 18/02/2005
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -29,6 +29,24 @@ typedef struct {
   JNIEnv * jEnv;
 } SRouteDumpCtx;
 
+// -----[ cbgp_jni_new ]---------------------------------------------
+extern jobject cbgp_jni_new(JNIEnv * env, const char * pcClass,
+			    const char * pcConstr, ...);
+// -----[ cbgp_jni_call_void ]---------------------------------------
+extern int cbgp_jni_call_void(JNIEnv * env, jobject joObject,
+			      const char * pcMethod,
+			      const char * pcSignature, ...);
+// -----[ cbgp_jni_new_ASPath ]--------------------------------------
+extern jobject cbgp_jni_new_ASPath(JNIEnv * env, SPath * pPath);
+// -----[ cbgp_jni_ASPath_append ]-----------------------------------
+extern int cbgp_jni_ASPath_append(JNIEnv * env, jobject joASPath,
+				  SPathSegment * pSegment);
+// -----[ cbgp_jni_new_ASPathSegment ]-------------------------------
+extern jobject cbgp_jni_new_ASPathSegment(JNIEnv * env,
+					  SPathSegment * pSegment);
+// -----[ cbgp_jni_ASPathSegment_append ]----------------------------
+extern int cbgp_jni_ASPathSegment_append(JNIEnv * env, jobject joASPathSeg,
+					 uint16_t uAS);
 // -----[ cbgp_jni_new_IPPrefix ]------------------------------------
 extern jobject cbgp_jni_new_IPPrefix(JNIEnv * env, SPrefix sPrefix);
 // -----[ cbgp_jni_new_IPAddress ]-----------------------------------
@@ -38,6 +56,11 @@ extern jobject cbgp_jni_new_Link(JNIEnv * env, SNetLink * pLink);
 // -----[ cbgp_jni_new_IPRoute ]-------------------------------------
 extern jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix,
 				    SNetRouteInfo * pRoute);
+// -----[ cbgp_jni_new_IPTrace ]-------------------------------------
+extern jobject cbgp_jni_new_IPTrace(JNIEnv * env, net_addr_t tSrc,
+				    net_addr_t tDst, SNetPath * pPath,
+				    int iStatus, net_link_delay_t tDelay,
+				    net_link_delay_t tWeight);
 // -----[ cbgp_jni_new_BGPPeer ]-------------------------------------
 extern jobject cbgp_jni_new_BGPPeer(JNIEnv * env, SPeer * pPeer);
 // -----[ cbgp_jni_new_BGPRoute ]------------------------------------

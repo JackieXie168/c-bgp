@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 08/02/2005
+// @lastdate 18/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -24,6 +24,7 @@ public class BGPRoute extends Route
     protected long lLocalPref;
     protected long lMED;
     protected byte bOrigin;
+    protected ASPath path;
 
     // -----[ BGPRoute ]---------------------------------------------
     /**
@@ -32,7 +33,8 @@ public class BGPRoute extends Route
      * next-hop.
      */
     public BGPRoute(IPPrefix prefix, IPAddress nexthop, long lLocalPref, long lMED,
-		    boolean bBest, boolean bFeasible, byte bOrigin)
+		    boolean bBest, boolean bFeasible, byte bOrigin,
+		    ASPath path)
     {
 	super(prefix, nexthop, bBest, bFeasible);
 
@@ -40,6 +42,7 @@ public class BGPRoute extends Route
 	this.lLocalPref= lLocalPref;
 	this.lMED= lMED;
 	this.bOrigin= bOrigin;
+	this.path= path;
     }
 
     // -----[ getLocalPref ]-----------------------------------------
@@ -67,6 +70,15 @@ public class BGPRoute extends Route
     public byte getOrigin()
     {
 	return bOrigin;
+    }
+
+    // -----[ getPath ]----------------------------------------------
+    /**
+     * Returns the route's AS-Path.
+     */
+    public ASPath getPath()
+    {
+	return path;
     }
 
     // -----[ originToString ]---------------------------------------
@@ -105,6 +117,10 @@ public class BGPRoute extends Route
 	s+= lLocalPref;
 	s+= "\t";
 	s+= lMED;
+	s+= "\t";
+	if (path != null) {
+	    s+= path;
+	}
 	s+= "\t";
 	switch (bOrigin) {
 	case ROUTE_ORIGIN_IGP: s+= "i"; break;

@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 14/02/2005
+// @lastdate 18/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -41,6 +41,9 @@ public class CBGP
     public native Vector netNodeGetLinks(String sAddr);
 
     public native Vector netNodeGetRT(String sNodeAddr, String sPrefix);
+
+    public native IPTrace netNodeRecordRoute(String sNodeAddr,
+					     String sDstAddr);
 
     public native int bgpAddRouter(String sName, String sAddr, int iASNumber);
   
@@ -304,8 +307,10 @@ public class CBGP
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	cbgp.print("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
+	IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
+	System.out.println(trace);
 
+	cbgp.print("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
 	cbgp.netLinkWeight("0.2.0.3", "0.2.0.1", 5);
 
 	//Update intradomain routes (recompute MST)
@@ -314,7 +319,7 @@ public class CBGP
 	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
 	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	//Scan BGP routes that could change
+	//Scan BGP routes that could have changed
 	cbgp.bgpDomainRescan(2);
 
 	cbgp.simRun();
