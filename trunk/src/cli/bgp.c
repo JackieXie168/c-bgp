@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 13/08/2004
+// @lastdate 16/11/2004
 // ==================================================================
 
 #include <bgp/as.h>
@@ -1278,11 +1278,13 @@ int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
   SFilter * pFilter= NULL;
 
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  /*
   if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
       FILTER_PARSER_SUCCESS) {
     LOG_SEVERE("Error: invalid filter\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
+  */
 
   peer_set_in_filter(pPeer, pFilter);
 
@@ -1330,9 +1332,11 @@ int cli_bgp_router_peer_outfilter_set(SCliContext * pContext,
   SFilter * pFilter= NULL;
 
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  /*
   if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
+  */
   peer_set_out_filter(pPeer, pFilter);
   return CLI_SUCCESS;
 }

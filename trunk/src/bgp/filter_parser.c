@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/08/2003
-// @lastdate 29/02/2004
+// @lastdate 16/11/2004
 // ==================================================================
 // Syntax:
 //   Script     ::= Rules
@@ -65,9 +65,46 @@ SCli * filter_parser_matcher_cli()
 /**
  *
  */
-int filter_parser_action(char * pcAction, SFilterAction ** ppAction)
+int filter_parser_action(char * pcActions, SFilterAction ** ppAction)
 {
-  return ft_registry_action_parse(pcAction, (void *) ppAction);
+  STokenizer * pTokenizer;
+  STokens * pTokens;
+  int iIndex;
+  SFilterAction * pAction;
+  SFilterAction ** ppNewAction= NULL;
+  int iResult= 0;
+
+  pTokenizer= tokenizer_create(",", 0, NULL, NULL);
+
+  *ppAction= NULL;
+
+  if (tokenizer_run(pTokenizer, pcActions) == 0) {
+    pTokens= tokenizer_get_tokens(pTokenizer);
+    for (iIndex= 0; iIndex < tokens_get_num(pTokens); iIndex++) {
+      if (ft_registry_action_parse(tokens_get_string_at(pTokens, iIndex),
+				   (void *) &pAction) == 0) {
+	if (*ppAction == NULL) {
+	  *ppAction= pAction;
+	  ppNewAction= &(pAction->pNextAction);
+	} else {
+	  *ppNewAction= pAction;
+	  ppNewAction= &(pAction->pNextAction);
+	}
+      } else {
+	filter_action_destroy(ppAction);
+	*ppAction= NULL;
+	iResult= -1;
+	break;
+      }
+    }
+  } else {
+    iResult= -1;
+    *ppAction= NULL;
+  }
+
+  tokenizer_destroy(&pTokenizer);
+
+  return iResult;
 }
 
 // ----- filter_parser_rule -----------------------------------------
@@ -91,6 +128,7 @@ int filter_parser_rule(char * pcRule, SFilterRule ** ppRule)
 /**
  *
  */
+/*
 int filter_parser_run(char * pcScript, SFilter ** ppFilter)
 {
   SFilter * pFilter= NULL;
@@ -123,10 +161,7 @@ int filter_parser_run(char * pcScript, SFilter ** ppFilter)
     pFilter= NULL;
   }
 
-  fprintf(stderr, "-----\n");
-  filter_dump(stderr, pFilter);
-  fprintf(stderr, "-----\n");
-
   *ppFilter= pFilter;
   return iResult;
 }
+*/
