@@ -39,8 +39,6 @@ int network_send_callback(void * pContext)
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
   int iResult;
 
-  fprintf(stderr, "NET_SEND_CALLBACK\n");
-
   // Deliver message to next-hop which will use the message localy or
   // forward it...
   iResult= node_recv(pSendContext->pNode, pSendContext->pMessage);
@@ -343,8 +341,6 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
   SNetLink * pLink;
   int iResult;
   SNetProtocol * pProtocol;
-
-  fprintf(stderr, "NET_RECV\n");
 
   assert(pMessage->uTTL > 0);
   pMessage->uTTL--;
