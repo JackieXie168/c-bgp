@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 22/02/2005
+// @lastdate 05/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #include <jni/jni_util.h>
 
 #include <bgp/as_t.h>
+#include <bgp/as.h>
 #include <bgp/peer.h>
 #include <bgp/route.h>
 #include <net/link.h>
@@ -599,11 +600,35 @@ SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
     return NULL;
 
   if ((pNode= network_find_node(pNetwork, tNetAddr)) == NULL) {
-    cbgp_jni_throw_CBGPException(env, "Unknown node");
+    cbgp_jni_throw_CBGPException(env, "could not find node");
     return NULL;
   }
     
   return pNode;
+}
+
+// -----[ cbgp_jni_net_link_from_string ]----------------------------
+/**
+ * Get the link identified by the Strings that contain the source and
+ * destination nodes' IP addresses.
+ */
+SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
+					 jstring jsDstAddr)
+{
+  SNetNode * pNode1, * pNode2;
+  SNetLink * pLink;
+
+  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
+    return NULL;
+  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
+    return NULL;
+  
+  if ((pLink= node_find_link(pNode1, pNode2->tAddr)) == NULL) {
+    cbgp_jni_throw_CBGPException(env, "could not find link");
+    return NULL;
+  }
+
+  return pLink;
 }
 
 // -----[ cbgp_jni_bgp_router_from_string ]--------------------------
@@ -611,7 +636,7 @@ SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
  * Get the C-BGP router identified by the String that contains its
  * IP address.
  *
- * @return 0 if the conversion was ok, -1 otherwise.
+ * @return NULL is the router was not found
  *
  * @throw CBGPException
  */
@@ -624,9 +649,39 @@ SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
     return NULL;
 
   if (((pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP)) == NULL) || (pProtocol->pHandler == NULL)) {
-    cbgp_jni_throw_CBGPException(env, "Node does not support BGP");
+    cbgp_jni_throw_CBGPException(env, "node does not support BGP");
     return NULL;
   }
 
   return pProtocol->pHandler;
+}
+
+// -----[ cbgp_jni_bgp_peer_from_string ]----------------------------
+/**
+ * Get the BGP peer identified by the Strings that contain the router
+ * and peer's IP addresses.
+ *
+ * @return NULL if the peer was not found
+ *
+ * @throw CBGPException
+ */
+SBGPPeer * cbgp_jni_bgp_peer_from_string(JNIEnv * env, jstring jsRouterAddr,
+					 jstring jsPeerAddr)
+{
+  SBGPRouter * pRouter;
+  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
+
+  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
+    return NULL;
+  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
+    return NULL;
+
+  pPeer= bgp_router_find_peer(pRouter, tPeerAddr);
+  if (pPeer == NULL) {
+    cbgp_jni_throw_CBGPException(env, "peer not found");
+    return NULL;
+  }
+
+  return pPeer;
 }
