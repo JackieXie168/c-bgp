@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 14/02/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -131,6 +131,69 @@ int bgp_domain_rescan(SBGPDomain * pDomain)
 				     bgp_domain_routers_rescan_fct_for_each,
 				     NULL);
 }
+
+#ifdef __EXPERIMENTAL__
+int bgp_domain_build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
+			   void * pItem, void * pContext)
+{
+  SPtrArray * pRL= (SPtrArray *) pContext;
+  SBGPRouter * pRouter= (SBGPRouter *) pItem;
+
+  ptr_array_append(pRL, pRouter);
+
+  return 0;
+}
+
+// ----- build_router_list ------------------------------------------
+static SPtrArray * bgp_domain_routers_list(SBGPDomain * pDomain)
+{
+  SPtrArray * pRL= ptr_array_create_ref(0);
+
+  // Build list of BGP routers
+  radix_tree_for_each(pDomain->pRouters,
+		      bgp_domain_build_router_list_rtfe, pRL);
+
+  return pRL;
+}
+
+// ----- bgp_domain_full_mesh ---------------------------------------
+/**
+ * Generate a full-mesh of iBGP sessions in the domain.
+ */
+int bgp_domain_full_mesh(SBGPDomain * pDomain)
+{
+  int iIndex1, iIndex2;
+  SPtrArray * pRouters;
+  SBGPRouter * pRouter1, * pRouter2;
+
+  /* Get the list of routers */
+  pRouters= bgp_domain_routers_list(pDomain);
+
+  /* Build the full-mesh of sessions */
+  for (iIndex1= 0; iIndex1 < ptr_array_length(pRouters); iIndex1++) {
+    pRouter1= pRouters->data[iIndex1];
+
+    for (iIndex2= 0; iIndex2 < ptr_array_length(pRouters); iIndex2++) {
+
+      if (iIndex1 == iIndex2)
+	continue;
+
+      pRouter2= pRouters->data[iIndex2];
+
+      bgp_router_add_peer(pRouter1, pDomain->uNumber,
+			  pRouter2->pNode->tAddr, 0);
+
+    }
+
+    bgp_router_run(pRouter1);
+
+  }
+
+  ptr_array_destroy(&pRouters);
+
+  return 0;
+}
+#endif /* __EXPERIMENTAL__ */
 
 /////////////////////////////////////////////////////////////////////
 //

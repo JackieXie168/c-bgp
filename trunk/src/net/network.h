@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 30/09/2004
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -112,11 +112,9 @@ extern int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 			     net_addr_t * pNextHop, uint8_t uType);
 // ----- node_rt_lookup ---------------------------------------------
 extern SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr);
-// ----- node_rt_dump_string -----------------------------------------------
-//char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix);
 // ----- node_rt_dump -----------------------------------------------
 extern void node_rt_dump(FILE * pStream, SNetNode * pNode,
-			 SPrefix sPrefix);
+			 SNetDest sDest);
 // ----- node_register_protocol -------------------------------------
 extern int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
 				  void * pHandler,
@@ -151,13 +149,13 @@ extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
 			    net_addr_t tSrcAddr);
 // ----- node_record_route ------------------------------------------
-extern int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
+extern int node_record_route(SNetNode * pNode, SNetDest sDest,
 			     SNetPath ** ppPath,
 			     net_link_delay_t * pDelay,
 			     uint32_t * pWeight);
 // ----- node_dump_recorded_route -----------------------------------
 extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-				     net_addr_t tDstAddr, int iDelay);
+				     SNetDest sDest, int iDelay);
 
 // ----- node_ipip_enable -------------------------------------------
 extern int node_ipip_enable(SNetNode * pNode);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 08/02/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -516,10 +516,10 @@ int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 /**
  *
  */
-void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
+void node_rt_dump(FILE * pStream, SNetNode * pNode, SNetDest sDest)
 {
   if (pNode->pRT != NULL)
-    rt_dump(pStream, pNode->pRT, sPrefix);
+    rt_dump(pStream, pNode->pRT, sDest);
 
   flushir(pStream);
 }
@@ -542,27 +542,19 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
 // ----- node_rt_lookup ---------------------------------------------
 /**
  * This function looks for the next-hop that must be used to reach a
- * destination address. The function first looks up the direct links,
- * then the static/IGP/BGP routing table.
- *
- * Note: the BGP routes are not inserted in the node's routing table
- * in order to avoid redundant use of memory.
+ * destination address. The function looks up the static/IGP/BGP
+ * routing table.
  */
 SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 {
   SNetLink * pLink= NULL;
   SNetRouteInfo * pRouteInfo;
 
-  // Is there a direct link towards the destination ?
-  //pLink= node_links_lookup(pNode, tDstAddr);
-
-  // If not, is there a static or IGP route ?
-  if (pLink == NULL) {
-    if (pNode->pRT != NULL) {
-      pRouteInfo= rt_find_best(pNode->pRT, tDstAddr, NET_ROUTE_ANY);
-      if (pRouteInfo != NULL)
-	pLink= pRouteInfo->pNextHopIf;
-    }
+  // Is there a static or IGP route ?
+  if (pNode->pRT != NULL) {
+    pRouteInfo= rt_find_best(pNode->pRT, tDstAddr, NET_ROUTE_ANY);
+    if (pRouteInfo != NULL)
+      pLink= pRouteInfo->pNextHopIf;
   }
 
   return pLink;
@@ -962,9 +954,13 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 
 // ----- node_record_route ------------------------------------------
 /**
- *
+ * Record the route towards an IPv4 destination. The destination can
+ * be an IP prefix of an IP address. If the destination is an IP
+ * prefix, the record-route always perform a lookup for an exact
+ * matching route. If the destination is an IP address, the
+ * record-route performs best-matching lookups.
  */
-int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
+int node_record_route(SNetNode * pNode, SNetDest sDest,
 		      SNetPath ** ppPath,
 		      net_link_delay_t * pDelay, uint32_t * pWeight)
 {
@@ -978,16 +974,32 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
   uint32_t uTotalWeight= 0;
   net_link_delay_t tLinkDelay= 0;
   uint32_t uLinkWeight= 0;
+  int iReached;
+  SNetDest * pDestCopy;
+  SNetRouteInfo * pRouteInfo;
+
+  assert((sDest.tType == NET_DEST_PREFIX) ||
+	 (sDest.tType == NET_DEST_ADDRESS));
 
   while (pCurrentNode != NULL) {
-
+      
     net_path_append(pPath, pCurrentNode->tAddr);
 
     tTotalDelay+= tLinkDelay;
     uTotalWeight+= uLinkWeight;
 
     // Final destination reached ?
-    if (pCurrentNode->tAddr == tDstAddr) {
+    iReached= 0;
+    switch (sDest.tType) {
+    case NET_DEST_ADDRESS:
+      iReached= (pCurrentNode->tAddr == sDest.tAddr);
+      break;
+    case NET_DEST_PREFIX:
+      iReached= ip_address_in_prefix(pCurrentNode->tAddr,
+				     sDest.sPrefix);
+    }
+
+    if (iReached) {
 
       // Tunnel end-point ?
       if (stack_depth(pDstStack) > 0) {
@@ -1000,7 +1012,9 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 	}
 	
 	// Pop destination, but current node does not change
-	tDstAddr= (net_addr_t) stack_pop(pDstStack);
+	pDestCopy= (SNetDest *) stack_pop(pDstStack);
+	sDest= *pDestCopy;
+	FREE(pDestCopy);
 
       } else {
 
@@ -1013,19 +1027,23 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
     } else {
 
       // Lookup the next-hop for this destination
-      pLink= node_rt_lookup(pCurrentNode, tDstAddr);
-
-      /* No route: return UNREACH */
-      if (pLink == NULL) {
-
-	if (iOptionDebug) {
-	  fprintf(stderr, "*** NO LINK IN ");
-	  ip_address_dump(stderr, pCurrentNode->tAddr);
-	  fprintf(stderr, " ***\n");
-	}
-
+      switch (sDest.tType) {
+      case NET_DEST_ADDRESS:
+	pLink= node_rt_lookup(pCurrentNode, sDest.tAddr);
+	break;
+      case NET_DEST_PREFIX:
+	pRouteInfo= rt_find_exact(pCurrentNode->pRT, sDest.sPrefix,
+			     NET_ROUTE_ANY);
+	if (pRouteInfo != NULL)
+	  pLink= pRouteInfo->pNextHopIf;
+	else
+	  pLink= NULL;
 	break;
       }
+
+      /* No route: return UNREACH */
+      if (pLink == NULL)
+	break;
 
       /* Link down: return DOWN */
       if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
@@ -1038,8 +1056,12 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
       // Handle tunnel encapsulation
       if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL)) {
+
+	/*
 	// Push destination to stack
-	stack_push(pDstStack, (void *) tDstAddr);
+	pDestCopy= (SNetDest *) MALLOC(sizeof(sDest));
+	memcpy(pDestCopy, &sDest, sizeof(sDest));
+	stack_push(pDstStack, pDestCopy);
 	
 	tDstAddr= pLink->tAddr;
 
@@ -1049,6 +1071,7 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 	  iResult= NET_RECORD_ROUTE_TUNNEL_BROKEN;
 	  break;
 	}
+	*/
 
       }
 
@@ -1070,14 +1093,12 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
   stack_destroy(&pDstStack);
 
   /* Returns the total route delay */
-  if (pDelay != NULL) {
+  if (pDelay != NULL)
     *pDelay= tTotalDelay;
-  }
 
   /* Returns the total route weight */
-  if (pWeight != NULL) {
+  if (pWeight != NULL)
     *pWeight= uTotalWeight;
-  }
 
   return iResult;
 }
@@ -1087,19 +1108,19 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
  *
  */
 void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-			      net_addr_t tDstAddr, int iDelay)
+			      SNetDest sDest, int iDelay)
 {
   int iResult;
   SNetPath * pPath;
   net_link_delay_t tDelay= 0;
   uint32_t uWeight= 0;
 
-  iResult= node_record_route(pNode, tDstAddr, &pPath,
+  iResult= node_record_route(pNode, sDest, &pPath,
 			     &tDelay, &uWeight);
 
   ip_address_dump(pStream, pNode->tAddr);
   fprintf(pStream, "\t");
-  ip_address_dump(pStream, tDstAddr);
+  ip_dest_dump(pStream, sDest);
   fprintf(pStream, "\t");
   switch (iResult) {
   case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;

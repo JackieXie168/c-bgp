@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 18/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -369,8 +369,8 @@ void rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
   } else {
     for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
 	 iIndex++) {
-      ip_prefix_dump(pStream, sPrefix);
-      fprintf(pStream, "\t");
+      //ip_prefix_dump(pStream, sPrefix);
+      //fprintf(pStream, "\t");
       route_info_dump(pStream, (SNetRouteInfo *) pRouteInfoList->data[iIndex]);
       fprintf(pStream, "\n");
     }
@@ -740,30 +740,41 @@ int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
 
 // ----- rt_dump ----------------------------------------------------
 /**
- *
+ * Dump the routing table for the given destination. The destination
+ * can be of type NET_DEST_ANY, NET_DEST_ADDRESS and NET_DEST_PREFIX.
  */
-void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix)
+void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest)
 {
   SNetRouteInfo * pRouteInfo;
 
-  if (sPrefix.uMaskLen == 0) {
+  switch (sDest.tType) {
+
+  case NET_DEST_ANY:
     radix_tree_for_each((SRadixTree *) pRT, rt_dump_for_each, pStream);
-  } else if (sPrefix.uMaskLen == 32) {
-    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
+    break;
+
+  case NET_DEST_ADDRESS:
+    pRouteInfo= rt_find_best(pRT, sDest.sPrefix.tNetwork, NET_ROUTE_ANY);
     if (pRouteInfo != NULL) {
-      ip_prefix_dump(pStream, sPrefix);
-      fprintf(pStream, "\t");
+      //ip_address_dump(pStream, sDest.sPrefix.tNetwork);
+      //fprintf(pStream, "\t");
       route_info_dump(pStream, pRouteInfo);
+      fprintf(pStream, "\n");
     }
-    fprintf(pStream, "\n");
-  } else {
-    pRouteInfo= rt_find_exact(pRT, sPrefix, NET_ROUTE_ANY);
+    break;
+
+  case NET_DEST_PREFIX:
+    pRouteInfo= rt_find_exact(pRT, sDest.sPrefix, NET_ROUTE_ANY);
     if (pRouteInfo != NULL) {
-      ip_prefix_dump(pStream, sPrefix);
-      fprintf(pStream, "\t");
+      //ip_prefix_dump(pStream, sDest.sPrefix);
+      //fprintf(pStream, "\t");
       route_info_dump(pStream, pRouteInfo);
+      fprintf(pStream, "\n");
     }
-    fprintf(pStream, "\n");
+    break;
+
+  default:
+    abort();
   }
 }
 

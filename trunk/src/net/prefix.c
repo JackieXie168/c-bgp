@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 18/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -168,6 +168,72 @@ int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
     return -1;
   pPrefix->uMaskLen= ulDigit;
   return 0;
+}
+
+// ----- ip_string_to_dest ------------------------------------------
+/**
+ * This function parses a string that contains the description of a
+ * destination. The destination can be specified as an asterisk ('*'),
+ * an IP prefix ('x.y/z') or an IP address ('a.b.c.d').
+ *
+ * If the destination is an asterisk, the function returns a
+ * destination of type NET_DEST_ANY.
+ *
+ * If the destination is an IP prefix, the function returns a
+ * destination of type NET_DEST_PREFIX.
+ *
+ * If the destination is an IP address, the function returns a
+ * destination whose type is NET_DEST_ADDRESS.
+ */
+int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
+{
+  char * pcEndChar;
+
+  if (!strcmp(pcPrefix, "*")) {
+
+    psDest->tType= NET_DEST_ANY;
+    psDest->sPrefix.uMaskLen= 0;
+
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &psDest->sPrefix) &&
+	     (*pcEndChar == 0)) {
+
+    psDest->tType= NET_DEST_PREFIX;
+
+  } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
+				   &psDest->sPrefix.tNetwork) &&
+	     (*pcEndChar == 0)) {
+
+    psDest->tType= NET_DEST_ADDRESS;
+
+  } else {
+
+    psDest->tType= NET_DEST_INVALID;
+    return -1;
+
+  }
+
+  return 0;
+}
+
+// ----- ip_dest_dump -----------------------------------------------
+/**
+ *
+ */
+void ip_dest_dump(FILE * pStream, SNetDest sDest)
+{
+  switch (sDest.tType) {
+  case NET_DEST_ADDRESS:
+    ip_address_dump(pStream, sDest.tAddr);
+    break;
+  case NET_DEST_PREFIX:
+    ip_prefix_dump(pStream, sDest.sPrefix);
+    break;
+  case NET_DEST_ANY:
+    fprintf(pStream, "*");
+    break;
+  default:
+    fprintf(pStream, "???");
+  }
 }
 
 // ----- ip_prefix_equals -------------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 18/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -409,27 +409,6 @@ int cli_common_check_uint(char * pcValue)
 {
   return CLI_SUCCESS;
 }
-
-// ----- cli_common_get_dest ----------------------------------------
-int cli_common_get_dest(char * pcPrefix, SPrefix * pPrefix)
-{
-  char * pcEndChar;
-
-  if (!strcmp(pcPrefix, "*")) {
-    pPrefix->uMaskLen= 0;
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, pPrefix) &&
-	     (*pcEndChar == 0)) {
-  } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
-				   &pPrefix->tNetwork) &&
-	     (*pcEndChar == 0)) {
-    pPrefix->uMaskLen= 32;
-  } else {
-    return -1;
-  }
-
-  return 0;
-}
-
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
