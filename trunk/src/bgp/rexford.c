@@ -328,7 +328,7 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 	}
 
 	// Check that source AS exists and that the mask length is valid
-	if ((uAS >= MAX_AS) || (AS[uAS] == NULL)) {
+	if (AS[uAS] == NULL) {
 	  iError= 1;
 	  break;
 	}

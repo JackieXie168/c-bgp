@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)sim.c
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 17/10/2003
+// @lastdate 20/04/2004
 // ==================================================================
 
 #include <cli/common.h>
@@ -31,7 +31,8 @@ int cli_sim_event_callback(void * pContext)
 // ----- cli_sim_event_destroy --------------------------------------
 void cli_sim_event_destroy(void * pContext)
 {
-  str_destroy((char **) &pContext);
+  char * pCharContext= (char *) pContext;
+  str_destroy(&pCharContext);
 }
 
 // ----- cli_sim_event ----------------------------------------------

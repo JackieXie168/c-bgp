@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)scheduler.c
 //
-// @author Sebastien Tandel (sta@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 12/06/2003
-// @lastdate 13/06/2003
+// @lastdate 20/04/2004
 // ==================================================================
 
 #include <sim/scheduler.h>
@@ -81,15 +81,22 @@ int scheduler_event_fifo_insert(SFIFO * pFifoEvents,
 /**
  *
  */
-void scheduler_event_destroy(void ** ppItem)
+void scheduler_event_destroy(SSchedEvent ** ppEvent)
 {
-  SSchedEvent ** ppEvent= (SSchedEvent **) ppItem;
-
   if (*ppEvent != NULL) {
     uCountEventDestroyed++;
     FREE(*ppEvent);
     *ppEvent= NULL;
   }
+}
+
+// ----- scheduler_event_destroy_wrapper ----------------------------
+/**
+ *
+ */
+inline void scheduler_event_destroy_wrapper(void ** ppItem)
+{
+  scheduler_event_destroy((SSchedEvent **) ppItem);
 }
 
 // ----- scheduler_event_create -------------------------------------
@@ -100,7 +107,8 @@ SSchedulerFifoEvent * scheduler_event_fifo_create(float uSchedulingTime)
 {
   SSchedulerFifoEvent * pEvent=
     (SSchedulerFifoEvent *) MALLOC(sizeof(SSchedulerFifoEvent));
-  pEvent->pFifoEvents= fifo_create(EVENT_QUEUE_DEPTH, scheduler_event_destroy);
+  pEvent->pFifoEvents= fifo_create(EVENT_QUEUE_DEPTH,
+				   scheduler_event_destroy_wrapper);
   pEvent->uTime= uSchedulingTime;
   uCountFifoEventCreated++;
   return pEvent;
@@ -179,7 +187,7 @@ int scheduler_run(float uSimulatorTime)
     while ((pEvent = fifo_pop(pFifoEvent->pFifoEvents)) != NULL) {
       uCountEvent++;
       pEvent->fCallback(pEvent->pContext);
-      scheduler_event_destroy((void **)&pEvent);
+      scheduler_event_destroy(&pEvent);
       iIndexFirstEvent = list_get_nbr_element(pScheduler->pEvents) - 1;
       pFifoEvent = list_get_index(pScheduler->pEvents, iIndexFirstEvent);
     }

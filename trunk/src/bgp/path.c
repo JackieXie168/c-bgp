@@ -305,7 +305,7 @@ SPath * path_aggregate(SPath * apPaths[], unsigned int uNumPaths)
        iIndex++)
     path_segment_add(&pSegment, pASNumArray->data[iIndex]);
   path_add_segment(pAggrPath, pSegment);
-  _array_destroy((SArray **) &pASNumArray);
+  uint16_array_destroy(&pASNumArray);
   return pAggrPath;
 }
 
