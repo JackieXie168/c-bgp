@@ -218,6 +218,13 @@ void peer_session_open_rcvd(SPeer * pPeer)
   default:
     LOG_FATAL("Error: OPEN received while in %s state\n",
 	      SESSION_STATES[pPeer->uSessionState]);
+    LOG_FATAL("Error: peer=");
+    peer_dump_id(log_get_stream(pMainLog), pPeer);
+    LOG_FATAL("\n");
+    LOG_FATAL("Error: as=%d:", pPeer->pLocalAS->uNumber);
+    LOG_ENABLED_FATAL()
+      ip_address_dump(log_get_stream(pMainLog), pPeer->pLocalAS->pNode->tAddr);
+    LOG_FATAL("\n");
     abort();
   }
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
@@ -245,7 +252,6 @@ void peer_session_close_rcvd(SPeer * pPeer)
     pPeer->uSessionState= SESSION_STATE_IDLE;
     peer_clear_adjribin(pPeer);
     break;
-  case SESSION_STATE_IDLE:
   case SESSION_STATE_ACTIVE:
     break;
   default:
