@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 22/02/2005
+// @lastdate 05/03/2005
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -84,7 +84,14 @@ extern int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAd
 extern int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix);
 // -----[ cbgp_jni_net_node_from_string ]----------------------------
 extern SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
+// -----[ cbgp_jni_net_link_from_string ]----------------------------
+extern SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
+						jstring jsDstAddr);
 // -----[ cbgp_jni_bgp_router_from_string ]--------------------------
 extern SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr);
+// -----[ cbgp_jni_bgp_peer_from_string ]----------------------------
+extern SBGPPeer * cbgp_jni_bgp_peer_from_string(JNIEnv * env,
+						jstring jsRouterAddr,
+						jstring jsPeerAddr);
 
 #endif

@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 18/02/2005
+// @lastdate 05/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -92,7 +92,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
  * Method:    nodeAdd
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   (JNIEnv * env, jobject obj, jstring jsAddr)
 {
   SNetNode * pNode; 
@@ -100,11 +100,16 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   net_addr_t tNetAddr;
 
   if (ip_jstring_to_address(env, jsAddr, &tNetAddr) != 0)
-    return -1;
-  if ((pNode= node_create(tNetAddr)) == NULL)
-    return -1;
+    return;
+  if ((pNode= node_create(tNetAddr)) == NULL) {
+    cbgp_jni_throw_CBGPException(env, "node could not be created");
+    return;
+  }
 
-  return network_add_node(pNetwork, pNode);
+  if (network_add_node(pNetwork, pNode) != 0) {
+    cbgp_jni_throw_CBGPException(env, "node already exists");
+    return;
+  }
 }
 
 // -----[ netAddLink ]-----------------------------------------------
@@ -113,17 +118,20 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
  * Method:    nodeLinkAdd
  * Signature: (II)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   (JNIEnv *env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
 {
   SNetNode * pNodeSrc, * pNodeDst;
 
   if ((pNodeSrc= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
+    return;
   if ((pNodeDst= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
+    return;
 
-  return node_add_link(pNodeSrc, pNodeDst, jiWeight, 1);
+  if (node_add_link(pNodeSrc, pNodeDst, jiWeight, 1) != 0) {
+    cbgp_jni_throw_CBGPException(env, "link already exists");
+    return;
+  }
 }
 
 // -----[ netLinkWeight ]--------------------------------------------
@@ -132,25 +140,21 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
  * Method:    nodeLinkWeight
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
   (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
 {
-  SNetNode * pNode1, * pNode2;
   SNetLink * pLink1, * pLink2;
 
-  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
-  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
-  
-  if ((pLink1= node_find_link(pNode1, pNode2->tAddr)) == NULL)
-    return -1;
-  if ((pLink2= node_find_link(pNode2, pNode1->tAddr)) == NULL)
-    return -1;
-  
+  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
+  if (pLink1 == NULL)
+    return;
+
+  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
+  if (pLink2 == NULL)
+    return;
+
   link_set_igp_weight(pLink1, jiWeight);
   link_set_igp_weight(pLink2, jiWeight);
-  return 0;
 }
 
 // -----[ netLinkUp ]------------------------------------------------
@@ -159,25 +163,21 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
  * Method:    nodeLinkUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
   (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jboolean bUp)
 {
-  SNetNode * pNode1, * pNode2;
   SNetLink * pLink1, * pLink2;
 
-  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
-  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
+  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
+  if (pLink1 == NULL)
+    return;
 
-  if ((pLink1= node_find_link(pNode1, pNode2->tAddr)) == NULL)
-    return -1;
-  if ((pLink2= node_find_link(pNode2, pNode1->tAddr)) == NULL)
-    return -1;
+  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
+  if (pLink2 == NULL)
+    return;
 
   link_set_state(pLink1, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
   link_set_state(pLink2, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
-  return 0;
 }
   
 // -----[ netNodeSpfPrefix ]-----------------------------------------
@@ -186,7 +186,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
  * Method:    nodeSpfPrefix
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
   (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix)
 {
   SNetwork * pNetwork= network_get();
@@ -194,12 +194,15 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
   SNetNode * pNode;
 
   if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return -1;
+    return;
   if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
+    return;
 
   // Compute the SPF from the node towards all the nodes in the prefix
-  return igp_compute_prefix(pNetwork, pNode, sPrefix);
+  if (igp_compute_prefix(pNetwork, pNode, sPrefix) != 0) {
+    cbgp_jni_throw_CBGPException(env, "could not compute IGP paths");
+    return;
+  }
 }
 
 // -----[ nodeInterfaceAdd ]-----------------------------------------
@@ -241,7 +244,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeInterfaceAdd
  * Method:    nodeRouteAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
   (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix,
    jstring jsNexthop, jint jiWeight)
 {
@@ -250,13 +253,17 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
   net_addr_t tNextHop;
 
   if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return -1;
+    return;
   if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
+    return;
   if (ip_jstring_to_address(env, jsNexthop, &tNextHop) != 0)
-    return -1;
+    return;
 
-  return node_rt_add_route(pNode, sPrefix, tNextHop, jiWeight, NET_ROUTE_STATIC);
+  if (node_rt_add_route(pNode, sPrefix, tNextHop,
+			jiWeight, NET_ROUTE_STATIC) != 0) {
+    cbgp_jni_throw_CBGPException(env, "could not add route");
+    return;
+  }
 }
 
 // -----[ cbgp_jni_get_link ]----------------------------------------
@@ -441,6 +448,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
 			     (FNetNodeHandlerDestroy) bgp_router_destroy,
 			     bgp_router_handle_message)) {
     bgp_router_destroy(&pRouter);
+    cbgp_jni_throw_CBGPException(env, "Node already supports BGP");
     return -1;
   }
 
@@ -460,18 +468,21 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
  * Method:    bgpRouterNetworkAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
   (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix)
 {
   SBGPRouter * pRouter;
   SPrefix sPrefix;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsAddr)) == NULL)
-    return -1;
+    return;
   if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
+    return;
 
-  return bgp_router_add_network(pRouter, sPrefix);
+  if (bgp_router_add_network(pRouter, sPrefix) != 0) {
+    cbgp_jni_throw_CBGPException(env, "coud not add network");
+    return;
+  }
 }
 
 // -----[ bgpRouterAddPeer ]-----------------------------------------
@@ -480,18 +491,21 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
  * Method:    bgpRouterNeighborAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jint jiASNumber)
 {
   SBGPRouter * pRouter;
   net_addr_t tPeerAddr;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
+    return;
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
+    return;
   
-  return bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0);
+  if (bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0) != 0) {
+    cbgp_jni_throw_CBGPException(env, "could not add peer");
+    return;
+  }
 }
 
 // -----[ bgpRouterPeerNextHopSelf ]---------------------------------
@@ -500,22 +514,16 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
  * Method:    bgpRouterNeighborNextHopSelf
  * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
 {
-  SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pPeer= cbgp_jni_bgp_peer_from_string(env, jsRouterAddr, jsPeerAddr);
+  if (pPeer == NULL)
+    return;
 
   peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
-  return 0;
 }
 
 // -----[ bgpRouterPeerReflectorClient ]-----------------------------
@@ -524,23 +532,16 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
  * Method:    bgpRouterPeerReflectorClient
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClient
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClient
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
 {
-  SBGPRouter * pRouter;
-  net_addr_t tPeerAddr;
   SBGPPeer * pPeer;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pPeer= cbgp_jni_bgp_peer_from_string(env, jsRouterAddr, jsPeerAddr);
+  if (pPeer == NULL)
+    return;
 
   peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
-  
-  return 0;
 }
 
 
@@ -550,23 +551,17 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClien
  * Method:    bgpRouterPeerVirtual
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
 {
-  SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pPeer= cbgp_jni_bgp_peer_from_string(env, jsRouterAddr, jsPeerAddr);
+  if (pPeer == NULL)
+    return;
 
   peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
   peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
-  return 0;
 }
 
 // -----[ bgpRouterPeerUp ]------------------------------------------
@@ -575,24 +570,22 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
  * Method:    bgpRouterNeighborUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jboolean bUp)
 {
-  SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pPeer= cbgp_jni_bgp_peer_from_string(env, jsRouterAddr, jsPeerAddr);
+  if (pPeer == NULL)
+    return;
 
-  if (bUp == JNI_TRUE)
-    return bgp_peer_open_session(pPeer);
-  else
-    return bgp_peer_close_session(pPeer);
+  if (bUp == JNI_TRUE) {
+    if (bgp_peer_open_session(pPeer) != 0)
+      cbgp_jni_throw_CBGPException(env, "could not open session");
+  } else {
+    if (bgp_peer_close_session(pPeer) != 0)
+      cbgp_jni_throw_CBGPException(env, "could not close session");
+  }
 }
 
 // -----[ bgpRouterPeerRecv ]----------------------------------------
@@ -601,33 +594,31 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
  * Method:    bgpRouterPeerRecv
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jstring jsMesg)
 {
   SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
   const jbyte * cMesg;
   SBGPMsg * pMsg;
-  int iResult;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr);
+  if (pRouter == NULL)
+    return;
+
+  pPeer= cbgp_jni_bgp_peer_from_string(env, jsRouterAddr, jsPeerAddr);
+  if (pPeer == NULL)
+    return;
 
   /* Build a message from the MRT-record */
   cMesg= (*env)->GetStringUTFChars(env, jsMesg, NULL);
   if ((pMsg= mrtd_msg_from_line(pRouter, pPeer, (char *) cMesg)) != NULL) {
-    iResult= peer_handle_message(pPeer, pMsg);
+    if (peer_handle_message(pPeer, pMsg) != 0)
+      cbgp_jni_throw_CBGPException(env, "could not handle message");
   } else {
-    iResult= -1;
+    cbgp_jni_throw_CBGPException(env, "could not understand MRT message");
   }
   (*env)->ReleaseStringUTFChars(env, jsMesg, cMesg);
-
-  return iResult;
 }
 
 // -----[ bgpRouterRescan ]------------------------------------------
@@ -636,15 +627,16 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
  * Method:    bgpRouterRescan
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
   (JNIEnv * env, jobject obj, jstring jsAddr)
 {
   SBGPRouter * pRouter;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsAddr)) == NULL)
-    return -1;
+    return;
  
-  return bgp_router_scan_rib(pRouter);
+  if (bgp_router_scan_rib(pRouter) != 0)
+    cbgp_jni_throw_CBGPException(env, "could not rescan router");
 }
 
 // -----[ cbgp_jni_get_peer ]----------------------------------------
@@ -910,21 +902,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
  * Method:    bgpRouterLoadRib
  * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsFileName)
 {
-  int iResult;
   SBGPRouter * pRouter;
   const jbyte * cFileName;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
+    return;
 
   cFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
-  iResult= bgp_router_load_rib((char *) cFileName, pRouter);
+  if (bgp_router_load_rib((char *) cFileName, pRouter) != 0)
+    cbgp_jni_throw_CBGPException(env, "could not load RIB");
   (*env)->ReleaseStringUTFChars(env, jsFileName, cFileName);
-
-  return iResult;
 }
 
 // -----[ bgpDomainRescan ]------------------------------------------
@@ -933,14 +923,16 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
  * Method:    bgpDomainRescan
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
   (JNIEnv * env, jobject obj, jint jiASNumber)
 {
+  if (!exists_bgp_domain((uint32_t) jiASNumber)) {
+    cbgp_jni_throw_CBGPException(env, "domain does not exist");
+    return;
+  }
 
-  if (!exists_bgp_domain((uint32_t) jiASNumber))
-    return -1;
-
-  return bgp_domain_rescan(get_bgp_domain((uint32_t) jiASNumber));
+  if (bgp_domain_rescan(get_bgp_domain((uint32_t) jiASNumber)) != 0)
+    cbgp_jni_throw_CBGPException(env, "could not rescan domain");
 }
 
 // -----[ bgpFilterInit ]--------------------------------------------
@@ -1114,12 +1106,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
  * Method:    simRun
  * Signature: ()I
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
   (JNIEnv * env, jobject obj)
 {
-  if (simulator_run())
-    return 1; 
-  return 0;
+  if (simulator_run() != 0)
+    cbgp_jni_throw_CBGPException(env, "simulation error");
 }
 
 // -----[ runCmd ]---------------------------------------------------
@@ -1128,19 +1119,18 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
  * Method:    runCmd
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv * env, jobject obj, jstring jsCommand)
 {
-  int iResult;
   const jbyte * cCommand;
 
   if (jsCommand == NULL)
-    return -1;
+    return;
 
   cCommand= (*env)->GetStringUTFChars(env, jsCommand, NULL);
-  iResult= cli_execute_line(cli_get(), (char *) cCommand);
+  if (cli_execute_line(cli_get(), (char *) cCommand) != 0)
+    cbgp_jni_throw_CBGPException(env, "could not execute command");
   (*env)->ReleaseStringUTFChars(env, jsCommand, cCommand);
-  return iResult;
 }
 
 // -----[ cbgp_jni_routes_list_function ]----------------------------

@@ -41,6 +41,7 @@ EXTRA_DIST = $(JAVAFILES) $(METAFILE)
 SUFFIXES= .java .class
 
 $(JARFILE): $(CLASSFILES)
+	$(JAVAH) be.ac.ucl.ingi.cbgp.CBGP
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
 
 install-exec-local:
