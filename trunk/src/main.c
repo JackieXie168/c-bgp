@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 23/02/2005
+// @lastdate 25/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

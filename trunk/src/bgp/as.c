@@ -86,6 +86,7 @@ SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
 			       uint32_t uTBID)
 {
   SBGPRouter * pRouter= (SBGPRouter*) MALLOC(sizeof(SBGPRouter));
+
   pRouter->uNumber= uNumber;
   pRouter->uTBID= uTBID;
   pRouter->pNode= pNode;
