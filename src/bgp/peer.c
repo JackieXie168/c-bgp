@@ -123,12 +123,15 @@ int peer_open_session(SPeer * pPeer)
 {
   if ((pPeer->uSessionState == SESSION_STATE_IDLE) ||
       (pPeer->uSessionState == SESSION_STATE_ACTIVE)) {
-    pPeer->uSessionState= SESSION_STATE_OPENWAIT;
 
-    /* Send an OPEN message to the peer (except for virtual peers) */
+    /* Send an OPEN message to the peer (except for virtual peers
+       which go directly to ESTABLISHED state) */
     if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+      pPeer->uSessionState= SESSION_STATE_OPENWAIT;
       bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
 		   bgp_msg_open_create(pPeer->pLocalAS->uNumber));
+    } else {
+      pPeer->uSessionState= SESSION_STATE_OPENWAIT;
     }
 
     return 0;
