@@ -92,6 +92,7 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   SNetNode * pNodeSrc, * pNodeDst;
   char * pcNodeSrcAddr, * pcNodeDstAddr;
 
+
   pcNodeSrcAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
   if (pNodeSrc == NULL) {
