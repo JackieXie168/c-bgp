@@ -30,6 +30,10 @@ typedef int (*FDPRouteCompare)(SBGPRouter * pRouter,
 // ----- bgp_dp_rule_local ------------------------------------------
 extern void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes);
 
+// ----- dp_rule_igp_cost -------------------------------------------
+extern uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop);
+
+
 // ----- dp_rule_shortest_path --------------------------------------
 extern int dp_rule_shortest_path(SPtrArray * pRoutes);
 // ----- dp_rule_lowest_origin --------------------------------------

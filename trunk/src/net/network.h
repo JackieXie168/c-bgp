@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 09/03/2004
+// @lastdate 18/05/2004
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -65,7 +65,7 @@ extern int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
 			     net_addr_t tNextHop,
 			     uint32_t uWeight, uint8_t uType);
 // ----- node_rt_del_route ------------------------------------------
-extern int node_rt_del_route(SNetNode * pNode, SPrefix sPrefix,
+extern int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 			     net_addr_t * pNextHop, uint8_t uType);
 // ----- node_rt_lookup ---------------------------------------------
 extern SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr);

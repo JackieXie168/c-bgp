@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 04/02/2004
+// @lastdate 24/05/2004
 // ==================================================================
 
 #ifndef __PEER_T_H__
@@ -24,8 +24,16 @@ extern char * SESSION_STATES[3];
 #define PEER_TYPE_PEER     2
 #define PEER_TYPE_UNKNOWN  255
 
-#define PEER_FLAG_RR_CLIENT     1
-#define PEER_FLAG_NEXT_HOP_SELF 2
+// ----- Peer flags -----
+#define PEER_FLAG_RR_CLIENT     0x01 /* The peer is a route-reflector
+					client */
+#define PEER_FLAG_NEXT_HOP_SELF 0x02 /* The next-hop of the routes
+					received from this peer is set
+					to the local-peer when the
+					route is re-advertised */
+#define PEER_FLAG_VIRTUAL       0x04 /* The peer is virtual,
+					i.e. there is no real BGP
+					session with a peer router */
 
 struct TPeer;
 typedef struct TPeer SPeer;

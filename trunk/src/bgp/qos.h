@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 25/11/2003
+// @lastdate 18/05/2004
 // ==================================================================
 
 #ifndef __BGP_QOS_H__
@@ -16,6 +16,8 @@
 #include <bgp/qos_t.h>
 #include <bgp/route_t.h>
 #include <net/prefix.h>
+
+#ifdef BGP_QOS
 
 extern unsigned int BGP_OPTIONS_QOS_AGGR_LIMIT;
 
@@ -47,5 +49,7 @@ extern int qos_decision_process(SAS * pAS, SPeer * pOriginPeer,
 				SPrefix sPrefix);
 
 void _qos_test();
+
+#endif
 
 #endif

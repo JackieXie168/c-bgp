@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 04/03/2004
+// @lastdate 26/04/2004
 // ==================================================================
 
 #include <assert.h>
@@ -54,6 +54,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
   STokens * pTokens;
   uint32_t uLineNumber= 0;
   SNetProtocol * pProtocol;
+  SPrefix sPrefix;
 
   for (iIndex= 0; iIndex < MAX_AS; iIndex++)
     AS[iIndex]= NULL;
@@ -163,6 +164,16 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 		   uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
 	break;
+      } else {
+	// Add static routes
+	sPrefix.tNetwork= tAddr2;
+	sPrefix.uMaskLen= 32;
+	assert(!node_rt_add_route(pNode1, sPrefix, tAddr2, tDelay,
+				  NET_ROUTE_STATIC));
+	sPrefix.tNetwork= tAddr1;
+	sPrefix.uMaskLen= 32;
+	assert(!node_rt_add_route(pNode2, sPrefix, tAddr1, tDelay,
+				  NET_ROUTE_STATIC));
       }
       
       // Setup peering relations
@@ -298,6 +309,8 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
   char acFileLine[80];
   int iError= 0;
   uint16_t uAS;
+  int iResult;
+  SPath * pPath= NULL;
 
   if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
     while ((!feof(pFileInput)) && (!iError)) {
@@ -313,8 +326,12 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 	
 	uAS= 0;
 	while (1) {
-	  if (AS[uAS] != NULL)
-	    bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix, 1);
+	  if (AS[uAS] != NULL) {
+	    iResult= bgp_router_record_route(AS[uAS], sPrefix, &pPath, 0);
+	    bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
+					   pPath, iResult);
+	    path_destroy(&pPath);
+	  }
 	  if (uAS == MAX_AS-1)
 	    break;
 	  else
@@ -334,7 +351,83 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 	}
 	
 	// Record route
-	bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix, 1);
+	iResult= bgp_router_record_route(AS[uAS], sPrefix, &pPath, 0);
+	bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
+				       pPath, iResult);
+	path_destroy(&pPath);
+	
+      }
+      
+    }
+    fclose(pFileInput);
+  } else
+    iError= 1;
+  if (iError)
+    return -1;
+  return 0;
+}
+
+// ----- rexford_record_route_bm ------------------------------------
+/**
+ *
+ */
+int rexford_record_route_bm(FILE * pStream, char * pcFileName,
+			    SPrefix sPrefix, uint8_t uBound)
+{
+  FILE * pFileInput;
+  char acFileLine[80];
+  int iError= 0;
+  uint16_t uAS;
+  int iResult;
+  SPath * pPath= NULL;
+
+  if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
+    while ((!feof(pFileInput)) && (!iError)) {
+      if (fgets(acFileLine, sizeof(acFileLine), pFileInput) == NULL)
+	break;
+      
+      if ((strlen(acFileLine) > 0) && (acFileLine[0] == '*')) {
+	
+	if (sscanf(acFileLine, "*") != 0) {
+	  iError= 1;
+	  break;
+	}
+	
+	uAS= 0;
+	while (1) {
+	  if (AS[uAS] != NULL) {
+	    iResult= bgp_router_record_route_bounded_match(AS[uAS], sPrefix,
+							   uBound,
+							   &pPath, 0);
+	    bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
+					   pPath, iResult);
+	    path_destroy(&pPath);
+	  }
+	  if (uAS == MAX_AS-1)
+	    break;
+	  else
+	    uAS++;
+	}
+	
+      } else {
+	if (sscanf(acFileLine, "%hu", &uAS) != 1) {
+	  iError= 1;
+	  break;
+	}
+
+	// Check that source AS exists and that the mask length is valid
+	if (AS[uAS] == NULL) {
+	  iError= 1;
+	  break;
+	}
+	
+	// Record route
+	iResult= bgp_router_record_route_bounded_match(AS[uAS], sPrefix,
+						       uBound,
+						       &pPath, 0);
+	bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
+				       pPath, iResult);
+	path_destroy(&pPath);
 	
       }
       

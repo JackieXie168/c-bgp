@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 24/02/2004
+// @lastdate 18/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -37,8 +37,8 @@ void dijkstra_info_destroy(void ** pItem)
 
 // ----- dijkstra ---------------------------------------------------
 /**
- * Calculate shortest path from the given source AS towards all the
- * other ASes.
+ * Compute the Minimum Spanning Tree from the given source router
+ * towards all the other routers that belong to the given prefix.
  */
 SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 		      SPrefix sPrefix)
@@ -74,7 +74,12 @@ SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	 iIndex++) {
       pLink= (SNetLink *) pNode->pLinks->data[iIndex];
 
+      /* Consider only the links that have the following properties:
+	 - NET_LINK_FLAG_IGP_ADV
+	 - NET_LINK_FLAG_UP (the link must be UP)
+	 - the end-point belongs to the given prefix */
       if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) &&
+	  link_get_state(pLink, NET_LINK_FLAG_UP) &&
 	  ip_address_in_prefix(pLink->tAddr, sPrefix)) {
 
 	pInfo=

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 24/11/2002
-// @lastdate 08/03/2004
+// @lastdate 26/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -44,6 +44,7 @@ SPeer * peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   pPeer->pAdjRIBIn= rib_create(0);
   pPeer->pAdjRIBOut= rib_create(0);
   pPeer->uSessionState= SESSION_STATE_IDLE;
+  pPeer->uFlags= 0;
   return pPeer;
 }
 
@@ -99,8 +100,9 @@ int peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
   SRoute * pRoute= (SRoute *) pItem;
 
   as_decision_process_disseminate_to_peer(pPeer->pLocalAS,
-					  pRoute->sPrefix,
-					  pRoute, pPeer);
+					    pRoute->sPrefix,
+					    pRoute, pPeer);
+
   return 0;
 }
 
@@ -112,9 +114,13 @@ int peer_open_session(SPeer * pPeer)
 {
   if (pPeer->uSessionState == SESSION_STATE_IDLE) {
     pPeer->uSessionState= SESSION_STATE_OPENWAIT;
-    
-    bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
-		 bgp_msg_open_create(pPeer->pLocalAS->uNumber));
+
+    /* Send an OPEN message to the peer (except for virtual peers) */
+    if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+      bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
+		   bgp_msg_open_create(pPeer->pLocalAS->uNumber));
+    }
+
     return 0;
   } else {
     LOG_WARNING("Warning: session already opened\n");
@@ -136,8 +142,12 @@ int peer_close_session(SPeer * pPeer)
     peer_clear_adjribin(pPeer);
     LOG_DEBUG("< AS%d.peer_close_session.end\n", pPeer->pLocalAS->uNumber);
 
-    bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
-		 bgp_msg_close_create(pPeer->pLocalAS->uNumber));
+    /* Send a CLOSE message to the peer (except for virtual peers) */
+    if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {    
+      bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
+		   bgp_msg_close_create(pPeer->pLocalAS->uNumber));
+    }
+
     return 0;
   } else {
     LOG_WARNING("Warning: session not opened\n");
@@ -152,6 +162,18 @@ int peer_close_session(SPeer * pPeer)
 // ----- peer_session_open_rcvd -------------------------------------
 void peer_session_open_rcvd(SPeer * pPeer)
 {
+  /* Check that the message does not come from a virtual peer */
+  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    LOG_FATAL("Error: OPEN message received from virtual peer\n");
+    LOG_FATAL("Error: virtual peer=");
+    peer_dump_id(log_get_stream(pMainLog), pPeer);
+    LOG_FATAL("\n");
+    LOG_FATAL("Error: as=%d:", pPeer->pLocalAS->uNumber);
+    ip_address_dump(log_get_stream(pMainLog), pPeer->pLocalAS->pNode->tAddr);
+    LOG_FATAL("\n");
+    abort();
+  }
+
   LOG_INFO("BGP_MSG_RCVD: OPEN\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_IDLE:
@@ -179,6 +201,18 @@ void peer_session_open_rcvd(SPeer * pPeer)
 // ----- peer_session_close_rcvd ------------------------------------
 void peer_session_close_rcvd(SPeer * pPeer)
 {
+  /* Check that the message does not come from a virtual peer */
+  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    LOG_FATAL("Error: CLOSE message received from virtual peer\n");
+    LOG_FATAL("Error: virtual peer=");
+    peer_dump_id(log_get_stream(pMainLog), pPeer);
+    LOG_FATAL("\n");
+    LOG_FATAL("Error: as=%d:", pPeer->pLocalAS->uNumber);
+    ip_address_dump(log_get_stream(pMainLog), pPeer->pLocalAS->pNode->tAddr);
+    LOG_FATAL("\n");
+    abort();
+  }
+
   LOG_INFO("BGP_MSG_RCVD: CLOSE\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ESTABLISHED:
@@ -245,19 +279,19 @@ int peer_clear_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
   SRoute * pRoute= (SRoute *) pItem;
   SPeer * pPeer= (SPeer *) pContext;
 
-  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
+  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
 
-  // NOTE: at this time, the Adj-RIB-In BEST flag is not handled
-  // properly, so the decision process MUST be run each time
-  // *****
-  //if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
+  /* Since the ROUTE_FLAG_BEST is handled in the Adj-RIB-In, we only
+     need to run the decision process if the route is installed in the
+     Loc-RIB (i.e. marked as best) */
+  if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
 
     LOG_DEBUG("\twithdraw: ", pPeer->pLocalAS->uNumber);
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
     LOG_DEBUG("\n");
     as_decision_process(pPeer->pLocalAS, pPeer, pRoute->sPrefix);
 
-    //}
+  }
 
   return 0;
 }
@@ -325,24 +359,41 @@ SFilter * peer_out_filter_get(SPeer * pPeer)
 
 // ----- peer_announce_route ----------------------------------------
 /**
+ * Announce the given route to the given peer.
  *
+ * PRE: the route must be a copy that can live its own life,
+ * i.e. there must not be references to the route.
+ *
+ * Note: if the route is not delivered (for instance in the case of
+ * a virtual peer), the given route is freed.
  */
 void peer_announce_route(SPeer * pPeer, SRoute * pRoute)
 {
   route_peer_set(pRoute, pPeer);
-  bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
-	       bgp_msg_update_create(pPeer->pLocalAS->uNumber, pRoute));
+
+  /* Send the message to the peer (except if this is a virtual peer) */
+  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
+		 bgp_msg_update_create(pPeer->pLocalAS->uNumber,
+				       pRoute));
+  } else
+      route_destroy(&pRoute);
 }
 
 // ----- peer_withdraw_prefix ---------------------------------------
 /**
+ * Withdraw the given prefix to the given peer.
  *
+ * Note: withdraws are not sent to virtual peers.
  */
 void peer_withdraw_prefix(SPeer * pPeer, SPrefix sPrefix)
 {
-  bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
-	       bgp_msg_withdraw_create(pPeer->pLocalAS->uNumber,
-				       sPrefix));
+  /* Send the message to the peer (except if this is a virtual peer) */
+  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
+		 bgp_msg_withdraw_create(pPeer->pLocalAS->uNumber,
+					 sPrefix));
+  }
 }
 
 // ----- peer_route_delay_update ------------------------------------
@@ -363,7 +414,9 @@ void peer_route_delay_update(SPeer * pPeer, SRoute * pRoute)
   pLink= node_find_link(pPeer->pLocalAS->pNode, pRoute->tNextHop);
   assert(pLink != NULL);
 
+#ifdef BGP_QOS
   qos_route_update_delay(pRoute, pLink->tDelay);
+#endif
 }
 
 // ----- peer_route_rr_client_update --------------------------------
@@ -430,9 +483,10 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     // Check route against import filter
     route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
-    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		   peer_route_feasible(pPeer, pRoute) &&
+    route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
 		   filter_apply(pPeer->pInFilter, pPeer->pLocalAS, pRoute));
+    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
+		   peer_route_feasible(pPeer, pRoute));
     // Update route delay attribute (if BGP-QoS)
     //peer_route_delay_update(pPeer, pRoute);
     // Update route RR-client flag
@@ -454,12 +508,13 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     if (pRoute == NULL) break;
     //assert(pRoute != NULL);
 
-    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
+    route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
     // *** unlock Adj-RIB-In ***
     // Run decision process in case this route is the best route
     // towards this prefix
     as_decision_process(pPeer->pLocalAS, pPeer,
 			pMsgWithdraw->sPrefix);
+
     LOG_DEBUG("\tremove: ");
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
     LOG_DEBUG("\n");

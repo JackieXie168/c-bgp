@@ -3,7 +3,7 @@
 #
 AC_INIT(src/main.c)
 PACKAGE=cbgp
-VERSION="1.1.8"
+VERSION="1.1.12"
 AC_PREFIX_DEFAULT(/usr)
 
 #
@@ -45,7 +45,7 @@ unset tc
 #
 # Test for libgds existence (library + headers)
 #
-AC_CHECK_LIB(gds, list_create, gds_ok=yes, gds_ok=no)
+AC_CHECK_LIB(gds, list_create, [gds_ok=yes; LIBS="$LIBS -lgds"], gds_ok=no)
 if test "x$gds_ok" != "xyes"; then
    AC_MSG_ERROR([libgds is needed to compile cbgp])
 else
@@ -54,6 +54,8 @@ else
    if test "x$gds_ok" != "xyes"; then
       AC_MSG_ERROR([libgds headers are needed to compile cbgp])
    fi
+   # Check 'mem_flag_set' function
+   AC_CHECK_FUNCS(mem_flag_set)
 fi
 
 

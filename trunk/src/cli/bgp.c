@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 09/04/2004
+// @lastdate 24/05/2004
 // ==================================================================
 
 #include <bgp/as.h>
@@ -13,6 +13,7 @@
 #include <bgp/filter_parser.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/message.h>
+#include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 #include <bgp/rexford.h>
@@ -149,6 +150,53 @@ int cli_bgp_topology_recordroute(SCliContext * pContext,
   if (rexford_record_route(fOutput, tokens_get_string_at(pTokens, 1), sPrefix))
     iResult= CLI_ERROR_COMMAND_FAILED;
   fclose(fOutput);
+  return iResult;
+}
+
+// ----- cli_bgp_topology_recordroute_bm ----------------------------
+/**
+ * context: {}
+ * tokens: {prefix, bound, file-in, file-out}
+ */
+int cli_bgp_topology_recordroute_bm(SCliContext * pContext,
+				    STokens * pTokens)
+{
+  char * pcPrefix;
+  SPrefix sPrefix;
+  char * pcEndPtr;
+  FILE * fOutput;
+  int iResult= CLI_SUCCESS;
+  unsigned int uBound;
+
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pTokens, 0);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
+      (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get prefix bound
+  if (tokens_get_uint_at(pTokens, 1, &uBound) || (uBound > 32)) {
+    LOG_SEVERE("Error: invalid prefix bound \"%s\"\n",
+	       tokens_get_string_at(pTokens, 1));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Create output
+  if ((fOutput= fopen(tokens_get_string_at(pTokens, 3), "w")) == NULL) {
+    LOG_SEVERE("Error: unable to create \"%s\"\n",
+	       tokens_get_string_at(pTokens, 3));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Record route
+  if (rexford_record_route_bm(fOutput, tokens_get_string_at(pTokens, 2),
+			      sPrefix, (uint8_t) uBound))
+    iResult= CLI_ERROR_COMMAND_FAILED;
+
+  fclose(fOutput);
+
   return iResult;
 }
 
@@ -312,6 +360,7 @@ int cli_bgp_options_nlri(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {limit}
  */
+#ifdef BGP_QOS
 int cli_bgp_options_qosaggrlimit(SCliContext * pContext,
 				 STokens * pTokens)
 {
@@ -322,6 +371,7 @@ int cli_bgp_options_qosaggrlimit(SCliContext * pContext,
   BGP_OPTIONS_QOS_AGGR_LIMIT= uLimit;
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_bgp_router_set_clusterid -------------------------------
 /**
@@ -648,6 +698,8 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   char * pcPrefix;
   SPrefix sPrefix;
   char * pcEndPtr;
+  int iResult;
+  SPath * pPath= NULL;
 
   // Get BGP instance
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
@@ -661,7 +713,79 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   }
 
   // Record route
-  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, 0);
+  iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, 0);
+
+  // Display recorded-route
+  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, pPath, iResult);
+
+  path_destroy(&pPath);
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_recordroute_bm ------------------------------
+/**
+ * context: {router}
+ * tokens: {addr, prefix, bound}
+ */
+int cli_bgp_router_recordroute_bm(SCliContext * pContext,
+				  STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  SPrefix sPrefix;
+  char * pcEndPtr;
+  unsigned int uBound;
+  int iResult;
+  SPath * pPath= NULL;
+
+  // Get BGP instance
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
+			  &sPrefix) || (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get bound
+  if (tokens_get_uint_at(pTokens, 2, &uBound) ||
+      (uBound > 32)) {
+    LOG_SEVERE("Error: invalid prefix bound \"%s\"\n",
+	       tokens_get_string_at(pTokens, 2));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Call record-route
+  iResult= bgp_router_record_route_bounded_match(pRouter, sPrefix,
+						 (uint8_t) uBound,
+						 &pPath, 0);
+
+  // Display record-route results
+  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, pPath, iResult);
+
+  path_destroy(&pPath);
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_rescan --------------------------------------
+/**
+ *
+ */
+int cli_bgp_router_rescan(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  if (bgp_router_scan_rib(pRouter)) {
+    LOG_SEVERE("Error: RIB scan failed\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
 
   return CLI_SUCCESS;
 }
@@ -800,6 +924,7 @@ int cli_bgp_router_del_network(SCliContext * pContext,
  * context: {router}
  * tokens: {addr, prefix, delay}
  */
+#ifdef BGP_QOS
 int cli_bgp_router_add_qosnetwork(SCliContext * pContext, STokens * pTokens)
 {
   SAS * pAS;
@@ -820,6 +945,7 @@ int cli_bgp_router_add_qosnetwork(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_ctx_create_bgp_router_peer -----------------------------
 /**
@@ -1245,6 +1371,47 @@ int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_router_peer_recv -----------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr, mrt-record}
+ */
+int cli_bgp_router_peer_recv(SCliContext * pContext,
+			     STokens * pTokens)
+{
+  SPeer * pPeer;
+  SBGPRouter * pRouter;
+  char * pcRecord;
+  SBGPMsg * pMsg;
+
+  /* Get the peer instance from context */
+  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
+  /* Check that the peer is virtual */
+  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    LOG_SEVERE("Error: only virtual peers can do that\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Get the router instance from context */
+  pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
+
+  /* Get the MRT-record */
+  pcRecord= tokens_get_string_at(pTokens, 2);
+
+  /* Build a message from the MRT-record */
+  pMsg= mrtd_msg_from_line(pRouter, pPeer, pcRecord);
+
+  if (pMsg == NULL) {
+    LOG_SEVERE("Error: could not build message from input\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  peer_handle_message(pPeer, pMsg);
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_peer_up -------------------------------------
 /**
  * context: {router, peer}
@@ -1262,6 +1429,24 @@ int cli_bgp_router_peer_up(SCliContext * pContext, STokens * pTokens)
     LOG_SEVERE("Error: could not open session\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
+    
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_peer_virtual --------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr}
+ */
+int cli_bgp_router_peer_virtual(SCliContext * pContext, STokens * pTokens)
+{
+  SPeer * pPeer;
+
+  // Get peer instance from context
+  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
+  // Set the virtual flag of this peer
+  peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
     
   return CLI_SUCCESS;
 }
@@ -1366,6 +1551,14 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
 					cli_bgp_topology_recordroute,
 					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<bound>", NULL);
+  cli_params_add(pParams, "<input>", NULL);
+  cli_params_add(pParams, "<output>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route-bm",
+					cli_bgp_topology_recordroute_bm,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("show-rib",
 					cli_bgp_topology_showrib,
 					NULL, NULL));
@@ -1397,12 +1590,14 @@ int cli_register_bgp_router_add(SCliCmds * pCmds)
   cli_params_add(pParams, "<prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("network", cli_bgp_router_add_network,
 					NULL, pParams));
+#ifdef BGP_QOS
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<delay>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("qos-network",
 					cli_bgp_router_add_qosnetwork,
 					NULL, pParams));
+#endif
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
 }
 
@@ -1574,12 +1769,20 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
 					cli_bgp_router_peer_nexthopself,
 					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<mrt-record>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("recv",
+					cli_bgp_router_peer_recv,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("reset", cli_bgp_router_peer_reset,
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("rr-client",
 					cli_bgp_router_peer_rrclient,
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("up", cli_bgp_router_peer_up,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("virtual",
+					cli_bgp_router_peer_virtual,
 					NULL, NULL));
   pParams= cli_params_create();
   cli_params_add(pParams, "<addr>", NULL);
@@ -1611,11 +1814,13 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("nlri",
 					cli_bgp_options_nlri,
 					NULL, pParams));
+#ifdef BGP_QOS
   pParams= cli_params_create();
   cli_params_add(pParams, "<limit>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("qos-aggr-limit",
 					cli_bgp_options_qosaggrlimit,
 					NULL, pParams));
+#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<function>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("tie-break",
@@ -1728,6 +1933,15 @@ int cli_register_bgp_router(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
 					cli_bgp_router_recordroute,
 					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<bound>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route-bm",
+					cli_bgp_router_recordroute_bm,
+					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("rescan",
+					cli_bgp_router_rescan,
+					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("reset",
 					cli_bgp_router_reset,
 					NULL, NULL));

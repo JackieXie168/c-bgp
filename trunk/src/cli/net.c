@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 29/03/2004
+// @lastdate 18/05/2004
 // ==================================================================
 
 #include <string.h>
@@ -397,7 +397,7 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   }
 
   // Remove the route
-  if (node_rt_del_route(pNode, sPrefix, pNextHopAddr, NET_ROUTE_STATIC)) {
+  if (node_rt_del_route(pNode, &sPrefix, pNextHopAddr, NET_ROUTE_STATIC)) {
     LOG_SEVERE("Error: could not remove static route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }

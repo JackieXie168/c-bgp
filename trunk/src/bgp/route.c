@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 13/04/2004
+// @lastdate 18/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -44,14 +44,16 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->pECommunities= NULL;
   pRoute->uFlags= 0;
 
-  // QoS fields
+  /* QoS fields */
+#ifdef BGP_QOS
   qos_route_init_delay(pRoute);
   qos_route_init_bandwidth(pRoute);
   pRoute->pAggrRoutes= NULL;
   pRoute->pAggrRoute= NULL;
   pRoute->pEBGPRoute= NULL;
+#endif
 
-  // Route-reflection related fields
+  /* Route-reflection related fields */
   pRoute->pOriginator= NULL;
   pRoute->pClusterList= NULL;
 
@@ -69,9 +71,16 @@ void route_destroy(SRoute ** ppRoute)
     path_destroy(&(*ppRoute)->pASPath);
     route_comm_strip(*ppRoute);
     ecomm_destroy(&(*ppRoute)->pECommunities);
+
+    /* BGP QoS */
+#ifdef BGP_QOS
     ptr_array_destroy(&(*ppRoute)->pAggrRoutes);
+#endif
+
+    /* Route-reflection */
     route_originator_clear(*ppRoute);
     route_cluster_list_clear(*ppRoute);
+
     FREE(*ppRoute);
     *ppRoute= NULL;
   }
@@ -81,7 +90,7 @@ void route_destroy(SRoute ** ppRoute)
 /**
  *
  */
-void route_flag_set(SRoute * pRoute, uint8_t uFlag, int iState)
+void route_flag_set(SRoute * pRoute, uint16_t uFlag, int iState)
 {
   if (iState)
     pRoute->uFlags|= uFlag;
@@ -93,7 +102,7 @@ void route_flag_set(SRoute * pRoute, uint8_t uFlag, int iState)
 /**
  *
  */
-int route_flag_get(SRoute * pRoute, uint8_t uFlag)
+int route_flag_get(SRoute * pRoute, uint16_t uFlag)
 {
   return pRoute->uFlags & uFlag;
 }
@@ -437,6 +446,9 @@ SRoute * route_copy(SRoute * pRoute)
     pNewRoute->pECommunities= ecomm_copy(pRoute->pECommunities);
   pNewRoute->uTBID= pRoute->uTBID;
   pNewRoute->uFlags= pRoute->uFlags;
+
+  /* BGP QoS */
+#ifdef BGP_QOS
   pNewRoute->tDelay= pRoute->tDelay;
   pNewRoute->tBandwidth= pRoute->tBandwidth;
   // Copy also list of aggregatable routes ??
@@ -447,10 +459,13 @@ SRoute * route_copy(SRoute * pRoute)
       (SPtrArray *) _array_copy((SArray *) pRoute->pAggrRoutes);
     pNewRoute->pAggrRoute= route_copy(pRoute->pAggrRoute);
   }
-  // Route-Reflection: Originator and Cluster-ID-List fields
+#endif
+
+  /* Route-Reflection: Originator and Cluster-ID-List fields */
   if (route_originator_get(pRoute, &tOriginator) == 0)
     route_originator_set(pNewRoute, tOriginator);
   pNewRoute->pClusterList= route_cluster_list_copy(pRoute);
+
   return pNewRoute;
 }
 
@@ -598,6 +613,15 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
     return 1;
   }
 
+  /* BGP QoS */
+#ifdef BGP_QOS
+  if (!qos_route_delay_equals(pRoute1, pRoute2) ||
+      !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
+    LOG_DEBUG("route_equals == 0\n");
+    return 0;
+  }
+#endif
+
   if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
       (pRoute1->pPeer == pRoute2->pPeer) &&
       (pRoute1->uOriginType == pRoute2->uOriginType) &&
@@ -607,8 +631,6 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
       (pRoute1->uMED == pRoute2->uMED) &&
       (ecomm_equals(pRoute1->pECommunities, pRoute2->pECommunities)) &&
       (pRoute1->uTBID == pRoute2->uTBID) &&
-      (qos_route_delay_equals(pRoute1, pRoute2)) &&
-      (qos_route_bandwidth_equals(pRoute1, pRoute2)) &&
       (route_originator_equals(pRoute1, pRoute2)) &&
       (route_cluster_list_equals(pRoute1, pRoute2))) {
     LOG_DEBUG("route_equals == 1\n");

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 02/04/2004
+// @lastdate 26/05/2004
 // ==================================================================
 
 #include <config.h>
@@ -120,6 +120,9 @@ void main_help()
   printf("  -l LOGFILE     output log to LOGFILE instead of stderr.\n");
   printf("  -c SCRIPT      load and execute SCRIPT file.\n");
   printf("                 (without this option, commands are taken from stdin)\n");
+#if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
+  printf("  -g             track memory leaks.\n");
+#endif
   printf("\n");
 }
 
@@ -334,12 +337,18 @@ int main(int argc, char ** argv) {
   FILE * pInCli;
   int iExitCode= EXIT_SUCCESS;
 
-  //routing_test();
-
-  while ((iResult= getopt(argc, argv, "c:hil:")) != -1) {
+  while ((iResult= getopt(argc, argv, "c:hil:g")) != -1) {
     switch (iResult) {
     case 'c':
       pcOptCli= option_string(optarg);
+      break;
+    case 'g':
+#if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
+      mem_flag_set(MEM_FLAG_WARN_LEAK, 1);
+#else
+      fprintf(stderr, "Error: option -g not supported (check you libgds version).\n");
+      exit(EXIT_FAILURE);
+#endif
       break;
     case 'h':
       main_help();
@@ -356,11 +365,6 @@ int main(int argc, char ** argv) {
       exit(EXIT_FAILURE);
     }
   }
-
-  /*
-  predicate_parser_test();
-  exit(EXIT_FAILURE);
-  */
 
   // Setup log
   log_set_level(pMainLog, LOG_LEVEL_WARNING);

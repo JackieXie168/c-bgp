@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 13/04/2004
+// @lastdate 24/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -255,6 +255,7 @@ int as_add_route(SAS * pAS, SRoute * pRoute)
 /**
  *
  */
+#ifdef BGP_QOS
 int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
 		       net_link_delay_t tDelay)
 {
@@ -274,6 +275,7 @@ int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
   route_copy_count++;
   return 0;
 }
+#endif
 
 // ----- as_ecomm_red_process ---------------------------------------
 /**
@@ -716,7 +718,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   assert(pNextHopIf != NULL);
 
   // Remove the previous route (if it exists)
-  node_rt_del_route(pRouter->pNode, pRoute->sPrefix,
+  node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
 		    NULL, NET_ROUTE_BGP);
 
   // Insert the route
@@ -743,7 +745,7 @@ void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
   LOG_WARNING("\n");
   */
 
-  assert(!node_rt_del_route(pRouter->pNode, sPrefix,
+  assert(!node_rt_del_route(pRouter->pNode, &sPrefix,
 			   NULL, NET_ROUTE_BGP));
 }
 
@@ -760,6 +762,7 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
   SRoute * pAdjRoute;
 
   /* Remove BEST flag from old route in Loc-RIB. */
+
   route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
 
   /* If the route is not LOCAL, then there is a reference to the peer
@@ -777,6 +780,29 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
       route_flag_set(pAdjRoute, ROUTE_FLAG_BEST, 0);
 
     }
+  }
+}
+
+// ----- bgp_router_feasible_route ----------------------------------
+/**
+ * This function updates the ROUTE_FLAG_FEASIBLE flag of the given
+ * route. If the next-hop of the route is reachable, the flag is set
+ * and the function returns 1. Otherwise, the flag is cleared and the
+ * function returns 0.
+ */
+int bgp_router_feasible_route(SBGPRouter * pRouter, SRoute * pRoute)
+{
+  SNetRouteInfo * pRouteInfo;
+
+  /* Get the route towards the next-hop */
+  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop);
+
+  if (pRouteInfo != NULL) {
+    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
+    return 1;
+  } else {
+    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
+    return 0;
   }
 }
 
@@ -808,8 +834,11 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   SPeer * pPeer;
   SRoute * pRoute, * pOldRoute;
 
+  /* BGP QoS decision process */
+#ifdef BGP_QOS
   if (BGP_OPTIONS_NLRI == BGP_NLRI_QOS_DELAY)
     return qos_decision_process(pAS, pOriginPeer, sPrefix);
+#endif
 
   LOG_DEBUG("> ");
   LOG_ENABLED_DEBUG() as_dump_id(log_get_stream(pMainLog), pAS);
@@ -820,26 +849,45 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
   LOG_DEBUG("\n");
 
-  // Local routes can not be overriden and must be kept in Loc-RIB
+  /* Local routes can not be overriden and must be kept in Loc-RIB */
   if ((pOldRoute != NULL) &&
       route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL))
     return 0;
 
   // *** lock all Adj-RIB-Ins ***
 
-  // Build list of eligible routes
+  /* Build list of eligible routes */
   pRoutes= routes_list_create();
   for (iIndex= 0; iIndex < ptr_array_length(pAS->pPeers); iIndex++) {
+
     pPeer= (SPeer*) pAS->pPeers->data[iIndex];
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+
     if ((pRoute != NULL) &&
-	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))) {
-      routes_list_append(pRoutes, pRoute);
-      LOG_DEBUG("\teligible: ");
-      LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-      LOG_DEBUG("\n");
+	(route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE))) {
+
+      /* Clear flag that indicates that the route depends on the
+	 IGP. See 'dp_rule_nearest_next_hop' and 'bgp_router_scan_rib'
+	 for more information. */
+      route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 0);
+      
+      /* Update ROUTE_FLAG_FEASIBLE */
+      if (bgp_router_feasible_route(pAS, pRoute)) {
+	
+	routes_list_append(pRoutes, pRoute);
+
+	LOG_DEBUG("\teligible: ");
+	LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
+	LOG_DEBUG("\n");
+
+      }
     }
   }
+
+  /* If there is a single eligible & feasible route, it depends on the
+     IGP */
+  if (ptr_array_length(pRoutes) == 1)
+    route_flag_set((SRoute *) pRoutes->data[0], ROUTE_FLAG_DP_IGP, 1);
 
   // Keep routes with highest degree of preference
   if (ptr_array_length(pRoutes) > 1)
@@ -871,7 +919,7 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 	 done after the call to 'bgp_router_best_flag_off'. */
       route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
       route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
-      
+
       /* Insert in Loc-RIB */
       assert(rib_add_route(pAS->pLocRIB, pRoute) == 0);
 
@@ -885,6 +933,10 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 	 replaced). */
       route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
 
+      /* Update ROUTE_FLAG_DP_IGP of old route */
+      route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
+		     route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
+
       // Route has not changed.
       route_destroy(&pRoute);
       pRoute= pOldRoute;
@@ -892,6 +944,7 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     }
 
   } else {
+
     LOG_DEBUG("no best\n");
     // If a route towards this prefix was previously installed, then
     // withdraw it. Otherwise, do nothing...
@@ -985,6 +1038,148 @@ int bgp_router_reset(SBGPRouter * pRouter)
 {
   LOG_SEVERE("Error: not *yet* implemented, sorry.\n");
   return -1;
+}
+
+typedef struct {
+  SBGPRouter * pRouter;
+  SRoutes * pRoutes;
+} SScanRIBCtx;
+
+// ----- bgp_router_scan_rib_for_each -------------------------------
+/**
+ * This function is a helper function for 'bgp_router_scan_rib'. This
+ * function checks if the best route used to reach a given prefix must
+ * be updated due to an IGP change.
+ *
+ * The function works in two step:
+ * (1) checks if the current best route was selected based on the IGP
+ *     (i.e. the route passed the IGP rule) and checks if its next-hop
+ *     is still reachable and if not, goes to step (2) otherwise,
+ *     the function returns
+ *
+ * (2) looks in the Adj-RIB-Ins for a prefix whose IGP cost is lower
+ *     than these of the current best route. If one is found, run the
+ *     decision process
+ *
+ * The function does not run the BGP decision process itself but add
+ * to a list the prefixes for which the decision process must be run.
+ */
+int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
+				 void * pItem, void * pContext)
+{
+  SScanRIBCtx * pCtx= (SScanRIBCtx *) pContext;
+  SBGPRouter * pRouter= pCtx->pRouter;
+  SRoute * pRoute= (SRoute *) pItem;
+  SRoute * pAdjRoute;
+  int iIndex;
+  SPeer * pPeer;
+  unsigned int uBestWeight;
+  SNetRouteInfo * pRouteInfo;
+
+  /* If the best route has been chosen based on the IGP weight, then
+     there is a possible BGP impact */
+  if (route_flag_get(pRoute, ROUTE_FLAG_DP_IGP)) {
+
+    fprintf(stderr, "(1) best still reachable ?...\n");
+
+    /* Is there a route (IGP ?) towards the destination ? */
+    pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop);
+    if (pRouteInfo == NULL) {
+
+      /* The next-hop of the best route is now unreachable, thus
+	 trigger the decision process */
+      routes_list_append(pCtx->pRoutes, pRoute);
+
+      return 0;
+
+    }
+
+    uBestWeight= pRouteInfo->uWeight;
+
+    fprintf(stderr, "(2) look in Adj-RIB-ins...\n");
+
+    /* Lookup in the Adj-RIB-Ins for routes that were also selected
+       based on the IGP, that is routes that were compared to the
+       current best route based on the IGP cost to the next-hop. These
+       routes are marked with the ROUTE_FLAG_DP_IGP flag */
+    for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
+	 iIndex++) {
+
+      pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+
+      pAdjRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+
+      /* Is there a route (IGP ?) towards the destination ? */
+      pRouteInfo= rt_find_best(pRouter->pNode->pRT, pAdjRoute->tNextHop);
+
+      /* Three cases are now possible:
+	 (1) route becomes reachable => run DP
+	 (2) route no more reachable => do nothing (becoz the route is
+	 not the best
+	 (3) IGP cost is below cost of the best route => run DP
+      */
+      if ((pRouteInfo != NULL) &&
+	  !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
+
+	/* The next-hop was not reachable (route unfeasible) and is
+	   now reachable, thus run the decision process */
+	routes_list_append(pCtx->pRoutes, pRoute);
+	
+	return 0;
+	
+      } else if (pRouteInfo != NULL) {
+	
+	/* IGP cost is below cost of the best route, thus run the
+	   decision process */
+	if (pRouteInfo->uWeight < uBestWeight) {
+	  
+	routes_list_append(pCtx->pRoutes, pRoute);
+
+	  
+	  return 0;
+	  
+	}	
+
+      }
+
+    }
+
+  }
+  
+  return 0;
+}
+
+// ----- bgp_router_scan_rib ----------------------------------------
+/**
+ * This function scans the RIB of the BGP router in order to find
+ * routes for which the distance to the next-hop has changed. For each
+ * route that has changed, the decision process is re-run.
+ */
+int bgp_router_scan_rib(SBGPRouter * pRouter)
+{
+  SScanRIBCtx sCtx;
+  int iIndex;
+  int iResult;
+
+  /* initialize context */
+  sCtx.pRouter= pRouter;
+  sCtx.pRoutes= routes_list_create();
+
+  /* Traverses the whole Loc-RIB in order to find prefixes that depend
+     on the IGP (links up/down and metric changes) */
+  iResult= rib_for_each(pRouter->pLocRIB,
+			bgp_router_scan_rib_for_each,
+			&sCtx);
+  
+  /* For each route in the list, run the BGP decision process */
+  if (iResult == 0)
+    for (iIndex= 0; iIndex < routes_list_get_num(sCtx.pRoutes); iIndex++)
+      as_decision_process(pRouter, NULL,
+			  ((SRoute *) sCtx.pRoutes->data[iIndex])->sPrefix);
+
+  routes_list_destroy(&sCtx.pRoutes);
+
+  return iResult;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1123,7 +1318,7 @@ void bgp_router_dump_ribin(FILE * pStream, SBGPRouter * pRouter,
  */
 int as_load_rib(char * pcFileName, SBGPRouter * pRouter)
 {
-  SRoutes * pRoutes= mrtd_load_routes(pcFileName);
+  SRoutes * pRoutes= mrtd_load_routes(pRouter, pcFileName);
   SRoute * pRoute;
   int iIndex;
 
@@ -1245,6 +1440,166 @@ int bgp_router_record_route(SBGPRouter * pRouter,
   return iResult;
 }
 
+// ----- bgp_router_bm_route ----------------------------------------
+/**
+ * *** EXPERIMENTAL ***
+ *
+ * Returns the best route among the routes in the Loc-RIB that match
+ * the given prefix with a bound on the prefix length.
+ */
+SRoute * bgp_router_bm_route(SBGPRouter * pRouter, SPrefix sPrefix,
+			     uint8_t uBound)
+{
+  SRoutes * pRoutes;
+  SPrefix sBoundedPrefix;
+  SRoute * pRoute= NULL;
+  int iLocalExists= 0;
+
+  sBoundedPrefix.tNetwork= sPrefix.tNetwork;
+
+  pRoutes= routes_list_create();
+
+  /* Select routes that match the prefix with a bound on the prefix
+     length */
+  while (uBound <= sPrefix.uMaskLen) {
+    sBoundedPrefix.uMaskLen= uBound;
+    pRoute= rib_find_exact(pRouter->pLocRIB, sBoundedPrefix);
+
+    if (pRoute != NULL) {
+      /*
+	fprintf(stdout, "AVAIL: ");
+	route_dump(stdout, pRoute);
+	fprintf(stdout, "\n");
+      */
+      routes_list_append(pRoutes, pRoute);
+      
+      /* If the route towards the more specific prefix is local, this
+	 is the best */
+      if (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL)/* &&
+							(pRoute->sPrefix.uMaskLen == sPrefix.uMaskLen)*/) {
+	iLocalExists= 1;
+	break;
+      }
+    }
+
+    uBound++;
+  }
+
+  /* BGP-DP: prefer local routes towards the more specific prefix */
+  if (iLocalExists) {
+    
+
+  } else {
+
+    /* BGP-DP: local-preference rule */
+    if (routes_list_get_num(pRoutes) > 0)
+      as_decision_process_dop(pRouter, pRoutes);
+    
+    /* BGP-DP: other rules */
+    if (routes_list_get_num(pRoutes) > 0)
+      as_decision_process_tie_break(pRouter, pRoutes);
+
+    /* Is there a single route chosen ? */
+    if (routes_list_get_num(pRoutes) >= 1) {
+      pRoute= (SRoute *) pRoutes->data[0];
+
+      /*
+	fprintf(stdout, "BEST: ");
+	route_dump(stdout, pRoute);
+	fprintf(stdout, "\n");
+      */
+      
+    } else
+      pRoute= NULL;
+
+  }
+
+  routes_list_destroy(&pRoutes);
+
+  return pRoute;
+}
+
+// ----- bgp_router_record_route_bounded_match ----------------------
+/**
+ * *** EXPERIMENTAL ***
+ *
+ * This function records the AS-path from one BGP router towards a
+ * given prefix. The function has two modes:
+ * - records all ASes
+ * - records ASes once (do not record iBGP session crossing)
+ */
+int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
+					  SPrefix sPrefix,
+					  uint8_t uBound,
+					  SPath ** ppPath,
+					  int iPreserveDups)
+{
+  SBGPRouter * pCurrentRouter= pRouter;
+  SBGPRouter * pPreviousRouter= NULL;
+  SRoute * pRoute;
+  SPath * pPath= path_create();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
+  int iResult= AS_RECORD_ROUTE_UNREACH;
+
+  *ppPath= NULL;
+
+  while (pCurrentRouter != NULL) {
+    
+    /* Is there, in the current node, a BGP route towards the given
+       prefix ? */
+    pRoute= bgp_router_bm_route(pCurrentRouter, sPrefix, uBound);
+
+    if (pRoute != NULL) {
+      
+      // Record current node's AS-Num ??
+      if ((pPreviousRouter == NULL) ||
+	  (iPreserveDups ||
+	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
+	if ((path_length(pPath) >= 30) ||
+	    path_append(&pPath, pCurrentRouter->uNumber)) {
+	  iResult= AS_RECORD_ROUTE_TOO_LONG;
+	  break;
+	}
+      }
+      
+      // If the route's next-hop is this router, then the function
+      // terminates.
+
+      /*
+	fprintf(stdout, "NH: ");
+	ip_address_dump(stdout, pRoute->tNextHop);
+	fprintf(stdout, "\t\tRT: ");
+	ip_address_dump(stdout, pCurrentRouter->pNode->tAddr);
+	fprintf(stdout, "\n");
+      */
+
+      if ((pRoute->tNextHop == pCurrentRouter->pNode->tAddr) ||
+	  (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL))) {
+	iResult= AS_RECORD_ROUTE_SUCCESS;
+	break;
+      }
+      
+      // Otherwize, looks for next-hop router
+      pNode= network_find_node(pRouter->pNode->pNetwork, pRoute->tNextHop);
+      if (pNode == NULL)
+	break;
+      
+      // Get the current node's BGP instance
+      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+      if (pProtocol == NULL)
+	break;
+      pPreviousRouter= pCurrentRouter;
+      pCurrentRouter= (SBGPRouter *) pProtocol->pHandler;
+      
+    } else
+      break;
+  }
+  *ppPath= pPath;
+
+  return iResult;
+}
+
 // ----- bgp_router_dump_recorded_route -----------------------------
 /**
  * This function dumps the result of a call to
@@ -1253,14 +1608,9 @@ int bgp_router_record_route(SBGPRouter * pRouter,
 void bgp_router_dump_recorded_route(FILE * pStream,
 				    SBGPRouter * pRouter,
 				    SPrefix sPrefix,
-				    int iPreserveDups)
+				    SPath * pPath,
+				    int iResult)
 {
-  int iResult;
-  SPath * pPath;
-  
-  // Call record-route
-  iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, iPreserveDups);
-
   // Display record-route results
   ip_address_dump(pStream, pRouter->pNode->tAddr);
   fprintf(pStream, "\t");
@@ -1275,7 +1625,6 @@ void bgp_router_dump_recorded_route(FILE * pStream,
   }
   fprintf(pStream, "\t");
   path_dump(pStream, pPath, 0);
-  path_destroy(&pPath);
   fprintf(pStream, "\n");
 }
 

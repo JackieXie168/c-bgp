@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/11/2002
-// @lastdate 08/03/2004
+// @lastdate 26/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -11,6 +11,16 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <net/prefix.h>
+
+// ----- ip_dotted_to_address ---------------------------------------
+/**
+ *
+ */
+net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
+				uint8_t uC, uint8_t uD)
+{
+  return (((((((net_addr_t) uA) << 8) + uB) << 8) + uC) << 8) + uD;
+}
 
 // ----- ip_address_dump --------------------------------------------
 /**
