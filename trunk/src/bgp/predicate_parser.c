@@ -6,11 +6,17 @@
 // @lastdate 02/04/2004
 // ==================================================================
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <libgds/memory.h>
 #include <stdio.h>
 #include <string.h>
 
+#ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
+#endif
 
 #include <bgp/filter.h>
 #include <bgp/filter_registry.h>
@@ -132,6 +138,7 @@ int predicate_parse(char ** ppcExpr, SFilterMatcher ** ppMatcher)
  */
 void predicate_parser_test()
 {
+#ifdef HAVE_LIBREADLINE
   char * pcMatcher;
   SFilterMatcher * pMatcher;
 
@@ -149,4 +156,5 @@ void predicate_parser_test()
 
   }
   fprintf(stdout, "\n");
+#endif
 }
