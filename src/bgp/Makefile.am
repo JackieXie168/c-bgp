@@ -2,11 +2,6 @@ noinst_LTLIBRARIES = libbgp.la
 
 INCLUDES = -I..
 
-libbgp_as_o_CFLAGS = -D__BANZAAI__
-libbgp_as_lo_CFLAGS = -D__BANZAAI__
-
-libbgp_la_CFLAGS = -D__EBEHKWE__
-
 libbgp_la_SOURCES = \
 	as.c \
 	as.h \

@@ -453,13 +453,19 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix)
     radix_tree_for_each((SRadixTree *) pRT, rt_dump_for_each, pStream);
   } else if (sPrefix.uMaskLen == 32) {
     pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
-    if (pRouteInfo != NULL)
+    if (pRouteInfo != NULL) {
+      ip_prefix_dump(pStream, sPrefix);
+      fprintf(pStream, "\t");
       route_info_dump(pStream, pRouteInfo);
+    }
     fprintf(pStream, "\n");
   } else {
     pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
-    if (pRouteInfo != NULL)
+    if (pRouteInfo != NULL) {
+      ip_prefix_dump(pStream, sPrefix);
+      fprintf(pStream, "\t");
       route_info_dump(pStream, pRouteInfo);
+    }
     fprintf(pStream, "\n");
   }
 }
