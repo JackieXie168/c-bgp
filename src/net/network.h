@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 05/08/2004
+// @lastdate 15/09/2004
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -46,6 +46,7 @@ typedef struct {
 
 // ----- options -----
 extern uint8_t NET_OPTIONS_MAX_HOPS;
+extern uint8_t NET_OPTIONS_IGP_INTER;
 
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);

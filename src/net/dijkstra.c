@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 18/05/2004
+// @lastdate 15/09/2004
 // ==================================================================
 
 #include <assert.h>
@@ -37,7 +37,7 @@ void dijkstra_info_destroy(void ** pItem)
 
 // ----- dijkstra ---------------------------------------------------
 /**
- * Compute the Minimum Spanning Tree from the given source router
+ * Compute the Shortest Path Tree from the given source router
  * towards all the other routers that belong to the given prefix.
  */
 SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
@@ -80,7 +80,8 @@ SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	 - the end-point belongs to the given prefix */
       if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) &&
 	  link_get_state(pLink, NET_LINK_FLAG_UP) &&
-	  ip_address_in_prefix(pLink->tAddr, sPrefix)) {
+	  ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pLink->tAddr, sPrefix)) ||
+	   (NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pNode->tAddr, sPrefix)))) {
 
 	pInfo=
 	  (SDijkstraInfo *) radix_tree_get_exact(pVisited, pLink->tAddr, 32);
