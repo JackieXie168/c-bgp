@@ -79,7 +79,7 @@ int cli_net_add_link(SCliContext * pContext, STokens * pTokens)
   }
   if (tokens_get_uint_at(pTokens, 2, &uDelay))
     return CLI_ERROR_COMMAND_FAILED;
-  if (node_add_link(pNodeSrc, pNodeDst, (net_link_delay_t) uDelay, 1)) {
+  if (node_add_link(pNodeSrc, pNodeDst, (net_link_delay_t) uDelay, 1) < 0) {
     LOG_SEVERE("Error: could not add link (already exists)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
