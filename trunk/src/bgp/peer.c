@@ -808,15 +808,15 @@ void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
   }
   if (peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "\tnext-hop-self");
+    fprintf(pStream, "next-hop-self");
   }
   if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "\tvirtual");
+    fprintf(pStream, "virtual");
   }
   if (peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "\tsoft-restart");
+    fprintf(pStream, "soft-restart");
   }
   fprintf(pStream, (iOptions)?")":"");
 }

@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 18/02/2005
+// @lastdate 19/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -55,7 +55,7 @@ public class CBGP
 				       int iASNumber);
 
     public native int bgpRouterPeerNextHopSelf(String sRouterAddr,
-						   String sPeerAddr);
+					       String sPeerAddr);
 
     public native int bgpRouterPeerReflectorClient(String sRouterAddr,
 						   String sPeerAddr);
@@ -63,7 +63,7 @@ public class CBGP
     public native int bgpRouterPeerVirtual(String sRouterAddr,
 					   String sPeerAddr);
 
-    public native int bgpRouterPeerUp(String sRouterAddr, 
+    public native int bgpRouterPeerUp(String sRouterAddr,
 					  String sRouterPeer,
 					  boolean bUp);
 

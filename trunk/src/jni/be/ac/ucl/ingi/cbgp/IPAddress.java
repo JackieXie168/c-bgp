@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 07/02/2005
+// @lastdate 19/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -31,13 +31,27 @@ public class IPAddress
 	abAddress[3]= bD;
     }
 
+    // -----[ byte2int ]---------------------------------------------
+    /**
+     * Convert a signed byte (Java) to an unsigned byte stored in an
+     * integer. We need this to correctly handle bytes coming from the
+     * C part of C-BGP and that are unsigned bytes.
+     */
+    protected static int byte2int(byte b)
+    {
+	return (b >= 0)?b:(256+b);
+    }
+
     // -----[ toString ]---------------------------------------------
     /**
      * Converts this IP address to a String.
      */
     public String toString()
     {
-	return abAddress[0]+"."+abAddress[1]+"."+abAddress[2]+"."+abAddress[3];
+	return byte2int(abAddress[0])+"."+
+	    byte2int(abAddress[1])+"."+
+	    byte2int(abAddress[2])+"."+
+	    byte2int(abAddress[3]);
     }
 
 }

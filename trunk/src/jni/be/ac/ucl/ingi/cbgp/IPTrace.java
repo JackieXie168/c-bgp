@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 18/02/2004
-// @lastdate 18/02/2005
+// @lastdate 19/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -130,7 +130,7 @@ public class IPTrace
 	s+= "\t";
 	for (int iIndex= 0; iIndex < hops.size(); iIndex++) {
 	    if (iIndex > 0) {
-		s+= "\t";
+		s+= " ";
 	    }
 	    s+= (IPAddress) hops.get(iIndex);
 	}
