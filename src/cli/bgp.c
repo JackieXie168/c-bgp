@@ -1,13 +1,16 @@
 // ==================================================================
 // @(#)bgp.c
 //
-// @author  Bruno Quoitin (bqu@info.ucl.ac.be), 
-//	    Sebastien Tandel (sta@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be), 
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 04/01/2005
+// @lastdate 27/01/2005
 // ==================================================================
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
 #include <bgp/bgp_debug.h>

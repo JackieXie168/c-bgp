@@ -2,25 +2,28 @@
 // @(#)xml_topology.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/09/2003
-// @lastdate 30/09/2004
+// @lastdate 27/01/2005
 // ==================================================================
 
 //TODO :  1) spf-prefix has to be done !
 //	  2) peer up has to be done !
 
-#ifdef HAVE_XML
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 
-#include <libgds/xml.h>
 #include <libgds/log.h>
 #include <libgds/fifo.h>
 #include <libgds/array.h>
 #include <libgds/radix-tree.h>
+#include <libgds/xml.h>
 
 #include <bgp/xml_topology.h>
 #include <bgp/filter.h>
@@ -34,6 +37,8 @@
 #include <net/protocol.h>
 #include <net/domain.h>
 #include <net/network.h>
+
+#ifdef HAVE_XML
 
 // ----- xml_parse_node_add ------------------------------------------
 /**

@@ -2,9 +2,14 @@
 // @(#)route_map.c
 //
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 14/12/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <string.h>
 

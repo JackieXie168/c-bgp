@@ -4,11 +4,15 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2003
-// @lastdate 13/12/2004
+// @lastdate 27/01/2005
 // ==================================================================
 // TO-DO-LIST
 // - MUST change 'ip_jstring_to_address' in order to check conversion
 //   errors
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <jni.h>
 #include <string.h>

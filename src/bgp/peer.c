@@ -1,10 +1,15 @@
 // ==================================================================
 // @(#)peer.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 03/01/2005
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 #include <stdlib.h>
@@ -439,6 +444,7 @@ void peer_route_rr_client_update(SPeer * pPeer, SRoute * pRoute)
 /**
  * Apply input communities.
  *   - DEPREF community [ EXPERIMENTAL ]
+ *   - PREF ext-community [ EXPERIMENTAL ]
  *
  * Returns:
  *   0 => Ignore route (destroy)
@@ -446,12 +452,32 @@ void peer_route_rr_client_update(SPeer * pPeer, SRoute * pRoute)
  */
 int peer_comm_process(SRoute * pRoute)
 {
+  int iIndex;
+
+  /* Classical communities */
   if (pRoute->pCommunities != NULL) {
 #ifdef __EXPERIMENTAL__
     if (route_comm_contains(pRoute, COMM_DEPREF)) {
       route_localpref_set(pRoute, 0);
     }
 #endif
+  }
+
+  /* Extended communities */
+  if (pRoute->pECommunities != NULL) {
+
+    for (iIndex= 0; iIndex < ecomm_length(pRoute->pECommunities); iIndex++) {
+      SECommunity * pComm= ecomm_get_index(pRoute->pECommunities, iIndex);
+      switch (pComm->uTypeHigh) {
+
+#ifdef __EXPERIMENTAL__
+      case ECOMM_PREF:
+	route_localpref_set(pRoute, ecomm_pref_get(pComm));
+	break;
+#endif
+
+      }
+    }
   }
 
   return 1;

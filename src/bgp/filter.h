@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 12/08/2004
+// @lastdate 21/01/2005
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -124,6 +124,8 @@ extern SFilterAction * filter_action_metric_set(uint32_t uMetric);
 extern SFilterAction * filter_action_metric_internal();
 // ----- filter_action_comm_append ----------------------------------
 extern SFilterAction * filter_action_comm_append(comm_t uCommunity);
+// ----- filter_action_comm_remove ----------------------------------
+extern SFilterAction * filter_action_comm_remove(comm_t uCommunity);
 // ----- filter_action_comm_strip -----------------------------------
 extern SFilterAction * filter_action_comm_strip();
 // ----- filter_action_ecomm_append ---------------------------------

@@ -2,10 +2,14 @@
 // @(#)filter_registry.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
-//	   Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 03/01/2005
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
@@ -448,6 +452,27 @@ int ft_cli_action_community_add(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- ft_cli_action_community_remove -----------------------------
+int ft_cli_action_community_remove(SCliContext * pContext,
+				   STokens * pTokens)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+  char * pcCommunity;
+  comm_t tCommunity;
+
+  pcCommunity= tokens_get_string_at(pTokens, 0);
+  if (comm_from_string(pcCommunity, &tCommunity)) {
+    *ppAction= NULL;
+    LOG_SEVERE("Error: invalid community \"%s\"\n", pcCommunity);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppAction= filter_action_comm_remove(tCommunity);
+
+  return CLI_SUCCESS;
+}
+
 // ----- ft_cli_action_community_strip ------------------------------
 int ft_cli_action_community_strip(SCliContext * pContext,
 				  STokens * pTokens)
@@ -503,6 +528,26 @@ int ft_cli_action_red_comm_prepend(SCliContext * pContext,
 						   uAmount, uTarget));
   return CLI_SUCCESS;
 }
+
+#ifdef __EXPERIMENTAL__
+// ----- ft_cli_action_pref_comm ------------------------------------
+int ft_cli_action_pref_comm(SCliContext * pContext,
+			    STokens * pTokens)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+  unsigned int uPref;
+  
+  if (tokens_get_uint_at(pTokens, 0, &uPref)) {
+    LOG_SEVERE("Error: invalid preference value\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppAction=
+    filter_action_ecomm_append(ecomm_pref_create(uPref));
+  return CLI_SUCCESS;
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////
 // CLI ACTION REGISTRATION
@@ -611,6 +656,11 @@ void ft_cli_register_action_community()
   cli_cmds_add(pSubCmds, cli_cmd_create("add",
 					ft_cli_action_community_add,
 					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<community>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("remove",
+					ft_cli_action_community_remove,
+					NULL, pParams));
   cli_register_cmd(pCli, cli_cmd_create("community", NULL,
 					pSubCmds, NULL));
 }
@@ -639,6 +689,23 @@ void ft_cli_register_action_red_community()
   cli_register_cmd(pCli, cli_cmd_create("red-community", NULL,
 					pSubCmds, NULL));
 }
+
+#ifdef __EXPERIMENTAL__
+// ----- ft_cli_register_action_pref_community ----------------------
+void ft_cli_register_action_pref_community()
+{
+  SCli * pCli= ft_cli_action_get();
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+  
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<pref>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("add", ft_cli_action_pref_comm,
+					NULL, pParams));
+  cli_register_cmd(pCli, cli_cmd_create("pref-community", NULL,
+					pSubCmds, NULL));
+}
+#endif
 
 // ----- ft_cli_register_action_ext_community -----------------------
 void ft_cli_register_action_ext_community()
@@ -680,6 +747,9 @@ void _ft_registry_init()
   ft_cli_register_action_community();
   ft_cli_register_action_ext_community();
   ft_cli_register_action_red_community();
+#ifdef __EXPERIMENTAL__
+  ft_cli_register_action_pref_community();
+#endif
   ft_cli_register_action_call();
   ft_cli_register_action_jump();
 }

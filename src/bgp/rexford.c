@@ -3,8 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 26/04/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 #include <string.h>
@@ -222,13 +226,21 @@ void rexford_setup_policies()
 	pPeer= (SPeer *) AS[uAS1]->pPeers->data[iIndex];
 	uPeerType= pPeer->uPeerType;
 
-	// Setup business-policies:
-	// ->customers: community strip
-	// <-customers: community append 1
-	// ->peers: deny if !community 1, community strip
-	// <-peers: /
-	// ->providers: deny if !community 1, community strip
-	// <-providers: /
+	/* Setup business-policies:
+	 * ->customers: community remove COMM_PROV
+	 *              community remove COMM_PEER
+	 * <-customers: local-pref 100
+	 * ->peers: deny if (community COMM_PROV) || (community COMM_PEER),
+	 *          community remove COMM_PROV,
+	 *          community remove COMM_PEER
+	 * <-peers: community append COMM_PEER,
+	 *          local-pref 80
+	 * ->providers: deny if (community COMM_PROV) || (community COMM_PEER),
+	 *              community remove COMM_PROV,
+	 *              community remove COMM_PEER
+	 * <-providers: community append COMM_PROV,
+	 *              local-pref 60
+	 */
 	switch (uPeerType) {
 	case PEER_TYPE_CUSTOMER:
 	  // Provider input filter
@@ -237,7 +249,8 @@ void rexford_setup_policies()
 	  as_peer_set_in_filter(AS[uAS1], pPeer->tAddr, pFilter);
 	  // Provider output filter
 	  pFilter= filter_create();
-	  filter_add_rule(pFilter, NULL, filter_action_comm_strip());
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
 	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
 	  break;
 	case PEER_TYPE_PROVIDER:
@@ -251,7 +264,8 @@ void rexford_setup_policies()
 	  filter_add_rule(pFilter, FTM_OR(filter_match_comm_contains(COMM_PROV),
 					  filter_match_comm_contains(COMM_PEER)),
 			  FTA_DENY);
-	  filter_add_rule(pFilter, NULL, filter_action_comm_strip());
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
 	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
 	  break;
 	case PEER_TYPE_PEER:
@@ -268,7 +282,8 @@ void rexford_setup_policies()
 			    FTM_OR(filter_match_comm_contains(COMM_PROV),
 				   filter_match_comm_contains(COMM_PEER)),
 			    FTA_DENY);
-	  filter_add_rule(pFilter, NULL, filter_action_comm_strip());
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
+	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
 	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
 	  break;
 	default:

@@ -3,11 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 02/04/2004
+// @lastdate 27/01/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #include <libgds/memory.h>
