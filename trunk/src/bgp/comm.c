@@ -86,8 +86,10 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
     *pCommunity= COMM_NO_EXPORT;
   } else if (!strcmp(pcComm, "no-advertise")) {
     *pCommunity= COMM_NO_ADVERTISE;
+#ifdef __EXPERIMENTAL__
   } else if (!strcmp(pcComm, "depref")) {
     *pCommunity= COMM_DEPREF;
+#endif
   } else {
     *pCommunity= 0;
     ulComm= strtoul(pcComm, &pcComm2, 0);
