@@ -5,7 +5,9 @@ INCLUDES = -I..
 
 libjni_la_SOURCES = \
 	jni_interface.c \
+	jni_util.c \
 	be_ac_ucl_ingi_cbgp_CBGP.h
+
 AM_CFLAGS = -Wall -Werror -O2
 
 JARFILE = CBGP.jar
@@ -13,7 +15,15 @@ BUILT_SOURCES = $(JARFILE)
 #foo_DATA = $(JARFILE)
 
 JAVAFILES= \
-	be/ac/ucl/ingi/cbgp/CBGP.java
+	be/ac/ucl/ingi/cbgp/CBGP.java \
+	be/ac/ucl/ingi/cbgp/BGPPeer.java \
+	be/ac/ucl/ingi/cbgp/BGPRoute.java \
+	be/ac/ucl/ingi/cbgp/IPAddress.java \
+	be/ac/ucl/ingi/cbgp/IPPrefix.java \
+	be/ac/ucl/ingi/cbgp/IPRoute.java \
+	be/ac/ucl/ingi/cbgp/Link.java \
+	be/ac/ucl/ingi/cbgp/Route.java \
+	be/ac/ucl/ingi/cbgp/RouteInterface.java
 
 METAFILE= META-INF/MANIFEST.MF
 	
@@ -26,7 +36,6 @@ EXTRA_DIST = $(JAVAFILES) $(METAFILE)
 SUFFIXES= .java .class
 
 $(JARFILE): $(CLASSFILES)
-	(cd be/ac/ucl/ingi/cbgp; for x in `find ./ -name \*.class`; do $(JAVAH) `echo $$x | sed "s/\.\///g" | sed "s/.class//g"`; done;)
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
 
 install-exec-local:

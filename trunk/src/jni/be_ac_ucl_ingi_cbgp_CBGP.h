@@ -17,131 +17,131 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    finalize
+ * Method:    destroy
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_finalize
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   (JNIEnv *, jobject);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeAdd
+ * Method:    netAddNode
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkAdd
+ * Method:    netAddLink
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeLinkAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   (JNIEnv *, jobject, jstring, jstring, jint);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkWeight
+ * Method:    netLinkWeight
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeLinkWeight
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
   (JNIEnv *, jobject, jstring, jstring, jint);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkUp
+ * Method:    netLinkUp
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Z)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
+  (JNIEnv *, jobject, jstring, jstring, jboolean);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netNodeSpfPrefix
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeLinkUp
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
   (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkDown
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeLinkDown
-  (JNIEnv *, jobject, jstring, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeRouteAdd
+ * Method:    netNodeRouteAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeRouteAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
   (JNIEnv *, jobject, jstring, jstring, jstring, jint);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeSpfPrefix
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ * Method:    netNodeGetLinks
+ * Signature: (Ljava/lang/String;)Ljava/util/Vector;
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeSpfPrefix
-  (JNIEnv *, jobject, jstring, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeInterfaceAdd
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeInterfaceAdd
-  (JNIEnv *, jobject, jstring, jstring, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeShowLinks
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeShowLinks
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetLinks
   (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeShowRT
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+ * Method:    netNodeGetRT
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
  */
-JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeShowRT
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
   (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterAdd
+ * Method:    bgpAddRouter
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   (JNIEnv *, jobject, jstring, jstring, jint);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNetworkAdd
+ * Method:    bgpRouterAddNetwork
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterNetworkAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
   (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNeighborAdd
+ * Method:    bgpRouterAddPeer
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterNeighborAdd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
   (JNIEnv *, jobject, jstring, jstring, jint);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNeighborNextHopSelf
- * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ * Method:    bgpRouterPeerNextHopSelf
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterNeighborNextHopSelf
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
   (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNeighborUp
+ * Method:    bgpRouterPeerVirtual
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterNeighborUp
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
   (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpRouterPeerUp
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Z)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
+  (JNIEnv *, jobject, jstring, jstring, jboolean);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpRouterPeerRecv
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
+  (JNIEnv *, jobject, jstring, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
@@ -153,59 +153,35 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterShowRib
- * Signature: (Ljava/lang/String;)Ljava/lang/String;
+ * Method:    bgpRouterGetPeers
+ * Signature: (Ljava/lang/String;)Ljava/util/Vector;
  */
-JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterShowRib
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetPeers
   (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterShowRibIn
- * Signature: (Ljava/lang/String;)V
+ * Method:    bgpRouterGetRib
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterShowRibIn
-  (JNIEnv *, jobject, jstring);
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetRib
+  (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpFilterInit
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
+ * Method:    bgpRouterGetAdjRib
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Ljava/util/Vector;
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterInit
-  (JNIEnv *, jobject, jstring, jstring, jstring);
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
+  (JNIEnv *, jobject, jstring, jstring, jstring, jboolean);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpFilterMatchPrefixIn
- * Signature: (Ljava/lang/String;)I
+ * Method:    bgpRouterLoadRib
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIn
-  (JNIEnv *, jobject, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpFilterMatchPrefixIs
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIs
-  (JNIEnv *, jobject, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpFilterAction
- * Signature: (ILjava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterAction
-  (JNIEnv *, jobject, jint, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpFilterFinalize
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
-  (JNIEnv *, jobject);
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
+  (JNIEnv *, jobject, jstring, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
@@ -217,18 +193,18 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    simPrint
+ * Method:    print
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simPrint
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_print
   (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    runCmd
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv *, jobject, jstring);
 
 #ifdef __cplusplus

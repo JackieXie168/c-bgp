@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 21/01/2005
+// @lastdate 10/02/2005
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -14,13 +14,14 @@
 #include <libgds/sequence.h>
 #include <libgds/hash.h>
 #include <libgds/array.h>
-#include <libgds/regex.h>
 
 #include <bgp/as_t.h>
 #include <bgp/comm_t.h>
 #include <bgp/ecomm_t.h>
 #include <bgp/filter_t.h>
 #include <bgp/route_t.h>
+
+#include <util/regex.h>
 
 // Matcher codes
 #define FT_MATCH_OP_AND        1

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 01/02/2005
+// @lastdate 08/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -435,6 +435,12 @@ void node_links_dump(FILE * pStream, SNetNode * pNode)
   }
 }
 
+// ----- node_links_for_each ----------------------------------------
+int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach, void * pContext)
+{
+  return _array_for_each((SArray *) pNode->pLinks, fForEach, pContext);
+}
+
 // ----- node_links_lookup ------------------------------------------
 /**
  * This function looks for a direct link towards a node. This is
@@ -657,8 +663,11 @@ int node_send(SNetNode * pNode, net_addr_t tDstAddr,
 
   // Find outgoing interface/next-hop
   pLink= node_rt_lookup(pNode, tDstAddr);
-  if (pLink == NULL)
+  if (pLink == NULL) {
+    if (fDestroy != NULL)
+      fDestroy(&pPayLoad);
     return -1;
+  }
 
   // Build message
   pMessage= message_create(pNode->tAddr, tDstAddr,
@@ -789,6 +798,7 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 
   // Check link's state
   if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
+    fprintf(stderr, "*** Message lost ***\n");
     LOG_INFO("Info: link is down, message dropped\n");
     message_destroy(&pMessage);
     return NET_ERROR_LINK_DOWN; // Link is down, silently drop
@@ -1097,6 +1107,43 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   net_path_destroy(&pPath);
 }
 
+// ----- network_domain_add ------------------------------------------
+/**
+ *
+ *
+ */
+int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
+						      char * pcName)
+{
+  SNetDomain * pDomain = domain_create(uAS, pcName);
+  if (pNetwork->pDomains == NULL)
+    pNetwork->pDomains = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_SORTED, 
+					network_domains_compare, 
+					network_domains_destroy);
+
+  return ptr_array_add(pNetwork->pDomains, &pDomain);
+}
+
+// ----- network_domain_get ------------------------------------------
+/**
+ *
+ *
+ */
+SNetDomain * network_domain_get (SNetwork * pNetwork, uint32_t uAS)
+{
+  unsigned int uIndex;
+  SNetDomain * pDomain = domain_create(uAS, "");
+
+  if (ptr_array_sorted_find_index(pNetwork->pDomains, &pDomain, &uIndex)) {
+    LOG_DEBUG("network_domain_get>domain not found.\n");
+    domain_destroy(&pDomain);
+    return NULL;
+  }
+  domain_destroy(&pDomain);
+
+  return (SNetDomain *)pNetwork->pDomains->data[uIndex];
+}
+
 /////////////////////////////////////////////////////////////////////
 // TEST
 /////////////////////////////////////////////////////////////////////
@@ -1211,41 +1258,4 @@ void _network_destroy()
     network_destroy(&pTheNetwork);
     //fprintf(stderr, "done.\n");
   }
-}
-
-// ----- network_domain_add ------------------------------------------
-/**
- *
- *
- */
-int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
-						      char * pcName)
-{
-  SNetDomain * pDomain = domain_create(uAS, pcName);
-  if (pNetwork->pDomains == NULL)
-    pNetwork->pDomains = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_SORTED, 
-					network_domains_compare, 
-					network_domains_destroy);
-
-  return ptr_array_add(pNetwork->pDomains, &pDomain);
-}
-
-// ----- network_domain_get ------------------------------------------
-/**
- *
- *
- */
-SNetDomain * network_domain_get (SNetwork * pNetwork, uint32_t uAS)
-{
-  unsigned int uIndex;
-  SNetDomain * pDomain = domain_create(uAS, "");
-
-  if (ptr_array_sorted_find_index(pNetwork->pDomains, &pDomain, &uIndex)) {
-    LOG_DEBUG("network_domain_get>domain not found.\n");
-    domain_destroy(&pDomain);
-    return NULL;
-  }
-  domain_destroy(&pDomain);
-
-  return (SNetDomain *)pNetwork->pDomains->data[uIndex];
 }
