@@ -3,7 +3,7 @@
 #
 AC_INIT(src/main.c)
 PACKAGE=cbgp
-VERSION="1.1.6"
+VERSION="1.1.7"
 AC_PREFIX_DEFAULT(/usr)
 
 #
