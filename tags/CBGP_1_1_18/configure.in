@@ -1,0 +1,126 @@
+# configure.in for cbgp
+#
+#
+AC_INIT(src/main.c)
+PACKAGE=cbgp
+VERSION="1.1.18"
+AC_PREFIX_DEFAULT(/usr)
+
+AC_CANONICAL_SYSTEM
+AC_DEFUN([AC_PROG_JAVAH],[
+AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
+AC_REQUIRE([AC_PROG_CPP])dnl
+AC_PATH_PROG(JAVAH,javah)
+   ac_save_CPPFLAGS="$CPPFLAGS"
+changequote(, )dnl
+   ac_dir=`echo $ac_cv_path_JAVAH | sed 's,\(.*\)/[^/]*/[^/]*$,\1/include,'`
+   ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+changequote([, ])dnl
+   CPPFLAGS="$ac_save_CPPFLAGS -I$ac_dir -I$ac_dir/$ac_machdep"
+   AC_TRY_CPP([#include <jni.h>],
+              ac_save_CPPFLAGS="$CPPFLAGS",
+              AC_MSG_WARN([unable to include <jni.h>]))
+   CPPFLAGS="$ac_save_CPPFLAGS"
+])
+
+#
+# Version setting up for Automake
+#
+AM_INIT_AUTOMAKE(cbgp, $VERSION)
+AM_CONFIG_HEADER(src/config.h)
+
+AM_PROG_LIBTOOL
+
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+
+AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
+
+#
+# Test for XML availability
+#
+AC_ARG_ENABLE(xml,
+   AC_HELP_STRING([--enable-xml],
+      [enable XML support]),
+   cbgp_config_xml="$enableval",
+)
+if test "x$cbgp_config_xml" == "xyes"; then
+   AC_DEFINE([HAVE_XML], 1, [Define to 1 if XML support is compiled])
+fi
+
+#
+# Test for JNI availability
+#
+AC_ARG_WITH(jni-dir,
+   AC_HELP_STRING([--with-jni-dir],
+      [specify directory for jni.h]),
+   cbgp_config_jni_dir="$withval",
+)     
+AC_ARG_ENABLE(jni,
+   AC_HELP_STRING([--enable-jni],
+      [enable JNI support]),
+   cbgp_config_jni="$enableval",
+)
+if test "$cbgp_config_jni" == "yes"; then
+   if test "$cbgp_config_jni_dir" != ""; then
+      CPPFLAGS="$CPPFLAGS -I$cbgp_config_jni_dir"
+   else
+      AC_PROG_JAVAH()
+   fi
+   AC_CHECK_HEADER(jni.h, jni_header_ok=yes, jni_header_ok=no)
+   if test "$jni_header_ok" != "yes"; then
+      AC_MSG_ERROR([could not find java native interface header (jni.h)])
+   else
+      cbgp_jni_ok=yes
+   fi
+fi
+if test "$cbgp_jni_ok" == "yes"; then
+   AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
+fi
+AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
+
+#
+# Test for readline existence. Required due to possibly undetected 
+# dependence with one of libcurses, libtinfo or libtermcap.
+# (The following tests are insipired from Peter Samuelson)
+#
+AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
+if test "$readline_ok" != "yes"; then
+   AC_MSG_WARN([readline alone does not work, check with dependencies])
+   AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
+   fi
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
+   fi
+   unset ac_cv_lib_readline_readline
+   AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
+fi
+if test "$readline_ok" == "yes"; then
+   AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
+   LIBS="$LIBS -lreadline $tc"
+   AC_CHECK_HEADERS(readline/readline.h)
+fi
+unset tc
+
+#
+# Test for libgds existence (library + headers)
+#
+AC_CHECK_LIB(gds, list_create, [gds_ok=yes; LIBS="$LIBS -lgds"], gds_ok=no)
+if test "x$gds_ok" != "xyes"; then
+   AC_MSG_ERROR([libgds is needed to compile cbgp])
+else
+   # Check for headers
+   AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
+   if test "x$gds_header_ok" != "xyes"; then
+      AC_MSG_ERROR([libgds headers are needed to compile cbgp])
+   fi
+   # Check 'mem_flag_set' function
+   AC_CHECK_FUNCS(mem_flag_set)
+fi
+
+
+AC_PROG_INSTALL
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
