@@ -94,6 +94,7 @@ void rl_display_completion(char **matches, int num_matches, int max_length)
   for (iIndex= 1; iIndex <= num_matches; iIndex++) {
     fprintf(stdout, "\t%s\n", matches[iIndex]);
   }
+  rl_on_new_line();
 }
 
 // ----- completion state -----
@@ -270,6 +271,7 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
     }
     fprintf(stdout, "\n");
   }
+  rl_on_new_line();
 }
 
 // ----- simulation_help_cmd ----------------------------------------
@@ -294,6 +296,7 @@ void simulation_help_cmd(SCliCmd * pCmd, int iParamIndex)
   if (pCmd->pcHelp != NULL) {
     fprintf(stdout, "\nCOMMENTS:\n%s\n", pCmd->pcHelp);
   }
+  rl_on_new_line();
 }
 
 // ----- simulation_help --------------------------------------------
@@ -346,6 +349,7 @@ void simulation_help(const char * pcLine)
     }
   } else {
     fprintf(stdout, "Sorry, no help is available on this topic\n");
+    rl_on_new_line();
   }
 
 }
