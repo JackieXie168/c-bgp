@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 02/02/2005
+// @lastdate 11/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -93,7 +93,7 @@ SAS * as_create(uint16_t uNumber, SNetNode * pNode, uint32_t uTBID)
   pAS->fTieBreak= BGP_OPTIONS_TIE_BREAK;
   pAS->tClusterID= pNode->tAddr;
   pAS->iRouteReflector= 0;
-  pAS->pcName = NULL;
+  pAS->pcName= NULL;
   return pAS;
 }
 
@@ -1579,6 +1579,16 @@ void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter)
   }
 
   flushir(pStream);
+}
+
+// ----- bgp_router_peers_for_each ----------------------------------
+/**
+ *
+ */
+int bgp_router_peers_for_each(SBGPRouter * pRouter, FArrayForEach fForEach,
+			      void * pContext)
+{
+  return _array_for_each((SArray *) pRouter->pPeers, fForEach, pContext);
 }
 
 typedef struct {

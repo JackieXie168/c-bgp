@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 27/01/2005
+// @lastdate 10/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,7 +13,6 @@
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
-#include <libgds/regex.h>
 #include <libgds/hash.h>
 
 #include <bgp/comm.h>
@@ -21,6 +20,7 @@
 #include <bgp/filter.h>
 #include <bgp/filter_registry.h>
 #include <bgp/route_map.h>
+#include <util/regex.h>
 
 #include <string.h>
 

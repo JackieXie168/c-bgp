@@ -18,7 +18,7 @@ AC_CANONICAL_SYSTEM
 dnl Version setting up for Automake
 AM_INIT_AUTOMAKE([no-define])
 AM_CONFIG_HEADER(src/config.h)
-AM_MAINTAINER_MODE
+#AM_MAINTAINER_MODE
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -180,4 +180,4 @@ AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" == "yes"])
 
 TESTS="src/checks/basic"
 
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/check/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)

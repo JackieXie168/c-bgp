@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 02/02/2005
+// @lastdate 08/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -559,6 +559,43 @@ int rt_dump_string_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
   return 0;
 }
 
+typedef struct {
+  FRadixTreeForEach fForEach;
+  void * pContext;
+} SRTForEachCtx;
+
+// ----- rt_for_each_function ----------------------------------------------
+/**
+ *
+ */
+int rt_for_each_function(uint32_t uKey, uint8_t uKeyLen,
+			 void * pItem, void * pContext)
+{
+  SRTForEachCtx * pCtx= (SRTForEachCtx *) pContext;
+  SNetRouteInfoList * pInfoList= (SNetRouteInfoList *) pItem;
+  int iIndex;
+
+  for (iIndex= 0; iIndex < ptr_array_length(pInfoList); iIndex++) {
+    if (pCtx->fForEach(uKey, uKeyLen, pInfoList->data[iIndex], pCtx->pContext) != 0)
+      return -1;
+  }
+
+  return 0;
+}
+
+// ----- rt_for_each -------------------------------------------------------
+/**
+ *
+ */
+int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
+{
+  SRTForEachCtx sCtx;
+
+  sCtx.fForEach= fForEach;
+  sCtx.pContext= pContext;
+
+  return radix_tree_for_each((SRadixTree *) pRT, rt_for_each_function, &sCtx);
+}
 
 // ----- rt_dump_string ----------------------------------------------------
 /**

@@ -97,6 +97,9 @@ extern int node_post_event(SNetNode * pNode);
 
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(FILE * pStream, SNetNode * pNode);
+// ----- node_links_for_each ----------------------------------------
+extern int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
+			       void * pContext);
 // ----- node_links_lookup ------------------------------------------
 extern SNetLink * node_links_lookup(SNetNode * pNode,
 				    net_addr_t tDstAddr);

@@ -272,17 +272,25 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
   SCliCmd * pCmd;
   SCliCmdParam * pParam;
 
-  fprintf(stdout, "AVAILABLE COMMANDS:\n");
+  if (cli_cmd_get_num_subcmds(pCtxCmd) > 0) {
+    fprintf(stdout, "AVAILABLE COMMANDS:\n");
 
-  for (iIndex= 0; iIndex < cli_cmd_get_num_subcmds(pCtxCmd); iIndex++) {
-    pCmd= (SCliCmd *) pCtxCmd->pSubCmds->data[iIndex];
-    fprintf(stdout, "\t%s", pCmd->pcName);
-    for (iIndex2= 0; iIndex2 < cli_cmd_get_num_params(pCmd); iIndex2++) {
-      pParam= (SCliCmdParam *) pCmd->pParams->data[iIndex2];
-      fprintf(stdout, " %s", pParam->pcName);
+    for (iIndex= 0; iIndex < cli_cmd_get_num_subcmds(pCtxCmd); iIndex++) {
+      pCmd= (SCliCmd *) pCtxCmd->pSubCmds->data[iIndex];
+      fprintf(stdout, "\t%s", pCmd->pcName);
+      for (iIndex2= 0; iIndex2 < cli_cmd_get_num_params(pCmd); iIndex2++) {
+	pParam= (SCliCmdParam *) pCmd->pParams->data[iIndex2];
+	fprintf(stdout, " %s", pParam->pcName);
+      }
+      fprintf(stdout, "\n");
     }
-    fprintf(stdout, "\n");
+
+  } else {
+    fprintf(stdout, "NO HELP AVAILABLE.\n");
   }
+
+  /* Tell readline that we have written things. The command prompt
+     must therefore start on a new line. */
   rl_on_new_line();
 }
 #endif
@@ -422,8 +430,8 @@ int simulation_interactive()
  */
 void main_help()
 {
-  printf("C-BGP v1.1\n");
-  printf("Infonet Group, CSE Dept, UCL, Belgium\n");
+  printf("C-BGP %s\n", PACKAGE_VERSION);
+  printf("Networking group, CSE Dept, UCL, Belgium\n");
   printf("\n");
   printf("Usage: cbgp [OPTIONS]\n");
   printf("\n");

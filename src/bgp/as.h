@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 03/02/2005
+// @lastdate 11/02/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -128,6 +128,10 @@ int bgp_router_scan_rib(SBGPRouter * pRouter);
 extern void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_dump_peers --------------------------------------
 extern void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter);
+// ----- bgp_router_peers_for_each ----------------------------------
+extern int bgp_router_peers_for_each(SBGPRouter * pRouter,
+				     FArrayForEach fForEach,
+				     void * pContext);
 // ----- bgp_router_dump_rib_string ----------------------------------------
 char * bgp_router_dump_rib_string(SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib ----------------------------------------
