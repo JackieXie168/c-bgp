@@ -1357,7 +1357,7 @@ int bgp_router_scan_sessions(SBGPRouter * pRouter)
 {
   int iIndex;
   SBGPPeer * pPeer;
-  
+
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
 
