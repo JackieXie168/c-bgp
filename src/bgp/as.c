@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 01/06/2004
+// @lastdate 13/07/2004
 // ==================================================================
 
 #include <assert.h>
@@ -189,6 +189,9 @@ int as_add_network(SAS * pAS, SPrefix sPrefix)
   route_create_count++;
   rib_add_route(pAS->pLocRIB, route_copy(pRoute));
   route_copy_count++;
+
+  //as_decision_process_disseminate(pAS, sPrefix, pRoute);
+
   return 0;
 }
 
@@ -233,6 +236,8 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
 
     // Free route
     route_destroy(&pRoute);
+
+    //as_decision_process_disseminate(pRouter, sPrefix, NULL);
 
     return 0;
   }
@@ -438,7 +443,7 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
     if (filter_apply(pPeer->pOutFilter, pAS, pNewRoute)) {
       
       // Change the route's next-hop to this router
-      // - if advertisement to an external peer
+      // - if advertisement from an external peer
       // - if the 'next-hop-self' option is set for this peer
       // Note: in the case of route-reflectors, the next-hop will only
       // be changed for eBGP learned routes
@@ -446,7 +451,7 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
 	  (!iLocalRoute &&
 	   peer_flag_get(route_peer_get(pNewRoute),
 			 PEER_FLAG_NEXT_HOP_SELF) &&
-	   !pAS->iRouteReflector)) {
+	   (!pAS->iRouteReflector || iExternalRoute))) {
 	route_nexthop_set(pNewRoute, pAS->pNode->tAddr);
       }
       
