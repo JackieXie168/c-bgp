@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 01/02/2005
+// @lastdate 03/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -127,11 +127,14 @@ int peer_open_session(SPeer * pPeer)
     /* Send an OPEN message to the peer (except for virtual peers
        which go directly to ESTABLISHED state) */
     if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-      pPeer->uSessionState= SESSION_STATE_OPENWAIT;
-      bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
-		   bgp_msg_open_create(pPeer->pLocalAS->uNumber));
+      if (bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
+		       bgp_msg_open_create(pPeer->pLocalAS->uNumber)) == 0) {
+	pPeer->uSessionState= SESSION_STATE_OPENWAIT;
+      } else {
+	pPeer->uSessionState= SESSION_STATE_ACTIVE;
+      }
     } else {
-      pPeer->uSessionState= SESSION_STATE_OPENWAIT;
+      pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
     }
 
     return 0;
@@ -652,6 +655,9 @@ void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
   ip_address_dump(pStream, pPeer->tAddr);
   fprintf(pStream, "\tAS%d\t%s", pPeer->uRemoteAS,
 	  SESSION_STATES[pPeer->uSessionState]);
+  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    fprintf(pStream, "\tVIRTUAL");
+  }
 }
 
 typedef struct {
@@ -673,29 +679,38 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
-// ----- bgp_peer_dump_ribin ----------------------------------------
+// ----- bgp_peer_dump_adjrib ---------------------------------------
 /**
+ * Dump Adj-RIB-In/Out.
  *
+ * Parameters:
+ * - iInOut, if 1, dump Adj-RIB-In, otherwize, dump Adj-RIB-Out.
  */
-void bgp_peer_dump_ribin(FILE * pStream, SPeer * pPeer,
-			 SPrefix sPrefix)
+void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
+			  SPrefix sPrefix, int iInOut)
 {
   SRouteDumpCtx sCtx;
   SRoute * pRoute;
+  SRIB * pRIB;
+
+  if (iInOut)
+    pRIB= pPeer->pAdjRIBIn;
+  else
+    pRIB= pPeer->pAdjRIBOut;
 
   sCtx.pStream= pStream;
   sCtx.pPeer= pPeer;
 
   if (sPrefix.uMaskLen == 0) {
-    rib_for_each(pPeer->pAdjRIBIn, bgp_peer_dump_route, &sCtx);
+    rib_for_each(pRIB, bgp_peer_dump_route, &sCtx);
   } else if (sPrefix.uMaskLen >= 32) {
-    pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
+    pRoute= rib_find_best(pRIB, sPrefix);
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
       fprintf(pStream, "\n");
     }
   } else {
-    pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+    pRoute= rib_find_exact(pRIB, sPrefix);
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
       fprintf(pStream, "\n");

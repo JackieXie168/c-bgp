@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/12/2002
-// @lastdate 27/01/2005
+// @lastdate 03/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -104,7 +104,7 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
 {
   return radix_tree_remove((SRadixTree *) pRIB,
 			   sPrefix.tNetwork,
-			   sPrefix.uMaskLen);
+			   sPrefix.uMaskLen, 1);
 }
 
 // ----- rib_for_each -----------------------------------------------

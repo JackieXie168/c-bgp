@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 27/01/2005
+// @lastdate 02/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -137,13 +137,17 @@ char * route_info_dump_string(SNetRouteInfo * pRouteInfo)
 
 // ----- route_info_dump --------------------------------------------
 /**
- *
+ * Output format:
+ * <dst-prefix> <link/if> <weight> <type> [ <state> ]
  */
 void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
 {
   ip_address_dump(pStream, pRouteInfo->pNextHopIf->tAddr);
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
   route_type_dump(pStream, pRouteInfo->tType);
+  if (!link_get_state(pRouteInfo->pNextHopIf, NET_LINK_FLAG_UP)) {
+    fprintf(pStream, "\t[DOWN]");
+  }
 }
 
 // ----- rt_route_info_destroy --------------------------------------

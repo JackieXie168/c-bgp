@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 05/03/2004
+// @lastdate 02/02/2005
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -65,9 +65,9 @@ extern int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg);
 extern void peer_dump_id(FILE * pStream, SPeer * pPeer);
 // ----- bgp_peer_dump ----------------------------------------------
 extern void bgp_peer_dump(FILE * pStream, SPeer * pPeer);
-// ----- bgp_peer_dump_ribin ----------------------------------------
-extern void bgp_peer_dump_ribin(FILE * pStream, SPeer * pPeer,
-				SPrefix sPrefix);
+// ----- bgp_peer_dump_adjrib ---------------------------------------
+extern void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
+				 SPrefix sPrefix, int iInOut);
 // ----- bgp_peer_dump_in_filters -----------------------------------
 extern void bgp_peer_dump_in_filters(FILE * pStream, SPeer * pPeer);
 // ----- bgp_peer_dump_out_filters ----------------------------------

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 27/01/2005
+// @lastdate 03/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -99,11 +99,11 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 /**
  *
  */
-void bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
+int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
 {
   bgp_msg_monitor_write(pMsg, pNode, tAddr);
-  node_send(pNode, tAddr, NET_PROTOCOL_BGP, pMsg,
-	    (FPayLoadDestroy) bgp_msg_destroy);
+  return node_send(pNode, tAddr, NET_PROTOCOL_BGP, pMsg,
+		   (FPayLoadDestroy) bgp_msg_destroy);
 }
 
 // ----- bgp_msg_dump -----------------------------------------------
@@ -123,7 +123,11 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     fprintf(pStream, "|A");
     // Peer IP
     fprintf(pStream, "|");
-    ip_address_dump(pStream, pNode->tAddr);
+    if (pNode != NULL) {
+      ip_address_dump(pStream, pNode->tAddr);
+    } else {
+      fprintf(pStream, "?");
+    }
     // Peer AS
     fprintf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
@@ -169,7 +173,11 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     fprintf(pStream, "|W");
     // Peer IP
     fprintf(pStream, "|");
-    ip_address_dump(pStream, pNode->tAddr);
+    if (pNode != NULL) {
+      ip_address_dump(pStream, pNode->tAddr);
+    } else {
+      fprintf(pStream, "?");
+    }
     // Peer AS
     fprintf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
@@ -178,11 +186,19 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     break;
   case BGP_MSG_OPEN:
     fprintf(pStream, "|OPEN|");
-    ip_address_dump(pStream, pNode->tAddr);
+    if (pNode != NULL) {
+      ip_address_dump(pStream, pNode->tAddr);
+    } else {
+      fprintf(pStream, "?");
+    }
     break;
   case BGP_MSG_CLOSE:
     fprintf(pStream, "|CLOSE|");
-    ip_address_dump(pStream, pNode->tAddr);
+    if (pNode != NULL) {
+      ip_address_dump(pStream, pNode->tAddr);
+    } else {
+      fprintf(pStream, "?");
+    }
     break;
   default:
     fprintf(pStream, "|?");

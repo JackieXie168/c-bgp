@@ -22,6 +22,8 @@
 #include <string.h>
 #include <ui/output.h>
 
+#include <bgp/message.h>
+
 #include <net/domain.h>
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
@@ -73,6 +75,9 @@ void network_send_dump(FILE * pStream, void * pContext)
   fprintf(pStream, "net-msg [");
   message_dump(pStream, pSendContext->pMessage);
   fprintf(pStream, "]");
+  if (pSendContext->pMessage->uProtocol == NET_PROTOCOL_BGP) {
+    bgp_msg_dump(pStream, NULL, pSendContext->pMessage->pPayLoad);
+  }
 }
 
 // ----- network_send_context_create --------------------------------

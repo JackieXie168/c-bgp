@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 28/01/2005
+// @lastdate 02/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -153,6 +153,14 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
 #endif
 }
 
+// ----- cli_show_version -------------------------------------------
+int cli_show_version(SCliContext * pContext, STokens * pTokens)
+{
+  fprintf(stdout, "version: %s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_include ------------------------------------------------
 int cli_include(SCliContext * pContext, STokens * pTokens)
 {
@@ -221,6 +229,8 @@ void cli_register_show(SCli * pCli)
 
   pSubCmds= cli_cmds_create();
   cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_mem_limit,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_show_version,
 					NULL, NULL));
   cli_register_cmd(pCli, cli_cmd_create("show", NULL, pSubCmds, NULL));
 }
