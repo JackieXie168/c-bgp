@@ -253,6 +253,7 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
   SNetLink * pLink;
   SNetRouteInfo * pRouteInfo;
   SNetProtocol * pProtocol;
+  //  SBGPRouter * pRouter;
 
   // Is there a direct link towards the destination ?
   pLink= node_links_lookup(pNode, tDstAddr);
@@ -269,6 +270,10 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
     if (pLink == NULL) {
       pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
       if (pProtocol != NULL) {
+	/**
+	pRouter= (SBGPRouter *) pProtocol->pHandler;
+	as_find_
+	*/
       }
     }
     
