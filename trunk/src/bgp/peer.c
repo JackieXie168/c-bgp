@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 24/11/2002
-// @lastdate 28/02/2004
+// @lastdate 08/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -197,7 +197,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
 }
 
 // ----- peer_session_update_rcvd -----------------------------------
-void peer_session_update_rcvd(SPeer * pPeer)
+void peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 {
   LOG_INFO("BGP_MSG_RCVD: UPDATE\n");
   switch (pPeer->uSessionState) {
@@ -207,9 +207,12 @@ void peer_session_update_rcvd(SPeer * pPeer)
   case SESSION_STATE_ESTABLISHED:
     break;
   default:
-    LOG_FATAL("Error: UPDATE received while in %s state\n",
+    LOG_WARNING("Warning: UPDATE received while in %s state\n",
 	      SESSION_STATES[pPeer->uSessionState]);
-    abort();    
+    LOG_WARNING("Warning: from peer ");
+    LOG_ENABLED_WARNING()
+      ip_address_dump(log_get_stream(pMainLog), pPeer->tAddr);
+    LOG_WARNING("(AS%u)\n", pPeer->uRemoteAS);
   }
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
@@ -243,12 +246,19 @@ int peer_clear_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
   SPeer * pPeer= (SPeer *) pContext;
 
   route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
-  if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
+
+  // NOTE: at this time, the Adj-RIB-In BEST flag is not handled
+  // properly, so the decision process MUST be run each time
+  // *****
+  //if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
+
     LOG_DEBUG("\twithdraw: ", pPeer->pLocalAS->uNumber);
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
     LOG_DEBUG("\n");
     as_decision_process(pPeer->pLocalAS, pPeer, pRoute->sPrefix);
-  }
+
+    //}
+
   return 0;
 }
 
@@ -407,7 +417,7 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
 
   switch (pMsg->uType) {
   case BGP_MSG_UPDATE:
-    peer_session_update_rcvd(pPeer);
+    peer_session_update_rcvd(pPeer, pMsg);
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
     // Replace former route in AdjRIBIn
     // *** lock Adj-RIB-In ***
@@ -530,18 +540,16 @@ void bgp_peer_dump_ribin(FILE * pStream, SPeer * pPeer,
     rib_for_each(pPeer->pAdjRIBIn, bgp_peer_dump_route, &sCtx);
   } else if (sPrefix.uMaskLen >= 32) {
     pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
-    if (pRoute == NULL)
-      fprintf(pStream, "NO_ROUTE");
-    else
-    route_dump(pStream, pRoute);
-    fprintf(pStream, "\n");
+    if (pRoute != NULL) {
+      route_dump(pStream, pRoute);
+      fprintf(pStream, "\n");
+    }
   } else {
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
-    if (pRoute == NULL)
-      fprintf(pStream, "NO_ROUTE");
-    else
+    if (pRoute != NULL) {
       route_dump(pStream, pRoute);
-    fprintf(pStream, "\n");
+      fprintf(pStream, "\n");
+    }
   }
 }
 

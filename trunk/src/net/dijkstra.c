@@ -74,7 +74,8 @@ SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	 iIndex++) {
       pLink= (SNetLink *) pNode->pLinks->data[iIndex];
 
-      if (ip_address_in_prefix(pLink->tAddr, sPrefix)) {
+      if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) &&
+	  ip_address_in_prefix(pLink->tAddr, sPrefix)) {
 
 	pInfo=
 	  (SDijkstraInfo *) radix_tree_get_exact(pVisited, pLink->tAddr, 32);

@@ -10,7 +10,7 @@
 #include <libgds/memory.h>
 #include <sim/static_scheduler.h>
 
-#define EVENT_QUEUE_DEPTH 40000000
+#define EVENT_QUEUE_DEPTH 256
 
 static SStaticScheduler * pStaticScheduler= NULL;
 
@@ -68,6 +68,7 @@ SStaticScheduler * static_scheduler_init()
     (SStaticScheduler *) MALLOC(sizeof(SStaticScheduler));
   pStaticScheduler->pEvents=
     fifo_create(EVENT_QUEUE_DEPTH, static_scheduler_event_fifo_destroy);
+  fifo_set_option(pStaticScheduler->pEvents, FIFO_OPTION_GROW_EXPONENTIAL, 1);
   return pStaticScheduler;
 }
 

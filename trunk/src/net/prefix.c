@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/11/2002
-// @lastdate 24/02/2004
+// @lastdate 08/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -119,8 +119,8 @@ int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2)
  */
 int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
 {
-  return ((tAddr & sPrefix.uMaskLen) ==
-	  (sPrefix.tNetwork & sPrefix.uMaskLen));
+  return ((tAddr >> (32-sPrefix.uMaskLen)) ==
+	  (sPrefix.tNetwork >> (32-sPrefix.uMaskLen)));
 }
 
 // ----- ip_prefix_in_prefix ----------------------------------------

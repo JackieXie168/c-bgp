@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 04/03/2004
+// @lastdate 08/03/2004
 // ==================================================================
 
 #ifndef __AS_H__
@@ -67,6 +67,8 @@ extern int as_peer_set_out_filter(SAS * pAS, net_addr_t tAddr,
 				  SFilter * pFilter);
 // ----- as_add_route -----------------------------------------------
 extern int as_add_network(SAS * pAS, SPrefix sPrefix);
+// ----- bgp_router_del_network -------------------------------------
+extern int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix);
 // ----- as_add_qos_network -----------------------------------------
 extern int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
 			      net_link_delay_t tDelay);
@@ -102,6 +104,10 @@ extern uint16_t as_num_providers(SAS * pAS);
 extern void as_dump_id(FILE * pStream, SAS * pAS);
 // ----- as_load_rib ------------------------------------------------
 extern int as_load_rib(char * pcFileName, SAS * pAS);
+
+// ----- bgp_router_reset -------------------------------------------
+extern int bgp_router_reset(SBGPRouter * pRouter);
+
 
 // ----- bgp_router_dump_networks -----------------------------------
 extern void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter);

@@ -514,6 +514,8 @@ int main(int argc, char ** argv) {
   FILE * pInCli;
   int iExitCode= EXIT_SUCCESS;
 
+  //routing_test();
+
   while ((iResult= getopt(argc, argv, "c:hil:")) != -1) {
     switch (iResult) {
     case 'c':
