@@ -1082,11 +1082,15 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
   unsigned int uBestWeight;
   SNetRouteInfo * pRouteInfo;
 
+  /*fprintf(stderr, "prefix: ");
+  ip_prefix_dump(stderr, pRoute->sPrefix);
+  fprintf(stderr, "\n");*/
+
   /* If the best route has been chosen based on the IGP weight, then
      there is a possible BGP impact */
   if (route_flag_get(pRoute, ROUTE_FLAG_DP_IGP)) {
 
-    fprintf(stderr, "(1) best still reachable ?...\n");
+    /*fprintf(stderr, "(1) best still reachable ?...\n");*/
 
     /* Is there a route (IGP ?) towards the destination ? */
     pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop);
@@ -1102,7 +1106,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 
     uBestWeight= pRouteInfo->uWeight;
 
-    fprintf(stderr, "(2) look in Adj-RIB-ins...\n");
+    /*fprintf(stderr, "(2) look in Adj-RIB-ins...\n");*/
 
     /* Lookup in the Adj-RIB-Ins for routes that were also selected
        based on the IGP, that is routes that were compared to the
@@ -1111,41 +1115,55 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
 	 iIndex++) {
 
+      //fprintf(stderr, "peer [%d]: ", iIndex);
+
       pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+
+      /*bgp_peer_dump(stderr, pPeer);
+	fprintf(stderr, "\n");*/
 
       pAdjRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
 
-      /* Is there a route (IGP ?) towards the destination ? */
-      pRouteInfo= rt_find_best(pRouter->pNode->pRT, pAdjRoute->tNextHop);
+      /*fprintf(stderr, "adjacent route: ");
+      if (pAdjRoute != NULL) {
+	route_dump(stderr,pAdjRoute);
+      } else {
+	fprintf(stderr, "(null)");
+      }
+      fprintf(stderr, "\n");*/
 
-      /* Three cases are now possible:
-	 (1) route becomes reachable => run DP
-	 (2) route no more reachable => do nothing (becoz the route is
-	 not the best
-	 (3) IGP cost is below cost of the best route => run DP
-      */
-      if ((pRouteInfo != NULL) &&
-	  !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
+      if (pAdjRoute != NULL) {
 
-	/* The next-hop was not reachable (route unfeasible) and is
-	   now reachable, thus run the decision process */
-	routes_list_append(pCtx->pRoutes, pRoute);
+	/* Is there a route (IGP ?) towards the destination ? */
+	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pAdjRoute->tNextHop);
 	
-	return 0;
-	
-      } else if (pRouteInfo != NULL) {
-	
-	/* IGP cost is below cost of the best route, thus run the
-	   decision process */
-	if (pRouteInfo->uWeight < uBestWeight) {
+	/* Three cases are now possible:
+	   (1) route becomes reachable => run DP
+	   (2) route no more reachable => do nothing (becoz the route is
+	   not the best
+	   (3) IGP cost is below cost of the best route => run DP
+	*/
+	if ((pRouteInfo != NULL) &&
+	    !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
 	  
-	routes_list_append(pCtx->pRoutes, pRoute);
-
-	  
+	  /* The next-hop was not reachable (route unfeasible) and is
+	     now reachable, thus run the decision process */
+	  routes_list_append(pCtx->pRoutes, pRoute);
 	  return 0;
+	
+	} else if (pRouteInfo != NULL) {
 	  
-	}	
-
+	  /* IGP cost is below cost of the best route, thus run the
+	     decision process */
+	  if (pRouteInfo->uWeight < uBestWeight) {
+	    
+	    routes_list_append(pCtx->pRoutes, pRoute);
+	    return 0;
+	    
+	  }	
+	  
+	}
+	
       }
 
     }
