@@ -330,7 +330,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
   SNetNode * pNode;
   SPrefix sPrefix;
   jobject joVector;
+  jobject joRoute;
   SRouteDumpCtx sCtx;
+  SNetRouteInfo * pRI;
 
   /* Get the node */
   if ((pNode= cbgp_jni_net_node_from_string(env, jsNodeAddr)) == NULL)
@@ -348,10 +350,28 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
   if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
     return NULL;
 
-  sCtx.jEnv= env;
-  sCtx.joVector= joVector;
-  if (rt_for_each(pNode->pRT, cbgp_jni_get_rt_route, &sCtx) != 0)
-    return NULL;
+  if (jsPrefix == NULL) {
+
+    sCtx.jEnv= env;
+    sCtx.joVector= joVector;
+    if (rt_for_each(pNode->pRT, cbgp_jni_get_rt_route, &sCtx) != 0)
+      return NULL;
+
+  } else {
+
+    if (sPrefix.uMaskLen == 32) {
+      pRI= rt_find_best(pNode->pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
+    } else {
+      pRI= rt_find_exact(pNode->pRT, sPrefix, NET_ROUTE_ANY);
+    }
+
+    if (pRI != NULL) {
+      if ((joRoute= cbgp_jni_new_IPRoute(env, sPrefix, pRI)) == NULL)
+	return NULL;
+      cbgp_jni_Vector_add(env, joVector, joRoute);
+    }
+    
+  }
 
   return joVector;
 }
@@ -545,6 +565,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
     return -1;
 
   peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
   return 0;
 }
 
@@ -749,14 +770,16 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetRib
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
   (JNIEnv * env, jobject obj, jstring jsRouterAddr,
-   jstring jsNeighborAddr, jstring jsPrefix, jboolean bIn)
+   jstring jsPeerAddr, jstring jsPrefix, jboolean bIn)
 {
   SBGPRouter * pRouter;
   jobject joVector;
+  jobject joRoute;
   SPrefix sPrefix;
-  net_addr_t tNeighborAddr;
+  net_addr_t tPeerAddr;
   int iIndex;
-  SPeer * pPeer;
+  SPeer * pPeer= NULL;
+  SRoute * pRoute;
 
   /* Get the router instance */
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
@@ -767,20 +790,41 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
   if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
     return NULL;
 
-  /* Convert prefix */
-  if (jsPrefix == NULL) {
-    sPrefix.uMaskLen= 0;
-  } else {
-    if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
+  /* Convert the peer address */
+  if (jsPeerAddr != NULL) {
+    if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
+      return NULL;
+    if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
       return NULL;
   }
 
-  /* Add routes into the Vector object */
-  if (jsNeighborAddr == NULL) {
-
-    for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-      pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
-
+  /* Convert prefix */
+  if (jsPrefix == NULL) {
+    
+    /* Add routes into the Vector object */
+    if (pPeer == NULL) {
+      
+      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+	
+	/* For each route in the RIB, create a new BGPRoute object and add
+	   it to the Vector object */
+	SRouteDumpCtx sCtx;
+	sCtx.pRouter= pRouter;
+	sCtx.joVector= joVector;
+	sCtx.jEnv= env;
+	if (bIn == JNI_TRUE) {
+	  if (rib_for_each(pPeer->pAdjRIBIn, cbgp_jni_get_rib_route, &sCtx) != 0)
+	    return NULL;
+	} else {
+	  if (rib_for_each(pPeer->pAdjRIBOut, cbgp_jni_get_rib_route, &sCtx) != 0)
+	    return NULL;
+	}
+	
+      }
+      
+    } else {
+      
       /* For each route in the RIB, create a new BGPRoute object and add
 	 it to the Vector object */
       SRouteDumpCtx sCtx;
@@ -798,8 +842,63 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
     }
     
   } else {
-    if (ip_jstring_to_address(env, jsNeighborAddr, &tNeighborAddr) != 0)
+
+    /* Convert the prefix */
+    if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
       return NULL;
+    
+    if (pPeer == NULL) {
+      
+      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+
+	pRoute= NULL;
+	if (sPrefix.uMaskLen == 32) {
+	  if (bIn == JNI_TRUE) {
+	    pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
+	  } else {
+	    pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
+	  }
+	} else {
+	  if (bIn == JNI_TRUE) {
+	    pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+	  } else {
+	    pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
+	  }
+	}
+	
+	if (pRoute != NULL) {
+	  if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
+	    return NULL;
+	  cbgp_jni_Vector_add(env, joVector, joRoute);
+	}
+      }
+
+    } else {
+
+      pRoute= NULL;
+      if (sPrefix.uMaskLen == 32) {
+	if (bIn == JNI_TRUE) {
+	  pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
+	} else {
+	  pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
+	}
+      } else {
+	if (bIn == JNI_TRUE) {
+	  pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+	} else {
+	  pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
+	}
+      }
+      
+      if (pRoute != NULL) {
+	if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
+	  return NULL;
+	cbgp_jni_Vector_add(env, joVector, joRoute);
+      }
+
+    }
+
   }
 
   return joVector;
