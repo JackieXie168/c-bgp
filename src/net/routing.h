@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 18/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -68,10 +68,8 @@ extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 // ----- rt_del_route -----------------------------------------------
 extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
 			SNetLink * pNextHopIf, net_route_type_t tType);
-// ----- rt_dump_string ----------------------------------------------------
-//char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix);
 // ----- rt_dump ----------------------------------------------------
-extern void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix);
+extern void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest);
 
 // ----- rt_for_each -------------------------------------------------------
 extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);

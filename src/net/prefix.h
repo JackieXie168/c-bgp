@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 18/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -15,12 +15,27 @@
 
 #define IPV4_TO_INT(A,B,C,D) ((((A)*256 + B)*256 + C)*256 + D)
 
+// ----- IPv4 address -----
 typedef uint32_t net_addr_t;
 
+// ----- IPv4 prefix -----
 typedef struct {
   net_addr_t tNetwork;
   uint8_t uMaskLen;
 } SPrefix;
+
+// ----- IPv4 destination -----
+#define NET_DEST_INVALID 0
+#define NET_DEST_ADDRESS 1
+#define NET_DEST_PREFIX  2
+#define NET_DEST_ANY     3
+typedef struct {
+  uint8_t tType;
+  union {
+    SPrefix sPrefix;
+    net_addr_t tAddr;
+  };
+} SNetDest;
 
 // ----- ip_address_to_string ----------------------------------------
 void ip_address_to_string(char * pcAddr, net_addr_t tAddr);
@@ -45,6 +60,10 @@ void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix);
 // ----- ip_string_to_prefix ----------------------------------------
 extern int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
 			       SPrefix * pPrefix);
+// ----- ip_string_to_dest ------------------------------------------
+extern int ip_string_to_dest(char * pcPrefix, SNetDest * psDest);
+// ----- ip_dest_dump -----------------------------------------------
+extern void ip_dest_dump(FILE * pStream, SNetDest sDest);
 // ----- ip_prefix_equals -------------------------------------------
 extern int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
 // ----- ip_address_in_prefix ---------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 24/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -324,9 +324,8 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
 int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
 {
   SNetNode * pNode;
-  char * pcDstAddr;
-  char * pcEndChar;
-  net_addr_t tDstAddr;
+  char * pcDest;
+  SNetDest sDest;
 
  // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -334,15 +333,20 @@ int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
 
   // Get destination address
-  pcDstAddr= tokens_get_string_at(pContext->pTokens, 1);
-  if (ip_string_to_address(pcDstAddr, &pcEndChar, &tDstAddr) ||
-      (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid address \"%s\"\n",
-	       pcDstAddr);
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, tDstAddr, 0);
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType != NET_DEST_ADDRESS) &&
+      (sDest.tType != NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  node_dump_recorded_route(stdout, pNode, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -356,9 +360,8 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
 				  STokens * pTokens)
 {
   SNetNode * pNode;
-  char * pcDstAddr;
-  char * pcEndChar;
-  net_addr_t tDstAddr;
+  char * pcDest;
+  SNetDest sDest;
 
  // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -366,15 +369,20 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
 
   // Get destination address
-  pcDstAddr= tokens_get_string_at(pContext->pTokens, 1);
-  if (ip_string_to_address(pcDstAddr, &pcEndChar, &tDstAddr) ||
-      (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid address \"%s\"\n",
-	       pcDstAddr);
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, tDstAddr, 1);
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType != NET_DEST_ADDRESS) &&
+      (sDest.tType != NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  node_dump_recorded_route(stdout, pNode, sDest, 1);
 
   return CLI_SUCCESS;
 }
@@ -513,7 +521,7 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
 {
   SNetNode * pNode;
   char * pcPrefix;
-  SPrefix sPrefix;
+  SNetDest sDest;
 
   // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -522,13 +530,13 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
 
   // Get the prefix/address/*
   pcPrefix= tokens_get_string_at(pTokens, 1);
-  if (cli_common_get_dest(pcPrefix, &sPrefix)) {
+  if (ip_string_to_dest(pcPrefix, &sDest)) {
     LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Dump routing table
-  node_rt_dump(stdout, pNode, sPrefix);
+  node_rt_dump(stdout, pNode, sDest);
 
   return CLI_SUCCESS;
 }
@@ -769,12 +777,12 @@ int cli_register_net_node(SCliCmds * pCmds)
 					cli_net_node_ping,
 					NULL, pParams));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<address>", NULL);
+  cli_params_add(pParams, "<address|prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
 					cli_net_node_recordroute,
 					NULL, pParams));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<address>", NULL);
+  cli_params_add(pParams, "<address|prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route-delay",
 					cli_net_node_recordroutedelay,
 					NULL, pParams));

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 14/02/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -152,6 +152,29 @@ int cli_ctx_create_bgp_domain(SCliContext * pContext, void ** ppItem)
 void cli_ctx_destroy_bgp_domain(void ** ppItem)
 {
 }
+
+// ----- cli_bgp_domain_full_mesh -----------------------------------
+/**
+ * Generate a full-mesh of iBGP sessions between the routers of the
+ * domain.
+ *
+ * context: {as}
+ * tokens: {}
+ */
+#ifdef __EXPERIMENTAL__
+int cli_bgp_domain_full_mesh(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPDomain * pDomain;
+
+  /* Get the domain from the context. */
+  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
+
+  /* Generate the full-mesh of iBGP sessions */
+  bgp_domain_full_mesh(pDomain);
+  
+  return CLI_SUCCESS;
+}
+#endif /* __EXPERIMENTAL__ */
 
 // ----- cli_bgp_domain_rescan --------------------------------------
 /**
@@ -1939,6 +1962,11 @@ int cli_register_bgp_domain(SCliCmds * pCmds)
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
 
+#ifdef __EXPERIMENTAL__
+  cli_cmds_add(pSubCmds, cli_cmd_create("full-mesh",
+					cli_bgp_domain_full_mesh,
+					NULL, NULL));
+#endif /* __EXPERIMENTAL__ */
   cli_cmds_add(pSubCmds, cli_cmd_create("rescan",
 					cli_bgp_domain_rescan,
 					NULL, NULL));

@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 05/03/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -390,11 +390,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
  * Signature: (Ljava/lang/String;Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
-  (JNIEnv * env, jobject obj, jstring jsNodeAddr, jstring sDstAddr)
+  (JNIEnv * env, jobject obj, jstring jsNodeAddr, jstring jsDstAddr)
 {
   SNetNode * pNode;
   jobject joIPTrace;
-  net_addr_t tDstAddr;
+  SNetDest sDest;
   SNetPath * pPath;
   net_link_delay_t tDelay;
   net_link_delay_t tWeight;
@@ -405,16 +405,16 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
     return  NULL;
 
   /* Convert the destination */
-  if (ip_jstring_to_address(env, sDstAddr, &tDstAddr) != 0)
+  if (ip_jstring_to_address(env, jsDstAddr, &sDest.tAddr) != 0)
     return NULL;
+  sDest.tType= NET_DEST_ADDRESS;
 
   /* Trace the IP-level route */
-  iStatus= node_record_route(pNode, tDstAddr, &pPath, &tDelay, &tWeight);
+  iStatus= node_record_route(pNode, sDest, &pPath, &tDelay, &tWeight);
 
   /* Convert to an IPTrace object */
-  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, tDstAddr,
-				  pPath, iStatus, tDelay, tWeight);
-    
+  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, sDest.tAddr,
+				  pPath, iStatus, tDelay, tWeight);    
 
   net_path_destroy(&pPath);
 

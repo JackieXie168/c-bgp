@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/02/2004
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifndef __COMMON_H__
@@ -21,9 +21,5 @@ extern int cli_common_check_addr(char * pcValue);
 extern int cli_common_check_prefix(char * pcValue);
 // ----- cli_common_check_uint --------------------------------------
 extern int cli_common_check_uint(char * pcValue);
-
-// ----- cli_common_get_dest ----------------------------------------
-extern int cli_common_get_dest(char * pcPrefix, SPrefix * pPrefix);
-
 
 #endif

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 14/02/2005
+// @lastdate 29/03/2005
 // ==================================================================
 
 #ifndef __BGP_DOMAIN_H__
@@ -38,5 +38,7 @@ extern void register_bgp_domain(SBGPDomain * pDomain);
 
 // ----- bgp_domain_rescan ------------------------------------------
 extern int bgp_domain_rescan(SBGPDomain * pDomain);
+// ----- bgp_domain_full_mesh ---------------------------------------
+extern int bgp_domain_full_mesh(SBGPDomain * pDomain);
 
 #endif
