@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 16/11/2004
+// @lastdate 22/11/2004
 // ==================================================================
 
 #include <assert.h>
@@ -13,6 +13,7 @@
 #include <libgds/memory.h>
 #include <libgds/types.h>
 
+#include <bgp/comm.h>
 #include <bgp/ecomm.h>
 #include <bgp/filter.h>
 #include <net/network.h>
@@ -603,12 +604,13 @@ void filter_matcher_dump(FILE * pStream, SFilterMatcher * pMatcher)
  */
 void filter_action_dump(FILE * pStream, SFilterAction * pAction)
 {
-  if (pAction != NULL) {
+  while (pAction != NULL) {
     switch (pAction->uCode) {
     case FT_ACTION_ACCEPT: fprintf(pStream, "ACCEPT"); break;
     case FT_ACTION_DENY: fprintf(pStream, "DENY"); break;
     case FT_ACTION_COMM_APPEND:
-      fprintf(pStream, "append community %u", *((uint32_t *) pAction->auParams));
+      fprintf(pStream, "append community ");
+      comm_dump2(pStream, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_COMM_STRIP: fprintf(pStream, "comm strip"); break;
     case FT_ACTION_COMM_REMOVE:
@@ -632,6 +634,10 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
       break;
     default:
       fprintf(pStream, "?");
+    }
+    pAction= pAction->pNextAction;
+    if (pAction != NULL) {
+      fprintf(pStream, ", ");
     }
   }
 }
