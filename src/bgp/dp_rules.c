@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 13/08/2004
+// @lastdate 02/09/2004
 // ==================================================================
 // to-do: these routines can be optimized
 
@@ -223,38 +223,40 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
     while (iIndex < ptr_array_length(pRoutes)) {
       pRoute= (SRoute *) pRoutes->data[iIndex];
       
-      if (pRoute == NULL) break;
+      if (pRoute != NULL) {
       
-      iLastAS= dp_rule_last_as(pRoute);
-      
-      iIndex2= iIndex+1;
-      while (iIndex2 < ptr_array_length(pRoutes)) {
-	pRoute2= (SRoute *) pRoutes->data[iIndex2];
+	iLastAS= dp_rule_last_as(pRoute);
 	
-	if (pRoute2 == NULL) break;
-	
-	/*printf("route : ");
-	route_dump(stdout, pRoute);
-	printf("\nroute2: ");
-	route_dump(stdout, pRoute2);
-	printf("\n");*/
-	
-	if (iLastAS == dp_rule_last_as(pRoute2)) {
+	iIndex2= iIndex+1;
+	while (iIndex2 < ptr_array_length(pRoutes)) {
+	  pRoute2= (SRoute *) pRoutes->data[iIndex2];
 	  
-	  //printf("compare...[%u <-> %u]\n", pRoute->uMED, pRoute2->uMED);
+	  if (pRoute2 != NULL) {
 	  
-	  if (pRoute->uMED < pRoute2->uMED) {
-	    //printf("route < route2\n");
-	    pRoutes->data[iIndex2]= NULL;
-	  } else if (pRoute->uMED > pRoute2->uMED) {
-	    //printf("route2 < route\n");
-	    pRoutes->data[iIndex]= NULL;
-	    break;
+	    /*printf("route : ");
+	      route_dump(stdout, pRoute);
+	      printf("\nroute2: ");
+	      route_dump(stdout, pRoute2);
+	      printf("\n");*/
+	    
+	    if (iLastAS == dp_rule_last_as(pRoute2)) {
+	      
+	      //printf("compare...[%u <-> %u]\n", pRoute->uMED, pRoute2->uMED);
+	      
+	      if (pRoute->uMED < pRoute2->uMED) {
+		//printf("route < route2\n");
+		pRoutes->data[iIndex2]= NULL;
+	      } else if (pRoute->uMED > pRoute2->uMED) {
+		//printf("route2 < route\n");
+		pRoutes->data[iIndex]= NULL;
+		break;
+	      }
+	      
+	    }
 	  }
 	  
+	  iIndex2++;
 	}
-	
-	iIndex2++;
       }
       iIndex++;
     }
