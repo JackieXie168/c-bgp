@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 24/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #include <net/net_path.h>
@@ -62,10 +62,9 @@ void net_path_dump(FILE * pStream, SNetPath * pPath)
   int iIndex;
 
   for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
-    if (iIndex == 0)
-      fprintf(pStream, "%u", pPath->data[iIndex]);
-    else
-      fprintf(pStream, " %u", pPath->data[iIndex]);
+    if (iIndex > 0)
+      fprintf(pStream, " ");
+    ip_address_dump(pStream, pPath->data[iIndex]);
   }
 }
 

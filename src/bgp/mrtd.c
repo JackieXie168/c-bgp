@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 23/02/2004
+// @lastdate 04/03/2004
 // ==================================================================
 // Current limitations:
 // - origin is always IGP
@@ -38,7 +38,7 @@ SPathSegment * mrtd_create_path_segment(char * pcPathSegment)
   unsigned long ulASNum;
 
   if (pSegmentTokenizer == NULL)
-    pSegmentTokenizer= tokenizer_create(" ", NULL, NULL);
+    pSegmentTokenizer= tokenizer_create(" ", 0, NULL, NULL);
 
   if (tokenizer_run(pSegmentTokenizer, pcPathSegment) != TOKENIZER_SUCCESS) {
     LOG_SEVERE("Error: parse error in 'mrtd_create_path_segment'\n");
@@ -70,7 +70,7 @@ SPath * mrtd_create_path(char * pcPath)
   unsigned long ulASNum;
 
   if (pPathTokenizer == NULL)
-    pPathTokenizer= tokenizer_create(" ", "[", "]");
+    pPathTokenizer= tokenizer_create(" ", 0, "[", "]");
 
   if (tokenizer_run(pPathTokenizer, pcPath) != TOKENIZER_SUCCESS)
     return NULL;
@@ -112,7 +112,7 @@ SCommunities * mrtd_create_communities(char * pcCommunities)
   comm_t uComm;
 
   if (pCommTokenizer == NULL)
-    pCommTokenizer= tokenizer_create(" ", NULL, NULL);
+    pCommTokenizer= tokenizer_create(" ", 0, NULL, NULL);
 
   if (tokenizer_run(pCommTokenizer, pcCommunities) != TOKENIZER_SUCCESS)
     return NULL;
@@ -239,7 +239,7 @@ SPtrArray * mrtd_load_routes(char * pcFileName)
   pFile= fopen(pcFileName, "r");
   if (pFile != NULL) {
 
-    pTokenizer= tokenizer_create("|", NULL, NULL);
+    pTokenizer= tokenizer_create("|", 1, NULL, NULL);
 
     pRoutes= routes_list_create();
 

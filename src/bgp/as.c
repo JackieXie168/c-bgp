@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 27/02/2004
+// @lastdate 04/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -26,6 +26,7 @@
 #include <bgp/routes_list.h>
 #include <bgp/tie_breaks.h>
 #include <net/network.h>
+#include <net/protocol.h>
 
 unsigned long route_create_count= 0;
 unsigned long route_copy_count= 0;
@@ -820,55 +821,6 @@ int as_handle_message(void * pHandler, SNetMessage * pMessage)
   return 0;
 }
 
-// ----- as_record_route --------------------------------------------
-/**
- *
- */
-int as_record_route(FILE * pStream, SAS * pAS, SPrefix sPrefix,
-		    SPath ** ppPath)
-{
-  /*
-  SAS * pCurrentAS= pAS;
-  SRoute * pRoute;
-  SPath * pPath= path_create();
-  SNetNode * pNode;
-  *ppPath= NULL;
-
-  while (pCurrentAS != NULL) {
-    if ((pRoute= rib_find_best(pCurrentAS->pLocRIB, sPrefix)) != NULL) {
-      if (route_path_length(pRoute) == 0) {
-	path_append(&pPath, pCurrentAS->uNumber);
-	*ppPath= pPath;
-	return AS_RECORD_ROUTE_SUCCESS;
-      }
-      // Detect too long paths (loop ?)
-      if (path_append(&pPath, pCurrentAS->uNumber)) {
-	path_destroy(&pPath);
-	LOG_WARNING("AS%d --> ", pAS->uNumber);
-	LOG_ENABLED_WARNING() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
-	LOG_WARNING(": next-hop is unreachable (path too long ?).\n");
-	return AS_RECORD_ROUTE_TOO_LONG;
-      }
-      pNode= network_find_node(pAS->pNode->pNetwork, pRoute->tNextHop);
-      if (pNode == NULL)
-	break;
-      pCurrentAS= (SAS *) pNode->pHandler;
-    } else {
-      LOG_WARNING("AS%d --> ", pAS->uNumber);
-      LOG_ENABLED_WARNING() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
-      LOG_WARNING(": next-hop is unreachable.\n");
-      path_destroy(&pPath);
-      return AS_RECORD_ROUTE_UNREACH;
-    }
-  }
-  LOG_WARNING("AS%d --> ", pAS->uNumber);
-  LOG_ENABLED_WARNING() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
-  LOG_WARNING(": next-hop is unreachable.\n");
-  path_destroy(&pPath);
-  */
-  return AS_RECORD_ROUTE_UNREACH;
-}
-
 // ----- as_num_providers -------------------------------------------
 /**
  *
@@ -1083,6 +1035,109 @@ int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter)
   rib_for_each(pRouter->pLocRIB, bgp_router_save_route_mrtd, &sCtx);
   fclose(pFile);
   return -1;
+}
+
+/////////////////////////////////////////////////////////////////////
+// ROUTING TESTS
+/////////////////////////////////////////////////////////////////////
+
+// ----- bgp_router_record_route ------------------------------------
+/**
+ * This function records the AS-path from one BGP router towards a
+ * given prefix. The function has two modes:
+ * - records all ASes
+ * - records ASes once (do not record iBGP session crossing)
+ */
+int bgp_router_record_route(SBGPRouter * pRouter,
+			    SPrefix sPrefix, SPath ** ppPath,
+			    int iPreserveDups)
+{
+  SBGPRouter * pCurrentRouter= pRouter;
+  SBGPRouter * pPreviousRouter= NULL;
+  SRoute * pRoute;
+  SPath * pPath= path_create();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
+  int iResult= AS_RECORD_ROUTE_UNREACH;
+
+  *ppPath= NULL;
+
+  while (pCurrentRouter != NULL) {
+    
+    // Is there, in the current node, a BGP route towards the given
+    // prefix ?
+    pRoute= rib_find_best(pCurrentRouter->pLocRIB, sPrefix);
+    if (pRoute != NULL) {
+      
+      // Record current node's AS-Num ??
+      if ((pPreviousRouter == NULL) ||
+	  (iPreserveDups ||
+	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
+	if (path_append(&pPath, pCurrentRouter->uNumber)) {
+	  iResult= AS_RECORD_ROUTE_TOO_LONG;
+	  break;
+	}
+      }
+      
+      // If the route's next-hop is this router, then the function
+      // terminates.
+      if (pRoute->tNextHop == pCurrentRouter->pNode->tAddr) {
+	iResult= AS_RECORD_ROUTE_SUCCESS;
+	break;
+      }
+      
+      // Otherwize, looks for next-hop router
+      pNode= network_find_node(pRouter->pNode->pNetwork, pRoute->tNextHop);
+      if (pNode == NULL)
+	break;
+      
+      // Get the current node's BGP instance
+      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+      if (pProtocol == NULL)
+	break;
+      pPreviousRouter= pCurrentRouter;
+      pCurrentRouter= (SBGPRouter *) pProtocol->pHandler;
+      
+    } else
+      break;
+  }
+  *ppPath= pPath;
+
+  return iResult;
+}
+
+// ----- bgp_router_dump_recorded_route -----------------------------
+/**
+ * This function dumps the result of a call to
+ * 'bgp_router_record_route'.
+ */
+void bgp_router_dump_recorded_route(FILE * pStream,
+				    SBGPRouter * pRouter,
+				    SPrefix sPrefix,
+				    int iPreserveDups)
+{
+  int iResult;
+  SPath * pPath;
+  
+  // Call record-route
+  iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, iPreserveDups);
+
+  // Display record-route results
+  ip_address_dump(stdout, pRouter->pNode->tAddr);
+  fprintf(stdout, "\t");
+  ip_prefix_dump(stdout, sPrefix);
+  fprintf(stdout, "\t");
+  switch (iResult) {
+  case AS_RECORD_ROUTE_SUCCESS: fprintf(stdout, "SUCCESS"); break;
+  case AS_RECORD_ROUTE_TOO_LONG: fprintf(stdout, "TOO_LONG"); break;
+  case AS_RECORD_ROUTE_UNREACH: fprintf(stdout, "UNREACHABLE"); break;
+  default:
+    fprintf(stdout, "UNKNOWN_ERROR");
+  }
+  fprintf(stdout, "\t");
+  path_dump(stdout, pPath, 0);
+  path_destroy(&pPath);
+  fprintf(stdout, "\n");
 }
 
 /////////////////////////////////////////////////////////////////////

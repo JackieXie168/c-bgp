@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 27/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -18,6 +18,7 @@
 #include <net/prefix.h>
 #include <net/link.h>
 #include <net/message.h>
+#include <net/net_path.h>
 #include <net/protocol.h>
 #include <net/routing.h>
 #include <sim/simulator.h>
@@ -99,5 +100,11 @@ extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 // ----- network_dijkstra -------------------------------------------
 extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
 			    net_addr_t tSrcAddr);
+// ----- node_record_route ------------------------------------------
+extern int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
+			     SNetPath ** ppPath);
+// ----- node_dump_recorded_route -----------------------------------
+extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+				     net_addr_t tDstAddr);
 
 #endif

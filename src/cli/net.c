@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #include <libgds/cli_ctx.h>
@@ -14,6 +14,7 @@
 #include <net/icmp.h>
 #include <net/igp.h>
 #include <net/network.h>
+#include <net/net_path.h>
 #include <net/routing.h>
 
 // ----- cli_net_node_by_addr ---------------------------------------
@@ -245,6 +246,37 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_node_recordroute -----------------------------------
+/**
+ * context: {node}
+ * tokens: {addr, addr}
+ */
+int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+  char * pcDstAddr;
+  char * pcEndChar;
+  net_addr_t tDstAddr;
+
+ // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  // Get destination address
+  pcDstAddr= tokens_get_string_at(pContext->pTokens, 1);
+  if (ip_string_to_address(pcDstAddr, &pcEndChar, &tDstAddr) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid address \"%s\"\n",
+	       pcDstAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  node_dump_recorded_route(stdout, pNode, tDstAddr);
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_net_node_staticroute -----------------------------------
 /**
  * context: {node}
@@ -428,6 +460,11 @@ int cli_register_net_node(SCliCmds * pCmds)
   cli_params_add(pParams, "<weight>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("static-route",
 					cli_net_node_staticroute,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<address>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
+					cli_net_node_recordroute,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);

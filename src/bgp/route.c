@@ -38,8 +38,9 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->tNextHop= tNextHop;
   pRoute->uOriginType= uOriginType;
   pRoute->pASPath= NULL;
-  pRoute->pCommunities= NULL;
   pRoute->uLocalPref= DEFAULT_LOCAL_PREF;
+  pRoute->uMED= 0;
+  pRoute->pCommunities= NULL;
   pRoute->pECommunities= NULL;
   pRoute->uFlags= 0;
 

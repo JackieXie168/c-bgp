@@ -96,7 +96,7 @@ int filter_parser_run(char * pcScript, SFilter ** ppFilter)
   SFilter * pFilter= NULL;
   int iResult= FILTER_PARSER_SUCCESS;
   SFilterRule * pRule= NULL;
-  STokenizer * pTokenizer= tokenizer_create(";\n", NULL, NULL);
+  STokenizer * pTokenizer= tokenizer_create(";\n", 0, NULL, NULL);
   STokens * pTokens;
   int iIndex;
 

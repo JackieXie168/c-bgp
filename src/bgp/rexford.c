@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 27/02/2004
+// @lastdate 04/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -58,7 +58,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
   for (iIndex= 0; iIndex < MAX_AS; iIndex++)
     AS[iIndex]= NULL;
 
-  pTokenizer= tokenizer_create(" \t", NULL, NULL);
+  pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
 
   if ((pFile= fopen(pcFileName, "r")) != NULL) {
     while ((!feof(pFile)) && (!iError)) {
@@ -292,7 +292,6 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
   char acFileLine[80];
   int iError= 0;
   uint16_t uAS;
-  SPath * pRecordedPath;
 
   if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
     while ((!feof(pFileInput)) && (!iError)) {
@@ -308,19 +307,8 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 	
 	uAS= 0;
 	while (1) {
-	  if (AS[uAS] != NULL) {
-	    fprintf(pStream, "%u ", uAS);
-	    ip_prefix_dump(pStream, sPrefix);
-	    if (as_record_route(pStream, AS[uAS], sPrefix,
-				&pRecordedPath) != AS_RECORD_ROUTE_SUCCESS) {
-	      fprintf(pStream, " *\n");
-	    } else {
-	      fprintf(pStream, " ");
-	      path_dump(pStream, pRecordedPath, 0);
-	      fprintf(pStream, "\n");
-	      path_destroy(&pRecordedPath);
-	    }
-	  }
+	  if (AS[uAS] != NULL)
+	    bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix, 1);
 	  if (uAS == MAX_AS-1)
 	    break;
 	  else
@@ -340,17 +328,7 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 	}
 	
 	// Record route
-	fprintf(pStream, "%u ", uAS);
-	ip_prefix_dump(pStream, sPrefix);
-	if (as_record_route(pStream, AS[uAS], sPrefix,
-			    &pRecordedPath) != AS_RECORD_ROUTE_SUCCESS) {
-	  fprintf(pStream, " *\n");
-	} else {
-	  fprintf(pStream, " ");
-	  path_dump(pStream, pRecordedPath, 0);
-	  fprintf(pStream, "\n");
-	  path_destroy(&pRecordedPath);
-	}
+	bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix, 1);
 	
       }
       
