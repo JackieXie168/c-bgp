@@ -76,7 +76,7 @@ SAS * as_create(uint16_t uNumber, SNetNode * pNode, uint32_t uTBID)
   pAS->uNumber= uNumber;
   pAS->uTBID= uTBID;
   pAS->pNode= pNode;
-  pAS->pPeers= ptr_array_create(ARRAY_OPTION_SORTED,
+  pAS->pPeers= ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
 				as_peers_compare,
 				as_peers_destroy);
   pAS->pLocRIB= rib_create(0);
