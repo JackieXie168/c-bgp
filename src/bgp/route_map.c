@@ -11,6 +11,7 @@
 #include <libgds/array.h>
 #include <libgds/hash.h>
 #include <libgds/hash_utils.h>
+#include <libgds/memory.h>
 
 #include <bgp/route_map.h>
 
@@ -98,6 +99,7 @@ void _route_map_finalize() __attribute__((destructor));
 void _route_map_init()
 {
   pHashRouteMap = hash_init(uHashRouteMapSize,
+			  .5,
 			  route_map_element_compare,
 			  route_map_element_destroy,
 			  route_map_hash_compute);
