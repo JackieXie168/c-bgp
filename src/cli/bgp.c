@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 24/11/2004
+// @lastdate 29/11/2004
 // ==================================================================
 
 #include <config.h>
@@ -743,6 +743,20 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 
   bgp_router_dump_ribin(stdout, pRouter, pPeer, sPrefix);
   
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_show_route ----------------------------------
+/**
+ * Display a detailled information about the best route towards the
+ * given prefix. Information includes communities, and so on...
+ *
+ * context: {router}
+ * tokens: {addr, prefix}
+ */
+int cli_bgp_router_show_route(SCliContext * pContext,
+			      STokens * pTokens)
+{
   return CLI_SUCCESS;
 }
 
@@ -1563,6 +1577,19 @@ int cli_bgp_router_peer_reset(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_show_routers ---------------------------------------
+/**
+ * Show the list of routers matching the given criterion which is a
+ * prefix or an asterisk (meaning "all routers").
+ *
+ * context: {}
+ * tokens: {prefix}
+ */
+int cli_bgp_show_routers(SCliContext * pContext, STokens * pTokens)
+{
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_bgp_add ---------------------------------------
 int cli_register_bgp_add(SCliCmds * pCmds)
 {
@@ -1993,6 +2020,11 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_show_rib,
 					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("route",
+					cli_bgp_router_show_route,
+					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
@@ -2037,6 +2069,21 @@ int cli_register_bgp_router(SCliCmds * pCmds)
 						pSubCmds, pParams));
 }
 
+// ----- cli_register_bgp_show --------------------------------------
+int cli_register_bgp_show(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix|*>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("routers", cli_bgp_show_routers,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_bgp -------------------------------------------
 /**
  *
@@ -2051,6 +2098,7 @@ int cli_register_bgp(SCli * pCli)
   cli_register_bgp_options(pCmds);
   cli_register_bgp_topology(pCmds);
   cli_register_bgp_router(pCmds);
+  cli_register_bgp_show(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("bgp", NULL, pCmds, NULL));
   return 0;
 }
