@@ -1,0 +1,61 @@
+# configure.in for cbgp
+#
+#
+AC_INIT(src/main.c)
+PACKAGE=cbgp
+VERSION="1.1.7"
+AC_PREFIX_DEFAULT(/usr)
+
+#
+# Version setting up for Automake
+#
+AM_INIT_AUTOMAKE(cbgp, $VERSION, no-define)
+AM_CONFIG_HEADER(src/config.h)
+
+AM_PROG_LIBTOOL
+
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+#
+# Test for readline existence. Required due to possibly undetected 
+# dependence with one of libcurses, libtinfo or libtermcap.
+# (The following tests are insipired from Peter Samuelson)
+#
+AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
+if test "$readline_ok" != "yes"; then
+   AC_MSG_WARN([readline alone does not work, check with dependencies])
+   AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
+   fi
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
+   fi
+   unset ac_cv_lib_readline_readline
+   AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
+fi
+if test "$readline_ok" == "yes"; then
+   AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
+   LIBS="$LIBS -lreadline $tc"
+   AC_CHECK_HEADERS(readline/readline.h)
+fi
+unset tc
+
+#
+# Test for libgds existence (library + headers)
+#
+AC_CHECK_LIB(gds, list_create, gds_ok=yes, gds_ok=no)
+if test "x$gds_ok" != "xyes"; then
+   AC_MSG_ERROR([libgds is needed to compile cbgp])
+else
+   # Check for headers
+   AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
+   if test "x$gds_ok" != "xyes"; then
+      AC_MSG_ERROR([libgds headers are needed to compile cbgp])
+   fi
+fi
+
+
+AC_PROG_INSTALL
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
