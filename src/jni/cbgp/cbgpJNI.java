@@ -61,12 +61,13 @@ class cbgpJNI
   
   public native void bgpRouterShowRibIn(String net_addr_router);
 
-  
   //Type = [in|out]
   public native int bgpFilterInit(String net_addr_router, String net_addr_neighbor,
 				  String type); 
       
-  public native int bgpFilterMatchPrefix(String prefix);
+  public native int bgpFilterMatchPrefixIn(String prefix);
+
+  public native int bgpFilterMatchPrefixIs(String prefix);
 
   //types supported :
   //   0x01 permit
@@ -82,6 +83,8 @@ class cbgpJNI
   public native int simRun();
   
   public native void simPrint(String line); 
+
+  public native void runCmd(String line);
 
   public static void main(String[] args){
     cbgpJNI CBGP = new cbgpJNI();
@@ -127,21 +130,21 @@ class cbgpJNI
     CBGP.bgpRouterNetworkAdd("0.1.0.1", "0.1/16");
    CBGP.bgpRouterNeighborAdd("0.1.0.1", "0.2.0.1", 2);
        CBGP.bgpFilterInit("0.1.0.1", "0.2.0.1", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x05, "3");
-	CBGP.bgpFilterAction(0x01, "");
+//	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
     CBGP.bgpRouterNeighborAdd("0.1.0.1", "0.2.0.2", 2);
        CBGP.bgpFilterInit("0.1.0.1", "0.2.0.2", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x05, "3");
-	CBGP.bgpFilterAction(0x01, "");
+	//CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
     CBGP.bgpRouterNeighborAdd("0.1.0.1", "0.2.0.4", 2);
        CBGP.bgpFilterInit("0.1.0.1", "0.2.0.4", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x05, "3");
-	CBGP.bgpFilterAction(0x01, "");
+	//CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
     CBGP.bgpRouterNeighborUp("0.1.0.1", "0.2.0.1");
     CBGP.bgpRouterNeighborUp("0.1.0.1", "0.2.0.2");
@@ -173,34 +176,34 @@ class cbgpJNI
     CBGP.bgpRouterAdd("Router3_AS2", "0.2.0.3", 2);
     CBGP.bgpRouterNeighborAdd("0.2.0.3", "0.2.0.1", 2);
       CBGP.bgpFilterInit("0.2.0.3", "0.2.0.1", "in");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
        CBGP.bgpFilterInit("0.2.0.3", "0.2.0.1", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
      CBGP.bgpFilterFinalize();
     CBGP.bgpRouterNeighborAdd("0.2.0.3", "0.2.0.2", 2);
       CBGP.bgpFilterInit("0.2.0.3", "0.2.0.2", "in");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
       CBGP.bgpFilterInit("0.2.0.3", "0.2.0.2", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
     CBGP.bgpRouterNeighborAdd("0.2.0.3", "0.2.0.4", 2);
       CBGP.bgpFilterInit("0.2.0.3", "0.2.0.4", "in");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
       CBGP.bgpFilterInit("0.2.0.3", "0.2.0.4", "out");
-	CBGP.bgpFilterMatchPrefix("0/0");
+	CBGP.bgpFilterMatchPrefixIn("0/0");
 	CBGP.bgpFilterAction(0x03, "1000");
 	CBGP.bgpFilterAction(0x01, "");
       CBGP.bgpFilterFinalize();
@@ -362,8 +365,25 @@ class cbgpJNI
     //For the moment on stdout
     CBGP.bgpRouterShowRibIn("0.2.0.3");
     
+    CBGP.simPrint("RIB of 0.2.0.1 after third link down:\n");
+    CBGP.simPrint("prefix\t\tnxt-hop\tloc-pref\tMED\tpath\torigin\n");
+    Rib = CBGP.bgpRouterShowRib("0.2.0.1");
+    CBGP.simPrint(Rib);
+    CBGP.simPrint("RIB In of 0.2.0.1 after second link down:\n");
+    //For the moment on stdout
+    CBGP.bgpRouterShowRibIn("0.2.0.1");
+ 
+    CBGP.simPrint("RIB of 0.2.0.2 after third link down:\n");
+    CBGP.simPrint("prefix\t\tnxt-hop\tloc-pref\tMED\tpath\torigin\n");
+    Rib = CBGP.bgpRouterShowRib("0.2.0.2");
+    CBGP.simPrint(Rib);
+    CBGP.simPrint("RIB In of 0.2.0.2 after second link down:\n");
+    //For the moment on stdout
+    CBGP.bgpRouterShowRibIn("0.2.0.2");
+ 
     CBGP.simPrint("\nDone.\n");
 
+  CBGP.runCmd("bgp router 0.1.0.1 peer 0.2.0.2 filter out show");
     CBGP.finalize();
   }
 

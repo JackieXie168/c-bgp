@@ -98,7 +98,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_nodeShowLinks
 /*
  * Class:     jni_cbgp_cbgpJNI
  * Method:    nodeShowRT
- * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_nodeShowRT
   (JNIEnv *, jobject, jstring, jstring);
@@ -154,7 +154,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterRescan
 /*
  * Class:     jni_cbgp_cbgpJNI
  * Method:    bgpRouterShowRib
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterShowRib
   (JNIEnv *, jobject, jstring);
@@ -177,10 +177,18 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterInit
 
 /*
  * Class:     jni_cbgp_cbgpJNI
- * Method:    bgpFilterMatchPrefix
+ * Method:    bgpFilterMatchPrefixIn
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefix
+JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIn
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     jni_cbgp_cbgpJNI
+ * Method:    bgpFilterMatchPrefixIs
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIs
   (JNIEnv *, jobject, jstring);
 
 /*
@@ -213,6 +221,14 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_simRun
  * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_simPrint
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     jni_cbgp_cbgpJNI
+ * Method:    runCmd
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_runCmd
   (JNIEnv *, jobject, jstring);
 
 #ifdef __cplusplus
