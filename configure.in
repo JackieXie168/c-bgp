@@ -9,7 +9,7 @@ AC_PREFIX_DEFAULT(/usr)
 #
 # Version setting up for Automake
 #
-AM_INIT_AUTOMAKE(CBGP, $VERSION, no-define)
+AM_INIT_AUTOMAKE(cbgp, $VERSION, no-define)
 AM_CONFIG_HEADER(src/config.h)
 
 AM_PROG_LIBTOOL
@@ -20,10 +20,15 @@ AC_PROG_CC
 AC_PROG_LIBTOOL
 
 AC_CHECK_LIB(readline, readline)
+AC_CHECK_HEADERS(readline/readline.h)
 
 AC_CHECK_LIB(gds, list_create, gds_ok=yes, gds_ok=no)
 if test "x$gds_ok" != "xyes"; then
 	AC_MSG_ERROR([libgds is needed to compile cbgp])
+fi
+AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
+if test "x$gds_ok" != "xyes"; then
+	AC_MSG_ERROR([libgds headers are needed to compile cbgp])
 fi
 
 AC_PROG_INSTALL
