@@ -487,6 +487,35 @@ int cli_net_node_tunnel_add(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_options_maxhops ------------------------------------
+/**
+ * Change the maximum number of hops used in IP-level
+ * record-routes. The maximum number of hops must be in the range
+ * [0, 255].
+ *
+ * context: {}
+ * tokens: {maxhops}
+ */
+int cli_net_options_maxhops(SCliContext * pContext, STokens * pTokens)
+{
+  unsigned int uMaxHops;
+
+  if (tokens_get_uint_at(pTokens, 0, &uMaxHops)) {
+    LOG_SEVERE("Error: invalid value for max-hops (%s)\n",
+	       tokens_get_string_at(pTokens, 0));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  if (uMaxHops > 255) {
+    LOG_SEVERE("Error: maximum number of hops is 255\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  NET_OPTIONS_MAX_HOPS= uMaxHops;
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_net_add ---------------------------------------
 int cli_register_net_add(SCliCmds * pCmds)
 {
@@ -623,6 +652,26 @@ int cli_register_net_node(SCliCmds * pCmds)
 						pSubCmds, pParams));
 }
 
+// ----- cli_register_net_options -----------------------------------
+/**
+ *
+ */
+int cli_register_net_options(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<max-hops>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("max-hops",
+					cli_net_options_maxhops,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("options",
+						NULL, NULL,
+						pSubCmds, NULL));
+}
+
 // ----- cli_register_net -------------------------------------------
 /**
  *
@@ -635,6 +684,7 @@ int cli_register_net(SCli * pCli)
   cli_register_net_add(pCmds);
   cli_register_net_link(pCmds);
   cli_register_net_node(pCmds);
+  cli_register_net_options(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("net", NULL, pCmds, NULL));
   return 0;
 }
