@@ -3,9 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 02/04/2004
+// @lastdate 16/11/2004
 // ==================================================================
 // This code is explained in the GNU readline manual.
+
+#include <libgds/types.h>
 
 #include <config.h>
 #include <stdio.h>
@@ -16,8 +18,13 @@
 #include <readline/history.h>
 #endif
 
+#define CBGP_HISTFILE ".cbgp_history"
+
 /* A static variable for holding the line. */
 static char * pcLineRead= NULL;
+
+/* Maximum number of lines to hold in readline's history */
+int iHistFileSize= 500;
 
 // ---- rl_gets -----------------------------------------------------
 /**
@@ -41,8 +48,10 @@ char * rl_gets(char * pcPrompt)
 
   /* If the line has any text in it,
      save it on the history. */
-  if (pcLineRead && *pcLineRead)
+  if (pcLineRead && *pcLineRead) {
     add_history(pcLineRead);
+    stifle_history((int) iHistFileSize);
+  }
 #else
   /* If the buffer has not yet been allocated, allocate it.
      The buffer will be freed by the destructor function. */
@@ -60,7 +69,48 @@ char * rl_gets(char * pcPrompt)
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
+void _rl_init() __attribute__((constructor));
 void _rl_destroy() __attribute__((destructor));
+
+// ----- _rl_init ---------------------------------------------------
+/**
+ *
+ */
+void _rl_init()
+{
+#ifdef HAVE_LIBREADLINE
+  char * pcEnvHistFile;
+  char * pcEnvHistFileSize;
+  char * pcEnvHome;
+  char * endptr;
+  long int lTmp;
+
+  pcEnvHistFile= getenv("CBGP_HISTFILE");
+  if (pcEnvHistFile != NULL) {
+    if (strlen(pcEnvHistFile) > 0) {
+      read_history(pcEnvHistFile);
+    } else {
+      pcEnvHome= getenv("HOME");
+      if (pcEnvHome != NULL) { /* use ~/.cbgp_history file */
+	pcEnvHistFile= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HISTFILE)+
+						     strlen(pcEnvHome)));
+	sprintf(pcEnvHistFile, "%s/%s", pcEnvHome, CBGP_HISTFILE);
+	read_history(pcEnvHistFile);
+	free(pcEnvHistFile);
+      } else {
+	read_history(NULL); /* use default ~/.history file */
+      }
+    }
+  }
+
+  pcEnvHistFileSize= getenv("CBGP_HISTFILESIZE");
+  if (pcEnvHistFileSize != NULL) {
+    lTmp= strtol(pcEnvHistFileSize, &endptr, 0);
+    if ((*endptr == '\0') && (lTmp < INT_MAX))
+      iHistFileSize= (int) lTmp;
+  }
+#endif
+}
 
 // ----- _rl_destroy ------------------------------------------------
 /**
@@ -68,6 +118,29 @@ void _rl_destroy() __attribute__((destructor));
  */
 void _rl_destroy()
 {
+#ifdef HAVE_LIBREADLINE
+  char * pcEnvHistFile;
+  char * pcEnvHome;
+
+  pcEnvHistFile= getenv("CBGP_HISTFILE");
+  if (pcEnvHistFile != NULL) {
+    if (strlen(pcEnvHistFile) > 0) {
+      write_history(pcEnvHistFile);
+    } else {
+      pcEnvHome= getenv("HOME");
+      if (pcEnvHome != NULL) { /* use ~/.cbgp_history file */
+	pcEnvHistFile= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HISTFILE)+
+						     strlen(pcEnvHome)));
+	sprintf(pcEnvHistFile, "%s/%s", pcEnvHome, CBGP_HISTFILE);
+	write_history(pcEnvHistFile);
+	free(pcEnvHistFile);
+      } else {
+	write_history(NULL); /* use default ~/.history file */
+      }
+    }
+  }
+#endif
+
   if (pcLineRead != NULL) {
     free(pcLineRead);
     pcLineRead= NULL;
