@@ -16,6 +16,8 @@ typedef struct RegEx SRegEx;
 
 // ----- regex_int ---------------------------------------------------
 SRegEx * regex_init(char * pattern, const unsigned int uMaxResult);
+// ----- regex_reinit ------------------------------------------------
+void regex_reinit(SRegEx * pRegEx);
 // ----- regex_search ------------------------------------------------
 int regex_search(SRegEx * pRegEx, const char * sExp);
 // ----- regex_get_result --------------------------------------------

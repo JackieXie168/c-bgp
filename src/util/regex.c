@@ -73,38 +73,17 @@ SRegEx * regex_init(char * pattern, const unsigned int uMaxResult)
   return pRegEx;
 }
 
-void regex_first_search(SRegEx * pRegEx, const char * sExp)
+void regex_reinit(SRegEx * pRegEx)
 {
-  pRegEx->iNbrResult = pcre_exec(pRegEx->pRegEx, NULL, sExp, strlen(sExp), 0, 0,
-				pRegEx->iVectorResult, 
-				(pRegEx->uMaxResult+1)*3);
-  if (pRegEx->iNbrResult < 0) {
-    switch (pRegEx->iNbrResult) {
-      //No match of the pRegEx in sExp
-      case PCRE_ERROR_NOMATCH:
-	pRegEx->iNbrResult = 0;
-       break;
-    /* PCRE_ERROR_NULL
-     * PCRE_ERROR_BADOPTION
-     * PCRE_ERROR_BADMAGIC
-     * PCRE_ERROR_UNKNOWN_NODE 
-     * PCRE_ERROR_NOMEMORY
-     * PCRE_ERROR_NOSUBSTRING
-     * PCRE_ERROR_MATCHLIMIT
-     * PCRE_ERROR_CALLOUT
-     * PCRE_ERROR_BADUTF8
-     * PCRE_ERROR_BADUTF8_OFFSET
-     * PCRE_ERROR_PARTIAL
-     * PCRE_ERROR_BAD_PARTIAL
-     * PCRE_ERROR_INTERNAL
-     * PCRE_ERROR_BADCOUNT
-     */
-      default: 
-       LOG_DEBUG("regex_exec>Matching error %d\n", pRegEx->iNbrResult);
-    }
+  pRegEx->iNbrResult = 0;
+  pRegEx->iNbrResult = 0;
+  if (pRegEx->sResult != NULL)
+    FREE(pRegEx->sResult);
+    pRegEx->sResult = NULL;
+  pRegEx->isFirstSearch = 0;
+  if (pRegEx->iVectorResult != NULL)
     FREE(pRegEx->iVectorResult);
     pRegEx->iVectorResult = NULL;
-  }
 }
 
 // ----- regex_next_search -------------------------------------------
@@ -163,6 +142,43 @@ void regex_next_search(SRegEx * pRegEx, const char * sExp)
   }
 
 }
+void regex_first_search(SRegEx * pRegEx, const char * sExp)
+{
+  pRegEx->iNbrResult = pcre_exec(pRegEx->pRegEx, NULL, sExp, strlen(sExp), 0, 0,
+				pRegEx->iVectorResult, 
+				(pRegEx->uMaxResult+1)*3);
+
+  printf("exp : %s\n", sExp);
+  if (pRegEx->iNbrResult < 0) {
+    switch (pRegEx->iNbrResult) {
+      //No match of the pRegEx in sExp
+      case PCRE_ERROR_NOMATCH:
+	pRegEx->iNbrResult = 0;
+       break;
+    /* PCRE_ERROR_NULL
+     * PCRE_ERROR_BADOPTION
+     * PCRE_ERROR_BADMAGIC
+     * PCRE_ERROR_UNKNOWN_NODE 
+     * PCRE_ERROR_NOMEMORY
+     * PCRE_ERROR_NOSUBSTRING
+     * PCRE_ERROR_MATCHLIMIT
+     * PCRE_ERROR_CALLOUT
+     * PCRE_ERROR_BADUTF8
+     * PCRE_ERROR_BADUTF8_OFFSET
+     * PCRE_ERROR_PARTIAL
+     * PCRE_ERROR_BAD_PARTIAL
+     * PCRE_ERROR_INTERNAL
+     * PCRE_ERROR_BADCOUNT
+     */
+      default: 
+       LOG_DEBUG("regex_exec>Matching error %d\n", pRegEx->iNbrResult);
+    }
+    FREE(pRegEx->iVectorResult);
+    pRegEx->iVectorResult = NULL;
+  }
+}
+
+
 
 // ----- regex_exec --------------------------------------------------
 /**
@@ -186,7 +202,7 @@ int regex_search(SRegEx * pRegEx, const char * sExp)
     } else 
       regex_next_search(pRegEx, sExp);
   }
-  //printf("NbrResult : %d\n", pRegEx->iNbrResult);
+  printf("NbrResult : %d\n", pRegEx->iNbrResult);
   return pRegEx->iNbrResult;
 }
 
