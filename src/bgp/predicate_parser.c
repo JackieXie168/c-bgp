@@ -36,8 +36,16 @@ int predicate_parse_sub_atom(char ** ppcExpr, SFilterMatcher ** ppMatcher)
   int iError;
 
   pcTmpExpr= *ppcExpr;
-  while (*pcTmpExpr && ((pcPos= strchr(")&|", *pcTmpExpr)) == NULL))
+  while (*pcTmpExpr && ((pcPos= strchr(")&|", *pcTmpExpr)) == NULL)) {
+    if (*pcTmpExpr == '\"') {
+      pcTmpExpr++;
+      while (*pcTmpExpr && *pcTmpExpr != '\"')
+	pcTmpExpr++;
+      if (!*pcTmpExpr)
+	return -1;
+    }
     pcTmpExpr++;
+  }
 
   iLen= pcTmpExpr-(*ppcExpr);
 
@@ -59,12 +67,26 @@ int predicate_parse_sub_atom(char ** ppcExpr, SFilterMatcher ** ppMatcher)
  */
 int predicate_parse_sub_expr(char ** ppcExpr, SFilterMatcher ** ppMatcher)
 {
-  char * pcPos= strchr(*ppcExpr, ')');
+  char * pcPos;//= strchr(*ppcExpr, ')');
   char *pcSubExpr;
   char *pcTmpExpr;
   int iLen;
   int iError;
 
+  pcTmpExpr = **ppcExpr;
+  while (*pcTmpExpr && (strchr(")", *pcTmpExpr) == NULL)) {
+    if (*pcTmpExpr == '\"') {
+      pcTmpExpr++;
+      while (*pcTmpExpr && *pcTmpExpr != '\"') {
+	pcTmpExpr++;
+      }
+      if (!*pcTmpExpr)
+	return -1;
+    }
+    pcTmpExpr++;
+  }
+
+  pcPos = pcTmpExpr;
   if (pcPos == NULL)
     return -1;
 
