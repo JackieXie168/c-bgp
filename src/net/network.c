@@ -799,6 +799,14 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
   // Check link's state
   if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
     fprintf(stderr, "*** Message lost ***\n");
+    fprintf(stderr, "message: ");
+    message_dump(stderr, pMessage);
+    if (pMessage->uProtocol == NET_PROTOCOL_BGP)
+      bgp_msg_dump(stderr, NULL, pMessage->pPayLoad);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "link: ");
+    link_dump(stderr, pLink);
+    fprintf(stderr, "\n");
     LOG_INFO("Info: link is down, message dropped\n");
     message_destroy(&pMessage);
     return NET_ERROR_LINK_DOWN; // Link is down, silently drop

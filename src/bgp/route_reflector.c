@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 27/01/2005
+// @lastdate 25/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -24,6 +24,8 @@ void cluster_list_dump(FILE * pStream, SClusterList * pClusterList)
   int iIndex;
 
   for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList); iIndex++) {
+    if (iIndex > 0)
+      fprintf(pStream, " ");
     ip_address_dump(pStream, pClusterList->data[iIndex]);
   }
 }
@@ -57,10 +59,19 @@ int cluster_list_contains(SClusterList * pClusterList,
 			  cluster_id_t tClusterID)
 {
   int iIndex;
- 
+
+  /*
+  ip_address_dump(stderr, tClusterID);
+  fprintf(stderr, " in ");
+  cluster_list_dump(stderr, pClusterList);
+  fprintf(stderr, " ?\n");*/
+
   for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList);
-       iIndex++)
+       iIndex++) {
+    /*ip_address_dump(stderr, pClusterList->data[iIndex]);
+      fprintf(stderr, "\n");*/
     if (pClusterList->data[iIndex] == tClusterID)
       return 1;
+  }
   return 0;
 }
