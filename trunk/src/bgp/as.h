@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 27/02/2004
+// @lastdate 04/03/2004
 // ==================================================================
 
 #ifndef __AS_H__
@@ -94,9 +94,6 @@ extern int as_decision_process(SAS * pAS, SPeer * pOriginPeer,
 			       SPrefix sPrefix);
 // ----- as_handle_message ------------------------------------------
 extern int as_handle_message(void * pAS, SNetMessage * pMessage);
-// ----- as_record_route --------------------------------------------
-extern int as_record_route(FILE * pStream, SAS * pAS,
-			   SPrefix sPrefix, SPath ** ppPath);
 // ----- as_ecomm_red_process ---------------------------------------
 extern int as_ecomm_red_process(SPeer * pPeer, SRoute * pRoute);
 // ----- as_num_providers -------------------------------------------
@@ -123,5 +120,15 @@ extern void bgp_router_dump_ribin(FILE * pStream, SBGPRouter * pRouter,
 				  SPeer * pPeer, SPrefix sPrefix);
 // ----- bgp_router_save_rib ----------------------------------------
 extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
+
+// ----- bgp_router_record_route ------------------------------------
+extern int bgp_router_record_route(SBGPRouter * pRouter,
+				   SPrefix sPrefix, SPath ** ppPath,
+				   int iPreserveDups);
+// ----- bgp_router_dump_recorded_route -----------------------------
+extern void bgp_router_dump_recorded_route(FILE * pStream,
+					   SBGPRouter * pRouter,
+					   SPrefix sPrefix,
+					   int iPreserveDups);
 
 #endif

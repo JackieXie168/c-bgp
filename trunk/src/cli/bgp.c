@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 01/03/2004
+// @lastdate 04/03/2004
 // ==================================================================
 
 #include <bgp/as.h>
@@ -578,25 +578,25 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 int cli_bgp_router_recordroute(SCliContext * pContext,
 			       STokens * pTokens)
 {
-  SAS * pAS;
+  SBGPRouter * pRouter;
+  char * pcPrefix;
   SPrefix sPrefix;
-  SPath * pPath;
   char * pcEndPtr;
 
-  pAS= (SAS *) cli_context_get_item_at_top(pContext);
-  if (ip_string_to_prefix(tokens_get_string_at(pTokens, 1), &pcEndPtr,
-			  &sPrefix) || (*pcEndPtr != '\0'))
+  // Get BGP instance
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
+			  &sPrefix) || (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
-  fprintf(stderr, "%u\t", pAS->uNumber);
-  ip_prefix_dump(stderr, sPrefix);
-  fprintf(stderr, "\t");
-  if (!as_record_route(stderr, pAS, sPrefix, &pPath)) {
-    path_dump(stderr, pPath, 0);
-    path_destroy(&pPath);
-  } else {
-    fprintf(stderr, "*");
   }
-  fprintf(stderr, "\n");
+
+  // Record route
+  bgp_router_dump_recorded_route(stderr, pRouter, sPrefix, 0);
+
   return CLI_SUCCESS;
 }
 
@@ -612,10 +612,6 @@ int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
   net_addr_t tAddr;
   char * pcEndPtr;
 
-  /*LOG_DEBUG("bgp router %s add peer %s %s\n",
-	    tokens_get_string_at(pTokens, 0),
-	    tokens_get_string_at(pTokens, 1),
-	    tokens_get_string_at(pTokens, 2));*/
   pAS= (SAS *) cli_context_get_item_at_top(pContext);
   if (tokens_get_uint_at(pTokens, 1, &uASNum) || (uASNum > MAX_AS))
     return CLI_ERROR_COMMAND_FAILED;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 15/01/2004
+// @lastdate 04/03/2004
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -14,12 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include <sequence.h>
-
 #include <bgp/route_reflector.h>
 #include <bgp/route_t.h>
-
-void KIKAAK_DUMP_ROUTES(SPtrArray * pRoutes);
 
 // ----- route_create -----------------------------------------------
 extern SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,

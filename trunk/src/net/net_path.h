@@ -3,14 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 24/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #ifndef __NET_PATH_H__
 #define __NET_PATH_H__
 
 #include <libgds/array.h>
-#include <net/network.h>
+#include <net/prefix.h>
 #include <stdio.h>
 
 typedef SUInt32Array SNetPath;

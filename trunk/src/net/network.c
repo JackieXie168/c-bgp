@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 27/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -252,6 +252,7 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 {
   SNetLink * pLink;
   SNetRouteInfo * pRouteInfo;
+  SNetProtocol * pProtocol;
 
   // Is there a direct link towards the destination ?
   pLink= node_links_lookup(pNode, tDstAddr);
@@ -266,7 +267,9 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 
     // Still no route, is there a BGP route ?
     if (pLink == NULL) {
-      // NOT YET IMPLEMENTED !...
+      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+      if (pProtocol != NULL) {
+      }
     }
     
   }
@@ -610,6 +613,89 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 
   radix_tree_destroy(&pVisited);
   return 0;
+}
+
+/////////////////////////////////////////////////////////////////////
+// ROUTING TESTS
+/////////////////////////////////////////////////////////////////////
+
+#define NET_RECORD_ROUTE_SUCCESS   0
+#define NET_RECORD_ROUTE_TOO_LONG -1
+#define NET_RECORD_ROUTE_UNREACH  -2
+
+// ----- node_record_route ------------------------------------------
+/**
+ *
+ */
+int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
+		      SNetPath ** ppPath)
+{
+  SNetNode * pCurrentNode= pNode;
+  SNetLink * pLink;
+  unsigned int uHopCount= 0;
+  int iResult= NET_RECORD_ROUTE_UNREACH;
+  SNetPath * pPath= net_path_create();
+
+  while (pCurrentNode != NULL) {
+
+    net_path_append(pPath, pCurrentNode->tAddr);
+
+    // Final destination reached ?
+    if (pCurrentNode->tAddr == tDstAddr) {
+      iResult= NET_RECORD_ROUTE_SUCCESS;
+      break;
+    }
+
+    // Lookup the next-hop for this destination
+    pLink= node_rt_lookup(pCurrentNode, tDstAddr);
+    if (pLink == NULL) {
+      break;
+    }
+
+    pCurrentNode= network_find_node(pNode->pNetwork, pLink->tAddr);
+
+    uHopCount++;
+
+    if (uHopCount > 30) {
+      iResult= NET_RECORD_ROUTE_TOO_LONG;
+      break;
+    }
+
+  }
+
+  *ppPath= pPath;
+
+  return iResult;
+}
+
+// ----- node_dump_recorded_route -----------------------------------
+/**
+ *
+ */
+void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+			      net_addr_t tDstAddr)
+{
+  int iResult;
+  SNetPath * pPath;
+
+  iResult= node_record_route(pNode, tDstAddr, &pPath);
+
+  ip_address_dump(pStream, pNode->tAddr);
+  fprintf(pStream, "\t");
+  ip_address_dump(pStream, tDstAddr);
+  fprintf(pStream, "\t");
+  switch (iResult) {
+  case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
+  case NET_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
+  case NET_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACH"); break;
+  default:
+    fprintf(pStream, "UNKNOWN_ERROR");
+  }
+  fprintf(pStream, "\t");
+  net_path_dump(pStream, pPath);
+  fprintf(pStream, "\n");
+
+  net_path_destroy(&pPath);
 }
 
 /////////////////////////////////////////////////////////////////////
