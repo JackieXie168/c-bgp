@@ -498,6 +498,32 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
   return 0;
 }
 
+// -----[ bgpRouterPeerReflectorClient ]-----------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpRouterPeerReflectorClient
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClient
+  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
+{
+  SBGPRouter * pRouter;
+  net_addr_t tPeerAddr;
+  SBGPPeer * pPeer;
+
+  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
+    return -1;
+  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
+    return -1;
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
+    return -1;
+
+  peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
+  
+  return 0;
+}
+
+
 // -----[ bgpRouterPeerVirtual ]-------------------------------------
 /*
  * Class:     CBGP
