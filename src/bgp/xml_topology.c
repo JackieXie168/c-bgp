@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/09/2003
-// @lastdate 27/01/2005
+// @lastdate 12/02/2005
 // ==================================================================
 
 //TODO :  1) spf-prefix has to be done !
@@ -401,10 +401,10 @@ SBGPRouter * xml_parse_bgp_router_add(SNetwork * pNetwork, char * pcName,
     LOG_DEBUG("xml_parse_retrieve_node_info> can't convert string to ip address : %s.\n", pcAddr);
 
   pNode = network_find_node(pNetwork, ipAddr);
-  pRouter = as_create (ASID, pNode, 0);
+  pRouter= bgp_router_create (ASID, pNode, 0);
   as_add_name(pRouter, strdup(pcName));
   assert(!node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
-			  (FNetNodeHandlerDestroy) as_destroy, 
+			  (FNetNodeHandlerDestroy) bgp_router_destroy, 
 			  as_handle_message));
   return pRouter;
 }

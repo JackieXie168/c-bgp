@@ -3,10 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 27/01/2005
+// @lastdate 12/02/2005
 // ==================================================================
-// Current limitations:
-// - origin is always IGP
 // Future changes:
 // - move attribute parsers in corresponding sections
 
@@ -145,7 +143,7 @@ SCommunities * mrtd_create_communities(char * pcCommunities)
  * This function converts the origin field of an MRT record to the
  * route origin. If the route origin is unknown, -1 is returned.
  */
-int mrtd_get_origin(char * pcField)
+origin_type_t mrtd_get_origin(char * pcField)
 {
   if (!strcmp(pcField, "IGP")) {
     return ROUTE_ORIGIN_IGP;
@@ -155,7 +153,7 @@ int mrtd_get_origin(char * pcField)
     return ROUTE_ORIGIN_INCOMPLETE;
   }
 
-  return -1;
+  return 255;
 }
 
 // ----- mrtd_check_type --------------------------------------------
@@ -180,7 +178,9 @@ int mrtd_check_type(char * pcField, mrtd_input_t tType)
 
 // ----- mrtd_check_header ------------------------------------------
 /**
- *
+ * Check an MRT route record's header. Return the MRT record type
+ * which is one of 'A' (update message), 'W' (withdraw message) and
+ * 'B' (best route).
  */
 mrtd_input_t mrtd_check_header(STokens * pTokens)
 {
@@ -203,7 +203,7 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
      - W for withdraws in messages
   */
   pcTemp= tokens_get_string_at(pTokens, 2);
-  if (strlen(pcTemp) != 1) {
+  if ((strlen(pcTemp) != 1) || (strchr("ABW", pcTemp[0]) == NULL)) {
     LOG_SEVERE("Error: invalid MRT record type field \"%s\"\n", pcTemp);
     return -1;
   }
@@ -309,11 +309,10 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   }
   
   /* Check the prefix */
-  if (ip_string_to_prefix(tokens_get_string_at(pTokens, 5),
-			  &pcEndPtr, pPrefix) ||
+  pcTemp= tokens_get_string_at(pTokens, 5);
+  if (ip_string_to_prefix(pcTemp, &pcEndPtr, pPrefix) ||
       (*pcEndPtr != 0)) {
-    LOG_SEVERE("Error: not a valid prefix \"%s\"\n",
-	       tokens_get_string_at(pTokens, 5));
+    LOG_SEVERE("Error: not a valid prefix \"%s\"\n", pcTemp);
     return -1;
   }
 
@@ -321,22 +320,27 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return iType;
 
   /* Check the AS-PATH */
-  pPath= mrtd_create_path(tokens_get_string_at(pTokens, 6));
+  pcTemp= tokens_get_string_at(pTokens, 6);
+  pPath= mrtd_create_path(pcTemp);
   if (pPath == NULL) {
-    LOG_SEVERE("Error: not a valid AS-Path \"%s\"\n",
-	       tokens_get_string_at(pTokens, 6));
+    LOG_SEVERE("Error: not a valid AS-Path \"%s\"\n", pcTemp);
     return -1;
   }
 
   /* Check ORIGIN (currently, the origin is always IGP) */
-  tOrigin= ROUTE_ORIGIN_IGP;
+  pcTemp= tokens_get_string_at(pTokens, 7);
+  tOrigin= mrtd_get_origin(pcTemp);
+  if (tOrigin == 255) {
+    LOG_SEVERE("Error: not a valid origin \"%s\"\n",
+	       pcTemp);
+    return -1;
+  }
 
   /* Check the NEXT-HOP */
-  if (ip_string_to_address(tokens_get_string_at(pTokens, 8),
-			   &pcEndPtr, &tNextHop) ||
+  pcTemp= tokens_get_string_at(pTokens, 8);
+  if (ip_string_to_address(pcTemp, &pcEndPtr, &tNextHop) ||
       (*pcEndPtr != 0)) {
-    LOG_SEVERE("Error: not a valid next-hop \"%s\"\n",
-	       tokens_get_string_at(pTokens, 8));
+    LOG_SEVERE("Error: not a valid next-hop \"%s\"\n", pcTemp);
     path_destroy(&pPath);
     return -1;
   }
@@ -344,7 +348,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   if ((pRouter != NULL) && (pRouter->pNode->tAddr != tNextHop)) {
     
     /* Look for the peer in the router... */
-    pPeer= as_find_peer(pRouter, tNextHop);
+    pPeer= bgp_router_find_peer(pRouter, tNextHop);
     if (pPeer == NULL) {
       LOG_SEVERE("Error: peer not found \"");
       LOG_ENABLED_SEVERE()
@@ -367,10 +371,10 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 
   /* Check COMMUNITIES, if present */
   if (tokens_get_num(pTokens) > 11) {
-    pComm= mrtd_create_communities(tokens_get_string_at(pTokens, 11));
+    pcTemp= tokens_get_string_at(pTokens, 11);
+    pComm= mrtd_create_communities(pcTemp);
     if (pComm == NULL) {
-      LOG_SEVERE("Error: invalid communities \"%s\"\n",
-		 tokens_get_string_at(pTokens, 11));
+      LOG_SEVERE("Error: invalid communities \"%s\"\n", pcTemp);
       path_destroy(&pPath);
       return -1;
     }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 11/02/2005
+// @lastdate 13/02/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -51,65 +51,65 @@ extern uint8_t BGP_OPTIONS_SHOW_MODE;
   ip_address_dump(log_get_stream(pMainLog), AS->pNode->tAddr); \
   LOG_DEBUG(M);
 
-// ----- as_create --------------------------------------------------
-extern SAS * as_create(uint16_t uNumber, SNetNode * pNode,
-		       uint32_t uTBID);
-// ----- as_destroy -------------------------------------------------
-extern void as_destroy(SAS ** ppAS);
-// ----- as_add_name ------------------------------------------------
-void as_add_name(SBGPRouter * pRouter, char * pcName);
-// ----- as_get_name ------------------------------------------------
-char * as_get_name(SBGPRouter * pRouter);
-// ----- as_add_peer ------------------------------------------------
-extern int as_add_peer(SAS * pAS, uint16_t uRemoteAS,
-		       net_addr_t tAddr, uint8_t uPeerType);
-// ----- as_find_peer -----------------------------------------------
-extern SPeer * as_find_peer(SAS * pAS, net_addr_t tAddr);
-// ----- as_peer_set_in_filter --------------------------------------
-extern int as_peer_set_in_filter(SAS * pAS, net_addr_t tAddr,
-				 SFilter * pFilter);
-// ----- as_peer_set_out_filter --------------------------------------
-extern int as_peer_set_out_filter(SAS * pAS, net_addr_t tAddr,
-				  SFilter * pFilter);
-// ----- as_add_route -----------------------------------------------
-extern int as_add_network(SAS * pAS, SPrefix sPrefix);
+// ----- bgp_router_create ------------------------------------------
+extern SBGPRouter * bgp_router_create(uint16_t uNumber,
+				      SNetNode * pNode,
+				      uint32_t uTBID);
+// ----- bgp_router_destroy -----------------------------------------
+extern void bgp_router_destroy(SBGPRouter ** ppRouter);
+// ----- bgp_router_set_name ----------------------------------------
+void bgp_router_set_name(SBGPRouter * pRouter, char * pcName);
+// ----- bgp_router_get_name ----------------------------------------
+char * bgp_router_get_name(SBGPRouter * pRouter);
+// ----- bgp_router_add_peer ----------------------------------------
+extern int bgp_router_add_peer(SBGPRouter * pRouter, uint16_t uRemoteAS,
+			       net_addr_t tAddr, uint8_t uPeerType);
+// ----- bgp_router_find_peer ---------------------------------------
+extern SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr);
+// ----- bgp_router_peer_set_filter ---------------------------------
+extern int bgp_router_peer_set_filter(SBGPRouter * pRouter, net_addr_t tAddr,
+				      SFilter * pFilter, int iIn);
+// ----- bgp_router_add_network -------------------------------------
+extern int bgp_router_add_network(SBGPRouter * pRouter, SPrefix sPrefix);
 // ----- bgp_router_del_network -------------------------------------
 extern int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix);
 // ----- as_add_qos_network -----------------------------------------
-extern int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
+extern int as_add_qos_network(SBGPRouter * pRouter, SPrefix sPrefix,
 			      net_link_delay_t tDelay);
-// ----- as_run -----------------------------------------------------
-extern int as_run(SAS * pAS);
-// ----- as_dump_adj_rib_in -----------------------------------------
-extern int as_dump_adj_rib_in(FILE * pStream, SAS * pAS,
-			      SPrefix sPrefix);
-// ----- as_dump_rt_dp_rule -----------------------------------------
-extern int as_dump_rt_dp_rule(FILE * pStream, SAS * pAS,
-			      SPrefix sPrefix);
-// ----- as_decision_process_dop ------------------------------------
-extern void as_decision_process_dop(SAS * pAS, SPtrArray * pRoutes);
-// ----- as_decision_process_disseminate_to_peer --------------------
-extern void as_decision_process_disseminate_to_peer(SAS * pAS,
+// ----- bgp_router_run ---------------------------------------------
+extern int bgp_router_run(SBGPRouter * pRouter);
+// ----- bgp_router_dump_adj_rib_in ---------------------------------
+extern int bgp_router_dump_adj_rib_in(FILE * pStream, SBGPRouter * pRouter,
+				      SPrefix sPrefix);
+// ----- bgp_router_dump_rt_dp_rule ---------------------------------
+extern int bgp_router_dump_rt_dp_rule(FILE * pStream, SBGPRouter * pRouter,
+				      SPrefix sPrefix);
+// ----- bgp_router_decision_process_dop ------------------------------------
+extern void bgp_router_decision_process_dop(SBGPRouter * pRouter,
+					    SPtrArray * pRoutes);
+// ----- bgp_router_decision_process_disseminate_to_peer ------------
+extern void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
+							    SPrefix sPrefix,
+							    SRoute * pRoute,
+							    SPeer * pPeer);
+// ----- bgp_router_decision_process_disseminate --------------------
+extern void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 						    SPrefix sPrefix,
-						    SRoute * pRoute,
-						    SPeer * pPeer);
-// ----- as_decision_process_disseminate ----------------------------
-extern void as_decision_process_disseminate(SAS * pAS,
-					    SPrefix sPrefix,
-					    SRoute * pRoute);
-// ----- as_decision_process ----------------------------------------
-extern int as_decision_process(SAS * pAS, SPeer * pOriginPeer,
-			       SPrefix sPrefix);
-// ----- as_handle_message ------------------------------------------
-extern int as_handle_message(void * pAS, SNetMessage * pMessage);
-// ----- as_ecomm_red_process ---------------------------------------
-extern int as_ecomm_red_process(SPeer * pPeer, SRoute * pRoute);
-// ----- as_num_providers -------------------------------------------
-extern uint16_t as_num_providers(SAS * pAS);
-// ----- as_dump_id -------------------------------------------------
-extern void as_dump_id(FILE * pStream, SAS * pAS);
-// ----- as_load_rib ------------------------------------------------
-extern int as_load_rib(char * pcFileName, SAS * pAS);
+						    SRoute * pRoute);
+// ----- bgp_router_decision_process --------------------------------
+extern int bgp_router_decision_process(SBGPRouter * pRouter,
+				       SPeer * pOriginPeer,
+				       SPrefix sPrefix);
+// ----- bgp_router_handle_message ----------------------------------
+extern int bgp_router_handle_message(void * pRouter, SNetMessage * pMessage);
+// ----- bgp_router_ecomm_red_process -------------------------------
+extern int bgp_router_ecomm_red_process(SPeer * pPeer, SRoute * pRoute);
+// ----- bgp_router_num_providers -----------------------------------
+extern uint16_t bgp_router_num_providers(SBGPRouter * pRouter);
+// ----- bgp_router_dump_id -----------------------------------------
+extern void bgp_router_dump_id(FILE * pStream, SBGPRouter * pRouter);
+// ----- bgp_router_load_rib ----------------------------------------
+extern int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter);
 
 // -----[ bgp_router_rerun ]-----------------------------------------
 extern int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix);

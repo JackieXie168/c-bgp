@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 02/02/2005
+// @lastdate 11/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -156,7 +156,14 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
 // ----- cli_show_version -------------------------------------------
 int cli_show_version(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, "version: %s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+  fprintf(stdout, "version: %s %s", PACKAGE_NAME, PACKAGE_VERSION);
+#ifdef __EXPERIMENTAL__ 
+  fprintf(stdout, " [experimental]");
+#endif
+#ifdef HAVE_JNI
+  fprintf(stdout, " [jni]");
+#endif
+  fprintf(stdout, "\n");
 
   return CLI_SUCCESS;
 }

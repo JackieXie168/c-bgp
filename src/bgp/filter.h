@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 10/02/2005
+// @lastdate 13/02/2005
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -91,7 +91,7 @@ extern int filter_insert_rule(SFilter * pFilter, unsigned int uIndex,
 // ----- filter_remove_rule -----------------------------------------
 extern int filter_remove_rule(SFilter * pFilter, unsigned int uIndex);
 // ----- filter_apply -----------------------------------------------
-extern int filter_apply(SFilter * pFilter, SAS * pAS,
+extern int filter_apply(SFilter * pFilter, SBGPRouter * pRouter,
 			SRoute * pRoute);
 // ----- filter_match_and -------------------------------------------
 extern SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,

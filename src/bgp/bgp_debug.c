@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/04/2004
-// @lastdate 27/01/2005
+// @lastdate 13/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -84,7 +84,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
     if (iNumRoutes > 1) {
       iOldNumRoutes= iNumRoutes;
       fprintf(pStream, "[ Higher LOCAL-PREF ]\n");
-      as_decision_process_dop(pRouter, pRoutes);
+      bgp_router_decision_process_dop(pRouter, pRoutes);
       iNumRoutes= ptr_array_length(pRoutes);
       if (iNumRoutes < iOldNumRoutes)
 	routes_list_dump(pStream, pRoutes);
