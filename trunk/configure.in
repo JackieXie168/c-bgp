@@ -8,6 +8,7 @@ AC_PREFIX_DEFAULT(/usr)
 
 AC_CANONICAL_SYSTEM
 AC_DEFUN([AC_PROG_JAVAH],[
+AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
 AC_REQUIRE([AC_PROG_CPP])dnl
 AC_PATH_PROG(JAVAH,javah)
 if test x"`eval 'echo $ac_cv_path_JAVAH'`" != x ; then
@@ -35,6 +36,9 @@ AM_PROG_LIBTOOL
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
+
+AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
+
 #
 # Test for JNI availability
 #
@@ -50,8 +54,11 @@ if test "$cbgp_config_jni" == "yes"; then
       AC_MSG_ERROR([could not find java native interface header (jni.h)])
    else
       AC_DEFINE(HAVE_JNI, 1, [Define to 1 if you have the jni.h header])
+      cbgp_jni_ok=yes
    fi
 fi
+AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
+
 
 #
 # Test for readline existence. Required due to possibly undetected 
