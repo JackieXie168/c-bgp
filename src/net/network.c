@@ -812,9 +812,9 @@ void _network_destroy() __attribute__((destructor));
 void _network_destroy()
 {
   if (pTheNetwork != NULL) {
-    fprintf(stderr, "free network: ");
-    fflush(stderr);
+    //fprintf(stderr, "free network: ");
+    //fflush(stderr);
     network_destroy(&pTheNetwork);
-    fprintf(stderr, "done.\n");
+    //fprintf(stderr, "done.\n");
   }
 }

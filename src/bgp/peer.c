@@ -126,7 +126,7 @@ int peer_open_session(SPeer * pPeer)
 /**
  *
  */
-void peer_close_session(SPeer * pPeer)
+int peer_close_session(SPeer * pPeer)
 {
   if (pPeer->uSessionState != SESSION_STATE_IDLE) {
     
@@ -138,6 +138,10 @@ void peer_close_session(SPeer * pPeer)
 
     bgp_msg_send(pPeer->pLocalAS->pNode, pPeer->tAddr,
 		 bgp_msg_close_create(pPeer->pLocalAS->uNumber));
+    return 0;
+  } else {
+    LOG_WARNING("Warning: session not opened\n");
+    return -1;
   }
 }
 
@@ -169,6 +173,7 @@ void peer_session_open_rcvd(SPeer * pPeer)
 	      SESSION_STATES[pPeer->uSessionState]);
     abort();
   }
+  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- peer_session_close_rcvd ------------------------------------
@@ -177,10 +182,9 @@ void peer_session_close_rcvd(SPeer * pPeer)
   LOG_INFO("BGP_MSG_RCVD: CLOSE\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ESTABLISHED:
-    peer_close_session(pPeer);
-    break;
   case SESSION_STATE_OPENWAIT:
-    peer_close_session(pPeer);
+    pPeer->uSessionState= SESSION_STATE_IDLE;
+    peer_clear_adjribin(pPeer);
     break;
   case SESSION_STATE_IDLE:
     break;
@@ -189,6 +193,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
 	      SESSION_STATES[pPeer->uSessionState]);
     abort();    
   }
+  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- peer_session_update_rcvd -----------------------------------
@@ -206,6 +211,7 @@ void peer_session_update_rcvd(SPeer * pPeer)
 	      SESSION_STATES[pPeer->uSessionState]);
     abort();    
   }
+  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- peer_session_withdraw_rcvd ---------------------------------
@@ -223,6 +229,7 @@ void peer_session_withdraw_rcvd(SPeer * pPeer)
 	      SESSION_STATES[pPeer->uSessionState]);
     abort();    
   }
+  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- peer_clear_adjribin_for_each -------------------------------

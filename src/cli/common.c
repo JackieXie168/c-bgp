@@ -30,7 +30,7 @@ int cli_include(SCliContext * pContext, STokens * pTokens)
     iResult= cli_execute_file(pTheCli, pFile);
     fclose(pFile);
   } else
-    LOG_SEVERE("Error: Unable to include \"%s\".\n", pcFileName);
+    LOG_SEVERE("Error: Unable to load file \"%s\".\n", pcFileName);
   return iResult;
 }
 

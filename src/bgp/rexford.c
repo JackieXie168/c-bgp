@@ -67,6 +67,8 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       uLineNumber++;
 
       if (tokenizer_run(pTokenizer, acFileLine) != TOKENIZER_SUCCESS) {
+	LOG_SEVERE("Error: unexpected parse error in topology, line %u\n",
+		   uLineNumber);
 	iError= REXFORD_ERROR_UNEXPECTED;
 	break;
       }
@@ -78,14 +80,16 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       
       // Get and check mandatory parameters
       if (tokens_get_num(pTokens) < 3) {
-	LOG_FATAL("rexford_load@%u: not enouh tokens\n", uLineNumber);
+	LOG_SEVERE("Error: not enouh parameters in topology, line %u\n",
+		   uLineNumber);
 	iError= REXFORD_ERROR_NUM_PARAMS;
 	break;
       }
       if ((tokens_get_uint_at(pTokens, 0, &uAS1) != 0) ||
 	  (tokens_get_uint_at(pTokens, 1, &uAS2) != 0) ||
 	  (uAS1 >= MAX_AS) || (uAS2 >= MAX_AS)) {
-	LOG_FATAL("rexford_load@%u: invalid AS-NUM\n", uLineNumber);
+	LOG_SEVERE("Error: invalid AS-NUM in topology, line %u\n",
+		  uLineNumber);
 	iError= REXFORD_ERROR_INVALID_ASNUM;
 	break;
       }
@@ -93,7 +97,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       if ((tokens_get_uint_at(pTokens, 2, &uRelation) != 0) ||
 	  ((uRelation != REXFORD_REL_PROV_CUST) &&
 	   (uRelation != REXFORD_REL_PEER_PEER))) {
-	LOG_FATAL("rexford_load@%u: invalid RELATION\n",
+	LOG_SEVERE("Error: invalid relation in topology, line %u\n",
 		  uLineNumber);
 	iError= REXFORD_ERROR_INVALID_RELATION;
 	break;
@@ -102,7 +106,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       // Get optional parameters
       if (tokens_get_num(pTokens) > 3) {
 	if (tokens_get_uint_at(pTokens, 3, &tDelay) != 0) {
-	  LOG_FATAL("rexford_load@%u: invalid optional delay\n",
+	  LOG_SEVERE("Error: invalid delay in topology, line %u\n",
 		    uLineNumber);
 	  iError= REXFORD_ERROR_INVALID_DELAY;
 	  break;
@@ -111,7 +115,8 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 
       // Limit number of parameters
       if (tokens_get_num(pTokens) > 4) {
-	LOG_FATAL("rexford_load@%u: too many arguments\n", uLineNumber);
+	LOG_SEVERE("Error: too many arguments in topology, line %u\n",
+		   uLineNumber);
 	iError= 1;
 	break;
       }
@@ -154,7 +159,8 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 
       // Add the link and check that this link did not already exist
       if (node_add_link(pNode1, pNode2, tDelay, 1) != 0) {
-	LOG_FATAL("rexford_load@%u: link already exists\n", uLineNumber);
+	LOG_SEVERE("Error: duplicate link (%u, %u) in topology, line %u\n",
+		   uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
 	break;
       }
@@ -176,7 +182,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
     }
     fclose(pFile);
   } else {
-    LOG_FATAL("rexford_load: could not open file \"%s\"\n", pcFileName);
+    LOG_SEVERE("Error: could not open topology file \"%s\"\n", pcFileName);
     iError= REXFORD_ERROR_OPEN;
   }
   tokenizer_destroy(&pTokenizer);

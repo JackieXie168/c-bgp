@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 28/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -49,9 +49,9 @@ extern void peer_set_out_filter(SPeer * pPeer, SFilter * pFilter);
 extern SFilter * peer_out_filter_get(SPeer * pPeer);
 
 // ----- peer_open_session ------------------------------------------
-int peer_open_session(SPeer * pPeer);
+extern int peer_open_session(SPeer * pPeer);
 // ----- peer_close_session -----------------------------------------
-extern void peer_close_session(SPeer * pPeer);
+extern int peer_close_session(SPeer * pPeer);
 // ----- peer_clear_adjribin ----------------------------------------
 extern void peer_clear_adjribin(SPeer * pPeer);
 
