@@ -3,7 +3,7 @@
 #
 AC_INIT(src/main.c)
 PACKAGE=cbgp
-VERSION="1.1.3"
+VERSION="1.1.4"
 AC_PREFIX_DEFAULT(/usr)
 
 #
@@ -34,13 +34,13 @@ if test "$readline_ok" != "yes"; then
    fi
    unset ac_cv_lib_readline_readline
    AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
-   unset tc
 fi
 if test "$readline_ok" == "yes"; then
    AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
    LIBS="$LIBS -lreadline $tc"
    AC_CHECK_HEADERS(readline/readline.h)
 fi
+unset tc
 
 #
 # Test for libgds existence (library + headers)
