@@ -1105,11 +1105,15 @@ int cli_bgp_router_peer_up(SCliContext * pContext, STokens * pTokens)
 {
   SPeer * pPeer;
 
-  /*LOG_DEBUG("bgp router %s peer %s up\n",
-	    tokens_get_string_at(pTokens, 0),
-	    tokens_get_string_at(pTokens, 1));*/
+  // Get peer instance from context
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
-  peer_open_session(pPeer);
+
+  // Try to open session
+  if (peer_open_session(pPeer)) {
+    LOG_SEVERE("Error: could not open session\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+    
   return CLI_SUCCESS;
 }
 
@@ -1122,8 +1126,15 @@ int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
 {
   SPeer * pPeer;
 
+  // Get peer from context
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
-  peer_close_session(pPeer);
+
+  // Try to close session
+  if (peer_close_session(pPeer)) {
+    LOG_SEVERE("Error: could not close session\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
   return CLI_SUCCESS;
 }
 
