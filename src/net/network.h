@@ -113,7 +113,7 @@ extern int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 // ----- node_rt_lookup ---------------------------------------------
 extern SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr);
 // ----- node_rt_dump_string -----------------------------------------------
-char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix);
+//char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix);
 // ----- node_rt_dump -----------------------------------------------
 extern void node_rt_dump(FILE * pStream, SNetNode * pNode,
 			 SPrefix sPrefix);

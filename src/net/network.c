@@ -481,7 +481,7 @@ int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
   }
 
   // Build route info
-  pRouteInfo= route_info_create(pLink, uWeight, uType);
+  pRouteInfo= route_info_create(sPrefix, pLink, uWeight, uType);
 
   return rt_add_route(pNode->pRT, sPrefix, pRouteInfo);
 }
@@ -528,7 +528,7 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
 /**
  *
  */
-char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix)
+/*char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix)
 {
   char * cRT = NULL;
 
@@ -536,7 +536,7 @@ char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix)
     cRT = rt_dump_string(pNode->pRT, sPrefix);
 
   return cRT;
-}
+}*/
 
 
 // ----- node_rt_lookup ---------------------------------------------
@@ -1008,8 +1008,16 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
       pLink= node_rt_lookup(pCurrentNode, tDstAddr);
 
       /* No route: return UNREACH */
-      if (pLink == NULL)
+      if (pLink == NULL) {
+
+	if (iOptionDebug) {
+	  fprintf(stderr, "*** NO LINK IN ");
+	  ip_address_dump(stderr, pCurrentNode->tAddr);
+	  fprintf(stderr, " ***\n");
+	}
+
 	break;
+      }
 
       /* Link down: return DOWN */
       if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
@@ -1105,6 +1113,8 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   fprintf(pStream, "\n");
 
   net_path_destroy(&pPath);
+
+  flushir(pStream);
 }
 
 // ----- network_domain_add ------------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 05/08/2004
+// @lastdate 18/03/2005
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -32,6 +32,7 @@
 typedef uint8_t net_route_type_t;
 
 typedef struct {
+  SPrefix sPrefix;
   uint32_t uWeight;
   SNetLink * pNextHopIf;
   net_route_type_t tType;
@@ -44,7 +45,8 @@ typedef SRadixTree SNetRT;
 // ----- rt_perror -------------------------------------------------------
 extern void rt_perror(FILE * pStream, int iErrorCode);
 // ----- route_info_create ------------------------------------------
-extern SNetRouteInfo * route_info_create(SNetLink * pNextHopIf,
+extern SNetRouteInfo * route_info_create(SPrefix sPrefix,
+					 SNetLink * pNextHopIf,
 					 uint32_t uWeight,
 					 net_route_type_t tType);
 // ----- route_info_destroy -----------------------------------------
@@ -67,7 +69,7 @@ extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
 			SNetLink * pNextHopIf, net_route_type_t tType);
 // ----- rt_dump_string ----------------------------------------------------
-char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix);
+//char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix);
 // ----- rt_dump ----------------------------------------------------
 extern void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix);
 

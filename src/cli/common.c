@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 25/02/2005
+// @lastdate 18/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -74,6 +74,25 @@ int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
     iOptionAutoFlush= 0;
   } else {
     LOG_FATAL("Error: invalid value \"%s\" for option \"autoflush\"\n",
+	      pcTemp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_set_debug ----------------------------------------------
+int cli_set_debug(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcTemp;
+
+  pcTemp= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcTemp, "on")) {
+    iOptionDebug= 1;
+  } else if (!strcmp(pcTemp, "off")) {
+    iOptionDebug= 0;
+  } else {
+    LOG_FATAL("Error: invalid value \"%s\" for option \"debug\"\n",
 	      pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -249,8 +268,12 @@ void cli_register_set(SCli * pCli)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
-  cli_params_add(pParams, "<value>", NULL);
+  cli_params_add(pParams, "<on|off>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("autoflush", cli_set_autoflush,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<on|off>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("debug", cli_set_debug,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<value>", NULL);
