@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 08/03/2004
+// @lastdate 13/04/2004
 // ==================================================================
 
 #include <assert.h>
@@ -541,11 +541,6 @@ int as_dump_rt_dp_rule(FILE * pStream, SAS * pAS, SPrefix sPrefix)
   ip_prefix_dump(pStream, sPrefix);
   fprintf(pStream, " ");
   if ((pRoute= rib_find_exact(pAS->pLocRIB, sPrefix)) != NULL) {
-    //fprintf(pStream, "%u", pRoute->uDPRule);
-    fprintf(pStream, "%u %u %u",
-	    pRoute->uCntRuleNone,
-	    pRoute->uCntRuleLocalPref,
-	    pRoute->uCntRuleShortestPath);
   } else {
     fprintf(pStream, "*");
   }
@@ -592,12 +587,10 @@ void as_decision_process_dop(SAS * pAS, SRoutes * pRoutes)
  *   - prefer nearest next-hop (IGP)
  *   - final tie-break
  */
-void as_decision_process_tie_break(SAS * pAS, SRoutes * pRoutes,
-				   uint32_t * puCntRuleShortestPath)
+void as_decision_process_tie_break(SAS * pAS, SRoutes * pRoutes)
 {
   // *** shortest AS-PATH ***
   dp_rule_shortest_path(pRoutes);
-  *puCntRuleShortestPath= ptr_array_length(pRoutes);
   if (ptr_array_length(pRoutes) <= 1)
     return;
 
@@ -760,6 +753,34 @@ void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
 			   NULL, NET_ROUTE_BGP));
 }
 
+// ----- bgp_router_best_flag_off -----------------------------------
+/**
+ * Clear the BEST flag from the given Loc-RIB route. Clear the BEST
+ * flag from the corresponding Adj-RIB-In route as well.
+ *
+ * PRE: the route is in the Loc-RIB (=> the route is local or there
+ * exists a corresponding route in an Adj-RIB-In).
+ */
+void bgp_router_best_flag_off(SRoute * pOldRoute)
+{
+  SRoute * pAdjRoute;
+
+  // Remove BEST flag from old route in Loc-RIB
+  route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
+
+  // If the route is not LOCAL, then there is a reference to the peer
+  // that announced it.
+  if (pOldRoute->pPeer != NULL) {
+    pAdjRoute= rib_find_exact(pOldRoute->pPeer->pAdjRIBIn,
+			      pOldRoute->sPrefix);
+    
+    assert(pAdjRoute != NULL);
+    
+    // Remove BEST flag from route in Adj-RIB-In
+    route_flag_set(pAdjRoute, ROUTE_FLAG_BEST, 0);
+  }
+}
+
 // ----- as_decision_process ----------------------------------------
 /**
  * Phase I - Calculate degree of preference (LOCAL_PREF) for each
@@ -787,9 +808,6 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   int iIndex;
   SPeer * pPeer;
   SRoute * pRoute, * pOldRoute;
-  uint32_t uCntRuleNone= 0;
-  uint32_t uCntRuleLocalPref= 0;
-  uint32_t uCntRuleShortestPath= 0;
 
   if (BGP_OPTIONS_NLRI == BGP_NLRI_QOS_DELAY)
     return qos_decision_process(pAS, pOriginPeer, sPrefix);
@@ -824,18 +842,13 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     }
   }
 
-  uCntRuleNone= ptr_array_length(pRoutes);
-
   // Keep routes with highest degree of preference
-  if (ptr_array_length(pRoutes) > 1) {
+  if (ptr_array_length(pRoutes) > 1)
     as_decision_process_dop(pAS, pRoutes);
-    uCntRuleLocalPref= ptr_array_length(pRoutes);
-  }
 
   // Tie-break
   if (ptr_array_length(pRoutes) > 1)
-    as_decision_process_tie_break(pAS, pRoutes,
-				  &uCntRuleShortestPath);
+    as_decision_process_tie_break(pAS, pRoutes);
 
   assert((ptr_array_length(pRoutes) == 0) ||
     (ptr_array_length(pRoutes) == 1));
@@ -843,6 +856,7 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   if (ptr_array_length(pRoutes) > 0) {
     route_copy_count++;
     pRoute= route_copy((SRoute *) pRoutes->data[0]);
+    route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
     route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
 
     LOG_DEBUG("\tnew best: ");
@@ -854,19 +868,18 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     // => advertise to peers
     if ((pOldRoute == NULL) || !route_equals(pOldRoute, pRoute)) {
       if (pOldRoute != NULL)
-	route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
+	bgp_router_best_flag_off(pOldRoute);
       assert(rib_add_route(pAS->pLocRIB, pRoute) == 0);
 
       bgp_router_rt_add_route(pAS, pRoute);
 
       as_decision_process_disseminate(pAS, sPrefix, pRoute);
     } else {
+      // Route has not changed.
       route_destroy(&pRoute);
       pRoute= pOldRoute;
     }
-    pRoute->uCntRuleNone= uCntRuleNone;
-    pRoute->uCntRuleLocalPref= uCntRuleLocalPref;
-    pRoute->uCntRuleShortestPath= uCntRuleShortestPath;
+
   } else {
     LOG_DEBUG("no best\n");
     // If a route towards this prefix was previously installed, then
@@ -874,8 +887,8 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     if (pOldRoute != NULL) {
       //LOG_DEBUG("there was a previous best-route\n");
       rib_remove_route(pAS->pLocRIB, sPrefix);
-      //LOG_DEBUG("previous best-route removed\n");
-      route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
+
+      bgp_router_best_flag_off(pOldRoute);
 
       bgp_router_rt_del_route(pAS, sPrefix);
 

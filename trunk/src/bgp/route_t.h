@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/11/2003
-// @lastdate 27/02/2004
+// @lastdate 13/04/2004
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
@@ -77,11 +77,6 @@ typedef struct TRoute {
   // Route-Reflection
   net_addr_t * pOriginator;
   SClusterList * pClusterList;
-
-  // Decision Process Statistics
-  uint32_t uCntRuleNone;
-  uint32_t uCntRuleLocalPref;
-  uint32_t uCntRuleShortestPath;
 
 } SRoute;
 

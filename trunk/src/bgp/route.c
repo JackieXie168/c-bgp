@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 27/02/2004
+// @lastdate 13/04/2004
 // ==================================================================
 
 #include <assert.h>
@@ -50,11 +50,6 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->pAggrRoutes= NULL;
   pRoute->pAggrRoute= NULL;
   pRoute->pEBGPRoute= NULL;
-
-  // Decision process accounting fields
-  pRoute->uCntRuleNone= 0;
-  pRoute->uCntRuleLocalPref= 0;
-  pRoute->uCntRuleShortestPath= 0;
 
   // Route-reflection related fields
   pRoute->pOriginator= NULL;
