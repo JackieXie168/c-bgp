@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 02/12/2004
+// @lastdate 13/12/2004
 // ==================================================================
 
 #include <config.h>
@@ -86,6 +86,7 @@ void simulation_done()
  * matches. This is not explicitly explained in readline's
  * documentation.
  */
+#ifdef INTERACTIVE_MODE_OK
 void rl_display_completion(char **matches, int num_matches, int max_length)
 {
   int iIndex;
@@ -96,6 +97,7 @@ void rl_display_completion(char **matches, int num_matches, int max_length)
   }
   rl_on_new_line();
 }
+#endif
 
 // ----- completion state -----
 SCliCmd * pComplCmd= NULL;    // Current command
@@ -108,6 +110,7 @@ int iComplParamIndex= 0;      // Index of current parameter
  * This function generates completion for CLI commands. It relies on
  * the list of sub-commands of the current command.
  */
+#ifdef INTERACTIVE_MODE_OK
 char * rl_compl_cmd_generator(const char * pcText, int iState)
 {
   static int iIndex;
@@ -138,7 +141,8 @@ char * rl_compl_cmd_generator(const char * pcText, int iState)
   }
 
   return pcMatch;
-  }
+}
+#endif
 
 // ----- rl_compl_param_generator -----------------------------------
 /**
@@ -146,6 +150,7 @@ char * rl_compl_cmd_generator(const char * pcText, int iState)
  * generator first relies on a possible enumeration function [not
  * implemented yet], then on a parameter checking function.
  */
+#ifdef INTERACTIVE_MODE_OK
 char * rl_compl_param_generator(const char * pcText, int iState)
 {
   char * pcMatch= NULL;
@@ -191,14 +196,15 @@ char * rl_compl_param_generator(const char * pcText, int iState)
     rl_attempted_completion_over= 1;
   }
     
-  return pcMatch;
-  
+  return pcMatch;  
 }
+#endif
 
 // ----- rl_compl ---------------------------------------------------
 /**
  *
  */
+#ifdef INTERACTIVE_MODE_OK
 char ** rl_compl (const char * pcText, int iStart, int iEnd)
 {
   SCli * pCli= cli_get();
@@ -249,11 +255,13 @@ char ** rl_compl (const char * pcText, int iStart, int iEnd)
 
   return apcMatches;
 }
+#endif
 
 // ----- simulation_help_ctx ----------------------------------------
 /**
  *
  */
+#ifdef INTERACTIVE_MODE_OK
 void simulation_help_ctx(SCliCmd * pCtxCmd)
 {
   int iIndex, iIndex2;
@@ -273,11 +281,13 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
   }
   rl_on_new_line();
 }
+#endif
 
 // ----- simulation_help_cmd ----------------------------------------
 /**
  *
  */
+#ifdef INTERACTIVE_MODE_OK
 void simulation_help_cmd(SCliCmd * pCmd, int iParamIndex)
 {
   int iIndex;
@@ -298,11 +308,13 @@ void simulation_help_cmd(SCliCmd * pCmd, int iParamIndex)
   }
   rl_on_new_line();
 }
+#endif
 
 // ----- simulation_help --------------------------------------------
 /**
  *
  */
+#ifdef INTERACTIVE_MODE_OK
 void simulation_help(const char * pcLine)
 {
   SCli * pCli= cli_get();
@@ -351,8 +363,8 @@ void simulation_help(const char * pcLine)
     fprintf(stdout, "Sorry, no help is available on this topic\n");
     rl_on_new_line();
   }
-
 }
+#endif
 
 // ----- simulation_interactive -------------------------------------
 /**
