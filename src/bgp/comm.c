@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 23/02/2004
+// @lastdate 19/11/2004
 // ==================================================================
 
 #include <stdlib.h>
@@ -80,19 +80,25 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
   unsigned long ulComm;
   char * pcComm2;
 
-  *pCommunity= 0;
-  ulComm= strtoul(pcComm, &pcComm2, 0);
-  if (*pcComm2 == ':') {
+  if (!strcmp(pcComm, "no-export")) {
+    *pCommunity= COMM_NO_EXPORT;
+  } else if (!strcmp(pcComm, "no-advertise")) {
+    *pCommunity= COMM_NO_ADVERTISE;
+  } else {
+    *pCommunity= 0;
+    ulComm= strtoul(pcComm, &pcComm2, 0);
+    if (*pcComm2 == ':') {
+      if (ulComm > 65535)
+	return -1;
+      *pCommunity= ulComm << 16;
+      ulComm= strtoul(pcComm2+1, &pcComm2, 0);
+    }
+    if (*pcComm2 != 0)
+      return -1;
     if (ulComm > 65535)
       return -1;
-    *pCommunity= ulComm << 16;
-    ulComm= strtoul(pcComm2+1, &pcComm2, 0);
+    *pCommunity+= ulComm;
   }
-  if (*pcComm2 != 0)
-    return -1;
-  if (ulComm > 65535)
-    return -1;
-  *pCommunity+= ulComm;
   return 0;
 }
 
