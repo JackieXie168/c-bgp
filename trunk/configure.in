@@ -3,7 +3,7 @@
 #
 AC_INIT(src/main.c)
 PACKAGE=cbgp
-VERSION="1.1.1"
+VERSION="1.1.3"
 AC_PREFIX_DEFAULT(/usr)
 
 #
@@ -22,8 +22,8 @@ AC_PROG_LIBTOOL
 # dependence with one of libcurses, libtinfo or libtermcap.
 # (The following tests are insipired from Peter Samuelson)
 #
-AC_CHECK_LIB(readline, readline, [RL_LIBS="-lreadline"])
-if test "x$RL_LIBS" == x; then
+AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
+if test "$readline_ok" != "yes"; then
    AC_MSG_WARN([readline alone does not work, check with dependencies])
    AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
    if test "x$tc" == x; then
@@ -34,12 +34,12 @@ if test "x$RL_LIBS" == x; then
    fi
    unset ac_cv_lib_readline_readline
    AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
-   if test "$readline_ok" == "yes"; then
-      AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
-      LIBS="$LIBS -lreadline $tc"
-      AC_CHECK_HEADERS(readline/readline.h)
-   fi
    unset tc
+fi
+if test "$readline_ok" == "yes"; then
+   AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
+   LIBS="$LIBS -lreadline $tc"
+   AC_CHECK_HEADERS(readline/readline.h)
 fi
 
 #
