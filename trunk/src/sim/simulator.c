@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 12/02/2004
+// @lastdate 10/08/2004
 // ==================================================================
 
 #include <stdlib.h>
@@ -124,3 +124,15 @@ int simulator_post_event(FSimEventCallback fCallback,
   return scheduler_post_event((FSchedEventCallback) fCallback, pContext,
   uSchedulingTime);*/
 }
+
+// ----- simulator_dump_events --------------------------------------
+/**
+ *
+ */
+void simulator_dump_events(FILE * pStream)
+{
+  if (SIM_OPTIONS_SCHEDULER == SCHEDULER_STATIC) {
+    static_scheduler_dump_events(pStream);
+  }
+}
+

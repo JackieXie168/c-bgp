@@ -3,9 +3,10 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 01/03/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,26 +15,29 @@
 
 #include <bgp/ecomm.h>
 #include <bgp/filter.h>
+#include <net/network.h>
 
 // Matcher codes
-#define FT_MATCH_OP_AND 1
-#define FT_MATCH_OP_OR 2
-#define FT_MATCH_OP_NOT 3
+#define FT_MATCH_OP_AND        1
+#define FT_MATCH_OP_OR         2
+#define FT_MATCH_OP_NOT        3
 #define FT_MATCH_COMM_CONTAINS 10
 #define FT_MATCH_PATH_CONTAINS 20
 #define FT_MATCH_PREFIX_EQUALS 30
 #define FT_MATCH_PREFIX_IN     31
 
 // Action codes
-#define FT_ACTION_ACCEPT 1
-#define FT_ACTION_DENY 2
-#define FT_ACTION_COMM_APPEND 10
-#define FT_ACTION_COMM_STRIP 11
-#define FT_ACTION_COMM_REMOVE 12
-#define FT_ACTION_PATH_APPEND 20
-#define FT_ACTION_PATH_PREPEND 21
-#define FT_ACTION_PREF_SET 30
-#define FT_ACTION_ECOMM_APPEND 40
+#define FT_ACTION_ACCEPT          1
+#define FT_ACTION_DENY            2
+#define FT_ACTION_COMM_APPEND     10
+#define FT_ACTION_COMM_STRIP      11
+#define FT_ACTION_COMM_REMOVE     12
+#define FT_ACTION_PATH_APPEND     20
+#define FT_ACTION_PATH_PREPEND    21
+#define FT_ACTION_PREF_SET        30
+#define FT_ACTION_ECOMM_APPEND    40
+#define FT_ACTION_METRIC_SET      50
+#define FT_ACTION_METRIC_INTERNAL 51
 
 // ----- filter_matcher_create --------------------------------------
 /**
@@ -209,6 +213,8 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SAS * pAS,
 int filter_action_apply(SFilterAction * pAction, SAS * pAS,
 			SRoute * pRoute)
 {
+  SNetRouteInfo * pRouteInfo;
+
   if (pAction != NULL) {
     switch (pAction->uCode) {
     case FT_ACTION_ACCEPT:
@@ -230,6 +236,19 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
       break;
     case FT_ACTION_PREF_SET:
       route_localpref_set(pRoute, *((uint32_t *) pAction->auParams));
+      break;
+    case FT_ACTION_METRIC_SET:
+      route_med_set(pRoute, *((uint32_t *) pAction->auParams));
+      break;
+    case FT_ACTION_METRIC_INTERNAL:
+      if (pRoute->tNextHop != pAS->pNode->tAddr) {
+	pRouteInfo= rt_find_best(pAS->pNode->pRT, pRoute->tNextHop,
+				 NET_ROUTE_ANY);
+	assert(pRouteInfo != NULL);
+	route_med_set(pRoute, pRouteInfo->uWeight);
+      } else {
+	route_med_set(pRoute, 0);
+      }
       break;
     case FT_ACTION_ECOMM_APPEND:
       route_ecomm_append(pRoute, ecomm_val_copy((SECommunity *)
@@ -458,6 +477,28 @@ SFilterAction * filter_action_pref_set(uint32_t uPref)
   return pAction;
 }
 
+// ----- filter_action_metric_set -----------------------------------
+/**
+ *
+ */
+SFilterAction * filter_action_metric_set(uint32_t uMetric)
+{
+  SFilterAction * pAction= filter_action_create(FT_ACTION_METRIC_SET,
+						sizeof(uint32_t));
+  memcpy(pAction->auParams, &uMetric, sizeof(uint32_t));
+  return pAction;
+}
+
+// ----- filter_action_metric_internal ------------------------------
+/**
+ *
+ */
+SFilterAction * filter_action_metric_internal()
+{
+  return filter_action_create(FT_ACTION_METRIC_INTERNAL, 0);
+}
+
+
 // ----- filter_action_comm_append ----------------------------------
 /**
  *
@@ -590,6 +631,16 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
       break;
     case FT_ACTION_PREF_SET:
       fprintf(pStream, "set local-pref %u", *((uint32_t *) pAction->auParams));
+      break;
+    case FT_ACTION_METRIC_SET:
+      fprintf(pStream, "set metric %u", *((uint32_t *) pAction->auParams));
+      break;
+    case FT_ACTION_METRIC_INTERNAL:
+      fprintf(pStream, "set metric internal");
+      break;
+    case FT_ACTION_ECOMM_APPEND:
+      fprintf(pStream, "append ext-community ");
+      ecomm_val_dump(pStream, (SECommunity *) pAction->auParams);
       break;
     default:
       fprintf(pStream, "?");

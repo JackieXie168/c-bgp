@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 18/04/2004
+// @lastdate 05/08/2004
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -18,9 +18,10 @@
 #include <net/prefix.h>
 #include <net/link.h>
 
-#define NET_ROUTE_STATIC 0
-#define NET_ROUTE_IGP    1
-#define NET_ROUTE_BGP    2
+#define NET_ROUTE_ANY    0xFF
+#define NET_ROUTE_STATIC 0x01
+#define NET_ROUTE_IGP    0x02
+#define NET_ROUTE_BGP    0x04
 
 #define NET_RT_SUCCESS               0
 #define NET_RT_ERROR_NH_UNREACH     -1
@@ -54,9 +55,11 @@ extern SNetRT * rt_create();
 // ----- rt_destroy -------------------------------------------------
 extern void rt_destroy(SNetRT ** ppRT);
 // ----- rt_find_best -----------------------------------------------
-extern SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr);
+extern SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
+				    net_route_type_t tType);
 // ----- rt_find_exact ----------------------------------------------
-extern SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix);
+extern SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
+				     net_route_type_t tType);
 // ----- rt_add_route -----------------------------------------------
 extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 			SNetRouteInfo * pRouteInfo);

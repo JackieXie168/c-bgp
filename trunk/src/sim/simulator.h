@@ -58,5 +58,8 @@ extern double simulator_get_time();
 // ----- simulator_set_max_time -------------------------------------
 extern void simulator_set_max_time(double dMaximumTime);
 
+// ----- simulator_dump_events --------------------------------------
+extern void simulator_dump_events(FILE * pStream);
+
 #endif
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 19/05/2003
-// @lastdate 08/03/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -147,7 +147,10 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     // LOCAL-PREF
     fprintf(pStream, "|%u", pRoute->uLocalPref);
     // MULTI-EXIT-DISCRIMINATOR
-    fprintf(pStream, "|0");
+    if (pRoute->uMED == ROUTE_MED_MISSING)
+      fprintf(pStream, "|");
+    else
+      fprintf(pStream, "|%u", pRoute->uMED);
     // COMMUNITY
     fprintf(pStream, "|");
     if (pRoute->pCommunities != NULL) {
@@ -167,6 +170,14 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     // Prefix
     fprintf(pStream, "|");
     ip_prefix_dump(pStream, ((SBGPMsgWithdraw *) pMsg)->sPrefix);
+    break;
+  case BGP_MSG_OPEN:
+    fprintf(pStream, "|OPEN|");
+    ip_address_dump(pStream, pNode->tAddr);
+    break;
+  case BGP_MSG_CLOSE:
+    fprintf(pStream, "|CLOSE|");
+    ip_address_dump(pStream, pNode->tAddr);
     break;
   default:
     fprintf(pStream, "|?");

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 19/05/2004
+// @lastdate 05/08/2004
 // ==================================================================
 
 #include <libgds/log.h>
@@ -270,32 +270,73 @@ void rt_destroy(SNetRT ** ppRT)
 
 // ----- rt_find_best -----------------------------------------------
 /**
+ * Find the route that best matches the given prefix. If a particular
+ * route type is given, returns only the route with the requested
+ * type.
  *
+ * Parameters:
+ * - routing table
+ * - prefix
+ * - route type (can be NET_ROUTE_ANY if any type is ok)
  */
-SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr)
+SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
+			     net_route_type_t tType)
 {
-  SNetRouteInfoList * pRIList=
-    (SNetRouteInfoList *) radix_tree_get_best((SRadixTree *) pRT,
-					      tAddr, 32);
+  SNetRouteInfoList * pRIList;
+  int iIndex;
+  SNetRouteInfo * pRouteInfo;
 
-  if (pRIList != NULL)
-    return rt_info_list_get(pRIList, 0);
+  /* First, retrieve the list of routes that best match the given
+     prefix */
+  pRIList= (SNetRouteInfoList *) radix_tree_get_best((SRadixTree *) pRT,
+						     tAddr, 32);
+
+  /* Then, select the first returned route that matches the given
+     route-type (if requested) */
+  if (pRIList != NULL) {
+    for (iIndex= 0; iIndex < ptr_array_length(pRIList); iIndex++) {
+      pRouteInfo= rt_info_list_get(pRIList, iIndex);
+      if (pRouteInfo->tType & tType)
+	return pRouteInfo;
+    }
+  }
 
   return NULL;
 }
 
 // ----- rt_find_exact ----------------------------------------------
 /**
+ * Find the route that exactly matches the given prefix. If a
+ * particular route type is given, returns only the route with the
+ * requested type.
  *
+ * Parameters:
+ * - routing table
+ * - prefix
+ * - route type (can be NET_ROUTE_ANY if any type is ok)
  */
-SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix)
+SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
+			      net_route_type_t tType)
 {
-  SNetRouteInfoList * pRIList=
-    (SNetRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
-					       sPrefix.tNetwork,
-					       sPrefix.uMaskLen);
-  if (pRIList != NULL)
-    return rt_info_list_get(pRIList, 0);
+  SNetRouteInfoList * pRIList;
+  int iIndex;
+  SNetRouteInfo * pRouteInfo;
+
+  /* First, retrieve the list of routes that exactly match the given
+     prefix */
+  pRIList= (SNetRouteInfoList *)
+    radix_tree_get_exact((SRadixTree *) pRT, sPrefix.tNetwork,
+			 sPrefix.uMaskLen);
+
+  /* Then, select the first returned route that matches the given
+     route-type (if requested) */
+  if (pRIList != NULL) {
+    for (iIndex= 0; iIndex < ptr_array_length(pRIList); iIndex++) {
+      pRouteInfo= rt_info_list_get(pRIList, iIndex);
+      if (pRouteInfo->tType & tType)
+	return pRouteInfo;
+    }
+  }
 
   return NULL;
 }
@@ -411,12 +452,12 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix)
   if (sPrefix.uMaskLen == 0) {
     radix_tree_for_each((SRadixTree *) pRT, rt_dump_for_each, pStream);
   } else if (sPrefix.uMaskLen == 32) {
-    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork);
+    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
     if (pRouteInfo != NULL)
       route_info_dump(pStream, pRouteInfo);
     fprintf(pStream, "\n");
   } else {
-    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork);
+    pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
     if (pRouteInfo != NULL)
       route_info_dump(pStream, pRouteInfo);
     fprintf(pStream, "\n");

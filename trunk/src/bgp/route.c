@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 18/05/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -21,8 +21,6 @@ unsigned long rt_create_count= 0;
 unsigned long rt_copy_count= 0;
 unsigned long rt_destroy_count= 0;
 
-#define DEFAULT_LOCAL_PREF 100
-
 // ----- route_create -----------------------------------------------
 /**
  *
@@ -38,8 +36,8 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->tNextHop= tNextHop;
   pRoute->uOriginType= uOriginType;
   pRoute->pASPath= NULL;
-  pRoute->uLocalPref= DEFAULT_LOCAL_PREF;
-  pRoute->uMED= 0;
+  pRoute->uLocalPref= ROUTE_PREF_DEFAULT;
+  pRoute->uMED= ROUTE_MED_DEFAULT;
   pRoute->pCommunities= NULL;
   pRoute->pECommunities= NULL;
   pRoute->uFlags= 0;
@@ -286,6 +284,15 @@ void route_localpref_set(SRoute * pRoute, uint32_t uPref)
 uint32_t route_localpref_get(SRoute * pRoute)
 {
   return pRoute->uLocalPref;
+}
+
+// ----- route_med_clear --------------------------------------------
+/**
+ *
+ */
+void route_med_clear(SRoute * pRoute)
+{
+  pRoute->uMED= ROUTE_MED_MISSING;
 }
 
 // ----- route_med_set ----------------------------------------------
@@ -574,7 +581,10 @@ void route_dump_mrtd(FILE * pStream, SRoute * pRoute)
     // Local-Pref
     fprintf(pStream, "|%u|", pRoute->uLocalPref);
     // Multi-Exit-Discriminator
-    fprintf(pStream, "med|");
+    if (pRoute->uMED != ROUTE_MED_MISSING)
+      fprintf(pStream, "%u|", pRoute->uMED);
+    else
+      fprintf(pStream, "|");
     // Communities
     if (pRoute->pCommunities != NULL)
       comm_dump(pStream, pRoute->pCommunities);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 13/07/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -37,6 +37,7 @@ unsigned long route_destroy_count= 0;
 FTieBreakFunction BGP_OPTIONS_TIE_BREAK= TIE_BREAK_DEFAULT;
 uint8_t BGP_OPTIONS_NLRI= BGP_NLRI_BE;
 uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF= 0;
+uint8_t BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
 
 // ----- as_peers_compare -------------------------------------------
 /**
@@ -439,6 +440,10 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
   if (as_ecomm_red_process(pPeer, pNewRoute)) {
     
     route_ecomm_strip_non_transitive(pNewRoute);
+
+    // Discard MED if advertising to an external peer
+    if (iExternalSession)
+      route_med_clear(pNewRoute);
     
     if (filter_apply(pPeer->pOutFilter, pAS, pNewRoute)) {
       
@@ -801,7 +806,8 @@ int bgp_router_feasible_route(SBGPRouter * pRouter, SRoute * pRoute)
   SNetRouteInfo * pRouteInfo;
 
   /* Get the route towards the next-hop */
-  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop);
+  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+			   NET_ROUTE_ANY);
 
   if (pRouteInfo != NULL) {
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
@@ -879,7 +885,7 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
       
       /* Update ROUTE_FLAG_FEASIBLE */
       if (bgp_router_feasible_route(pAS, pRoute)) {
-	
+
 	routes_list_append(pRoutes, pRoute);
 
 	LOG_DEBUG("\teligible: ");
@@ -1081,19 +1087,35 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
   SPeer * pPeer;
   unsigned int uBestWeight;
   SNetRouteInfo * pRouteInfo;
+  SNetRouteInfo * pCurRouteInfo;
 
   /*fprintf(stderr, "prefix: ");
   ip_prefix_dump(stderr, pRoute->sPrefix);
   fprintf(stderr, "\n");*/
 
+  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+			   NET_ROUTE_ANY);
+
+  /* Check if the IP next-hop of the BGP route has changed. Indeed,
+     the BGP next-hop is not always the IP next-hop. If this next-hop
+     has changed, the decision process must be run. */
+  if (pRouteInfo != NULL) { 
+    pCurRouteInfo= rt_find_exact(pRouter->pNode->pRT,
+				 pRoute->sPrefix, NET_ROUTE_BGP);
+    assert(pCurRouteInfo != NULL);
+
+    if (pCurRouteInfo != pRouteInfo) {
+      routes_list_append(pCtx->pRoutes, pRoute);
+      return 0;
+    }
+    
+  }
+
   /* If the best route has been chosen based on the IGP weight, then
      there is a possible BGP impact */
   if (route_flag_get(pRoute, ROUTE_FLAG_DP_IGP)) {
 
-    /*fprintf(stderr, "(1) best still reachable ?...\n");*/
-
     /* Is there a route (IGP ?) towards the destination ? */
-    pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop);
     if (pRouteInfo == NULL) {
 
       /* The next-hop of the best route is now unreachable, thus
@@ -1106,8 +1128,6 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 
     uBestWeight= pRouteInfo->uWeight;
 
-    /*fprintf(stderr, "(2) look in Adj-RIB-ins...\n");*/
-
     /* Lookup in the Adj-RIB-Ins for routes that were also selected
        based on the IGP, that is routes that were compared to the
        current best route based on the IGP cost to the next-hop. These
@@ -1115,27 +1135,17 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
 	 iIndex++) {
 
-      //fprintf(stderr, "peer [%d]: ", iIndex);
-
       pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
-
-      /*bgp_peer_dump(stderr, pPeer);
-	fprintf(stderr, "\n");*/
 
       pAdjRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
 
-      /*fprintf(stderr, "adjacent route: ");
-      if (pAdjRoute != NULL) {
-	route_dump(stderr,pAdjRoute);
-      } else {
-	fprintf(stderr, "(null)");
-      }
-      fprintf(stderr, "\n");*/
 
       if (pAdjRoute != NULL) {
 
 	/* Is there a route (IGP ?) towards the destination ? */
-	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pAdjRoute->tNextHop);
+	pRouteInfo= rt_find_best(pRouter->pNode->pRT,
+				 pAdjRoute->tNextHop,
+				 NET_ROUTE_ANY);
 	
 	/* Three cases are now possible:
 	   (1) route becomes reachable => run DP
@@ -1145,14 +1155,14 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 	*/
 	if ((pRouteInfo != NULL) &&
 	    !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
-	  
+
 	  /* The next-hop was not reachable (route unfeasible) and is
 	     now reachable, thus run the decision process */
 	  routes_list_append(pCtx->pRoutes, pRoute);
 	  return 0;
 	
 	} else if (pRouteInfo != NULL) {
-	  
+
 	  /* IGP cost is below cost of the best route, thus run the
 	     decision process */
 	  if (pRouteInfo->uWeight < uBestWeight) {
@@ -1197,9 +1207,11 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   
   /* For each route in the list, run the BGP decision process */
   if (iResult == 0)
-    for (iIndex= 0; iIndex < routes_list_get_num(sCtx.pRoutes); iIndex++)
+    for (iIndex= 0; iIndex < routes_list_get_num(sCtx.pRoutes); iIndex++) {
       as_decision_process(pRouter, NULL,
 			  ((SRoute *) sCtx.pRoutes->data[iIndex])->sPrefix);
+    }
+
 
   routes_list_destroy(&sCtx.pRoutes);
 

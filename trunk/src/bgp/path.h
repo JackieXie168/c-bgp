@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 04/11/2003
+// @lastdate 13/08/2004
 // ==================================================================
 
 #ifndef __PATH_H__
