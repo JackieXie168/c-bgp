@@ -50,7 +50,8 @@ char * rl_filename_completion_function(const char * pcText, int iState)
 #  ifdef RLIMIT_VMEM
 #   define _RLIMIT_RESOURCE RLIMIT_VMEM
 #  else
-#   error "Neither RLIMIT_AS or RLIMIT_VMEM are defined"
+#   undef HAVE_SETRLIMIT
+#   undef HAVE_GETRLIMIT
 #  endif
 # endif
 #endif
