@@ -855,8 +855,6 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   if (ptr_array_length(pRoutes) > 0) {
     route_copy_count++;
     pRoute= route_copy((SRoute *) pRoutes->data[0]);
-    route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
-    route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
 
     LOG_DEBUG("\tnew best: ");
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
@@ -868,15 +866,29 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     if ((pOldRoute == NULL) || !route_equals(pOldRoute, pRoute)) {
       if (pOldRoute != NULL)
 	bgp_router_best_flag_off(pOldRoute);
+
+      /* Mark route in Loc-RIB and Adj-RIB-In as best. This must be
+	 done after the call to 'bgp_router_best_flag_off'. */
+      route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
+      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
+      
+      /* Insert in Loc-RIB */
       assert(rib_add_route(pAS->pLocRIB, pRoute) == 0);
 
+      /* Insert in the node's routing table */
       bgp_router_rt_add_route(pAS, pRoute);
 
       as_decision_process_disseminate(pAS, sPrefix, pRoute);
     } else {
+
+      /* Mark route in Adj-RIB-In as best (since it has probably been
+	 replaced). */
+      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
+
       // Route has not changed.
       route_destroy(&pRoute);
       pRoute= pOldRoute;
+
     }
 
   } else {
