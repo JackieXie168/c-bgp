@@ -17,12 +17,14 @@ BUILT_SOURCES = $(JARFILE)
 
 JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/ASPath.java \
+	be/ac/ucl/ingi/cbgp/ASPathSegment.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/BGPPeer.java \
 	be/ac/ucl/ingi/cbgp/BGPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPAddress.java \
 	be/ac/ucl/ingi/cbgp/IPPrefix.java \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
+	be/ac/ucl/ingi/cbgp/IPTrace.java \
 	be/ac/ucl/ingi/cbgp/Link.java \
 	be/ac/ucl/ingi/cbgp/Route.java \
 	be/ac/ucl/ingi/cbgp/RouteInterface.java

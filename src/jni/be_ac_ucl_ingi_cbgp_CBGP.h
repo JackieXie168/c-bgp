@@ -89,6 +89,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netNodeRecordRoute
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    bgpAddRouter
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
