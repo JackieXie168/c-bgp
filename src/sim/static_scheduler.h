@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 12/02/2004
+// @lastdate 10/08/2004
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
 #define __STATIC_SCHEDULER_H__
 
+#include <stdio.h>
 #include <libgds/fifo.h>
 #include <sim/simulator.h>
 
@@ -28,5 +29,7 @@ extern int static_scheduler_post(FSimEventCallback fCallback,
 				 void * pContext,
 				 double uSchedulingTime,
 				 uint8_t uDeltaType);
+// ----- static_scheduler_dump_events -------------------------------
+extern void static_scheduler_dump_events(FILE * pStream);
 
 #endif

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 19/05/2004
+// @lastdate 12/08/2004
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -70,6 +70,8 @@ extern void route_ecomm_strip_non_transitive(SRoute * pRoute);
 extern void route_localpref_set(SRoute * pRoute, uint32_t uPref);
 // ----- route_localpref_get ----------------------------------------
 extern uint32_t route_localpref_get(SRoute * pRoute);
+// ----- route_med_clear --------------------------------------------
+extern void route_med_clear(SRoute * pRoute);
 // ----- route_med_set ----------------------------------------------
 extern void route_med_set(SRoute * pRoute, uint32_t uMED);
 // ----- route_med_get ----------------------------------------------

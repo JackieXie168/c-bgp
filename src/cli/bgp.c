@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 24/05/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
 #include <bgp/bgp_debug.h>
+#include <bgp/dp_rules.h>
 #include <bgp/filter.h>
 #include <bgp/filter_parser.h>
 #include <bgp/predicate_parser.h>
@@ -302,8 +303,30 @@ int cli_bgp_options_tiebreak(SCliContext * pContext, STokens * pTokens)
     BGP_OPTIONS_TIE_BREAK= tie_break_low_ISP;
   else if (!strcmp(pcParam, "high-isp"))
     BGP_OPTIONS_TIE_BREAK= tie_break_high_ISP;
-  else
+  else {
+    LOG_SEVERE("Error: unknown tiebreak function \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_options_med ----------------------------------------
+/**
+ * context: {}
+ * tokens: {med-type}
+ */
+int cli_bgp_options_med(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcMedType= tokens_get_string_at(pTokens, 0);
+  
+  if (!strcmp(pcMedType, "deterministic")) {
+    BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
+  } else if (!strcmp(pcMedType, "always-compare")) {
+    BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_ALWAYS_COMPARE;
+  } else {
+    LOG_SEVERE("Error: unknown med-type \"%s\"\n", pcMedType);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
   return CLI_SUCCESS;
 }
 
@@ -316,8 +339,11 @@ int cli_bgp_options_localpref(SCliContext * pContext, STokens * pTokens)
 {
   unsigned long int ulLocalPref;
 
-  if (tokens_get_ulong_at(pTokens, 0, &ulLocalPref))
+  if (tokens_get_ulong_at(pTokens, 0, &ulLocalPref)) {
+    LOG_SEVERE("Error: invalid default local-pref \"%s\"\n",
+	       tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
+  }
   BGP_OPTIONS_DEFAULT_LOCAL_PREF= ulLocalPref;
   return CLI_SUCCESS;
 }
@@ -1799,6 +1825,10 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<med-type>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("med", cli_bgp_options_med,
+					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<local-pref>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("local-pref",

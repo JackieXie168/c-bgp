@@ -3,10 +3,9 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 18/05/2004
+// @lastdate 13/08/2004
 // ==================================================================
 // to-do: these routines can be optimized
-// to-do: dp_rule_lowest_med()
 
 #include <assert.h>
 #include <libgds/log.h>
@@ -157,19 +156,34 @@ int dp_rule_lowest_origin(SPtrArray * pRoutes)
   return 0;
 }
 
+// ----- dp_rule_last_as --------------------------------------------
+/**
+ *
+ */
+int dp_rule_last_as(SRoute * pRoute)
+{
+  SPathSegment * pSegment;
+ 
+  if (path_length(pRoute->pASPath) > 0) {
+    pSegment= (SPathSegment *)
+      pRoute->pASPath->data[ptr_array_length(pRoute->pASPath)-1];
+    return pSegment->auValue[pSegment->uLength-1];
+  } else {
+    return -1;
+  }
+}
+
 // ----- dp_rule_lowest_med -----------------------------------------
 /**
  *
  */
 int dp_rule_lowest_med(SPtrArray * pRoutes)
 {
-  /*
-  int iIndex;
-  SRoute * pRoute;
+  int iIndex, iIndex2;
+  int iLastAS;
+  SRoute * pRoute, * pRoute2;
   uint32_t uMinMED= UINT_MAX;
-  */
 
-  // NOT YET IMPLEMENTED
   // WARNING: MED can only be compared between routes from the same AS
   // !!!
   // This constraint may be changed by two options :
@@ -183,25 +197,77 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
   //
   // WARNING : if the two options are set, the MED of the best routes of each
   // group has to be compared too.
-  // 
-  
-  /*
+
+  switch (BGP_OPTIONS_MED_TYPE) {
+  case BGP_MED_TYPE_ALWAYS_COMPARE:
    
-  // Calculate lowest MED
-  for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
-    pRoute= (SRoute *) pRoutes->data[iIndex];
-    if (route_med_get(pRoute) < uMinMED)
-      uMinMED= route_med_get(pRoute);
-  }
-  // Discard routes with an higher MED
-  iIndex= 0;
-  while (iIndex < ptr_array_length(pRoutes)) {
-    if (route_med_get((SRoute *) pRoutes->data[iIndex]) > uMinMED)
-      ptr_array_remove_at(pRoutes, iIndex);
-    else
+    // Calculate lowest MED
+    for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
+      pRoute= (SRoute *) pRoutes->data[iIndex];
+      if (route_med_get(pRoute) < uMinMED)
+	uMinMED= route_med_get(pRoute);
+    }
+    // Discard routes with an higher MED
+    iIndex= 0;
+    while (iIndex < ptr_array_length(pRoutes)) {
+      if (route_med_get((SRoute *) pRoutes->data[iIndex]) > uMinMED)
+	ptr_array_remove_at(pRoutes, iIndex);
+      else
+	iIndex++;
+    }
+    break;
+
+  case BGP_MED_TYPE_DETERMINISTIC:
+
+    iIndex= 0;
+    while (iIndex < ptr_array_length(pRoutes)) {
+      pRoute= (SRoute *) pRoutes->data[iIndex];
+      
+      if (pRoute == NULL) break;
+      
+      iLastAS= dp_rule_last_as(pRoute);
+      
+      iIndex2= iIndex+1;
+      while (iIndex2 < ptr_array_length(pRoutes)) {
+	pRoute2= (SRoute *) pRoutes->data[iIndex2];
+	
+	if (pRoute2 == NULL) break;
+	
+	/*printf("route : ");
+	route_dump(stdout, pRoute);
+	printf("\nroute2: ");
+	route_dump(stdout, pRoute2);
+	printf("\n");*/
+	
+	if (iLastAS == dp_rule_last_as(pRoute2)) {
+	  
+	  //printf("compare...[%u <-> %u]\n", pRoute->uMED, pRoute2->uMED);
+	  
+	  if (pRoute->uMED < pRoute2->uMED) {
+	    //printf("route < route2\n");
+	    pRoutes->data[iIndex2]= NULL;
+	  } else if (pRoute->uMED > pRoute2->uMED) {
+	    //printf("route2 < route\n");
+	    pRoutes->data[iIndex]= NULL;
+	    break;
+	  }
+	  
+	}
+	
+	iIndex2++;
+      }
       iIndex++;
+    }
+    iIndex= 0;
+    while (iIndex < ptr_array_length(pRoutes)) {
+      if (pRoutes->data[iIndex] == NULL) {
+	ptr_array_remove_at(pRoutes, iIndex);
+      } else {
+	iIndex++;
+      }
+    }
+    
   }
-  */
 
   return 0;
 }
@@ -247,7 +313,7 @@ uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
   SNetRouteInfo * pRouteInfo;
 
   /* Is there a route towards the destination ? */
-  pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop);
+  pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop, NET_ROUTE_ANY);
   if (pRouteInfo != NULL)
     return pRouteInfo->uWeight;
 
@@ -288,14 +354,17 @@ int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
     route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 1);
 
   }
+
   // Discard routes with an higher IGP-cost 
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    if (dp_rule_igp_cost(pAS, pRoute->tNextHop) > uLowestCost)
+    uIGPcost= dp_rule_igp_cost(pAS, pRoute->tNextHop);
+    if (uIGPcost > uLowestCost) {
       ptr_array_remove_at(pRoutes, iIndex);
-    else
+    } else {
       iIndex++;
+    }
   }
 
   return 0;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 22/06/2004
+// @lastdate 05/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -319,7 +319,7 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
   // If not, is there a static or IGP route ?
   if (pLink == NULL) {
     if (pNode->pRT != NULL) {
-      pRouteInfo= rt_find_best(pNode->pRT, tDstAddr);
+      pRouteInfo= rt_find_best(pNode->pRT, tDstAddr, NET_ROUTE_ANY);
       if (pRouteInfo != NULL)
 	pLink= pRouteInfo->pNextHopIf;
     }
@@ -678,18 +678,26 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
  *
  */
 int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
-		      SNetPath ** ppPath)
+		      SNetPath ** ppPath,
+		      net_link_delay_t * pDelay, uint32_t * pWeight)
 {
   SNetNode * pCurrentNode= pNode;
-  SNetLink * pLink;
+  SNetLink * pLink= NULL;
   unsigned int uHopCount= 0;
   int iResult= NET_RECORD_ROUTE_UNREACH;
   SNetPath * pPath= net_path_create();
   SStack * pDstStack= stack_create(10);
+  net_link_delay_t tTotalDelay= 0;
+  uint32_t uTotalWeight= 0;
+  net_link_delay_t tLinkDelay= 0;
+  uint32_t uLinkWeight= 0;
 
   while (pCurrentNode != NULL) {
 
     net_path_append(pPath, pCurrentNode->tAddr);
+
+    tTotalDelay+= tLinkDelay;
+    uTotalWeight+= uLinkWeight;
 
     // Final destination reached ?
     if (pCurrentNode->tAddr == tDstAddr) {
@@ -721,6 +729,9 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
       pLink= node_rt_lookup(pCurrentNode, tDstAddr);
       if (pLink == NULL)
 	break;
+
+      tLinkDelay= pLink->tDelay;
+      uLinkWeight= pLink->uIGPweight;
 
       // Handle tunnel encapsulation
       if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL)) {
@@ -755,6 +766,16 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
   stack_destroy(&pDstStack);
 
+  /* Returns the total route delay */
+  if (pDelay != NULL) {
+    *pDelay= tTotalDelay;
+  }
+
+  /* Returns the total route weight */
+  if (pWeight != NULL) {
+    *pWeight= uTotalWeight;
+  }
+
   return iResult;
 }
 
@@ -763,12 +784,15 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
  *
  */
 void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-			      net_addr_t tDstAddr)
+			      net_addr_t tDstAddr, int iDelay)
 {
   int iResult;
   SNetPath * pPath;
+  net_link_delay_t tDelay= 0;
+  uint32_t uWeight= 0;
 
-  iResult= node_record_route(pNode, tDstAddr, &pPath);
+  iResult= node_record_route(pNode, tDstAddr, &pPath,
+			     &tDelay, &uWeight);
 
   ip_address_dump(pStream, pNode->tAddr);
   fprintf(pStream, "\t");
@@ -787,6 +811,9 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   }
   fprintf(pStream, "\t");
   net_path_dump(pStream, pPath);
+  if (iDelay) {
+    fprintf(pStream, "\t%u\t%u", tDelay, uWeight);
+  }
   fprintf(pStream, "\n");
 
   net_path_destroy(&pPath);

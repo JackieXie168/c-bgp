@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 27/02/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #ifndef __BGP_DP_RULES_H__
@@ -14,6 +14,9 @@
 #include <bgp/as_t.h>
 #include <bgp/route_t.h>
 #include <bgp/routes_list.h>
+
+#define BGP_MED_TYPE_DETERMINISTIC  0
+#define BGP_MED_TYPE_ALWAYS_COMPARE 1
 
 // ----- FDPRouteCompare -----
 // Decision Process Route comparison function prototype

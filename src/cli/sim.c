@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 20/04/2004
+// @lastdate 10/08/2004
 // ==================================================================
 
 #include <cli/common.h>
@@ -14,6 +14,17 @@
 #include <libgds/str_util.h>
 
 SCli * pTheCli= NULL;
+
+// ----- cli_sim_debug_queue ----------------------------------------
+/**
+ * context: {}
+ * tokens: {}
+ */
+int cli_sim_debug_queue(SCliContext * pContext, STokens * pTokens)
+{
+  simulator_dump_events(stderr);
+  return CLI_SUCCESS;
+}
 
 // ----- cli_sim_event_callback -------------------------------------
 int cli_sim_event_callback(void * pContext)
@@ -116,6 +127,18 @@ int cli_sim_stop(SCliContext * pContext, STokens * pTokens)
   return CLI_ERROR_COMMAND_FAILED;
 }
 
+// ----- cli_register_sim_debug -------------------------------------
+int cli_register_sim_debug(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+
+  pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("queue", cli_sim_debug_queue,
+					NULL, NULL));
+  return cli_cmds_add(pCmds, cli_cmd_create("debug", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_sim_event -------------------------------------
 int cli_register_sim_event(SCliCmds * pCmds)
 {
@@ -182,6 +205,7 @@ int cli_register_sim(SCli * pCli)
   pTheCli= pCli;
 
   pCmds= cli_cmds_create();
+  cli_register_sim_debug(pCmds);
   cli_register_sim_event(pCmds);
   cli_register_sim_options(pCmds);
   cli_register_sim_run(pCmds);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 26/04/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #ifndef __AS_H__
@@ -40,6 +40,7 @@ extern unsigned long route_destroy_count;
 extern FTieBreakFunction BGP_OPTIONS_TIE_BREAK;
 extern uint8_t BGP_OPTIONS_NLRI;
 extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
+extern uint8_t BGP_OPTIONS_MED_TYPE;
 
 #define MAX_AS 65536
 

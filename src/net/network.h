@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 18/05/2004
+// @lastdate 05/08/2004
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -110,10 +110,12 @@ extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
 			    net_addr_t tSrcAddr);
 // ----- node_record_route ------------------------------------------
 extern int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
-			     SNetPath ** ppPath);
+			     SNetPath ** ppPath,
+			     net_link_delay_t * pDelay,
+			     uint32_t * pWeight);
 // ----- node_dump_recorded_route -----------------------------------
 extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-				     net_addr_t tDstAddr);
+				     net_addr_t tDstAddr, int iDelay);
 
 // ----- node_ipip_enable -------------------------------------------
 extern int node_ipip_enable(SNetNode * pNode);

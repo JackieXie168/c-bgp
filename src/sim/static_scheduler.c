@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 12/02/2004
+// @lastdate 10/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -131,4 +131,14 @@ int static_scheduler_post(FSimEventCallback fCallback,
   pEvent= static_scheduler_event_create(fCallback, fDestroy, pContext);
 
   return fifo_push(pStaticScheduler->pEvents, pEvent);
+}
+
+// ----- static_scheduler_dump_events -------------------------------
+/**
+ *
+ */
+void static_scheduler_dump_events(FILE * pStream)
+{
+  fprintf(pStream, "Number of events queued: %u\n",
+	  pStaticScheduler->pEvents->uCurrentDepth);
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/11/2003
-// @lastdate 19/05/2004
+// @lastdate 13/08/2004
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
@@ -70,6 +70,10 @@ extern unsigned long rt_destroy_count;
 #define ROUTE_DP_RULE_TIE_BREAK 6
 #define ROUTE_DP_RULE_QOS_DELAY 10
 #define ROUTE_DP_RULE_UNKNOWN   255
+
+#define ROUTE_PREF_DEFAULT 100
+#define ROUTE_MED_MISSING  MAX_UINT32_T
+#define ROUTE_MED_DEFAULT  0
 
 typedef struct TRoute {
   SPrefix sPrefix;

@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ecomm.h
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 23/05/2003
+// @lastdate 13/08/2003
 // ==================================================================
 
 #ifndef __ECOMM_H__
@@ -47,5 +47,7 @@ extern SECommunity * ecomm_red_create_as(unsigned char uActionType,
 extern int ecomm_red_match(SECommunity * pComm, SPeer * pPeer);
 // ----- ecomm_red_dump ---------------------------------------------
 extern void ecomm_red_dump(FILE * pStream, SECommunity * pComm);
+// ----- ecomm_val_dump ---------------------------------------------
+extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm);
 
 #endif

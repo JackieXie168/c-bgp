@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 06/04/2004
+// @lastdate 12/08/2004
 // ==================================================================
 
 #include <libgds/cli.h>
@@ -13,6 +13,8 @@
 #include <bgp/ecomm.h>
 #include <bgp/filter.h>
 #include <bgp/filter_registry.h>
+
+#include <string.h>
 
 static SCli * pFtPredicateCLI= NULL;
 static SCli * pFtActionCLI= NULL;
@@ -247,6 +249,30 @@ int ft_cli_action_local_pref(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- ft_cli_action_metric ---------------------------------------
+int ft_cli_action_metric(SCliContext * pContext,
+			 STokens * pTokens)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+  unsigned long int ulMetric;
+
+  if (!strcmp(tokens_get_string_at(pTokens, 0), "internal")) {
+    *ppAction= filter_action_metric_internal();
+  } else {
+    if (tokens_get_ulong_at(pTokens, 0, &ulMetric)) {
+      *ppAction= NULL;
+      LOG_SEVERE("Error: invalid metric\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+
+    *ppAction= filter_action_metric_set(ulMetric);
+  }
+
+
+  return CLI_SUCCESS;
+}
+
 // ----- ft_cli_action_as_path_prepend ------------------------------
 int ft_cli_action_as_path_prepend(SCliContext * pContext,
 				  STokens * pTokens)
@@ -373,6 +399,19 @@ void ft_cli_register_action_local_pref()
 					NULL, pParams));
 }
 
+// ----- ft_cli_register_action_metric ------------------------------
+void ft_cli_register_action_metric()
+{
+  SCli * pCli= ft_cli_action_get();
+  SCliParams * pParams;
+  
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<metric>", NULL);
+  cli_register_cmd(pCli, cli_cmd_create("metric",
+					ft_cli_action_metric,
+					NULL, pParams));  
+}
+
 // ----- ft_cli_register_action_as_path -----------------------------
 void ft_cli_register_action_as_path()
 {
@@ -453,6 +492,7 @@ void _ft_registry_init()
   // Register actions
   ft_cli_register_action_accept_deny();
   ft_cli_register_action_local_pref();
+  ft_cli_register_action_metric();
   ft_cli_register_action_as_path();
   ft_cli_register_action_community();
   ft_cli_register_action_red_community();
