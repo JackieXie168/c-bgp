@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 25/02/2005
+// @lastdate 31/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -553,10 +553,6 @@ int main(int argc, char ** argv) {
     case 'l':
       pcOptLog= option_string(optarg);
       break;
-      /*    case 't':
-      predicate_parser_test();
-      exit(EXIT_SUCCESS);
-      break;*/
     default:
       simulation_cli_help();
       exit(EXIT_FAILURE);

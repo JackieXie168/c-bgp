@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 13/02/2005
+// @lastdate 31/03/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -21,6 +21,7 @@
 #include <bgp/peer_t.h>
 #include <bgp/rib.h>
 #include <bgp/route.h>
+#include <bgp/routes_list.h>
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/network.h>
@@ -96,6 +97,12 @@ extern void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter
 extern void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 						    SPrefix sPrefix,
 						    SRoute * pRoute);
+// ----- bgp_router_get_best_routes ---------------------------------
+extern SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter,
+					    SPrefix sPrefix);
+// ----- bgp_router_get_feasible_routes -----------------------------
+extern SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter,
+						SPrefix sPrefix);
 // ----- bgp_router_decision_process --------------------------------
 extern int bgp_router_decision_process(SBGPRouter * pRouter,
 				       SPeer * pOriginPeer,

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 25/02/2005
+// @lastdate 05/04/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -203,9 +203,9 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
 
   /* Check the number of fields (at least 5 for the "header") */
   if (uNumTokens < 5) {
-    LOG_SEVERE("Error: not enough fields in MRT input (%d)\n", 
+    LOG_SEVERE("Error: not enough fields in MRT input (%d/5)\n", 
 	       uNumTokens);
-    return -1;
+    return MRTD_TYPE_INVALID;
   }
 
   /* Check the type field. This field must contain
@@ -216,7 +216,7 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
   pcTemp= tokens_get_string_at(pTokens, 2);
   if ((strlen(pcTemp) != 1) || (strchr("ABW", pcTemp[0]) == NULL)) {
     LOG_SEVERE("Error: invalid MRT record type field \"%s\"\n", pcTemp);
-    return -1;
+    return MRTD_TYPE_INVALID;
   }
   tType= pcTemp[0];
 
@@ -227,7 +227,7 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
   pcTemp= tokens_get_string_at(pTokens, 0);
   if (!mrtd_check_type(pcTemp, tType)) {
     LOG_SEVERE("Error: incorrect MRT record protocol \"%s\"\n", pcTemp);
-    return -1;
+    return MRTD_TYPE_INVALID;
   }
   
   /* Check the timestamp field */
@@ -237,8 +237,9 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
     uReqTokens= 11;
 
   if (uNumTokens < uReqTokens) {
-    LOG_SEVERE("Error: not enough fields in MRT input\n");
-    return -1;
+    LOG_SEVERE("Error: not enough fields in MRT input (%d/%d)\n",
+	       uNumTokens, uReqTokens);
+    return MRTD_TYPE_INVALID;
   }
 
   return tType;
@@ -262,7 +263,7 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
 int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 		      SPrefix * pPrefix, SRoute ** ppRoute)
 {
-  int iType;
+  mrtd_input_t tType;
   net_addr_t tPeerAddr;
   unsigned int uPeerAS;
   SPeer * pPeer= NULL;
@@ -271,6 +272,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   origin_type_t tOrigin;
   net_addr_t tNextHop;
   unsigned long ulLocalPref;
+  unsigned long ulMed;
   char * pcTemp;
   char * pcEndPtr;
   SPath * pPath= NULL;
@@ -280,8 +282,8 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   *ppRoute= NULL;
 
   /* Check header, length and get type (route/update/withdraw) */
-  iType= mrtd_check_header(pTokens);
-  if (iType < 0)
+  tType= mrtd_check_header(pTokens);
+  if (tType == MRTD_TYPE_INVALID)
     return -1;
 
   /* Check the PeerIP field */
@@ -327,8 +329,8 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return -1;
   }
 
-  if (iType == MRTD_TYPE_WITHDRAW)
-    return iType;
+  if (tType == MRTD_TYPE_WITHDRAW)
+    return tType;
 
   /* Check the AS-PATH */
   pcTemp= tokens_get_string_at(pTokens, 6);
@@ -379,6 +381,12 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   }
 
   /* Check the MED */
+  if (tokens_get_ulong_at(pTokens, 10, &ulMed)) {
+    LOG_SEVERE("Error: not a valid multi-exit-discriminator \"%s\"\n",
+	       tokens_get_string_at(pTokens, 10));
+    path_destroy(&pPath);
+    return -1;
+  }
 
   /* Check COMMUNITIES, if present */
   if (tokens_get_num(pTokens) > 11) {
@@ -395,6 +403,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   /* Build route */
   pRoute= route_create(*pPrefix, NULL, tNextHop, tOrigin);
   route_localpref_set(pRoute, ulLocalPref);
+  route_med_set(pRoute, ulMed);
   pRoute->pASPath= pPath;
   pRoute->pCommunities= pComm;
   pRoute->pPeer= pPeer;
@@ -403,7 +412,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 
   *ppRoute= pRoute;
 
-  return iType;
+  return tType;
 }
 
 // ----- mrtd_route_from_line ---------------------------------------
@@ -434,10 +443,14 @@ SRoute * mrtd_route_from_line(SBGPRouter * pRouter, char * pcLine)
       
   pTokens= tokenizer_get_tokens(pLineTokenizer);
   
-  if (mrtd_create_route(pRouter, pTokens, &sPrefix, &pRoute) == MRTD_TYPE_RIB)
+  if (mrtd_create_route(pRouter, pTokens, &sPrefix, &pRoute) == MRTD_TYPE_RIB) {
     return pRoute;
+  } else {
+    LOG_SEVERE("Error: could not build route from line:\n\"%s\"\n", pcLine);
+  }
 
-  route_destroy(&pRoute);
+  if (pRoute != NULL)
+    route_destroy(&pRoute);
 
   return NULL;
 }

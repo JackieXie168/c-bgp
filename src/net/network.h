@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 29/03/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -12,7 +12,11 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
-#include <libgds/radix-tree.h>
+#ifdef __EXPERIMENTAL__
+# include <libgds/patricia-tree.h>
+#else
+# include <libgds/radix-tree.h>
+#endif
 #include <libgds/types.h>
 
 #include <net/domain_t.h>
@@ -34,7 +38,11 @@
 extern const net_addr_t MAX_ADDR;
 
 typedef struct {
+#ifdef __EXPERIMENTAL__
+  STrie * pNodes;
+#else
   SRadixTree * pNodes;
+#endif
   SPtrArray  * pDomains;
 } SNetwork;
 

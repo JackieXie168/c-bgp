@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/12/2002
-// @lastdate 14/01/2004
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifndef __RIB_H__

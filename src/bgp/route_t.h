@@ -3,11 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/11/2003
-// @lastdate 03/01/2005
+// @lastdate 06/04/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
 #define __BGP_ROUTE_T_H__
+
+#//define __ROUTER_LIST_ENABLE__
 
 #include <libgds/array.h>
 #include <libgds/types.h>
@@ -88,8 +90,8 @@ typedef struct TRoute {
   uint32_t uLocalPref;
   uint32_t uMED;
   SECommunities * pECommunities;
-  uint32_t uTBID;
   uint16_t uFlags;
+  uint8_t tRank;
 
   // QoS information
 #ifdef BGP_QOS
@@ -103,6 +105,10 @@ typedef struct TRoute {
   // Route-Reflection
   net_addr_t * pOriginator;
   SClusterList * pClusterList;
+
+#ifdef __ROUTER_LIST_ENABLE__
+  SClusterList * pRouterList;
+#endif
 
 } SRoute;
 

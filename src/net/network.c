@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 29/03/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -728,7 +728,11 @@ SNetwork * network_create()
 {
   SNetwork * pNetwork= (SNetwork *) MALLOC(sizeof(SNetwork));
   
+#ifdef __EXPERIMENTAL__
+  pNetwork->pNodes= trie_create(network_nodes_destroy);
+#else
   pNetwork->pNodes= radix_tree_create(32, network_nodes_destroy);
+#endif
   pNetwork->pDomains = NULL;
   return pNetwork;
 }
@@ -740,7 +744,11 @@ SNetwork * network_create()
 void network_destroy(SNetwork ** ppNetwork)
 {
   if (*ppNetwork != NULL) {
+#ifdef __EXPERIMENTAL__
+    trie_destroy(&(*ppNetwork)->pNodes);
+#else
     radix_tree_destroy(&(*ppNetwork)->pNodes);
+#endif
     ptr_array_destroy(&(*ppNetwork)->pDomains);
     FREE(*ppNetwork);
     *ppNetwork= NULL;
@@ -766,7 +774,11 @@ SNetwork * network_get()
 int network_add_node(SNetwork * pNetwork, SNetNode * pNode)
 {
   pNode->pNetwork= pNetwork;
+#ifdef __EXPERIMENTAL__
+  return trie_insert(pNetwork->pNodes, pNode->tAddr, 32, pNode);
+#else
   return radix_tree_add(pNetwork->pNodes, pNode->tAddr, 32, pNode);
+#endif
 }
 
 // ----- network_find_node ------------------------------------------
@@ -775,7 +787,11 @@ int network_add_node(SNetwork * pNetwork, SNetNode * pNode)
  */
 SNetNode * network_find_node(SNetwork * pNetwork, net_addr_t tAddr)
 {
+#ifdef __EXPERIMENTAL__
+  return (SNetNode *) trie_find_exact(pNetwork->pNodes, tAddr, 32);
+# else
   return (SNetNode *) radix_tree_get_exact(pNetwork->pNodes, tAddr, 32);
+#endif
 }
 
 // ----- network_forward --------------------------------------------
@@ -846,8 +862,13 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
  */
 int network_to_file(FILE * pStream, SNetwork * pNetwork)
 {
+#ifdef __EXPERIMENTAL__
+  return trie_for_each(pNetwork->pNodes, network_nodes_to_file,
+		       pStream);
+#else
   return radix_tree_for_each(pNetwork->pNodes, network_nodes_to_file,
 			     pStream);
+#endif
 }
 
 // ----- network_from_file ------------------------------------------

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 25/02/2005
+// @lastdate 31/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -333,6 +333,13 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 	route_comm_contains(pRoute,
 			    *((uint32_t*) pMatcher->auParams))?1:0;
       break;
+    case FT_MATCH_NEXTHOP_EQUALS:
+      return (pRoute->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
+      break;
+    case FT_MATCH_NEXTHOP_IN:
+      return ip_address_in_prefix(pRoute->tNextHop,
+				  *((SPrefix*) pMatcher->auParams))?1:0;
+      break;
     case FT_MATCH_PREFIX_EQUALS:
       return ip_prefix_equals(pRoute->sPrefix,
 			      *((SPrefix*) pMatcher->auParams))?1:0;
@@ -524,6 +531,26 @@ SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher)
   memcpy(pNewMatcher->auParams, pMatcher, iSize);
   filter_matcher_destroy(&pMatcher);
   return pNewMatcher;
+}
+
+// ----- filter_match_nexthop_equals --------------------------------
+SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop)
+{
+  SFilterMatcher * pMatcher=
+    filter_matcher_create(FT_MATCH_NEXTHOP_EQUALS,
+			  sizeof(tNextHop));
+  memcpy(pMatcher->auParams, &tNextHop, sizeof(tNextHop));
+  return pMatcher;
+}
+
+// ----- filter_match_nexthop_in ------------------------------------
+SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix)
+{
+  SFilterMatcher * pMatcher=
+    filter_matcher_create(FT_MATCH_NEXTHOP_IN,
+			  sizeof(SPrefix));
+  memcpy(pMatcher->auParams, &sPrefix, sizeof(SPrefix));
+  return pMatcher;
 }
 
 // ----- filter_match_prefix_equals ---------------------------------
@@ -752,6 +779,14 @@ void filter_matcher_dump(FILE * pStream, SFilterMatcher * pMatcher)
       break;
     case FT_MATCH_COMM_CONTAINS:
       fprintf(pStream, "comm contains %u", *((uint32_t *) pMatcher->auParams));
+      break;
+    case FT_MATCH_NEXTHOP_EQUALS:
+      fprintf(pStream, "next-hop is ");
+      ip_address_dump(pStream, *((net_addr_t *) pMatcher->auParams));
+      break;
+    case FT_MATCH_NEXTHOP_IN:
+      fprintf(pStream, "next-hop in ");
+      ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
     case FT_MATCH_PREFIX_EQUALS:
       fprintf(pStream, "prefix is ");

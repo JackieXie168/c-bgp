@@ -55,7 +55,7 @@ uint32_t link_get_igp_weight(SNetLink * pLink)
 void link_dump(FILE * pStream, SNetLink * pLink)
 {
   ip_address_dump(pStream, pLink->tAddr);
-  fprintf(pStream, "/32\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
+  fprintf(pStream, "\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
   if (link_get_state(pLink, NET_LINK_FLAG_UP))
     fprintf(pStream, "\tUP");
   else

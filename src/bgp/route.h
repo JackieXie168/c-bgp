@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 03/01/2005
+// @lastdate 06/04/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -92,6 +92,10 @@ extern void route_cluster_list_clear(SRoute * pRoute);
 // ----- route_cluster_list_contains --------------------------------
 extern int route_cluster_list_contains(SRoute * pRoute,
 				       cluster_id_t tClusterID);
+// ----- route_router_list_append -----------------------------------
+#ifdef __ROUTER_LIST_ENABLE__
+extern void route_router_list_append(SRoute * pRoute, net_addr_t tAddr);
+#endif /* __ROUTER_LIST_ENABLE__ */
 // ----- route_copy -------------------------------------------------
 extern SRoute * route_copy(SRoute * pRoute);
 // ----- route_dump_string ------------------------------------------
