@@ -29,7 +29,6 @@
 #include <sim/simulator.h>
 #include <libgds/str_util.h>
 #include <ui/rl.h>
-#include <version.h>
 
 #ifdef HAVE_LIBREADLINE
 #include <readline/readline.h>
@@ -290,7 +289,7 @@ int simulation_interactive()
  */
 void main_help()
 {
-  printf("C-BGP v%u.%u (build %s)\n", VERSION_HIGH, VERSION_LOW, BUILD_DATE);
+  printf("C-BGP v1.1\n");
   printf("Infonet Group, CSE Dept, UCL, Belgium\n");
   printf("\n");
   printf("Usage: cbgp [OPTIONS]\n");
