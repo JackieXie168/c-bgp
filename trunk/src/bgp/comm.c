@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 19/11/2004
+// @lastdate 22/11/2004
 // ==================================================================
 
 #include <stdlib.h>
@@ -102,6 +102,24 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
   return 0;
 }
 
+// ----- comm_dump2 -------------------------------------------------
+/**
+ *
+ */
+void comm_dump2(FILE * pStream, comm_t tCommunity)
+{
+  switch (tCommunity) {
+  case COMM_NO_EXPORT:
+    fprintf(pStream, "no-export");
+    break;
+  case COMM_NO_ADVERTISE:
+    fprintf(pStream, "no-advertise");
+    break;
+  default:
+    fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
+  }
+}
+
 // ----- comm_dump --------------------------------------------------
 /*
  *
@@ -115,6 +133,7 @@ void comm_dump(FILE * pStream, SCommunities * pCommunities)
     if (iIndex > 0)
       fprintf(pStream, " ");
     uCommunity= (uint32_t) pCommunities->ppItems[iIndex];
-    fprintf(pStream, "%u:%u", (uCommunity >> 16), (uCommunity & 65535));
+    comm_dump2(pStream, uCommunity);
   }
 }
+
