@@ -59,7 +59,19 @@ int net_path_length(SNetPath * pPath)
   return _array_length((SArray *) pPath);
 }
 
-// ----- net_path_dump_string ----------------------------------------------
+// ----- net_path_for_each ------------------------------------------
+/**
+ * Call the given function with the given context for each element of
+ * the given path. Each element is an IP address (i.e. has the
+ * 'net_addr_t' type).
+ */
+int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
+		      void * pContext)
+{
+  return _array_for_each((SArray *) pPath, fForEach, pContext);
+}
+
+// ----- net_path_dump_string ---------------------------------------
 /**
  *
  */

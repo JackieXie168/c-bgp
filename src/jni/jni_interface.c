@@ -1023,25 +1023,6 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
   return 0;
 }
 
-// -----[ print ]----------------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    simPrint
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_print
-  (JNIEnv * env, jobject obj, jstring jsMsg)
-{
-  const jbyte * cMsg;
-
-  if (jsMsg == NULL)
-    return;
-
-  cMsg= (*env)->GetStringUTFChars(env, jsMsg, NULL);
-  fprintf(stdout, "%s", cMsg);
-  (*env)->ReleaseStringUTFChars(env, jsMsg, cMsg);
-}
-
 // -----[ runCmd ]---------------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP

@@ -16,13 +16,6 @@
 //#include <dispatcher.h>
 #include <libgds/fifo.h>
 
-
-uint32_t uCountEventCreated;
-uint32_t uCountEventDestroyed;
-
-uint32_t uCountFifoEventCreated;
-uint32_t uCountFifoEventDestroyed;
-
 // ----- FSchedulerEventCallback ------------------------------------
 typedef void (*FSchedEventCallback) (void * pItem);
 

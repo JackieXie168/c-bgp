@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 04/01/2005
+// @lastdate 17/02/2005
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -16,7 +16,7 @@
 #define SCHEDULER_STATIC  1
 #define SCHEDULER_DYNAMIC 2
 
-uint8_t SIM_OPTIONS_SCHEDULER;
+extern uint8_t SIM_OPTIONS_SCHEDULER;
 
 #define ABSOLUTE_TIME	0x00
 #define RELATIVE_TIME	0x01

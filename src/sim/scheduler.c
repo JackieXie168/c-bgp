@@ -26,8 +26,14 @@ SScheduler * pScheduler = NULL;
 
 #define EVENT_QUEUE_DEPTH 40000000
 
-uint32_t uCountEvent = 0;
-uint32_t uCountPost = 0;
+static uint32_t uCountEventCreated;
+static uint32_t uCountEventDestroyed;
+
+static uint32_t uCountFifoEventCreated;
+static uint32_t uCountFifoEventDestroyed;
+
+static uint32_t uCountEvent = 0;
+static uint32_t uCountPost = 0;
 
 // ----- scheduler_event_compare ------------------------------------
 /**

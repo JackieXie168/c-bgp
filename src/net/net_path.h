@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 05/03/2004
+// @lastdate 18/02/2005
 // ==================================================================
 
 #ifndef __NET_PATH_H__
@@ -25,8 +25,12 @@ extern int net_path_append(SNetPath * pPath, net_addr_t tAddr);
 extern SNetPath * net_path_copy(SNetPath * pPath);
 // ----- net_path_length --------------------------------------------
 extern int net_path_length(SNetPath * pPath);
+// ----- net_path_for_each ------------------------------------------
+extern int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
+			     void * pContext);
 // ----- path_dump ----------------------------------------------
 extern void net_path_dump(FILE * pStream, SNetPath * pPath);
 // ----- net_path_dump_string ---------------------------------------
 char * net_path_dump_string(SNetPath * pPath);
+
 #endif
