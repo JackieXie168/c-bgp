@@ -711,14 +711,8 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 					pRoute->tNextHop);
   int iResult;
 
-  /*
-  LOG_WARNING("Debug: BGP installs route towards ");
-  ip_prefix_dump(stderr, pRoute->sPrefix);
-  LOG_WARNING("\n");
-  */
-
-  // Check that the next-hop is reachable. It MUST be reachable at
-  // this point (checked upon route reception).
+  /* Check that the next-hop is reachable. It MUST be reachable at
+     this point (checked upon route reception). */
   assert(pNextHopIf != NULL);
 
   // Remove the previous route (if it exists)
@@ -765,19 +759,24 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
 {
   SRoute * pAdjRoute;
 
-  // Remove BEST flag from old route in Loc-RIB
+  /* Remove BEST flag from old route in Loc-RIB. */
   route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
 
-  // If the route is not LOCAL, then there is a reference to the peer
-  // that announced it.
+  /* If the route is not LOCAL, then there is a reference to the peer
+     that announced it. */
   if (pOldRoute->pPeer != NULL) {
     pAdjRoute= rib_find_exact(pOldRoute->pPeer->pAdjRIBIn,
 			      pOldRoute->sPrefix);
+
+    /* It is possible that the route does not exist in the Adj-RIB-In
+       if the best route has been withdrawn. So check if the route in
+       the Adj-RIB-In exists... */
+    if (pAdjRoute != NULL) {    
     
-    assert(pAdjRoute != NULL);
-    
-    // Remove BEST flag from route in Adj-RIB-In
-    route_flag_set(pAdjRoute, ROUTE_FLAG_BEST, 0);
+      /* Remove BEST flag from route in Adj-RIB-In. */
+      route_flag_set(pAdjRoute, ROUTE_FLAG_BEST, 0);
+
+    }
   }
 }
 
