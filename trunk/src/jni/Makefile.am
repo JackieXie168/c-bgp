@@ -1,6 +1,6 @@
 noinst_LTLIBRARIES = libjni.la
 
-INCLUDES = -I.. -I/usr/lib/j2sdk1.4-sun/include -I/usr/lib/j2sdk1.4-sun/include/linux 
+INCLUDES = -I.. 
 
 
 libjni_la_SOURCES = \
