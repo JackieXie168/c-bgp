@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 10/02/2005
+// @lastdate 31/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -111,6 +111,52 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
   }
 
   *ppMatcher= filter_match_comm_contains(tCommunity);
+
+  return CLI_SUCCESS;
+}
+
+// ----- ft_cli_predicate_nexthop_in --------------------------------
+static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
+				       STokens * pTokens)
+{
+  SFilterMatcher ** ppMatcher=
+    (SFilterMatcher **) cli_context_get(pContext);
+  char * pcPrefix;
+  char * pcEndChar;
+  SPrefix sPrefix;
+  
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pTokens, 0);
+  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppMatcher= filter_match_nexthop_in(sPrefix);
+
+  return CLI_SUCCESS;
+}
+
+// ----- ft_cli_predicate_nexthop_is --------------------------------
+static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
+				       STokens * pTokens)
+{
+  SFilterMatcher ** ppMatcher=
+    (SFilterMatcher **) cli_context_get(pContext);
+  char * pcNextHop;
+  char * pcEndChar;
+  net_addr_t tNextHop;
+
+  // Get IP address
+  pcNextHop= tokens_get_string_at(pTokens, 0);
+  if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid next-hop \"%s\"\n", pcNextHop);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppMatcher= filter_match_nexthop_equals(tNextHop);
 
   return CLI_SUCCESS;
 }
@@ -244,6 +290,27 @@ static void ft_cli_register_predicate_community()
 					ft_cli_predicate_community_is,
 					NULL, pParams));
   cli_register_cmd(pCli, cli_cmd_create("community", NULL,
+					pSubCmds, NULL));
+}
+
+// ----- ft_cli_register_predicate_nexthop --------------------------
+static void ft_cli_register_predicate_nexthop()
+{
+  SCli * pCli= ft_cli_predicate_get();
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("in",
+					ft_cli_predicate_nexthop_in,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("is",
+					ft_cli_predicate_nexthop_is,
+					NULL, pParams));
+  cli_register_cmd(pCli, cli_cmd_create("next-hop", NULL,
 					pSubCmds, NULL));
 }
 
@@ -736,6 +803,7 @@ void _ft_registry_init()
   // Register predicates
   ft_cli_register_predicate_any();
   ft_cli_register_predicate_community();
+  ft_cli_register_predicate_nexthop();
   ft_cli_register_predicate_prefix();
   ft_cli_register_predicate_path();
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 25/02/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifndef __MRTD_H__
@@ -19,6 +19,7 @@
 
 typedef uint8_t mrtd_input_t;
 
+#define MRTD_TYPE_INVALID  0
 #define MRTD_TYPE_RIB      'B' /* Best route */
 #define MRTD_TYPE_UPDATE   'A' /* Advertisement */
 #define MRTD_TYPE_WITHDRAW 'W' /* Withdraw */

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 29/03/2005
+// @lastdate 06/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,25 +25,7 @@
 #include <cli/sim.h>
 #include <net/prefix.h>
 #include <ui/output.h>
-
-#undef _FILENAME_COMPLETION_FUNCTION
-#ifdef HAVE_LIBREADLINE
-# include <readline/readline.h>
-# ifdef HAVE_RL_FILENAME_COMPLETION_FUNCTION
-#  define _FILENAME_COMPLETION_FUNCTION rl_filename_completion_function
-# else
-#  ifdef HAVE_FILENAME_COMPLETION_FUNCTION
-char * rl_filename_completion_function(const char * pcText, int iState)
-{
-  char acTextNotConst[256];
-  strncpy(acTextNotConst, pcText, sizeof(acTextNotConst));
-  acTextNotConst[sizeof(acTextNotConst)-1]= '\0';
-  return filename_completion_function(acTextNotConst, iState);
-}
-#   define _FILENAME_COMPLETION_FUNCTION rl_filename_completion_function
-#  endif
-# endif
-#endif
+#include <ui/rl.h>
 
 #if defined(HAVE_SETRLIMIT) || defined(HAVE_GETRLIMIT)
 # include <sys/resource.h>
@@ -58,7 +40,6 @@ char * rl_filename_completion_function(const char * pcText, int iState)
 #  endif
 # endif
 #endif
-
 
 static SCli * pTheCli= NULL;
 
@@ -147,6 +128,8 @@ int cli_show_mem_limit(SCliContext * pContext, STokens * pTokens)
     fprintf(stdout, "%u byte(s)\n", (unsigned int) rlim.rlim_max);
   }
 
+  flushir(stdout);
+
   return CLI_SUCCESS;
 #else
   LOG_SEVERE("Error: getrlimit() is not supported by your system\n");
@@ -212,7 +195,12 @@ int cli_show_version(SCliContext * pContext, STokens * pTokens)
 #ifdef HAVE_BGPDUMP
   fprintf(stdout, " [bgpdump]");
 #endif
+#ifdef __ROUTER_LIST_ENABLE__
+  fprintf(stdout, " [router-list]");
+#endif
   fprintf(stdout, "\n");
+
+  flushir(stdout);
 
   return CLI_SUCCESS;
 }

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 14/02/2005
+// @lastdate 06/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -347,7 +347,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
-    pPeer->uSessionState= SESSION_STATE_IDLE;
+    pPeer->uSessionState= SESSION_STATE_ACTIVE;
     peer_rescan_adjribin(pPeer, !peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
@@ -662,8 +662,34 @@ int peer_comm_process(SRoute * pRoute)
  */
 int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
 {
-  return (filter_apply(pPeer->pInFilter, pPeer->pLocalRouter, pRoute) &&
-	  peer_comm_process(pRoute));
+  // Check that the route's AS-path does not contain the local AS
+  // number.
+  if (route_path_contains(pRoute, pPeer->pLocalRouter->uNumber)) {
+    LOG_DEBUG("in-filtered(as-path loop)\n");
+    return 0;
+  }
+
+  // Route-Reflection: Avoid cluster-loop creation
+  // (MUST be done before local cluster-ID is appended)
+  if ((pRoute->pClusterList != NULL) &&
+      (route_cluster_list_contains(pRoute, pPeer->pLocalRouter->tClusterID))) {
+    LOG_DEBUG("in-RR-filtered(cluster-loop)\n");
+    return 0;
+  }
+  
+  // Apply the input filters.
+  if (!filter_apply(pPeer->pInFilter, pPeer->pLocalRouter, pRoute)) {
+    LOG_DEBUG("in-filtered(filter)\n");
+    return 0;
+  }
+
+  // Process communities.
+  if (!peer_comm_process(pRoute)) {
+    LOG_DEBUG("in-filtered(community)\n");
+    return 0;
+  }
+
+  return 1;
 }
 
 // ----- peer_route_feasible ----------------------------------------
@@ -673,12 +699,13 @@ int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
  */
 int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
 {
-  SNetLink * pLink= node_rt_lookup(pPeer->pLocalRouter->pNode, pRoute->tNextHop);
+  SNetLink * pLink= node_rt_lookup(pPeer->pLocalRouter->pNode,
+				   pRoute->tNextHop);
 
   return (pLink != NULL);
 }
 
-// ----- peer_handle_route ------------------------------------------
+// ----- peer_handle_message ----------------------------------------
 /**
  * Handle one route message (UPDATE or WITHDRAW).
  * This is PHASE I of the Decision Process.
@@ -699,6 +726,8 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
   SBGPMsgUpdate * pMsgUpdate;
   SBGPMsgWithdraw * pMsgWithdraw;
   SRoute * pRoute;
+  SRoute * pOldRoute;
+  int iNeedDecisionProcess;
 
   LOG_DEBUG("> AS%d.peer_handle_message.begin\n", pPeer->pLocalRouter->uNumber);
 
@@ -711,14 +740,14 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
   case BGP_MSG_UPDATE:
     peer_session_update_rcvd(pPeer, pMsg);
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
-    // Replace former route in AdjRIBIn
-    // *** lock Adj-RIB-In ***
+
     pRoute= pMsgUpdate->pRoute;
     route_peer_set(pRoute, pPeer);
 
     // If route learned over eBGP, clear LOCAL-PREF
     if (pPeer->uRemoteAS != pPeer->pLocalRouter->uNumber)
       route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
+
     // Check route against import filter
     route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
@@ -728,20 +757,39 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
 		   peer_route_feasible(pPeer, pRoute));
     // Update route delay attribute (if BGP-QoS)
     //peer_route_delay_update(pPeer, pRoute);
+
     // Update route RR-client flag
     peer_route_rr_client_update(pPeer, pRoute);
 
-    assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
-    // *** unlock Adj-RIB-In
+    // The decision process need only be run in the following cases:
+    // - the old route was the best
+    // - the new route is eligible
+    pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+    iNeedDecisionProcess= 0;
+    if (((pOldRoute != NULL) &&
+	 route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
+	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE))
+      iNeedDecisionProcess= 1;
+    
+    // Replace former route in Adj-RIB-In
+    if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+      assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
+    } else {
+      if (pOldRoute != NULL)
+	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix) == 0);
+      route_destroy(&pRoute);
+    }
+
     // Run decision process for this route
-    bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
-				pRoute->sPrefix);
+    if (iNeedDecisionProcess)
+      bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
+				  pRoute->sPrefix);
     break;
   case BGP_MSG_WITHDRAW:
     peer_session_withdraw_rcvd(pPeer);
     pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
+
     // Remove former route from AdjRIBIn
-    // *** lock Adj-RIB-In ***
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix);
 
     if (pRoute == NULL) break;

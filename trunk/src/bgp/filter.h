@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 25/02/2005
+// @lastdate 31/03/2005
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -24,14 +24,16 @@
 #include <util/regex.h>
 
 // Matcher codes
-#define FT_MATCH_OP_AND        1
-#define FT_MATCH_OP_OR         2
-#define FT_MATCH_OP_NOT        3
-#define FT_MATCH_COMM_CONTAINS 10
-#define FT_MATCH_PATH_CONTAINS 20
-#define FT_MATCH_PREFIX_EQUALS 30
-#define FT_MATCH_PREFIX_IN     31
-#define FT_MATCH_AS_PATH       40
+#define FT_MATCH_OP_AND         1
+#define FT_MATCH_OP_OR          2
+#define FT_MATCH_OP_NOT         3
+#define FT_MATCH_COMM_CONTAINS  10
+#define FT_MATCH_PATH_CONTAINS  20
+#define FT_MATCH_NEXTHOP_EQUALS 25
+#define FT_MATCH_NEXTHOP_IN     26
+#define FT_MATCH_PREFIX_EQUALS  30
+#define FT_MATCH_PREFIX_IN      31
+#define FT_MATCH_AS_PATH        40
 
 // Action codes
 #define FT_ACTION_ACCEPT          1
@@ -111,6 +113,10 @@ extern SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
 extern SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher);
 // ----- filter_match_comm_contains ---------------------------------
 extern SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity);
+// ----- filter_match_nexthop_equals --------------------------------
+extern SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop);
+// ----- filter_match_nexthop_in ------------------------------------
+extern SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix);
 // ----- filter_match_prefix_equals ---------------------------------
 extern SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
 // ----- filter_match_prefix_in -------------------------------------

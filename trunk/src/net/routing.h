@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 29/03/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -12,7 +12,11 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
-#include <libgds/radix-tree.h>
+#ifdef __EXPERIMENTAL__
+# include <libgds/patricia-tree.h>
+#else
+# include <libgds/radix-tree.h>
+#endif
 #include <libgds/types.h>
 
 #include <net/prefix.h>
@@ -40,7 +44,11 @@ typedef struct {
 
 typedef SPtrArray SNetRouteInfoList;
 
+#ifdef __EXPERIMENTAL__
+typedef STrie SNetRT;
+#else
 typedef SRadixTree SNetRT;
+#endif
 
 // ----- rt_perror -------------------------------------------------------
 extern void rt_perror(FILE * pStream, int iErrorCode);
@@ -74,4 +82,4 @@ extern void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest);
 // ----- rt_for_each -------------------------------------------------------
 extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
 
-#endif
+#endif /* __NET_ROUTING_H__ */

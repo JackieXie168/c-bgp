@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 31/01/2005
+// @lastdate 06/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -59,6 +59,10 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->pOriginator= NULL;
   pRoute->pClusterList= NULL;
 
+#ifdef __ROUTER_LIST_ENABLE__
+  pRoute->pRouterList= NULL;
+#endif
+
   return pRoute;
 }
 
@@ -82,6 +86,10 @@ void route_destroy(SRoute ** ppRoute)
     /* Route-reflection */
     route_originator_clear(*ppRoute);
     route_cluster_list_clear(*ppRoute);
+
+#ifdef __ROUTER_LIST_ENABLE__
+    route_router_list_clear(*ppRoute);
+#endif
 
     FREE(*ppRoute);
     *ppRoute= NULL;
@@ -434,6 +442,30 @@ SClusterList * route_cluster_list_copy(SRoute * pRoute)
   return cluster_list_copy(pRoute->pClusterList);
 }
 
+#ifdef __ROUTER_LIST_ENABLE__
+// ----- route_router_list_append -----------------------------------
+void route_router_list_append(SRoute * pRoute, net_addr_t tAddr)
+{
+  if (pRoute->pRouterList == NULL)
+    pRoute->pRouterList= cluster_list_create();
+  cluster_list_append(pRoute->pRouterList, tAddr);
+}
+
+// ----- route_router_list_clear ------------------------------------
+void route_router_list_clear(SRoute * pRoute)
+{
+  cluster_list_destroy(pRoute->pRouterList);
+}
+
+// ----- route_router_list_copy -------------------------------------
+SClusterList * route_router_list_copy(SRoute * pRoute)
+{
+  if (pRoute->pRouterList != NULL)
+    return cluster_list_copy(pRoute->pRouterList);
+  return NULL;
+}
+#endif /* __ROUTER_LIST_ENABLE__ */
+
 // ----- route_copy -------------------------------------------------
 /**
  *
@@ -455,7 +487,6 @@ SRoute * route_copy(SRoute * pRoute)
   pNewRoute->uMED= pRoute->uMED;
   if (pRoute->pECommunities != NULL)
     pNewRoute->pECommunities= ecomm_copy(pRoute->pECommunities);
-  pNewRoute->uTBID= pRoute->uTBID;
   pNewRoute->uFlags= pRoute->uFlags;
 
   /* BGP QoS */
@@ -476,6 +507,10 @@ SRoute * route_copy(SRoute * pRoute)
   if (route_originator_get(pRoute, &tOriginator) == 0)
     route_originator_set(pNewRoute, tOriginator);
   pNewRoute->pClusterList= route_cluster_list_copy(pRoute);
+
+#ifdef __ROUTER_LIST_ENABLE__
+  pNewRoute->pRouterList= route_router_list_copy(pRoute);
+#endif
 
   return pNewRoute;
 }
@@ -541,6 +576,14 @@ void route_dump_cisco(FILE * pStream, SRoute * pRoute)
     case ROUTE_ORIGIN_EGP: fprintf(pStream, "e"); break;
     case ROUTE_ORIGIN_INCOMPLETE: fprintf(pStream, "?"); break;
     }
+
+#ifdef __ROUTER_LIST_ENABLE__
+    // Router list
+    fprintf(pStream, "\t[");
+    if (pRoute->pRouterList != NULL)
+      cluster_list_dump(pStream, pRoute->pRouterList);
+    fprintf(pStream, "]");
+#endif
 
   } else
     fprintf(pStream, "(null)");
@@ -749,7 +792,6 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
       (pRoute1->uLocalPref == pRoute2->uLocalPref) &&
       (pRoute1->uMED == pRoute2->uMED) &&
       (ecomm_equals(pRoute1->pECommunities, pRoute2->pECommunities)) &&
-      (pRoute1->uTBID == pRoute2->uTBID) &&
       (route_originator_equals(pRoute1, pRoute2)) &&
       (route_cluster_list_equals(pRoute1, pRoute2))) {
     LOG_DEBUG("route_equals == 1\n");

@@ -426,7 +426,11 @@ SNetRT * rt_create()
  */
 void rt_destroy(SNetRT ** ppRT)
 {
+#ifdef __EXPERIMENTAL__
+  trie_destroy((STrie **) ppRT);
+#else
   radix_tree_destroy((SRadixTree **) ppRT);
+#endif
 }
 
 // ----- rt_find_best -----------------------------------------------
@@ -455,8 +459,12 @@ SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
 
   /* First, retrieve the list of routes that best match the given
      prefix */
+#ifdef __EXPERIMENTAL__
+  pRIList= (SNetRouteInfoList *) trie_find_best((STrie *) pRT, tAddr, 32);
+#else
   pRIList= (SNetRouteInfoList *) radix_tree_get_best((SRadixTree *) pRT,
 						     tAddr, 32);
+#endif
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -494,9 +502,14 @@ SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
 
   /* First, retrieve the list of routes that exactly match the given
      prefix */
+#ifdef __EXPERIMENTAL__
+  pRIList= (SNetRouteInfoList *)
+    trie_find_exact((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen);
+#else
   pRIList= (SNetRouteInfoList *)
     radix_tree_get_exact((SRadixTree *) pRT, sPrefix.tNetwork,
 			 sPrefix.uMaskLen);
+#endif
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -521,14 +534,28 @@ SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
 int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 		 SNetRouteInfo * pRouteInfo)
 {
-  SNetRouteInfoList * pRIList=
+  SNetRouteInfoList * pRIList;
+
+#ifdef __EXPERIMENTAL__
+  pRIList=
+    (SNetRouteInfoList *) trie_find_exact((STrie *) pRT,
+					  sPrefix.tNetwork,
+					  sPrefix.uMaskLen);
+#else
+  pRIList=
     (SNetRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
 					       sPrefix.tNetwork,
 					       sPrefix.uMaskLen);
+#endif
+
   if (pRIList == NULL) {
     pRIList= rt_info_list_create();
+#ifdef __EXPERIMENTAL__
+    trie_insert((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen, pRIList);
+#else
     radix_tree_add((SRadixTree *) pRT, sPrefix.tNetwork,
 		   sPrefix.uMaskLen, pRIList);
+#endif
   }
 
   return rt_info_list_add(pRIList, pRouteInfo);
@@ -588,10 +615,17 @@ int rt_del_route(SNetRT * pRT, SPrefix * pPrefix, SNetLink * pNextHopIf,
   if (pPrefix != NULL) {
 
     /* Get the list of routes towards the given prefix */
+#ifdef __EXPERIMENTAL__
+    pRIList=
+      (SNetRouteInfoList *) trie_find_exact((STrie *) pRT,
+					    pPrefix->tNetwork,
+					    pPrefix->uMaskLen);
+#else
     pRIList=
       (SNetRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
 						 pPrefix->tNetwork,
 						 pPrefix->uMaskLen);
+#endif
 
     iResult= rt_del_for_each(pPrefix->tNetwork, pPrefix->uMaskLen,
 			     pRIList, &sRIDel);
@@ -600,7 +634,11 @@ int rt_del_route(SNetRT * pRT, SPrefix * pPrefix, SNetLink * pNextHopIf,
 
     /* Remove all the routes that match the given attributes, whatever
        the prefix is */
+#ifdef __EXPERIMENTAL__
+    iResult= trie_for_each((STrie *) pRT, rt_del_for_each, &sRIDel);
+#else
     iResult= radix_tree_for_each((SRadixTree *) pRT, rt_del_for_each, &sRIDel);
+#endif
 
   }
 
@@ -693,7 +731,11 @@ int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
   sCtx.fForEach= fForEach;
   sCtx.pContext= pContext;
 
+#ifdef __EXPERIMENTAL__
+  return trie_for_each((STrie *) pRT, rt_for_each_function, &sCtx);
+#else
   return radix_tree_for_each((SRadixTree *) pRT, rt_for_each_function, &sCtx);
+#endif
 }
 
 // ----- rt_dump_string ----------------------------------------------------
@@ -710,7 +752,11 @@ int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
   pCtx.cDump = NULL;
 
   if (sPrefix.uMaskLen == 0) {
+#ifdef __EXPERIMENTAL__
+    trie_for_each((STrie *) pRT, rt_dump_string_for_each, &pCtx);
+#else
     radix_tree_for_each((SRadixTree *) pRT, rt_dump_string_for_each, &pCtx);
+#endif
   } else if (sPrefix.uMaskLen == 32) {
     pRouteInfo= rt_find_best(pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
     iLen = 0;
@@ -750,7 +796,11 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest)
   switch (sDest.tType) {
 
   case NET_DEST_ANY:
+#ifdef __EXPERIMENTAL__
+    trie_for_each((STrie *) pRT, rt_dump_for_each, pStream);
+#else
     radix_tree_for_each((SRadixTree *) pRT, rt_dump_for_each, pStream);
+#endif
     break;
 
   case NET_DEST_ADDRESS:

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 29/03/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +34,7 @@
 #include <cli/bgp.h>
 #include <cli/common.h>
 #include <cli/net.h>
+#include <ui/rl.h>
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
 #include <net/prefix.h>
@@ -749,12 +750,29 @@ int cli_bgp_router_save_ribin(SCliContext * pContext,
 
 // ----- cli_bgp_router_show_info -----------------------------------
 /**
- *
+ * context: {router}
+ * tokens: {addr}
  */
 int cli_bgp_router_show_info(SCliContext * pContext,
 			     STokens * pTokens)
 {
-  return CLI_ERROR_COMMAND_FAILED;
+  SBGPRouter * pRouter;
+
+  // Get the BGP instance from the context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Show information
+  fprintf(stdout, "router-id: ");
+  ip_address_dump(stdout, pRouter->pNode->tAddr);
+  fprintf(stdout, "\n");
+  fprintf(stdout, "as-number: %u\n", pRouter->uNumber);
+  fprintf(stdout, "cluster-id: ");
+  ip_address_dump(stdout, pRouter->tClusterID);
+  fprintf(stdout, "\n");
+  if (pRouter->pcName != NULL)
+    fprintf(stdout, "name: %s", pRouter->pcName);
+
+  return CLI_SUCCESS;
 }
 
 // ----- cli_bgp_router_show_networks -------------------------------
@@ -1269,6 +1287,124 @@ int cli_bgp_router_add_qosnetwork(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 #endif
+
+// ----- cli_bgp_router_assert_routes_match --------------------------
+/**
+ * context: {router, routes}
+ * tokens: {addr, prefix, type, predicate}
+ */
+int cli_bgp_router_assert_routes_match(SCliContext * pContext,
+				       STokens * pTokens)
+{
+  char * pcPredicate;
+  char * pcTemp;
+  SFilterMatcher * pMatcher;
+  SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
+  int iMatches= 0;
+  int iIndex;
+  SRoute * pRoute;
+
+  // Parse predicate
+  pcPredicate= tokens_get_string_at(pTokens,
+				    tokens_get_num(pTokens)-1);
+  pcTemp= pcPredicate;
+  if (predicate_parse(&pcTemp, &pMatcher)) {
+    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcPredicate);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+    if (filter_matcher_apply(pMatcher, NULL, pRoute)) {
+      iMatches++;
+    }
+  }
+
+  filter_matcher_destroy(&pMatcher);
+
+  if (iMatches < 1) {
+    LOG_SEVERE("Error: no route matched \"%s\"\n", pcPredicate);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_assert_routes_show --------------------------
+/**
+ * context: {router, routes}
+ * tokens: {addr, prefix, type}
+ */
+int cli_bgp_router_assert_routes_show(SCliContext * pContext,
+				      STokens * pTokens)
+{
+  SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
+
+  routes_list_dump(stdout, pRoutes);
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_create_bgp_router_assert_routes --------------------
+/**
+ * Check that the given router has a feasible route towards a given
+ * prefix that goes through a given next-hop.
+ *
+ * context: {router}
+ * tokens: {addr, prefix, type}
+ */
+int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
+					    void ** ppItem)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  char * pcType;
+  SPrefix sPrefix;
+  char * pcEndPtr;
+  SRoutes * pRoutes;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the prefix
+  pcPrefix= tokens_get_string_at(pContext->pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
+      (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get the routes type
+  pcType= tokens_get_string_at(pContext->pTokens, 2);
+
+  // Get the requested routes of the router towards the prefix
+  if (!strcmp(pcType, "best")) {
+    pRoutes= bgp_router_get_best_routes(pRouter, sPrefix);
+  } else if (!strcmp(pcType, "feasible")) {
+    pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
+  } else {
+    LOG_SEVERE("Error: unsupported type of routes \"%s\"\n", pcType);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Check that there is at leat one route
+  if (routes_list_get_num(pRoutes) < 1) {
+    LOG_SEVERE("Error: no feasible routes towards %s\n", pcPrefix);
+    routes_list_destroy(&pRoutes);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Store list of routes on context...
+  *ppItem= pRoutes;
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_destroy_bgp_router_assert_routes -----------------
+void cli_ctx_destroy_bgp_router_assert_routes(void ** ppItem)
+{
+  routes_list_destroy((SRoutes **) ppItem);
+}
 
 // ----- cli_ctx_create_bgp_router_peer -----------------------------
 /**
@@ -1986,7 +2122,12 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("load",
 					cli_bgp_topology_load,
 					NULL, pParams));
@@ -1995,12 +2136,22 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
 					NULL, NULL));
 #ifdef HAVE_XML
   pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("xml-load", 
 					cli_bgp_xml_topology_load,
 					NULL, pParams));
   pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("xml-dump",
 					cli_bgp_xml_topology_dump,
 					NULL, pParams));
@@ -2064,6 +2215,32 @@ int cli_register_bgp_router_add(SCliCmds * pCmds)
 					NULL, pParams));
 #endif
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
+}
+
+// ----- cli_register_bgp_router_assert -----------------------------
+int cli_register_bgp_router_assert(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliCmds * pSubSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<predicate>", NULL);
+  cli_cmds_add(pSubSubCmds, cli_cmd_create("match",
+					   cli_bgp_router_assert_routes_match,
+					   NULL, pParams));
+  cli_cmds_add(pSubSubCmds, cli_cmd_create("show",
+					   cli_bgp_router_assert_routes_show,
+					   NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<best|feasible>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("routes",
+					    cli_ctx_create_bgp_router_assert_routes,
+					    cli_ctx_destroy_bgp_router_assert_routes,
+					    pSubSubCmds, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("assert", NULL,
+					    pSubCmds, NULL));
 }
 
 // ----- cli_register_bgp_router_debug ------------------------------
@@ -2361,7 +2538,12 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_load_rib,
 					NULL, pParams));
@@ -2377,13 +2559,23 @@ int cli_register_bgp_router_save(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_save_rib,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<peer>", NULL);
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<file>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
   cli_params_add(pParams, "<file>", NULL);
+#endif
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in",
 					cli_bgp_router_save_ribin,
 					NULL, pParams));
@@ -2462,6 +2654,7 @@ int cli_register_bgp_router(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   cli_register_bgp_router_add(pSubCmds);
+  cli_register_bgp_router_assert(pSubCmds);
   cli_register_bgp_router_debug(pSubCmds);
   cli_register_bgp_router_del(pSubCmds);
   cli_register_bgp_router_peer(pSubCmds);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 27/01/2005
+// @lastdate 05/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -11,7 +11,11 @@
 #endif
 
 #include <libgds/array.h>
-#include <libgds/radix-tree.h>
+#ifdef __EXPERIMENTAL__
+# include <libgds/patricia-tree.h>
+#else
+# include <libgds/radix-tree.h>
+#endif
 #include <libgds/types.h>
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
@@ -41,7 +45,11 @@ static SPtrArray * build_router_list()
   SNetwork * pNetwork= network_get();
 
   // Build list of BGP routers
+#ifdef __EXPERIMENTAL__
+  trie_for_each(pNetwork->pNodes, build_router_list_rtfe, pRL);
+#else
   radix_tree_for_each(pNetwork->pNodes, build_router_list_rtfe, pRL);
+#endif
 
   return pRL;
 }
@@ -187,6 +195,66 @@ int bgp_assert_full_mesh(uint16_t uAS)
 int bgp_assert_sessions()
 {
   int iResult= 0;
+
+  return iResult;
+}
+
+// ----- bgp_router_assert_best -------------------------------------
+/**
+ * This function checks that the router has a best route towards the
+ * given prefix. In addition, the function checks that this route has
+ * the given next-hop.
+ *
+ * Return: 0 on success, -1 on failure
+ */
+int bgp_router_assert_best(SBGPRouter * pRouter, SPrefix sPrefix,
+			   net_addr_t tNextHop)
+{
+  SRoute * pRoute;
+
+  // Get the best route
+  pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+
+  // Check that it exists
+  if (pRoute == NULL)
+    return -1;
+
+  // Check the next-hop
+  if (route_nexthop_get(pRoute) != tNextHop)
+    return -1;
+
+  return 0;
+}
+
+// ----- bgp_router_assert_feasible ---------------------------------
+/**
+ * This function checks that the router has a route towards the given
+ * prefix with the given next-hop.
+ *
+ * Return: 0 on success, -1 on failure
+ */
+int bgp_router_assert_feasible(SBGPRouter * pRouter, SPrefix sPrefix,
+			       net_addr_t tNextHop)
+{
+  SRoutes * pRoutes;
+  SRoute * pRoute;
+  int iIndex;
+  int iResult= -1;
+
+  // Get the feasible routes
+  pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
+
+  // Find a route with the given next-hop
+  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+
+    if (route_nexthop_get(pRoute) == tNextHop) {
+      iResult= 0;
+      break;
+    }
+  }
+
+  routes_list_destroy(&pRoutes);
 
   return iResult;
 }
