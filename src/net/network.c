@@ -3,14 +3,16 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 05/03/2004
+// @lastdate 09/03/2004
 // ==================================================================
 
 #include <assert.h>
 #include <net/prefix.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/stack.h>
 #include <net/icmp.h>
+#include <net/ipip.h>
 #include <net/network.h>
 #include <net/net_path.h>
 #include <string.h>
@@ -24,7 +26,6 @@ typedef struct {
   SNetMessage * pMessage;
 } SNetSendContext;
 
-int node_recv(SNetNode * pNode, SNetMessage * pMessage);
 int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 		    SNetMessage * pMessage);
 
@@ -113,7 +114,7 @@ SNetNode * node_create(net_addr_t tAddr)
   pNode->pLinks= ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
 				  node_links_compare,
 				  node_links_destroy);
-  pNode->pRT= NULL;
+  pNode->pRT= rt_create();
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
 			 NULL, icmp_event_handler);
@@ -127,9 +128,9 @@ SNetNode * node_create(net_addr_t tAddr)
 void node_destroy(SNetNode ** ppNode)
 {
   if (*ppNode != NULL) {
-    ptr_array_destroy(&(*ppNode)->pLinks);
     rt_destroy(&(*ppNode)->pRT);
     protocols_destroy(&(*ppNode)->pProtocols);
+    ptr_array_destroy(&(*ppNode)->pLinks);
     FREE(*ppNode);
     *ppNode= NULL;
   }
@@ -150,9 +151,28 @@ int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 
   pLink->tAddr= pNodeB->tAddr;
   pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP;
+  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
   pLink->uIGPweight= tDelay;
+  pLink->pContext= NULL;
+  pLink->fForward= NULL;
   return ptr_array_add(pNodeA->pLinks, &pLink);
+}
+
+// ----- node_add_tunnel --------------------------------------------
+/**
+ *
+ */
+int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
+{
+  SNetLink * pLink= (SNetLink *) MALLOC(sizeof(SNetLink));
+
+  pLink->tAddr= tDstPoint;
+  pLink->tDelay= 0;
+  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_TUNNEL;
+  pLink->uIGPweight= 0;
+  pLink->pContext= pNode;
+  pLink->fForward= ipip_link_forward;
+  return ptr_array_add(pNode->pLinks, &pLink);
 }
 
 // ----- node_find_link ---------------------------------------------
@@ -168,6 +188,17 @@ SNetLink * node_find_link(SNetNode * pNode, net_addr_t tAddr)
   if (ptr_array_sorted_find_index(pNode->pLinks, &pAddr, &iIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[iIndex];
   return pLink;
+}
+
+// ----- node_ipip_enable -------------------------------------------
+/**
+ *
+ */
+int node_ipip_enable(SNetNode * pNode)
+{
+  return node_register_protocol(pNode, NET_PROTOCOL_IPIP,
+				pNode, NULL,
+				ipip_event_handler);
 }
 
 // ----- node_links_dump --------------------------------------------
@@ -217,16 +248,39 @@ int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
   // it must be a direct link !)
   pLink= node_links_lookup(pNode, tNextHop);
   if (pLink == NULL) {
-    return -1;
+    return NET_RT_ERROR_NH_UNREACH;
   }
 
   // Build route info
   pRouteInfo= route_info_create(pLink, uWeight, uType);
 
-  // Add route (if route has no routing table, create one)
-  if (pNode->pRT == NULL)
-    pNode->pRT= rt_create();
   return rt_add_route(pNode->pRT, sPrefix, pRouteInfo);
+}
+
+// ----- node_rt_del_route ------------------------------------------
+/**
+ * This function removes a route from the node's routing table. The
+ * route is identified by the prefix, the next-hop address (i.e. the
+ * outgoing interface) and the type.
+ *
+ * If the next-hop is not present (NULL), all the routes matching the
+ * other parameters will be removed whatever the next-hop is.
+ */
+int node_rt_del_route(SNetNode * pNode, SPrefix sPrefix,
+		      net_addr_t * pNextHop, uint8_t uType)
+{
+  SNetLink * pLink= NULL;
+
+  // Lookup the next-hop's interface (no recursive lookup is allowed,
+  // it must be a direct link !)
+  if (pNextHop != NULL) {
+    pLink= node_links_lookup(pNode, *pNextHop);
+    if (pLink == NULL) {
+      return NET_RT_ERROR_IF_UNKNOWN;
+    }
+  }
+
+  return rt_del_route(pNode->pRT, sPrefix, pLink, uType);
 }
 
 // ----- node_rt_dump -----------------------------------------------
@@ -243,17 +297,15 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
 /**
  * This function looks for the next-hop that must be used to reach a
  * destination address. The function first looks up the direct links,
- * then the static/IGP routing table then the BGP routing table.
+ * then the static/IGP/BGP routing table.
  *
  * Note: the BGP routes are not inserted in the node's routing table
  * in order to avoid redundant use of memory.
  */
 SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 {
-  SNetLink * pLink;
+  SNetLink * pLink= NULL;
   SNetRouteInfo * pRouteInfo;
-  SNetProtocol * pProtocol;
-  //  SBGPRouter * pRouter;
 
   // Is there a direct link towards the destination ?
   pLink= node_links_lookup(pNode, tDstAddr);
@@ -265,18 +317,6 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
       if (pRouteInfo != NULL)
 	pLink= pRouteInfo->pNextHopIf;
     }
-
-    // Still no route, is there a BGP route ?
-    if (pLink == NULL) {
-      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
-      if (pProtocol != NULL) {
-	/**
-	pRouter= (SBGPRouter *) pProtocol->pHandler;
-	as_find_
-	*/
-      }
-    }
-    
   }
 
   return pLink;
@@ -470,16 +510,6 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 {
   SNetNode * pNextHop;
 
-  /*
-  fprintf(stdout, "network_forward through ");
-  ip_address_dump(stdout, pLink->tAddr);
-  fprintf(stdout, ", src= ");
-  ip_address_dump(stdout, pMessage->tSrcAddr);
-  fprintf(stdout, ", dst= ");
-  ip_address_dump(stdout, pMessage->tDstAddr);
-  fprintf(stdout, "\n");
-  */
-
   // Check link's state
   if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
     LOG_INFO("Info: link is down, message dropped\n");
@@ -487,18 +517,21 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
     return NET_ERROR_LINK_DOWN; // Link is down, silently drop
   }
 
-  // Node lookup: O(log(n))
-  pNextHop= network_find_node(pNetwork, pLink->tAddr);
-  assert(pNextHop != NULL);
-
-  // Forward to node...
-  assert(!simulator_post_event(network_send_callback,
-			       network_send_context_destroy,
-			       network_send_context_create(pNextHop,
-							   pMessage),
-			       0, RELATIVE_TIME));
-
-  return NET_SUCCESS;
+  if (pLink->fForward == NULL) {
+    // Node lookup: O(log(n))
+    pNextHop= network_find_node(pNetwork, pLink->tAddr);
+    assert(pNextHop != NULL);
+    
+    // Forward to node...
+    assert(!simulator_post_event(network_send_callback,
+				 network_send_context_destroy,
+				 network_send_context_create(pNextHop,
+							     pMessage),
+				 0, RELATIVE_TIME));
+    return NET_SUCCESS;
+  } else {
+    return pLink->fForward(pLink->tAddr, pLink->pContext, pMessage);
+  }
 }
 
 // ----- network_nodes_to_file --------------------------------------
@@ -624,9 +657,11 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 // ROUTING TESTS
 /////////////////////////////////////////////////////////////////////
 
-#define NET_RECORD_ROUTE_SUCCESS   0
-#define NET_RECORD_ROUTE_TOO_LONG -1
-#define NET_RECORD_ROUTE_UNREACH  -2
+#define NET_RECORD_ROUTE_SUCCESS         0
+#define NET_RECORD_ROUTE_TOO_LONG       -1
+#define NET_RECORD_ROUTE_UNREACH        -2
+#define NET_RECORD_ROUTE_TUNNEL_UNREACH -3
+#define NET_RECORD_ROUTE_TUNNEL_BROKEN  -4
 
 // ----- node_record_route ------------------------------------------
 /**
@@ -640,6 +675,7 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
   unsigned int uHopCount= 0;
   int iResult= NET_RECORD_ROUTE_UNREACH;
   SNetPath * pPath= net_path_create();
+  SStack * pDstStack= stack_create(10);
 
   while (pCurrentNode != NULL) {
 
@@ -647,17 +683,55 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
     // Final destination reached ?
     if (pCurrentNode->tAddr == tDstAddr) {
-      iResult= NET_RECORD_ROUTE_SUCCESS;
-      break;
-    }
 
-    // Lookup the next-hop for this destination
-    pLink= node_rt_lookup(pCurrentNode, tDstAddr);
-    if (pLink == NULL) {
-      break;
-    }
+      // Tunnel end-point ?
+      if (stack_depth(pDstStack) > 0) {
 
-    pCurrentNode= network_find_node(pNode->pNetwork, pLink->tAddr);
+	// Does the end-point support IP-in-IP protocol ?
+	if (protocols_get(pCurrentNode->pProtocols,
+			  NET_PROTOCOL_IPIP) == NULL) {
+	  iResult= NET_RECORD_ROUTE_TUNNEL_UNREACH;
+	  break;
+	}
+	
+	// Pop destination, but current node does not change
+	tDstAddr= (net_addr_t) stack_pop(pDstStack);
+
+      } else {
+
+	// Destination reached :-)
+	iResult= NET_RECORD_ROUTE_SUCCESS;
+	break;
+
+      }
+
+    } else {
+
+      // Lookup the next-hop for this destination
+      pLink= node_rt_lookup(pCurrentNode, tDstAddr);
+      if (pLink == NULL) {
+	break;
+      }
+
+      // Handle tunnel encapsulation
+      if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL)) {
+	// Push destination to stack
+	stack_push(pDstStack, (void *) tDstAddr);
+	
+	tDstAddr= pLink->tAddr;
+
+	// Find new destination (i.e. the tunnel end-point address)
+	pLink= node_rt_lookup(pCurrentNode, tDstAddr);
+	if (pLink == NULL) {
+	  iResult= NET_RECORD_ROUTE_TUNNEL_BROKEN;
+	  break;
+	}
+
+      }
+
+      pCurrentNode= network_find_node(pNode->pNetwork, pLink->tAddr);
+      
+    }
 
     uHopCount++;
 
@@ -669,6 +743,8 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
   }
 
   *ppPath= pPath;
+
+  stack_destroy(&pDstStack);
 
   return iResult;
 }
@@ -693,6 +769,10 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
   case NET_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
   case NET_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACH"); break;
+  case NET_RECORD_ROUTE_TUNNEL_UNREACH:
+    fprintf(pStream, "TUNNEL_UNREACH"); break;
+  case NET_RECORD_ROUTE_TUNNEL_BROKEN:
+    fprintf(pStream, "TUNNEL_BROKEN"); break;
   default:
     fprintf(pStream, "UNKNOWN_ERROR");
   }

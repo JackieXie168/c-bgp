@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 04/03/2004
+// @lastdate 08/03/2004
 // ==================================================================
 
 #include <assert.h>
@@ -189,6 +189,54 @@ int as_add_network(SAS * pAS, SPrefix sPrefix)
   rib_add_route(pAS->pLocRIB, route_copy(pRoute));
   route_copy_count++;
   return 0;
+}
+
+// ----- bgp_router_del_network -------------------------------------
+/**
+ *
+ */
+int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
+{
+  SRoute * pRoute= NULL;
+  int iIndex;
+
+  // Looks for the route and mark is as unfeasible
+  for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *)
+					    pRouter->pLocalNetworks);
+       iIndex++) {
+    if (ip_prefix_equals(((SRoute *)
+			 pRouter->pLocalNetworks->data[iIndex])->sPrefix,
+	sPrefix)) {
+      pRoute= (SRoute *) pRouter->pLocalNetworks->data[iIndex];
+      route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
+      break;
+    }
+  }
+
+  // If the network exists:
+  if (pRoute != NULL) {
+
+    // Withdraw this route
+    // NOTE: this should be made through a call to
+    // as_decision_process, but some details need to be fixed before:
+    // pOriginPeer is NULL, and the local networks should be
+    // advertised as other routes...
+    /// *****
+
+    // Remove the route from the Loc-RIB
+    rib_remove_route(pRouter->pLocRIB, sPrefix);
+
+    // Remove the route from the list of local networks.
+    ptr_array_remove_at((SPtrArray *) pRouter->pLocalNetworks,
+			iIndex);
+
+    // Free route
+    route_destroy(&pRoute);
+
+    return 0;
+  }
+
+  return -1;
 }
 
 // ----- as_add_route -----------------------------------------------
@@ -659,6 +707,59 @@ void as_decision_process_disseminate(SAS * pAS, SPrefix sPrefix,
 
 }
 
+// ----- bgp_router_rt_add_route ------------------------------------
+/**
+ * This function inserts a BGP route into the node's routing
+ * table. The route's next-hop is resolved before insertion.
+ */
+void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
+{
+  SNetLink * pNextHopIf= node_rt_lookup(pRouter->pNode,
+					pRoute->tNextHop);
+  int iResult;
+
+  /*
+  LOG_WARNING("Debug: BGP installs route towards ");
+  ip_prefix_dump(stderr, pRoute->sPrefix);
+  LOG_WARNING("\n");
+  */
+
+  // Check that the next-hop is reachable. It MUST be reachable at
+  // this point (checked upon route reception).
+  assert(pNextHopIf != NULL);
+
+  // Remove the previous route (if it exists)
+  node_rt_del_route(pRouter->pNode, pRoute->sPrefix,
+		    NULL, NET_ROUTE_BGP);
+
+  // Insert the route
+  iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
+			     pNextHopIf->tAddr, 0, NET_ROUTE_BGP);
+  if (iResult) {
+    LOG_SEVERE("Error: could not add route\nError: ");
+    rt_perror(stderr, iResult);
+    LOG_SEVERE("\n");
+    abort();
+  }
+}
+
+// ----- bgp_router_rt_del_route ------------------------------------
+/**
+ * This function removes from the node's routing table the BGP route
+ * towards the given prefix.
+ */
+void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
+{
+  /*
+  LOG_WARNING("Debug: BGP removes route towards ");
+  ip_prefix_dump(stderr, sPrefix);
+  LOG_WARNING("\n");
+  */
+
+  assert(node_rt_del_route(pRouter->pNode, sPrefix,
+			   NULL, NET_ROUTE_BGP));
+}
+
 // ----- as_decision_process ----------------------------------------
 /**
  * Phase I - Calculate degree of preference (LOCAL_PREF) for each
@@ -696,8 +797,6 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
   LOG_DEBUG("> ");
   LOG_ENABLED_DEBUG() as_dump_id(log_get_stream(pMainLog), pAS);
   LOG_DEBUG(" as_decision_process.begin\n");
-
-  LOG_DEBUG("\t<-peer: AS%d\n", pOriginPeer->uRemoteAS);
 
   pOldRoute= rib_find_exact(pAS->pLocRIB, sPrefix);
   LOG_DEBUG("\tbest: ");
@@ -757,12 +856,14 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
       if (pOldRoute != NULL)
 	route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
       assert(rib_add_route(pAS->pLocRIB, pRoute) == 0);
+
+      bgp_router_rt_add_route(pAS, pRoute);
+
       as_decision_process_disseminate(pAS, sPrefix, pRoute);
     } else {
       route_destroy(&pRoute);
       pRoute= pOldRoute;
     }
-    //route_set_dp_rule(pRoute, uDPRule);
     pRoute->uCntRuleNone= uCntRuleNone;
     pRoute->uCntRuleLocalPref= uCntRuleLocalPref;
     pRoute->uCntRuleShortestPath= uCntRuleShortestPath;
@@ -775,6 +876,8 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
       rib_remove_route(pAS->pLocRIB, sPrefix);
       //LOG_DEBUG("previous best-route removed\n");
       route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
+
+      bgp_router_rt_del_route(pAS, sPrefix);
 
       as_decision_process_disseminate(pAS, sPrefix, NULL);
     }
@@ -791,7 +894,9 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 
 // ----- as_handle_message ------------------------------------------
 /**
- * Handle a BGP message.
+ * Handle a BGP message received from the lower layer (network layer
+ * at this time). The function looks for the destination peer and
+ * delivers it for processing...
  */
 int as_handle_message(void * pHandler, SNetMessage * pMessage)
 {
@@ -816,6 +921,7 @@ int as_handle_message(void * pHandler, SNetMessage * pMessage)
     LOG_ENABLED_WARNING() ip_address_dump(log_get_stream(pMainLog),
 					  pMessage->tSrcAddr);
     LOG_WARNING("\n");
+    bgp_msg_destroy(&pMsg);
     return -1;
   }
   return 0;
@@ -844,6 +950,17 @@ void as_dump_id(FILE * pStream, SAS * pAS)
 {
   fprintf(pStream, "AS%d:", pAS->uNumber);
   ip_address_dump(pStream, pAS->pNode->tAddr);
+}
+
+// ----- bgp_router_reset -------------------------------------------
+/**
+ * This function shuts down every peering session, then restarts
+ * them.
+ */
+int bgp_router_reset(SBGPRouter * pRouter)
+{
+  LOG_SEVERE("Error: not *yet* implemented, sorry.\n");
+  return -1;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -923,11 +1040,10 @@ void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
   sPrefix.tNetwork= tAddr;
   sPrefix.uMaskLen= 32;
   pRoute= rib_find_best(pRouter->pLocRIB, sPrefix);
-  if (pRoute == NULL)
-    fprintf(pStream, "NO_ROUTE");
-  else
+  if (pRoute != NULL) {
     route_dump(pStream, pRoute);
-  fprintf(pStream, "\n");
+    fprintf(pStream, "\n");
+  }
 }
 
 // ----- bgp_router_dump_rib_prefix ---------------------------------
@@ -940,11 +1056,10 @@ void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
   SRoute * pRoute;
 
   pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
-  if (pRoute == NULL)
-    fprintf(pStream, "NO_ROUTE");
-  else
+  if (pRoute != NULL) {
     route_dump(pStream, pRoute);
-  fprintf(pStream, "\n");
+    fprintf(pStream, "\n");
+  }
 }
 
 // ----- bgp_router_dump_ribin --------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 24/02/2004
+// @lastdate 09/03/2004
 // ==================================================================
 
 #include <net/link.h>
@@ -56,4 +56,10 @@ void link_dump(FILE * pStream, SNetLink * pLink)
     fprintf(pStream, "\tUP");
   else
     fprintf(pStream, "\tDOWN");
+  if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL))
+    fprintf(pStream, "\tTUNNEL");
+  else
+    fprintf(pStream, "\tDIRECT");
+  if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV))
+    fprintf(pStream, "\tIGP_ADV");
 }

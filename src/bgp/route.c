@@ -506,7 +506,7 @@ void route_dump(FILE * pStream, SRoute * pRoute)
     }
 
   } else
-    fprintf(stdout, "(null)");
+    fprintf(pStream, "(null)");
 }
 
 // ----- route_dump_mrtd --------------------------------------------

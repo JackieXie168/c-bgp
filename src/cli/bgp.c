@@ -3,10 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 04/03/2004
+// @lastdate 08/03/2004
 // ==================================================================
 
 #include <bgp/as.h>
+#include <bgp/bgp_assert.h>
 #include <bgp/filter.h>
 #include <bgp/filter_parser.h>
 #include <bgp/predicate_parser.h>
@@ -61,6 +62,42 @@ int cli_bgp_add_router(SCliContext * pContext, STokens * pTokens)
 			     as_handle_message)) {
     LOG_SEVERE("Error: could not register BGP protocol on node \"%s\"\n",
 	       pcNodeAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_assert_peerings ------------------------------------
+/**
+ * This function checks that all the BGP peerings defined in BGP
+ * instances are valid, i.e. the peer exists and is reachable.
+ */
+int cli_bgp_assert_peerings(SCliContext * pContext, STokens * pTokens)
+{
+  // Test the validity of peerings in all BGP instances
+  if (bgp_assert_peerings()) {
+    LOG_SEVERE("Error: peerings assertion failed.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_assert_reachability --------------------------------
+/**
+ * This function checks that all the BGP instances have at leat one
+ * BGP route towards all the advertised networks.
+ *
+ * context: {}
+ * tokens: {}
+ */
+int cli_bgp_assert_reachability(SCliContext * pContext, STokens * pTokens)
+{
+  // Test the reachability of all advertised networks from all BGP
+  // instances
+  if (bgp_assert_reachability()) {
+    LOG_SEVERE("Error: reachability assertion failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -600,6 +637,30 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_router_reset ---------------------------------------
+/**
+ * This function shuts down all the router's peerings then restart
+ * them.
+ *
+ * context: {router}
+ * tokens: {addr}
+ */
+int cli_bgp_router_reset(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Reset the router
+  if (bgp_router_reset(pRouter)) {
+    LOG_SEVERE("Error: reset failed.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_add_peer ------------------------------------
 /**
  * context: {router}
@@ -625,24 +686,66 @@ int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
 
 // ----- cli_bgp_router_add_network ---------------------------------
 /**
+ * This function adds a local network to the BGP instance.
+ *
  * context: {router}
  * tokens: {addr, prefix}
  */
 int cli_bgp_router_add_network(SCliContext * pContext, STokens * pTokens)
 {
-  SAS * pAS;
+  SBGPRouter * pRouter;
+  char * pcPrefix;
   SPrefix sPrefix;
   char * pcEndPtr;
 
-  /*LOG_DEBUG("bgp router %s add network %s\n",
-	    tokens_get_string_at(pTokens, 0),
-	    tokens_get_string_at(pTokens, 1));*/
-  pAS= (SAS *) cli_context_get_item_at_top(pContext);
-  if (ip_string_to_prefix(tokens_get_string_at(pTokens, 1),
-			  &pcEndPtr, &sPrefix) || (*pcEndPtr != '\0'))
+  // Get the BGP instance
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
+      (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
-  if (as_add_network(pAS, sPrefix))
+  }
+
+  // Add the network
+  if (as_add_network(pRouter, sPrefix))
     return CLI_ERROR_COMMAND_FAILED;
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_del_network ---------------------------------
+/**
+ * This function removes a previously added local network.
+ *
+ * context: {router}
+ * tokens: {addr, prefix}
+ */
+int cli_bgp_router_del_network(SCliContext * pContext,
+			       STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  SPrefix sPrefix;
+  char * pcEndPtr;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
+      (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Remove the network
+  if (bgp_router_del_network(pRouter, sPrefix))
+    return CLI_ERROR_COMMAND_FAILED;
+
   return CLI_SUCCESS;
 }
 
@@ -1180,6 +1283,21 @@ int cli_register_bgp_add(SCliCmds * pCmds)
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
 }
 
+// ----- cli_register_bgp_assert ------------------------------------
+int cli_register_bgp_assert(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+
+  cli_cmds_add(pSubCmds, cli_cmd_create("peerings-ok",
+					cli_bgp_assert_peerings,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("reachability-ok",
+					cli_bgp_assert_reachability,
+					NULL, NULL));
+  return cli_cmds_add(pCmds, cli_cmd_create("assert", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_bgp_topology ----------------------------------
 int cli_register_bgp_topology(SCliCmds * pCmds)
 {
@@ -1240,6 +1358,21 @@ int cli_register_bgp_router_add(SCliCmds * pCmds)
 					cli_bgp_router_add_qosnetwork,
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
+}
+
+// ----- cli_register_bgp_router_del --------------------------------
+int cli_register_bgp_router_del(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("network",
+					cli_bgp_router_del_network,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("del", NULL, pSubCmds, NULL));
 }
 
 // ----- cli_register_bgp_filter_rule -------------------------------
@@ -1526,12 +1659,16 @@ int cli_register_bgp_router(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   cli_register_bgp_router_add(pSubCmds);
+  cli_register_bgp_router_del(pSubCmds);
   cli_register_bgp_router_peer(pSubCmds);
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
 					cli_bgp_router_recordroute,
 					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("reset",
+					cli_bgp_router_reset,
+					NULL, NULL));
   cli_register_bgp_router_load(pSubCmds);
   cli_register_bgp_router_save(pSubCmds);
   cli_register_bgp_router_set(pSubCmds);
@@ -1554,6 +1691,7 @@ int cli_register_bgp(SCli * pCli)
 
   pCmds= cli_cmds_create();
   cli_register_bgp_add(pCmds);
+  cli_register_bgp_assert(pCmds);
   cli_register_bgp_options(pCmds);
   cli_register_bgp_topology(pCmds);
   cli_register_bgp_router(pCmds);

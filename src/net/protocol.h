@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 25/02/2004
+// @lastdate 09/03/2004
 // ==================================================================
 // Note: the number of supported protocols will often be low, so that
 // the list of protocols is implemented by a fixed-size array at this
@@ -20,12 +20,12 @@
 #include <net/message.h>
 
 // Maximum number of supported protocols
-#define NET_PROTOCOL_MAX  2
+#define NET_PROTOCOL_MAX  3
 
 // Protocol numbers
 #define NET_PROTOCOL_ICMP 0
 #define NET_PROTOCOL_BGP  1
-//#define NET_PROTOCOL_IPIP 2
+#define NET_PROTOCOL_IPIP 2
 
 // ----- FNetNodeHandleEvent -----
 typedef int (*FNetNodeHandleEvent)(void * pHandler,

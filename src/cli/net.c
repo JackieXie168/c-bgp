@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 05/03/2004
+// @lastdate 09/03/2004
 // ==================================================================
 
 #include <libgds/cli_ctx.h>
@@ -114,6 +114,27 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_net_link -----------------------------------
 void cli_ctx_destroy_net_link(void ** ppItem)
 {
+}
+
+// ----- cli_net_node_ipip_enable -----------------------------------
+/**
+ * context: {node}
+ * tokens: {addr}
+ */
+int cli_net_node_ipip_enable(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+
+  // Get node from context
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+
+  // Enabled IP-in-IP
+  if (node_ipip_enable(pNode)) {
+    LOG_SEVERE("Error: unexpected error.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
 }
 
 // ----- cli_net_node_spfprefix -------------------------------------
@@ -277,12 +298,14 @@ int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
-// ----- cli_net_node_staticroute -----------------------------------
+// ----- cli_net_node_route_add -------------------------------------
 /**
+ * This function adds a new static route to the given node.
+ *
  * context: {node}
  * tokens: {addr, prefix, next-hop, weight}
  */
-int cli_net_node_staticroute(SCliContext * pContext, STokens * pTokens)
+int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
 {
   SNetNode * pNode;
   char * pcEndChar;
@@ -324,6 +347,56 @@ int cli_net_node_staticroute(SCliContext * pContext, STokens * pTokens)
   if (node_rt_add_route(pNode, sPrefix, tNextHopAddr,
 			ulWeight, NET_ROUTE_STATIC)) {
     LOG_SEVERE("Error: could not add static route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_node_route_del -------------------------------------
+/**
+ * This function removes a static route from the given node.
+ *
+ * context: {node}
+ * tokens: {addr, prefix, next-hop, weight}
+ */
+int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+  char * pcEndChar;
+  char * pcPrefix;
+  SPrefix sPrefix;
+  char * pcNextHopAddr;
+  net_addr_t tNextHopAddr;
+  net_addr_t * pNextHopAddr= &tNextHopAddr;
+
+  // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+  
+  // Get the route's prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  // Get the next-hop's address
+  pcNextHopAddr= tokens_get_string_at(pTokens, 2);
+  if (!strcmp(pcNextHopAddr, "*")) {
+    pNextHopAddr= NULL;
+  } else if (ip_string_to_address(pcNextHopAddr, &pcEndChar, pNextHopAddr) ||
+	     (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid next-hop address \"%s\"\n",
+	       pcNextHopAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Remove the route
+  if (node_rt_del_route(pNode, sPrefix, pNextHopAddr, NET_ROUTE_STATIC)) {
+    LOG_SEVERE("Error: could not remove static route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -375,6 +448,39 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
 
   // Dump routing table
   node_rt_dump(stdout, pNode, sPrefix);
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_node_tunnel_add ------------------------------------
+/**
+ * context: {node}
+ * tokens: {addr, end-point}
+ */
+int cli_net_node_tunnel_add(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+  char * pcEndPointAddr;
+  net_addr_t tEndPointAddr;
+  char * pcEndChar;
+
+  // Get node from context
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+
+  // Get tunnel end-point
+  pcEndPointAddr= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_address(pcEndPointAddr, &pcEndChar, &tEndPointAddr) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid end-point address \"%s\"\n",
+	       pcEndPointAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Add tunnel
+  if (node_add_tunnel(pNode, tEndPointAddr)) {
+    LOG_SEVERE("Error: unexpected error\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
 
   return CLI_SUCCESS;
 }
@@ -442,6 +548,43 @@ int cli_register_net_node_show(SCliCmds * pCmds)
 					    pSubCmds, NULL));
 }
 
+// ----- cli_register_net_node_route --------------------------------
+void cli_register_net_node_route(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_params_add(pParams, "<weight>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("add",
+					cli_net_node_route_add,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("del",
+					cli_net_node_route_del,
+					NULL, pParams));
+  cli_cmds_add(pCmds, cli_cmd_create("route", NULL, pSubCmds, NULL));
+}
+
+// ----- cli_register_net_node_tunnel -------------------------------
+int cli_register_net_node_tunnel(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<end-point>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("add",
+					cli_net_node_tunnel_add,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("tunnel", NULL,
+					   pSubCmds, NULL));
+}
+
 // ----- cli_register_net_node --------------------------------------
 int cli_register_net_node(SCliCmds * pCmds)
 {
@@ -449,17 +592,14 @@ int cli_register_net_node(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  cli_register_net_node_route(pSubCmds);
+  cli_cmds_add(pSubCmds, cli_cmd_create("ipip-enable",
+					cli_net_node_ipip_enable,
+					NULL, NULL));
   pParams= cli_params_create();
   cli_params_add(pParams, "<address>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("ping",
 					cli_net_node_ping,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix>", NULL);
-  cli_params_add(pParams, "<next-hop>", NULL);
-  cli_params_add(pParams, "<weight>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("static-route",
-					cli_net_node_staticroute,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<address>", NULL);
@@ -472,6 +612,7 @@ int cli_register_net_node(SCliCmds * pCmds)
 					cli_net_node_spfprefix,
 					NULL, pParams));
   cli_register_net_node_show(pSubCmds);
+  cli_register_net_node_tunnel(pSubCmds);
   pParams= cli_params_create();
   cli_params_add(pParams, "<addr>", NULL);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("node",
