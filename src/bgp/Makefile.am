@@ -52,6 +52,8 @@ libbgp_la_SOURCES = \
 	route_list.c \
 	route_reflector.c \
 	route_reflector.h \
+	route_map.c \
+	route_map.h \
 	routes_list.c \
 	routes_list.h \
 	route_t.h \

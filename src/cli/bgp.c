@@ -1,7 +1,8 @@
 // ==================================================================
 // @(#)bgp.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author  Bruno Quoitin (bqu@info.ucl.ac.be), 
+//	    Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 15/07/2003
 // @lastdate 29/11/2004
 // ==================================================================
@@ -19,12 +20,13 @@
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 #include <bgp/rexford.h>
+#include <bgp/route_map.h>
+#include <bgp/tie_breaks.h>
 
 #ifdef HAVE_XML
 #include <bgp/xml_topology.h>
 #endif
 
-#include <bgp/tie_breaks.h>
 #include <cli/bgp.h>
 #include <cli/common.h>
 #include <cli/net.h>
@@ -45,7 +47,7 @@ int cli_bgp_add_router(SCliContext * pContext, STokens * pTokens)
 {
   char * pcNodeAddr;
   SNetNode * pNode;
-  SAS * pAS;
+  SBGPRouter * pRouter;
   unsigned int uASNum;
 
   // Find node
@@ -63,10 +65,10 @@ int cli_bgp_add_router(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  pAS= as_create(uASNum, pNode, 0);
+  pRouter= as_create(uASNum, pNode, 0);
 
   // Register BGP protocol into the node
-  if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pAS,
+  if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter,
 			     (FNetNodeHandlerDestroy) as_destroy,
 			     as_handle_message)) {
     LOG_SEVERE("Error: could not register BGP protocol on node \"%s\"\n",
@@ -279,6 +281,50 @@ int cli_bgp_topology_run(SCliContext * pContext, STokens * pTokens)
 {
   rexford_run();
   return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_create_bgp_route_map --------------------------------
+/**
+ * context: {} -> {&filter}
+ * tokens: {}
+ */
+int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
+{
+  char * pcRouteMapName, * pcToken;
+  SFilter ** ppFilter;
+
+  pcRouteMapName = pcToken = tokens_get_string_at(pContext->pTokens, 0);
+  
+  if (pcRouteMapName != NULL) {
+    if (route_map_get(pcRouteMapName) != NULL) {
+      LOG_SEVERE("Error: Route Map %s exists.\n", pcRouteMapName);
+      return CLI_ERROR_CTX_CREATE;
+    }
+    ppFilter = MALLOC(sizeof(SFilter *));
+    *ppFilter = filter_create();
+    pcRouteMapName = MALLOC(strlen(pcToken)+1);
+    strcpy(pcRouteMapName, pcToken);
+    route_map_add(pcRouteMapName, *ppFilter);
+    *ppItem = ppFilter;
+  } else {
+    LOG_SEVERE("Error: No Route Map name.\n");
+    return CLI_ERROR_CTX_CREATE;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_destroy_bgp_route_map -------------------------------
+/**
+ *
+ *
+ */
+void cli_ctx_destroy_bgp_route_map(void ** ppItem)
+{
+  SFilter ** ppFilter = (SFilter **)*ppItem;
+  
+  if (ppFilter != NULL)
+    FREE(ppFilter);
 }
 
 // ----- cli_ctx_create_bgp_router ----------------------------------
@@ -1289,6 +1335,34 @@ int cli_bgp_filter_show(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_route_map_filter_add --------------------------------
+/**
+ * context: {route-map name}
+ * tokens: {filter}
+ */
+int cli_bgp_route_map_filter_add(SCliContext * pContext, 
+				  STokens * pTokens)
+{
+  char * pcRouteMapName;
+  SFilterRule * pRule;
+  SFilter * pFilter= NULL;
+
+  pcRouteMapName = (char *) cli_context_get_item_at_top(pContext);
+  
+  if (filter_parser_rule(tokens_get_string_at(pTokens, 0), &pRule) != 
+      FILTER_PARSER_SUCCESS)
+    return CLI_ERROR_COMMAND_FAILED;
+  if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
+    pFilter = filter_create();
+    if (route_map_add(pcRouteMapName, pFilter) < 0) {
+      LOG_SEVERE("Error: could not add the route-map filter.\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+  filter_add_rule2(pFilter, pRule);
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_peer_infilter_set ---------------------------
 /**
  * context: {router, peer}
@@ -1807,6 +1881,19 @@ int cli_register_bgp_router_peer_filter(SCliCmds * pCmds)
 					 pSubCmds, pParams));
 }
 
+// ----- cli_register_route_map_filters ------------------------------
+/**
+ *
+ *
+ */
+int cli_register_bgp_route_map_filters(SCliCmds * pCmds)
+{
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("add-rule",
+					    cli_ctx_create_bgp_filter_add_rule,
+					    cli_ctx_destroy_bgp_filter_rule,
+					    cli_register_bgp_filter_rule(), NULL));
+}
+
 // ----- cli_register_bgp_router_peer_filters -----------------------
 int cli_register_bgp_router_peer_filters(SCliCmds * pCmds)
 {
@@ -1855,6 +1942,28 @@ int cli_register_bgp_router_peer_show(SCliCmds * pCmds)
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
+}
+
+// ----- bgp_route_map -----------------------------------------------
+/**
+ * route-map route_map_name 
+ * 
+ */
+int cli_register_bgp_route_map(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  cli_register_bgp_route_map_filters(pSubCmds);
+  
+  pParams=cli_params_create();
+  cli_params_add(pParams, "<route-map name>", NULL);
+
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("route-map", 
+					  cli_ctx_create_bgp_route_map, 
+					  cli_ctx_destroy_bgp_route_map,
+					  pSubCmds, pParams));
 }
 
 // ----- cli_register_bgp_router_peer -------------------------------
@@ -1936,6 +2045,8 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   return cli_cmds_add(pCmds, cli_cmd_create("options", NULL,
 					    pSubCmds, NULL));
 }
+
+
 
 // ----- cli_register_bgp_router_load -------------------------------
 int cli_register_bgp_router_load(SCliCmds * pCmds)
@@ -2093,6 +2204,7 @@ int cli_register_bgp(SCli * pCli)
   SCliCmds * pCmds;
 
   pCmds= cli_cmds_create();
+  cli_register_bgp_route_map(pCmds);
   cli_register_bgp_add(pCmds);
   cli_register_bgp_assert(pCmds);
   cli_register_bgp_options(pCmds);

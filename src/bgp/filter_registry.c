@@ -2,17 +2,21 @@
 // @(#)filter_registry.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+//	   Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 12/08/2004
+// @lastdate 15/12/2004
 // ==================================================================
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
+#include <libgds/regex.h>
+#include <libgds/hash.h>
 
 #include <bgp/comm.h>
 #include <bgp/ecomm.h>
 #include <bgp/filter.h>
 #include <bgp/filter_registry.h>
+#include <bgp/route_map.h>
 
 #include <string.h>
 
@@ -153,6 +157,64 @@ static int ft_cli_predicate_prefix_in(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+extern SHash * pHashPathExpr;
+extern SPtrArray * paPathExpr;
+// ----- ft_cli_predicate_path ---------------------------------------
+/**
+ *
+ *
+ */
+static int ft_cli_predicate_path (SCliContext * pContext, 
+				    STokens * pTokens)
+{
+  SFilterMatcher ** ppMatcher=
+    (SFilterMatcher **) cli_context_get(pContext);
+  int iPos = 0;
+  char * pcPattern;
+  SPathMatch * pFilterRegEx, * pHashFilterRegEx;
+
+  pcPattern= tokens_get_string_at(pTokens, 0);
+  if (pcPattern == NULL) {
+    LOG_SEVERE("Error: No Regular Expression.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  pFilterRegEx = MALLOC(sizeof(SPathMatch));
+  pFilterRegEx->pcPattern = MALLOC(strlen(pcPattern)+1);
+  strcpy(pFilterRegEx->pcPattern, pcPattern);
+  /* Try to find the expression in the hash table 
+   * if not found, insert it in the hash table and in the array.
+   * else the we have found the structure added in the hash table. 
+   * This structure contains the position in the array.
+   */
+  if ( (pHashFilterRegEx = hash_search(pHashPathExpr, pFilterRegEx)) == NULL) {
+    pHashFilterRegEx = pFilterRegEx;
+    if ( (pHashFilterRegEx->pRegEx = regex_init(pcPattern, 20)) == NULL) {
+      LOG_SEVERE("Error: Invalid Regular Expression : \"%s\"\n", pcPattern);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    if (hash_add(pHashPathExpr, pHashFilterRegEx) == -1) {
+      LOG_SEVERE("Error: Could'nt insert the path reg exp in the hash table\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    if ( (iPos = ptr_array_add(paPathExpr, &pHashFilterRegEx)) == -1) {
+      LOG_SEVERE("Error: Could not insert path reg exp in the array\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    pHashFilterRegEx->uArrayPos = iPos;
+  } else {
+    if (pFilterRegEx->pcPattern != NULL)
+      FREE(pFilterRegEx->pcPattern);
+    FREE(pFilterRegEx);
+    
+    iPos = pHashFilterRegEx->uArrayPos;
+  }
+
+  *ppMatcher= filter_match_path(iPos);
+
+  return CLI_SUCCESS;
+}
+
 /////////////////////////////////////////////////////////////////////
 // CLI PREDICATE REGISTRATION
 /////////////////////////////////////////////////////////////////////
@@ -202,6 +264,19 @@ static void ft_cli_register_predicate_prefix()
 					pSubCmds, NULL));
 }
 
+// ----- ft_cli_register_predicate_path ------------------------------
+static void ft_cli_register_predicate_path()
+{
+  SCli * pCli= ft_cli_predicate_get();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<path regular expression>", NULL);
+  cli_register_cmd(pCli, cli_cmd_create("path", 
+					    ft_cli_predicate_path, 
+					    NULL, pParams));
+}
+
 /////////////////////////////////////////////////////////////////////
 // CLI ACTION COMMANDS
 /////////////////////////////////////////////////////////////////////
@@ -226,6 +301,66 @@ int ft_cli_action_deny(SCliContext * pContext,
     (SFilterAction **) cli_context_get(pContext);
 
   *ppAction= filter_action_deny();
+
+  return CLI_SUCCESS;
+}
+
+// ----- ft_cli_action_jump -----------------------------------------
+/**
+ *
+ */
+int ft_cli_action_jump(SCliContext * pContext,
+			STokens * pTokens)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+  char * pcRouteMapName;
+  SFilter * pFilter;
+
+  if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
+    *ppAction= NULL;
+    LOG_SEVERE("Error: No Route Map name.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
+    *ppAction= NULL;
+    LOG_SEVERE("Error: No Route Map %s defined.\n", pcRouteMapName);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+
+  *ppAction= filter_action_jump(pFilter);
+
+  return CLI_SUCCESS;
+}
+
+// ----- ft_cli_action_call -----------------------------------------
+/**
+ *
+ *
+ */
+int ft_cli_action_call(SCliContext * pContext,
+			STokens * pTokens)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+  char * pcRouteMapName;
+  SFilter * pFilter;
+
+  if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
+    *ppAction= NULL;
+    LOG_SEVERE("Error: No Route Map name.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
+    *ppAction= NULL;
+    LOG_SEVERE("Error: No Route Map %s defined.\n", pcRouteMapName);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppAction= filter_action_call(pFilter);
 
   return CLI_SUCCESS;
 }
@@ -399,6 +534,40 @@ void ft_cli_register_action_local_pref()
 					NULL, pParams));
 }
 
+// ----- ft_cli_register_action_jump ---------------------------------
+/**
+ *
+ *
+ */
+void ft_cli_register_action_jump()
+{
+  SCli * pCli = ft_cli_action_get();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<route-map name>", NULL);
+  cli_register_cmd(pCli, cli_cmd_create("jump", 
+					ft_cli_action_jump,
+					NULL, pParams));
+}
+
+// ----- ft_cli_register_action_call ---------------------------------
+/**
+ *
+ *
+ */
+void ft_cli_register_action_call()
+{
+  SCli * pCli= ft_cli_action_get();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<route-map name>", NULL);
+  cli_register_cmd(pCli, cli_cmd_create("call", 
+					ft_cli_action_call,
+					NULL, pParams));
+}
+
 // ----- ft_cli_register_action_metric ------------------------------
 void ft_cli_register_action_metric()
 {
@@ -488,6 +657,7 @@ void _ft_registry_init()
   ft_cli_register_predicate_any();
   ft_cli_register_predicate_community();
   ft_cli_register_predicate_prefix();
+  ft_cli_register_predicate_path();
 
   // Register actions
   ft_cli_register_action_accept_deny();
@@ -496,6 +666,8 @@ void _ft_registry_init()
   ft_cli_register_action_as_path();
   ft_cli_register_action_community();
   ft_cli_register_action_red_community();
+  ft_cli_register_action_call();
+  ft_cli_register_action_jump();
 }
 
 // ----- _ft_registry_destroy -----------------------------------
