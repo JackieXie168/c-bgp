@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 13/08/2004
+// @lastdate 16/11/2004
 // ==================================================================
 
 #include <assert.h>
@@ -54,6 +54,7 @@ SFilterAction * filter_action_create(unsigned char uCode,
     (SFilterAction *) MALLOC(sizeof(SFilterAction)+uSize);
   pAction->uCode= uCode;
   pAction->uSize= uSize;
+  pAction->pNextAction= NULL;
   return pAction;
 }
 
@@ -63,8 +64,16 @@ SFilterAction * filter_action_create(unsigned char uCode,
  */
 void filter_action_destroy(SFilterAction ** ppAction)
 {
+  SFilterAction * pAction;
+  SFilterAction * pOldAction;
+
   if (*ppAction != NULL) {
-    FREE(*ppAction);
+    pAction= *ppAction;
+    while (pAction != NULL) {
+      pOldAction= pAction;
+      pAction= pAction->pNextAction;
+      FREE(pOldAction);
+    }
     *ppAction= NULL;
   }
 }
@@ -193,7 +202,7 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
 {
   SNetRouteInfo * pRouteInfo;
 
-  if (pAction != NULL) {
+  while (pAction != NULL) {
     switch (pAction->uCode) {
     case FT_ACTION_ACCEPT:
       return 1;
@@ -235,6 +244,7 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
     default:
       abort();
     }
+    pAction= pAction->pNextAction;
   }
   return 2;
 }

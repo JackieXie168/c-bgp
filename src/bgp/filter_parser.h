@@ -18,7 +18,9 @@
 // ----- filter_parser_rule -----------------------------------------
 extern int filter_parser_rule(char * pcRule, SFilterRule ** ppRule);
 // ----- filter_parser_run ------------------------------------------
+/*
 extern int filter_parser_run(char * pcScript, SFilter ** ppFilter);
+*/
 // ----- filter_parser_action ---------------------------------------
 extern int filter_parser_action(char * pcAction,
 				SFilterAction ** ppAction);
