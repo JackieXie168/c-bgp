@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 25/08/2004
+// @lastdate 30/09/2004
 // ==================================================================
 
 #include <assert.h>
@@ -86,6 +86,7 @@ SAS * as_create(uint16_t uNumber, SNetNode * pNode, uint32_t uTBID)
   pAS->fTieBreak= BGP_OPTIONS_TIE_BREAK;
   pAS->tClusterID= pNode->tAddr;
   pAS->iRouteReflector= 0;
+  pAS->pcName = NULL;
   return pAS;
 }
 
@@ -106,9 +107,31 @@ void as_destroy(SAS ** ppAS)
       route_destroy((SRoute **) &(*ppAS)->pLocalNetworks->data[iIndex]);
     }
     ptr_array_destroy(&(*ppAS)->pLocalNetworks);
+    if ((*ppAS)->pcName)
+      FREE((*ppAS)->pcName);
     FREE(*ppAS);
     *ppAS= NULL;
   }
+}
+
+// ----- as_add_name -------------------------------------------------
+/**
+ *
+ *
+ */
+void as_add_name(SBGPRouter * pRouter, char * pcName)
+{
+  pRouter->pcName = pcName;
+}
+
+// ----- as_get_name -------------------------------------------------
+/**
+ *
+ *
+ */
+char * as_get_name(SBGPRouter * pRouter)
+{
+  return pRouter->pcName;
 }
 
 // ----- as_find_peer -----------------------------------------------
@@ -393,13 +416,12 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
     LOG_DEBUG("RR-filtered(cluster-loop)\n");
     return -1;
   }
-  
+
   // Copy the route. This is required since subsequent filters may
   // alter the route's attribute !!
   route_copy_count++;
   pNewRoute= route_copy(pRoute);
-  
-  
+
   if ((pAS->iRouteReflector) && (!iExternalSession)) {
     // Route-Reflection: update Originator field
     if (route_originator_get(pNewRoute, NULL) == -1)
@@ -409,7 +431,7 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
 	(!peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))
       route_cluster_list_append(pNewRoute, pAS->tClusterID);
   }
-  
+
   if ((pAS->iRouteReflector) && (!iLocalRoute) &&
       (!iExternalRoute) && (!iExternalSession)) {
     // Route-reflectors: do not redistribute a route from a client peer
@@ -424,6 +446,7 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
 	}
       }
     }
+
     // Route-reflectors: do not redistribute a route from a non-client
     // peer to non-client peers (becoz non-client peers MUST be fully
     // meshed)
@@ -435,18 +458,18 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
       }
     }
   }
-  
+
   // Check output filter and redistribution communities
   if (as_ecomm_red_process(pPeer, pNewRoute)) {
-    
+
     route_ecomm_strip_non_transitive(pNewRoute);
 
     // Discard MED if advertising to an external peer
     if (iExternalSession)
       route_med_clear(pNewRoute);
-    
+
     if (filter_apply(pPeer->pOutFilter, pAS, pNewRoute)) {
-      
+
       // Change the route's next-hop to this router
       // - if advertisement from an external peer
       // - if the 'next-hop-self' option is set for this peer
@@ -459,7 +482,7 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
 	   (!pAS->iRouteReflector || iExternalRoute))) {
 	route_nexthop_set(pNewRoute, pAS->pNode->tAddr);
       }
-      
+
       // Append AS-Number if external peer (eBGP session)
       if (iExternalSession)
 	route_path_append(pNewRoute, pAS->uNumber);
