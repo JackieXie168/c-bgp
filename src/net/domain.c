@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 16/09/2004
-// @lastdate 27/01/2005
+// @lastdate 14/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,7 +17,7 @@
 #include <libgds/memory.h>
 #include <net/domain.h>
 
-// ----- domain_create -----------------------------------------------
+// ----- net_domain_create ------------------------------------------
 /**
  *
  *

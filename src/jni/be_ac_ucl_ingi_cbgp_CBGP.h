@@ -185,6 +185,14 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpDomainRescan
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    simRun
  * Signature: ()I
  */
