@@ -51,7 +51,7 @@ if test "x$gds_ok" != "xyes"; then
 else
    # Check for headers
    AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
-   if test "x$gds_ok" != "xyes"; then
+   if test "x$gds_header_ok" != "xyes"; then
       AC_MSG_ERROR([libgds headers are needed to compile cbgp])
    fi
    # Check 'mem_flag_set' function

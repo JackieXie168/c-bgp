@@ -18,6 +18,7 @@
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 #include <bgp/rexford.h>
+#include <bgp/xml_topology.h>
 #include <bgp/tie_breaks.h>
 #include <cli/bgp.h>
 #include <cli/common.h>
@@ -115,6 +116,30 @@ int cli_bgp_assert_reachability(SCliContext * pContext, STokens * pTokens)
 int cli_bgp_topology_load(SCliContext * pContext, STokens * pTokens)
 {
   if (rexford_load(tokens_get_string_at(pTokens, 0), network_get()))
+    return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
+
+// ------ cli_bgp_xml_topology_load ---------------------------------
+/**
+ * context: {}
+ * tokens: {file}
+ */
+int cli_bgp_xml_topology_load(SCliContext * pContext, STokens * pTokens)
+{
+  if (xml_topology_load(tokens_get_string_at(pTokens, 0), network_get()))
+    return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_xml_topology_dump ----------------------------------
+/**
+ * context: {}
+ * tokens: {file}
+ */
+int cli_bgp_xml_topology_dump(SCliContext * pContext, STokens * pTokens)
+{
+  if (xml_topology_dump(network_get(), tokens_get_string_at(pTokens, 0)))
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
@@ -1559,7 +1584,7 @@ int cli_register_bgp_assert(SCliCmds * pCmds)
 int cli_register_bgp_topology(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  SCliParams * pParams, * pParams1, * pParams2;
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
@@ -1570,6 +1595,16 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("policies",
 					cli_bgp_topology_policies,
 					NULL, NULL));
+  pParams1 = cli_params_create();
+  cli_params_add(pParams1, "<file>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("xml-load", 
+					cli_bgp_xml_topology_load,
+					NULL, pParams1));
+  pParams2 = cli_params_create();
+  cli_params_add(pParams2, "<file>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("xml-dump",
+					cli_bgp_xml_topology_dump,
+					NULL, pParams2));
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<input>", NULL);

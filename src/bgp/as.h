@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 13/08/2004
+// @lastdate 30/09/2004
 // ==================================================================
 
 #ifndef __AS_H__
@@ -55,6 +55,10 @@ extern SAS * as_create(uint16_t uNumber, SNetNode * pNode,
 		       uint32_t uTBID);
 // ----- as_destroy -------------------------------------------------
 extern void as_destroy(SAS ** ppAS);
+// ----- as_add_name ------------------------------------------------
+void as_add_name(SBGPRouter * pRouter, char * pcName);
+// ----- as_get_name ------------------------------------------------
+char * as_get_name(SBGPRouter * pRouter);
 // ----- as_add_peer ------------------------------------------------
 extern int as_add_peer(SAS * pAS, uint16_t uRemoteAS,
 		       net_addr_t tAddr, uint8_t uPeerType);

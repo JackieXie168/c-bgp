@@ -5,6 +5,8 @@ INCLUDES = -I..
 libnet_la_SOURCES = \
 	dijkstra.c \
 	dijkstra.h \
+	domain.c \
+	domain.h \
 	icmp.c \
 	icmp.h \
 	igp.c \
@@ -24,6 +26,6 @@ libnet_la_SOURCES = \
 	protocol.c \
 	protocol.h \
 	routing.c \
-	routing.h
+	routing.h 
 
 AM_CFLAGS = -Wall -Werror -O2

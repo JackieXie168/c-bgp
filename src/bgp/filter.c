@@ -17,28 +17,6 @@
 #include <bgp/filter.h>
 #include <net/network.h>
 
-// Matcher codes
-#define FT_MATCH_OP_AND        1
-#define FT_MATCH_OP_OR         2
-#define FT_MATCH_OP_NOT        3
-#define FT_MATCH_COMM_CONTAINS 10
-#define FT_MATCH_PATH_CONTAINS 20
-#define FT_MATCH_PREFIX_EQUALS 30
-#define FT_MATCH_PREFIX_IN     31
-
-// Action codes
-#define FT_ACTION_ACCEPT          1
-#define FT_ACTION_DENY            2
-#define FT_ACTION_COMM_APPEND     10
-#define FT_ACTION_COMM_STRIP      11
-#define FT_ACTION_COMM_REMOVE     12
-#define FT_ACTION_PATH_APPEND     20
-#define FT_ACTION_PATH_PREPEND    21
-#define FT_ACTION_PREF_SET        30
-#define FT_ACTION_ECOMM_APPEND    40
-#define FT_ACTION_METRIC_SET      50
-#define FT_ACTION_METRIC_INTERNAL 51
-
 // ----- filter_matcher_create --------------------------------------
 /**
  *
