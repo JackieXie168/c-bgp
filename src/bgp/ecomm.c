@@ -1,14 +1,10 @@
 // ==================================================================
 // @(#)ecomm.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
 // @date 02/12/2002
-// @lastdate 27/01/2005
+// @lastdate 23/05/2003
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -203,37 +199,14 @@ void ecomm_red_dump(FILE * pStream, SECommunity * pComm)
 
 // ----- ecomm_val_dump ---------------------------------------------
 /**
- * Dump an extended community.
+ *
  */
-void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
-		    int iText)
+void ecomm_val_dump(FILE * pStream, SECommunity * pComm)
 {
-  uint32_t tValue;
-
-  /* If the extended community must be interpreted, a text value will
-     be written. Otherwise, a numeric value will be written. */
-  if (iText == ECOMM_DUMP_TEXT) {
-    switch (pComm->uTypeHigh) {
-    case ECOMM_RED: ecomm_red_dump(pStream, pComm); break;
-#ifdef __EXPERIMENTAL__
-    case ECOMM_PREF: ecomm_pref_dump(pStream, pComm); break;
-#endif
-    default:
-      fprintf(pStream, "???");
-    }
-  } else {
-    tValue= ((((((((((pComm->uIANAAuthority << 1) +
-		     pComm->uTransitive) << 1) +
-		   pComm->uTypeHigh) << 6) +
-		 pComm->uTypeLow) << 8) +
-	       pComm->auValue[0]) << 8) +
-	     pComm->auValue[1]);
-    fprintf(pStream, "%u:", tValue);
-    tValue= (((((((pComm->auValue[2]) << 8) +
-		 pComm->auValue[3]) << 8) +
-	       pComm->auValue[4]) << 8) +
-	     pComm->auValue[5]);
-    fprintf(pStream, "%u", tValue);
+  switch (pComm->uTypeHigh) {
+  case ECOMM_RED: ecomm_red_dump(pStream, pComm); break;
+  default:
+    fprintf(pStream, "???");
   }
 }
 
@@ -241,15 +214,14 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
 /**
  *
  */
-void ecomm_dump(FILE * pStream, SECommunities * pComms,
-		int iText)
+void ecomm_dump(FILE * pStream, SECommunities * pComms)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < pComms->uNum; iIndex++) {
     if (iIndex > 0)
       fprintf(pStream, " ");
-    ecomm_val_dump(pStream, &pComms->asComms[iIndex], iText);
+    ecomm_val_dump(pStream, &pComms->asComms[iIndex]);
   }
 }
 
@@ -262,8 +234,6 @@ int ecomm_equals(SECommunities * pCommunities1,
 {
   if (pCommunities1 == pCommunities2)
     return 1;
-  if ((pCommunities1 == NULL) || (pCommunities2 == NULL))
-     return 0;
   if (pCommunities1->uNum != pCommunities2->uNum)
     return 0;
   return (memcmp(pCommunities1->asComms,
@@ -313,45 +283,3 @@ int ecomm_red_match(SECommunity * pComm, SPeer * pPeer)
   }
   return 0;
 }
-
-#ifdef __EXPERIMENTAL__
-// ----- ecomm_pref_create ------------------------------------------
-/**
- *
- */
-SECommunity * ecomm_pref_create(uint32_t uPref)
-{
-  SECommunity * pComm= ecomm_val_create(0, 0);
-  pComm->uTypeHigh= ECOMM_PREF;
-  pComm->uTypeLow= 0;
-  pComm->auValue[0]= 0;
-  memcpy(&pComm->auValue[1], &uPref, sizeof(uPref));
-  return pComm;  
-}
-
-// ----- ecomm_pref_dump --------------------------------------------
-/**
- *
- */
-void ecomm_pref_dump(FILE * pStream, SECommunity * pComm)
-{
-  uint32_t uPref;
-
-  fprintf(pStream, "pref ");
-  memcpy(&uPref, &pComm->auValue[1], sizeof(uPref));
-  fprintf(pStream, "%u", uPref);
-}
-
-// ----- ecomm_pref_get ---------------------------------------------
-/**
- *
- */
-uint32_t ecomm_pref_get(SECommunity * pComm)
-{
-  uint32_t uPref;
-
-  memcpy(&uPref, &pComm->auValue[1], sizeof(uPref));
-  return uPref;
-}
-
-#endif

@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 31/01/2005
+// @lastdate 13/08/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <string.h>
@@ -482,25 +478,9 @@ SRoute * route_copy(SRoute * pRoute)
 
 // ----- route_dump -------------------------------------------------
 /**
- * Dump a BGP route.
- */
-void route_dump(FILE * pStream, SRoute * pRoute)
-{
-  switch (BGP_OPTIONS_SHOW_MODE) {
-  case ROUTE_SHOW_MRT:
-    route_dump_mrt(pStream, pRoute);
-    break;
-  case ROUTE_SHOW_CISCO:
-  default:
-    route_dump_cisco(pStream, pRoute);
-  }
-}
-
-// ----- route_dump_cisco -------------------------------------------
-/**
  * CISCO-like dump of routes.
  */
-void route_dump_cisco(FILE * pStream, SRoute * pRoute)
+void route_dump(FILE * pStream, SRoute * pRoute)
 {
   if (pRoute != NULL) {
 
@@ -544,108 +524,6 @@ void route_dump_cisco(FILE * pStream, SRoute * pRoute)
 
   } else
     fprintf(pStream, "(null)");
-}
-
-// ----- route_dump_mrt --------------------------------------------
-/**
- * Dump a route in MRTD format. The output has thus the following
- * format:
- *
- *   <best>|<peer-IP>|<peer-AS>|<prefix>|<AS-path>|<origin>|
- *   <next-hop>|<local-pref>|<med>|<comm>|<ext-comm>|
- *
- * where <best> is "B" if the route is marked as best and "?"
- * otherwize. Note that the <ext-comm> and <delay> fields are not
- * standard MRTD fields.
- *
- * Additional fields are dumped which are not standard:
- *
- *   <delay>|<delay-mean>|<delay-weight>|
- *   <bandwidth>|<bandwidth-mean>|<bandwidth-weight>
- *
- */
-void route_dump_mrt(FILE * pStream, SRoute * pRoute)
-{
-  if (pRoute == NULL) {
-    fprintf(pStream, "null");
-  } else {
-
-    /* BEST flag: in MRT's route_btoa, table dumps only contain best
-       routes, so that a "B" is written. In our case, when dumping an
-       Adj-RIB-In, non-best routes might exist. For these routes, a
-       "_" is written. */
-    if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
-      fprintf(pStream, "B|");
-    } else {
-      fprintf(pStream, "_|");
-    }
-
-    /* Peer-IP: if the route is local, the keyword LOCAL is written in
-       place of the peer's IP address and AS number. */
-    if (pRoute->pPeer != NULL) {
-      ip_address_dump(pStream, route_peer_get(pRoute)->tAddr);
-      // Peer-AS
-      fprintf(pStream, "|%u|", route_peer_get(pRoute)->uRemoteAS);
-    } else {
-      fprintf(pStream, "LOCAL|LOCAL|");
-    }
-
-    /* Prefix */
-    ip_prefix_dump(pStream, pRoute->sPrefix);
-    fprintf(pStream, "|");
-
-    /* AS-Path */
-    path_dump(pStream, pRoute->pASPath, 1);
-    fprintf(pStream, "|");
-
-    /* Origin */
-    switch (pRoute->uOriginType) {
-    case ROUTE_ORIGIN_IGP: fprintf(pStream, "IGP"); break;
-    case ROUTE_ORIGIN_EGP: fprintf(pStream, "EGP"); break;
-    case ROUTE_ORIGIN_INCOMPLETE: fprintf(pStream, "INCOMPLETE"); break;
-    default:
-      fprintf(pStream, "???");
-    }
-    fprintf(pStream, "|");
-
-    /* Next-Hop */
-    ip_address_dump(pStream, pRoute->tNextHop);
-
-    /* Local-Pref */
-    fprintf(pStream, "|%u|", pRoute->uLocalPref);
-
-    /* Multi-Exit-Discriminator */
-    if (pRoute->uMED != ROUTE_MED_MISSING)
-      fprintf(pStream, "%u|", pRoute->uMED);
-    else
-      fprintf(pStream, "|");
-
-    /* Communities: written as numeric values */
-    if (pRoute->pCommunities != NULL)
-      comm_dump(pStream, pRoute->pCommunities, COMM_DUMP_RAW);
-    fprintf(pStream, "|");
-
-    /* Extended-Communities: written as numeric values */
-    if (pRoute->pECommunities != NULL)
-      ecomm_dump(pStream, pRoute->pECommunities, ECOMM_DUMP_RAW);
-    fprintf(pStream, "|");
-
-    /*
-    // QoS Delay
-    fprintf(pStream, "%u|%u|%u|", pRoute->tDelay.tDelay,
-	    pRoute->tDelay.tMean, pRoute->tDelay.uWeight);
-    // QoS Bandwidth
-    fprintf(pStream, "%u|%u|%u|", pRoute->tBandwidth.uBandwidth,
-	    pRoute->tBandwidth.uMean, pRoute->tBandwidth.uWeight);
-    // Route-reflectors: Originator
-    if (pRoute->pOriginator != NULL)
-      ip_address_dump(pStream, *pRoute->pOriginator);
-    fprintf(pStream, "|");
-    if (pRoute->pClusterList != NULL)
-      cluster_list_dump(pStream, pRoute->pClusterList);
-    fprintf(pStream, "|");
-    */
-  }
 }
 
 // ----- route_dump_string ------------------------------------------
@@ -714,6 +592,92 @@ char * route_dump_string(SRoute * pRoute)
     strcpy(cDump, "(null)");
 
   return cDump;
+}
+
+// ----- route_dump_mrtd --------------------------------------------
+/**
+ * Dump a route in MRTD format. The output has thus the following
+ * format:
+ *
+ *   <best>|<peer-IP>|<peer-AS>|<prefix>|<AS-path>|<origin>|
+ *   <next-hop>|<local-pref>|<med>|<comm>|<ext-comm>|
+ *
+ * where <best> is "B" if the route is marked as best and "?"
+ * otherwize. Note that the <ext-comm> and <delay> fields are not
+ * standard MRTD fields.
+ *
+ * Additional fields are dumped which are not standard:
+ *
+ *   <delay>|<delay-mean>|<delay-weight>|
+ *   <bandwidth>|<bandwidth-mean>|<bandwidth-weight>
+ *
+ */
+void route_dump_mrtd(FILE * pStream, SRoute * pRoute)
+{
+  if (pRoute == NULL) {
+    fprintf(pStream, "null");
+  } else {
+    // BEST flag
+    if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) 
+      fprintf(pStream, "B|");
+    else
+      fprintf(pStream, "?|");
+    // Peer-IP
+    if (pRoute->pPeer != NULL) {
+      ip_address_dump(pStream, route_peer_get(pRoute)->tAddr);
+      // Peer-AS
+      fprintf(pStream, "|%u|", route_peer_get(pRoute)->uRemoteAS);
+    } else
+      fprintf(pStream, "LOCAL|LOCAL|");
+    // Prefix
+    ip_prefix_dump(pStream, pRoute->sPrefix);
+    fprintf(pStream, "|");
+    // AS-Path
+    path_dump(pStream, pRoute->pASPath, 1);
+    fprintf(pStream, "|");
+    // Origin
+    switch (pRoute->uOriginType) {
+    case ROUTE_ORIGIN_IGP: fprintf(pStream, "IGP"); break;
+    case ROUTE_ORIGIN_EGP: fprintf(pStream, "EGP"); break;
+    case ROUTE_ORIGIN_INCOMPLETE: fprintf(pStream, "INCOMPLETE"); break;
+    default:
+      fprintf(pStream, "???");
+    }
+    fprintf(pStream, "|");
+    // Next-Hop
+    ip_address_dump(pStream, pRoute->tNextHop);
+    // Local-Pref
+    fprintf(pStream, "|%u|", pRoute->uLocalPref);
+    // Multi-Exit-Discriminator
+    if (pRoute->uMED != ROUTE_MED_MISSING)
+      fprintf(pStream, "%u|", pRoute->uMED);
+    else
+      fprintf(pStream, "|");
+    // Communities
+    if (pRoute->pCommunities != NULL)
+      comm_dump(pStream, pRoute->pCommunities);
+    fprintf(pStream, "|");
+    // Extended-Communities
+    if (pRoute->pECommunities != NULL)
+      ecomm_dump(pStream, pRoute->pECommunities);
+    fprintf(pStream, "|");
+
+    /*
+    // QoS Delay
+    fprintf(pStream, "%u|%u|%u|", pRoute->tDelay.tDelay,
+	    pRoute->tDelay.tMean, pRoute->tDelay.uWeight);
+    // QoS Bandwidth
+    fprintf(pStream, "%u|%u|%u|", pRoute->tBandwidth.uBandwidth,
+	    pRoute->tBandwidth.uMean, pRoute->tBandwidth.uWeight);
+    // Route-reflectors: Originator
+    if (pRoute->pOriginator != NULL)
+      ip_address_dump(pStream, *pRoute->pOriginator);
+    fprintf(pStream, "|");
+    if (pRoute->pClusterList != NULL)
+      cluster_list_dump(pStream, pRoute->pClusterList);
+    fprintf(pStream, "|");
+    */
+  }
 }
 
 // ----- route_equals -----------------------------------------------

@@ -2,28 +2,25 @@
 // @(#)xml_topology.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/09/2003
-// @lastdate 12/02/2005
+// @lastdate 30/09/2004
 // ==================================================================
 
 //TODO :  1) spf-prefix has to be done !
 //	  2) peer up has to be done !
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#ifdef HAVE_XML
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 
+#include <libgds/xml.h>
 #include <libgds/log.h>
 #include <libgds/fifo.h>
 #include <libgds/array.h>
 #include <libgds/radix-tree.h>
-#include <libgds/xml.h>
 
 #include <bgp/xml_topology.h>
 #include <bgp/filter.h>
@@ -37,8 +34,6 @@
 #include <net/protocol.h>
 #include <net/domain.h>
 #include <net/network.h>
-
-#ifdef HAVE_XML
 
 // ----- xml_parse_node_add ------------------------------------------
 /**
@@ -401,10 +396,10 @@ SBGPRouter * xml_parse_bgp_router_add(SNetwork * pNetwork, char * pcName,
     LOG_DEBUG("xml_parse_retrieve_node_info> can't convert string to ip address : %s.\n", pcAddr);
 
   pNode = network_find_node(pNetwork, ipAddr);
-  pRouter= bgp_router_create (ASID, pNode, 0);
+  pRouter = as_create (ASID, pNode, 0);
   as_add_name(pRouter, strdup(pcName));
   assert(!node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
-			  (FNetNodeHandlerDestroy) bgp_router_destroy, 
+			  (FNetNodeHandlerDestroy) as_destroy, 
 			  as_handle_message));
   return pRouter;
 }

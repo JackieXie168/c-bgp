@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 12/02/2005
+// @lastdate 26/04/2004
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
@@ -37,7 +37,7 @@
 #define PREF_CUST 100
 
 // ----- rexford_get_as ---------------------------------------------
-extern SBGPRouter * rexford_get_as(uint16_t uASNum);
+extern SAS * rexford_get_as(uint16_t uASNum);
 // ----- rexford_load -----------------------------------------------
 extern int rexford_load(char * pcFileName, SNetwork * pNetwork);
 // ----- rexford_setup_policies -------------------------------------
@@ -51,9 +51,7 @@ extern int rexford_record_route(FILE * pStream, char * pcFileName,
 extern int rexford_record_route_bm(FILE * pStream, char * pcFileName,
 				   SPrefix sPrefix, uint8_t uBound);
 // ----- rexford_route_dp_rule --------------------------------------
-/*
 extern int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix);
-*/
 
 #endif
 

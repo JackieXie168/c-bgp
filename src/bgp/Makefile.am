@@ -16,8 +16,6 @@ libbgp_la_SOURCES = \
 	comm_t.h \
 	dp_rules.c \
 	dp_rules.h \
-	domain.c \
-	domain.h \
 	ecomm.c \
 	ecomm.h \
 	ecomm_t.h \
@@ -54,8 +52,6 @@ libbgp_la_SOURCES = \
 	route_list.c \
 	route_reflector.c \
 	route_reflector.h \
-	route_map.c \
-	route_map.h \
 	routes_list.c \
 	routes_list.h \
 	route_t.h \
@@ -64,12 +60,6 @@ libbgp_la_SOURCES = \
 	tie_breaks.h \
 	xml_topology.c \
 	xml_topology.h
-# Compile experimental features ?
-if WITH_EXPERIMENTAL
-  OPT_EXPERIMENTAL = -D__EXPERIMENTAL__
-else
-  OPT_EXPERIMENTAL =
-endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL)
+AM_CFLAGS = -Wall -Werror -O2
 

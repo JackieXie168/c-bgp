@@ -209,14 +209,6 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    loadMRT
- * Signature: (Ljava/lang/String;)Ljava/util/Vector;
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
-  (JNIEnv *, jobject, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    simRun
  * Signature: ()I
  */

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 25/02/2005
+// @lastdate 12/08/2004
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -12,16 +12,12 @@
 #include <stdio.h>
 
 #include <libgds/sequence.h>
-#include <libgds/hash.h>
-#include <libgds/array.h>
 
 #include <bgp/as_t.h>
 #include <bgp/comm_t.h>
 #include <bgp/ecomm_t.h>
 #include <bgp/filter_t.h>
 #include <bgp/route_t.h>
-
-#include <util/regex.h>
 
 // Matcher codes
 #define FT_MATCH_OP_AND        1
@@ -31,7 +27,6 @@
 #define FT_MATCH_PATH_CONTAINS 20
 #define FT_MATCH_PREFIX_EQUALS 30
 #define FT_MATCH_PREFIX_IN     31
-#define FT_MATCH_AS_PATH       40
 
 // Action codes
 #define FT_ACTION_ACCEPT          1
@@ -45,8 +40,6 @@
 #define FT_ACTION_ECOMM_APPEND    40
 #define FT_ACTION_METRIC_SET      50
 #define FT_ACTION_METRIC_INTERNAL 51
-#define FT_ACTION_JUMP		  60
-#define FT_ACTION_CALL		  61
 
 
 #define FTM_AND(fm1, fm2) filter_match_and(fm1, fm2)
@@ -56,17 +49,6 @@
 #define FTA_ACCEPT filter_action_accept()
 #define FTA_DENY filter_action_deny()
 
-typedef struct {
-  char * pcPattern;
-  SRegEx * pRegEx;
-  uint32_t uArrayPos;
-}SPathMatch;
-
-
-// ----- filter_path_regex_init --------------------------------------
-void filter_path_regex_init();
-// ----- filter_path_regex_finalize ----------------------------------
-void filter_path_regex_finalize();
 // ----- filter_rule_create -----------------------------------------
 extern SFilterRule * filter_rule_create(SFilterMatcher * pMatcher,
 					SFilterAction * pAction);
@@ -91,16 +73,8 @@ extern int filter_insert_rule(SFilter * pFilter, unsigned int uIndex,
 // ----- filter_remove_rule -----------------------------------------
 extern int filter_remove_rule(SFilter * pFilter, unsigned int uIndex);
 // ----- filter_apply -----------------------------------------------
-extern int filter_apply(SFilter * pFilter, SBGPRouter * pRouter,
+extern int filter_apply(SFilter * pFilter, SAS * pAS,
 			SRoute * pRoute);
-// ----- filter_matcher_apply ---------------------------------------
-extern int filter_matcher_apply(SFilterMatcher * pMatcher,
-				SBGPRouter * pRouter,
-				SRoute * pRoute);
-// ----- filter_action_apply ----------------------------------------
-extern int filter_action_apply(SFilterAction * pAction,
-			       SBGPRouter * pRouter,
-			       SRoute * pRoute);
 // ----- filter_match_and -------------------------------------------
 extern SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,
 					 SFilterMatcher * pMatcher2);
@@ -115,16 +89,10 @@ extern SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity);
 extern SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
 // ----- filter_match_prefix_in -------------------------------------
 extern SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix);
-// ----- filter_math_path -------------------------------------------
-SFilterMatcher * filter_match_path(int iArrayPathRegExPos);
 // ----- filter_action_accept ---------------------------------------
 extern SFilterAction * filter_action_accept();
 // ----- filter_action_deny -----------------------------------------
 extern SFilterAction * filter_action_deny();
-// ----- filter_action_jump ------------------------------------------
-SFilterAction * filter_action_jump(SFilter * pFilter);
-// ----- filter_action_call ------------------------------------------
-SFilterAction * filter_action_call(SFilter * pFilter);
 // ----- filter_action_pref_set -------------------------------------
 extern SFilterAction * filter_action_pref_set(uint32_t uPref);
 // ----- filter_action_metric_set -----------------------------------
@@ -133,8 +101,6 @@ extern SFilterAction * filter_action_metric_set(uint32_t uMetric);
 extern SFilterAction * filter_action_metric_internal();
 // ----- filter_action_comm_append ----------------------------------
 extern SFilterAction * filter_action_comm_append(comm_t uCommunity);
-// ----- filter_action_comm_remove ----------------------------------
-extern SFilterAction * filter_action_comm_remove(comm_t uCommunity);
 // ----- filter_action_comm_strip -----------------------------------
 extern SFilterAction * filter_action_comm_strip();
 // ----- filter_action_ecomm_append ---------------------------------

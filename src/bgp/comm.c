@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 25/02/2005
+// @lastdate 22/11/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -68,8 +64,6 @@ int comm_equals(SCommunities * pCommunities1, SCommunities * pCommunities2)
 {
   if (pCommunities1 == pCommunities2)
     return 1;
-  if ((pCommunities1 == NULL) || (pCommunities2 == NULL))
-    return 0;
   if (pCommunities1->iSize != pCommunities2->iSize)
     return 0;
   return (memcmp(pCommunities1->ppItems,
@@ -90,10 +84,6 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
     *pCommunity= COMM_NO_EXPORT;
   } else if (!strcmp(pcComm, "no-advertise")) {
     *pCommunity= COMM_NO_ADVERTISE;
-#ifdef __EXPERIMENTAL__
-  } else if (!strcmp(pcComm, "depref")) {
-    *pCommunity= COMM_DEPREF;
-#endif
   } else {
     *pCommunity= 0;
     ulComm= strtoul(pcComm, &pcComm2, 0);
@@ -116,22 +106,17 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
 /**
  *
  */
-void comm_dump2(FILE * pStream, comm_t tCommunity, int iText)
+void comm_dump2(FILE * pStream, comm_t tCommunity)
 {
-  if (iText == COMM_DUMP_TEXT) {
-    switch (tCommunity) {
-    case COMM_NO_EXPORT:
-      fprintf(pStream, "no-export");
-      break;
-    case COMM_NO_ADVERTISE:
-      fprintf(pStream, "no-advertise");
-      break;
-    default:
-      fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
-    }
-  } else {
+  switch (tCommunity) {
+  case COMM_NO_EXPORT:
+    fprintf(pStream, "no-export");
+    break;
+  case COMM_NO_ADVERTISE:
+    fprintf(pStream, "no-advertise");
+    break;
+  default:
     fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
-    //fprintf(pStream, "%u", tCommunity);
   }
 }
 
@@ -139,8 +124,7 @@ void comm_dump2(FILE * pStream, comm_t tCommunity, int iText)
 /*
  *
  */
-void comm_dump(FILE * pStream, SCommunities * pCommunities,
-	       int iText)
+void comm_dump(FILE * pStream, SCommunities * pCommunities)
 {
   int iIndex;
   comm_t uCommunity;
@@ -149,7 +133,7 @@ void comm_dump(FILE * pStream, SCommunities * pCommunities,
     if (iIndex > 0)
       fprintf(pStream, " ");
     uCommunity= (uint32_t) pCommunities->ppItems[iIndex];
-    comm_dump2(pStream, uCommunity, iText);
+    comm_dump2(pStream, uCommunity);
   }
 }
 

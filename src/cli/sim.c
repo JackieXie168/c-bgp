@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 27/01/2005
+// @lastdate 26/11/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <cli/common.h>
 #include <cli/sim.h>
@@ -50,14 +46,6 @@ void cli_sim_event_destroy(void * pContext)
   str_destroy(&pCharContext);
 }
 
-// ----- cli_sim_event_dump -----------------------------------------
-void cli_sim_event_dump(FILE * pStream, void * pContext)
-{
-  char * pcCommand= (char *) pContext;
-
-  fprintf(pStream, "cli-event [%s]\n", pcCommand);
-}
-
 // ----- cli_sim_event ----------------------------------------------
 /**
  * context: {}
@@ -70,7 +58,6 @@ int cli_sim_event(SCliContext * pContext, STokens * pTokens)
   if (tokens_get_double_at(pTokens, 0, &dTime))
     return CLI_ERROR_COMMAND_FAILED;
   simulator_post_event(cli_sim_event_callback,
-		       cli_sim_event_dump,
 		       cli_sim_event_destroy,
 		       str_create(tokens_get_string_at(pTokens, 1)),
 		       dTime,
@@ -127,7 +114,6 @@ int cli_sim_queue_info(SCliContext * pContext, STokens * pTokens)
  */
 int cli_sim_queue_show(SCliContext * pContext, STokens * pTokens)
 {
-  simulator_dump_events(stdout);
   return CLI_SUCCESS;
 }
 

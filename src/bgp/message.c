@@ -1,15 +1,10 @@
 // ==================================================================
 // @(#)message.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 19/05/2003
-// @lastdate 13/02/2005
+// @lastdate 13/08/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <string.h>
@@ -25,7 +20,7 @@
 unsigned long context_create_count= 0;
 unsigned long context_destroy_count= 0;
 
-extern SBGPRouter * AS[];
+extern SAS * AS[];
 
 typedef struct {
   uint16_t uRemoteAS;
@@ -99,11 +94,11 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 /**
  *
  */
-int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
+void bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
 {
   bgp_msg_monitor_write(pMsg, pNode, tAddr);
-  return node_send(pNode, tAddr, NET_PROTOCOL_BGP, pMsg,
-		   (FPayLoadDestroy) bgp_msg_destroy);
+  node_send(pNode, tAddr, NET_PROTOCOL_BGP, pMsg,
+	    (FPayLoadDestroy) bgp_msg_destroy);
 }
 
 // ----- bgp_msg_dump -----------------------------------------------
@@ -123,11 +118,7 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     fprintf(pStream, "|A");
     // Peer IP
     fprintf(pStream, "|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      fprintf(pStream, "?");
-    }
+    ip_address_dump(pStream, pNode->tAddr);
     // Peer AS
     fprintf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
@@ -173,11 +164,7 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     fprintf(pStream, "|W");
     // Peer IP
     fprintf(pStream, "|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      fprintf(pStream, "?");
-    }
+    ip_address_dump(pStream, pNode->tAddr);
     // Peer AS
     fprintf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
@@ -186,19 +173,11 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     break;
   case BGP_MSG_OPEN:
     fprintf(pStream, "|OPEN|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      fprintf(pStream, "?");
-    }
+    ip_address_dump(pStream, pNode->tAddr);
     break;
   case BGP_MSG_CLOSE:
     fprintf(pStream, "|CLOSE|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      fprintf(pStream, "?");
-    }
+    ip_address_dump(pStream, pNode->tAddr);
     break;
   default:
     fprintf(pStream, "|?");

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 13/02/2005
+// @lastdate 13/08/2004
 // ==================================================================
 
 #ifndef __BGP_DP_RULES_H__
@@ -34,7 +34,7 @@ typedef int (*FDPRouteCompare)(SBGPRouter * pRouter,
 extern void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes);
 
 // ----- dp_rule_igp_cost -------------------------------------------
-extern uint32_t dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop);
+extern uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop);
 
 
 // ----- dp_rule_shortest_path --------------------------------------
@@ -44,15 +44,15 @@ extern int dp_rule_lowest_origin(SPtrArray * pRoutes);
 // ----- dp_rule_lowest_med -----------------------------------------
 extern int dp_rule_lowest_med(SPtrArray * pRoutes);
 // ----- dp_rule_ebgp_over_ibgp -------------------------------------
-extern int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SPtrArray * pRoutes);
+extern int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes);
 // ----- dp_rule_nearest_next_hop -----------------------------------
-extern int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes);
+extern int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes);
 // ----- dp_rule_shortest_cluster_list ------------------------------
-extern int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SPtrArray * pRoutes);
+extern int dp_rule_shortest_cluster_list(SAS * pAS, SPtrArray * pRoutes);
 // ----- dp_rule_lowest_neighbor_address ----------------------------
-extern int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SPtrArray * pRoutes);
+extern int dp_rule_lowest_neighbor_address(SAS * pAS, SPtrArray * pRoutes);
 // ----- dp_rule_final ----------------------------------------------
-extern int dp_rule_final(SBGPRouter * pRouter, SPtrArray * pRoutes);
+extern int dp_rule_final(SAS * pAS, SPtrArray * pRoutes);
 // ----- dp_rule_lowest_delay ---------------------------------------
 extern int dp_rule_lowest_delay(SPtrArray * pRoutes);
 

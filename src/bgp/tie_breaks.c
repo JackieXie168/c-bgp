@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 27/01/2005
+// @lastdate 04/11/2003
 // ==================================================================
 // These tie-break functions MUST satisfy the following constraints:
 // * return (1) if ROUTE1 is prefered over ROUTE2
@@ -14,10 +14,6 @@
 // introduced. The decision process WILL ABORT the simulator in
 // case the tie-break function can not decide.
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 

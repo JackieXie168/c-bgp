@@ -2,34 +2,23 @@
 // @(#)jni_interface.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @date 27/10/2004
-// @lastdate 18/02/2005
+// @date 27/10/2003
+// @lastdate 30/10/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-#include <libgds/str_util.h>
 
 #include <jni.h>
 #include <string.h>
 #include <assert.h>
 
-#include <jni/be_ac_ucl_ingi_cbgp_CBGP.h>
-#include <jni/jni_util.h>
+#include <jni/cbgpJNI.h>
 
 #include <net/network.h>
 #include <net/protocol.h>
 #include <net/prefix.h>
 #include <net/igp.h>
-#include <net/routing.h>
 
 #include <bgp/as.h>
 #include <bgp/as_t.h>
-#include <bgp/domain.h>
-#include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/filter.h>
 #include <bgp/filter_t.h>
@@ -41,19 +30,33 @@
 #include <libgds/log.h>
 #include <libgds/cli_ctx.h>
 
-/* BQU: TO BE FIXED!!!
+#define FILTER_IN   "in"
+#define FILTER_OUT  "out"
+
 SFilter * pFilter;
 SFilterMatcher * pMatcher;
 SFilterAction * pAction;
-*/
 
-// -----[ init ]-----------------------------------------------------
+net_addr_t ip_jstring_to_address(JNIEnv * env, jstring net_addr)
+{
+  const jbyte * cNetAddr;
+  char * pcEndPtr;
+  net_addr_t iNetAddr;
+
+  cNetAddr = (*env)->GetStringUTFChars(env, net_addr, NULL);
+  if (ip_string_to_address((char *)cNetAddr, &pcEndPtr, &iNetAddr))
+    LOG_DEBUG("jni>can't convert string to ip address : %s\n", cNetAddr);
+  (*env)->ReleaseStringUTFChars(env, net_addr, cNetAddr);
+
+  return iNetAddr;
+}
+
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    init
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
+JNIEXPORT void JNICALL Java_cbgpJNI_init
   (JNIEnv * env, jobject obj, jstring file_log)
 {
   const jbyte * cFileLog;
@@ -74,901 +77,544 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   simulator_init(); 
 }
 
-// -----[ destroy ]--------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
+JNIEXPORT void JNICALL Java_cbgpJNI_finalize
   (JNIEnv * env, jobject obj)
 {
   simulator_done();
 }
 
-// -----[ netAddNode ]-----------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeAdd
+/*
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    node_add
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
-  (JNIEnv * env, jobject obj, jstring jsAddr)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeAdd
+  (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetNode * pNode; 
-  SNetwork * pNetwork= network_get();
-  net_addr_t tNetAddr;
+  SNetwork * pNetwork = network_get();
+  net_addr_t iNetAddr;
 
-  if (ip_jstring_to_address(env, jsAddr, &tNetAddr) != 0)
-    return -1;
-  if ((pNode= node_create(tNetAddr)) == NULL)
-    return -1;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = node_create(iNetAddr);
 
   return network_add_node(pNetwork, pNode);
 }
 
-// -----[ netAddLink ]-----------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkAdd
+/*
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    link_add
  * Signature: (II)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
-  (JNIEnv *env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkAdd
+  (JNIEnv *env, jobject obj, jstring net_addr_src, jstring  net_addr_dst, jint Weight)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNodeSrc, * pNodeDst;
+  net_addr_t iNetAddrSrc, iNetAddrDst;
+ 
+  iNetAddrSrc = ip_jstring_to_address(env, net_addr_src);
+  iNetAddrDst = ip_jstring_to_address(env, net_addr_dst);
 
-  if ((pNodeSrc= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
-  if ((pNodeDst= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
+  pNodeSrc = network_find_node(pNetwork, iNetAddrSrc);
+  pNodeDst = network_find_node(pNetwork, iNetAddrDst);
 
-  return node_add_link(pNodeSrc, pNodeDst, jiWeight, 1);
+  
+  return node_add_link(pNodeSrc, pNodeDst, Weight, 1);
 }
 
-// -----[ netLinkWeight ]--------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+/*
+ * Class:     cbgpJNI
  * Method:    nodeLinkWeight
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
-  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkWeight
+  (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2, jint Weight)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode1, * pNode2;
   SNetLink * pLink1, * pLink2;
+  net_addr_t iNetAddr1, iNetAddr2;
 
-  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
-  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
+  iNetAddr1 = ip_jstring_to_address(env, net_addr1);
+  iNetAddr2 = ip_jstring_to_address(env, net_addr2);
+
+  pNode1 = network_find_node(pNetwork, iNetAddr1);
+  pNode2 = network_find_node(pNetwork, iNetAddr2);
   
-  if ((pLink1= node_find_link(pNode1, pNode2->tAddr)) == NULL)
-    return -1;
-  if ((pLink2= node_find_link(pNode2, pNode1->tAddr)) == NULL)
-    return -1;
+  pLink1 = node_find_link(pNode1, iNetAddr2);
+  pLink2 = node_find_link(pNode2, iNetAddr1);
   
-  link_set_igp_weight(pLink1, jiWeight);
-  link_set_igp_weight(pLink2, jiWeight);
+  link_set_igp_weight(pLink1, Weight);
+  link_set_igp_weight(pLink2, Weight);
   return 0;
 }
 
-// -----[ netLinkUp ]------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    nodeLinkUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
-  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jboolean bUp)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkUp
+  (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode1, * pNode2;
   SNetLink * pLink1, * pLink2;
+  net_addr_t iNetAddr1, iNetAddr2;
 
-  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return -1;
-  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return -1;
+  iNetAddr1 = ip_jstring_to_address(env, net_addr1);
+  iNetAddr2 = ip_jstring_to_address(env, net_addr2);
 
-  if ((pLink1= node_find_link(pNode1, pNode2->tAddr)) == NULL)
-    return -1;
-  if ((pLink2= node_find_link(pNode2, pNode1->tAddr)) == NULL)
-    return -1;
+  pNode1 = network_find_node(pNetwork, iNetAddr1);
+  pNode2 = network_find_node(pNetwork, iNetAddr2);
 
-  link_set_state(pLink1, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
-  link_set_state(pLink2, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
+  //Throw an exception
+/*  if (pNode1 == NULL || pNode2 == NULL)
+    return 1*/
+  
+  pLink1 = node_find_link(pNode1, iNetAddr2);
+  pLink2 = node_find_link(pNode2, iNetAddr1);
+
+  //Throw an exception
+  //if (pLink1 == NULL || pLink2 == NULL)
+  //return 1
+
+  link_set_state(pLink1, NET_LINK_FLAG_UP, 1);
+  link_set_state(pLink2, NET_LINK_FLAG_UP, 1);
   return 0;
 }
   
-// -----[ netNodeSpfPrefix ]-----------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
+ * Method:    nodeLinkDown
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkDown
+  (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2)
+{
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode1, * pNode2;
+  SNetLink * pLink1, * pLink2;
+  net_addr_t iNetAddr1, iNetAddr2;
+
+  iNetAddr1 = ip_jstring_to_address(env, net_addr1);
+  iNetAddr2 = ip_jstring_to_address(env, net_addr2);
+
+  pNode1 = network_find_node(pNetwork, iNetAddr1);
+  pNode2 = network_find_node(pNetwork, iNetAddr2);
+  //Throw an exception
+/*  if (pNode1 == NULL || pNode2 == NULL)
+    return 1*/
+  
+  pLink1 = node_find_link(pNode1, iNetAddr2);
+  pLink2 = node_find_link(pNode2, iNetAddr1);
+
+  //Throw an exception
+  //if (pLink1 == NULL || pLink2 == NULL)
+  //return 1
+
+  link_set_state(pLink1, NET_LINK_FLAG_UP, 0);
+  link_set_state(pLink2, NET_LINK_FLAG_UP, 0);
+  return 0;
+}
+
+/*
+ * Class:     cbgpJNI
  * Method:    nodeSpfPrefix
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
-  (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeSpfPrefix
+  (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
-  SNetwork * pNetwork= network_get();
-  SPrefix sPrefix;
+  const jbyte * cPrefix;
+  char * pcEndPtr;
+  net_addr_t iNetAddr;
+  SPrefix Prefix;
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode;
 
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
+
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+  
+  cPrefix = (*env)->GetStringUTFChars(env, prefix, NULL);
+  if (ip_string_to_prefix((char *)cPrefix, &pcEndPtr, &Prefix) ||
+      (*pcEndPtr != 0)) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", cPrefix);
+  }
+  (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);
 
   // Compute the SPF from the node towards all the nodes in the prefix
-  return igp_compute_prefix(pNetwork, pNode, sPrefix);
+  return igp_compute_prefix(pNetwork, pNode, Prefix);
 }
 
-// -----[ nodeInterfaceAdd ]-----------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeInterfaceAdd
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    node_interface_add
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
  */
-/* BQU: TO BE FIXED!!!
-
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeInterfaceAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeInterfaceAdd
   (JNIEnv * env, jobject obj, jstring net_addr_id, jstring net_addr_int, jstring mask)
 {
   SNetwork * pNetwork = network_get();
   SNetNode * pNode;
   SNetInterface * pInterface; 
+
+  const jbyte * cMask;
+  char * pcEndPtr;
   net_addr_t iNetAddrId, iNetAddrInt;
   SPrefix * pMask = MALLOC(sizeof(SPrefix));
  
-  if (ip_jstring_to_address(env, net_addr_id, &iNetAddrId) != 0)
-     return -1;
-  if ((pNode= network_find_node(pNetwork, iNetAddrId)) != NULL)
-    return -1;
-  if (ip_jstring_to_address(env, net_addr_int, &iNetAddrInt) != 0)
-    return -1;
-  if (ip_jstring_to_prefix(env, mask, pMask) != 0)
-    return -1;
+  iNetAddrId = ip_jstring_to_address(env, net_addr_id);
+  pNode = network_find_node(pNetwork, iNetAddrId);
+
+  iNetAddrInt = ip_jstring_to_address(env, net_addr_int);
+
+  cMask = (*env)->GetStringUTFChars(env, mask, NULL);
+  if (ip_string_to_prefix((char *)cMask, &pcEndPtr, pMask))
+     LOG_DEBUG("jni>can't convert string to ip address : %s\n", cMask);
+  (*env)->ReleaseStringUTFChars(env, mask, cMask);
   
-  pInterface= node_interface_create();
-  pInterface->tAddr= iNetAddrInt;
-  pInterface->tMask= pMask;
+  pInterface = node_interface_create();
+  pInterface->tAddr = iNetAddrInt;
+  pInterface->tMask = pMask;
 
   return node_interface_add(pNode, pInterface);
-}*/
+}
 
-// -----[ netNodeRouteAdd ]------------------------------------------
+
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    nodeRouteAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
-  (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix,
-   jstring jsNexthop, jint jiWeight)
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeRouteAdd
+  (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix, jstring net_addr_next_hop, jint Weight)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode;
-  SPrefix sPrefix;
-  net_addr_t tNextHop;
 
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
-  if (ip_jstring_to_address(env, jsNexthop, &tNextHop) != 0)
-    return -1;
+  const jbyte * cPrefix;
+  char * pcEndPtr;
+  net_addr_t iNetAddr, iNetAddrNextHop;
+  SPrefix Prefix;
 
-  return node_rt_add_route(pNode, sPrefix, tNextHop, jiWeight, NET_ROUTE_STATIC);
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+  
+  cPrefix = (*env)->GetStringUTFChars(env, prefix, NULL);
+  if (ip_string_to_prefix((char *)cPrefix, &pcEndPtr, &Prefix))
+     LOG_DEBUG("jni>can't convert string to ip address : %s\n", cPrefix);
+  (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);
+
+  iNetAddrNextHop = ip_jstring_to_address(env, net_addr_next_hop);
+
+  return node_rt_add_route(pNode, Prefix, iNetAddrNextHop, Weight, NET_ROUTE_STATIC);
 }
 
-// -----[ cbgp_jni_get_link ]----------------------------------------
-int cbgp_jni_get_link(void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  SNetLink * pLink= *((SNetLink **) pItem);
-  jobject joLink;
 
-  if ((joLink= cbgp_jni_new_Link(pCtx->jEnv, pLink)) == NULL)
-    return -1;
-
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joLink);
-}
-
-// -----[ netNodeGetLinks ]------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    nodeShowLinks
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetLinks
-  (JNIEnv * env, jobject obj, jstring jsAddr)
+JNIEXPORT void JNICALL Java_cbgpJNI_nodeShowLinks
+  (JNIEnv * env, jobject obj, jstring net_addr)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode;
-  jobject joVector;
-  SRouteDumpCtx sCtx;
+  net_addr_t iNetAddr;
 
-  /* Get the node */
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return NULL;
-
-  /* Create new Vector */
-  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
-    return NULL;
-
-  sCtx.joVector= joVector;
-  sCtx.jEnv= env;
-  if (node_links_for_each(pNode, cbgp_jni_get_link, &sCtx) != 0)
-    return NULL;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
   
-  return joVector;
+  node_links_dump(stdout, pNode);
 }
 
-// -----[ cbgp_jni_get_rt_route ]------------------------------------
-int cbgp_jni_get_rt_route(uint32_t uKey, uint8_t uKeyLen,
-			  void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  SNetRouteInfo * pRI= (SNetRouteInfo *) pItem;
-  SPrefix sPrefix;
-  jobject joRoute;
 
-  sPrefix.tNetwork= uKey;
-  sPrefix.uMaskLen= uKeyLen;
-
-  if ((joRoute= cbgp_jni_new_IPRoute(pCtx->jEnv, sPrefix, pRI)) == NULL)
-    return -1;
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
-}
-
-// -----[ netNodeGetRT ]---------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    nodeShowRT
  * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
-  (JNIEnv * env, jobject obj, jstring jsNodeAddr, jstring jsPrefix)
+JNIEXPORT jstring JNICALL Java_cbgpJNI_nodeShowRT
+  (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode;
-  SPrefix sPrefix;
-  jobject joVector;
-  jobject joRoute;
-  SRouteDumpCtx sCtx;
-  SNetRouteInfo * pRI;
+  net_addr_t iNetAddr;
+  SPrefix Prefix;
+  char * cRT;
 
-  /* Get the node */
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsNodeAddr)) == NULL)
-    return  NULL;
+  /*const jbyte * cPrefix;
+  char * pcEndPtr;*/
 
-  /* Convert the prefix */
-  if (jsPrefix != NULL) {
-    if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-      return NULL;
-  } else {
-    sPrefix.uMaskLen= 0;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+
+  Prefix.uMaskLen = 0;
+  /*cPrefix = (*env)->GetStringUTFChars(env, prefix, NULL);
+  if (ip_string_to_prefix((char *)cPrefix, &pcEndPtr, &Prefix))
+     LOG_DEBUG("jni>can't convert string to ip address : %s\n", cPrefix);
+  (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);*/
+
+  cRT = node_rt_dump_string(pNode, Prefix);
+  if (cRT == NULL) {
+    cRT = MALLOC(1);
+    strcpy(cRT, "");
   }
-
-  /* Create new Vector */
-  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
-    return NULL;
-
-  if (jsPrefix == NULL) {
-
-    sCtx.jEnv= env;
-    sCtx.joVector= joVector;
-    if (rt_for_each(pNode->pRT, cbgp_jni_get_rt_route, &sCtx) != 0)
-      return NULL;
-
-  } else {
-
-    if (sPrefix.uMaskLen == 32) {
-      pRI= rt_find_best(pNode->pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
-    } else {
-      pRI= rt_find_exact(pNode->pRT, sPrefix, NET_ROUTE_ANY);
-    }
-
-    if (pRI != NULL) {
-      if ((joRoute= cbgp_jni_new_IPRoute(env, sPrefix, pRI)) == NULL)
-	return NULL;
-      cbgp_jni_Vector_add(env, joVector, joRoute);
-    }
-    
-  }
-
-  return joVector;
+  return (*env)->NewStringUTF(env, cRT);
 }
 
-// -----[ netNodeRecordRoute ]---------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    netNodeRecordRoute
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
-  (JNIEnv * env, jobject obj, jstring jsNodeAddr, jstring sDstAddr)
-{
-  SNetNode * pNode;
-  jobject joIPTrace;
-  net_addr_t tDstAddr;
-  SNetPath * pPath;
-  net_link_delay_t tDelay;
-  net_link_delay_t tWeight;
-  int iStatus;
-
-  /* Get the node */
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsNodeAddr)) == NULL)
-    return  NULL;
-
-  /* Convert the destination */
-  if (ip_jstring_to_address(env, sDstAddr, &tDstAddr) != 0)
-    return NULL;
-
-  /* Trace the IP-level route */
-  iStatus= node_record_route(pNode, tDstAddr, &pPath, &tDelay, &tWeight);
-
-  /* Convert to an IPTrace object */
-  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, tDstAddr,
-				  pPath, iStatus, tDelay, tWeight);
-    
-
-  net_path_destroy(&pPath);
-
-  return joIPTrace;
-}
-
-
-// -----[ bgpAddRouter ]---------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterAdd
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    add_bgp_router
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
- *
- * Note: 'net_addr' must be non-NULL. 'name' may be NULL.
- * Returns: -1 on error and 0 on success.
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
-  (JNIEnv * env, jobject obj, jstring jsName, jstring jsAddr, jint jiASNumber)
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterAdd
+  (JNIEnv * env, jobject obj, jstring name, jstring net_addr, jint ASid)
 {
+  SNetwork * pNetwork = network_get();
   SNetNode * pNode;
   SBGPRouter * pRouter;
-  const jbyte * pcName;
+  net_addr_t iNetAddr;
 
-  /* Try to find related router. */
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return -1;
+  const jbyte *  pcName;
 
-  /* Create BGP router, and register. */
-  pRouter= bgp_router_create(jiASNumber, pNode, 0);
-  if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
-			     (FNetNodeHandlerDestroy) bgp_router_destroy,
-			     bgp_router_handle_message)) {
-    bgp_router_destroy(&pRouter);
-    return -1;
-  }
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
 
-  /* Add the given name if non-NULL. */
-  if (jsName != NULL) {
-    pcName = (*env)->GetStringUTFChars(env, jsName, NULL);
-    bgp_router_set_name(pRouter, str_create((char *) pcName));
-    (*env)->ReleaseStringUTFChars(env, jsName, pcName);
-  }
-
+  pRouter = as_create(ASid, pNode, 0);
+  pcName = (*env)->GetStringUTFChars(env, name, NULL);
+  as_add_name(pRouter, strdup((char *)pcName));
+  assert(!node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
+			  (FNetNodeHandlerDestroy) as_destroy, 
+			  as_handle_message));
+  (*env)->ReleaseStringUTFChars(env, name, pcName);
   return 0;
 }
 
-// -----[ bgpRouterAddNetwork ]--------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNetworkAdd
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    add_bgp_router_network
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
-  (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix)
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNetworkAdd
+  (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode; 
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
-  SPrefix sPrefix;
+  net_addr_t iNetAddr;
+  SPrefix Prefix;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return -1;
+  const jbyte *  cPrefix;
+  char * pcEndPtr;
 
-  return bgp_router_add_network(pRouter, sPrefix);
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+
+  pNode = network_find_node(pNetwork, iNetAddr);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
+
+  cPrefix = (*env)->GetStringUTFChars(env, prefix, NULL);
+  if (ip_string_to_prefix((char *)cPrefix, &pcEndPtr, &Prefix)) {
+    LOG_DEBUG("jni> can't convert string to ip address : %s\n", prefix);
+  }
+  (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);
+
+  return as_add_network(pRouter, Prefix);
 }
 
-// -----[ bgpRouterAddPeer ]-----------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterNeighborAdd
+ * Class:     be_ac_ucl_poms_repository_IGPWO_cbgp_jni
+ * Method:    add_bgp_router_neighbor
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jint jiASNumber)
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNeighborAdd
+  (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor, jint ASIdNeighbor)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
-  net_addr_t tPeerAddr;
+  net_addr_t iNetAddrRouter, iNetAddrNeigh;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
+  iNetAddrRouter = ip_jstring_to_address(env, net_addr_router);
+  pNode = network_find_node(pNetwork, iNetAddrRouter);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
+
+  iNetAddrNeigh = ip_jstring_to_address(env, net_addr_neighbor);
   
-  return bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0);
+  return as_add_peer(pRouter, ASIdNeighbor, iNetAddrNeigh, 0);
 }
 
-// -----[ bgpRouterPeerNextHopSelf ]---------------------------------
+
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpRouterNeighborNextHopSelf
  * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpRouterNeighborNextHopSelf
+  (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
   SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  net_addr_t iNetAddrRouter, iNetAddrNeigh;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  iNetAddrRouter = ip_jstring_to_address(env, net_addr_router);
+  pNode = network_find_node(pNetwork, iNetAddrRouter);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
+
+  iNetAddrNeigh = ip_jstring_to_address(env, net_addr_neighbor);
+ 
+  pPeer = as_find_peer(pRouter, iNetAddrNeigh);
 
   peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
-  return 0;
 }
 
-// -----[ bgpRouterPeerReflectorClient ]-----------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterPeerReflectorClient
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClient
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
-{
-  SBGPRouter * pRouter;
-  net_addr_t tPeerAddr;
-  SBGPPeer * pPeer;
-
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
-
-  peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
-  
-  return 0;
-}
-
-
-// -----[ bgpRouterPeerVirtual ]-------------------------------------
-/*
- * Class:     CBGP
- * Method:    bgpRouterPeerVirtual
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr)
-{
-  SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
-
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
-
-  peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
-  peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
-  return 0;
-}
-
-// -----[ bgpRouterPeerUp ]------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpRouterNeighborUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jboolean bUp)
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNeighborUp
+  (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor)
 {
+  net_addr_t iNetAddrRouter, iNetAddrNeigh;
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
   SPeer * pPeer;
-  net_addr_t tPeerAddr;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  iNetAddrRouter = ip_jstring_to_address(env, net_addr_router);
+  pNode = network_find_node(pNetwork, iNetAddrRouter);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
 
-  if (bUp == JNI_TRUE)
-    return bgp_peer_open_session(pPeer);
-  else
-    return bgp_peer_close_session(pPeer);
+  iNetAddrNeigh = ip_jstring_to_address(env, net_addr_neighbor);
+  
+  pPeer = as_find_peer(pRouter, iNetAddrNeigh);
+
+  return peer_open_session(pPeer);
 }
 
-// -----[ bgpRouterPeerRecv ]----------------------------------------
+
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpRouterPeerRecv
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jstring jsMesg)
-{
-  SBGPRouter * pRouter;
-  SPeer * pPeer;
-  net_addr_t tPeerAddr;
-  const jbyte * cMesg;
-  SBGPMsg * pMsg;
-  int iResult;
-
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
-
-  /* Build a message from the MRT-record */
-  cMesg= (*env)->GetStringUTFChars(env, jsMesg, NULL);
-  if ((pMsg= mrtd_msg_from_line(pRouter, pPeer, (char *) cMesg)) != NULL) {
-    iResult= peer_handle_message(pPeer, pMsg);
-  } else {
-    iResult= -1;
-  }
-  (*env)->ReleaseStringUTFChars(env, jsMesg, cMesg);
-
-  return iResult;
-}
-
-// -----[ bgpRouterRescan ]------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpRouterRescan
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
-  (JNIEnv * env, jobject obj, jstring jsAddr)
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterRescan
+  (JNIEnv * env, jobject obj, jstring net_addr)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
+  net_addr_t iNetAddr;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsAddr)) == NULL)
-    return -1;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
  
   return bgp_router_scan_rib(pRouter);
 }
 
-// -----[ cbgp_jni_get_peer ]----------------------------------------
-int cbgp_jni_get_peer(void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  jobject joPeer;
-
-  if ((joPeer= cbgp_jni_new_BGPPeer(pCtx->jEnv, *((SPeer **) pItem))) == NULL)
-    return -1;
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joPeer);
-}
-
-// -----[ bgpRouterGetPeers ]----------------------------------------
 /*
- * Class:     CBGP
- * Method:    bgpRouterGetPeers
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
+ * Class:     cbgpJNI
+ * Method:    bgpRouterShowRib
+ * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetPeers
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr)
+JNIEXPORT jstring JNICALL Java_cbgpJNI_bgpRouterShowRib
+  (JNIEnv * env, jobject obj, jstring net_addr)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
-  jobject joVector;
-  SRouteDumpCtx sCtx;
+  net_addr_t iNetAddr;
+  char * cRIB;
 
-  /* Get the router instance */
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return NULL;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
 
-  /* Create a Vector object that will hold the BGP routes to be
-     returned */
-  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
-    return NULL;
-
-  sCtx.joVector= joVector;
-  sCtx.jEnv= env;
-  if (bgp_router_peers_for_each(pRouter, cbgp_jni_get_peer, &sCtx) != 0)
-    return NULL;
-
-  return joVector;
-}
-
-
-// -----[ cbgp_jni_get_rib_route ]-----------------------------------
-int cbgp_jni_get_rib_route(uint32_t uKey, uint8_t uKeyLen,
-			   void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  jobject joRoute;
-
-  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, (SRoute *) pItem)) == NULL)
-    return -1;
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
-}
-
-// -----[ bgpRouterGetRib ]------------------------------------------
-/**
- * Class    : CBGP
- * Method   : bgpRouterGetRib
- * Signature: (Ljava/lang/String;)Ljava/util/Vector;
- *
- * This function creates an array of BGPRoute objects corresponding
- * with the content of the given router's RIB.
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetRib
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPrefix)
-{
-  SBGPRouter * pRouter;
-  jobject joVector;
-  SPrefix sPrefix;
-  SRoute * pRoute;
-  jobject joRoute;
-
-  /* Get the router instance */
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return NULL;
-
-  /* Create a Vector object that will hold the BGP routes to be
-     returned */
-  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
-    return NULL;
-
-  if (jsPrefix == NULL) {
-
-    /* For each route in the RIB, create a new BGPRoute object and add
-       it to the Vector object */
-    SRouteDumpCtx sCtx;
-    sCtx.pRouter= pRouter;
-    sCtx.joVector= joVector;
-    sCtx.jEnv= env;
-    if (rib_for_each(pRouter->pLocRIB, cbgp_jni_get_rib_route, &sCtx) != 0)
-      return NULL;
-
-  } else {
-
-    /* Convert the prefix */
-    if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-      return NULL;
-
-    pRoute= NULL;
-    if (sPrefix.uMaskLen == 32)
-      pRoute= rib_find_best(pRouter->pLocRIB, sPrefix);
-    else
-      pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
-
-    if (pRoute != NULL) {
-      if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
-	return NULL;
-      cbgp_jni_Vector_add(env, joVector, joRoute);
-    }
-
+  cRIB = bgp_router_dump_rib_string(pRouter);
+  if (cRIB == NULL) {
+    cRIB = MALLOC(1);
+    strcpy(cRIB, "");
   }
-
-  return joVector;
+  return (*env)->NewStringUTF(env, cRIB);
 }
 
-// -----[ bgpRouterGetAdjRib ]---------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpRouterShowRibIn
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr,
-   jstring jsPeerAddr, jstring jsPrefix, jboolean bIn)
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpRouterShowRibIn
+  (JNIEnv * env, jobject obj, jstring net_addr)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
-  jobject joVector;
-  jobject joRoute;
-  SPrefix sPrefix;
-  net_addr_t tPeerAddr;
-  int iIndex;
-  SPeer * pPeer= NULL;
-  SRoute * pRoute;
+  net_addr_t iNetAddr;
+  SPrefix Prefix;
 
-  /* Get the router instance */
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return NULL;
+  Prefix.uMaskLen = 0;
 
-  /* Create a Vector object that will hold the BGP routes to be
-     returned */
-  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
-    return NULL;
+  iNetAddr = ip_jstring_to_address(env, net_addr);
+  pNode = network_find_node(pNetwork, iNetAddr);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
 
-  /* Convert the peer address */
-  if (jsPeerAddr != NULL) {
-    if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-      return NULL;
-    if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-      return NULL;
-  }
-
-  /* Convert prefix */
-  if (jsPrefix == NULL) {
-    
-    /* Add routes into the Vector object */
-    if (pPeer == NULL) {
-      
-      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
-	
-	/* For each route in the RIB, create a new BGPRoute object and add
-	   it to the Vector object */
-	SRouteDumpCtx sCtx;
-	sCtx.pRouter= pRouter;
-	sCtx.joVector= joVector;
-	sCtx.jEnv= env;
-	if (bIn == JNI_TRUE) {
-	  if (rib_for_each(pPeer->pAdjRIBIn, cbgp_jni_get_rib_route, &sCtx) != 0)
-	    return NULL;
-	} else {
-	  if (rib_for_each(pPeer->pAdjRIBOut, cbgp_jni_get_rib_route, &sCtx) != 0)
-	    return NULL;
-	}
-	
-      }
-      
-    } else {
-      
-      /* For each route in the RIB, create a new BGPRoute object and add
-	 it to the Vector object */
-      SRouteDumpCtx sCtx;
-      sCtx.pRouter= pRouter;
-      sCtx.joVector= joVector;
-      sCtx.jEnv= env;
-      if (bIn == JNI_TRUE) {
-	if (rib_for_each(pPeer->pAdjRIBIn, cbgp_jni_get_rib_route, &sCtx) != 0)
-	  return NULL;
-      } else {
-	if (rib_for_each(pPeer->pAdjRIBOut, cbgp_jni_get_rib_route, &sCtx) != 0)
-	  return NULL;
-      }
-
-    }
-    
-  } else {
-
-    /* Convert the prefix */
-    if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-      return NULL;
-    
-    if (pPeer == NULL) {
-      
-      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
-
-	pRoute= NULL;
-	if (sPrefix.uMaskLen == 32) {
-	  if (bIn == JNI_TRUE) {
-	    pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
-	  } else {
-	    pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
-	  }
-	} else {
-	  if (bIn == JNI_TRUE) {
-	    pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
-	  } else {
-	    pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
-	  }
-	}
-	
-	if (pRoute != NULL) {
-	  if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
-	    return NULL;
-	  cbgp_jni_Vector_add(env, joVector, joRoute);
-	}
-      }
-
-    } else {
-
-      pRoute= NULL;
-      if (sPrefix.uMaskLen == 32) {
-	if (bIn == JNI_TRUE) {
-	  pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
-	} else {
-	  pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
-	}
-      } else {
-	if (bIn == JNI_TRUE) {
-	  pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
-	} else {
-	  pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
-	}
-      }
-      
-      if (pRoute != NULL) {
-	if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
-	  return NULL;
-	cbgp_jni_Vector_add(env, joVector, joRoute);
-      }
-
-    }
-
-  }
-
-  return joVector;
+  bgp_router_dump_ribin(stdout, pRouter, NULL, Prefix);
 }
 
-// -----[ bgpRouterLoadRib ]-----------------------------------------
 /*
- * Class:     CBGP
- * Method:    bgpRouterLoadRib
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsFileName)
-{
-  int iResult;
-  SBGPRouter * pRouter;
-  const jbyte * cFileName;
-
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-
-  cFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
-  iResult= bgp_router_load_rib((char *) cFileName, pRouter);
-  (*env)->ReleaseStringUTFChars(env, jsFileName, cFileName);
-
-  return iResult;
-}
-
-// -----[ bgpDomainRescan ]------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    bgpDomainRescan
- * Signature: (I)I
- */
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
-  (JNIEnv * env, jobject obj, jint jiASNumber)
-{
-
-  if (!exists_bgp_domain((uint32_t) jiASNumber))
-    return -1;
-
-  return bgp_domain_rescan(get_bgp_domain((uint32_t) jiASNumber));
-}
-
-// -----[ bgpFilterInit ]--------------------------------------------
-/*
- * Class:     CBGP
+ * Class:     cbgpJNI
  * Method:    bgpFilterInit
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
  */
-/* BQU: TO BE FIXED!!!
-
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterInit
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, 
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterInit
+  (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor, 
    jstring type)
 {
+  SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
+  SNetProtocol * pProtocol;
   SBGPRouter * pRouter;
   SPeer * pPeer;
-  net_addr_t tPeerAddr;
+  net_addr_t iNetAddrRouter, iNetAddrNeigh;
 
   int ret =0;
   const jbyte * cType;
 
-  if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
-    return -1;
-  if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
-    return -1;
+  iNetAddrRouter = ip_jstring_to_address(env, net_addr_router);
+  pNode = network_find_node(pNetwork, iNetAddrRouter);
+  pProtocol = protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pRouter = pProtocol->pHandler;
+
+  iNetAddrNeigh = ip_jstring_to_address(env, net_addr_neighbor);
   
-  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
-    return -1;
+  pPeer = as_find_peer(pRouter, iNetAddrNeigh);
 
   cType = (*env)->GetStringUTFChars(env, type, NULL);
   if (strcmp(cType, FILTER_IN) == 0) { 
@@ -984,17 +630,13 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterInit
   return ret;
 
 }
-*/
 
-// -----[ bgpFilterMatchPrefixIn ]-----------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpFilterMatchPrefix
  * Signature: (Ljava/lang/String;)I
  */
-/* BQU: TO BE FIXED!!!
-
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIn
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterMatchPrefixIn
   (JNIEnv * env, jobject obj, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -1011,16 +653,13 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIn
   pMatcher = filter_match_prefix_in(Prefix);
   return 0;
 }
-*/
 
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpFilterMatchPrefix
  * Signature: (Ljava/lang/String;)I
  */
-/* BQU: TO BE FIXED!!!
-
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIs
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterMatchPrefixIs
   (JNIEnv * env, jobject obj, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -1037,22 +676,20 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterMatchPrefixIs
   pMatcher = filter_match_prefix_equals(Prefix);
   return 0;
 }
-*/
+
 
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpFilterAction
  * Signature: (ILjava/lang/String;)I
  *
  */
-/* BQU: TO BE FIXED!!!
-
 #define ACTION_PERMIT	    0x01
 #define ACTION_DENY	    0x02
 #define ACTION_LOCPREF	    0x03
 #define ACTION_ADD_COMM	    0x04
 #define ACTION_PATH_PREPEND 0x05
-JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterAction
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterAction
   (JNIEnv * env, jobject obj, jint type, jstring value)
 {
 
@@ -1090,31 +727,28 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterAction
   filter_add_rule(pFilter, pMatcher, pAction);
   return 0;
 }
-*/
 
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    bgpFilterFinalize
  * Signature: ()V
  */
-/* BQU: TO BE FIXED!!!
-
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpFilterFinalize
   (JNIEnv *env , jobject obj)
 {
-  pFilter= NULL;
-  pMatcher= NULL;
-  pAction= NULL;
+  pFilter = NULL;
+  pMatcher = NULL;
+  pAction = NULL;
+  
 }
-*/
 
-// -----[ simRun ]---------------------------------------------------
+
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
  * Method:    simRun
  * Signature: ()I
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
+JNIEXPORT int JNICALL Java_cbgpJNI_simRun
   (JNIEnv * env, jobject obj)
 {
   if (simulator_run())
@@ -1122,67 +756,34 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
   return 0;
 }
 
-// -----[ runCmd ]---------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Class:     cbgpJNI
+ * Method:    simPrint
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_cbgpJNI_simPrint
+  (JNIEnv * env, jobject obj, jstring line)
+{
+  const jbyte * cLine;
+
+  cLine = (*env)->GetStringUTFChars(env, line, NULL);
+  fprintf(stdout, "%s", cLine);
+  (*env)->ReleaseStringUTFChars(env, line, cLine);
+}
+
+
+/*
+ * Class:     cbgpJNI
  * Method:    runCmd
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
-  (JNIEnv * env, jobject obj, jstring jsCommand)
+JNIEXPORT void JNICALL Java_cbgpJNI_runCmd
+  (JNIEnv * env, jobject obj, jstring line)
 {
-  int iResult;
-  const jbyte * cCommand;
+  const jbyte * cLine;
 
-  if (jsCommand == NULL)
-    return -1;
-
-  cCommand= (*env)->GetStringUTFChars(env, jsCommand, NULL);
-  iResult= cli_execute_line(cli_get(), (char *) cCommand);
-  (*env)->ReleaseStringUTFChars(env, jsCommand, cCommand);
-  return iResult;
+  cLine = (*env)->GetStringUTFChars(env, line, NULL);
+  cli_execute_line(cli_get(), (char *)cLine);
+  (*env)->ReleaseStringUTFChars(env, line, cLine);
 }
 
-// -----[ cbgp_jni_routes_list_function ]----------------------------
-int cbgp_jni_routes_list_function(void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  jobject joRoute;
-
-  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, *(SRoute **) pItem)) == NULL)
-    return -1;
-
-  return cbgp_jni_ArrayList_add(pCtx->jEnv, pCtx->joVector, joRoute);
-}
-
-// -----[ loadMRT ]--------------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    loadMRT
- * Signature: (Ljava/lang/String;)Ljava/util/Vector;
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
-  (JNIEnv *env , jobject obj, jstring jsFileName)
-{
-  jobject joArrayList= NULL;
-  SRoutes * pRoutes;
-  const jbyte * pcFileName;
-  SRouteDumpCtx sCtx;
-
-  pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
-  if ((pRoutes= mrtd_load_routes(pcFileName, 0, NULL)) != NULL) {
-    joArrayList= cbgp_jni_new_ArrayList(env);
-    sCtx.jEnv= env;
-    sCtx.joVector= joArrayList;
-    if (routes_list_for_each(pRoutes, cbgp_jni_routes_list_function, &sCtx) != 0)
-      joArrayList= NULL;
-  }
-  (*env)->ReleaseStringUTFChars(env, jsFileName, pcFileName);
-
-  // TODO: clean whole list !!! (routes_list are only references...)
-  routes_list_destroy(&pRoutes);
-
-  fprintf(stderr, "Conversion to Java finished\n");
-
-  return joArrayList;
-}

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/08/2003
-// @lastdate 27/01/2005
+// @lastdate 16/11/2004
 // ==================================================================
 // Syntax:
 //   Script     ::= Rules
@@ -11,10 +11,6 @@
 //   Rule       ::= [ Predicates ] ">" Actions
 //   Predicates ::= Predicate [ "," Predicates ]
 //   Actions    ::= Action [ "," Action ]
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <string.h>
 

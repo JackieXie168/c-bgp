@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 03/01/2005
+// @lastdate 09/03/2004
 // ==================================================================
 // Note: the number of supported protocols will often be low, so that
 // the list of protocols is implemented by a fixed-size array at this
@@ -26,9 +26,6 @@
 #define NET_PROTOCOL_ICMP 0
 #define NET_PROTOCOL_BGP  1
 #define NET_PROTOCOL_IPIP 2
-
-// Protocol names
-extern const char * PROTOCOL_NAMES[];
 
 // ----- FNetNodeHandleEvent -----
 typedef int (*FNetNodeHandleEvent)(void * pHandler,

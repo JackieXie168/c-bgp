@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 23/02/2005
+// @lastdate 27/02/2004
 // ==================================================================
 
 #ifndef __ROUTES_LIST_H__
@@ -11,12 +11,10 @@
 
 #include <libgds/array.h>
 
-#define ROUTES_LIST_OPTION_REF 0x01
-
 typedef SPtrArray SRoutes;
 
 // ----- routes_list_create -----------------------------------------
-extern SRoutes * routes_list_create(uint8_t uOptions);
+extern SRoutes * routes_list_create();
 // ----- routes_list_destroy ----------------------------------------
 extern void routes_list_destroy(SRoutes ** ppRoutes);
 // ----- routes_list_append -----------------------------------------
@@ -27,8 +25,6 @@ extern void routes_list_remove_at(SRoutes * pRoutes, int iIndex);
 extern int routes_list_get_num(SRoutes * pRoutes);
 // ----- routes_list_dump -------------------------------------------
 extern void routes_list_dump(FILE * pStream, SRoutes * pRoutes);
-// -----[ routes_list_for_each ]-------------------------------------
-extern int routes_list_for_each(SRoutes * pRoutes, FArrayForEach fForEach,
-				void * pContext);
+
 
 #endif

@@ -1,15 +1,10 @@
 // ==================================================================
 // @(#)scheduler.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 12/06/2003
-// @lastdate 27/01/2005
+// @lastdate 20/04/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <sim/scheduler.h>
 
@@ -26,14 +21,8 @@ SScheduler * pScheduler = NULL;
 
 #define EVENT_QUEUE_DEPTH 40000000
 
-static uint32_t uCountEventCreated;
-static uint32_t uCountEventDestroyed;
-
-static uint32_t uCountFifoEventCreated;
-static uint32_t uCountFifoEventDestroyed;
-
-static uint32_t uCountEvent = 0;
-static uint32_t uCountPost = 0;
+uint32_t uCountEvent = 0;
+uint32_t uCountPost = 0;
 
 // ----- scheduler_event_compare ------------------------------------
 /**
@@ -231,8 +220,7 @@ void scheduler_done()
 /**
  *
  */
-int scheduler_post_event(FSchedEventCallback fCallback,
-			 void * pContext, float uSchedulingTime)
+int scheduler_post_event(FSchedEventCallback fCallback, void * pContext, float uSchedulingTime)
 {
   int iIndex, iRet;
   SSchedulerFifoEvent * pFifoEvent;

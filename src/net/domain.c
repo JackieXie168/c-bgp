@@ -2,14 +2,9 @@
 // @(#)domain.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 16/09/2004
-// @lastdate 14/02/2005
+// @lastdate 16/09/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <string.h>
 #include <stdio.h>
@@ -17,7 +12,7 @@
 #include <libgds/memory.h>
 #include <net/domain.h>
 
-// ----- net_domain_create ------------------------------------------
+// ----- domain_create -----------------------------------------------
 /**
  *
  *

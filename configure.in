@@ -1,44 +1,12 @@
-dnl =================================================================
-dnl configure.in for cbgp
-dnl
-dnl @author Bruno Quoitin
-dnl @version 2005-02-22
-dnl =================================================================
+# configure.in for cbgp
+#
+#
+AC_INIT(src/main.c)
+PACKAGE=cbgp
+VERSION="1.1.19"
+AC_PREFIX_DEFAULT(/usr)
 
-AC_INIT([cbgp], [1.1.19])
-AC_CONFIG_SRCDIR(src/main.c)
-AC_PREREQ(2.57)
-AC_PREFIX_DEFAULT(/usr/local)
-
-dnl Obsolete ?
-dnl but avoid warning about AC_CANONICAL_TARGET being called multiple
-dnl times :(
 AC_CANONICAL_SYSTEM
-
-dnl Version setting up for Automake
-AM_INIT_AUTOMAKE([no-define])
-AM_CONFIG_HEADER(src/config.h)
-#AM_MAINTAINER_MODE
-
-dnl Checks for programs.
-AC_PROG_CC
-AC_PROG_INSTALL
-
-dnl Checks for header files.
-AC_HEADER_STDC
-AC_CHECK_HEADER(limits.h)
-dnl Test for get/setrlimit availability
-AC_CHECK_FUNCS(getrlimit setrlimit)
-AC_CHECK_HEADER(sys/resource.h)
-AC_CHECK_FUNCS(syslog)
-
-dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_TYPE_SIZE_T
-
-dnl Now arrange the build libtool
-AC_PROG_LIBTOOL
-
 AC_DEFUN([AC_PROG_JAVAH],[
 AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
 AC_REQUIRE([AC_PROG_CPP])dnl
@@ -55,20 +23,23 @@ changequote([, ])dnl
    CPPFLAGS="$ac_save_CPPFLAGS"
 ])
 
-dnl Conditional compilation with memory debugger
+#
+# Version setting up for Automake
+#
+AM_INIT_AUTOMAKE(cbgp, $VERSION)
+AM_CONFIG_HEADER(src/config.h)
+
+AM_PROG_LIBTOOL
+
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+
 AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
 
-dnl Test for libpcre usability (library + headers)
-AX_PATH_LIB_PCRE([pcre_ok=yes], [pcre_ok=no])
-if test "x$pcre_ok" == "xyes"; then
-  LIBS="$LIBS $PCRE_LIBS"
-  CFLAGS="$CFLAGS $PCRE_CFLAGS"
-  CFLAGS="$CPPFLAGS $PCRE_CFLAGS"
-else
-  AC_MSG_ERROR([libpcre is required to compile cbgp]);
-fi
-
-dnl Test for XML availability
+#
+# Test for XML availability
+#
 AC_ARG_ENABLE(xml,
    AC_HELP_STRING([--enable-xml],
       [enable XML support]),
@@ -78,7 +49,9 @@ if test "x$cbgp_config_xml" == "xyes"; then
    AC_DEFINE([HAVE_XML], 1, [Define to 1 if XML support is compiled])
 fi
 
-dnl Test for JNI availability
+#
+# Test for JNI availability
+#
 AC_ARG_WITH(jni-dir,
    AC_HELP_STRING([--with-jni-dir],
       [specify directory for jni.h]),
@@ -90,13 +63,10 @@ AC_ARG_ENABLE(jni,
    cbgp_config_jni="$enableval",
 )
 if test "$cbgp_config_jni" == "yes"; then
-   AC_CHECK_CLASSPATH
-   AC_PROG_JAVAC
-   AC_PROG_JAVA
    if test "$cbgp_config_jni_dir" != ""; then
       CPPFLAGS="$CPPFLAGS -I$cbgp_config_jni_dir"
    else
-      AC_PROG_JAVAH
+      AC_PROG_JAVAH()
    fi
    AC_CHECK_HEADER(jni.h, jni_header_ok=yes, jni_header_ok=no)
    if test "$jni_header_ok" != "yes"; then
@@ -110,85 +80,47 @@ if test "$cbgp_jni_ok" == "yes"; then
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
 
-dnl Enable/disable libbgpdump ?
-AC_ARG_ENABLE(bgpdump,
-   AC_HELP_STRING([--disable-bgpdump],
-      [disable bgpdump]),
-   cbgp_config_bgpdump="$enableval",
-)
-if test "x$cbgp_config_bgpdump" != "xno"; then
-   AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
-fi
-
-dnl Test for readline existence. Required due to possibly undetected 
-dnl dependence with one of libcurses, libtinfo or libtermcap.
-dnl (The following tests are insipired from Peter Samuelson)
-AC_ARG_ENABLE(readline,
-   AC_HELP_STRING([--enable-readline], [enable readline support]),
-   cbgp_config_readline="$enableval",
-   cbgp_config_readline="yes"
-)
-if test "x$cbgp_config_readline" != "xno"; then
-   AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
-   if test "$readline_ok" != "yes"; then
-      AC_MSG_WARN([readline alone does not work, check with dependencies])
-      AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
-      if test "x$tc" == x; then
-         AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
-      fi
-      if test "x$tc" == x; then
-         AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
-      fi
-      unset ac_cv_lib_readline_readline
-      AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
+#
+# Test for readline existence. Required due to possibly undetected 
+# dependence with one of libcurses, libtinfo or libtermcap.
+# (The following tests are insipired from Peter Samuelson)
+#
+AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
+if test "$readline_ok" != "yes"; then
+   AC_MSG_WARN([readline alone does not work, check with dependencies])
+   AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
    fi
-   if test "$readline_ok" == "yes"; then
-      AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
-      LIBS="$LIBS -lreadline $tc"
-      AC_CHECK_HEADERS(readline/readline.h)
-      AC_CHECK_FUNCS(rl_completion_matches)
-      AC_CHECK_FUNCS(rl_filename_completion_function filename_completion_function)
+   if test "x$tc" == x; then
+      AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
    fi
-   unset tc
+   unset ac_cv_lib_readline_readline
+   AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
 fi
+if test "$readline_ok" == "yes"; then
+   AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
+   LIBS="$LIBS -lreadline $tc"
+   AC_CHECK_HEADERS(readline/readline.h)
+fi
+unset tc
 
-dnl Test for libgds existence (library + headers)
-AC_ARG_WITH(libgds-dir,
-    AC_HELP_STRING([--with-libgds-dir],
-        [specify prefix for libgds library]),
-    cbgp_config_libgds_dir="$withval"
-)
-if test "x$cbgp_config_libgds_dir" != "x"; then
-   CPPFLAGS="$CPPFLAGS -I$cbgp_config_libgds_dir/include"
-   LDFLAGS="$LDFLAGS -L$cbgp_config_libgds_dir/lib"
-fi
+#
+# Test for libgds existence (library + headers)
+#
 AC_CHECK_LIB(gds, list_create, [gds_ok=yes; LIBS="$LIBS -lgds"], gds_ok=no)
 if test "x$gds_ok" != "xyes"; then
    AC_MSG_ERROR([libgds is needed to compile cbgp])
 else
-   dnl Check for headers
+   # Check for headers
    AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
    if test "x$gds_header_ok" != "xyes"; then
       AC_MSG_ERROR([libgds headers are needed to compile cbgp])
    fi
-   dnl Check 'mem_flag_set' function
+   # Check 'mem_flag_set' function
    AC_CHECK_FUNCS(mem_flag_set)
 fi
 
-dnl Compile experimental features ?
-AC_ARG_ENABLE(experimental,
-   AC_HELP_STRING([--enable-experimental],
-       [enable compilation of experimental features]),
-   cbgp_experimental="$enableval")
-AM_CONDITIONAL([WITH_EXPERIMENTAL], [test "$cbgp_experimental" == "yes"])
 
-dnl Compile with Electric Fence ?
-AC_ARG_WITH(efence,
-   AC_HELP_STRING([--with-efence],
-       [link with Electrical Fence]),
-   cbgp_efence="$withval")
-AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" == "yes"])
-
-TESTS="src/checks/basic"
-
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)
+AC_PROG_INSTALL
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)

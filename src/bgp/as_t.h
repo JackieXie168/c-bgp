@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 13/02/2005
+// @lastdate 27/02/2004
 // ==================================================================
 
 #ifndef __AS_T_H__
@@ -17,12 +17,6 @@
 
 typedef struct {
   uint16_t uNumber;
-  char * pcName;
-  SRadixTree * pRouters;
-} SBGPDomain;
-
-typedef struct {
-  uint16_t uNumber;
   uint32_t uTBID;
   SPtrArray * pPeers;
   SRIB * pLocRIB;
@@ -32,7 +26,8 @@ typedef struct {
   cluster_id_t tClusterID;
   int iRouteReflector;
   char * pcName;
-  SBGPDomain * pDomain;
-} SBGPRouter;
+} SAS;
+
+typedef SAS SBGPRouter;
 
 #endif

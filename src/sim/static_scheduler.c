@@ -3,17 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 27/01/2005
+// @lastdate 10/08/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <libgds/memory.h>
 #include <sim/static_scheduler.h>
-#include <net/network.h>
 
 #define EVENT_QUEUE_DEPTH 256
 
@@ -21,20 +16,17 @@ static SStaticScheduler * pStaticScheduler= NULL;
 
 typedef struct {
   FSimEventCallback fCallback;
-  FSimEventDump fDump;
   FSimEventDestroy fDestroy;
   void * pContext;
 } SStaticEvent;
 
 // ----- static_scheduler_event_create ------------------------------
 SStaticEvent * static_scheduler_event_create(FSimEventCallback fCallback,
-					     FSimEventDump fDump,
 					     FSimEventDestroy fDestroy,
 					     void * pContext)
 {
   SStaticEvent * pEvent= (SStaticEvent *) MALLOC(sizeof(SStaticEvent));
   pEvent->fCallback= fCallback;
-  pEvent->fDump= fDump;
   pEvent->fDestroy= fDestroy;
   pEvent->pContext= pContext;
   return pEvent;
@@ -128,7 +120,6 @@ int static_scheduler_run(void * pContext)
 
 // ----- static_scheduler_post --------------------------------------
 int static_scheduler_post(FSimEventCallback fCallback,
-			  FSimEventDump fDump,
 			  FSimEventDestroy fDestroy,
 			  void * pContext,
 			  double uSchedulingTime,
@@ -137,37 +128,17 @@ int static_scheduler_post(FSimEventCallback fCallback,
   SStaticEvent * pEvent;
 
   assert((uSchedulingTime == 0) && (uDeltaType == RELATIVE_TIME));
-  pEvent= static_scheduler_event_create(fCallback, fDump, fDestroy, pContext);
+  pEvent= static_scheduler_event_create(fCallback, fDestroy, pContext);
 
   return fifo_push(pStaticScheduler->pEvents, pEvent);
 }
 
 // ----- static_scheduler_dump_events -------------------------------
 /**
- * Return information 
+ *
  */
 void static_scheduler_dump_events(FILE * pStream)
 {
-  SStaticEvent * pEvent;
-  uint32_t uDepth;
-  uint32_t uMaxDepth;
-  uint32_t uStart;
-  int iIndex;
-
-  uDepth= pStaticScheduler->pEvents->uCurrentDepth;
-  uMaxDepth= pStaticScheduler->pEvents->uMaxDepth;
-  uStart= pStaticScheduler->pEvents->uStartIndex;
-  fprintf(pStream, "Number of events queued: %u (%u)\n",
-	  uDepth, uMaxDepth);
-  for (iIndex= 0; iIndex < uDepth; iIndex++) {
-    pEvent= (SStaticEvent *) pStaticScheduler->pEvents->ppItems[(uStart+iIndex) % uMaxDepth];
-    fprintf(pStream, "(%d) ", (uStart+iIndex) % uMaxDepth);
-    fflush(pStream);
-    if (pEvent->fDump != NULL) {
-      pEvent->fDump(pStream, pEvent->pContext);
-    } else {
-      fprintf(pStream, "unknown");
-    }
-    fprintf(pStream, "\n");
-  }
+  fprintf(pStream, "Number of events queued: %u\n",
+	  pStaticScheduler->pEvents->uCurrentDepth);
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 22/02/2005
+// @lastdate 21/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -107,35 +107,6 @@ int cbgp_jni_call_void(JNIEnv * env, jobject joObject,
 
   /* Call the method */
   (*env)->CallVoidMethodV(env, joObject, jmObject, ap);
-
-  return 0;
-}
-
-// -----[ cbgp_jni_call_boolean ]------------------------------------
-/**
- * Call a void method of the given object.
- */
-int cbgp_jni_call_boolean(JNIEnv * env, jobject joObject,
-			  const char * pcMethod,
-			  const char * pcSignature, ...)
-{
-  va_list ap;
-  jclass jcObject;
-  jmethodID jmObject;
-
-  va_start(ap, pcSignature);
-
-  /* Get the object's class */
-  if ((jcObject= (*env)->GetObjectClass(env, joObject)) == NULL)
-    return -1;
-
-  /* Get the method */
-  if ((jmObject= (*env)->GetMethodID(env, jcObject, pcMethod,
-				     pcSignature)) == NULL)
-    return -1;
-
-  /* Call the method */
-  (*env)->CallBooleanMethodV(env, joObject, jmObject, ap);
 
   return 0;
 }
@@ -488,7 +459,7 @@ jobject cbgp_jni_new_Vector(JNIEnv * env)
   return joVector;
 }
 
-// -----[ cbgp_jni_Vector_add ]--------------------------------------
+// -----[ cbgp_jni_Vector_add_rt_route ]-----------------------------
 int cbgp_jni_Vector_add(JNIEnv * env, jobject joVector, jobject joObject)
 {
   jclass jcVector;
@@ -502,21 +473,6 @@ int cbgp_jni_Vector_add(JNIEnv * env, jobject joVector, jobject joObject)
   (*env)->CallVoidMethod(env, joVector, jmVector, joObject);
 
   return 0;
-}
-
-// -----[ cbgp_jni_new_ArrayList ]-----------------------------------
-jobject cbgp_jni_new_ArrayList(JNIEnv * env)
-{
-  return cbgp_jni_new(env, "java/util/ArrayList", "()V");
-}
-
-// -----[ cbgp_jni_ArrayList_add ]-----------------------------------
-int cbgp_jni_ArrayList_add(JNIEnv * env, jobject joArrayList,
-			   jobject joItem)
-{
-  return cbgp_jni_call_boolean(env, joArrayList,
-			       "add", "(Ljava/lang/Object;)Z",
-			       joItem);
 }
 
 // -----[ ip_jstring_to_address ]------------------------------------

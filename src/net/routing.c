@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 08/02/2005
+// @lastdate 05/08/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <libgds/log.h>
 #include <libgds/memory.h>
@@ -137,17 +133,13 @@ char * route_info_dump_string(SNetRouteInfo * pRouteInfo)
 
 // ----- route_info_dump --------------------------------------------
 /**
- * Output format:
- * <dst-prefix> <link/if> <weight> <type> [ <state> ]
+ *
  */
 void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
 {
   ip_address_dump(pStream, pRouteInfo->pNextHopIf->tAddr);
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
   route_type_dump(pStream, pRouteInfo->tType);
-  if (!link_get_state(pRouteInfo->pNextHopIf, NET_LINK_FLAG_UP)) {
-    fprintf(pStream, "\t[DOWN]");
-  }
 }
 
 // ----- rt_route_info_destroy --------------------------------------
@@ -559,43 +551,6 @@ int rt_dump_string_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
   return 0;
 }
 
-typedef struct {
-  FRadixTreeForEach fForEach;
-  void * pContext;
-} SRTForEachCtx;
-
-// ----- rt_for_each_function ----------------------------------------------
-/**
- *
- */
-int rt_for_each_function(uint32_t uKey, uint8_t uKeyLen,
-			 void * pItem, void * pContext)
-{
-  SRTForEachCtx * pCtx= (SRTForEachCtx *) pContext;
-  SNetRouteInfoList * pInfoList= (SNetRouteInfoList *) pItem;
-  int iIndex;
-
-  for (iIndex= 0; iIndex < ptr_array_length(pInfoList); iIndex++) {
-    if (pCtx->fForEach(uKey, uKeyLen, pInfoList->data[iIndex], pCtx->pContext) != 0)
-      return -1;
-  }
-
-  return 0;
-}
-
-// ----- rt_for_each -------------------------------------------------------
-/**
- *
- */
-int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
-{
-  SRTForEachCtx sCtx;
-
-  sCtx.fForEach= fForEach;
-  sCtx.pContext= pContext;
-
-  return radix_tree_for_each((SRadixTree *) pRT, rt_for_each_function, &sCtx);
-}
 
 // ----- rt_dump_string ----------------------------------------------------
 /**

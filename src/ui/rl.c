@@ -3,16 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 27/01/2005
+// @lastdate 16/11/2004
 // ==================================================================
-// Help about this code can be found in the GNU readline manual.
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+// This code is explained in the GNU readline manual.
 
 #include <libgds/types.h>
 
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 03/01/2005
+// @lastdate 22/11/2004
 // ==================================================================
 
 #ifndef __COMM_H__
@@ -31,10 +31,8 @@ extern int comm_equals(SCommunities * pCommunities1,
 // ----- comm_from_string -------------------------------------------
 extern int comm_from_string(char * pcComm, comm_t * pCommunity);
 // ----- comm_dump2 -------------------------------------------------
-extern void comm_dump2(FILE * pStream, comm_t tCommunity,
-		       int iText);
+extern void comm_dump2(FILE * pStream, comm_t tCommunity);
 // ----- comm_dump --------------------------------------------------
-extern void comm_dump(FILE * pStream, SCommunities * pCommunities,
-		      int iText);
+extern void comm_dump(FILE * pStream, SCommunities * pCommunities);
 
 #endif

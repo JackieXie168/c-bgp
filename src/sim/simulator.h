@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 17/02/2005
+// @lastdate 26/11/2004
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -16,15 +16,13 @@
 #define SCHEDULER_STATIC  1
 #define SCHEDULER_DYNAMIC 2
 
-extern uint8_t SIM_OPTIONS_SCHEDULER;
+uint8_t SIM_OPTIONS_SCHEDULER;
 
 #define ABSOLUTE_TIME	0x00
 #define RELATIVE_TIME	0x01
 
 // ----- FSimEventCallback ------------------------------------------
 typedef int (*FSimEventCallback)(void * pContext);
-// ----- FSimEventDump ----------------------------------------------
-typedef void (*FSimEventDump)(FILE * pStream, void * pContext);
 // ----- FSimEventDestroy -------------------------------------------
 typedef void (*FSimEventDestroy)(void * pContext);
 
@@ -32,7 +30,6 @@ typedef void (*FSimEventDestroy)(void * pContext);
 typedef int (*FSimSchedulerRun)(void * pContext);
 // ----- FSimSchedulerPost ------------------------------------------
 typedef int (*FSimSchedulerPost)(FSimEventCallback fCallback,
-				 FSimEventDump fDump,
 				 FSimEventDestroy fDestroy,
 				 void * pContext,
 				 double uSchedulingTime,
@@ -53,7 +50,6 @@ extern void simulator_done();
 extern int simulator_run();
 // ----- simulator_post_event ---------------------------------------
 extern int simulator_post_event(FSimEventCallback fCallback,
-				FSimEventDump fDump,
 				FSimEventDestroy fDestroy,
 				void * pContext, double uSchedulingTime,
 				uint8_t uDeltaType);

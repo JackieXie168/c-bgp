@@ -2,14 +2,9 @@
 // @(#)filter.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 25/02/2005
+// @lastdate 22/11/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <stdlib.h>
@@ -17,93 +12,11 @@
 
 #include <libgds/memory.h>
 #include <libgds/types.h>
-#include <libgds/hash_utils.h>
 
 #include <bgp/comm.h>
 #include <bgp/ecomm.h>
-#include <bgp/path.h>
 #include <bgp/filter.h>
 #include <net/network.h>
-
-
-SPtrArray * paPathExpr = NULL;
-SHash * pHashPathExpr = NULL;
-static uint32_t  uHashPathRegExSize = 64;
-
-// ----- filter_path_regex_compare -----------------------------------
-int filter_path_regex_compare(void * pItem1, void * pItem2, 
-				unsigned int uEltSize)
-{
-  SPathMatch * pRegEx1 = (SPathMatch *) pItem1;
-  SPathMatch * pRegEx2 = (SPathMatch *) pItem2;
-  int iComp;
-
-  //printf("pattern1 : %s\tpattern2: %s\n", pRegEx1->pcPattern, pRegEx2->pcPattern);
-  iComp = strcmp(pRegEx1->pcPattern, pRegEx2->pcPattern);
-  if (iComp < 0)
-    return -1;
-  else if (iComp > 0)
-    return 1;
-  else
-    return 0;
-}
-
-// ----- filter_path_regex_destroy -----------------------------------
-void filter_path_regex_destroy(void * pItem)
-{
-  SPathMatch * pRegEx = (SPathMatch *)pItem;
-
-  if ( pRegEx != NULL) {
-    if (pRegEx->pcPattern != NULL)
-      FREE(pRegEx->pcPattern);
-
-    if (pRegEx->pRegEx != NULL)
-      regex_finalize(&(pRegEx->pRegEx));
-    FREE(pItem);
-  }
-}
-
-// ----- filter_path_regex_hash --------------------------------------------------
-/**
- * Universal hash function for string keys (discussed in Sedgewick's
- * "Algorithms in C, 3rd edition") and adapted.
- */
-uint32_t filter_path_regex_hash(void * pItem)
-{
-  SPathMatch * pRegEx = (SPathMatch *)pItem;
-  
-  if (pRegEx == NULL)
-    return 0;
-
-  return hash_utils_key_compute_string(pRegEx->pcPattern, uHashPathRegExSize);
-}
-
-void _filter_path_regex_init() __attribute__((constructor));
-void _filter_path_regex_finalize() __attribute__((destructor));
-
-
-// ----- filter_path_regex_init --------------------------------------
-/**
- *
- */
-void _filter_path_regex_init()
-{
-  pHashPathExpr = hash_init(uHashPathRegExSize, .5, filter_path_regex_compare, 
-				filter_path_regex_destroy, 
-				filter_path_regex_hash);
-  paPathExpr = ptr_array_create(0, NULL, NULL);
-}
-
-// ----- filter_path_regex_finalize ----------------------------------
-/**
- *
- *
- */
-void _filter_path_regex_finalize()
-{
-  ptr_array_destroy(&paPathExpr);
-  hash_destroy(&pHashPathExpr);
-}
 
 // ----- filter_matcher_create --------------------------------------
 /**
@@ -228,106 +141,36 @@ void filter_destroy(SFilter ** ppFilter)
   }
 }
 
-// ----- filter_rule_apply ------------------------------------------
-/**
- * result:
- * 0 => DENY
- * 1 => ACCEPT
- * 2 => continue with next rule
- */
-int filter_rule_apply(SFilterRule * pRule, SBGPRouter * pRouter,
-		      SRoute * pRoute)
-{
-  if (!filter_matcher_apply(pRule->pMatcher, pRouter, pRoute))
-    return 2;
-  return filter_action_apply(pRule->pAction, pRouter, pRoute);
-}
-
-// ----- filter_apply -----------------------------------------------
-/**
- *
- */
-int filter_apply(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
-{
-  int iIndex;
-  int iResult;
-
-  if (pFilter != NULL) {
-    for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
-      iResult= filter_rule_apply((SFilterRule *)
-				 pFilter->pSeqRules->ppItems[iIndex],
-				 pRouter, pRoute);
-      if ((iResult == 0) || (iResult == 1))
-	return iResult;
-    }
-  }
-  return 1; // ACCEPT
-}
-
-
-// ----- filter_action_jump ------------------------------------------
-/**
- *
- *
- */
-int filter_jump(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
-{
-  return filter_apply(pFilter, pRouter, pRoute);
-}
-
-// ----- filter_action_call ------------------------------------------
-/**
- *
- *
- */
-int filter_call(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
-{
-  int iIndex; 
-  int iResult;
-
-  if (pFilter != NULL) {
-    for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
-      iResult= filter_rule_apply((SFilterRule *)
-				 pFilter->pSeqRules->ppItems[iIndex],
-				 pRouter, pRoute);
-      if ((iResult == 0) || (iResult == 1))
-	return iResult;
-    }
-  }
-  return 2; // CONTINUE with next rule
-}
-
-
 // ----- filter_matcher_apply ---------------------------------------
 /**
  * result:
  * 0 => route does not match the filter
  * 1 => route matches the filter
  */
-int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
+int filter_matcher_apply(SFilterMatcher * pMatcher, SAS * pAS,
 			 SRoute * pRoute)
 {
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
       return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pRouter, pRoute) &&
+				  pAS, pRoute) &&
 	filter_matcher_apply((SFilterMatcher *)
 			     &pMatcher->auParams[sizeof(SFilterMatcher)+
 						pMatcher->auParams[1]],
-			     pRouter, pRoute);
+			     pAS, pRoute);
       break;
     case FT_MATCH_OP_OR:
       return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pRouter, pRoute) ||
+				  pAS, pRoute) ||
 	filter_matcher_apply((SFilterMatcher *)
 			     &pMatcher->auParams[sizeof(SFilterMatcher)+
 						pMatcher->auParams[1]],
-			     pRouter, pRoute);
+			     pAS, pRoute);
       break;
     case FT_MATCH_OP_NOT:
       return !filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				   pRouter, pRoute);
+				   pAS, pRoute);
     case FT_MATCH_COMM_CONTAINS:
       return
 	route_comm_contains(pRoute,
@@ -340,9 +183,6 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
     case FT_MATCH_PREFIX_IN:
       return ip_prefix_in_prefix(pRoute->sPrefix,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
-      break;
-    case FT_MATCH_AS_PATH:
-      return path_match(pRoute->pASPath, *((int *) pMatcher->auParams))?1:0;
       break;
     default:
       abort();
@@ -358,7 +198,7 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
  * 1 => ACCEPT route
  * 2 => continue with next rule
  */
-int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
+int filter_action_apply(SFilterAction * pAction, SAS * pAS,
 			SRoute * pRoute)
 {
   SNetRouteInfo * pRouteInfo;
@@ -379,7 +219,7 @@ int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
       route_comm_remove(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_PATH_PREPEND:
-      route_path_prepend(pRoute, pRouter->uNumber,
+      route_path_prepend(pRoute, pAS->uNumber,
 			 *((uint8_t *) pAction->auParams));
       break;
     case FT_ACTION_PREF_SET:
@@ -389,8 +229,8 @@ int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
       route_med_set(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_INTERNAL:
-      if (pRoute->tNextHop != pRouter->pNode->tAddr) {
-	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+      if (pRoute->tNextHop != pAS->pNode->tAddr) {
+	pRouteInfo= rt_find_best(pAS->pNode->pRT, pRoute->tNextHop,
 				 NET_ROUTE_ANY);
 	assert(pRouteInfo != NULL);
 	route_med_set(pRoute, pRouteInfo->uWeight);
@@ -402,11 +242,6 @@ int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
       route_ecomm_append(pRoute, ecomm_val_copy((SECommunity *)
 						pAction->auParams));
       break;
-    case FT_ACTION_JUMP:
-      return filter_jump((SFilter *)pAction->auParams, pRouter, pRoute);
-      break;
-    case FT_ACTION_CALL:
-      return filter_call((SFilter *)pAction->auParams, pRouter, pRoute);
     default:
       abort();
     }
@@ -448,6 +283,41 @@ int filter_remove_rule(SFilter * pFilter, unsigned int uIndex)
   if (uIndex < pFilter->pSeqRules->iSize)
     filter_rule_destroy((SFilterRule **) &pFilter->pSeqRules->ppItems[uIndex]);
   return sequence_remove_at(pFilter->pSeqRules, uIndex);
+}
+
+// ----- filter_rule_apply ------------------------------------------
+/**
+ * result:
+ * 0 => DENY
+ * 1 => ACCEPT
+ * 2 => continue with next rule
+ */
+int filter_rule_apply(SFilterRule * pRule, SAS * pAS, SRoute * pRoute)
+{
+  if (!filter_matcher_apply(pRule->pMatcher, pAS, pRoute))
+    return 2;
+  return filter_action_apply(pRule->pAction, pAS, pRoute);
+}
+
+// ----- filter_apply -----------------------------------------------
+/**
+ *
+ */
+int filter_apply(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
+{
+  int iIndex;
+  int iResult;
+
+  if (pFilter != NULL) {
+    for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
+      iResult= filter_rule_apply((SFilterRule *)
+				 pFilter->pSeqRules->ppItems[iIndex],
+				 pAS, pRoute);
+      if ((iResult == 0) || (iResult == 1))
+	return iResult;
+    }
+  }
+  return 1; // ACCEPT
 }
 
 // ----- filter_match_and -------------------------------------------
@@ -556,27 +426,13 @@ SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix)
 /**
  *
  */
-SFilterMatcher * filter_match_comm_contains(comm_t uCommunity)
+SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity)
 {
   SFilterMatcher * pMatcher=
     filter_matcher_create(FT_MATCH_COMM_CONTAINS,
-			  sizeof(comm_t));
+			  sizeof(uint32_t));
   memcpy(pMatcher->auParams, &uCommunity, sizeof(uCommunity));
   return pMatcher;
-}
-
-// ----- filter_match_path -------------------------------------------
-/**
- *
- */
-SFilterMatcher * filter_match_path(int iArrayPathRegExPos)
-{
-  SFilterMatcher * pMatcher=
-    filter_matcher_create(FT_MATCH_AS_PATH,
-			  sizeof(int));
-
- memcpy(pMatcher->auParams, &iArrayPathRegExPos, sizeof(iArrayPathRegExPos));
- return pMatcher;
 }
 
 // ----- filter_action_accept -----------------------------------------
@@ -596,32 +452,6 @@ SFilterAction * filter_action_deny()
 {
   
   return filter_action_create(FT_ACTION_DENY, 0);
-}
-
-// ----- filter_action_jump ------------------------------------------
-/**
- *
- *
- */
-SFilterAction * filter_action_jump(SFilter * pFilter)
-{
-  SFilterAction * pAction = filter_action_create(FT_ACTION_JUMP,
-						  sizeof(SFilter *));
-  memcpy(pAction->auParams, pFilter, sizeof(SFilter *));
-  return pAction;
-}
-
-// ----- filter_action_call ------------------------------------------
-/**
- *
- *
- */
-SFilterAction * filter_action_call(SFilter * pFilter)
-{
-  SFilterAction * pAction = filter_action_create(FT_ACTION_CALL,
-						  sizeof(SFilter *));
-  memcpy(pAction->auParams, pFilter, sizeof(SFilter *));
-  return pAction;
 }
 
 // ----- filter_action_pref_set -------------------------------------
@@ -670,18 +500,6 @@ SFilterAction * filter_action_comm_append(uint32_t uCommunity)
   return pAction;
 }
 
-// ----- filter_action_comm_remove ----------------------------------
-/**
- *
- */
-SFilterAction * filter_action_comm_remove(uint32_t uCommunity)
-{
-  SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_REMOVE,
-						sizeof(uint32_t));
-  memcpy(pAction->auParams, &uCommunity, sizeof(uint32_t));
-  return pAction;
-}
-
 // ----- filter_action_comm_strip -----------------------------------
 /**
  *
@@ -689,6 +507,18 @@ SFilterAction * filter_action_comm_remove(uint32_t uCommunity)
 SFilterAction * filter_action_comm_strip()
 {
   SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_STRIP, 0);
+  return pAction;
+}
+
+// ----- filter_action_comm_remove ----------------------------------
+/**
+ *
+ */
+SFilterAction * filter_action_comm_remove(comm_t uCommunity)
+{
+  SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_STRIP,
+						sizeof(uCommunity));
+  memcpy(pAction->auParams, &uCommunity, sizeof(uCommunity));
   return pAction;
 }
 
@@ -780,7 +610,7 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
     case FT_ACTION_DENY: fprintf(pStream, "DENY"); break;
     case FT_ACTION_COMM_APPEND:
       fprintf(pStream, "append community ");
-      comm_dump2(pStream, *((uint32_t *) pAction->auParams), COMM_DUMP_TEXT);
+      comm_dump2(pStream, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_COMM_STRIP: fprintf(pStream, "comm strip"); break;
     case FT_ACTION_COMM_REMOVE:
@@ -800,8 +630,7 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
       break;
     case FT_ACTION_ECOMM_APPEND:
       fprintf(pStream, "append ext-community ");
-      ecomm_val_dump(pStream, (SECommunity *) pAction->auParams,
-		     ECOMM_DUMP_TEXT);
+      ecomm_val_dump(pStream, (SECommunity *) pAction->auParams);
       break;
     default:
       fprintf(pStream, "?");

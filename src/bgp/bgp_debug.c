@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/04/2004
-// @lastdate 23/02/2005
+// @lastdate 09/04/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <bgp/as.h>
 #include <bgp/bgp_debug.h>
@@ -61,7 +57,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   }
 
   // Build list of eligible routes received from peers
-  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
+  pRoutes= routes_list_create();
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
@@ -84,7 +80,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
     if (iNumRoutes > 1) {
       iOldNumRoutes= iNumRoutes;
       fprintf(pStream, "[ Higher LOCAL-PREF ]\n");
-      bgp_router_decision_process_dop(pRouter, pRoutes);
+      as_decision_process_dop(pRouter, pRoutes);
       iNumRoutes= ptr_array_length(pRoutes);
       if (iNumRoutes < iOldNumRoutes)
 	routes_list_dump(pStream, pRoutes);

@@ -3,14 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 13/02/2005
+// @lastdate 16/11/2004
 // ==================================================================
 
 #ifndef __FILTER_T_H__
 #define __FILTER_T_H__
-
-#define FILTER_OUT 0
-#define FILTER_IN  1
 
 typedef struct {
   unsigned char uCode;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 22/02/2005
+// @lastdate 21/02/2005
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -72,11 +72,6 @@ extern jobject cbgp_jni_new_Vector(JNIEnv * env);
 // -----[ cbgp_jni_Vector_add ]--------------------------------------
 extern int cbgp_jni_Vector_add(JNIEnv * env, jobject joVector,
 			       jobject joObject);
-// -----[ cbgp_jni_new_ArrayList ]-----------------------------------
-extern jobject cbgp_jni_new_ArrayList(JNIEnv * env);
-// -----[ cbgp_jni_ArrayList_add ]-----------------------------------
-extern int cbgp_jni_ArrayList_add(JNIEnv * env, jobject joArrayList,
-				  jobject joItem);
 
 // -----[ ip_jstring_to_address ]------------------------------------
 extern int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr);

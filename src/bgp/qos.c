@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 12/02/2005
+// @lastdate 18/05/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <string.h>
@@ -78,19 +74,19 @@ SRoute * qos_route_aggregate(SRoutes * pRoutes, SRoute * pBestRoute)
  *   - has an aggregate which contains a route learned through an iBGP
  *     session
  */
-int qos_route_is_ibgp(SBGPRouter * pRouter, SRoute * pRoute)
+int qos_route_is_ibgp(SAS * pAS, SRoute * pRoute)
 {
   int iIndex;
 
   // Best route learned from iBGP ?
-  if (route_peer_get(pRoute)->uRemoteAS == pRouter->uNumber)
+  if (route_peer_get(pRoute)->uRemoteAS == pAS->uNumber)
     return 1;
 
   // Route in the aggregate learned from iBGP ?
   if (pRoute->pAggrRoute != NULL) {
     for (iIndex= 0; iIndex < ptr_array_length(pRoute->pAggrRoutes); iIndex++)
       if (route_peer_get((SRoute *) pRoute->pAggrRoutes->data[iIndex])->uRemoteAS
-	  == pRouter->uNumber)
+	  == pAS->uNumber)
 	return 1;
   }
 
@@ -224,14 +220,14 @@ int qos_route_compare_delay(void * pItem1, void * pItem2,
  * Run the decision process on the P first rules to find which one is
  * the best one.
  */
-int qos_decision_process_delay(SBGPRouter * pRouter, SRoutes * pRoutes,
+int qos_decision_process_delay(SAS * pAS, SRoutes * pRoutes,
 			       unsigned int uNumRoutes)
 {
   int iIndex, iIndexLast;
   SRoute * pRoute, * pCurrentRoute;
   SRoutes * pAggrRoutes/*, * pOthRoutes*/;
 
-  AS_LOG_DEBUG(pRouter, " > qos_decision_process_delay\n");
+  AS_LOG_DEBUG(pAS, " > qos_decision_process_delay\n");
 
   assert(uNumRoutes >= 1);
 
@@ -274,7 +270,7 @@ int qos_decision_process_delay(SBGPRouter * pRouter, SRoutes * pRoutes,
   pAggrRoutes= (SRoutes *) _array_copy((SArray *) pRoutes);
 
   // Find best route
-  qos_decision_process_tie_break(pRouter, pRoutes, 1);
+  qos_decision_process_tie_break(pAS, pRoutes, 1);
 
   assert(ptr_array_length(pRoutes) <= 1);
 
@@ -286,7 +282,7 @@ int qos_decision_process_delay(SBGPRouter * pRouter, SRoutes * pRoutes,
   } else
     routes_list_destroy(&pAggrRoutes);
 
-  AS_LOG_DEBUG(pRouter, " < qos_decision_process_delay\n");
+  AS_LOG_DEBUG(pAS, " < qos_decision_process_delay\n");
     
   return 0;
 }
@@ -308,16 +304,16 @@ int qos_decision_process_delay(SBGPRouter * pRouter, SRoutes * pRoutes,
  *   - update Next-Hop (next-hop-self)
  *   - prepend AS-Path (if redistribution to an external peer)
  */
-int qos_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * pRoute)
+int qos_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
 {
   SRoute * pNewRoute= NULL;
-  int iExternalSession= (pRouter->uNumber != pPeer->uRemoteAS);
+  int iExternalSession= (pAS->uNumber != pPeer->uRemoteAS);
 
-  AS_LOG_DEBUG(pRouter, " > qos_advertise_peer\n");
+  AS_LOG_DEBUG(pAS, " > qos_advertise_peer\n");
 
   // If this route was learned through an iBGP session, do not
   // redistribute it to an internal peer
-  if ((route_peer_get(pRoute)->uRemoteAS == pRouter->uNumber) &&
+  if ((route_peer_get(pRoute)->uRemoteAS == pAS->uNumber) &&
       (!iExternalSession))
     return -1;
 
@@ -349,17 +345,17 @@ int qos_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * pRoute)
 
     route_ecomm_strip_non_transitive(pNewRoute);
 
-    if (filter_apply(pPeer->pOutFilter, pRouter, pNewRoute)) {
+    if (filter_apply(pPeer->pOutFilter, pAS, pNewRoute)) {
 
       // The route's next-hop is this router (next-hop-self)
-      route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+      route_nexthop_set(pNewRoute, pAS->pNode->tAddr);
 
       // Append AS-Number if exteral peer (eBGP session)
       if (iExternalSession)
-	route_path_append(pNewRoute, pRouter->uNumber);
+	route_path_append(pNewRoute, pAS->uNumber);
       
       LOG_DEBUG("*** AS%d advertise to AS%d ***\n",
-		pRouter->uNumber, pPeer->uRemoteAS);
+		pAS->uNumber, pPeer->uRemoteAS);
 
       peer_announce_route(pPeer, pNewRoute);
       return 0;
@@ -376,7 +372,7 @@ int qos_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * pRoute)
 /**
  *
  */
-void qos_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
+void qos_decision_process_disseminate_to_peer(SAS * pAS,
 					      SPrefix sPrefix,
 					      SRoute * pRoute,
 					      SPeer * pPeer)
@@ -396,7 +392,7 @@ void qos_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
     } else {
       route_copy_count++;
       pNewRoute= route_copy(pRoute);
-      if (qos_advertise_to_peer(pRouter, pPeer, pNewRoute) == 0) {
+      if (qos_advertise_to_peer(pAS, pPeer, pNewRoute) == 0) {
 	LOG_DEBUG("\treplaced\n");
 	rib_replace_route(pPeer->pAdjRIBOut, pNewRoute);
       } else {
@@ -424,7 +420,7 @@ void qos_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
  * Must go to the end of the function to select a unique best route,
  * but keep N good routes to aggregate
  */
-void qos_decision_process_tie_break(SBGPRouter * pRouter, SRoutes * pRoutes,
+void qos_decision_process_tie_break(SAS * pAS, SRoutes * pRoutes,
 				    unsigned int uNumRoutes)
 {
   int iIndex;
@@ -453,16 +449,16 @@ void qos_decision_process_tie_break(SBGPRouter * pRouter, SRoutes * pRoutes,
     return;
 
   // *** eBGP over iBGP ***
-  dp_rule_ebgp_over_ibgp(pRouter, pRoutes);
+  dp_rule_ebgp_over_ibgp(pAS, pRoutes);
   if (ptr_array_length(pRoutes) <= uNumRoutes)
     return;
 
   // *** nearest NEXT-HOP (lowest IGP-cost) ***
-  dp_rule_nearest_next_hop(pRouter, pRoutes);
+  dp_rule_nearest_next_hop(pAS, pRoutes);
   if (ptr_array_length(pRoutes) <= uNumRoutes)
     return;
 
-  dp_rule_final(pRouter, pRoutes);
+  dp_rule_final(pAS, pRoutes);
 }
 
 // ----- qos_decision_process_disseminate ---------------------------
@@ -476,7 +472,7 @@ void qos_decision_process_tie_break(SBGPRouter * pRouter, SRoutes * pRoutes,
  * If there is one best route, then send an update. If a route was
  * previously announced, it will be implicitly withdrawn.
  */
-void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
+void qos_decision_process_disseminate(SAS * pAS, SPrefix sPrefix,
 				      SRoute * pRoute)
 {
 #define QOS_REDISTRIBUTE_NOT  0
@@ -490,9 +486,9 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
   int iRedistributionType;
   int iAggregateIBGP;
 
-  AS_LOG_DEBUG(pRouter, " > qos_decision_process_disseminate.begin\n");
+  AS_LOG_DEBUG(pAS, " > qos_decision_process_disseminate.begin\n");
 
-  iAggregateIBGP= qos_route_is_ibgp(pRouter, pRoute);
+  iAggregateIBGP= qos_route_is_ibgp(pAS, pRoute);
 
   if (pRoute->pAggrRoute != NULL) {
     pAggrRoutes= pRoute->pAggrRoutes;
@@ -500,15 +496,15 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
     pRoute= pRoute->pAggrRoute;
   }
 
-  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+  for (iIndex= 0; iIndex < ptr_array_length(pAS->pPeers); iIndex++) {
+    pPeer= (SPeer *) pAS->pPeers->data[iIndex];
 
     iRedistributionType= QOS_REDISTRIBUTE_BEST;
 
     // If one route of the aggregate was learned through the iBGP,
     // prevent the redistribution to all the iBGP peer.
     // Announce the eBGP route if it exists
-    if ((pPeer->uRemoteAS == pRouter->uNumber) &&
+    if ((pPeer->uRemoteAS == pAS->uNumber) &&
 	(iAggregateIBGP)) {
       if (pEBGPRoute != NULL)
 	iRedistributionType= QOS_REDISTRIBUTE_EBGP;
@@ -535,7 +531,7 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
       LOG_ENABLED_DEBUG()
 	ip_address_dump(log_get_stream(pMainLog), pPeer->tAddr);
       LOG_DEBUG("\n");
-      qos_decision_process_disseminate_to_peer(pRouter, sPrefix, pRoute,
+      qos_decision_process_disseminate_to_peer(pAS, sPrefix, pRoute,
 					       pPeer);
       break;
     case QOS_REDISTRIBUTE_EBGP:
@@ -543,7 +539,7 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
       LOG_ENABLED_DEBUG()
 	ip_address_dump(log_get_stream(pMainLog), pPeer->tAddr);
       LOG_DEBUG("\n");
-      qos_decision_process_disseminate_to_peer(pRouter, sPrefix, pEBGPRoute,
+      qos_decision_process_disseminate_to_peer(pAS, sPrefix, pEBGPRoute,
 					       pPeer);      
       break;
     default:
@@ -551,12 +547,12 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
       LOG_ENABLED_DEBUG()
 	ip_address_dump(log_get_stream(pMainLog), pPeer->tAddr);
       LOG_DEBUG("\n");
-      qos_decision_process_disseminate_to_peer(pRouter, sPrefix, NULL,
+      qos_decision_process_disseminate_to_peer(pAS, sPrefix, NULL,
 					       pPeer);
     }
   }
 
-  AS_LOG_DEBUG(pRouter, " < qos_decision_process_disseminate.end\n");
+  AS_LOG_DEBUG(pAS, " < qos_decision_process_disseminate.end\n");
 
 }
 
@@ -581,8 +577,7 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
  * - an update has been received. The complete decision process has to
  * be run.
  */
-int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
-			 SPrefix sPrefix)
+int qos_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
 {
   SRoutes * pRoutes= routes_list_create();
   SRoutes * pEBGPRoutes= routes_list_create();
@@ -590,11 +585,11 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   SPeer * pPeer;
   SRoute * pRoute, * pOldRoute;
 
-  AS_LOG_DEBUG(pRouter, " > qos_decision_process.begin\n");
+  AS_LOG_DEBUG(pAS, " > qos_decision_process.begin\n");
 
   LOG_DEBUG("\t<-peer: AS%d\n", pOriginPeer->uRemoteAS);
 
-  pOldRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+  pOldRoute= rib_find_exact(pAS->pLocRIB, sPrefix);
   LOG_DEBUG("\tbest: ");
   LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
   LOG_DEBUG("\n");
@@ -602,27 +597,27 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   // *** lock all Adj-RIB-Ins ***
 
   // Build list of eligible routes and list of eligible eBGP routes
-  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
+  for (iIndex= 0; iIndex < ptr_array_length(pAS->pPeers); iIndex++) {
+    pPeer= (SPeer*) pAS->pPeers->data[iIndex];
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
     if ((pRoute != NULL) &&
 	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))) {
-      assert(ptr_array_append(pRoutes, pRoute) >= 0);
+      assert(ptr_array_append(pRoutes, pRoute) == 0);
       LOG_DEBUG("\teligible: ");
       LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
       LOG_DEBUG("\n");
-      if (route_peer_get(pRoute)->uRemoteAS != pRouter->uNumber)
-	assert(ptr_array_append(pEBGPRoutes, pRoute) >= 0);
+      if (route_peer_get(pRoute)->uRemoteAS != pAS->uNumber)
+	assert(ptr_array_append(pEBGPRoutes, pRoute) == 0);
     }
   }
 
   // Keep routes with highest degree of preference
   if (ptr_array_length(pRoutes) > 1)
-    as_decision_process_dop(pRouter, pRoutes);
+    as_decision_process_dop(pAS, pRoutes);
 
   // Tie-break
   if (ptr_array_length(pRoutes) > 1)
-    qos_decision_process_delay(pRouter, pRoutes, BGP_OPTIONS_QOS_AGGR_LIMIT);
+    qos_decision_process_delay(pAS, pRoutes, BGP_OPTIONS_QOS_AGGR_LIMIT);
 
   assert(ptr_array_length(pRoutes) <= 1);
 
@@ -645,15 +640,15 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 
     // If best route is iBGP or aggregate contains an iBGP route, then
     // find the best eBGP route (and aggregate: optional)
-    if (qos_route_is_ibgp(pRouter, (SRoute *) pRoutes->data[0])) {
+    if (qos_route_is_ibgp(pAS, (SRoute *) pRoutes->data[0])) {
 
       // Keep eBGP routes with highest degree of preference
       if (ptr_array_length(pEBGPRoutes) > 1)
-	as_decision_process_dop(pRouter, pEBGPRoutes);
+	as_decision_process_dop(pAS, pEBGPRoutes);
 
       // Tie-break for eBGP routes
       if (ptr_array_length(pEBGPRoutes) > 1)
-	qos_decision_process_delay(pRouter, pEBGPRoutes,
+	qos_decision_process_delay(pAS, pEBGPRoutes,
 				   BGP_OPTIONS_QOS_AGGR_LIMIT);
 
       assert(ptr_array_length(pRoutes) <= 1);
@@ -678,8 +673,8 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     if ((pOldRoute == NULL) || !route_equals(pOldRoute, pRoute)) {
       if (pOldRoute != NULL)
 	route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
-      assert(rib_add_route(pRouter->pLocRIB, pRoute) == 0);
-      qos_decision_process_disseminate(pRouter, sPrefix, pRoute);
+      assert(rib_add_route(pAS->pLocRIB, pRoute) == 0);
+      qos_decision_process_disseminate(pAS, sPrefix, pRoute);
     } else {
       route_destroy(&pRoute);
       pRoute= pOldRoute;
@@ -690,13 +685,13 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     // withdraw it. Otherwise, do nothing...
     if (pOldRoute != NULL) {
       //LOG_DEBUG("there was a previous best-route\n");
-      rib_remove_route(pRouter->pLocRIB, sPrefix);
+      rib_remove_route(pAS->pLocRIB, sPrefix);
       //LOG_DEBUG("previous best-route removed\n");
       route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
       // Withdraw should ideally only be sent to peers that already
       // have received this route. Since we do not maintain
       // Adj-RIB-Outs, the 'withdraw' message is sent to all peers...
-      qos_decision_process_disseminate(pRouter, sPrefix, NULL);
+      qos_decision_process_disseminate(pAS, sPrefix, NULL);
     }
   }
 
@@ -705,7 +700,7 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   routes_list_destroy(&pRoutes);
   routes_list_destroy(&pEBGPRoutes);
   
-  AS_LOG_DEBUG(pRouter, " < qos_decision_process.end\n");
+  AS_LOG_DEBUG(pAS, " < qos_decision_process.end\n");
   
   return 0;
 }

@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/01/2005
+// @lastdate 29/11/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <string.h>
 
@@ -83,7 +79,7 @@ int cli_net_add_link(SCliContext * pContext, STokens * pTokens)
   }
   if (tokens_get_uint_at(pTokens, 2, &uDelay))
     return CLI_ERROR_COMMAND_FAILED;
-  if (node_add_link(pNodeSrc, pNodeDst, (net_link_delay_t) uDelay, 1) < 0) {
+  if (node_add_link(pNodeSrc, pNodeDst, (net_link_delay_t) uDelay, 1)) {
     LOG_SEVERE("Error: could not add link (already exists)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -95,7 +91,6 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 {
   SNetNode * pNodeSrc, * pNodeDst;
   char * pcNodeSrcAddr, * pcNodeDstAddr;
-
 
   pcNodeSrcAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);

@@ -97,9 +97,6 @@ extern int node_post_event(SNetNode * pNode);
 
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(FILE * pStream, SNetNode * pNode);
-// ----- node_links_for_each ----------------------------------------
-extern int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
-			       void * pContext);
 // ----- node_links_lookup ------------------------------------------
 extern SNetLink * node_links_lookup(SNetNode * pNode,
 				    net_addr_t tDstAddr);
@@ -169,5 +166,4 @@ int network_domain_add(SNetwork * pNetwork, uint32_t uAS,
 						      char * pcName);
 // ----- network_domain_get -----------------------------------------
 SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
-
 #endif

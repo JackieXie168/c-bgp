@@ -46,8 +46,6 @@ extern int path_equals(SPath * pPath1, SPath * pPath2);
 // ----- path_aggregate ---------------------------------------------
 extern SPath * path_aggregate(SPath * apPaths[],
 			      unsigned int uNumPaths);
-// ----- path_match -------------------------------------------------
-int path_match(SPath * pPath, int iArrayPathRegExPos);
 
 extern void _path_test();
 

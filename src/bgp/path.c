@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 27/01/2005
+// @lastdate 23/11/2003
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <assert.h>
 #include <stdio.h>
@@ -19,7 +15,6 @@
 
 #include <bgp/path.h>
 #include <bgp/path_segment.h>
-#include <bgp/filter.h>
 
 // ----- path_destroy_segment ---------------------------------------
 void path_destroy_segment(void * pItem)
@@ -199,29 +194,6 @@ int path_at(SPath * pPath, int iPosition, uint16_t uAS)
     }
   }
   return -1;
-}
-
-extern SPtrArray * paPathExpr;
-// ----- path_match --------------------------------------------------------
-/**
- *
- *
- */
-int path_match(SPath * pPath, int iArrayPathRegExPos)
-{
-  SPathMatch * pPathMatch = NULL; 
-  char * pcPathDump = path_dump_string(pPath, 0);
-  int iRet = 0;
-
-  ptr_array_get_at(paPathExpr, iArrayPathRegExPos, &pPathMatch);
-  if (pPathMatch != NULL) {
-    if (regex_search(pPathMatch->pRegEx, pcPathDump) > 0)
-      iRet = 1;
-  } else
-    LOG_SEVERE("path_match>No Regular Expression found.\n");
-
-  FREE(pcPathDump);
-  return iRet;
 }
 
 // ----- path_dump_string --------------------------------------------------

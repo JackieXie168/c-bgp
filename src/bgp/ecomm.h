@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 19/01/2005
+// @lastdate 13/08/2003
 // ==================================================================
 
 #ifndef __ECOMM_H__
@@ -35,8 +35,7 @@ extern int ecomm_add(SECommunities ** ppComms, SECommunity * pComm);
 // ----- ecomm_strip_non_transitive ---------------------------------
 extern void ecomm_strip_non_transitive(SECommunities ** ppComms);
 // ----- ecomm_dump -------------------------------------------------
-extern void ecomm_dump(FILE * pStream, SECommunities * pComms,
-		       int iText);
+extern void ecomm_dump(FILE * pStream, SECommunities * pComms);
 // ----- ecomm_equals -----------------------------------------------
 extern int ecomm_equals(SECommunities * pCommunities1,
 			SECommunities * pCommunities2);
@@ -49,15 +48,6 @@ extern int ecomm_red_match(SECommunity * pComm, SPeer * pPeer);
 // ----- ecomm_red_dump ---------------------------------------------
 extern void ecomm_red_dump(FILE * pStream, SECommunity * pComm);
 // ----- ecomm_val_dump ---------------------------------------------
-extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
-			   int iText);
-#ifdef __EXPERIMENTAL__
-// ----- ecomm_depref_create ----------------------------------------
-extern SECommunity * ecomm_pref_create(uint32_t uPref);
-// ----- ecomm_pref_dump --------------------------------------------
-extern void ecomm_pref_dump(FILE * pStream, SECommunity * pComm);
-// ----- ecomm_pref_get ---------------------------------------------
-extern uint32_t ecomm_pref_get(SECommunity * pComm);
-#endif /* __EXPERIMENTAL__ */
+extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm);
 
 #endif

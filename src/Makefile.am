@@ -16,27 +16,13 @@ else
   OPT_LIBALLOC_LDADD =
 endif
 
-# Compile experimental features ?
-if WITH_EXPERIMENTAL
-  OPT_EXPERIMENTAL = -D__EXPERIMENTAL__
-else
-  OPT_EXPERIMENTAL =
-endif
+SUBDIRS = bgp cli net sim ui $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR)
 
-# Compile with Electric Fence ?
-if WITH_EFENCE
-  OPT_EFENCE = -lefence
-else
-  OPT_EFENCE =
-endif
-
-SUBDIRS = bgp cli external net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
-
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL)
+AM_CFLAGS = -Wall -Werror -O2
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES =
-libcsim_la_LIBADD = -lgds -lpcre bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
+libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la $(OPT_JNI_LIBADD)
 libcsim_la_LDFLAGS = -no-undefined
 
 bin_PROGRAMS = cbgp

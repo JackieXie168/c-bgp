@@ -3,12 +3,8 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 27/01/2005
+// @lastdate 26/11/2004
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -95,13 +91,12 @@ int simulator_run()
 
 // ----- simulator_post_event ---------------------------------------
 int simulator_post_event(FSimEventCallback fCallback,
-			 FSimEventDump fDump,
 			 FSimEventDestroy fDestroy,
 			 void * pContext,
 			 double dSchedulingTime,
 			 const uint8_t uDeltaType)
 {
-  return pSimulator->fSchedulerPost(fCallback, fDump, fDestroy, pContext,
+  return pSimulator->fSchedulerPost(fCallback, fDestroy, pContext,
 				    dSchedulingTime, uDeltaType);
   /*
   LOG_DEBUG("simulator_post_event\n");

@@ -71,7 +71,4 @@ char * rt_dump_string(SNetRT * pRT, SPrefix sPrefix);
 // ----- rt_dump ----------------------------------------------------
 extern void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix);
 
-// ----- rt_for_each -------------------------------------------------------
-extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
-
 #endif

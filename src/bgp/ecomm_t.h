@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ecomm_t.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
 // @date 06/12/2002
-// @lastdate 19/01/2005
+// @lastdate 20/08/2003
 // ==================================================================
 
 #ifndef __ECOMM_T_H__
@@ -14,9 +14,6 @@
 #include <net/prefix.h>
 
 #define ECOMM_RED 3
-#ifdef __EXPERIMENTAL__
-#define ECOMM_PREF 4
-#endif
 
 #define ECOMM_RED_ACTION_PREPEND 0
 #define ECOMM_RED_ACTION_NO_EXPORT 1
@@ -26,9 +23,6 @@
 #define ECOMM_RED_FILTER_2AS 1
 #define ECOMM_RED_FILTER_CIDR 2
 #define ECOMM_RED_FILTER_AS4 3
-
-#define ECOMM_DUMP_RAW 0
-#define ECOMM_DUMP_TEXT 1
 
 typedef struct {
   unsigned char uIANAAuthority:1;

@@ -1,14 +1,10 @@
 // ==================================================================
 // @(#)rib.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
 // @date 04/12/2002
-// @lastdate 03/02/2005
+// @lastdate 04/12/2002
 // ==================================================================
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include <libgds/log.h>
 
@@ -104,7 +100,7 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
 {
   return radix_tree_remove((SRadixTree *) pRIB,
 			   sPrefix.tNetwork,
-			   sPrefix.uMaskLen, 1);
+			   sPrefix.uMaskLen);
 }
 
 // ----- rib_for_each -----------------------------------------------

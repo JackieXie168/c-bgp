@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 04/01/2005
+// @lastdate 23/02/2004
 // ==================================================================
 
 #ifndef __NET_MESSAGE_H__
@@ -31,7 +31,5 @@ extern SNetMessage * message_create(net_addr_t tSrcAddr,
 				    FPayLoadDestroy fDestroy);
 // ----- message_destroy --------------------------------------------
 extern void message_destroy(SNetMessage ** ppMessage);
-// ----- message_dump -----------------------------------------------
-extern void message_dump(FILE * pStream, SNetMessage * pMessage);
 
 #endif
