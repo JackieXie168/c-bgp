@@ -6,6 +6,7 @@ INCLUDES = -I..
 libjni_la_SOURCES = \
 	jni_interface.c \
 	jni_util.c \
+	jni_util.h \
 	be_ac_ucl_ingi_cbgp_CBGP.h
 
 AM_CFLAGS = -Wall -Werror -O2

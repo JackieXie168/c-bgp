@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 08/02/2005
+// @lastdate 14/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -38,32 +38,29 @@ public class CBGP
 				      String sNexthop, 
 				      int iWeight);
 
-    /* BQU: TO BE FIXED!!!
-    public native int nodeInterfaceAdd(String net_addr_id, String net_addr_int, 
-      String mask);
-    */
-
     public native Vector netNodeGetLinks(String sAddr);
 
     public native Vector netNodeGetRT(String sNodeAddr, String sPrefix);
 
-    public native int bgpAddRouter(String sName, String sAddr, int iAS);
+    public native int bgpAddRouter(String sName, String sAddr, int iASNumber);
   
     public native int bgpRouterAddNetwork(String sRouterAddr, 
 					  String sPrefix);
 
     public native int bgpRouterAddPeer(String sRouterAddr, 
 				       String sPeerAddr, 
-				       int iAS);
+				       int iASNumber);
 
     public native int bgpRouterPeerNextHopSelf(String sRouterAddr,
 						   String sPeerAddr);
+
     public native int bgpRouterPeerVirtual(String sRouterAddr,
 					   String sPeerAddr);
 
     public native int bgpRouterPeerUp(String sRouterAddr, 
 					  String sRouterPeer,
 					  boolean bUp);
+
     public native int bgpRouterPeerRecv(String sRouterAddr, 
 					String sRouterPeer,
 					String sMesg);
@@ -81,7 +78,12 @@ public class CBGP
 
     public native int bgpRouterLoadRib(String sRouterAddr, String sFileName);
 
+    public native int bgpDomainRescan(int iASNumber);
+
     /* BQU: TO BE FIXED !!!
+
+    public native int nodeInterfaceAdd(String net_addr_id, String net_addr_int, 
+      String mask);
 
     //Type = [in|out]
     public native int bgpFilterInit(String net_addr_router, String net_addr_neighbor,
@@ -313,7 +315,7 @@ public class CBGP
 	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
 	//Scan BGP routes that could change
-	cbgp.bgpRouterRescan("0.2.0.3");
+	cbgp.bgpDomainRescan(2);
 
 	cbgp.simRun();
 	//End of the added section 
@@ -340,7 +342,7 @@ public class CBGP
 	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
 	//Scan BGP routes that could change
-	cbgp.bgpRouterRescan("0.2.0.3");
+	cbgp.bgpDomainRescan(2);
 
 	cbgp.simRun();
    
@@ -367,7 +369,7 @@ public class CBGP
 	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
 	//Scan BGP routes that could change
-	cbgp.bgpRouterRescan("0.2.0.3");
+	cbgp.bgpDomainRescan(2);
 
 	cbgp.simRun();
 
@@ -393,7 +395,7 @@ public class CBGP
 	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
 	//Scan BGP routes that could change
-	cbgp.bgpRouterRescan("0.2.0.3");
+	cbgp.bgpDomainRescan(2);
 
 	cbgp.simRun();
 

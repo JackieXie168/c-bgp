@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 11/02/2005
+// @lastdate 14/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,6 +28,7 @@
 
 #include <bgp/as.h>
 #include <bgp/as_t.h>
+#include <bgp/domain.h>
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/filter.h>
@@ -39,9 +40,6 @@
 
 #include <libgds/log.h>
 #include <libgds/cli_ctx.h>
-
-#define FILTER_IN   "in"
-#define FILTER_OUT  "out"
 
 /* BQU: TO BE FIXED!!!
 SFilter * pFilter;
@@ -368,7 +366,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
  * Returns: -1 on error and 0 on success.
  */
 JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
-  (JNIEnv * env, jobject obj, jstring jsName, jstring jsAddr, jint jiAS)
+  (JNIEnv * env, jobject obj, jstring jsName, jstring jsAddr, jint jiASNumber)
 {
   SNetNode * pNode;
   SBGPRouter * pRouter;
@@ -379,18 +377,18 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
     return -1;
 
   /* Create BGP router, and register. */
-  pRouter= as_create(jiAS, pNode, 0);
+  pRouter= bgp_router_create(jiASNumber, pNode, 0);
   if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
-			     (FNetNodeHandlerDestroy) as_destroy, 
-			     as_handle_message)) {
-    as_destroy(&pRouter);
+			     (FNetNodeHandlerDestroy) bgp_router_destroy,
+			     bgp_router_handle_message)) {
+    bgp_router_destroy(&pRouter);
     return -1;
   }
 
   /* Add the given name if non-NULL. */
   if (jsName != NULL) {
     pcName = (*env)->GetStringUTFChars(env, jsName, NULL);
-    as_add_name(pRouter, str_create((char *) pcName));
+    bgp_router_set_name(pRouter, str_create((char *) pcName));
     (*env)->ReleaseStringUTFChars(env, jsName, pcName);
   }
 
@@ -414,7 +412,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
   if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
     return -1;
 
-  return as_add_network(pRouter, sPrefix);
+  return bgp_router_add_network(pRouter, sPrefix);
 }
 
 // -----[ bgpRouterAddPeer ]-----------------------------------------
@@ -424,7 +422,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddNetwork
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
 JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
-  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jint jiAS)
+  (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsPeerAddr, jint jiASNumber)
 {
   SBGPRouter * pRouter;
   net_addr_t tPeerAddr;
@@ -434,7 +432,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
   
-  return as_add_peer(pRouter, jiAS, tPeerAddr, 0);
+  return bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0);
 }
 
 // -----[ bgpRouterPeerNextHopSelf ]---------------------------------
@@ -454,7 +452,7 @@ JNIEXPORT int JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
     return -1;
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
-  if ((pPeer= as_find_peer(pRouter, tPeerAddr)) == NULL)
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
     return -1;
 
   peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
@@ -478,7 +476,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
     return -1;
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
-  if ((pPeer= as_find_peer(pRouter, tPeerAddr)) == NULL)
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
     return -1;
 
   peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
@@ -502,13 +500,13 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerUp
     return -1;
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
-  if ((pPeer= as_find_peer(pRouter, tPeerAddr)) == NULL)
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
     return -1;
 
   if (bUp == JNI_TRUE)
-    return peer_open_session(pPeer);
+    return bgp_peer_open_session(pPeer);
   else
-    return peer_close_session(pPeer);
+    return bgp_peer_close_session(pPeer);
 }
 
 // -----[ bgpRouterPeerRecv ]----------------------------------------
@@ -531,7 +529,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
     return -1;
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
-  if ((pPeer= as_find_peer(pRouter, tPeerAddr)) == NULL)
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
     return -1;
 
   /* Build a message from the MRT-record */
@@ -759,12 +757,27 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
     return -1;
 
   cFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
-  iResult= as_load_rib((char *) cFileName, pRouter);
+  iResult= bgp_router_load_rib((char *) cFileName, pRouter);
   (*env)->ReleaseStringUTFChars(env, jsFileName, cFileName);
 
   return iResult;
 }
 
+// -----[ bgpDomainRescan ]------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpDomainRescan
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainRescan
+  (JNIEnv * env, jobject obj, jint jiASNumber)
+{
+
+  if (!exists_bgp_domain((uint32_t) jiASNumber))
+    return -1;
+
+  return bgp_domain_rescan(get_bgp_domain((uint32_t) jiASNumber));
+}
 
 // -----[ bgpFilterInit ]--------------------------------------------
 /*
@@ -790,7 +803,7 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterInit
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return -1;
   
-  if ((pPeer= as_find_peer(pRouter, tPeerAddr)) == NULL)
+  if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
     return -1;
 
   cType = (*env)->GetStringUTFChars(env, type, NULL);
