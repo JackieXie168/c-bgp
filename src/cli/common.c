@@ -37,7 +37,7 @@ int cli_include(SCliContext * pContext, STokens * pTokens)
 // ----- cli_print --------------------------------------------------
 int cli_print(SCliContext * pContext, STokens * pTokens)
 {
-  log_write(pMainLog, LOG_LEVEL_MAX, tokens_get_string_at(pTokens, 0));
+  fprintf(stdout, tokens_get_string_at(pTokens, 0));
   return CLI_SUCCESS;
 }
 
