@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 27/01/2005
+// @lastdate 18/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,8 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <net/prefix.h>
+
+#include <string.h>
 
 // ----- ip_dotted_to_address ---------------------------------------
 /**
@@ -199,6 +201,29 @@ int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
 
   return ((sPrefix1.tNetwork & sPrefix1.uMaskLen) ==
 	  (sPrefix2.tNetwork & sPrefix1.uMaskLen));
+}
+
+// ----- ip_prefix_copy ---------------------------------------------
+/**
+ * Make a copy of the given IP prefix.
+ */
+SPrefix * ip_prefix_copy(SPrefix * pPrefix)
+{
+  SPrefix * pPrefixCopy= (SPrefix *) MALLOC(sizeof(SPrefix));
+  memcpy(pPrefixCopy, pPrefix, sizeof(SPrefix));
+  return pPrefixCopy;
+}
+
+// ----- ip_prefix_destroy ------------------------------------------
+/**
+ *
+ */
+void ip_prefix_destroy(SPrefix ** ppPrefix)
+{
+  if (*ppPrefix != NULL) {
+    FREE(*ppPrefix);
+    *ppPrefix= NULL;
+  }
 }
 
 /////////////////////////////////////////////////////////////////////

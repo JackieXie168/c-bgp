@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 15/09/2004
+// @lastdate 18/03/2005
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -12,6 +12,8 @@
 #include <libgds/types.h>
 
 #include <stdio.h>
+
+#define IPV4_TO_INT(A,B,C,D) ((((A)*256 + B)*256 + C)*256 + D)
 
 typedef uint32_t net_addr_t;
 
@@ -49,5 +51,9 @@ extern int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
 extern int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix);
 // ----- ip_prefix_in_prefix ----------------------------------------
 extern int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2);
+// ----- ip_prefix_copy ---------------------------------------------
+extern SPrefix * ip_prefix_copy(SPrefix * pPrefix);
+// ----- ip_prefix_destroy ------------------------------------------
+extern void ip_prefix_destroy(SPrefix ** ppPrefix);
 
 #endif

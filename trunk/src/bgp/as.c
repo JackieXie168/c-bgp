@@ -218,7 +218,7 @@ int bgp_router_add_network(SBGPRouter * pRouter, SPrefix sPrefix)
   rib_add_route(pRouter->pLocRIB, route_copy(pRoute));
   route_copy_count++;
 
-  //as_decision_process_disseminate(pAS, sPrefix, pRoute);
+  //bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
 
   return 0;
 }

@@ -141,14 +141,16 @@ int bgp_peer_session_ok(SBGPPeer * pPeer)
 {
   SNetLink * pNextHopIf= node_rt_lookup(pPeer->pLocalRouter->pNode,
 					pPeer->tAddr);
-  return ((pNextHopIf != NULL) && (link_get_state(pNextHopIf, NET_LINK_FLAG_UP)));
+  return ((pNextHopIf != NULL) &&
+	  (link_get_state(pNextHopIf, NET_LINK_FLAG_UP)));
 }
 
 // ----- bgp_peer_session_refresh -----------------------------------
 /**
  * Refresh the state of the BGP session. If the session is currently
- * in ESTABLISHED or OPENWAIT state, test is it still operational. If
- * the session is in ACTIVE state, test if it must be restarted.
+ * in ESTABLISHED or OPENWAIT state, test if it is still
+ * operational. If the session is in ACTIVE state, test if it must be
+ * restarted.
  */
 void bgp_peer_session_refresh(SBGPPeer * pPeer)
 {
@@ -349,6 +351,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
     peer_rescan_adjribin(pPeer, !peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
+  case SESSION_STATE_IDLE:
     break;
   default:
     LOG_FATAL("Error: CLOSE received while in %s state\n",
