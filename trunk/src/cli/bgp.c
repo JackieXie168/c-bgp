@@ -697,19 +697,36 @@ int cli_bgp_router_reset(SCliContext * pContext, STokens * pTokens)
  */
 int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
 {
-  SAS * pAS;
+  SBGPRouter * pRouter;
   unsigned int uASNum;
+  char * pcAddr;
   net_addr_t tAddr;
   char * pcEndPtr;
 
-  pAS= (SAS *) cli_context_get_item_at_top(pContext);
-  if (tokens_get_uint_at(pTokens, 1, &uASNum) || (uASNum > MAX_AS))
+  // Get BGP router from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the new peer's AS number
+  if (tokens_get_uint_at(pTokens, 1, &uASNum) || (uASNum > MAX_AS)) {
+    LOG_SEVERE("Error: invalid AS number \"%s\"\n",
+	       tokens_get_string_at(pTokens, 1));
     return CLI_ERROR_COMMAND_FAILED;
-  if (ip_string_to_address(tokens_get_string_at(pTokens, 2),
-			   &pcEndPtr, &tAddr) || (*pcEndPtr != 0))
+  }
+
+  // Get the new peer's address
+  pcAddr= tokens_get_string_at(pTokens, 2);
+  if (ip_string_to_address(pcAddr, &pcEndPtr, &tAddr) ||
+      (*pcEndPtr != 0)) {
+    LOG_SEVERE("Error: invalid address \"%s\"\n",
+	       pcAddr);
     return CLI_ERROR_COMMAND_FAILED;
-  if (as_add_peer(pAS, uASNum, tAddr, 0))
+  }
+
+  if (as_add_peer(pRouter, uASNum, tAddr, 0)) {
+    LOG_SEVERE("Error: peer already exists\n");
     return CLI_ERROR_COMMAND_FAILED;
+  }
+
   return CLI_SUCCESS;
 }
 
