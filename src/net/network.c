@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 02/06/2004
+// @lastdate 22/06/2004
 // ==================================================================
 
 #include <assert.h>
@@ -26,6 +26,9 @@ typedef struct {
   SNetNode * pNode;
   SNetMessage * pMessage;
 } SNetSendContext;
+
+// ----- options -----
+uint8_t NET_OPTIONS_MAX_HOPS= 30;
 
 int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 		    SNetMessage * pMessage);
@@ -741,7 +744,7 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
     uHopCount++;
 
-    if (uHopCount > 30) {
+    if (uHopCount > NET_OPTIONS_MAX_HOPS) {
       iResult= NET_RECORD_ROUTE_TOO_LONG;
       break;
     }

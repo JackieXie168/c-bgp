@@ -44,6 +44,9 @@ typedef struct {
   SNetProtocols * pProtocols;
 } SNetNode;
 
+// ----- options -----
+extern uint8_t NET_OPTIONS_MAX_HOPS;
+
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);
 // ----- node_add_link ----------------------------------------------
