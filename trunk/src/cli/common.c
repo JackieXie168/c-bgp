@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 01/06/2004
+// @lastdate 01/12/2004
 // ==================================================================
 
 #include <string.h>
@@ -64,6 +64,12 @@ int cli_print(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_quit ---------------------------------------------------
+int cli_quit(SCliContext * pContext, STokens * pTokens)
+{
+  return CLI_SUCCESS_TERMINATE;
+}
+
 // void cli_register_set --------------------------------------------
 void cli_register_set(SCli * pCli)
 {
@@ -100,6 +106,13 @@ void cli_register_print(SCli * pCli)
 					NULL, pParams));
 }
 
+// ----- cli_register_quit ------------------------------------------
+void cli_register_quit(SCli * pCli)
+{
+  cli_register_cmd(pCli, cli_cmd_create("quit", cli_quit,
+					NULL, NULL));
+}
+
 // ----- cli_get ----------------------------------------------------
 /**
  *
@@ -113,6 +126,7 @@ SCli * cli_get()
     cli_register_sim(pTheCli);
     cli_register_include(pTheCli);
     cli_register_print(pTheCli);
+    cli_register_quit(pTheCli);
     cli_register_set(pTheCli);
   }
   return pTheCli;

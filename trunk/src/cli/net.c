@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 15/09/2004
+// @lastdate 29/11/2004
 // ==================================================================
 
 #include <string.h>
@@ -571,6 +571,19 @@ int cli_net_options_igpinter(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_show_nodes -----------------------------------------
+/**
+ * Display all nodes matching the given criterion, which is a prefix
+ * or an asterisk (meaning "all nodes").
+ *
+ * context: {}
+ * tokens: {prefix}
+ */
+int cli_net_show_nodes(SCliContext * pContext, STokens * pTokens)
+{
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_net_add ---------------------------------------
 int cli_register_net_add(SCliCmds * pCmds)
 {
@@ -737,6 +750,24 @@ int cli_register_net_options(SCliCmds * pCmds)
 						pSubCmds, NULL));
 }
 
+// ----- cli_register_net_show --------------------------------------
+/**
+ *
+ */
+int cli_register_net_show(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix|*>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("nodes", cli_net_show_nodes,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_net -------------------------------------------
 /**
  *
@@ -750,6 +781,7 @@ int cli_register_net(SCli * pCli)
   cli_register_net_link(pCmds);
   cli_register_net_node(pCmds);
   cli_register_net_options(pCmds);
+  cli_register_net_show(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("net", NULL, pCmds, NULL));
   return 0;
 }
