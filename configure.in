@@ -37,8 +37,6 @@ AC_PROG_LIBTOOL
 AC_CHECK_CLASSPATH
 AC_PROG_JAVAC
 AC_PROG_JAVA
-#AM_PROG_GCJ
-
 
 AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
 
@@ -113,6 +111,15 @@ unset tc
 #
 # Test for libgds existence (library + headers)
 #
+AC_ARG_WITH(libgds-dir,
+    AC_HELP_STRING([--with-libgds-dir],
+        [specify prefix for libgds library]),
+    cbgp_config_libgds_dir="$withval"
+)
+if test "x$cbgp_config_libgds_dir" != "x"; then
+   CPPFLAGS="$CPPFLAGS -I$cbgp_config_libgds_dir/include"
+   LDFLAGS="$LDFLAGS -L$cbgp_config_libgds_dir/lib"
+fi
 AC_CHECK_LIB(gds, list_create, [gds_ok=yes; LIBS="$LIBS -lgds"], gds_ok=no)
 if test "x$gds_ok" != "xyes"; then
    AC_MSG_ERROR([libgds is needed to compile cbgp])
