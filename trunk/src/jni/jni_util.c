@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 18/02/2005
+// @lastdate 21/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,8 @@
 #include <net/link.h>
 #include <net/network.h>
 #include <jni.h>
+
+#define CLASS_CBGPException "be/ac/ucl/ingi/cbgp/CBGPException"
 
 #define CLASS_ASPath "be/ac/ucl/ingi/cbgp/ASPath"
 #define CONSTR_ASPath "()V"
@@ -108,6 +110,20 @@ int cbgp_jni_call_void(JNIEnv * env, jobject joObject,
 
   return 0;
 }
+
+// -----[ cbgp_jni_throw_CBGPException ]-----------------------------
+/**
+ * Throw a CBGPException.
+ */
+void cbgp_jni_throw_CBGPException(JNIEnv * env, char * pcMsg)
+{
+  jclass jcException;
+
+  jcException= (*env)->FindClass(env, CLASS_CBGPException);
+  if (jcException != NULL)
+      (*env)->ThrowNew(env, jcException, pcMsg);
+}
+
 
 // -----[ cbgp_jni_new_ASPath ]--------------------------------------
 /**
@@ -211,11 +227,11 @@ jobject cbgp_jni_new_IPPrefix(JNIEnv * env, SPrefix sPrefix)
     return NULL;
 
   if ((obj_IPPrefix= (*env)->NewObject(env, class_IPPrefix, id_IPPrefix,
-				       (sPrefix.tNetwork >> 24) & 255,
-				       (sPrefix.tNetwork >> 16) & 255,
-				       (sPrefix.tNetwork >> 8) & 255,
-				       (sPrefix.tNetwork & 255),
-				       sPrefix.uMaskLen)) == NULL)
+				       (jbyte) ((sPrefix.tNetwork >> 24) & 255),
+				       (jbyte) ((sPrefix.tNetwork >> 16) & 255),
+				       (jbyte) ((sPrefix.tNetwork >> 8) & 255),
+				       (jbyte) (sPrefix.tNetwork & 255),
+				       (jbyte) sPrefix.uMaskLen)) == NULL)
     return NULL;
 
   return obj_IPPrefix;
@@ -240,10 +256,10 @@ jobject cbgp_jni_new_IPAddress(JNIEnv * env, net_addr_t tAddr)
     return NULL;
 
   if ((obj_IPAddress= (*env)->NewObject(env, class_IPAddress, id_IPAddress,
-					(tAddr >> 24) & 255,
-					(tAddr >> 16) & 255,
-					(tAddr >> 8) & 255,
-					(tAddr & 255))) == NULL)
+					(jbyte) ((tAddr >> 24) & 255),
+					(jbyte) ((tAddr >> 16) & 255),
+					(jbyte) ((tAddr >> 8) & 255),
+					(jbyte) (tAddr & 255))) == NULL)
     return NULL;
 
   return obj_IPAddress;
@@ -463,7 +479,9 @@ int cbgp_jni_Vector_add(JNIEnv * env, jobject joVector, jobject joObject)
 /**
  * This function returns a CBGP address from a Java string.
  *
- * Returns 0 on success and -1 on error.
+ * @return 0 if the conversion was ok, -1 otherwise.
+ *
+ * @throw CBGPException
  */
 int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr)
 {
@@ -475,10 +493,15 @@ int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr)
     return -1;
 
   cNetAddr = (*env)->GetStringUTFChars(env, jsAddr, NULL);
+
   if ((ip_string_to_address((char *)cNetAddr, &pcEndPtr, ptAddr) != 0) ||
       (*pcEndPtr != 0))
     iResult= -1;
   (*env)->ReleaseStringUTFChars(env, jsAddr, cNetAddr);
+
+  /* If the conversion could not be performed, throw an Exception */
+  if (iResult != 0)
+    cbgp_jni_throw_CBGPException(env, "Invalid IP address");
 
   return iResult;
 }
@@ -486,6 +509,10 @@ int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr)
 // -----[ ip_jstring_to_prefix ]-------------------------------------
 /**
  * This function returns a CBGP prefix from a Java string.
+ *
+ * @return 0 if the conversion was ok, -1 otherwise.
+ *
+ * @throw CBGPException
  */
 int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
 {
@@ -502,24 +529,47 @@ int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
     iResult= -1;
   (*env)->ReleaseStringUTFChars(env, jsPrefix, cPrefix);
 
+  /* If the conversion could not be performed, throw an Exception */
+  if (iResult != 0)
+    cbgp_jni_throw_CBGPException(env, "Invalid IP prefix");
+
   return iResult;
 }
 
 // -----[ cbgp_jni_net_node_from_string ]----------------------------
+/**
+ * Get the C-BGP node identified by the String that contains its IP
+ * address.
+ *
+ * @return 0 if the conversion was ok, -1 otherwise.
+ *
+ * @throw CBGPException
+ */
 SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
 {
   SNetwork * pNetwork = network_get();
+  SNetNode * pNode;
   net_addr_t tNetAddr;
 
   if (ip_jstring_to_address(env, jsAddr, &tNetAddr) != 0)
     return NULL;
-  return network_find_node(pNetwork, tNetAddr);
+
+  if ((pNode= network_find_node(pNetwork, tNetAddr)) == NULL) {
+    cbgp_jni_throw_CBGPException(env, "Unknown node");
+    return NULL;
+  }
+    
+  return pNode;
 }
 
 // -----[ cbgp_jni_bgp_router_from_string ]--------------------------
 /**
- * This function returns a CBGP router from a string that contains its
+ * Get the C-BGP router identified by the String that contains its
  * IP address.
+ *
+ * @return 0 if the conversion was ok, -1 otherwise.
+ *
+ * @throw CBGPException
  */
 SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
 {
@@ -528,7 +578,11 @@ SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
 
   if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
     return NULL;
-  if ((pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP)) == NULL)
+
+  if (((pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP)) == NULL) || (pProtocol->pHandler == NULL)) {
+    cbgp_jni_throw_CBGPException(env, "Node does not support BGP");
     return NULL;
+  }
+
   return pProtocol->pHandler;
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 18/02/2005
+// @lastdate 21/02/2005
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -36,6 +36,8 @@ extern jobject cbgp_jni_new(JNIEnv * env, const char * pcClass,
 extern int cbgp_jni_call_void(JNIEnv * env, jobject joObject,
 			      const char * pcMethod,
 			      const char * pcSignature, ...);
+// -----[ cbgp_jni_throw_CBGPException ]-----------------------------
+extern void cbgp_jni_throw_CBGPException(JNIEnv * env, char * pcMsg);
 // -----[ cbgp_jni_new_ASPath ]--------------------------------------
 extern jobject cbgp_jni_new_ASPath(JNIEnv * env, SPath * pPath);
 // -----[ cbgp_jni_ASPath_append ]-----------------------------------

@@ -19,6 +19,7 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/ASPath.java \
 	be/ac/ucl/ingi/cbgp/ASPathSegment.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
+	be/ac/ucl/ingi/cbgp/CBGPException.java \
 	be/ac/ucl/ingi/cbgp/BGPPeer.java \
 	be/ac/ucl/ingi/cbgp/BGPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPAddress.java \
