@@ -1,0 +1,66 @@
+                              CBGP
+                              ----
+                          (17/10/2003)
+
+CBGP is an efficient BGP decision process simulator. The BGP mod-
+el implemented in CBGP is not hindered by the transmission of BGP
+messages  on  simulated  TCP connections as in SSFNet or JavaSim.
+The simulator supports the complete BGP decision process,  import
+and  export  filters and redistribution communities. It is easily
+configurable through a CISCO-like  command-line  interface.  CBGP
+does not model session establishment and timers (MRAI, dampening,
+...)
+
+CBGP can be used to experiment with modified  decision  processes
+and  additional  BGP  attributes. It can also be used to evaluate
+the impact of input/output policies on the routing tables of oth-
+er ASes. Due to its efficiency, it can be used with large topolo-
+gies with sizes of the same order of magnitude than the Internet.
+
+CBGP is open source and written in C language. It has been tested
+on various platforms like Linux, FreeBSD  and  Solaris.  To  make
+large  simulations  easier  to perform, CBGP is also able to load
+interdomain topologies produced by AT&T and is also able to  out-
+put  all the exchanged BGP messages in MRTD format so that exist-
+ing analysis scripts may be re-used.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
