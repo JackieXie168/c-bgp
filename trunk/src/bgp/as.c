@@ -1,10 +1,15 @@
 // ==================================================================
 // @(#)as.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 04/01/2005
+// @lastdate 31/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 #include <stdlib.h>
@@ -749,17 +754,32 @@ void as_decision_process_disseminate(SAS * pAS, SPrefix sPrefix,
  */
 void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 {
-  SNetLink * pNextHopIf= node_rt_lookup(pRouter->pNode,
-					pRoute->tNextHop);
+  SNetRouteInfo * pOldRouteInfo;
+  SNetLink * pNextHopIf= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
   int iResult;
 
   /* Check that the next-hop is reachable. It MUST be reachable at
      this point (checked upon route reception). */
   assert(pNextHopIf != NULL);
 
-  // Remove the previous route (if it exists)
-  node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
-		    NULL, NET_ROUTE_BGP);
+  /* Get the previous route if it exists */
+  pOldRouteInfo= rt_find_exact(pRouter->pNode->pRT, pRoute->sPrefix,
+			      NET_ROUTE_BGP);
+  if (pOldRouteInfo != NULL) {
+    if (pOldRouteInfo->pNextHopIf == pNextHopIf)
+      return;
+    // Remove the previous route (if it exists)
+    node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
+		      NULL, NET_ROUTE_BGP);
+  }
+
+//  fprintf(stderr, "bgp_router_rt_add_route(");
+//  ip_address_dump(stderr, pRouter->pNode->tAddr);
+//  fprintf(stderr, ", ");
+//  ip_prefix_dump(stderr, pRoute->sPrefix);
+//  fprintf(stderr, ", ");
+//  ip_address_dump(stderr, pNextHopIf->tAddr);
+//  fprintf(stderr, "\n");
 
   // Insert the route
   iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
@@ -832,13 +852,12 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
  */
 int bgp_router_feasible_route(SBGPRouter * pRouter, SRoute * pRoute)
 {
-  SNetRouteInfo * pRouteInfo;
+  SNetLink * pNextHopIf;
 
   /* Get the route towards the next-hop */
-  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
-			   NET_ROUTE_ANY);
+  pNextHopIf= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
 
-  if (pRouteInfo != NULL) {
+  if (pNextHopIf != NULL) {
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
     return 1;
   } else {
@@ -952,7 +971,15 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     // New/updated route
     // => install in Loc-RIB
     // => advertise to peers
-    if ((pOldRoute == NULL) || !route_equals(pOldRoute, pRoute)) {
+    if ((pOldRoute == NULL) ||
+	!route_equals(pOldRoute, pRoute)) {
+
+      /**************************************************************
+       * In this case, the route is new or one of its BGP attributes
+       * has changed. Thus, we must update the route into the routing
+       * table and we must propagate the BGP route to the peers.
+       **************************************************************/
+
       if (pOldRoute != NULL)
 	bgp_router_best_flag_off(pOldRoute);
 
@@ -968,7 +995,18 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
       bgp_router_rt_add_route(pAS, pRoute);
 
       as_decision_process_disseminate(pAS, sPrefix, pRoute);
+
     } else {
+
+      /**************************************************************
+       * In this case, both routes (old and new) are equal from the
+       * BGP point of view. There is thus no need to send BGP
+       * messages.
+       *
+       * However, it is possible that the IGP next-hop of the route
+       * has changed. If so, the route must be updated in the routing
+       * table!
+       **************************************************************/
 
       /* Mark route in Adj-RIB-In as best (since it has probably been
 	 replaced). */
@@ -978,7 +1016,11 @@ int as_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
       route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
 		     route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
 
-      // Route has not changed.
+      /* If the IGP next-hop has changed, we need to re-insert the
+	 route into the routing table with the new next-hop. */
+      bgp_router_rt_add_route(pAS, pRoute);
+
+      /* Route has not changed. */
       route_destroy(&pRoute);
       pRoute= pOldRoute;
 
@@ -1330,13 +1372,15 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   iResult= radix_tree_for_each(pPrefixes,
 			       bgp_router_scan_rib_for_each,
 			       &sCtx);
-  
+
   /* For each route in the list, run the BGP decision process */
   if (iResult == 0)
     for (iIndex= 0; iIndex < _array_length(sCtx.pPrefixes); iIndex++) {
       as_decision_process(pRouter, NULL,
 			  *((SPrefix *) &sCtx.pPrefixes->data[iIndex]));
     }
+
+  bgp_router_free_prefixes(&pPrefixes);
     
   _array_destroy(&sCtx.pPrefixes);
   

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 06/12/2002
-// @lastdate 03/01/2005
+// @lastdate 19/01/2005
 // ==================================================================
 
 #ifndef __ECOMM_T_H__
@@ -14,6 +14,9 @@
 #include <net/prefix.h>
 
 #define ECOMM_RED 3
+#ifdef __EXPERIMENTAL__
+#define ECOMM_PREF 4
+#endif
 
 #define ECOMM_RED_ACTION_PREPEND 0
 #define ECOMM_RED_ACTION_NO_EXPORT 1

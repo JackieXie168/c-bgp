@@ -30,7 +30,7 @@ else
   OPT_EFENCE =
 endif
 
-SUBDIRS = bgp cli net sim ui $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR)
+SUBDIRS = bgp cli net sim ui $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
 
 AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL)
 

@@ -3,8 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 05/03/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <net/net_path.h>
 #include <libgds/memory.h>

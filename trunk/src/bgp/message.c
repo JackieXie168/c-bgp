@@ -1,10 +1,15 @@
 // ==================================================================
 // @(#)message.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 13/08/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 #include <string.h>

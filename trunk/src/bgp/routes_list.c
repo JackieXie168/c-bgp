@@ -3,8 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 27/02/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 

@@ -3,8 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 09/04/2004
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <libgds/array.h>
 #include <libgds/radix-tree.h>

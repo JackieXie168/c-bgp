@@ -3,8 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 04/01/2005
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -211,6 +215,9 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
   if (iText == ECOMM_DUMP_TEXT) {
     switch (pComm->uTypeHigh) {
     case ECOMM_RED: ecomm_red_dump(pStream, pComm); break;
+#ifdef __EXPERIMENTAL__
+    case ECOMM_PREF: ecomm_pref_dump(pStream, pComm); break;
+#endif
     default:
       fprintf(pStream, "???");
     }
@@ -306,3 +313,45 @@ int ecomm_red_match(SECommunity * pComm, SPeer * pPeer)
   }
   return 0;
 }
+
+#ifdef __EXPERIMENTAL__
+// ----- ecomm_pref_create ------------------------------------------
+/**
+ *
+ */
+SECommunity * ecomm_pref_create(uint32_t uPref)
+{
+  SECommunity * pComm= ecomm_val_create(0, 0);
+  pComm->uTypeHigh= ECOMM_PREF;
+  pComm->uTypeLow= 0;
+  pComm->auValue[0]= 0;
+  memcpy(&pComm->auValue[1], &uPref, sizeof(uPref));
+  return pComm;  
+}
+
+// ----- ecomm_pref_dump --------------------------------------------
+/**
+ *
+ */
+void ecomm_pref_dump(FILE * pStream, SECommunity * pComm)
+{
+  uint32_t uPref;
+
+  fprintf(pStream, "pref ");
+  memcpy(&uPref, &pComm->auValue[1], sizeof(uPref));
+  fprintf(pStream, "%u", uPref);
+}
+
+// ----- ecomm_pref_get ---------------------------------------------
+/**
+ *
+ */
+uint32_t ecomm_pref_get(SECommunity * pComm)
+{
+  uint32_t uPref;
+
+  memcpy(&uPref, &pComm->auValue[1], sizeof(uPref));
+  return uPref;
+}
+
+#endif

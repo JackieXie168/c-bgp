@@ -1,12 +1,16 @@
 // ==================================================================
 // @(#)main.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 13/12/2004
+// @lastdate 28/01/2005
 // ==================================================================
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
 #include <assert.h>
 #include <libgds/cli_ctx.h>
 #include <limits.h>
@@ -111,6 +115,7 @@ int iComplParamIndex= 0;      // Index of current parameter
  * the list of sub-commands of the current command.
  */
 #ifdef INTERACTIVE_MODE_OK
+#ifdef HAVE_RL_COMPLETION_MATCHES
 char * rl_compl_cmd_generator(const char * pcText, int iState)
 {
   static int iIndex;
@@ -143,6 +148,7 @@ char * rl_compl_cmd_generator(const char * pcText, int iState)
   return pcMatch;
 }
 #endif
+#endif
 
 // ----- rl_compl_param_generator -----------------------------------
 /**
@@ -151,8 +157,10 @@ char * rl_compl_cmd_generator(const char * pcText, int iState)
  * implemented yet], then on a parameter checking function.
  */
 #ifdef INTERACTIVE_MODE_OK
+#ifdef HAVE_RL_COMPLETION_MATCHES
 char * rl_compl_param_generator(const char * pcText, int iState)
 {
+  static int iIndex;
   char * pcMatch= NULL;
   SCliCmdParam * pParam;
 
@@ -163,41 +171,35 @@ char * rl_compl_param_generator(const char * pcText, int iState)
 
   /* Complete if possible */
 
-  rl_attempted_completion_over= 1;
-  return NULL;
+  pParam= (SCliCmdParam *) pComplCmd->pParams->data[iComplParamIndex];
 
-  if (iState == 0) {
-    pParam= (SCliCmdParam *) pComplCmd->pParams->data[iComplParamIndex];
-
-    /* Depending on the parameter configuration, perform different
-       completion actions: */
-    if (0 /*(pParam->fEnumValue != NULL) && ()*/) {
-
-      /* If there is a parameter enumerator, initialize the
-	 enumeration list [not implemented yet] */
-    
-    } else if ((pParam->fCheckParam != NULL) &&
-	       (pParam->fCheckParam(pcText))) {
-
-      /* If there is a parameter checker and the parameter value is
-	 accepted, perform the completion */
-      pcMatch= (char*) malloc((strlen(pcText)+1)*sizeof(char));
-      strcpy(pcMatch, pcText);
-      rl_attempted_completion_over= 1;
-
-    } else {
-      /* Otherwize, prevent the completion */
-      rl_attempted_completion_over= 1;
+  /* If the parameter supports a completion function */
+  if (pParam->fEnumParam != NULL) {
+    if (iState == 0) {
+      iIndex= 0;
     }
-
+    pcMatch= pParam->fEnumParam(pcText, iIndex);
+    iIndex++;
   } else {
-    /* If an enumeration of parameter valur is available, return
-       subsequent values [not implemented yet] */
-    rl_attempted_completion_over= 1;
+    if (iState == 0) {
+      if ((pParam->fCheckParam != NULL) &&
+	  (pParam->fCheckParam(pcText))) {
+
+	/* If there is a parameter checker and the parameter value is
+	   accepted, perform the completion */
+	pcMatch= (char*) malloc((strlen(pcText)+1)*sizeof(char));
+	strcpy(pcMatch, pcText);
+	rl_attempted_completion_over= 1;
+      } else {
+	/* Otherwize, prevent the completion */
+	rl_attempted_completion_over= 1;
+      }
+    }     
   }
     
   return pcMatch;  
 }
+#endif
 #endif
 
 // ----- rl_compl ---------------------------------------------------
@@ -205,6 +207,7 @@ char * rl_compl_param_generator(const char * pcText, int iState)
  *
  */
 #ifdef INTERACTIVE_MODE_OK
+#ifdef HAVE_RL_COMPLETION_MATCHES
 char ** rl_compl (const char * pcText, int iStart, int iEnd)
 {
   SCli * pCli= cli_get();
@@ -255,6 +258,7 @@ char ** rl_compl (const char * pcText, int iStart, int iEnd)
 
   return apcMatches;
 }
+#endif
 #endif
 
 // ----- simulation_help_ctx ----------------------------------------
@@ -376,11 +380,13 @@ int simulation_interactive()
   int iResult= CLI_SUCCESS;
   char * pcLine;
 
+#ifdef HAVE_RL_COMPLETION_MATCHES
   /* Setup alternate completion function */
   rl_attempted_completion_function= rl_compl;
 
   /* Setup alternate completion display function */
   rl_completion_display_matches_hook= rl_display_completion;
+#endif
 
   while (1) {
     /* Get user-input */
@@ -654,7 +660,7 @@ int main(int argc, char ** argv) {
 #if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
       mem_flag_set(MEM_FLAG_WARN_LEAK, 1);
 #else
-      fprintf(stderr, "Error: option -g not supported (check you libgds version).\n");
+      fprintf(stderr, "Error: option -g not supported (check your libgds version).\n");
       exit(EXIT_FAILURE);
 #endif
       break;

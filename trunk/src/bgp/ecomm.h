@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 03/01/2005
+// @lastdate 19/01/2005
 // ==================================================================
 
 #ifndef __ECOMM_H__
@@ -51,5 +51,13 @@ extern void ecomm_red_dump(FILE * pStream, SECommunity * pComm);
 // ----- ecomm_val_dump ---------------------------------------------
 extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
 			   int iText);
+#ifdef __EXPERIMENTAL__
+// ----- ecomm_depref_create ----------------------------------------
+extern SECommunity * ecomm_pref_create(uint32_t uPref);
+// ----- ecomm_pref_dump --------------------------------------------
+extern void ecomm_pref_dump(FILE * pStream, SECommunity * pComm);
+// ----- ecomm_pref_get ---------------------------------------------
+extern uint32_t ecomm_pref_get(SECommunity * pComm);
+#endif /* __EXPERIMENTAL__ */
 
 #endif

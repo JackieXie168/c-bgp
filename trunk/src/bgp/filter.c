@@ -2,10 +2,14 @@
 // @(#)filter.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
-//	    Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 03/01/2005
+// @lastdate 27/01/2005
 // ==================================================================
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <assert.h>
 #include <stdlib.h>
@@ -669,6 +673,18 @@ SFilterAction * filter_action_comm_append(uint32_t uCommunity)
   return pAction;
 }
 
+// ----- filter_action_comm_remove ----------------------------------
+/**
+ *
+ */
+SFilterAction * filter_action_comm_remove(uint32_t uCommunity)
+{
+  SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_REMOVE,
+						sizeof(uint32_t));
+  memcpy(pAction->auParams, &uCommunity, sizeof(uint32_t));
+  return pAction;
+}
+
 // ----- filter_action_comm_strip -----------------------------------
 /**
  *
@@ -676,18 +692,6 @@ SFilterAction * filter_action_comm_append(uint32_t uCommunity)
 SFilterAction * filter_action_comm_strip()
 {
   SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_STRIP, 0);
-  return pAction;
-}
-
-// ----- filter_action_comm_remove ----------------------------------
-/**
- *
- */
-SFilterAction * filter_action_comm_remove(comm_t uCommunity)
-{
-  SFilterAction * pAction= filter_action_create(FT_ACTION_COMM_STRIP,
-						sizeof(uCommunity));
-  memcpy(pAction->auParams, &uCommunity, sizeof(uCommunity));
   return pAction;
 }
 

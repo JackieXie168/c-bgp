@@ -3,12 +3,16 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 24/05/2004
+// @lastdate 27/01/2005
 // ==================================================================
 // Current limitations:
 // - origin is always IGP
 // Future changes:
 // - move attribute parsers in corresponding sections
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <stdio.h>
 #include <string.h>
