@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 09/03/2004
+// @lastdate 20/04/2004
 // ==================================================================
 
 #include <assert.h>
@@ -308,7 +308,7 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
   SNetRouteInfo * pRouteInfo;
 
   // Is there a direct link towards the destination ?
-  pLink= node_links_lookup(pNode, tDstAddr);
+  //pLink= node_links_lookup(pNode, tDstAddr);
 
   // If not, is there a static or IGP route ?
   if (pLink == NULL) {

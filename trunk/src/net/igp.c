@@ -37,8 +37,8 @@ int igp_compute_prefix_for_each(uint32_t uKey, uint8_t uKeyLen,
 
   // Skip direct route towards a node
   // (next-hop address == destination address)
-  if (pInfo->tNextHop == (net_addr_t) uKey)
-    return 0;
+  /*if (pInfo->tNextHop == (net_addr_t) uKey)
+    return 0;*/
 
   // Add IGP route
   sPrefix.tNetwork= uKey;

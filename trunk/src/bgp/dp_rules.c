@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 09/04/2004
+// @lastdate 20/04/2004
 // ==================================================================
 // to-do: these routines can be optimized
 // to-do: dp_rule_lowest_med()
@@ -227,20 +227,17 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
 
 // ----- dp_rule_igp_cost -------------------------------------------
 /**
- * Helper function which retrieves the IGP cost to the given next-hop
- *
- * WARNING: calling this function can be time-consuming since we have
- * to lookup the peer's table => O(log(n))
+ * Helper function which retrieves the IGP cost to the given next-hop.
  */
 uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
 {
-  SNetLink * pLink;
+  //SNetLink * pLink;
   SNetRouteInfo * pRouteInfo;
 
   /* Is there a direct link ? */
-  pLink= node_links_lookup(pAS->pNode, tNextHop);
+  /*pLink= node_links_lookup(pAS->pNode, tNextHop);
   if (pLink != NULL)
-    return pLink->uIGPweight;
+  return pLink->uIGPweight;*/
   
   /* Is there a route towards the destination ? */
   pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop);
