@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 27/01/2005
+// @lastdate 13/02/2005
 // ==================================================================
 // to-do: these routines can be optimized
 
@@ -282,7 +282,7 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
 /**
  *
  */
-int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
+int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SPtrArray * pRoutes)
 {
   int iIndex;
   int iEBGP= 0;
@@ -290,7 +290,7 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
   // Detect if there is at least one route learned through an eBGP
   // session:
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
-    if (((SRoute *) pRoutes->data[iIndex])->pPeer->uRemoteAS != pAS->uNumber) {
+    if (((SRoute *) pRoutes->data[iIndex])->pPeer->uRemoteAS != pRouter->uNumber) {
       iEBGP= 1;
       break;
     }
@@ -300,7 +300,7 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
   if (iEBGP) {
     iIndex= 0;
     while (iIndex < ptr_array_length(pRoutes)) {
-      if (((SRoute *) pRoutes->data[iIndex])->pPeer->uRemoteAS == pAS->uNumber)
+      if (((SRoute *) pRoutes->data[iIndex])->pPeer->uRemoteAS == pRouter->uNumber)
 	ptr_array_remove_at(pRoutes, iIndex);
       else
 	iIndex++;
@@ -314,12 +314,12 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
 /**
  * Helper function which retrieves the IGP cost to the given next-hop.
  */
-uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
+uint32_t dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop)
 {
   SNetRouteInfo * pRouteInfo;
 
   /* Is there a route towards the destination ? */
-  pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop, NET_ROUTE_ANY);
+  pRouteInfo= rt_find_best(pRouter->pNode->pRT, tNextHop, NET_ROUTE_ANY);
   if (pRouteInfo != NULL)
     return pRouteInfo->uWeight;
 
@@ -329,7 +329,7 @@ uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
   LOG_FATAL(")\n");
   LOG_FATAL("Error: ");
   LOG_ENABLED_FATAL()
-    ip_address_dump(log_get_stream(pMainLog), pAS->pNode->tAddr);
+    ip_address_dump(log_get_stream(pMainLog), pRouter->pNode->tAddr);
   LOG_FATAL("\n");
   abort();
   return -1;
@@ -339,7 +339,7 @@ uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
 /**
  *
  */
-int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
+int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes)
 {
   int iIndex;
   SRoute * pRoute;
@@ -350,7 +350,7 @@ int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
 
-    uIGPcost= dp_rule_igp_cost(pAS, pRoute->tNextHop);
+    uIGPcost= dp_rule_igp_cost(pRouter, pRoute->tNextHop);
     if (uIGPcost < uLowestCost)
       uLowestCost= uIGPcost;
 
@@ -365,7 +365,7 @@ int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    uIGPcost= dp_rule_igp_cost(pAS, pRoute->tNextHop);
+    uIGPcost= dp_rule_igp_cost(pRouter, pRoute->tNextHop);
     if (uIGPcost > uLowestCost) {
       ptr_array_remove_at(pRoutes, iIndex);
     } else {
@@ -380,7 +380,7 @@ int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
 /**
  *
  */
-int dp_rule_shortest_cluster_list(SAS * pAS, SPtrArray * pRoutes)
+int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SPtrArray * pRoutes)
 {
   SRoute * pRoute;
   int iIndex;
@@ -412,7 +412,7 @@ int dp_rule_shortest_cluster_list(SAS * pAS, SPtrArray * pRoutes)
 /**
  *
  */
-int dp_rule_lowest_neighbor_address(SAS * pAS, SPtrArray * pRoutes)
+int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SPtrArray * pRoutes)
 {
   net_addr_t tLowestAddr= MAX_ADDR;
   SRoute * pRoute;
@@ -441,13 +441,13 @@ int dp_rule_lowest_neighbor_address(SAS * pAS, SPtrArray * pRoutes)
 /**
  *
  */
-int dp_rule_final(SAS * pAS, SPtrArray * pRoutes)
+int dp_rule_final(SBGPRouter * pRouter, SPtrArray * pRoutes)
 {
   int iResult;
 
   // *** final tie-break ***
   while (ptr_array_length(pRoutes) > 1) {
-    iResult= pAS->fTieBreak((SRoute *) pRoutes->data[0],
+    iResult= pRouter->fTieBreak((SRoute *) pRoutes->data[0],
 			    (SRoute *) pRoutes->data[1]);
     if (iResult == 1) // Prefer ROUTE1
       ptr_array_remove_at(pRoutes, 1);

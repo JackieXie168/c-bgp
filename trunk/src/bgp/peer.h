@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 02/02/2005
+// @lastdate 14/02/2005
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -19,7 +19,7 @@ struct TPeer {
   net_addr_t tAddr;
   uint16_t uRemoteAS;
   uint8_t uPeerType;
-  SAS * pLocalAS;
+  SBGPRouter * pLocalRouter;
   SFilter * pInFilter;
   SFilter * pOutFilter;
   SRIB * pAdjRIBIn;
@@ -31,7 +31,8 @@ struct TPeer {
 // ----- peer_create ------------------------------------------------
 extern SPeer * peer_create(uint16_t uRemoteAS,
 			   net_addr_t tAddr,
-			   SAS * pLocalAS, uint8_t uPeerType);
+			   SBGPRouter * pLocalRouter,
+			   uint8_t uPeerType);
 // ----- peer_destroy -----------------------------------------------
 extern void peer_destroy(SPeer ** ppPeer);
 
@@ -39,6 +40,11 @@ extern void peer_destroy(SPeer ** ppPeer);
 extern void peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState);
 // ----- peer_flag_get ----------------------------------------------
 extern int peer_flag_get(SPeer * pPeer, uint8_t uFlag);
+
+/////////////////////////////////////////////////////////////////////
+// BGP FILTERS
+/////////////////////////////////////////////////////////////////////
+
 // ----- peer_set_in_filter -----------------------------------------
 extern void peer_set_in_filter(SPeer * pPeer, SFilter * pFilter);
 // ----- peer_in_filter_get -----------------------------------------
@@ -48,12 +54,24 @@ extern void peer_set_out_filter(SPeer * pPeer, SFilter * pFilter);
 // ----- peer_out_filter_get ----------------------------------------
 extern SFilter * peer_out_filter_get(SPeer * pPeer);
 
+/////////////////////////////////////////////////////////////////////
+// BGP SESSION MANAGEMENT FUNCTIONS
+/////////////////////////////////////////////////////////////////////
+
+// ----- bgp_peer_session_ok ----------------------------------------
+extern int bgp_peer_session_ok(SBGPPeer * pPeer);
+// ----- bgp_peer_session_refresh -----------------------------------
+extern void bgp_peer_session_refresh(SBGPPeer * pPeer);
 // ----- peer_open_session ------------------------------------------
-extern int peer_open_session(SPeer * pPeer);
+extern int bgp_peer_open_session(SBGPPeer * pPeer);
 // ----- peer_close_session -----------------------------------------
-extern int peer_close_session(SPeer * pPeer);
-// ----- peer_clear_adjribin ----------------------------------------
-extern void peer_clear_adjribin(SPeer * pPeer);
+extern int bgp_peer_close_session(SBGPPeer * pPeer);
+// ----- peer_rescan_adjribin ---------------------------------------
+extern void peer_rescan_adjribin(SPeer * pPeer, int iClear);
+
+/////////////////////////////////////////////////////////////////////
+// BGP MESSAGE HANDLING
+/////////////////////////////////////////////////////////////////////
 
 // ----- peer_announce_route ----------------------------------------
 extern void peer_announce_route(SPeer * pPeer, SRoute * pRoute);
@@ -61,8 +79,13 @@ extern void peer_announce_route(SPeer * pPeer, SRoute * pRoute);
 extern void peer_withdraw_prefix(SPeer * pPeer, SPrefix sPrefix);
 // ----- peer_handle_message ----------------------------------------
 extern int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg);
-// ----- peer_dump_id -----------------------------------------------
-extern void peer_dump_id(FILE * pStream, SPeer * pPeer);
+
+/////////////////////////////////////////////////////////////////////
+// INFORMATION RETRIEVAL
+/////////////////////////////////////////////////////////////////////
+
+// ----- bgp_peer_dump_id -------------------------------------------
+extern void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump ----------------------------------------------
 extern void bgp_peer_dump(FILE * pStream, SPeer * pPeer);
 // ----- bgp_peer_dump_adjrib ---------------------------------------

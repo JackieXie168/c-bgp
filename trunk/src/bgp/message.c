@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 03/02/2005
+// @lastdate 13/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,7 +25,7 @@
 unsigned long context_create_count= 0;
 unsigned long context_destroy_count= 0;
 
-extern SAS * AS[];
+extern SBGPRouter * AS[];
 
 typedef struct {
   uint16_t uRemoteAS;

@@ -16,6 +16,8 @@ libbgp_la_SOURCES = \
 	comm_t.h \
 	dp_rules.c \
 	dp_rules.h \
+	domain.c \
+	domain.h \
 	ecomm.c \
 	ecomm.h \
 	ecomm_t.h \

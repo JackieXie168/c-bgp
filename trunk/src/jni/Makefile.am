@@ -15,6 +15,7 @@ BUILT_SOURCES = $(JARFILE)
 #foo_DATA = $(JARFILE)
 
 JAVAFILES= \
+	be/ac/ucl/ingi/cbgp/ASPath.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/BGPPeer.java \
 	be/ac/ucl/ingi/cbgp/BGPRoute.java \

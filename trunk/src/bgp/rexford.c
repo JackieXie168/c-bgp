@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 27/01/2005
+// @lastdate 14/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,14 +23,14 @@
 #include <net/network.h>
 #include <net/protocol.h>
 
-static SAS * AS[MAX_AS];
+static SBGPRouter * AS[MAX_AS];
 static SPtrArray * pASEdges= NULL;
 
 // ----- rexford_get_as ---------------------------------------------
 /**
  *
  */
-SAS * rexford_get_as(uint16_t uASNum)
+SBGPRouter * rexford_get_as(uint16_t uASNum)
 {
   return AS[uASNum];
 }
@@ -50,7 +50,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
   unsigned int uAS1, uAS2, uRelation;
   int iError= 0;
   SNetNode * pNode1, * pNode2;
-  SAS * pAS1, * pAS2;
+  SBGPRouter * pRouter1, * pRouter2;
   net_addr_t tAddr1, tAddr2;
   net_link_delay_t tDelay;
   int iIndex;
@@ -134,32 +134,32 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       pNode1= network_find_node(pNetwork, tAddr1);
       if (pNode1 == NULL) {
 	pNode1= node_create(tAddr1);
-	pAS1= as_create(uAS1, pNode1, 0);
-	AS[uAS1]= pAS1;
-	assert(!node_register_protocol(pNode1, NET_PROTOCOL_BGP, pAS1,
-				       (FNetNodeHandlerDestroy) as_destroy,
-				       as_handle_message));
+	pRouter1= bgp_router_create(uAS1, pNode1, 0);
+	AS[uAS1]= pRouter1;
+	assert(!node_register_protocol(pNode1, NET_PROTOCOL_BGP, pRouter1,
+				       (FNetNodeHandlerDestroy) bgp_router_destroy,
+				       bgp_router_handle_message));
 	assert(!network_add_node(pNetwork, pNode1));
       } else {
 	pProtocol= protocols_get(pNode1->pProtocols, NET_PROTOCOL_BGP);
 	assert(pProtocol != NULL);
-	pAS1= (SAS *) pProtocol->pHandler;
+	pRouter1= (SBGPRouter *) pProtocol->pHandler;
       }
 
       // Find/create AS2's node
       pNode2= network_find_node(pNetwork, tAddr2);
       if (pNode2 == NULL) {
 	pNode2= node_create(tAddr2);
-	pAS2= as_create(uAS2, pNode2, 0);
-	AS[uAS2]= pAS2;
-	assert(!node_register_protocol(pNode2, NET_PROTOCOL_BGP, pAS2,
-				       (FNetNodeHandlerDestroy) as_destroy,
-				       as_handle_message));
+	pRouter2= bgp_router_create(uAS2, pNode2, 0);
+	AS[uAS2]= pRouter2;
+	assert(!node_register_protocol(pNode2, NET_PROTOCOL_BGP, pRouter2,
+				       (FNetNodeHandlerDestroy) bgp_router_destroy,
+				       bgp_router_handle_message));
 	assert(!network_add_node(pNetwork, pNode2));
       } else {
 	pProtocol= protocols_get(pNode2->pProtocols, NET_PROTOCOL_BGP);
 	assert(pProtocol != NULL);
-	pAS2= (SAS *) pProtocol->pHandler;
+	pRouter2= (SBGPRouter *) pProtocol->pHandler;
       }
 
       // Add the link and check that this link did not already exist
@@ -181,15 +181,15 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       }
       
       // Setup peering relations
-      if (as_add_peer(pAS1, uAS2, tAddr2,
-		      (uRelation == REXFORD_REL_PEER_PEER)?
-		      PEER_TYPE_PEER:PEER_TYPE_CUSTOMER) == -1) {
+      if (bgp_router_add_peer(pRouter1, uAS2, tAddr2,
+			      (uRelation == REXFORD_REL_PEER_PEER)?
+			      PEER_TYPE_PEER:PEER_TYPE_CUSTOMER) == -1) {
 	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS2, uAS1);
 	continue;
       }
-      if (as_add_peer(pAS2, uAS1, tAddr1,
-		      (uRelation == REXFORD_REL_PEER_PEER)?
-		      PEER_TYPE_PEER:PEER_TYPE_PROVIDER) == -1) {
+      if (bgp_router_add_peer(pRouter2, uAS1, tAddr1,
+			      (uRelation == REXFORD_REL_PEER_PEER)?
+			      PEER_TYPE_PEER:PEER_TYPE_PROVIDER) == -1) {
 	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS1, uAS2);
 	continue;
       }
@@ -220,7 +220,7 @@ void rexford_setup_policies()
   uAS1= 0;
   while (1) {
     if (AS[uAS1] != NULL) {
-      uNumProviders= as_num_providers(AS[uAS1]);
+      uNumProviders= bgp_router_num_providers(AS[uAS1]);
       for (iIndex= 0; iIndex < ptr_array_length(AS[uAS1]->pPeers);
 	   iIndex++) {
 	pPeer= (SPeer *) AS[uAS1]->pPeers->data[iIndex];
@@ -246,19 +246,19 @@ void rexford_setup_policies()
 	  // Provider input filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_pref_set(PREF_CUST));
-	  as_peer_set_in_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_OUT);
 	  // Provider output filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
-	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_OUT);
 	  break;
 	case PEER_TYPE_PROVIDER:
 	  // Customer input filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_comm_append(COMM_PROV));
 	  filter_add_rule(pFilter, NULL, filter_action_pref_set(PREF_PROV));
-	  as_peer_set_in_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_IN);
 	  // Customer output filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, FTM_OR(filter_match_comm_contains(COMM_PROV),
@@ -266,14 +266,14 @@ void rexford_setup_policies()
 			  FTA_DENY);
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
-	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_OUT);
 	  break;
 	case PEER_TYPE_PEER:
 	  // Peer input filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_comm_append(COMM_PEER));
 	  filter_add_rule(pFilter, NULL, filter_action_pref_set(PREF_PEER));
-	  as_peer_set_in_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_IN);
 	  // Peer output filter
 	  pFilter= filter_create();
 	  
@@ -284,7 +284,7 @@ void rexford_setup_policies()
 			    FTA_DENY);
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PEER));
-	  as_peer_set_out_filter(AS[uAS1], pPeer->tAddr, pFilter);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_OUT);
 	  break;
 	default:
 	  abort();
@@ -309,7 +309,7 @@ int rexford_run()
 
   for (iIndex= 0; iIndex < MAX_AS; iIndex++)
     if (AS[iIndex] != NULL)
-      if (as_run(AS[iIndex]) != 0)
+      if (bgp_router_run(AS[iIndex]) != 0)
 	return -1;
   return 0;
 }
@@ -386,6 +386,7 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
 /**
  *
  */
+#ifdef __EXPERIMENTAL__
 int rexford_record_route_bm(FILE * pStream, char * pcFileName,
 			    SPrefix sPrefix, uint8_t uBound)
 {
@@ -454,22 +455,25 @@ int rexford_record_route_bm(FILE * pStream, char * pcFileName,
     return -1;
   return 0;
 }
+#endif
 
 // ----- rexford_route_dp_rule --------------------------------------
 /**
  *
  */
+/*
 int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < MAX_AS; iIndex++) {
     if (AS[iIndex] != NULL) {
-      as_dump_rt_dp_rule(pStream, AS[iIndex], sPrefix);
+      bgp_router_dump_rt_dp_rule(pStream, AS[iIndex], sPrefix);
     }
   }
   return 0;
 }
+*/
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION

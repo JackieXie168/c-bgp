@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 27/01/2005
+// @lastdate 13/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -228,9 +228,9 @@ void filter_destroy(SFilter ** ppFilter)
   }
 }
 
-int filter_matcher_apply(SFilterMatcher * pMatcher, SAS * pAS,
+int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 			 SRoute * pRoute);
-int filter_action_apply(SFilterAction * pAction, SAS * pAS,
+int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
 			SRoute * pRoute);
 // ----- filter_rule_apply ------------------------------------------
 /**
@@ -239,18 +239,19 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
  * 1 => ACCEPT
  * 2 => continue with next rule
  */
-int filter_rule_apply(SFilterRule * pRule, SAS * pAS, SRoute * pRoute)
+int filter_rule_apply(SFilterRule * pRule, SBGPRouter * pRouter,
+		      SRoute * pRoute)
 {
-  if (!filter_matcher_apply(pRule->pMatcher, pAS, pRoute))
+  if (!filter_matcher_apply(pRule->pMatcher, pRouter, pRoute))
     return 2;
-  return filter_action_apply(pRule->pAction, pAS, pRoute);
+  return filter_action_apply(pRule->pAction, pRouter, pRoute);
 }
 
 // ----- filter_apply -----------------------------------------------
 /**
  *
  */
-int filter_apply(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
+int filter_apply(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
 {
   int iIndex;
   int iResult;
@@ -259,7 +260,7 @@ int filter_apply(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
     for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
       iResult= filter_rule_apply((SFilterRule *)
 				 pFilter->pSeqRules->ppItems[iIndex],
-				 pAS, pRoute);
+				 pRouter, pRoute);
       if ((iResult == 0) || (iResult == 1))
 	return iResult;
     }
@@ -273,9 +274,9 @@ int filter_apply(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
  *
  *
  */
-int filter_jump(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
+int filter_jump(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
 {
-  return filter_apply(pFilter, pAS, pRoute);
+  return filter_apply(pFilter, pRouter, pRoute);
 }
 
 // ----- filter_action_call ------------------------------------------
@@ -283,7 +284,7 @@ int filter_jump(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
  *
  *
  */
-int filter_call(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
+int filter_call(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
 {
   int iIndex; 
   int iResult;
@@ -292,7 +293,7 @@ int filter_call(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
     for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
       iResult= filter_rule_apply((SFilterRule *)
 				 pFilter->pSeqRules->ppItems[iIndex],
-				 pAS, pRoute);
+				 pRouter, pRoute);
       if ((iResult == 0) || (iResult == 1))
 	return iResult;
     }
@@ -307,30 +308,30 @@ int filter_call(SFilter * pFilter, SAS * pAS, SRoute * pRoute)
  * 0 => route does not match the filter
  * 1 => route matches the filter
  */
-int filter_matcher_apply(SFilterMatcher * pMatcher, SAS * pAS,
+int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 			 SRoute * pRoute)
 {
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
       return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pAS, pRoute) &&
+				  pRouter, pRoute) &&
 	filter_matcher_apply((SFilterMatcher *)
 			     &pMatcher->auParams[sizeof(SFilterMatcher)+
 						pMatcher->auParams[1]],
-			     pAS, pRoute);
+			     pRouter, pRoute);
       break;
     case FT_MATCH_OP_OR:
       return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pAS, pRoute) ||
+				  pRouter, pRoute) ||
 	filter_matcher_apply((SFilterMatcher *)
 			     &pMatcher->auParams[sizeof(SFilterMatcher)+
 						pMatcher->auParams[1]],
-			     pAS, pRoute);
+			     pRouter, pRoute);
       break;
     case FT_MATCH_OP_NOT:
       return !filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				   pAS, pRoute);
+				   pRouter, pRoute);
     case FT_MATCH_COMM_CONTAINS:
       return
 	route_comm_contains(pRoute,
@@ -361,7 +362,7 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SAS * pAS,
  * 1 => ACCEPT route
  * 2 => continue with next rule
  */
-int filter_action_apply(SFilterAction * pAction, SAS * pAS,
+int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
 			SRoute * pRoute)
 {
   SNetRouteInfo * pRouteInfo;
@@ -382,7 +383,7 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
       route_comm_remove(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_PATH_PREPEND:
-      route_path_prepend(pRoute, pAS->uNumber,
+      route_path_prepend(pRoute, pRouter->uNumber,
 			 *((uint8_t *) pAction->auParams));
       break;
     case FT_ACTION_PREF_SET:
@@ -392,8 +393,8 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
       route_med_set(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_INTERNAL:
-      if (pRoute->tNextHop != pAS->pNode->tAddr) {
-	pRouteInfo= rt_find_best(pAS->pNode->pRT, pRoute->tNextHop,
+      if (pRoute->tNextHop != pRouter->pNode->tAddr) {
+	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
 				 NET_ROUTE_ANY);
 	assert(pRouteInfo != NULL);
 	route_med_set(pRoute, pRouteInfo->uWeight);
@@ -406,10 +407,10 @@ int filter_action_apply(SFilterAction * pAction, SAS * pAS,
 						pAction->auParams));
       break;
     case FT_ACTION_JUMP:
-      return filter_jump((SFilter *)pAction->auParams, pAS, pRoute);
+      return filter_jump((SFilter *)pAction->auParams, pRouter, pRoute);
       break;
     case FT_ACTION_CALL:
-      return filter_call((SFilter *)pAction->auParams, pAS, pRoute);
+      return filter_call((SFilter *)pAction->auParams, pRouter, pRoute);
     default:
       abort();
     }
