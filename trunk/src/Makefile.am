@@ -2,12 +2,18 @@
 if WITH_JNI
   OPT_JNI_DIR = jni
   OPT_JNI_LIBADD = jni/libjni.la
+else
+  OPT_JNI_DIR =
+  OPT_JNI_LIBADD =
 endif
 
 # Compile with liballoc ?
 if WITH_LIBALLOC
   OPT_LIBALLOC_DIR = liballoc
   OPT_LIBALLOC_LDADD = liballoc/liballoc.la
+else
+  OPT_LIBALLOC_DIR =
+  OPT_LIBALLOC_LDADD =
 endif
 
 SUBDIRS = bgp cli net sim ui $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR)
