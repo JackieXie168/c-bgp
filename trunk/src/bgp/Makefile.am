@@ -8,6 +8,8 @@ libbgp_la_SOURCES = \
 	as_t.h \
 	bgp_assert.h \
 	bgp_assert.c \
+	bgp_debug.h \
+	bgp_debug.c \
 	brite.h \
 	comm.c \
 	comm.h \

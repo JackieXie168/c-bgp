@@ -3,11 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 08/03/2004
+// @lastdate 09/04/2004
 // ==================================================================
 
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
+#include <bgp/bgp_debug.h>
 #include <bgp/filter.h>
 #include <bgp/filter_parser.h>
 #include <bgp/predicate_parser.h>
@@ -347,6 +348,34 @@ int cli_bgp_router_set_clusterid(SCliContext * pContext,
 
   pAS->tClusterID= uClusterID;
   pAS->iRouteReflector= 1;
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_debug_dp ------------------------------------
+/**
+ * context: {router}
+ * tokens: {addr, prefix}
+ */
+int cli_bgp_router_debug_dp(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  char * pcEndPtr;
+  SPrefix sPrefix;
+
+  // Get the BGP router from the context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
+      (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  bgp_debug_dp(stdout, pRouter, sPrefix);
+
   return CLI_SUCCESS;
 }
 
@@ -899,7 +928,7 @@ int cli_bgp_filter_rule_action(SCliContext * pContext,
   pcAction= tokens_get_string_at(pTokens,
 				 tokens_get_num(pTokens)-1);
   if (filter_parser_action(pcAction, &pAction)) {
-    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcAction);
+    LOG_SEVERE("Error: invalid action \"%s\"\n", pcAction);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1360,6 +1389,21 @@ int cli_register_bgp_router_add(SCliCmds * pCmds)
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
 }
 
+// ----- cli_register_bgp_router_debug ------------------------------
+int cli_register_bgp_router_debug(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("dp",
+					cli_bgp_router_debug_dp,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create("debug", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_bgp_router_del --------------------------------
 int cli_register_bgp_router_del(SCliCmds * pCmds)
 {
@@ -1659,6 +1703,7 @@ int cli_register_bgp_router(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   cli_register_bgp_router_add(pSubCmds);
+  cli_register_bgp_router_debug(pSubCmds);
   cli_register_bgp_router_del(pSubCmds);
   cli_register_bgp_router_peer(pSubCmds);
   pParams= cli_params_create();

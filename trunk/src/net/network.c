@@ -709,9 +709,8 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
       // Lookup the next-hop for this destination
       pLink= node_rt_lookup(pCurrentNode, tDstAddr);
-      if (pLink == NULL) {
+      if (pLink == NULL)
 	break;
-      }
 
       // Handle tunnel encapsulation
       if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL)) {

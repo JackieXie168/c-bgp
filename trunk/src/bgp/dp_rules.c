@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 27/02/2004
+// @lastdate 09/04/2004
 // ==================================================================
 // to-do: these routines can be optimized
 // to-do: dp_rule_lowest_med()
@@ -16,6 +16,7 @@
 #include <bgp/peer.h>
 #include <bgp/route.h>
 #include <net/network.h>
+#include <net/routing.h>
 
 // ----- bgp_dp_rule_generic ----------------------------------------
 /**
@@ -234,18 +235,27 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
 uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
 {
   SNetLink * pLink;
+  SNetRouteInfo * pRouteInfo;
 
-  pLink= node_rt_lookup(pAS->pNode, tNextHop);
-  if (pLink == NULL) {
-    LOG_FATAL("Error: unable to compute IGP cost to next-hop (");
-    LOG_ENABLED_FATAL()
-      ip_address_dump(log_get_stream(pMainLog), tNextHop);
-    LOG_FATAL(")\n");
-    LOG_FATAL("Error: AS%d", pAS->uNumber);
-    LOG_FATAL("\n");
-    abort();
-  }
-  return pLink->uIGPweight;
+  /* Is there a direct link ? */
+  pLink= node_links_lookup(pAS->pNode, tNextHop);
+  if (pLink != NULL)
+    return pLink->uIGPweight;
+  
+  /* Is there a route towards the destination ? */
+  pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop);
+  if (pRouteInfo != NULL)
+    return pRouteInfo->uWeight;
+
+
+  LOG_FATAL("Error: unable to compute IGP cost to next-hop (");
+  LOG_ENABLED_FATAL()
+    ip_address_dump(log_get_stream(pMainLog), tNextHop);
+  LOG_FATAL(")\n");
+  LOG_FATAL("Error: AS%d", pAS->uNumber);
+  LOG_FATAL("\n");
+  abort();
+  return -1;
 }
 
 // ----- dp_rule_nearest_next_hop -----------------------------------

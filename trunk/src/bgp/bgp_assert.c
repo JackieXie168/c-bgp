@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 08/03/2004
+// @lastdate 09/04/2004
 // ==================================================================
 
 #include <libgds/array.h>
@@ -167,6 +167,22 @@ int bgp_assert_peerings()
   }
 
   ptr_array_destroy(&pRL);
+
+  return iResult;
+}
+
+// ----- bgp_assert_full_mesh ---------------------------------------
+int bgp_assert_full_mesh(uint16_t uAS)
+{
+  int iResult= 0;
+
+  return iResult;
+}
+
+// ----- bgp_assert_sessions ----------------------------------------
+int bgp_assert_sessions()
+{
+  int iResult= 0;
 
   return iResult;
 }

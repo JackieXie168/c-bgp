@@ -235,6 +235,7 @@ SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr)
   SNetRouteInfoList * pRIList=
     (SNetRouteInfoList *) radix_tree_get_best((SRadixTree *) pRT,
 					      tAddr, 32);
+
   if (pRIList != NULL)
     return rt_info_list_get(pRIList, 0);
 
