@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 10/08/2004
+// @lastdate 26/11/2004
 // ==================================================================
 
 #include <cli/common.h>
@@ -98,6 +98,26 @@ int cli_sim_options_scheduler(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_sim_queue_info -----------------------------------------
+/**
+ *
+ */
+int cli_sim_queue_info(SCliContext * pContext, STokens * pTokens)
+{
+  simulator_show_infos();
+  return CLI_SUCCESS;
+}
+
+// ----- cli_sim_queue_show -----------------------------------------
+/**
+ *
+ */
+int cli_sim_queue_show(SCliContext * pContext, STokens * pTokens)
+{
+  return CLI_SUCCESS;
+}
+
+
 // ----- cli_sim_run ------------------------------------------------
 int cli_sim_run(SCliContext * pContext, STokens * pTokens)
 {
@@ -172,6 +192,22 @@ int cli_register_sim_options(SCliCmds * pCmds)
 					    pSubCmds, NULL));
 }
 
+// ----- cli_register_sim_queue -------------------------------------
+int cli_register_sim_queue(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+
+  pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("info",
+					cli_sim_queue_info,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("show",
+					cli_sim_queue_show,
+					NULL, NULL));
+  return cli_cmds_add(pCmds, cli_cmd_create("queue", NULL,
+					    pSubCmds, NULL));
+}
+
 // ----- cli_register_sim_run ---------------------------------------
 int cli_register_sim_run(SCliCmds * pCmds)
 {
@@ -208,6 +244,7 @@ int cli_register_sim(SCli * pCli)
   cli_register_sim_debug(pCmds);
   cli_register_sim_event(pCmds);
   cli_register_sim_options(pCmds);
+  cli_register_sim_queue(pCmds);
   cli_register_sim_run(pCmds);
   cli_register_sim_stop(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("sim", NULL, pCmds, NULL));

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 12/02/2004
+// @lastdate 26/11/2004
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -60,6 +60,8 @@ extern void simulator_set_max_time(double dMaximumTime);
 
 // ----- simulator_dump_events --------------------------------------
 extern void simulator_dump_events(FILE * pStream);
+// ----- simulator_show_infos ---------------------------------------
+extern void simulator_show_infos();
 
 #endif
 
