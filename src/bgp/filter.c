@@ -84,7 +84,7 @@ void _filter_path_regex_finalize() __attribute__((destructor));
  */
 void _filter_path_regex_init()
 {
-  pHashPathExpr = hash_init(uHashPathRegExSize, filter_path_regex_compare, 
+  pHashPathExpr = hash_init(uHashPathRegExSize, .5, filter_path_regex_compare, 
 				filter_path_regex_destroy, 
 				filter_path_regex_hash);
   paPathExpr = ptr_array_create(0, NULL, NULL);
