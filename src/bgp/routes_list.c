@@ -35,7 +35,7 @@ void routes_list_destroy(SRoutes ** ppRoutes)
  */
 void routes_list_append(SRoutes * pRoutes, SRoute * pRoute)
 {
-  assert(!ptr_array_append((SPtrArray *) pRoutes, pRoute));
+  assert(ptr_array_append((SPtrArray *) pRoutes, pRoute) >= 0);
 }
 
 // ----- routes_list_remove_at --------------------------------------
@@ -69,5 +69,3 @@ void routes_list_dump(FILE * pStream, SRoutes * pRoutes)
     fprintf(pStream, "\n");
   }
 }
-
-

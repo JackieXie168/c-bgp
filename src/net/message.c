@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 23/02/2004
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <libgds/memory.h>
 
 #include <net/message.h>
+#include <net/protocol.h>
 
 // ----- message_create ---------------------------------------------
 /**
@@ -40,4 +41,18 @@ void message_destroy(SNetMessage ** ppMessage)
       (*ppMessage)->fDestroy(&(*ppMessage)->pPayLoad);
     FREE(*ppMessage);
   }
+}
+
+// ----- message_dump -----------------------------------------------
+/**
+ *
+ */
+void message_dump(FILE * pStream, SNetMessage * pMessage)
+{
+  fprintf(pStream, "src:");
+  ip_address_dump(pStream, pMessage->tSrcAddr);
+  fprintf(pStream, ", dst:");
+  ip_address_dump(pStream, pMessage->tDstAddr);
+  fprintf(pStream, ", proto:%s, ttl:%d", PROTOCOL_NAMES[pMessage->uProtocol],
+	  pMessage->uTTL);
 }

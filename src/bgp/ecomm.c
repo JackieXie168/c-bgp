@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ecomm.c
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 23/05/2003
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <stdio.h>
@@ -199,14 +199,34 @@ void ecomm_red_dump(FILE * pStream, SECommunity * pComm)
 
 // ----- ecomm_val_dump ---------------------------------------------
 /**
- *
+ * Dump an extended community.
  */
-void ecomm_val_dump(FILE * pStream, SECommunity * pComm)
+void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
+		    int iText)
 {
-  switch (pComm->uTypeHigh) {
-  case ECOMM_RED: ecomm_red_dump(pStream, pComm); break;
-  default:
-    fprintf(pStream, "???");
+  uint32_t tValue;
+
+  /* If the extended community must be interpreted, a text value will
+     be written. Otherwise, a numeric value will be written. */
+  if (iText == ECOMM_DUMP_TEXT) {
+    switch (pComm->uTypeHigh) {
+    case ECOMM_RED: ecomm_red_dump(pStream, pComm); break;
+    default:
+      fprintf(pStream, "???");
+    }
+  } else {
+    tValue= ((((((((((pComm->uIANAAuthority << 1) +
+		     pComm->uTransitive) << 1) +
+		   pComm->uTypeHigh) << 6) +
+		 pComm->uTypeLow) << 8) +
+	       pComm->auValue[0]) << 8) +
+	     pComm->auValue[1]);
+    fprintf(pStream, "%u:", tValue);
+    tValue= (((((((pComm->auValue[2]) << 8) +
+		 pComm->auValue[3]) << 8) +
+	       pComm->auValue[4]) << 8) +
+	     pComm->auValue[5]);
+    fprintf(pStream, "%u", tValue);
   }
 }
 
@@ -214,14 +234,15 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm)
 /**
  *
  */
-void ecomm_dump(FILE * pStream, SECommunities * pComms)
+void ecomm_dump(FILE * pStream, SECommunities * pComms,
+		int iText)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < pComms->uNum; iIndex++) {
     if (iIndex > 0)
       fprintf(pStream, " ");
-    ecomm_val_dump(pStream, &pComms->asComms[iIndex]);
+    ecomm_val_dump(pStream, &pComms->asComms[iIndex], iText);
   }
 }
 
@@ -234,6 +255,8 @@ int ecomm_equals(SECommunities * pCommunities1,
 {
   if (pCommunities1 == pCommunities2)
     return 1;
+  if ((pCommunities1 == NULL) || (pCommunities2 == NULL))
+     return 0;
   if (pCommunities1->uNum != pCommunities2->uNum)
     return 0;
   return (memcmp(pCommunities1->asComms,

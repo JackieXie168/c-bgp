@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 13/08/2003
+// @lastdate 03/01/2005
 // ==================================================================
 
 #ifndef __ECOMM_H__
@@ -35,7 +35,8 @@ extern int ecomm_add(SECommunities ** ppComms, SECommunity * pComm);
 // ----- ecomm_strip_non_transitive ---------------------------------
 extern void ecomm_strip_non_transitive(SECommunities ** ppComms);
 // ----- ecomm_dump -------------------------------------------------
-extern void ecomm_dump(FILE * pStream, SECommunities * pComms);
+extern void ecomm_dump(FILE * pStream, SECommunities * pComms,
+		       int iText);
 // ----- ecomm_equals -----------------------------------------------
 extern int ecomm_equals(SECommunities * pCommunities1,
 			SECommunities * pCommunities2);
@@ -48,6 +49,7 @@ extern int ecomm_red_match(SECommunity * pComm, SPeer * pPeer);
 // ----- ecomm_red_dump ---------------------------------------------
 extern void ecomm_red_dump(FILE * pStream, SECommunity * pComm);
 // ----- ecomm_val_dump ---------------------------------------------
-extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm);
+extern void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
+			   int iText);
 
 #endif

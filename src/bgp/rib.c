@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)rib.c
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/12/2002
-// @lastdate 04/12/2002
+// @lastdate 21/12/2004
 // ==================================================================
 
 #include <libgds/log.h>

@@ -220,7 +220,8 @@ void scheduler_done()
 /**
  *
  */
-int scheduler_post_event(FSchedEventCallback fCallback, void * pContext, float uSchedulingTime)
+int scheduler_post_event(FSchedEventCallback fCallback,
+			 void * pContext, float uSchedulingTime)
 {
   int iIndex, iRet;
   SSchedulerFifoEvent * pFifoEvent;

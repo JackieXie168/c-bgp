@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 30/09/2004
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <assert.h>
@@ -38,6 +38,7 @@ FTieBreakFunction BGP_OPTIONS_TIE_BREAK= TIE_BREAK_DEFAULT;
 uint8_t BGP_OPTIONS_NLRI= BGP_NLRI_BE;
 uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF= 0;
 uint8_t BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
+uint8_t BGP_OPTIONS_SHOW_MODE = ROUTE_SHOW_CISCO;
 
 // ----- as_peers_compare -------------------------------------------
 /**
@@ -158,7 +159,7 @@ int as_add_peer(SAS * pAS, uint16_t uRemoteAS, net_addr_t tAddr,
 {
   SPeer * pNewPeer= peer_create(uRemoteAS, tAddr, pAS, uPeerType);
 
-  if (ptr_array_add(pAS->pPeers, &pNewPeer) == -1) {
+  if (ptr_array_add(pAS->pPeers, &pNewPeer) < 0) {
     peer_destroy(&pNewPeer);
     return -1;
   } else
@@ -307,12 +308,16 @@ int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
 }
 #endif
 
-// ----- as_ecomm_red_process ---------------------------------------
+// ----- as_ecomm_process -------------------------------------------
 /**
- * 0 => Ignore route (destroy)
- * 1 => Redistribute
+ * Apply output extended communities:
+ *   - REDISTRIBUTION COMMUNITIES
+ *
+ * Returns:
+ *   0 => Ignore route (destroy)
+ *   1 => Redistribute
  */
-int as_ecomm_red_process(SPeer * pPeer, SRoute * pRoute)
+int as_ecomm_process(SPeer * pPeer, SRoute * pRoute)
 {
   int iIndex;
   uint8_t uActionParam;
@@ -321,8 +326,8 @@ int as_ecomm_red_process(SPeer * pPeer, SRoute * pRoute)
 
     for (iIndex= 0; iIndex < ecomm_length(pRoute->pECommunities); iIndex++) {
       SECommunity * pComm= ecomm_get_index(pRoute->pECommunities, iIndex);
-      if (pComm->uTypeHigh == ECOMM_RED) {
-
+      switch (pComm->uTypeHigh) {
+      case ECOMM_RED:
 	if (ecomm_red_match(pComm, pPeer)) {
 	  switch ((pComm->uTypeLow >> 3) & 0x07) {
 	  case ECOMM_RED_ACTION_PREPEND:
@@ -339,6 +344,7 @@ int as_ecomm_red_process(SPeer * pPeer, SRoute * pRoute)
 	    abort();
 	  }
 	}
+	break;
       }
     }
   }
@@ -459,8 +465,8 @@ int as_advertise_to_peer(SAS * pAS, SPeer * pPeer, SRoute * pRoute)
     }
   }
 
-  // Check output filter and redistribution communities
-  if (as_ecomm_red_process(pPeer, pNewRoute)) {
+  // Check output filter and extended communities
+  if (as_ecomm_process(pPeer, pNewRoute)) {
 
     route_ecomm_strip_non_transitive(pNewRoute);
 
@@ -1224,6 +1230,63 @@ int bgp_router_prefixes_for_each(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
+void bgp_router_alloc_prefixes(SRIB ** ppPrefixes)
+{
+  /* If list (radix-tree) is not allocated, create it now. The
+     radix-tree is created without destroy function and acts thus as a
+     list of references. */
+  if (*ppPrefixes == NULL) {
+    *ppPrefixes= (SRIB *) radix_tree_create(32, NULL);
+  }
+}
+
+void bgp_router_free_prefixes(SRIB ** ppPrefixes)
+{
+  if (*ppPrefixes != NULL) {
+    rib_destroy(ppPrefixes);
+    *ppPrefixes= NULL;
+  }
+}
+
+// -----[ bgp_router_get_peer_prefixes ]-----------------------------
+/**
+ * This function builds a list of all prefixes received from this
+ * peer (in Adj-RIB-in). The list of prefixes is implemented as a
+ * radix-tree in order to guarantee that each prefix will be present
+ * at most one time (uniqueness).
+ */
+int bgp_router_get_peer_prefixes(SBGPRouter * pRouter, SPeer * pPeer,
+				 SRIB ** ppPrefixes)
+{
+  int iIndex;
+  int iResult= 0;
+
+  bgp_router_alloc_prefixes(ppPrefixes);
+
+  if (pPeer != NULL) {
+    iResult= rib_for_each(pPeer->pAdjRIBIn, bgp_router_prefixes_for_each,
+			  *ppPrefixes);
+  } else {
+    for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+      pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+      iResult= rib_for_each(pPeer->pAdjRIBIn, bgp_router_prefixes_for_each,
+			    *ppPrefixes);
+      if (iResult != 0)
+	break;
+    }
+  }
+
+  return iResult;
+}
+
+int bgp_router_get_local_prefixes(SBGPRouter * pRouter, SRIB ** ppPrefixes)
+{
+  bgp_router_alloc_prefixes(ppPrefixes);
+  
+  return rib_for_each(pRouter->pLocRIB, bgp_router_prefixes_for_each,
+		      *ppPrefixes);
+}
+
 // -----[ bgp_router_prefixes ]--------------------------------------
 /**
  * This function builds a list of all the prefixes known in this
@@ -1231,20 +1294,13 @@ int bgp_router_prefixes_for_each(uint32_t uKey, uint8_t uKeyLen,
  */
 SRIB * bgp_router_prefixes(SBGPRouter * pRouter)
 {
-  SRadixTree * pPrefixes= radix_tree_create(32, NULL);
-  SPeer * pPeer;
-  int iIndex;
+  SRIB * pPrefixes= NULL;
 
   /* Get prefixes from all Adj-RIB-Ins */
-  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
-    rib_for_each(pPeer->pAdjRIBIn, bgp_router_prefixes_for_each,
-		 pPrefixes);
-  }
+  bgp_router_get_peer_prefixes(pRouter, NULL, &pPrefixes);
 
   /* Get prefixes from the RIB */
-  rib_for_each(pRouter->pLocRIB, bgp_router_prefixes_for_each,
-	       pPrefixes);
+  bgp_router_get_local_prefixes(pRouter, &pPrefixes);
 
   return pPrefixes;
 }
@@ -1285,6 +1341,85 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   _array_destroy(&sCtx.pPrefixes);
   
   return iResult;
+}
+
+// -----[ bgp_router_rerun_for_each ]--------------------------------
+int bgp_router_rerun_for_each(uint32_t uKey, uint8_t uKeyLen,
+			      void * pItem, void * pContext)
+{
+  SBGPRouter * pRouter= (SBGPRouter *) pContext;
+  SPrefix sPrefix;
+
+  sPrefix.tNetwork= uKey;
+  sPrefix.uMaskLen= uKeyLen;  
+
+  printf("decision-process [");
+  ip_prefix_dump(stdout, sPrefix);
+  printf("]\n");
+  fflush(stdout);
+
+  return as_decision_process(pRouter, NULL, sPrefix);
+}
+
+// -----[ bgp_router_rerun ]-----------------------------------------
+/**
+ * Rerun the decision process for the given prefixes. If the length of
+ * the prefix mask is 0, rerun for all known prefixes (from Adj-RIB-In
+ * and Loc-RIB). Otherwize, only rerun for the specified prefix.
+ */
+int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix)
+{
+  int iResult;
+  SRIB * pPrefixes= NULL;
+
+  printf("rerun [");
+  ip_address_dump(stdout, pRouter->pNode->tAddr);
+  printf("]\n");
+  fflush(stdout);
+
+  bgp_router_alloc_prefixes(&pPrefixes);
+
+  /* Populate with all prefixes */
+  if (sPrefix.uMaskLen == 0) {
+    assert(!bgp_router_get_peer_prefixes(pRouter, NULL, &pPrefixes));
+    assert(!bgp_router_get_local_prefixes(pRouter, &pPrefixes));
+  } else {
+    radix_tree_add(pPrefixes, sPrefix.tNetwork,
+		   sPrefix.uMaskLen, (void *) 1);
+  }
+
+  printf("prefix-list ok\n");
+  fflush(stdout);
+
+  /* For each route in the list, run the BGP decision process */
+  iResult= radix_tree_for_each(pPrefixes, bgp_router_rerun_for_each, pRouter);
+
+  /* Free list of prefixes */
+  bgp_router_free_prefixes(&pPrefixes);
+
+  return iResult;
+}
+
+// -----[ bgp_router_peer_readv_prefix ]-----------------------------
+/**
+ *
+ */
+int bgp_router_peer_readv_prefix(SBGPRouter * pRouter, SPeer * pPeer,
+				 SPrefix sPrefix)
+{
+  SRoute * pRoute;
+
+  if (sPrefix.uMaskLen == 0) {
+    LOG_WARNING("Error: not yet implemented\n");
+    return -1;
+  } else {
+    pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+    if (pRoute != NULL) {
+      as_decision_process_disseminate_to_peer(pRouter, sPrefix, pRoute, pPeer);
+    }
+  }
+
+  return 0;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1510,7 +1645,7 @@ int bgp_router_save_route_mrtd(uint32_t uKey, uint8_t uKeyLen,
   SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
 
   fprintf(pCtx->pStream, "TABLE_DUMP|%u|", 0);
-  route_dump_mrtd(pCtx->pStream, (SRoute *) pItem);
+  route_dump_mrt(pCtx->pStream, (SRoute *) pItem);
   fprintf(pCtx->pStream, "\n");
   return 0;
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 30/09/2004
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <assert.h>
@@ -55,6 +55,20 @@ int network_send_callback(void * pContext)
   // the message can not be forwarded.
   FREE(pContext);
   return iResult;
+}
+
+// ----- network_send_dump ------------------------------------------
+/**
+ * Callback function used to dump the content of a message event. See
+ * also 'simulator_dump_events' (sim/simulator.c).
+ */
+void network_send_dump(FILE * pStream, void * pContext)
+{
+  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
+
+  fprintf(pStream, "net-msg [");
+  message_dump(pStream, pSendContext->pMessage);
+  fprintf(pStream, "]");
 }
 
 // ----- network_send_context_create --------------------------------
@@ -778,6 +792,7 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
     
     // Forward to node...
     assert(!simulator_post_event(network_send_callback,
+				 network_send_dump,
 				 network_send_context_destroy,
 				 network_send_context_create(pNextHop,
 							     pMessage),
@@ -1112,11 +1127,11 @@ void test_network()
 
   LOG_DEBUG("nodes attached.\n");
 
-  assert(!node_add_link(pNodeA0, pNodeA1, 100, 1));
-  assert(!node_add_link(pNodeA1, pNodeB0, 1000, 1));
-  assert(!node_add_link(pNodeB0, pNodeB1, 100, 1));
-  assert(!node_add_link(pNodeA1, pNodeC0, 400, 1));
-  assert(!node_add_link(pNodeC0, pNodeB0, 400, 1));
+  assert(node_add_link(pNodeA0, pNodeA1, 100, 1) >= 0);
+  assert(node_add_link(pNodeA1, pNodeB0, 1000, 1) >= 0);
+  assert(node_add_link(pNodeB0, pNodeB1, 100, 1) >= 0);
+  assert(node_add_link(pNodeA1, pNodeC0, 400, 1) >= 0);
+  assert(node_add_link(pNodeC0, pNodeB0, 400, 1) >= 0);
 
   LOG_DEBUG("links attached.\n");
 

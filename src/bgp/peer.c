@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 24/11/2002
-// @lastdate 26/05/2004
+// @lastdate 03/01/2005
 // ==================================================================
 
 #include <assert.h>
@@ -13,6 +13,8 @@
 #include <libgds/memory.h>
 
 #include <bgp/as.h>
+#include <bgp/comm.h>
+#include <bgp/ecomm.h>
 #include <bgp/message.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
@@ -433,6 +435,45 @@ void peer_route_rr_client_update(SPeer * pPeer, SRoute * pRoute)
 		 peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT));
 }
 
+// ----- peer_comm_process ------------------------------------------
+/**
+ * Apply input communities.
+ *   - DEPREF community [ EXPERIMENTAL ]
+ *
+ * Returns:
+ *   0 => Ignore route (destroy)
+ *   1 => Redistribute
+ */
+int peer_comm_process(SRoute * pRoute)
+{
+  if (pRoute->pCommunities != NULL) {
+#ifdef __EXPERIMENTAL__
+    if (route_comm_contains(pRoute, COMM_DEPREF)) {
+      route_localpref_set(pRoute, 0);
+    }
+#endif
+  }
+
+  return 1;
+}
+
+// ----- peer_route_eligible ----------------------------------------
+/**
+ * The route is eligible if it passes the input filters. Standard
+ * filters are applied first. Then, extended communities actions are
+ * taken if any (see 'peer_ecomm_process').
+ */
+int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
+{
+  return (filter_apply(pPeer->pInFilter, pPeer->pLocalAS, pRoute) &&
+	  peer_comm_process(pRoute));
+}
+
+// ----- peer_route_feasible ----------------------------------------
+/**
+ * The route is feasible if and only if the next-hop is reachable
+ * (through a STATIC, IGP or BGP route).
+ */
 int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
 {
   SNetLink * pLink= node_rt_lookup(pPeer->pLocalAS->pNode, pRoute->tNextHop);
@@ -485,7 +526,7 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
     route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		   filter_apply(pPeer->pInFilter, pPeer->pLocalAS, pRoute));
+		   peer_route_eligible(pPeer, pRoute));
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
 		   peer_route_feasible(pPeer, pRoute));
     // Update route delay attribute (if BGP-QoS)

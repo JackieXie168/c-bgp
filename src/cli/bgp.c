@@ -4,7 +4,7 @@
 // @author  Bruno Quoitin (bqu@info.ucl.ac.be), 
 //	    Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 29/11/2004
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <config.h>
@@ -365,6 +365,27 @@ int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_bgp_router ---------------------------------
 void cli_ctx_destroy_bgp_router(void ** ppItem)
 {
+}
+
+// ----- cli_bgp_options_showmode ------------------------------------
+/**
+ * context: {}
+ * tokens: {mode}
+ */
+int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcParam;
+
+  pcParam= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcParam, "cisco"))
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CISCO;
+  else if (!strcmp(pcParam, "mrt"))
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
+  else {
+    LOG_SEVERE("Error: unknown show mode \"%s\"\n", pcParam);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
 }
 
 // ----- cli_bgp_options_tiebreak ------------------------------------
@@ -904,6 +925,41 @@ int cli_bgp_router_rescan(SCliContext * pContext, STokens * pTokens)
 
   if (bgp_router_scan_rib(pRouter)) {
     LOG_SEVERE("Error: RIB scan failed\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_rerun ---------------------------------------
+/**
+ * context: {router}
+ * tokens: {addr, prefix|*}
+ */
+int cli_bgp_router_rerun(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  char * pcEndChar;
+  SPrefix sPrefix;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  /* Get prefix */
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (!strcmp(pcPrefix, "*")) {
+    sPrefix.uMaskLen= 0;
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
+	     (*pcEndChar == 0)) {
+  } else {
+    LOG_SEVERE("Error: invalid prefix|* \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Rerun the decision process for all known prefixes
+  if (bgp_router_rerun(pRouter, sPrefix)) {
+    LOG_SEVERE("Error: reset failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1624,6 +1680,43 @@ int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// -----[ cli_bgp_router_peer_readv ]--------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr, prefix|*}
+ */
+int cli_bgp_router_peer_readv(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  SPeer * pPeer;
+  char * pcPrefix;
+  char * pcEndChar;
+  SPrefix sPrefix;
+
+  /* Get router and peer from context */
+  pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
+  pPeer= (SPeer *) cli_context_get_item_at(pContext, 1);
+
+  /* Get prefix */
+  pcPrefix= tokens_get_string_at(pTokens, 2);
+  if (!strcmp(pcPrefix, "*")) {
+    sPrefix.uMaskLen= 0;
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
+	     (*pcEndChar == 0)) {
+  } else {
+    LOG_SEVERE("Error: invalid prefix|* \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Re-advertise */
+  if (bgp_router_peer_readv_prefix(pRouter, pPeer, sPrefix)) {
+    LOG_SEVERE("Error: could not re-advertise\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_peer_reset ----------------------------------
 /**
  * context: {router, peer}
@@ -1981,6 +2074,13 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
 					cli_bgp_router_peer_nexthopself,
 					NULL, NULL));
+#ifdef __EXPERIMENTAL__
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix|*>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("re-adv",
+					cli_bgp_router_peer_readv,
+					NULL, pParams));
+#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<mrt-record>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("recv",
@@ -2025,10 +2125,17 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("msg-monitor",
 					cli_bgp_options_msgmonitor,
 					NULL, pParams));
+#ifdef __EXPERIMENTAL__
   pParams= cli_params_create();
   cli_params_add(pParams, "<nlri>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("nlri",
 					cli_bgp_options_nlri,
+					NULL, pParams));
+#endif
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<cisco|mrt>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("show-mode",
+					cli_bgp_options_showmode,
 					NULL, pParams));
 #ifdef BGP_QOS
   pParams= cli_params_create();
@@ -2156,11 +2263,18 @@ int cli_register_bgp_router(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
 					cli_bgp_router_recordroute,
 					NULL, pParams));
+#ifdef __EXPERIMENTAL__
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<bound>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route-bm",
 					cli_bgp_router_recordroute_bm,
+					NULL, pParams));
+#endif
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix|*>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("rerun",
+					cli_bgp_router_rerun,
 					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("rescan",
 					cli_bgp_router_rescan,

@@ -166,4 +166,5 @@ int network_domain_add(SNetwork * pNetwork, uint32_t uAS,
 						      char * pcName);
 // ----- network_domain_get -----------------------------------------
 SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
+
 #endif
