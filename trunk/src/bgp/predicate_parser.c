@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 27/01/2005
+// @lastdate 24/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,7 +83,7 @@ int predicate_parse_sub_expr(char ** ppcExpr, SFilterMatcher ** ppMatcher)
 
 // ----- predicate_parse --------------------------------------------
 /**
- *
+ * 
  */
 int predicate_parse(char ** ppcExpr, SFilterMatcher ** ppMatcher)
 {
@@ -104,6 +104,7 @@ int predicate_parse(char ** ppcExpr, SFilterMatcher ** ppMatcher)
     case '(':
       pcExpr++;
       iError= predicate_parse_sub_expr(&pcExpr, &pMatcher1);
+      //iError= predicate_parse(&pcExpr, &pMatcher1);
       break;
     case '&':
       pcExpr++;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 11/02/2005
+// @lastdate 25/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,9 @@
 
 #include <libgds/log.h>
 
+#include <bgp/mrtd.h>
+#include <bgp/predicate_parser.h>
+#include <bgp/routes_list.h>
 #include <cli/bgp.h>
 #include <cli/common.h>
 #include <cli/net.h>
@@ -74,6 +77,29 @@ int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
 	      pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
+
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_mrt ]---------------------------------------------
+/**
+ * context: {}
+ * tokens: {filename, predicate}
+ */
+int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcPredicate;
+  SFilterMatcher * pMatcher;
+
+  /* Parse predicate */
+  pcPredicate= tokens_get_string_at(pTokens, 1);
+  if (predicate_parse(&pcPredicate, &pMatcher)) {
+    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcPredicate);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Dump routes that match the given predicate */
+  mrtd_load_routes(tokens_get_string_at(pTokens, 0), 1, pMatcher);
 
   return CLI_SUCCESS;
 }
@@ -164,6 +190,9 @@ int cli_show_version(SCliContext * pContext, STokens * pTokens)
 #ifdef HAVE_JNI
   fprintf(stdout, " [jni]");
 #endif
+#ifdef HAVE_BGPDUMP
+  fprintf(stdout, " [bgpdump]");
+#endif
   fprintf(stdout, "\n");
 
   return CLI_SUCCESS;
@@ -234,8 +263,19 @@ void cli_register_set(SCli * pCli)
 void cli_register_show(SCli * pCli)
 {
   SCliCmds * pSubCmds;
+  SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<filename>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
+  cli_params_add(pParams, "<filename>", NULL);
+#endif
+  cli_params_add(pParams, "<predicate>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("mrt", cli_show_mrt,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_mem_limit,
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_show_version,

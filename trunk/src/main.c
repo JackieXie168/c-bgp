@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 12/02/2005
+// @lastdate 23/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,42 +41,84 @@
 #include <ui/rl.h>
 #endif
 
-// ----- global options -----
-char * pcOptCli         = NULL;
-char * pcOptLog         = NULL;
-int iOptInteractive     = 0;
+// -----[ simulator's modes] -----
+#define CBGP_MODE_DEFAULT     0
+#define CBGP_MODE_INTERACTIVE 1
+#define CBGP_MODE_SCRIPT      2
+#define CBGP_MODE_EXECUTE     3
 
-// ----- fatal_error ------------------------------------------------
+// -----[ global options ]-----
+char * pcOptLog = NULL;
+uint8_t uMode   = CBGP_MODE_DEFAULT;
+char * pcArgMode= NULL;
+
+// -----[ simulation_cli_help ]--------------------------------------
 /**
- *
+ * This function shows a command-line usage screen.
  */
-void fatal_error(char * pcMessage)
+void simulation_cli_help()
 {
-  LOG_FATAL("FATAL: %s\n", pcMessage);
-  exit(EXIT_FAILURE);
+  printf("C-BGP %s\n", PACKAGE_VERSION);
+  printf("Networking group, CSE Dept, UCL, Belgium\n");
+  printf("\n");
+  printf("Usage: cbgp [OPTIONS]\n");
+  printf("\n");
+  printf("  -h             display this message.\n");
+  printf("  -i             interactive mode.\n");
+  printf("  -l LOGFILE     output log to LOGFILE instead of stderr.\n");
+  printf("  -c SCRIPT      load and execute SCRIPT file.\n");
+  printf("                 (without this option, commands are taken from stdin)\n");
+  printf("  -e COMMAND     execute the given command\n");
+#if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
+  printf("  -g             track memory leaks.\n");
+#endif
+  printf("\n");
 }
 
-// ----- simulation_init --------------------------------------------
+// -----[ simulation_set_mode ]--------------------------------------
 /**
- *
+ * Change the simulation mode.
+ */
+void simulation_set_mode(uint8_t uNewMode, char * pcNewArg)
+{
+  if (uMode == CBGP_MODE_DEFAULT) {
+    uMode= uNewMode;
+    if (pcNewArg != NULL)
+      pcArgMode= pcNewArg;
+  } else {
+    fprintf(stderr, "Error: multiple modes specified on command-line.\n");
+    simulation_cli_help();
+    exit(EXIT_FAILURE);
+  }
+}
+
+// -----[ simulation_init ]------------------------------------------
+/**
+ * initilize the simulation.
  */
 void simulation_init()
 {
-  if (iOptInteractive)
+  if (uMode == CBGP_MODE_INTERACTIVE)
     fprintf(stdout, "cbgp> init.\n");
   simulator_init();
 }
 
 // ----- simulation_done --------------------------------------------
 /**
- *
+ * Finalize the simulation.
  */
 void simulation_done()
 {
-  if (iOptInteractive)
+  if (uMode == CBGP_MODE_INTERACTIVE)
     fprintf(stdout, "cbgp> done.\n");
   simulator_done();
 }
+
+/////////////////////////////////////////////////////////////////////
+//
+// COMMAND COMPLETION
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- rl_display_completion --------------------------------------
 /**
@@ -113,6 +155,8 @@ int iComplParamIndex= 0;      // Index of current parameter
 /**
  * This function generates completion for CLI commands. It relies on
  * the list of sub-commands of the current command.
+ *
+ * Note: use malloc() for the returned matches, not MALLOC().
  */
 #ifdef INTERACTIVE_MODE_OK
 #ifdef HAVE_RL_COMPLETION_MATCHES
@@ -155,6 +199,8 @@ char * rl_compl_cmd_generator(const char * pcText, int iState)
  * This function generates completion for CLI parameter values. The
  * generator first relies on a possible enumeration function [not
  * implemented yet], then on a parameter checking function.
+ *
+ * Note: use malloc() for the returned matches, not MALLOC().
  */
 #ifdef INTERACTIVE_MODE_OK
 #ifdef HAVE_RL_COMPLETION_MATCHES
@@ -260,6 +306,12 @@ char ** rl_compl (const char * pcText, int iStart, int iEnd)
 }
 #endif
 #endif
+
+/////////////////////////////////////////////////////////////////////
+//
+// ONLINE HELP
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- simulation_help_ctx ----------------------------------------
 /**
@@ -424,28 +476,6 @@ int simulation_interactive()
 #endif
 }
 
-// ----- main_help --------------------------------------------------
-/**
- *
- */
-void main_help()
-{
-  printf("C-BGP %s\n", PACKAGE_VERSION);
-  printf("Networking group, CSE Dept, UCL, Belgium\n");
-  printf("\n");
-  printf("Usage: cbgp [OPTIONS]\n");
-  printf("\n");
-  printf("  -h             display this message.\n");
-  printf("  -i             interactive mode.\n");
-  printf("  -l LOGFILE     output log to LOGFILE instead of stderr.\n");
-  printf("  -c SCRIPT      load and execute SCRIPT file.\n");
-  printf("                 (without this option, commands are taken from stdin)\n");
-#if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
-  printf("  -g             track memory leaks.\n");
-#endif
-  printf("\n");
-}
-
 // ----- option_string ----------------------------------------------
 /**
  *
@@ -465,12 +495,6 @@ void option_free(char * pcArgument)
     str_destroy(&pcArgument);
 }
 
-typedef struct {
-  uint16_t uAS;
-  SPath * pPath;
-  net_link_delay_t tDelay;
-} SContext;
-
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
@@ -479,7 +503,7 @@ void _main_done() __attribute((destructor));
 
 void _main_done()
 {
-  option_free(pcOptCli);
+  option_free(pcArgMode);
   option_free(pcOptLog);
   if (pComplCmds != NULL)
     cli_cmds_destroy(&pComplCmds);
@@ -491,17 +515,25 @@ void _main_done()
 
 // ----- main -------------------------------------------------------
 /**
- *
+ * This is C-BGP's main entry point.
  */
 int main(int argc, char ** argv) {
   int iResult;
   FILE * pInCli;
   int iExitCode= EXIT_SUCCESS;
 
-  while ((iResult= getopt(argc, argv, "c:hil:g")) != -1) {
+  /* Initialize log */
+  log_set_level(pMainLog, LOG_LEVEL_WARNING);
+  log_set_stream(pMainLog, stderr);
+
+  /* Process command-line options */
+  while ((iResult= getopt(argc, argv, "c:e:hil:g")) != -1) {
     switch (iResult) {
     case 'c':
-      pcOptCli= option_string(optarg);
+      simulation_set_mode(CBGP_MODE_SCRIPT, option_string(optarg));
+      break;
+    case 'e':
+      simulation_set_mode(CBGP_MODE_EXECUTE, option_string(optarg));
       break;
     case 'g':
 #if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
@@ -512,48 +544,56 @@ int main(int argc, char ** argv) {
 #endif
       break;
     case 'h':
-      main_help();
+      simulation_cli_help();
       exit(EXIT_SUCCESS);
       break;
     case 'i':
-      iOptInteractive= 1;
+      simulation_set_mode(CBGP_MODE_INTERACTIVE, NULL);
       break;
     case 'l':
       pcOptLog= option_string(optarg);
       break;
+      /*    case 't':
+      predicate_parser_test();
+      exit(EXIT_SUCCESS);
+      break;*/
     default:
-      main_help();
+      simulation_cli_help();
       exit(EXIT_FAILURE);
     }
   }
 
-  // Setup log
-  log_set_level(pMainLog, LOG_LEVEL_WARNING);
+  /* Setup log stream */
   if (pcOptLog)
     log_set_file(pMainLog, pcOptLog);
-  else
-    log_set_stream(pMainLog, stderr);
 
   simulation_init();
 
-    // Run Cli-script
-  if (pcOptCli != NULL) {
-    pInCli= fopen(pcOptCli, "r");
+  /* Run simulation in selected mode... */
+  switch (uMode) {
+  case CBGP_MODE_DEFAULT:
+    if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)
+      iExitCode= EXIT_FAILURE;
+    break;
+  case CBGP_MODE_INTERACTIVE:
+    if (simulation_interactive() != CLI_SUCCESS)
+      iExitCode= EXIT_FAILURE;
+    break;
+  case CBGP_MODE_SCRIPT:
+    pInCli= fopen(pcArgMode, "r");
     if (pInCli != NULL) {
       if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS)
 	iExitCode= EXIT_FAILURE;
       fclose(pInCli);
     } else {
-      LOG_SEVERE("Error: Unable to open script file \"%s\"\n", pcOptCli);
+      LOG_SEVERE("Error: Unable to open script file \"%s\"\n", pcArgMode);
       iExitCode= EXIT_FAILURE;
     }
-  } else {
-    if (iOptInteractive) {
-      if (simulation_interactive() != CLI_SUCCESS)
-	iExitCode= EXIT_FAILURE;
-    } else
-      if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)
-	iExitCode= EXIT_FAILURE;
+    break;
+  case CBGP_MODE_EXECUTE:
+    iExitCode= (cli_execute_line(cli_get(), pcArgMode) == 0)?
+      EXIT_SUCCESS:EXIT_FAILURE;
+    break;
   }
 
   simulation_done();

@@ -4,11 +4,12 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 21/02/2005
+// @lastdate 22/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
 
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Vector;
 
@@ -86,6 +87,8 @@ public class CBGP
 
     public native int bgpDomainRescan(int iASNumber);
 
+    public native ArrayList loadMRT(String sFileName);
+
     /* BQU: TO BE FIXED !!!
 
     public native int nodeInterfaceAdd(String net_addr_id, String net_addr_int, 
@@ -157,291 +160,323 @@ public class CBGP
 			   "=======================================");
     }
 
+    // -----[ showRoutes ]-------------------------------------------
+    private static void showRoutes(ArrayList routes, boolean bBGP)
+    {
+	System.out.println("========================================"+
+			   "=======================================");
+	if (bBGP) {
+	    System.out.println("   Prefix\tNxt-hop\tLoc-prf\tMED\tPath\tOrigin");
+	} else {
+	    System.out.println("   Prefix\tNxt-hop");
+	}
+	if (routes != null) {
+	    for (int iIndex= 0; iIndex < routes.size(); iIndex++) {
+		Route route= (Route) routes.get(iIndex);
+		System.out.println(route);
+	    }
+	} else {
+	    System.out.println("(null)");
+	}
+	System.out.println("========================================"+
+			   "=======================================");
+    }
+
     public static void main(String[] args){
 	CBGP cbgp= new CBGP();
 
-	cbgp.init("/tmp/log_cbgp_jni");
+	if (args.length > 0) {
 
-	//this example has been translated from 
-	//http://cbgp.info.ucl.ac.be/downloads/valid-igp-link-up-down.cli
-	System.out.println("*** \033[34;1mvalid-igp-link-up-down \033[0m***\n\n");
+	    showRoutes(cbgp.loadMRT(args[0]), true);
 
-	//Domain AS1
-	cbgp.netAddNode("0.1.0.1");
-   
-	//Domain AS2
-	cbgp.netAddNode("0.2.0.1");
-	cbgp.netAddNode("0.2.0.2");
-	cbgp.netAddNode("0.2.0.3");
-	cbgp.netAddNode("0.2.0.4");
+	} else {
 
-	cbgp.netAddLink("0.2.0.1", "0.2.0.3", 20); // -> it was initially 5 but 
-	//we also demonstrate the igp 
-	//change weight in this example
-	cbgp.netAddLink("0.2.0.2", "0.2.0.3", 10);
-	cbgp.netAddLink("0.2.0.4", "0.2.0.3", 10);
+	    cbgp.init("/tmp/log_cbgp_jni");
+	    
+	    //this example has been translated from 
+	    //http://cbgp.info.ucl.ac.be/downloads/valid-igp-link-up-down.cli
+	    System.out.println("*** \033[34;1mvalid-igp-link-up-down \033[0m***\n\n");
+	    
+	    //Domain AS1
+	    cbgp.netAddNode("0.1.0.1");
+	    
+	    //Domain AS2
+	    cbgp.netAddNode("0.2.0.1");
+	    cbgp.netAddNode("0.2.0.2");
+	    cbgp.netAddNode("0.2.0.3");
+	    cbgp.netAddNode("0.2.0.4");
+	    
+	    cbgp.netAddLink("0.2.0.1", "0.2.0.3", 20); // -> it was initially 5 but 
+	    //we also demonstrate the igp 
+	    //change weight in this example
+	    cbgp.netAddLink("0.2.0.2", "0.2.0.3", 10);
+	    cbgp.netAddLink("0.2.0.4", "0.2.0.3", 10);
+	    
+	    cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
+	    //Interdomain links and routes
+	    cbgp.netAddLink("0.1.0.1", "0.2.0.1", 0);
+	    cbgp.netAddLink("0.1.0.1", "0.2.0.2", 0);
+	    cbgp.netAddLink("0.1.0.1", "0.2.0.4", 0);
+	    cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.1/32", "0.2.0.1", 0);
+	    cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.2/32", "0.2.0.2", 0);
+	    cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.4/32", "0.2.0.4", 0);
+	    cbgp.netNodeRouteAdd("0.2.0.1", "0.1.0.1/32", "0.1.0.1", 0);
+	    cbgp.netNodeRouteAdd("0.2.0.2", "0.1.0.1/32", "0.1.0.1", 0);
+	    cbgp.netNodeRouteAdd("0.2.0.4", "0.1.0.1/32", "0.1.0.1", 0);
 
-	//Interdomain links and routes
-	cbgp.netAddLink("0.1.0.1", "0.2.0.1", 0);
-	cbgp.netAddLink("0.1.0.1", "0.2.0.2", 0);
-	cbgp.netAddLink("0.1.0.1", "0.2.0.4", 0);
-	cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.1/32", "0.2.0.1", 0);
-	cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.2/32", "0.2.0.2", 0);
-	cbgp.netNodeRouteAdd("0.1.0.1", "0.2.0.4/32", "0.2.0.4", 0);
-	cbgp.netNodeRouteAdd("0.2.0.1", "0.1.0.1/32", "0.1.0.1", 0);
-	cbgp.netNodeRouteAdd("0.2.0.2", "0.1.0.1/32", "0.1.0.1", 0);
-	cbgp.netNodeRouteAdd("0.2.0.4", "0.1.0.1/32", "0.1.0.1", 0);
-
-	cbgp.bgpAddRouter("Router1_AS1", "0.1.0.1", 1);
-	cbgp.bgpRouterAddNetwork("0.1.0.1", "0.1/16");
-	cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.1", 2);
-	/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.1", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x05, "3");
-	//	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.2", 2);
-	/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.2", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x05, "3");
-	//cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.4", 2);
-	/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.4", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x05, "3");
-	//cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.1", true);
-	cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.2", true);
-	cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.4", true);
+	    cbgp.bgpAddRouter("Router1_AS1", "0.1.0.1", 1);
+	    cbgp.bgpRouterAddNetwork("0.1.0.1", "0.1/16");
+	    cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.1", 2);
+	    /*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.1", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x05, "3");
+	      //	cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.2", 2);
+	    /*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.2", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x05, "3");
+	      //cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.4", 2);
+	    /*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.4", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x05, "3");
+	      //cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.2", true);
+	    cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.4", true);
 								    
-	//BGP in AS2
-	cbgp.bgpAddRouter("Router1_AS2", "0.2.0.1", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.1", "0.1.0.1", 1);
-	cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.2", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.3", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.4", 2);
-	cbgp.bgpRouterPeerNextHopSelf("0.2.0.1", "0.1.0.1");
-	cbgp.bgpRouterPeerUp("0.2.0.1", "0.1.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.2", true);
-	cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.3", true);
-	cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.4", true);
+	    //BGP in AS2
+	    cbgp.bgpAddRouter("Router1_AS2", "0.2.0.1", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.1", "0.1.0.1", 1);
+	    cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.2", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.3", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.4", 2);
+	    cbgp.bgpRouterPeerNextHopSelf("0.2.0.1", "0.1.0.1");
+	    cbgp.bgpRouterPeerUp("0.2.0.1", "0.1.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.2", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.3", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.4", true);
 
-	cbgp.bgpAddRouter("Router2_AS2", "0.2.0.2", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.2", "0.1.0.1", 1);
-	cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.1", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.3", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.4", 2);
-	cbgp.bgpRouterPeerNextHopSelf("0.2.0.2", "0.1.0.1");
-	cbgp.bgpRouterPeerUp("0.2.0.2", "0.1.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.3", true);
-	cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.4", true);
+	    cbgp.bgpAddRouter("Router2_AS2", "0.2.0.2", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.2", "0.1.0.1", 1);
+	    cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.1", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.3", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.4", 2);
+	    cbgp.bgpRouterPeerNextHopSelf("0.2.0.2", "0.1.0.1");
+	    cbgp.bgpRouterPeerUp("0.2.0.2", "0.1.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.3", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.4", true);
 
-	cbgp.bgpAddRouter("Router3_AS2", "0.2.0.3", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.1", 2);
-	/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.1", "in");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.1", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.2", 2);
-	/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.2", "in");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.2", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.4", 2);
-	/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.4", "in");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();
-	cbgp.bgpFilterInit("0.2.0.3", "0.2.0.4", "out");
-	cbgp.bgpFilterMatchPrefixIn("0/0");
-	cbgp.bgpFilterAction(0x03, "1000");
-	cbgp.bgpFilterAction(0x01, "");
-	cbgp.bgpFilterFinalize();*/
-	cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.2", true);
-	cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.4", true);
+	    cbgp.bgpAddRouter("Router3_AS2", "0.2.0.3", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.1", 2);
+	    /*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.1", "in");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    /*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.1", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.2", 2);
+	    /*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.2", "in");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    /*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.2", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.4", 2);
+	    /*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.4", "in");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();
+	      cbgp.bgpFilterInit("0.2.0.3", "0.2.0.4", "out");
+	      cbgp.bgpFilterMatchPrefixIn("0/0");
+	      cbgp.bgpFilterAction(0x03, "1000");
+	      cbgp.bgpFilterAction(0x01, "");
+	      cbgp.bgpFilterFinalize();*/
+	    cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.2", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.4", true);
 
-	cbgp.bgpAddRouter("Router4_AS2", "0.2.0.4", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.4", "0.1.0.1", 1);
-	cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.1", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.2", 2);
-	cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.3", 2);
-	cbgp.bgpRouterPeerNextHopSelf("0.2.0.4", "0.1.0.1");
-	cbgp.bgpRouterPeerUp("0.2.0.4", "0.1.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.1", true);
-	cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.2", true);
-	cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.3", true);
+	    cbgp.bgpAddRouter("Router4_AS2", "0.2.0.4", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.4", "0.1.0.1", 1);
+	    cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.1", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.2", 2);
+	    cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.3", 2);
+	    cbgp.bgpRouterPeerNextHopSelf("0.2.0.4", "0.1.0.1");
+	    cbgp.bgpRouterPeerUp("0.2.0.4", "0.1.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.1", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.2", true);
+	    cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.3", true);
 
-	cbgp.simRun();
+	    cbgp.simRun();
 
-	//Section added to demonstrate the possibility to change the 
-	//IGP weight
-	System.out.println("Links of 0.2.0.3 before weight change:\n");
-	//For the moment on stdout
-	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	System.out.println("RT of 0.2.0.3 before weight change:\n");
-	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	System.out.println("RIB of 0.2.0.3 before weight change;\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+	    //Section added to demonstrate the possibility to change the 
+	    //IGP weight
+	    System.out.println("Links of 0.2.0.3 before weight change:\n");
+	    //For the moment on stdout
+	    showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+	    System.out.println("RT of 0.2.0.3 before weight change:\n");
+	    showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+	    System.out.println("RIB of 0.2.0.3 before weight change;\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+	    System.out.println("RIB In of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
-	System.out.println(trace);
+	    IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
+	    System.out.println(trace);
 
-	System.out.println("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
-	cbgp.netLinkWeight("0.2.0.3", "0.2.0.1", 5);
+	    System.out.println("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
+	    cbgp.netLinkWeight("0.2.0.3", "0.2.0.1", 5);
 
-	//Update intradomain routes (recompute MST)
-	cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
+	    //Update intradomain routes (recompute MST)
+	    cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	//Scan BGP routes that could have changed
-	cbgp.bgpDomainRescan(2);
+	    //Scan BGP routes that could have changed
+	    cbgp.bgpDomainRescan(2);
 
-	cbgp.simRun();
-	//End of the added section 
+	    cbgp.simRun();
+	    //End of the added section 
  
-	System.out.println("Links of 0.2.0.3 before first link down:\n");
-	//For the moment on stdout
-	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	System.out.println("RT of 0.2.0.3 before first link down:\n");
-	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	System.out.println("RIB of 0.2.0.3 before first link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+	    System.out.println("Links of 0.2.0.3 before first link down:\n");
+	    //For the moment on stdout
+	    showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+	    System.out.println("RT of 0.2.0.3 before first link down:\n");
+	    showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+	    System.out.println("RIB of 0.2.0.3 before first link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+	    System.out.println("RIB In of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
-	System.out.println("\n\033[31;1m<<First link down: 0.2.0.1 <-> 0.2.0.3>>\033[0m\n\n");
+	    System.out.println("\n\033[31;1m<<First link down: 0.2.0.1 <-> 0.2.0.3>>\033[0m\n\n");
 
-	cbgp.netLinkUp("0.2.0.1", "0.2.0.3", false);
+	    cbgp.netLinkUp("0.2.0.1", "0.2.0.3", false);
 
-	//Update intradomain routes (recompute MST)
-	cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
+	    //Update intradomain routes (recompute MST)
+	    cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	//Scan BGP routes that could change
-	cbgp.bgpDomainRescan(2);
+	    //Scan BGP routes that could change
+	    cbgp.bgpDomainRescan(2);
 
-	cbgp.simRun();
+	    cbgp.simRun();
    
 
-	System.out.println("Links of 0.2.0.3 after first link down:\n");
-	//For the moment on stdout
-	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	System.out.println("RT of 0.2.0.3 after first link down:\n");
-	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	System.out.println("RIB of 0.2.0.3 after first link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+	    System.out.println("Links of 0.2.0.3 after first link down:\n");
+	    //For the moment on stdout
+	    showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+	    System.out.println("RT of 0.2.0.3 after first link down:\n");
+	    showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+	    System.out.println("RIB of 0.2.0.3 after first link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+	    System.out.println("RIB In of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	System.out.println("\n\033[31;1m<<Second link down: 0.2.0.2 <-> 0.2.0.3>>\033[0m\n\n");
+	    System.out.println("\n\033[31;1m<<Second link down: 0.2.0.2 <-> 0.2.0.3>>\033[0m\n\n");
 
-	cbgp.netLinkUp("0.2.0.2", "0.2.0.3", false);
+	    cbgp.netLinkUp("0.2.0.2", "0.2.0.3", false);
 
-	//Update intradomain routes (recompute MST)
-	cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
+	    //Update intradomain routes (recompute MST)
+	    cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	//Scan BGP routes that could change
-	cbgp.bgpDomainRescan(2);
+	    //Scan BGP routes that could change
+	    cbgp.bgpDomainRescan(2);
 
-	cbgp.simRun();
+	    cbgp.simRun();
 
-	System.out.println("Links of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	System.out.println("RT of 0.2.0.3 after second link down:\n");
-	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	System.out.println("RIB of 0.2.0.3 after second link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+	    System.out.println("Links of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+	    System.out.println("RT of 0.2.0.3 after second link down:\n");
+	    showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+	    System.out.println("RIB of 0.2.0.3 after second link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+	    System.out.println("RIB In of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	System.out.println("\n\033[31;1m<<Third link down: 0.2.0.3 <-> 0.2.0.4>>\033[0m\n\n");
+	    System.out.println("\n\033[31;1m<<Third link down: 0.2.0.3 <-> 0.2.0.4>>\033[0m\n\n");
 
-	cbgp.netLinkUp("0.2.0.4", "0.2.0.3", false);
+	    cbgp.netLinkUp("0.2.0.4", "0.2.0.3", false);
 
-	//Update intradomain routes (recompute MST)
-	cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
-	cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
+	    //Update intradomain routes (recompute MST)
+	    cbgp.netNodeSpfPrefix("0.2.0.1", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.2", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.3", "0.2/16");
+	    cbgp.netNodeSpfPrefix("0.2.0.4", "0.2/16");
 
-	//Scan BGP routes that could change
-	cbgp.bgpDomainRescan(2);
+	    //Scan BGP routes that could change
+	    cbgp.bgpDomainRescan(2);
 
-	cbgp.simRun();
+	    cbgp.simRun();
 
-	System.out.println("Links of 0.2.0.3 after third link down:\n");
-	//For the moment on stdout
-	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	System.out.println("RT of 0.2.0.3 after third link down:\n");
-	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	System.out.println("RIB of 0.2.0.3 after third link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+	    System.out.println("Links of 0.2.0.3 after third link down:\n");
+	    //For the moment on stdout
+	    showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+	    System.out.println("RT of 0.2.0.3 after third link down:\n");
+	    showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+	    System.out.println("RIB of 0.2.0.3 after third link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+	    System.out.println("RIB In of 0.2.0.3 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
-	System.out.println("RIB of 0.2.0.1 after third link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.1", null), true);
-	System.out.println("RIB In of 0.2.0.1 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.1", null, null, true), true);
+	    System.out.println("RIB of 0.2.0.1 after third link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.1", null), true);
+	    System.out.println("RIB In of 0.2.0.1 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.1", null, null, true), true);
  
-	System.out.println("RIB of 0.2.0.2 after third link down:\n");
-	showRoutes(cbgp.bgpRouterGetRib("0.2.0.2", null), true);
-	System.out.println("RIB In of 0.2.0.2 after second link down:\n");
-	//For the moment on stdout
-	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.2", null, null, true), true);
+	    System.out.println("RIB of 0.2.0.2 after third link down:\n");
+	    showRoutes(cbgp.bgpRouterGetRib("0.2.0.2", null), true);
+	    System.out.println("RIB In of 0.2.0.2 after second link down:\n");
+	    //For the moment on stdout
+	    showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.2", null, null, true), true);
 
-	for (Enumeration enumPeers= cbgp.bgpRouterGetPeers("0.2.0.2").elements();
-	     enumPeers.hasMoreElements(); ) {
-	    System.out.println(enumPeers.nextElement());
+	    for (Enumeration enumPeers= cbgp.bgpRouterGetPeers("0.2.0.2").elements();
+		 enumPeers.hasMoreElements(); ) {
+		System.out.println(enumPeers.nextElement());
+	    }
+ 
+	    System.out.println("\n\033[32;1mDone\033[0m.\n");
+
+	    cbgp.destroy();
 	}
- 
-	System.out.println("\n\033[32;1mDone\033[0m.\n");
 
-	cbgp.destroy();
     }
-
+    
     static {
-	System.loadLibrary("pcre");
-	System.loadLibrary("gds");
+	//System.loadLibrary("pcre");
+	//System.loadLibrary("gds");
 	System.loadLibrary("csim");
     }
+
 }
 
+    
