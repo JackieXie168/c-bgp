@@ -7,6 +7,7 @@ libnet_la_SOURCES = \
 	dijkstra.h \
 	domain.c \
 	domain.h \
+	domain_t.h \
 	icmp.c \
 	icmp.h \
 	igp.c \
