@@ -168,6 +168,20 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
 	fprintf(pStream, "%u ", uCommunity);
       }
     }
+
+    // Route-reflectors: Originator
+    if (pRoute->pOriginator != NULL) {
+      fprintf(pStream, "originator:");
+      ip_address_dump(pStream, *pRoute->pOriginator);
+    }
+    fprintf(pStream, "|");
+
+    if (pRoute->pClusterList != NULL) {
+      fprintf(pStream, "cluster_id_list:");
+      cluster_list_dump(pStream, pRoute->pClusterList);
+    }
+    fprintf(pStream, "|");
+
     break;
   case BGP_MSG_WITHDRAW:
     fprintf(pStream, "|W");
