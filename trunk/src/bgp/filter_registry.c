@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 01/03/2004
+// @lastdate 06/04/2004
 // ==================================================================
 
 #include <libgds/cli.h>
@@ -395,6 +395,9 @@ void ft_cli_register_action_community()
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
 
+  cli_cmds_add(pSubCmds, cli_cmd_create("strip",
+					ft_cli_action_community_strip,
+					NULL, NULL));
   pParams= cli_params_create();
   cli_params_add(pParams, "<community>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("add",
