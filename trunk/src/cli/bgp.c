@@ -3,9 +3,10 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 16/11/2004
+// @lastdate 24/11/2004
 // ==================================================================
 
+#include <config.h>
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
 #include <bgp/bgp_debug.h>
@@ -18,7 +19,11 @@
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 #include <bgp/rexford.h>
+
+#ifdef HAVE_XML
 #include <bgp/xml_topology.h>
+#endif
+
 #include <bgp/tie_breaks.h>
 #include <cli/bgp.h>
 #include <cli/common.h>
@@ -125,24 +130,28 @@ int cli_bgp_topology_load(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {file}
  */
+#ifdef HAVE_XML
 int cli_bgp_xml_topology_load(SCliContext * pContext, STokens * pTokens)
 {
   if (xml_topology_load(tokens_get_string_at(pTokens, 0), network_get()))
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_bgp_xml_topology_dump ----------------------------------
 /**
  * context: {}
  * tokens: {file}
  */
+#ifdef HAVE_XML
 int cli_bgp_xml_topology_dump(SCliContext * pContext, STokens * pTokens)
 {
   if (xml_topology_dump(network_get(), tokens_get_string_at(pTokens, 0)))
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_bgp_topology_policies ----------------------------------
 /**
@@ -1588,7 +1597,7 @@ int cli_register_bgp_assert(SCliCmds * pCmds)
 int cli_register_bgp_topology(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
-  SCliParams * pParams, * pParams1, * pParams2;
+  SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
@@ -1599,16 +1608,18 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("policies",
 					cli_bgp_topology_policies,
 					NULL, NULL));
-  pParams1 = cli_params_create();
-  cli_params_add(pParams1, "<file>", NULL);
+#ifdef HAVE_XML
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("xml-load", 
 					cli_bgp_xml_topology_load,
-					NULL, pParams1));
-  pParams2 = cli_params_create();
-  cli_params_add(pParams2, "<file>", NULL);
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("xml-dump",
 					cli_bgp_xml_topology_dump,
-					NULL, pParams2));
+					NULL, pParams));
+#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<input>", NULL);

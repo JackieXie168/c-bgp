@@ -9,6 +9,8 @@
 //TODO :  1) spf-prefix has to be done !
 //	  2) peer up has to be done !
 
+#ifdef HAVE_XML
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -1434,3 +1436,5 @@ int xml_topology_dump(SNetwork * pNetwork, char * pcFile)
   fclose(pFile);
   return 0;
 }
+
+#endif
