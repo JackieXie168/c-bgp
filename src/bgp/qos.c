@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 25/11/2003
+// @lastdate 18/05/2004
 // ==================================================================
 
 #include <assert.h>
@@ -16,6 +16,8 @@
 #include <bgp/path_segment.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
+
+#ifdef BGP_QOS
 
 unsigned int BGP_OPTIONS_QOS_AGGR_LIMIT= 2;
 
@@ -810,3 +812,4 @@ void _qos_test()
   route_destroy(&pAggrRoute);
 }
 
+#endif

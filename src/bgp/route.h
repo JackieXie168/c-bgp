@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 04/03/2004
+// @lastdate 19/05/2004
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -24,10 +24,10 @@ extern SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
 // ----- route_destroy ----------------------------------------------
 extern void route_destroy(SRoute ** ppRoute);
 // ----- route_flag_set ---------------------------------------------
-extern void route_flag_set(SRoute * pRoute, uint8_t uFlag,
+extern void route_flag_set(SRoute * pRoute, uint16_t uFlag,
 			   int iState);
 // ----- route_flag_get ---------------------------------------------
-extern int route_flag_get(SRoute * pRoute, uint8_t uFlag);
+extern int route_flag_get(SRoute * pRoute, uint16_t uFlag);
 // ----- route_nexthop_set ------------------------------------------
 extern void route_nexthop_set(SRoute * pRoute,
 			      net_addr_t tNextHop);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 08/03/2004
+// @lastdate 26/04/2004
 // ==================================================================
 
 #ifndef __AS_H__
@@ -108,6 +108,8 @@ extern int as_load_rib(char * pcFileName, SAS * pAS);
 // ----- bgp_router_reset -------------------------------------------
 extern int bgp_router_reset(SBGPRouter * pRouter);
 
+// ----- bgp_router_scan_rib ----------------------------------------
+int bgp_router_scan_rib(SBGPRouter * pRouter);
 
 // ----- bgp_router_dump_networks -----------------------------------
 extern void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter);
@@ -131,10 +133,17 @@ extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
 extern int bgp_router_record_route(SBGPRouter * pRouter,
 				   SPrefix sPrefix, SPath ** ppPath,
 				   int iPreserveDups);
+// ----- bgp_router_record_route_bounded_match ----------------------
+extern int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
+						 SPrefix sPrefix,
+						 uint8_t uBound,
+						 SPath ** ppPath,
+						 int iPreserveDups);
 // ----- bgp_router_dump_recorded_route -----------------------------
 extern void bgp_router_dump_recorded_route(FILE * pStream,
 					   SBGPRouter * pRouter,
 					   SPrefix sPrefix,
-					   int iPreserveDups);
+					   SPath * pPath,
+					   int iResult);
 
 #endif

@@ -266,7 +266,7 @@ int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
  * If the next-hop is not present (NULL), all the routes matching the
  * other parameters will be removed whatever the next-hop is.
  */
-int node_rt_del_route(SNetNode * pNode, SPrefix sPrefix,
+int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 		      net_addr_t * pNextHop, uint8_t uType)
 {
   SNetLink * pLink= NULL;
@@ -280,7 +280,7 @@ int node_rt_del_route(SNetNode * pNode, SPrefix sPrefix,
     }
   }
 
-  return rt_del_route(pNode->pRT, sPrefix, pLink, uType);
+  return rt_del_route(pNode->pRT, pPrefix, pLink, uType);
 }
 
 // ----- node_rt_dump -----------------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 08/03/2004
+// @lastdate 19/05/2004
 // ==================================================================
 
 #include <libgds/log.h>
@@ -61,15 +61,13 @@ void route_info_destroy(SNetRouteInfo ** ppRouteInfo)
   }
 }
 
-// ----- route_info_dump --------------------------------------------
+// ----- route_type_dump --------------------------------------------
 /**
  *
  */
-void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
+void route_type_dump(FILE * pStream, net_route_type_t tType)
 {
-  ip_address_dump(pStream, pRouteInfo->pNextHopIf->tAddr);
-  fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
-  switch (pRouteInfo->tType) {
+  switch (tType) {
   case NET_ROUTE_STATIC:
     fprintf(pStream, "STATIC");
     break;
@@ -84,6 +82,17 @@ void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
   }
 }
 
+// ----- route_info_dump --------------------------------------------
+/**
+ *
+ */
+void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
+{
+  ip_address_dump(pStream, pRouteInfo->pNextHopIf->tAddr);
+  fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
+  route_type_dump(pStream, pRouteInfo->tType);
+}
+
 // ----- rt_route_info_destroy --------------------------------------
 void rt_route_info_destroy(void ** ppItem)
 {
@@ -91,6 +100,12 @@ void rt_route_info_destroy(void ** ppItem)
 }
 
 // ----- rt_info_list_cmp -------------------------------------------
+/**
+ * Compare two routes towards the same destination
+ * - prefer the route with the lowest type (STATIC > IGP > BGP)
+ * - prefer the route with the lowest metric
+ * - prefer the route with the lowest next-hop address
+ */
 int rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
 {
   SNetRouteInfo * pRI1= *((SNetRouteInfo **) pItem1);
@@ -151,27 +166,54 @@ int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
   return NET_RT_SUCCESS;
 }
 
+typedef struct {
+  SPrefix * pPrefix;
+  SNetLink * pNextHopIf;
+  net_route_type_t tType;
+} SNetRouteInfoDel;
+
 // ----- rt_info_list_del -------------------------------------------
+/**
+ * This function removes from the route-list all the routes that match
+ * the given attributes: next-hop and route type. A wildcard can be
+ * used for the next-hop attribute (by specifying a NULL next-hop
+ * link).
+ */
 int rt_info_list_del(SNetRouteInfoList * pRouteInfoList,
-		     SNetLink * pNextHopIf,
-		     net_route_type_t tType)
+		     SNetRouteInfoDel sRIDel)
 {
   int iIndex;
   SNetRouteInfo * pRI;
   int iRemoved= 0;
 
+  /* Lookup the whole list of routes... */
   for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
        iIndex++) {
     pRI= (SNetRouteInfo *) pRouteInfoList->data[iIndex];
-    if (((pNextHopIf == NULL) || (pRI->pNextHopIf == pNextHopIf)) &&
-	(pRI->tType == tType)) {
+
+    /* If the type matches and the next-hop matches or we do not care
+       about the next-hop, the remove the route */
+    if (((sRIDel.pNextHopIf == NULL) ||
+	 (pRI->pNextHopIf == sRIDel.pNextHopIf)) &&
+	(pRI->tType == sRIDel.tType)) {
+      
       ptr_array_remove_at((SPtrArray *) pRouteInfoList, iIndex);
       iRemoved++;
-      if (pNextHopIf == NULL)
+
+      /* If we don't use wildcards for the next-hop, we can stop here
+	 since there can not be multiple routes in the list with the
+	 same next-hop */
+      if (sRIDel.pNextHopIf == NULL)
 	return NET_RT_SUCCESS;
+
     }
+
   }
   
+  /* If the list of routes does not contain any route, it should be
+     destroyed. */
+  // *** BLABLABLA ***
+
   if (iRemoved > 0)
     return NET_RT_SUCCESS;
 
@@ -278,21 +320,69 @@ int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
   return rt_info_list_add(pRIList, pRouteInfo);
 }
 
-// ----- rt_del_route -----------------------------------------------
+// ----- rt_del_for_each --------------------------------------------
 /**
- *
+ * Helper function for the 'rt_del_route' function. Handles the
+ * deletion of a single prefix (can be called by
+ * 'radix_tree_for_each')
  */
-int rt_del_route(SNetRT * pRT, SPrefix sPrefix, SNetLink * pNextHopIf,
-		 net_route_type_t tType)
+int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
+		    void * pItem, void * pContext)
 {
-  SNetRouteInfoList * pRIList=
-    (SNetRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
-					       sPrefix.tNetwork,
-					       sPrefix.uMaskLen);
+  SNetRouteInfoList * pRIList= (SNetRouteInfoList *) pItem;
+  SNetRouteInfoDel * pRIDel= (SNetRouteInfoDel *) pContext;
+  int iResult;
+
   if (pRIList == NULL)
     return -1;
 
-  return rt_info_list_del(pRIList, pNextHopIf, tType);
+  /* Remove from the list all the routes that match the given
+     attributes */
+  iResult= rt_info_list_del(pRIList, *pRIDel);
+
+  /* If we use widlcards, the call never fails, otherwise, it depends
+     on the 'rt_info_list_del' call */
+  return ((pRIDel->pPrefix != NULL) &&
+	  (pRIDel->pNextHopIf != NULL)) ? iResult : 0;
+}
+
+// ----- rt_del_route -----------------------------------------------
+/**
+ * Remove route(s) from the given routing table. The route(s) to be
+ * removed must match the given attributes: prefix, next-hop and
+ * type. However, wildcards can be used for the prefix and next-hop
+ * attributes. The NULL value corresponds to the wildcard.
+ */
+int rt_del_route(SNetRT * pRT, SPrefix * pPrefix, SNetLink * pNextHopIf,
+		 net_route_type_t tType)
+{
+  SNetRouteInfoList * pRIList;
+  SNetRouteInfoDel sRIDel;
+
+  /* Prepare the attributes of the routes to be removed (context) */
+  sRIDel.pPrefix= pPrefix;
+  sRIDel.pNextHopIf= pNextHopIf;
+  sRIDel.tType= tType;
+
+  /* Prefix specified ? or wildcard ? */
+  if (pPrefix != NULL) {
+
+    /* Get the list of routes towards the given prefix */
+    pRIList=
+      (SNetRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
+						 pPrefix->tNetwork,
+						 pPrefix->uMaskLen);
+
+    return rt_del_for_each(pPrefix->tNetwork, pPrefix->uMaskLen,
+			   pRIList, &sRIDel);
+
+  } else {
+
+    /* Remove all the routes that match the given attributes, whatever
+       the prefix is */
+    return radix_tree_for_each((SRadixTree *) pRT, rt_del_for_each, &sRIDel);
+
+  }
 }
 
 // ----- rt_dump_for_each -------------------------------------------
@@ -336,4 +426,3 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SPrefix sPrefix)
 /////////////////////////////////////////////////////////////////////
 // TESTS
 /////////////////////////////////////////////////////////////////////
-

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 24/02/2004
+// @lastdate 19/05/2004
 // ==================================================================
 
 #include <net/dijkstra.h>
@@ -35,14 +35,14 @@ int igp_compute_prefix_for_each(uint32_t uKey, uint8_t uKeyLen,
   if (pNode->tAddr == (net_addr_t) uKey)
     return 0;
 
-  // Skip direct route towards a node
-  // (next-hop address == destination address)
-  /*if (pInfo->tNextHop == (net_addr_t) uKey)
-    return 0;*/
-
   // Add IGP route
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;
+
+  /* removes the previous route for this node/prefix if it already
+     exists */
+  node_rt_del_route(pNode, &sPrefix, NULL, NET_ROUTE_IGP);
+
   return node_rt_add_route(pNode, sPrefix, pInfo->tNextHop,
 			   pInfo->uIGPweight, NET_ROUTE_IGP);
 }
@@ -55,10 +55,17 @@ int igp_compute_prefix(SNetwork * pNetwork, SNetNode * pNode,
 		       SPrefix sPrefix)
 {
   int iResult;
-  SRadixTree * pTree= dijkstra(pNetwork, pNode->tAddr, sPrefix);
+  SRadixTree * pTree;
+
+  /* Remove all IGP routes from node */
+  node_rt_del_route(pNode, NULL, NULL, NET_ROUTE_IGP);
+
+  /* Compute Minimum Spanning Tree */
+  pTree= dijkstra(pNetwork, pNode->tAddr, sPrefix);
   if (pTree == NULL)
     return -1;
 
+  /* Add routes corresponding to the MST */
   iResult= radix_tree_for_each(pTree, igp_compute_prefix_for_each, pNode);
 
   radix_tree_destroy(&pTree);

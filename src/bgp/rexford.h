@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)rexford.h
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 20/08/2003
+// @lastdate 26/04/2004
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
@@ -47,6 +47,9 @@ extern int rexford_run();
 // ----- rexford_record_route ---------------------------------------
 extern int rexford_record_route(FILE * pStream, char * pcFileName,
 				SPrefix sPrefix);
+// ----- rexford_record_route_bm ------------------------------------
+extern int rexford_record_route_bm(FILE * pStream, char * pcFileName,
+				   SPrefix sPrefix, uint8_t uBound);
 // ----- rexford_route_dp_rule --------------------------------------
 extern int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix);
 

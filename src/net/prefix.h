@@ -20,6 +20,9 @@ typedef struct {
   uint8_t uMaskLen;
 } SPrefix;
 
+// ----- ip_dotted_to_address ---------------------------------------
+extern net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
+				       uint8_t uC, uint8_t uD);
 // ----- ip_address_dump --------------------------------------------
 extern void ip_address_dump(FILE * pStream, net_addr_t tAddr);
 // ----- ip_string_to_address ---------------------------------------

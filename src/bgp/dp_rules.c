@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 20/04/2004
+// @lastdate 18/05/2004
 // ==================================================================
 // to-do: these routines can be optimized
 // to-do: dp_rule_lowest_med()
@@ -244,25 +244,20 @@ int dp_rule_ebgp_over_ibgp(SAS * pAS, SPtrArray * pRoutes)
  */
 uint32_t dp_rule_igp_cost(SAS * pAS, net_addr_t tNextHop)
 {
-  //SNetLink * pLink;
   SNetRouteInfo * pRouteInfo;
 
-  /* Is there a direct link ? */
-  /*pLink= node_links_lookup(pAS->pNode, tNextHop);
-  if (pLink != NULL)
-  return pLink->uIGPweight;*/
-  
   /* Is there a route towards the destination ? */
   pRouteInfo= rt_find_best(pAS->pNode->pRT, tNextHop);
   if (pRouteInfo != NULL)
     return pRouteInfo->uWeight;
 
-
   LOG_FATAL("Error: unable to compute IGP cost to next-hop (");
   LOG_ENABLED_FATAL()
     ip_address_dump(log_get_stream(pMainLog), tNextHop);
   LOG_FATAL(")\n");
-  LOG_FATAL("Error: AS%d", pAS->uNumber);
+  LOG_FATAL("Error: ");
+  LOG_ENABLED_FATAL()
+    ip_address_dump(log_get_stream(pMainLog), pAS->pNode->tAddr);
   LOG_FATAL("\n");
   abort();
   return -1;
@@ -282,9 +277,16 @@ int dp_rule_nearest_next_hop(SAS * pAS, SPtrArray * pRoutes)
   // Calculate lowest IGP-cost
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
+
     uIGPcost= dp_rule_igp_cost(pAS, pRoute->tNextHop);
     if (uIGPcost < uLowestCost)
       uLowestCost= uIGPcost;
+
+    /* Mark route as depending on the IGP weight. This is done in
+       order to more efficiently react to IGP changes. See
+       'bgp_router_scan_rib' for more information. */
+    route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 1);
+
   }
   // Discard routes with an higher IGP-cost 
   iIndex= 0;
