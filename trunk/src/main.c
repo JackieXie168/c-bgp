@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 03/03/2004
+// @lastdate 02/04/2004
 // ==================================================================
 
 #include <config.h>
@@ -28,10 +28,13 @@
 #include <net/net_path.h>
 #include <sim/simulator.h>
 #include <libgds/str_util.h>
-#include <ui/rl.h>
 
 #ifdef HAVE_LIBREADLINE
+#ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
+#define INTERACTIVE_MODE_OK
+#endif
+#include <ui/rl.h>
 #endif
 
 // ----- global options -----
@@ -77,7 +80,7 @@ void simulation_done()
  */
 int simulation_interactive()
 {
-#ifdef HAVE_LIBREADLINE
+#ifdef INTERACTIVE_MODE_OK
   int iResult= CLI_SUCCESS;
   char * pcLine;
 
@@ -96,192 +99,10 @@ int simulation_interactive()
   }
   return iResult;
 #else
-  fprintf(stderr, "Error: compiled without interactive mode.\n");
+  fprintf(stderr, "Error: compiled without GNU readline.\n");
   return -1;
 #endif
 }
-
-// ----- simulation_load_prefixes -----------------------------------
-/**
- * Load the list of prefixes that each AS must advertise. The format
- * of the file is
- *   <AS-number> <prefix>
- */
-/*int simulation_load_prefixes(char * pcFileName)
-{
-  FILE * pcFile;
-  char acFileLine[80];
-  int iError= 0;
-  uint16_t uAS;
-  uint32_t uPrefix;
-  uint16_t uMaskLen;
-
-  printf("simulator> load \"%s\"\n", pcFileName);
-  if ((pcFile= fopen(pcFileName, "r")) != NULL) {
-    while ((!feof(pcFile)) && (!iError)) {
-      if (fgets(acFileLine, sizeof(acFileLine), pcFile) == NULL)
-	break;
-      if (sscanf(acFileLine, "%hu %u/%hu", &uAS, &uPrefix, &uMaskLen) != 3) {
-	iError= 1;
-	break;
-      }
-
-      // Check that AS number is valid, that AS exists and
-      // that the mask length is valid
-      if ((uAS >= MAX_AS) || (AS[uAS] == NULL) || (uMaskLen > 32)) {
-	iError= 1;
-	break;
-      }
-
-      as_add_network(AS[uAS], uint32_to_prefix(uPrefix, uMaskLen));
-
-    }
-    fclose(pcFile);
-  } else
-    iError= 1;
-  if (iError)
-    return -1;
-  return 0;
-}*/
-
-// ----- simulation_load_rr -----------------------------------------
-/**
- *
- */
-/*int simulation_load_rr(char * pcFileName)
-{
-  FILE * pFileInput;
-  FILE * pFileOutput;
-  char acFileLine[80];
-  int iError= 0;
-  uint16_t uAS;
-  uint32_t uAddress;
-  uint16_t uMaskLen;
-  char * pcOutFileName;
-  SPath * pRecordedPath;
-
-  pcOutFileName= (char *) MALLOC((strlen(pcFileName)+
-				  strlen("-out")+1)*sizeof(char));
-  strcpy(pcOutFileName, pcFileName);
-  strcat(pcOutFileName, "-out");
-    
-  printf("simulator> load \"%s\"\n", pcFileName);
-  printf("simulator> write \"%s\"\n", pcOutFileName);
-  if ((pFileOutput= fopen(pcOutFileName, "w")) != NULL) {
-    if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
-      while ((!feof(pFileInput)) && (!iError)) {
-	if (fgets(acFileLine, sizeof(acFileLine), pFileInput) == NULL)
-	  break;
-
-	if ((strlen(acFileLine) > 0) && (acFileLine[0] == '*')) {
-
-	  if (sscanf(acFileLine, "* %u/%hu", &uAddress, &uMaskLen) != 2) {
-	    iError= 1;
-	    break;
-	  }
-
-	  // Check that the mask length is valid
-	  if (uMaskLen > 32) {
-	    iError= 1;
-	    break;
-	  }
-
-	  uAS= 0;
-	  while (1) {
-	    if (AS[uAS] != NULL) {
-	      fprintf(pFileOutput, "%u ", uAS);
-	      ip_prefix_dump(pFileOutput,
-			     uint32_to_prefix(uAddress, uMaskLen));
-	      if (as_record_route(pFileOutput, AS[uAS],
-				  uint32_to_prefix(uAddress, uMaskLen),
-				  &pRecordedPath) != AS_RECORD_ROUTE_SUCCESS) {
-		fprintf(pFileOutput, " *\n");
-	      } else {
-		fprintf(pFileOutput, " ");
-		path_dump(pFileOutput, pRecordedPath, 0);
-		fprintf(pFileOutput, "\n");
-		path_destroy(&pRecordedPath);
-	      }
-	    }
-	    if (uAS == MAX_AS-1)
-	      break;
-	    else
-	      uAS++;
-	  }
-
-	} else {
-	  if (sscanf(acFileLine, "%hu %u/%hu",
-		     &uAS, &uAddress, &uMaskLen) != 3) {
-	    iError= 1;
-	    break;
-	  }
-
-	  // Check that source AS exists and that the mask length is valid
-	  if ((uAS >= MAX_AS) || (AS[uAS] == NULL) || (uMaskLen > 32)) {
-	    iError= 1;
-	    break;
-	  }
-	  
-	  // Record route
-	  fprintf(pFileOutput, "%u ", uAS);
-	  ip_prefix_dump(pFileOutput, uint32_to_prefix(uAddress, uMaskLen));
-	  if (as_record_route(pFileOutput, AS[uAS],
-			      uint32_to_prefix(uAddress, uMaskLen),
-			      &pRecordedPath) != AS_RECORD_ROUTE_SUCCESS) {
-	    fprintf(pFileOutput, " *\n");
-	  } else {
-	    fprintf(pFileOutput, " ");
-	    path_dump(pFileOutput, pRecordedPath, 0);
-	    fprintf(pFileOutput, "\n");
-	    path_destroy(&pRecordedPath);
-	  }
-
-	}
-	
-      }
-      fclose(pFileInput);
-    } else
-      iError= 1;
-    fclose(pFileOutput);
-  } else
-    iError= 1;
-  FREE(pcOutFileName);
-  if (iError)
-    return -1;
-  return 0;
-}*/
-
-// ----- simulation_dump_rt -----------------------------------------
-/**
- *
- */
-/*int simulation_dump_rt(char * pcFileName)
-{
-  int iIndex;
-  FILE * pFile;
-  int iError= 0;
-
-#ifndef __TEST__
-  if ((pFile= fopen(pcFileName, "w")) != NULL) {
-#else
-  pFile= log_get_stream();
-  assert(pFile != NULL);
-#endif
-    printf("simulator> write \"%s\"...\n", pcFileName);
-    for (iIndex= 0; iIndex < MAX_AS; iIndex++)
-      if (AS[iIndex] != NULL) {
-	as_dump_rt(pFile, AS[iIndex]);
-	fprintf(pFile, "\n");
-      }
-#ifndef __TEST__
-    fclose(pFile);
-  } else
-    iError= 1;
-#endif
-  if (iError)
-    return -1;
-  return 0;
-}*/
 
 // ----- main_help --------------------------------------------------
 /**

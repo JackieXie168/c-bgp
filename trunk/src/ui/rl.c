@@ -3,14 +3,18 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 23/02/2004
+// @lastdate 02/04/2004
 // ==================================================================
 // This code is explained in the GNU readline manual.
 
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 
 /* A static variable for holding the line. */
 static char * pcLineRead= NULL;
@@ -22,6 +26,9 @@ static char * pcLineRead= NULL;
  */
 char * rl_gets(char * pcPrompt)
 {
+#define MAX_LINE_READ 1024
+
+#ifdef HAVE_LIBREADLINE
   /* If the buffer has already been allocated,
      return the memory to the free pool. */
   if (pcLineRead) {
@@ -36,6 +43,15 @@ char * rl_gets(char * pcPrompt)
      save it on the history. */
   if (pcLineRead && *pcLineRead)
     add_history(pcLineRead);
+#else
+  /* If the buffer has not yet been allocated, allocate it.
+     The buffer will be freed by the destructor function. */
+  if (pcLineRead == NULL)
+    pcLineRead= (char *) malloc(MAX_LINE_READ*sizeof(char));
+
+  /* Get at most MAX_LINE_READ-1 characters from stdin */
+  fgets(stdin, MAX_LINE_READ, pcLineRead);
+#endif
 
   return (pcLineRead);
 }
