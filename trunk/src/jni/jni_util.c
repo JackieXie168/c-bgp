@@ -398,14 +398,12 @@ jobject cbgp_jni_new_BGPPeer(JNIEnv * env, SPeer * pPeer)
  */
 jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
 {
-  jclass class_BGPRoute;
-  jmethodID id_BGPRoute;
-  jobject obj_BGPRoute;
   jobject joASPath;
 
   /* Convert route attributes to Java objects */
-  jobject obj_IPPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
-  jobject obj_IPAddress= cbgp_jni_new_IPAddress(env, route_nexthop_get(pRoute));
+  jobject joIPPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
+  jobject joIPAddress= cbgp_jni_new_IPAddress(env, route_nexthop_get(pRoute));
+  
   if (pRoute->pASPath != NULL) {
     if ((joASPath= cbgp_jni_new_ASPath(env, pRoute->pASPath)) == NULL)
       return NULL;
@@ -414,28 +412,18 @@ jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
   }
 
   /* Check that the conversion was successful */
-  if ((obj_IPPrefix == NULL) || (obj_IPAddress == NULL))
+  if ((joIPPrefix == NULL) || (joIPAddress == NULL))
     return NULL;
 
   /* Create new BGPRoute object */
-  if ((class_BGPRoute= (*env)->FindClass(env, CLASS_BGPRoute)) == NULL)
-    return NULL;
-
-  if ((id_BGPRoute= (*env)->GetMethodID(env, class_BGPRoute, "<init>",
-				   CONSTR_BGPRoute)) == NULL)
-    return NULL;
-
-  if ((obj_BGPRoute= (*env)->NewObject(env, class_BGPRoute, id_BGPRoute,
-				       obj_IPPrefix, obj_IPAddress,
-				       (jlong) route_localpref_get(pRoute),
-				       (jlong) route_med_get(pRoute),
-				       (route_flag_get(pRoute, ROUTE_FLAG_BEST))?JNI_TRUE:JNI_FALSE,
-				       (route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))?JNI_TRUE:JNI_FALSE,
-				       route_origin_get(pRoute),
-				       joASPath)) == NULL)
-    return NULL;
-
-  return obj_BGPRoute;
+  return cbgp_jni_new(env, CLASS_BGPRoute, CONSTR_BGPRoute,
+		      joIPPrefix, joIPAddress,
+		      (jlong) route_localpref_get(pRoute),
+		      (jlong) route_med_get(pRoute),
+		      (route_flag_get(pRoute, ROUTE_FLAG_BEST))?JNI_TRUE:JNI_FALSE,
+		      (route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))?JNI_TRUE:JNI_FALSE,
+		      route_origin_get(pRoute),
+		      joASPath);
 }
 
 // -----[ cbgp_jni_new_Vector ]--------------------------------------

@@ -796,12 +796,29 @@ void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer)
  */
 void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
 {
+  int iOptions= 0;
+
   ip_address_dump(pStream, pPeer->tAddr);
   fprintf(pStream, "\tAS%d\t%s", pPeer->uRemoteAS,
 	  SESSION_STATES[pPeer->uSessionState]);
-  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    fprintf(pStream, "\tVIRTUAL");
+  
+  if (peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
+    fprintf(pStream, (iOptions++)?",":"\t(");
+    fprintf(pStream, "rr-client");
   }
+  if (peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
+    fprintf(pStream, (iOptions++)?",":"\t(");
+    fprintf(pStream, "\tnext-hop-self");
+  }
+  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    fprintf(pStream, (iOptions++)?",":"\t(");
+    fprintf(pStream, "\tvirtual");
+  }
+  if (peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
+    fprintf(pStream, (iOptions++)?",":"\t(");
+    fprintf(pStream, "\tsoft-restart");
+  }
+  fprintf(pStream, (iOptions)?")":"");
 }
 
 typedef struct {

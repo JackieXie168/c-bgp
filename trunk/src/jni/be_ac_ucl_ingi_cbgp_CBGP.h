@@ -217,14 +217,6 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    print
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_print
-  (JNIEnv *, jobject, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    runCmd
  * Signature: (Ljava/lang/String;)I
  */

@@ -113,8 +113,6 @@ public class CBGP
 
     public native int simRun();
   
-    public native void print(String line); 
-
     public native int runCmd(String line);
 
     // -----[ showLinks ]--------------------------------------------
@@ -166,7 +164,7 @@ public class CBGP
 
 	//this example has been translated from 
 	//http://cbgp.info.ucl.ac.be/downloads/valid-igp-link-up-down.cli
-	cbgp.print("*** valid-igp-link-up-down ***\n\n");
+	System.out.println("*** \033[34;1mvalid-igp-link-up-down \033[0m***\n\n");
 
 	//Domain AS1
 	cbgp.netAddNode("0.1.0.1");
@@ -299,21 +297,21 @@ public class CBGP
 
 	//Section added to demonstrate the possibility to change the 
 	//IGP weight
-	cbgp.print("Links of 0.2.0.3 before weight change:\n");
+	System.out.println("Links of 0.2.0.3 before weight change:\n");
 	//For the moment on stdout
 	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	cbgp.print("RT of 0.2.0.3 before weight change:\n");
+	System.out.println("RT of 0.2.0.3 before weight change:\n");
 	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	cbgp.print("RIB of 0.2.0.3 before weight change;\n");
+	System.out.println("RIB of 0.2.0.3 before weight change;\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	cbgp.print("RIB In of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
 	IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
 	System.out.println(trace);
 
-	cbgp.print("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
+	System.out.println("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n\n");
 	cbgp.netLinkWeight("0.2.0.3", "0.2.0.1", 5);
 
 	//Update intradomain routes (recompute MST)
@@ -328,18 +326,18 @@ public class CBGP
 	cbgp.simRun();
 	//End of the added section 
  
-	cbgp.print("Links of 0.2.0.3 before first link down:\n");
+	System.out.println("Links of 0.2.0.3 before first link down:\n");
 	//For the moment on stdout
 	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	cbgp.print("RT of 0.2.0.3 before first link down:\n");
+	System.out.println("RT of 0.2.0.3 before first link down:\n");
 	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	cbgp.print("RIB of 0.2.0.3 before first link down:\n");
+	System.out.println("RIB of 0.2.0.3 before first link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	cbgp.print("RIB In of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
-	cbgp.print("\n<<First link down: 0.2.0.1 <-> 0.2.0.3>>\n\n");
+	System.out.println("\n\033[31;1m<<First link down: 0.2.0.1 <-> 0.2.0.3>>\033[0m\n\n");
 
 	cbgp.netLinkUp("0.2.0.1", "0.2.0.3", false);
 
@@ -355,18 +353,18 @@ public class CBGP
 	cbgp.simRun();
    
 
-	cbgp.print("Links of 0.2.0.3 after first link down:\n");
+	System.out.println("Links of 0.2.0.3 after first link down:\n");
 	//For the moment on stdout
 	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	cbgp.print("RT of 0.2.0.3 after first link down:\n");
+	System.out.println("RT of 0.2.0.3 after first link down:\n");
 	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	cbgp.print("RIB of 0.2.0.3 after first link down:\n");
+	System.out.println("RIB of 0.2.0.3 after first link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	cbgp.print("RIB In of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	cbgp.print("\n<<Second link down: 0.2.0.2 <-> 0.2.0.3>>\n\n");
+	System.out.println("\n\033[31;1m<<Second link down: 0.2.0.2 <-> 0.2.0.3>>\033[0m\n\n");
 
 	cbgp.netLinkUp("0.2.0.2", "0.2.0.3", false);
 
@@ -381,18 +379,18 @@ public class CBGP
 
 	cbgp.simRun();
 
-	cbgp.print("Links of 0.2.0.3 after second link down:\n");
+	System.out.println("Links of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	cbgp.print("RT of 0.2.0.3 after second link down:\n");
+	System.out.println("RT of 0.2.0.3 after second link down:\n");
 	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	cbgp.print("RIB of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB of 0.2.0.3 after second link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	cbgp.print("RIB In of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-	cbgp.print("\n<<Third link down: 0.2.0.3 <-> 0.2.0.4>>\n\n");
+	System.out.println("\n\033[31;1m<<Third link down: 0.2.0.3 <-> 0.2.0.4>>\033[0m\n\n");
 
 	cbgp.netLinkUp("0.2.0.4", "0.2.0.3", false);
 
@@ -407,26 +405,26 @@ public class CBGP
 
 	cbgp.simRun();
 
-	cbgp.print("Links of 0.2.0.3 after third link down:\n");
+	System.out.println("Links of 0.2.0.3 after third link down:\n");
 	//For the moment on stdout
 	showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
-	cbgp.print("RT of 0.2.0.3 after third link down:\n");
+	System.out.println("RT of 0.2.0.3 after third link down:\n");
 	showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
-	cbgp.print("RIB of 0.2.0.3 after third link down:\n");
+	System.out.println("RIB of 0.2.0.3 after third link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
-	cbgp.print("RIB In of 0.2.0.3 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.3 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
-	cbgp.print("RIB of 0.2.0.1 after third link down:\n");
+	System.out.println("RIB of 0.2.0.1 after third link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.1", null), true);
-	cbgp.print("RIB In of 0.2.0.1 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.1 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.1", null, null, true), true);
  
-	cbgp.print("RIB of 0.2.0.2 after third link down:\n");
+	System.out.println("RIB of 0.2.0.2 after third link down:\n");
 	showRoutes(cbgp.bgpRouterGetRib("0.2.0.2", null), true);
-	cbgp.print("RIB In of 0.2.0.2 after second link down:\n");
+	System.out.println("RIB In of 0.2.0.2 after second link down:\n");
 	//For the moment on stdout
 	showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.2", null, null, true), true);
 
@@ -435,7 +433,7 @@ public class CBGP
 	    System.out.println(enumPeers.nextElement());
 	}
  
-	cbgp.print("Done.\n");
+	System.out.println("\n\033[32;1mDone\033[0m.\n");
 
 	cbgp.destroy();
     }
