@@ -1138,6 +1138,33 @@ int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_router_peer_reset ----------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr}
+ */
+int cli_bgp_router_peer_reset(SCliContext * pContext, STokens * pTokens)
+{
+  SPeer * pPeer;
+
+  // Get peer from context
+  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
+  // Try to close session
+  if (peer_close_session(pPeer)) {
+    LOG_SEVERE("Error: could not close session\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Try to open session
+  if (peer_open_session(pPeer)) {
+    LOG_SEVERE("Error: could not close session\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_bgp_add ---------------------------------------
 int cli_register_bgp_add(SCliCmds * pCmds)
 {
@@ -1352,6 +1379,8 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
 					cli_bgp_router_peer_nexthopself,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("reset", cli_bgp_router_peer_reset,
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("rr-client",
 					cli_bgp_router_peer_rrclient,
