@@ -6,7 +6,7 @@
 // @lastdate 30/10/2004
 // ==================================================================
 
-package jni.cbgp; 
+//package jni.cbgp; 
 
 class cbgpJNI
 {

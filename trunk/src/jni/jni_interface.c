@@ -56,7 +56,7 @@ net_addr_t ip_jstring_to_address(JNIEnv * env, jstring net_addr)
  * Method:    init
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_init
+JNIEXPORT void JNICALL Java_cbgpJNI_init
   (JNIEnv * env, jobject obj, jstring file_log)
 {
   const jbyte * cFileLog;
@@ -82,7 +82,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_init
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_finalize
+JNIEXPORT void JNICALL Java_cbgpJNI_finalize
   (JNIEnv * env, jobject obj)
 {
   simulator_done();
@@ -93,7 +93,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_finalize
  * Method:    node_add
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeAdd
   (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetNode * pNode; 
@@ -111,7 +111,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeAdd
  * Method:    link_add
  * Signature: (II)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkAdd
   (JNIEnv *env, jobject obj, jstring net_addr_src, jstring  net_addr_dst, jint Weight)
 {
   SNetwork * pNetwork = network_get();
@@ -133,7 +133,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkAdd
  * Method:    nodeLinkWeight
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkWeight
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkWeight
   (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2, jint Weight)
 {
   SNetwork * pNetwork = network_get();
@@ -160,7 +160,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkWeight
  * Method:    nodeLinkUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkUp
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkUp
   (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2)
 {
   SNetwork * pNetwork = network_get();
@@ -195,7 +195,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkUp
  * Method:    nodeLinkDown
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkDown
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeLinkDown
   (JNIEnv * env, jobject obj, jstring net_addr1, jstring net_addr2)
 {
   SNetwork * pNetwork = network_get();
@@ -229,7 +229,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeLinkDown
  * Method:    nodeSpfPrefix
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeSpfPrefix
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeSpfPrefix
   (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -259,7 +259,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeSpfPrefix
  * Method:    node_interface_add
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeInterfaceAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeInterfaceAdd
   (JNIEnv * env, jobject obj, jstring net_addr_id, jstring net_addr_int, jstring mask)
 {
   SNetwork * pNetwork = network_get();
@@ -294,7 +294,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeInterfaceAdd
  * Method:    nodeRouteAdd
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeRouteAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_nodeRouteAdd
   (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix, jstring net_addr_next_hop, jint Weight)
 {
   SNetwork * pNetwork = network_get();
@@ -324,7 +324,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_nodeRouteAdd
  * Method:    nodeShowLinks
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_nodeShowLinks
+JNIEXPORT void JNICALL Java_cbgpJNI_nodeShowLinks
   (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetwork * pNetwork = network_get();
@@ -343,7 +343,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_nodeShowLinks
  * Method:    nodeShowRT
  * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_nodeShowRT
+JNIEXPORT jstring JNICALL Java_cbgpJNI_nodeShowRT
   (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
   SNetwork * pNetwork = network_get();
@@ -377,7 +377,7 @@ JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_nodeShowRT
  * Method:    add_bgp_router
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterAdd
   (JNIEnv * env, jobject obj, jstring name, jstring net_addr, jint ASid)
 {
   SNetwork * pNetwork = network_get();
@@ -405,7 +405,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterAdd
  * Method:    add_bgp_router_network
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNetworkAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNetworkAdd
   (JNIEnv * env, jobject obj, jstring net_addr, jstring prefix)
 {
   SNetwork * pNetwork = network_get();
@@ -438,7 +438,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNetworkAdd
  * Method:    add_bgp_router_neighbor
  * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborAdd
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNeighborAdd
   (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor, jint ASIdNeighbor)
 {
   SNetwork * pNetwork = network_get();
@@ -463,7 +463,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborAdd
  * Method:    bgpRouterNeighborNextHopSelf
  * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborNextHopSelf
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpRouterNeighborNextHopSelf
   (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor)
 {
   SNetwork * pNetwork = network_get();
@@ -490,7 +490,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborNextHopSelf
  * Method:    bgpRouterNeighborUp
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborUp
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterNeighborUp
   (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor)
 {
   net_addr_t iNetAddrRouter, iNetAddrNeigh;
@@ -518,7 +518,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterNeighborUp
  * Method:    bgpRouterRescan
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterRescan
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpRouterRescan
   (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetwork * pNetwork = network_get();
@@ -540,7 +540,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterRescan
  * Method:    bgpRouterShowRib
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterShowRib
+JNIEXPORT jstring JNICALL Java_cbgpJNI_bgpRouterShowRib
   (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetwork * pNetwork = network_get();
@@ -568,7 +568,7 @@ JNIEXPORT jstring JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterShowRib
  * Method:    bgpRouterShowRibIn
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterShowRibIn
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpRouterShowRibIn
   (JNIEnv * env, jobject obj, jstring net_addr)
 {
   SNetwork * pNetwork = network_get();
@@ -593,7 +593,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpRouterShowRibIn
  * Method:    bgpFilterInit
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterInit
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterInit
   (JNIEnv * env, jobject obj, jstring net_addr_router, jstring net_addr_neighbor, 
    jstring type)
 {
@@ -636,7 +636,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterInit
  * Method:    bgpFilterMatchPrefix
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIn
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterMatchPrefixIn
   (JNIEnv * env, jobject obj, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -659,7 +659,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIn
  * Method:    bgpFilterMatchPrefix
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIs
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterMatchPrefixIs
   (JNIEnv * env, jobject obj, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -689,7 +689,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIs
 #define ACTION_LOCPREF	    0x03
 #define ACTION_ADD_COMM	    0x04
 #define ACTION_PATH_PREPEND 0x05
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterAction
+JNIEXPORT jint JNICALL Java_cbgpJNI_bgpFilterAction
   (JNIEnv * env, jobject obj, jint type, jstring value)
 {
 
@@ -725,9 +725,6 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterAction
       return 1;
   }
   filter_add_rule(pFilter, pMatcher, pAction);
-  fprintf(stdout, "rule dump\n");
-  filter_action_dump(stdout, pAction);
-  fprintf(stdout, "\n");
   return 0;
 }
 
@@ -736,7 +733,7 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterAction
  * Method:    bgpFilterFinalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterFinalize
+JNIEXPORT void JNICALL Java_cbgpJNI_bgpFilterFinalize
   (JNIEnv *env , jobject obj)
 {
   pFilter = NULL;
@@ -751,7 +748,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterFinalize
  * Method:    simRun
  * Signature: ()I
  */
-JNIEXPORT int JNICALL Java_jni_cbgp_cbgpJNI_simRun
+JNIEXPORT int JNICALL Java_cbgpJNI_simRun
   (JNIEnv * env, jobject obj)
 {
   if (simulator_run())
@@ -764,7 +761,7 @@ JNIEXPORT int JNICALL Java_jni_cbgp_cbgpJNI_simRun
  * Method:    simPrint
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_simPrint
+JNIEXPORT void JNICALL Java_cbgpJNI_simPrint
   (JNIEnv * env, jobject obj, jstring line)
 {
   const jbyte * cLine;
@@ -776,11 +773,11 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_simPrint
 
 
 /*
- * Class:     jni_cbgp_cbgpJNI
+ * Class:     cbgpJNI
  * Method:    runCmd
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_runCmd
+JNIEXPORT void JNICALL Java_cbgpJNI_runCmd
   (JNIEnv * env, jobject obj, jstring line)
 {
   const jbyte * cLine;
