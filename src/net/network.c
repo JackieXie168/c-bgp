@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 27/01/2005
+// @lastdate 01/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -933,8 +933,9 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 #define NET_RECORD_ROUTE_SUCCESS         0
 #define NET_RECORD_ROUTE_TOO_LONG       -1
 #define NET_RECORD_ROUTE_UNREACH        -2
-#define NET_RECORD_ROUTE_TUNNEL_UNREACH -3
-#define NET_RECORD_ROUTE_TUNNEL_BROKEN  -4
+#define NET_RECORD_ROUTE_DOWN           -3
+#define NET_RECORD_ROUTE_TUNNEL_UNREACH -4
+#define NET_RECORD_ROUTE_TUNNEL_BROKEN  -5
 
 // ----- node_record_route ------------------------------------------
 /**
@@ -990,8 +991,16 @@ int node_record_route(SNetNode * pNode, net_addr_t tDstAddr,
 
       // Lookup the next-hop for this destination
       pLink= node_rt_lookup(pCurrentNode, tDstAddr);
+
+      /* No route: return UNREACH */
       if (pLink == NULL)
 	break;
+
+      /* Link down: return DOWN */
+      if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
+	iResult= NET_RECORD_ROUTE_DOWN;
+	break;
+      }
 
       tLinkDelay= pLink->tDelay;
       uLinkWeight= pLink->uIGPweight;
@@ -1065,6 +1074,7 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
   case NET_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
   case NET_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACH"); break;
+  case NET_RECORD_ROUTE_DOWN: fprintf(pStream, "DOWN"); break;
   case NET_RECORD_ROUTE_TUNNEL_UNREACH:
     fprintf(pStream, "TUNNEL_UNREACH"); break;
   case NET_RECORD_ROUTE_TUNNEL_BROKEN:
