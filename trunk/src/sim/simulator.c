@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 10/08/2004
+// @lastdate 26/11/2004
 // ==================================================================
 
 #include <stdlib.h>
@@ -45,6 +45,7 @@ SSimulator * simulator_create(FSimSchedulerRun fSchedulerRun,
   pSimulator->fSchedulerRun= fSchedulerRun;
   pSimulator->fSchedulerPost= fSchedulerPost;
   pSimulator->dCurrentTime= 0;
+  pSimulator->dMaximumTime= 0;
   return pSimulator;
 }
 
@@ -134,5 +135,15 @@ void simulator_dump_events(FILE * pStream)
   if (SIM_OPTIONS_SCHEDULER == SCHEDULER_STATIC) {
     static_scheduler_dump_events(pStream);
   }
+}
+
+// ----- simulator_show_infos ---------------------------------------
+/**
+ *
+ */
+void simulator_show_infos()
+{
+  fprintf(stdout, "current time: %f\n", pSimulator->dCurrentTime);
+  fprintf(stdout, "maximum time: %f\n", pSimulator->dMaximumTime);
 }
 
