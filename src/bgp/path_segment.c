@@ -73,7 +73,7 @@ char * path_segment_dump_string(SPathSegment * pSegment,
   case AS_PATH_SEGMENT_SEQUENCE:
     if (uReverse) {
       for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
-	icSegPtr += sprintf(cSegment, "%u", pSegment->auValue[iIndex-1]);
+	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex-1]);
 	if (iIndex > 1)
 	  strcpy(cSegment+icSegPtr++, " ");
       }

@@ -210,7 +210,7 @@ extern SPtrArray * paPathExpr;
 int path_match(SPath * pPath, int iArrayPathRegExPos)
 {
   SPathMatch * pPathMatch = NULL; 
-  char * pcPathDump = path_dump_string(pPath, 0);
+  char * pcPathDump = path_dump_string(pPath, 1);
   int iRet = 0;
 
   ptr_array_get_at(paPathExpr, iArrayPathRegExPos, &pPathMatch);
@@ -240,9 +240,10 @@ char * path_dump_string(SPath * pPath, uint8_t uReverse)
     if (uReverse) {
       for (iIndex= path_num_segments(pPath); iIndex > 0;
 	   iIndex--) {
+	
 	cCharTmp = path_segment_dump_string((SPathSegment *) pPath->data[iIndex-1],
 			  uReverse);
-	strcpy(cPath, cCharTmp);
+	strcpy(cPath+icPathPtr, cCharTmp);
 	icPathPtr += strlen(cCharTmp);
 	FREE(cCharTmp);
 	
