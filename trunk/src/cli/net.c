@@ -3,8 +3,10 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 09/03/2004
+// @lastdate 29/03/2004
 // ==================================================================
+
+#include <string.h>
 
 #include <libgds/cli_ctx.h>
 #include <cli/common.h>
