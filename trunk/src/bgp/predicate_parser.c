@@ -3,11 +3,12 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 29/02/2004
+// @lastdate 02/04/2004
 // ==================================================================
 
 #include <libgds/memory.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <readline/readline.h>
 
