@@ -758,6 +758,18 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   SNetLink * pNextHopIf= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
   int iResult;
 
+  assert(pNextHopIf != NULL);
+
+  /*
+  fprintf(stderr, "bgp_router_rt_add_route(");
+  ip_address_dump(stderr, pRouter->pNode->tAddr);
+  fprintf(stderr, ", ");
+  ip_prefix_dump(stderr, pRoute->sPrefix);
+  fprintf(stderr, ", ");
+  ip_address_dump(stderr, pNextHopIf->tAddr);
+  fprintf(stderr, "\n");
+  */
+
   /* Check that the next-hop is reachable. It MUST be reachable at
      this point (checked upon route reception). */
   assert(pNextHopIf != NULL);
@@ -766,20 +778,19 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   pOldRouteInfo= rt_find_exact(pRouter->pNode->pRT, pRoute->sPrefix,
 			       NET_ROUTE_BGP);
   if (pOldRouteInfo != NULL) {
-    if (pOldRouteInfo->pNextHopIf == pNextHopIf)
+    if (pOldRouteInfo->pNextHopIf == pNextHopIf) {
+      //fprintf(stderr, "SKIP\n");
       return;
+    }
+    //fprintf(stderr, "DELETE OLD\n");
     // Remove the previous route (if it exists)
     node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
 		      NULL, NET_ROUTE_BGP);
   }
 
-//  fprintf(stderr, "bgp_router_rt_add_route(");
-//  ip_address_dump(stderr, pRouter->pNode->tAddr);
-//  fprintf(stderr, ", ");
-//  ip_prefix_dump(stderr, pRoute->sPrefix);
-//  fprintf(stderr, ", ");
-//  ip_address_dump(stderr, pNextHopIf->tAddr);
-//  fprintf(stderr, "\n");
+  /*fprintf(stderr, "ADD NEW ");
+  ip_address_dump(stderr, pNextHopIf->tAddr);
+  fprintf(stderr, "\n");*/
 
   // Insert the route
   iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
@@ -1163,6 +1174,14 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;
+
+  /*
+  fprintf(stderr, "SCAN PREFIX ");
+  as_dump_id(stderr, pRouter);
+  fprintf(stderr, " ");
+  ip_prefix_dump(stderr, sPrefix);
+  fprintf(stderr, "\n");
+  */
   
   /* Looks up for the best BGP route towards this prefix. If the route
      does not exist, schedule the current prefix for the decision
@@ -1184,8 +1203,9 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 				   pRoute->sPrefix, NET_ROUTE_BGP);
       assert(pCurRouteInfo != NULL);
       
-      if (pCurRouteInfo != pRouteInfo) {
+      if (pCurRouteInfo->pNextHopIf != pRouteInfo->pNextHopIf) {
 	_array_append(pCtx->pPrefixes, &sPrefix);
+	//fprintf(stderr, "NEXT-HOP HAS CHANGED\n");
 	return 0;
       }
     }
@@ -1396,6 +1416,7 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   int iIndex;
   int iResult;
   SRIB * pPrefixes;
+  SPrefix sPrefix;
 
   /* Scan peering sessions */
   bgp_router_scan_sessions(pRouter);
@@ -1416,8 +1437,9 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   /* For each route in the list, run the BGP decision process */
   if (iResult == 0)
     for (iIndex= 0; iIndex < _array_length(sCtx.pPrefixes); iIndex++) {
+      _array_get_at(sCtx.pPrefixes, iIndex, &sPrefix);
       as_decision_process(pRouter, NULL,
-			  *((SPrefix *) &sCtx.pPrefixes->data[iIndex]));
+			  sPrefix);
     }
 
   bgp_router_free_prefixes(&pPrefixes);
