@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 05/08/2004
+// @lastdate 15/09/2004
 // ==================================================================
 
 #include <assert.h>
@@ -29,6 +29,7 @@ typedef struct {
 
 // ----- options -----
 uint8_t NET_OPTIONS_MAX_HOPS= 30;
+uint8_t NET_OPTIONS_IGP_INTER= 0;
 
 int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 		    SNetMessage * pMessage);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 05/08/2004
+// @lastdate 15/09/2004
 // ==================================================================
 
 #include <string.h>
@@ -548,6 +548,29 @@ int cli_net_options_maxhops(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_options_igpinter -----------------------------------
+/**
+ * Configure the "IGP", i.e. the SPT computation, so that it also
+ * consider as destinations the nodes at the end of interdomain
+ * links.
+ *
+ * context: {}
+ * tokens: {state}
+ */
+int cli_net_options_igpinter(SCliContext * pContext, STokens * pTokens)
+{
+  if (!strcmp(tokens_get_string_at(pTokens, 0), "on")) {
+    NET_OPTIONS_IGP_INTER= 1;
+  } else if (!strcmp(tokens_get_string_at(pTokens, 0), "off")) {
+    NET_OPTIONS_IGP_INTER= 0;
+  } else {
+    LOG_SEVERE("Error: invalid value\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_net_add ---------------------------------------
 int cli_register_net_add(SCliCmds * pCmds)
 {
@@ -703,6 +726,11 @@ int cli_register_net_options(SCliCmds * pCmds)
   cli_params_add(pParams, "<max-hops>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("max-hops",
 					cli_net_options_maxhops,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<state>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("igp-inter",
+					cli_net_options_igpinter,
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("options",
 						NULL, NULL,
