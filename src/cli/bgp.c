@@ -595,7 +595,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   }
 
   // Record route
-  bgp_router_dump_recorded_route(stderr, pRouter, sPrefix, 0);
+  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, 0);
 
   return CLI_SUCCESS;
 }
