@@ -724,6 +724,16 @@ int cli_bgp_router_save_ribin(SCliContext * pContext,
   return CLI_ERROR_COMMAND_FAILED;
 }
 
+// ----- cli_bgp_router_show_info -----------------------------------
+/**
+ *
+ */
+int cli_bgp_router_show_info(SCliContext * pContext,
+			     STokens * pTokens)
+{
+  return CLI_ERROR_COMMAND_FAILED;
+}
+
 // ----- cli_bgp_router_show_networks -------------------------------
 /** 
  * This function shows the list of locally originated networks in the
@@ -2381,6 +2391,9 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("info",
+					cli_bgp_router_show_info,
+					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("networks",
 					cli_bgp_router_show_networks,
 					NULL, NULL));

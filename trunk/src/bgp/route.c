@@ -637,14 +637,19 @@ void route_dump_mrt(FILE * pStream, SRoute * pRoute)
     // QoS Bandwidth
     fprintf(pStream, "%u|%u|%u|", pRoute->tBandwidth.uBandwidth,
 	    pRoute->tBandwidth.uMean, pRoute->tBandwidth.uWeight);
+    */
+
     // Route-reflectors: Originator
+    fprintf(pStream, "originator:");
     if (pRoute->pOriginator != NULL)
       ip_address_dump(pStream, *pRoute->pOriginator);
     fprintf(pStream, "|");
+
+    fprintf(pStream, "cluster_id_list:");
     if (pRoute->pClusterList != NULL)
       cluster_list_dump(pStream, pRoute->pClusterList);
     fprintf(pStream, "|");
-    */
+    
   }
 }
 

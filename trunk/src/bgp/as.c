@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 23/02/2005
+// @lastdate 25/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -378,10 +378,16 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * p
 {
   net_addr_t tOriginator;
   SRoute * pNewRoute= NULL;
+  SBGPPeer * pOriginPeer;
   int iExternalSession= (pRouter->uNumber != pPeer->uRemoteAS);
   int iLocalRoute= (pRoute->tNextHop == pRouter->pNode->tAddr);
   int iExternalRoute= ((!iLocalRoute) &&
 		       (pRouter->uNumber != route_peer_get(pRoute)->uRemoteAS));
+  /* [route/session attributes]
+   * iExternalSession == the dst peer is external
+   * iExternalRoute   == the src peer is external
+   * iLocalRoute      == the route is locally originated
+   */
 
   LOG_DEBUG("bgp_router_advertise_to_peer\n");
 
@@ -432,10 +438,12 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * p
   route_copy_count++;
   pNewRoute= route_copy(pRoute);
 
-  if ((pRouter->iRouteReflector) && (!iExternalSession)) {
+  if ((pRouter->iRouteReflector) && (!iExternalRoute)) {
     // Route-Reflection: update Originator field
-    if (route_originator_get(pNewRoute, NULL) == -1)
-      route_originator_set(pNewRoute, pPeer->pLocalRouter->pNode->tAddr);
+    if (route_originator_get(pNewRoute, NULL) == -1) {
+      pOriginPeer= route_peer_get(pRoute);
+      route_originator_set(pNewRoute, pOriginPeer->tAddr);
+    }
     // Route-Reflection: append Cluster-ID to Cluster-ID-List field
     if ((iExternalRoute || route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT)) &&
 	(!peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))

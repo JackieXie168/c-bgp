@@ -22,6 +22,8 @@ libnet_la_SOURCES = \
 	net_path.h \
 	network.c \
 	network.h \
+	ntf.c \
+	ntf.h \
 	prefix.c \
 	prefix.h \
 	protocol.c \

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/01/2005
+// @lastdate 24/03/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,7 @@
 #include <libgds/cli_ctx.h>
 #include <cli/common.h>
 #include <cli/net.h>
+#include <net/ntf.h>
 #include <net/prefix.h>
 #include <libgds/log.h>
 #include <net/icmp.h>
@@ -22,6 +23,25 @@
 #include <net/network.h>
 #include <net/net_path.h>
 #include <net/routing.h>
+
+#undef _FILENAME_COMPLETION_FUNCTION
+#ifdef HAVE_LIBREADLINE
+# include <readline/readline.h>
+# ifdef HAVE_RL_FILENAME_COMPLETION_FUNCTION
+#  define _FILENAME_COMPLETION_FUNCTION rl_filename_completion_function
+# else
+#  ifdef HAVE_FILENAME_COMPLETION_FUNCTION
+char * rl_filename_completion_function(const char * pcText, int iState)
+{
+  char acTextNotConst[256];
+  strncpy(acTextNotConst, pcText, sizeof(acTextNotConst));
+  acTextNotConst[sizeof(acTextNotConst)-1]= '\0';
+  return filename_completion_function(acTextNotConst, iState);
+}
+#   define _FILENAME_COMPLETION_FUNCTION rl_filename_completion_function
+#  endif
+# endif
+#endif
 
 // ----- cli_net_node_by_addr ---------------------------------------
 /**
@@ -121,6 +141,28 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_net_link -----------------------------------
 void cli_ctx_destroy_net_link(void ** ppItem)
 {
+}
+
+// ----- cli_net_ntf_load -------------------------------------------
+/**
+ * context: {}
+ * tokens: {ntf_file}
+ */
+int cli_net_ntf_load(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcFileName;
+
+  // Get name of the NTF file
+  pcFileName= tokens_get_string_at(pTokens, 0);
+
+  // Load given NTF file
+  if (ntf_load(pcFileName) != NTF_SUCCESS) {
+    LOG_SEVERE("Error: unable to load NTF file \"%s\"\n",
+	       pcFileName);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
 }
 
 // ----- cli_net_node_ipip_enable -----------------------------------
@@ -633,6 +675,27 @@ int cli_register_net_link(SCliCmds * pCmds)
 						pSubCmds, pParams));
 }
 
+// ----- cli_register_net_ntf ---------------------------------------
+int cli_register_net_ntf(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  cli_params_add2(pParams, "<filename>", NULL,
+		  _FILENAME_COMPLETION_FUNCTION);
+#else
+  cli_params_add(pParams, "<filename>", NULL);
+#endif
+  cli_cmds_add(pSubCmds, cli_cmd_create("load",
+					cli_net_ntf_load,
+					NULL, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("ntf", NULL, NULL,
+						pSubCmds, NULL));
+}
+
 // ----- cli_register_net_node_show ---------------------------------
 int cli_register_net_node_show(SCliCmds * pCmds)
 {
@@ -784,6 +847,7 @@ int cli_register_net(SCli * pCli)
   pCmds= cli_cmds_create();
   cli_register_net_add(pCmds);
   cli_register_net_link(pCmds);
+  cli_register_net_ntf(pCmds);
   cli_register_net_node(pCmds);
   cli_register_net_options(pCmds);
   cli_register_net_show(pCmds);
