@@ -369,6 +369,7 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_nodeShowRT
     cRT = MALLOC(1);
     strcpy(cRT, "");
   }
+  
   return (*env)->NewStringUTF(env, cRT);
 }
 
