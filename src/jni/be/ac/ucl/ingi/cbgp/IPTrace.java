@@ -134,6 +134,10 @@ public class IPTrace
 	    }
 	    s+= (IPAddress) hops.get(iIndex);
 	}
+	s+= "\t";
+	s+= iDelay;
+	s+= "\t";
+	s+= iWeight;
 
 	return s;
     }

@@ -90,7 +90,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    netNodeRecordRoute
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Vector;
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
   (JNIEnv *, jobject, jstring, jstring);
@@ -125,6 +125,14 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpRouterPeerReflectorClient
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClient
   (JNIEnv *, jobject, jstring, jstring);
 
 /*

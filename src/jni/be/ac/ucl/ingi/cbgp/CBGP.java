@@ -57,6 +57,9 @@ public class CBGP
     public native int bgpRouterPeerNextHopSelf(String sRouterAddr,
 						   String sPeerAddr);
 
+    public native int bgpRouterPeerReflectorClient(String sRouterAddr,
+						   String sPeerAddr);
+
     public native int bgpRouterPeerVirtual(String sRouterAddr,
 					   String sPeerAddr);
 

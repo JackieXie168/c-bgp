@@ -45,7 +45,7 @@
 #define METHOD_IPTrace_append "(Lbe/ac/ucl/ingi/cbgp/IPAddress;)V"
 
 #define CLASS_BGPPeer "be/ac/ucl/ingi/cbgp/BGPPeer"
-#define CONSTR_BGPPeer "(Lbe/ac/ucl/ingi/cbgp/IPAddress;IB)V"
+#define CONSTR_BGPPeer "(Lbe/ac/ucl/ingi/cbgp/IPAddress;IBB)V"
 
 #define CLASS_BGPRoute "be/ac/ucl/ingi/cbgp/BGPRoute"
 #define CONSTR_BGPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
@@ -154,29 +154,22 @@ int cbgp_jni_ASPath_append(JNIEnv * env, jobject joASPath,
 // -----[ cbgp_jni_new_ASPathSegment ]-------------------------------
 jobject cbgp_jni_new_ASPathSegment(JNIEnv * env, SPathSegment * pSegment)
 {
-  jclass class_ASPathSeg;
-  jmethodID id_ASPathSeg;
-  jobject obj_ASPathSeg;
+  jobject joASPathSeg;
   int iIndex;
 
-  if ((class_ASPathSeg= (*env)->FindClass(env, CLASS_ASPathSegment)) == NULL)
-    return NULL;
-
-  if ((id_ASPathSeg= (*env)->GetMethodID(env, class_ASPathSeg, "<init>", CONSTR_ASPathSegment)) == NULL)
-    return NULL;
-
-  if ((obj_ASPathSeg= (*env)->NewObject(env, class_ASPathSeg, id_ASPathSeg,
-					(jint) pSegment->uType)) == NULL)
+  if ((joASPathSeg= cbgp_jni_new(env, CLASS_ASPathSegment,
+				 CONSTR_ASPathSegment,
+				 (jint) pSegment->uType)) == NULL)
     return NULL;
 
   /* Append all AS-Path segment elements */
   for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
-    if (cbgp_jni_ASPathSegment_append(env, obj_ASPathSeg,
+    if (cbgp_jni_ASPathSegment_append(env, joASPathSeg,
 				  pSegment->auValue[iIndex]) != 0)
       return NULL;
   }
 
-  return obj_ASPathSeg;
+  return joASPathSeg;
 }
 
 // -----[ cbgp_jni_ASPathSegment_append ]----------------------------
@@ -392,9 +385,10 @@ jobject cbgp_jni_new_BGPPeer(JNIEnv * env, SPeer * pPeer)
 
   /* Create new BGPPeer object */
   return cbgp_jni_new(env, CLASS_BGPPeer, CONSTR_BGPPeer,
-			   joIPAddress,
-			   (jint) pPeer->uRemoteAS,
-			   (jbyte) pPeer->uSessionState);
+		      joIPAddress,
+		      (jint) pPeer->uRemoteAS,
+		      (jbyte) pPeer->uSessionState,
+		      (jbyte) pPeer->uFlags);
 }
 
 // -----[ cbgp_jni_new_BGPRoute ]------------------------------------
