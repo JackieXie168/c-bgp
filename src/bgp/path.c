@@ -215,8 +215,12 @@ int path_match(SPath * pPath, int iArrayPathRegExPos)
 
   ptr_array_get_at(paPathExpr, iArrayPathRegExPos, &pPathMatch);
   if (pPathMatch != NULL) {
-    if (regex_search(pPathMatch->pRegEx, pcPathDump) > 0)
-      iRet = 1;
+    if (strcmp(pcPathDump, "null") != 0) {
+      printf("%s, %s\n", pcPathDump, pPathMatch->pcPattern);
+      if (regex_search(pPathMatch->pRegEx, pcPathDump) > 0)
+        iRet = 1;
+      regex_reinit(pPathMatch->pRegEx);
+    }
   } else
     LOG_SEVERE("path_match>No Regular Expression found.\n");
 
