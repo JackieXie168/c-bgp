@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/02/2004
-// @lastdate 18/02/2005
+// @lastdate 19/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -79,11 +79,13 @@ public class ASPathSegment
 	String s="";
 
 	if (iType == AS_PATH_SEGMENT_SET) {
-	    s+= "{";
+	    s+= "{ ";
 	}
-	for (int iIndex= 0; iIndex < ases.size(); iIndex++) {
-	    s+= " ";
-	    s+= ases.get(iIndex);
+	for (int iIndex= ases.size(); iIndex > 0; iIndex--) {
+	    if (iIndex < ases.size()) {
+		s+= " ";
+	    }
+	    s+= ases.get(iIndex-1);
 	}
 	if (iType == AS_PATH_SEGMENT_SET) {
 	    s+= " }";
