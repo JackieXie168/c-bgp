@@ -38,6 +38,7 @@ AC_PROG_LIBTOOL
 
 
 AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
+AC_SUBST([WITH_LIBALLOC])
 
 #
 # Test for JNI availability
@@ -58,6 +59,7 @@ if test "$cbgp_config_jni" == "yes"; then
    fi
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
+AC_SUBST([WITH_JNI])
 
 
 #
