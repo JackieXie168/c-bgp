@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/02/2004
-// @lastdate 18/02/2005
+// @lastdate 19/02/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -58,11 +58,11 @@ public class ASPath
     {
 	String s= "";
 
-	for (int iIndex= 0; iIndex < segments.size(); iIndex++) {
-	    if (iIndex > 0) {
+	for (int iIndex= segments.size(); iIndex > 0; iIndex--) {
+	    if (iIndex < segments.size()) {
 		s+= " ";
 	    }
-	    s+= (ASPathSegment) segments.get(iIndex);
+	    s+= (ASPathSegment) segments.get(iIndex-1);
 	}
 	return s;
     }
