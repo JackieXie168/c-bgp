@@ -1,15 +1,25 @@
-#SUBDIRS = bgp cli net sim ui liballoc
-SUBDIRS = bgp cli net sim ui jni
+# Compile with JNI ?
+if WITH_JNI
+  OPT_JNI_DIR = jni
+  OPT_JNI_LIBADD = jni/libjni.la
+endif
+
+# Compile with liballoc ?
+if WITH_LIBALLOC
+  OPT_LIBALLOC_DIR = liballoc
+  OPT_LIBALLOC_LDADD = liballoc/liballoc.la
+endif
+
+SUBDIRS = bgp cli net sim ui $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR)
 
 AM_CFLAGS = -Wall -Werror -O2
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES =
-libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la jni/libjni.la
+libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la $(OPT_JNI_LIBADD)
 libcsim_la_LDFLAGS = -no-undefined
 
 bin_PROGRAMS = cbgp
 cbgp_SOURCES = \
 	main.c
-#cbgp_LDADD = libcsim.la liballoc/liballoc.la
-cbgp_LDADD = libcsim.la
+cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD)
