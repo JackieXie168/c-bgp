@@ -37,6 +37,18 @@ void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
 /**
  *
  */
+char * ip_address_dump_string(net_addr_t tAddr)
+{
+  char * cAddress = MALLOC(16);
+  sprintf(cAddress, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255,
+	  (tAddr >> 8) & 255, tAddr & 255);
+  return cAddress;
+}
+
+// ----- ip_address_dump --------------------------------------------
+/**
+ *
+ */
 void ip_address_dump(FILE * pStream, net_addr_t tAddr)
 {
   fprintf(pStream, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255,
@@ -79,6 +91,20 @@ SPrefix uint32_to_prefix(net_addr_t tPrefix, uint8_t uMaskLen)
   return sPrefix;
 }
 
+// ----- ip_prefix_dump_string ---------------------------------------------
+/**
+ *
+ */
+char * ip_prefix_dump_string(SPrefix sPrefix)
+{
+  char * cPrefix = MALLOC(20);
+  
+  sprintf(cPrefix, "%u.%u.%u.%u/%u",
+	  sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
+	  (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
+	  sPrefix.uMaskLen);
+  return cPrefix;
+}
 // ----- ip_prefix_dump ---------------------------------------------
 /**
  *

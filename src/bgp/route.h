@@ -94,6 +94,8 @@ extern int route_cluster_list_contains(SRoute * pRoute,
 				       cluster_id_t tClusterID);
 // ----- route_copy -------------------------------------------------
 extern SRoute * route_copy(SRoute * pRoute);
+// ----- route_dump_string -------------------------------------------------
+char * route_dump_string(SRoute * pRoute);
 // ----- route_dump -------------------------------------------------
 extern void route_dump(FILE * pStream, SRoute * pRoute);
 // ----- route_dump_mrtd --------------------------------------------

@@ -7,6 +7,8 @@
 // ==================================================================
 
 #include <net/net_path.h>
+#include <libgds/memory.h>
+#include <string.h>
 
 // ----- net_path_create --------------------------------------------
 /**
@@ -52,6 +54,28 @@ int net_path_length(SNetPath * pPath)
 {
   return _array_length((SArray *) pPath);
 }
+
+// ----- net_path_dump_string ----------------------------------------------
+/**
+ *
+ */
+char * net_path_dump_string(SNetPath * pPath)
+{
+  int iIndex;
+  char * cPath = MALLOC(255), * cCharTmp;
+  uint8_t icPathPtr = 0;
+
+  for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
+    if (iIndex > 0)
+      strcpy(cPath+icPathPtr++, " ");
+    cCharTmp = ip_address_dump_string(pPath->data[iIndex]);
+    strcpy(cPath+icPathPtr, cCharTmp);
+    icPathPtr += strlen(cCharTmp);
+    FREE(cCharTmp);
+  }
+  return cPath;
+}
+
 
 // ----- net_path_dump ----------------------------------------------
 /**

@@ -6,6 +6,8 @@
 // @lastdate 30/09/2004
 // ==================================================================
 
+//TODO :  1) spf-prefix has to be done !
+//	  2) peer up has to be done !
 
 #include <stdlib.h>
 #include <stdio.h>

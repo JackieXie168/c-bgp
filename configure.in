@@ -61,4 +61,4 @@ fi
 
 AC_PROG_INSTALL
 #AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)

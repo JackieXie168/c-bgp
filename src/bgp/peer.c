@@ -609,6 +609,16 @@ void bgp_peer_dump_ribin(FILE * pStream, SPeer * pPeer,
   }
 }
 
+// ----- bgp_peer_dump_string_ribin ---------------------------------
+/**
+ *
+ */
+char * bgp_peer_dump_string_ribin(SPeer * pPeer, SPrefix sPrefix)
+{
+  char * rib = MALLOC(255);
+  return rib;
+}
+
 // ----- bgp_peer_dump_in_filters -----------------------------------
 /**
  *
