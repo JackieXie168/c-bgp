@@ -31,6 +31,7 @@
 #include <bgp/routes_list.h>
 #include <bgp/tie_breaks.h>
 #include <net/network.h>
+#include <net/link.h>
 #include <net/protocol.h>
 #include <ui/output.h>
 
@@ -1191,9 +1192,19 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
     _array_append(pCtx->pPrefixes, &sPrefix);
     return 0;
   } else {
+
+    /* Check if the peer that has announced this route is down */
+    if ((pRoute->pPeer != NULL) &&
+	(pRoute->pPeer->uSessionState != SESSION_STATE_ESTABLISHED)) {
+      fprintf(stdout, "*** SESSION NOT ESTABLISHED [");
+      ip_prefix_dump(stdout, pRoute->sPrefix);
+      fprintf(stdout, "] ***\n");
+      _array_append(pCtx->pPrefixes, &sPrefix);
+      return 0;
+    }
     
     pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
-			     NET_ROUTE_ANY);
+			     NET_ROUTE_ANY);    
     
     /* Check if the IP next-hop of the BGP route has changed. Indeed,
        the BGP next-hop is not always the IP next-hop. If this next-hop
@@ -1377,6 +1388,7 @@ int bgp_router_scan_sessions(SBGPRouter * pRouter)
 {
   int iIndex;
   SBGPPeer * pPeer;
+  SNetLink * pNextHopIf;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
@@ -1385,7 +1397,9 @@ int bgp_router_scan_sessions(SBGPRouter * pRouter)
 
       /* Check that the peer is reachable (that is, there is a route
 	 towards the peer). If not, shutdown the peering. */
-      if (node_rt_lookup(pRouter->pNode, pPeer->tAddr) == NULL) {
+      pNextHopIf= node_rt_lookup(pRouter->pNode, pPeer->tAddr);
+      if ((pNextHopIf == NULL) ||
+	  (!link_get_state(pNextHopIf, NET_LINK_FLAG_UP))) {
 	assert(!peer_close_session(pPeer));
 	pPeer->uSessionState= SESSION_STATE_ACTIVE;
       }
@@ -1394,7 +1408,9 @@ int bgp_router_scan_sessions(SBGPRouter * pRouter)
 
       /* Check that the peer is reachable (that is, there is a route
 	 towards the peer). If yes, open the session. */
-      if (node_rt_lookup(pRouter->pNode, pPeer->tAddr) != NULL)
+      pNextHopIf= node_rt_lookup(pRouter->pNode, pPeer->tAddr);
+      if ((pNextHopIf != NULL) &&
+	  (link_get_state(pNextHopIf, NET_LINK_FLAG_UP)))
 	assert(!peer_open_session(pPeer));
 
     }
@@ -1684,22 +1700,23 @@ void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
   flushir(pStream);
 }
 
-// ----- bgp_router_dump_ribin --------------------------------------
+// ----- bgp_router_dump_adjrib -------------------------------------
 /**
  *
  */
-void bgp_router_dump_ribin(FILE * pStream, SBGPRouter * pRouter,
-			   SPeer * pPeer, SPrefix sPrefix)
+void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
+			    SPeer * pPeer, SPrefix sPrefix,
+			    int iInOut)
 {
   int iIndex;
 
   if (pPeer == NULL) {
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-      bgp_peer_dump_ribin(pStream, (SPeer *)
-			  pRouter->pPeers->data[iIndex], sPrefix);
+      bgp_peer_dump_adjrib(pStream, (SPeer *)
+			  pRouter->pPeers->data[iIndex], sPrefix, iInOut);
     }
   } else {
-    bgp_peer_dump_ribin(pStream, pPeer, sPrefix);
+    bgp_peer_dump_adjrib(pStream, pPeer, sPrefix, iInOut);
   }
 
   flushir(pStream);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 03/01/2005
+// @lastdate 03/02/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -138,9 +138,10 @@ extern void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
 // ----- bgp_router_dump_rib_prefix ---------------------------------
 extern void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
 				       SPrefix sPrefix);
-// ----- bgp_router_dump_ribin --------------------------------------
-extern void bgp_router_dump_ribin(FILE * pStream, SBGPRouter * pRouter,
-				  SPeer * pPeer, SPrefix sPrefix);
+// ----- bgp_router_dump_adjrib -------------------------------------
+extern void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
+				   SPeer * pPeer, SPrefix sPrefix,
+				   int iInOut);
 // ----- bgp_router_save_rib ----------------------------------------
 extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
 

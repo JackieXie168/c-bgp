@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/01/2005
+// @lastdate 03/02/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -811,7 +811,57 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_ribin(stdout, pRouter, pPeer, sPrefix);
+  bgp_router_dump_adjrib(stdout, pRouter, pPeer, sPrefix, 1);
+  
+  return CLI_SUCCESS;
+}
+
+int cli_bgp_router_show_ribout(SCliContext * pContext,
+			      STokens * pTokens)
+{
+  SAS * pRouter;
+  char * pcPeerAddr;
+  char * pcEndChar;
+  net_addr_t tPeerAddr;
+  SPeer * pPeer;
+  char * pcPrefix;
+  SPrefix sPrefix;
+
+  // Get the BGP instance from the context
+  pRouter= (SAS *) cli_context_get_item_at_top(pContext);
+
+  // Get the peer/*
+  pcPeerAddr= tokens_get_string_at(pTokens, 1);
+  if (!strcmp(pcPeerAddr, "*")) {
+    pPeer= NULL;
+  } else if (!ip_string_to_address(pcPeerAddr, &pcEndChar, &tPeerAddr)
+	     && (*pcEndChar == 0)) {
+    pPeer= as_find_peer(pRouter, tPeerAddr);
+    if (pPeer == NULL) {
+      LOG_SEVERE("Error: unknown peer \"%s\"\n", pcPeerAddr);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  } else {
+    LOG_SEVERE("Error: invalid peer address \"%s\"\n", pcPeerAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get the prefix/address/*
+  pcPrefix= tokens_get_string_at(pTokens, 2);
+  if (!strcmp(pcPrefix, "*")) {
+    sPrefix.uMaskLen= 0;
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
+	     (*pcEndChar == 0)) {
+  } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
+				   &sPrefix.tNetwork) &&
+	     (*pcEndChar == 0)) {
+    sPrefix.uMaskLen= 32;
+  } else {
+    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  bgp_router_dump_adjrib(stdout, pRouter, pPeer, sPrefix, 0);
   
   return CLI_SUCCESS;
 }
@@ -2235,6 +2285,12 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
   cli_params_add(pParams, "<prefix|address|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in",
 					cli_bgp_router_show_ribin,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<peer>", NULL);
+  cli_params_add(pParams, "<prefix|address|*>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("rib-out",
+					cli_bgp_router_show_ribout,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix|address|*>", NULL);
