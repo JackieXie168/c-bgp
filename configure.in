@@ -38,18 +38,26 @@ AC_PROG_LIBTOOL
 
 
 AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
-AC_SUBST([WITH_LIBALLOC])
 
 #
 # Test for JNI availability
 #
+AC_ARG_WITH(jni-dir,
+   AC_HELP_STRING([--with-jni-dir],
+      [specify directory for jni.h]),
+   cbgp_config_jni_dir="$withval",
+)     
 AC_ARG_ENABLE(jni,
    AC_HELP_STRING([--enable-jni],
-      [enable JNI support]
-   ), cbgp_config_jni="$enableval",
+      [enable JNI support]),
+   cbgp_config_jni="$enableval",
 )
 if test "$cbgp_config_jni" == "yes"; then
-   AC_PROG_JAVAH()
+   if test "$cbgp_config_jni_dir" != ""; then
+      CPPFLAGS="$CPPFLAGS -I$cbgp_config_jni_dir"
+   else
+      AC_PROG_JAVAH()
+   fi
    AC_CHECK_HEADER(jni.h, jni_header_ok=yes, jni_header_ok=no)
    if test "$jni_header_ok" != "yes"; then
       AC_MSG_ERROR([could not find java native interface header (jni.h)])
@@ -59,8 +67,6 @@ if test "$cbgp_config_jni" == "yes"; then
    fi
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
-AC_SUBST([WITH_JNI])
-
 
 #
 # Test for readline existence. Required due to possibly undetected 
@@ -105,5 +111,4 @@ fi
 
 
 AC_PROG_INSTALL
-#AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile)
