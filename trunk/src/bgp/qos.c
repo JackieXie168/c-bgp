@@ -602,12 +602,12 @@ int qos_decision_process(SAS * pAS, SPeer * pOriginPeer, SPrefix sPrefix)
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
     if ((pRoute != NULL) &&
 	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE))) {
-      assert(ptr_array_append(pRoutes, pRoute) == 0);
+      assert(ptr_array_append(pRoutes, pRoute) >= 0);
       LOG_DEBUG("\teligible: ");
       LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
       LOG_DEBUG("\n");
       if (route_peer_get(pRoute)->uRemoteAS != pAS->uNumber)
-	assert(ptr_array_append(pEBGPRoutes, pRoute) == 0);
+	assert(ptr_array_append(pEBGPRoutes, pRoute) >= 0);
     }
   }
 

@@ -3,13 +3,20 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 25/02/2004
+// @lastdate 04/01/2005
 // ==================================================================
 
 #include <libgds/memory.h>
 #include <string.h>
 
 #include <net/protocol.h>
+
+// Protocol names
+const char * PROTOCOL_NAMES[]= {
+  "icmp",
+  "bgp",
+  "ipip"
+};
 
 // ----- protocol_create --------------------------------------------
 /**

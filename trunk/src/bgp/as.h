@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 30/09/2004
+// @lastdate 03/01/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -41,6 +41,7 @@ extern FTieBreakFunction BGP_OPTIONS_TIE_BREAK;
 extern uint8_t BGP_OPTIONS_NLRI;
 extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
+extern uint8_t BGP_OPTIONS_SHOW_MODE;
 
 #define MAX_AS 65536
 
@@ -109,6 +110,13 @@ extern uint16_t as_num_providers(SAS * pAS);
 extern void as_dump_id(FILE * pStream, SAS * pAS);
 // ----- as_load_rib ------------------------------------------------
 extern int as_load_rib(char * pcFileName, SAS * pAS);
+
+// -----[ bgp_router_rerun ]-----------------------------------------
+extern int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix);
+// -----[ bgp_router_peer_readv_prefix ]-----------------------------
+extern int bgp_router_peer_readv_prefix(SBGPRouter * pRouter,
+					SPeer * pPeer,
+					SPrefix sPrefix);
 
 // ----- bgp_router_reset -------------------------------------------
 extern int bgp_router_reset(SBGPRouter * pRouter);

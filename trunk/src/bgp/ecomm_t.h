@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ecomm_t.h
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 06/12/2002
-// @lastdate 20/08/2003
+// @lastdate 03/01/2005
 // ==================================================================
 
 #ifndef __ECOMM_T_H__
@@ -23,6 +23,9 @@
 #define ECOMM_RED_FILTER_2AS 1
 #define ECOMM_RED_FILTER_CIDR 2
 #define ECOMM_RED_FILTER_AS4 3
+
+#define ECOMM_DUMP_RAW 0
+#define ECOMM_DUMP_TEXT 1
 
 typedef struct {
   unsigned char uIANAAuthority:1;

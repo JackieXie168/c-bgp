@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 12/08/2004
+// @lastdate 03/01/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -94,12 +94,14 @@ extern int route_cluster_list_contains(SRoute * pRoute,
 				       cluster_id_t tClusterID);
 // ----- route_copy -------------------------------------------------
 extern SRoute * route_copy(SRoute * pRoute);
-// ----- route_dump_string -------------------------------------------------
-char * route_dump_string(SRoute * pRoute);
+// ----- route_dump_string ------------------------------------------
+extern char * route_dump_string(SRoute * pRoute);
 // ----- route_dump -------------------------------------------------
 extern void route_dump(FILE * pStream, SRoute * pRoute);
-// ----- route_dump_mrtd --------------------------------------------
-extern void route_dump_mrtd(FILE * pStream, SRoute * pRoute);
+// ----- route_dump_cisco -------------------------------------------
+extern void route_dump_cisco(FILE * pStream, SRoute * pRoute);
+// ----- route_dump_mrt ---------------------------------------------
+extern void route_dump_mrt(FILE * pStream, SRoute * pRoute);
 // ----- route_equals -----------------------------------------------
 extern int route_equals(SRoute * pRoute1, SRoute * pRoute2);
 

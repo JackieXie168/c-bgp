@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 //	    Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 15/12/2004
+// @lastdate 03/01/2005
 // ==================================================================
 
 #include <assert.h>
@@ -779,7 +779,7 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
     case FT_ACTION_DENY: fprintf(pStream, "DENY"); break;
     case FT_ACTION_COMM_APPEND:
       fprintf(pStream, "append community ");
-      comm_dump2(pStream, *((uint32_t *) pAction->auParams));
+      comm_dump2(pStream, *((uint32_t *) pAction->auParams), COMM_DUMP_TEXT);
       break;
     case FT_ACTION_COMM_STRIP: fprintf(pStream, "comm strip"); break;
     case FT_ACTION_COMM_REMOVE:
@@ -799,7 +799,8 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
       break;
     case FT_ACTION_ECOMM_APPEND:
       fprintf(pStream, "append ext-community ");
-      ecomm_val_dump(pStream, (SECommunity *) pAction->auParams);
+      ecomm_val_dump(pStream, (SECommunity *) pAction->auParams,
+		     ECOMM_DUMP_TEXT);
       break;
     default:
       fprintf(pStream, "?");

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 //	   Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 15/12/2004
+// @lastdate 03/01/2005
 // ==================================================================
 
 #include <libgds/cli.h>
@@ -640,6 +640,19 @@ void ft_cli_register_action_red_community()
 					pSubCmds, NULL));
 }
 
+// ----- ft_cli_register_action_ext_community -----------------------
+void ft_cli_register_action_ext_community()
+{
+  SCli * pCli= ft_cli_action_get();
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliCmds * pSubSubCmds= cli_cmds_create();
+
+  cli_cmds_add(pSubCmds, cli_cmd_create("add", NULL,
+					pSubSubCmds, NULL));
+  cli_register_cmd(pCli, cli_cmd_create("ext-community", NULL,
+					pSubCmds, NULL));
+}
+
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
@@ -665,6 +678,7 @@ void _ft_registry_init()
   ft_cli_register_action_metric();
   ft_cli_register_action_as_path();
   ft_cli_register_action_community();
+  ft_cli_register_action_ext_community();
   ft_cli_register_action_red_community();
   ft_cli_register_action_call();
   ft_cli_register_action_jump();
