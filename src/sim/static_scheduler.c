@@ -101,6 +101,7 @@ int static_scheduler_run(void * pContext)
 	 != NULL) {
 
     pEvent->fCallback(pEvent->pContext);
+
     static_scheduler_event_destroy(&pEvent);
 
     // Update simulation time
@@ -124,8 +125,10 @@ int static_scheduler_post(FSimEventCallback fCallback,
 			  double uSchedulingTime,
 			  uint8_t uDeltaType)
 {
+  SStaticEvent * pEvent;
+
   assert((uSchedulingTime == 0) && (uDeltaType == RELATIVE_TIME));
-  return fifo_push(pStaticScheduler->pEvents,
-		   static_scheduler_event_create(fCallback, fDestroy,
-						 pContext));
+  pEvent= static_scheduler_event_create(fCallback, fDestroy, pContext);
+
+  return fifo_push(pStaticScheduler->pEvents, pEvent);
 }
