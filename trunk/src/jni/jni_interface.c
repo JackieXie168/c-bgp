@@ -25,8 +25,10 @@
 
 #include <sim/simulator.h>
 
-#include <libgds/log.h>
+#include <cli/common.h>
 
+#include <libgds/log.h>
+#include <libgds/cli_ctx.h>
 
 #define FILTER_IN   "in"
 #define FILTER_OUT  "out"
@@ -634,7 +636,30 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterInit
  * Method:    bgpFilterMatchPrefix
  * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefix
+JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIn
+  (JNIEnv * env, jobject obj, jstring prefix)
+{
+  const jbyte * cPrefix;
+  char * pcEndPtr;
+  SPrefix Prefix;
+
+  cPrefix = (*env)->GetStringUTFChars(env, prefix, NULL);
+  if (ip_string_to_prefix((char *)cPrefix, &pcEndPtr, &Prefix) ||
+      (*pcEndPtr != 0)) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", cPrefix);
+  }
+  (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);
+
+  pMatcher = filter_match_prefix_in(Prefix);
+  return 0;
+}
+
+/*
+ * Class:     cbgpJNI
+ * Method:    bgpFilterMatchPrefix
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefixIs
   (JNIEnv * env, jobject obj, jstring prefix)
 {
   const jbyte * cPrefix;
@@ -649,10 +674,9 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterMatchPrefix
   (*env)->ReleaseStringUTFChars(env, prefix, cPrefix);
 
   pMatcher = filter_match_prefix_equals(Prefix);
-  /*filter_matcher_dump(stdout, pMatcher);
-  printf("\n");*/
   return 0;
 }
+
 
 /*
  * Class:     cbgpJNI
@@ -701,8 +725,9 @@ JNIEXPORT jint JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterAction
       return 1;
   }
   filter_add_rule(pFilter, pMatcher, pAction);
-  /*filter_action_dump(stdout, pAction);
-  fprintf(stdout, "\n");*/
+  fprintf(stdout, "rule dump\n");
+  filter_action_dump(stdout, pAction);
+  fprintf(stdout, "\n");
   return 0;
 }
 
@@ -717,6 +742,7 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_bgpFilterFinalize
   pFilter = NULL;
   pMatcher = NULL;
   pAction = NULL;
+  
 }
 
 
@@ -748,4 +774,19 @@ JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_simPrint
   (*env)->ReleaseStringUTFChars(env, line, cLine);
 }
 
+
+/*
+ * Class:     jni_cbgp_cbgpJNI
+ * Method:    runCmd
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_jni_cbgp_cbgpJNI_runCmd
+  (JNIEnv * env, jobject obj, jstring line)
+{
+  const jbyte * cLine;
+
+  cLine = (*env)->GetStringUTFChars(env, line, NULL);
+  cli_execute_line(cli_get(), (char *)cLine);
+  (*env)->ReleaseStringUTFChars(env, line, cLine);
+}
 
