@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 15/09/2004
+// @lastdate 30/09/2004
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -15,6 +15,7 @@
 #include <libgds/radix-tree.h>
 #include <libgds/types.h>
 
+#include <net/domain_t.h>
 #include <net/prefix.h>
 #include <net/link.h>
 #include <net/message.h>
@@ -34,22 +35,57 @@ extern const net_addr_t MAX_ADDR;
 
 typedef struct {
   SRadixTree * pNodes;
+  SPtrArray  * pDomains;
 } SNetwork;
 
 typedef struct {
   net_addr_t tAddr;
+  SPtrArray * aInterfaces;
+  char * pcName;
+  uint32_t  uAS;
   SNetwork * pNetwork;
   SPtrArray * pLinks;
   SNetRT * pRT;
   SNetProtocols * pProtocols;
+  SNetDomain * pDomain;
 } SNetNode;
 
+typedef struct {
+  net_addr_t tAddr;
+  SPrefix * tMask;
+  SPtrArray * pLinks;
+} SNetInterface;
+
+// --
+void node_dump(SNetNode * pNode);
 // ----- options -----
 extern uint8_t NET_OPTIONS_MAX_HOPS;
 extern uint8_t NET_OPTIONS_IGP_INTER;
 
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);
+// ----- node_set_name ----------------------------------------------
+void node_set_name(SNetNode * pNode, const char * pcName);
+// ----- node_get_name ----------------------------------------------
+char * node_get_name(SNetNode * pNode);
+// ----- node_get_as ------------------------------------------------
+SNetDomain * node_get_as(SNetNode * pNode);
+// ----- node_get_as ------------------------------------------------
+uint32_t node_get_as_id(SNetNode * pNode);
+// ----- node_set_as ------------------------------------------------
+void node_set_as(SNetNode * pNode, SNetDomain * pDomain);
+// ----- node_interface_add -----------------------------------------
+int node_interface_add(SNetNode * pNode, SNetInterface * pInterface);
+// ----- node_interface_create ---------------------------------------
+SNetInterface * node_interface_create();
+// ----- node_interface_link_add ------------------------------------
+int node_interface_link_add(SNetNode * pNode, net_addr_t tFromIf, 
+    net_addr_t tToIf, net_link_delay_t tDelay);
+// ----- node_interface_get_number ----------------------------------
+unsigned int node_interface_get_number(SNetNode * pNode);
+// ----- node_interface_get -----------------------------------------
+SNetInterface * node_interface_get(SNetNode * pNode, 
+				const unsigned int uIndex);
 // ----- node_add_link ----------------------------------------------
 extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 			 net_link_delay_t tDelay, int iRecurse);
@@ -123,5 +159,9 @@ extern int node_ipip_enable(SNetNode * pNode);
 // ----- node_add_tunnel --------------------------------------------
 extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
 
-
+// ----- network_domain_add -----------------------------------------
+int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
+						      char * pcName);
+// ----- network_domain_get -----------------------------------------
+SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
 #endif

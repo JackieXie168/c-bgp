@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 15/09/2004
+// @lastdate 30/09/2004
 // ==================================================================
 
 #include <assert.h>
@@ -17,6 +17,8 @@
 #include <net/net_path.h>
 #include <string.h>
 #include <ui/output.h>
+
+#include <net/domain.h>
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
 
@@ -85,6 +87,35 @@ void network_send_context_destroy(void * pContext)
   FREE(pSendContext);
 }
 
+// ----- node_interface_link_add -------------------------------------
+/**
+ *
+ *
+ */
+int node_interface_link_add(SNetNode * pNode, net_addr_t tFromIf, 
+    net_addr_t tToIf, net_link_delay_t tDelay)
+{
+  SNetInterface * pInterface = MALLOC(sizeof(SNetInterface));
+  SNetLink * pLink= MALLOC(sizeof(SNetLink));
+  SPtrArray * pLinks;
+  unsigned int uIndex;
+
+  pInterface->tAddr = tFromIf;
+
+  if (ptr_array_sorted_find_index(pNode->aInterfaces, &pInterface, &uIndex)) {
+    LOG_DEBUG("node_interface_link_add>interface not found %ul\n", tFromIf);
+    return -1;
+  }
+  pLinks = ((SNetInterface *)pNode->aInterfaces->data[uIndex])->pLinks;
+
+  pLink->tAddr= tToIf;
+  pLink->tDelay= tDelay;
+  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
+  pLink->uIGPweight= tDelay;
+  pLink->pContext= NULL;
+  pLink->fForward= NULL;
+  return ptr_array_add(pLinks, &pLink);
+}
 
 // ----- node_links_compare -----------------------------------------
 int node_links_compare(void * pItem1, void * pItem2,
@@ -108,6 +139,147 @@ void node_links_destroy(void * pItem)
   *((SNetLink **) pItem)= NULL;
 }
 
+// ----- node_get_name -----------------------------------------------
+char * node_get_name(SNetNode * pNode)
+{
+  return pNode->pcName;
+}
+
+// ----- node_set_name -----------------------------------------------
+void node_set_name(SNetNode * pNode, const char * pcName)
+{
+  char * pcNameDup = strdup(pcName);
+  
+  if (pNode->pcName)
+    FREE(pNode->pcName);
+  
+  pNode->pcName = pcNameDup;
+}
+
+// ----- node_interface_compare --------------------------------------
+/**
+ *
+ *
+ */
+int node_interface_compare(void * pItem1, void * pItem2,
+				unsigned int uEltSize)
+{
+  SNetInterface * pInterface1 = *((SNetInterface **)pItem1);
+  SNetInterface * pInterface2 = *((SNetInterface **)pItem2);
+
+  if (pInterface1->tAddr < pInterface2->tAddr)
+    return -1;
+  else if (pInterface1->tAddr > pInterface2->tAddr)
+    return 1;
+  else
+    return 0;
+}
+
+// ----- node_interface_destroy --------------------------------------
+/**
+ *
+ *
+ */
+void node_interface_destroy(void * pItem)
+{
+  if (*(SNetInterface **)pItem) {
+    FREE((*(SNetInterface **)pItem)->tMask);
+    ptr_array_destroy(&(*(SNetInterface **)pItem)->pLinks);
+    FREE(*(SNetInterface **)pItem);
+    *(SNetInterface **)pItem = NULL;
+  }
+}
+
+// ----- node_interface_create ---------------------------------------
+/**
+ *
+ *
+ */
+SNetInterface * node_interface_create()
+{
+  SNetInterface * pInterface = MALLOC(sizeof(SNetInterface));
+
+  pInterface->tAddr = 0;
+  pInterface->tMask = NULL;
+  pInterface->pLinks = ptr_array_create(ARRAY_OPTION_UNIQUE|ARRAY_OPTION_SORTED,
+			  node_links_compare, 
+			  node_links_destroy);
+  return pInterface;
+}
+
+// ----- node_interface_add ------------------------------------------
+/**
+ *
+ *
+ */
+int node_interface_add(SNetNode * pNode, SNetInterface * pInterface)
+{
+  //We do not create aInterfaces when creating a node 'cause
+  //it's only used while loading a topology via a xml file
+  if (pNode->aInterfaces == NULL)
+    pNode->aInterfaces = ptr_array_create(ARRAY_OPTION_UNIQUE|
+					  ARRAY_OPTION_SORTED,
+					  node_interface_compare,
+					  node_interface_destroy);
+
+  return ptr_array_add(pNode->aInterfaces, (void *)&pInterface);
+}
+ 
+// ----- node_interface_get_number -----------------------------------
+/**
+ *
+ *
+ */
+unsigned int node_interface_get_number(SNetNode * pNode)
+{
+  if (pNode->aInterfaces)
+    return ptr_array_length(pNode->aInterfaces);
+  else
+    return 0;
+}
+
+// ----- node_interface_get ------------------------------------------
+/**
+ *
+ *
+ */
+SNetInterface * node_interface_get(SNetNode * pNode, 
+				const unsigned int uIndex)
+{
+  return (SNetInterface *)pNode->aInterfaces->data[uIndex];
+}
+
+// ----- node_set_as -------------------------------------------------
+/**
+ *
+ *
+ */
+void node_set_as(SNetNode * pNode, SNetDomain * pDomain)
+{
+  if (pNode)
+    pNode->pDomain = pDomain;
+}
+
+// ----- node_get_as -------------------------------------------------
+/**
+ *
+ *
+ */
+uint32_t node_get_as_id(SNetNode * pNode)
+{
+  return domain_get_as(pNode->pDomain);
+}
+
+// ----- node_get_as -------------------------------------------------
+/**
+ *
+ *
+ */
+SNetDomain * node_get_as(SNetNode * pNode)
+{
+  return pNode->pDomain;
+}
+
 // ----- node_create ------------------------------------------------
 /**
  *
@@ -116,6 +288,9 @@ SNetNode * node_create(net_addr_t tAddr)
 {
   SNetNode * pNode= (SNetNode *) MALLOC(sizeof(SNetNode));
   pNode->tAddr= tAddr;
+  pNode->aInterfaces = NULL;
+  pNode->pcName = NULL;
+  pNode->uAS = 0;
   pNode->pLinks= ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
 				  node_links_compare,
 				  node_links_destroy);
@@ -136,6 +311,9 @@ void node_destroy(SNetNode ** ppNode)
     rt_destroy(&(*ppNode)->pRT);
     protocols_destroy(&(*ppNode)->pProtocols);
     ptr_array_destroy(&(*ppNode)->pLinks);
+    ptr_array_destroy(&(*ppNode)->aInterfaces);
+    if ((*ppNode)->pcName)
+      FREE((*ppNode)->pcName);
     FREE(*ppNode);
     *ppNode= NULL;
   }
@@ -162,6 +340,23 @@ int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
   pLink->fForward= NULL;
   return ptr_array_add(pNodeA->pLinks, &pLink);
 }
+
+// ----- node_dump ---------------------------------------------------
+/**
+ *
+ *
+ */
+void node_dump(SNetNode * pNode)
+{ 
+  ip_address_dump(stdout, pNode->tAddr);
+  fprintf(stdout, "\n");
+}
+
+// ----- node_link_change_delay -------------------------------------
+/**
+ *
+ *
+ */
 
 // ----- node_add_tunnel --------------------------------------------
 /**
@@ -455,6 +650,37 @@ void network_nodes_destroy(void ** ppItem)
   node_destroy((SNetNode **) ppItem);
 }
 
+// ----- network_domains_compare ------------------------------------
+/**
+ *
+ *
+ */
+int network_domains_compare(void * pItem1, void * pItem2, 
+				unsigned int uEltSize)
+{
+  SNetDomain * pDomain1 = *((SNetDomain **)pItem1);
+  SNetDomain * pDomain2 = *((SNetDomain **)pItem2);
+
+  LOG_DEBUG("%x %x\n", pDomain1, pDomain2);
+  if (pDomain1->uAS < pDomain2->uAS)
+    return -1;
+  else if (pDomain1->uAS > pDomain2->uAS)
+    return 1;
+  else
+    return 0;
+}
+
+// ----- network_domains_destroy ------------------------------------
+/**
+ *
+ *
+ */
+void network_domains_destroy(void * pItem)
+{
+  if (*(SNetNode **)pItem != NULL)
+    domain_destroy((SNetDomain **)pItem);
+}
+
 // ----- network_create ---------------------------------------------
 /**
  *
@@ -464,6 +690,7 @@ SNetwork * network_create()
   SNetwork * pNetwork= (SNetwork *) MALLOC(sizeof(SNetwork));
   
   pNetwork->pNodes= radix_tree_create(32, network_nodes_destroy);
+  pNetwork->pDomains = NULL;
   return pNetwork;
 }
 
@@ -475,6 +702,7 @@ void network_destroy(SNetwork ** ppNetwork)
 {
   if (*ppNetwork != NULL) {
     radix_tree_destroy(&(*ppNetwork)->pNodes);
+    ptr_array_destroy(&(*ppNetwork)->pDomains);
     FREE(*ppNetwork);
     *ppNetwork= NULL;
   }
@@ -934,4 +1162,41 @@ void _network_destroy()
     network_destroy(&pTheNetwork);
     //fprintf(stderr, "done.\n");
   }
+}
+
+// ----- network_domain_add ------------------------------------------
+/**
+ *
+ *
+ */
+int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
+						      char * pcName)
+{
+  SNetDomain * pDomain = domain_create(uAS, pcName);
+  if (pNetwork->pDomains == NULL)
+    pNetwork->pDomains = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_SORTED, 
+					network_domains_compare, 
+					network_domains_destroy);
+
+  return ptr_array_add(pNetwork->pDomains, &pDomain);
+}
+
+// ----- network_domain_get ------------------------------------------
+/**
+ *
+ *
+ */
+SNetDomain * network_domain_get (SNetwork * pNetwork, uint32_t uAS)
+{
+  unsigned int uIndex;
+  SNetDomain * pDomain = domain_create(uAS, "");
+
+  if (ptr_array_sorted_find_index(pNetwork->pDomains, &pDomain, &uIndex)) {
+    LOG_DEBUG("network_domain_get>domain not found.\n");
+    domain_destroy(&pDomain);
+    return NULL;
+  }
+  domain_destroy(&pDomain);
+
+  return (SNetDomain *)pNetwork->pDomains->data[uIndex];
 }
