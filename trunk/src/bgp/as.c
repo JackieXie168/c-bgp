@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 13/08/2004
+// @lastdate 25/08/2004
 // ==================================================================
 
 #include <assert.h>
@@ -1054,7 +1054,7 @@ int bgp_router_reset(SBGPRouter * pRouter)
 
 typedef struct {
   SBGPRouter * pRouter;
-  SRoutes * pRoutes;
+  SArray * pPrefixes;
 } SScanRIBCtx;
 
 // ----- bgp_router_scan_rib_for_each -------------------------------
@@ -1081,7 +1081,8 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 {
   SScanRIBCtx * pCtx= (SScanRIBCtx *) pContext;
   SBGPRouter * pRouter= pCtx->pRouter;
-  SRoute * pRoute= (SRoute *) pItem;
+  SPrefix sPrefix;
+  SRoute * pRoute;
   SRoute * pAdjRoute;
   int iIndex;
   SPeer * pPeer;
@@ -1089,98 +1090,140 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
   SNetRouteInfo * pRouteInfo;
   SNetRouteInfo * pCurRouteInfo;
 
-  /*fprintf(stderr, "prefix: ");
-  ip_prefix_dump(stderr, pRoute->sPrefix);
-  fprintf(stderr, "\n");*/
-
-  pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
-			   NET_ROUTE_ANY);
-
-  /* Check if the IP next-hop of the BGP route has changed. Indeed,
-     the BGP next-hop is not always the IP next-hop. If this next-hop
-     has changed, the decision process must be run. */
-  if (pRouteInfo != NULL) { 
-    pCurRouteInfo= rt_find_exact(pRouter->pNode->pRT,
-				 pRoute->sPrefix, NET_ROUTE_BGP);
-    assert(pCurRouteInfo != NULL);
-
-    if (pCurRouteInfo != pRouteInfo) {
-      routes_list_append(pCtx->pRoutes, pRoute);
-      return 0;
-    }
+  sPrefix.tNetwork= uKey;
+  sPrefix.uMaskLen= uKeyLen;
+  
+  /* Looks up for the best BGP route towards this prefix. If the route
+     does not exist, schedule the current prefix for the decision
+     process */
+  pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+  if (pRoute == NULL) {
+    _array_append(pCtx->pPrefixes, &sPrefix);
+    return 0;
+  } else {
     
-  }
-
-  /* If the best route has been chosen based on the IGP weight, then
-     there is a possible BGP impact */
-  if (route_flag_get(pRoute, ROUTE_FLAG_DP_IGP)) {
-
-    /* Is there a route (IGP ?) towards the destination ? */
-    if (pRouteInfo == NULL) {
-
-      /* The next-hop of the best route is now unreachable, thus
-	 trigger the decision process */
-      routes_list_append(pCtx->pRoutes, pRoute);
-
-      return 0;
-
+    pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+			     NET_ROUTE_ANY);
+    
+    /* Check if the IP next-hop of the BGP route has changed. Indeed,
+       the BGP next-hop is not always the IP next-hop. If this next-hop
+       has changed, the decision process must be run. */
+    if (pRouteInfo != NULL) { 
+      pCurRouteInfo= rt_find_exact(pRouter->pNode->pRT,
+				   pRoute->sPrefix, NET_ROUTE_BGP);
+      assert(pCurRouteInfo != NULL);
+      
+      if (pCurRouteInfo != pRouteInfo) {
+	_array_append(pCtx->pPrefixes, &sPrefix);
+	return 0;
+      }
     }
 
-    uBestWeight= pRouteInfo->uWeight;
+    /* If the best route has been chosen based on the IGP weight, then
+       there is a possible BGP impact */
+    if (route_flag_get(pRoute, ROUTE_FLAG_DP_IGP)) {
 
-    /* Lookup in the Adj-RIB-Ins for routes that were also selected
-       based on the IGP, that is routes that were compared to the
-       current best route based on the IGP cost to the next-hop. These
-       routes are marked with the ROUTE_FLAG_DP_IGP flag */
-    for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
-	 iIndex++) {
+      /* Is there a route (IGP ?) towards the destination ? */
+      if (pRouteInfo == NULL) {
+	/* The next-hop of the best route is now unreachable, thus
+	   trigger the decision process */
+	_array_append(pCtx->pPrefixes, &sPrefix);
+	return 0;	
+      }
 
-      pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+      uBestWeight= pRouteInfo->uWeight;
 
-      pAdjRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+      /* Lookup in the Adj-RIB-Ins for routes that were also selected
+	 based on the IGP, that is routes that were compared to the
+	 current best route based on the IGP cost to the next-hop. These
+	 routes are marked with the ROUTE_FLAG_DP_IGP flag */
+      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
+	   iIndex++) {
 
-
-      if (pAdjRoute != NULL) {
-
-	/* Is there a route (IGP ?) towards the destination ? */
-	pRouteInfo= rt_find_best(pRouter->pNode->pRT,
-				 pAdjRoute->tNextHop,
-				 NET_ROUTE_ANY);
+	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
 	
-	/* Three cases are now possible:
-	   (1) route becomes reachable => run DP
-	   (2) route no more reachable => do nothing (becoz the route is
-	   not the best
-	   (3) IGP cost is below cost of the best route => run DP
-	*/
-	if ((pRouteInfo != NULL) &&
-	    !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
-
-	  /* The next-hop was not reachable (route unfeasible) and is
-	     now reachable, thus run the decision process */
-	  routes_list_append(pCtx->pRoutes, pRoute);
-	  return 0;
-	
-	} else if (pRouteInfo != NULL) {
-
-	  /* IGP cost is below cost of the best route, thus run the
-	     decision process */
-	  if (pRouteInfo->uWeight < uBestWeight) {
-	    
-	    routes_list_append(pCtx->pRoutes, pRoute);
+	pAdjRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+		
+	if (pAdjRoute != NULL) {
+	  
+	  /* Is there a route (IGP ?) towards the destination ? */
+	  pRouteInfo= rt_find_best(pRouter->pNode->pRT,
+				   pAdjRoute->tNextHop,
+				   NET_ROUTE_ANY);
+	  
+	  /* Three cases are now possible:
+	     (1) route becomes reachable => run DP
+	     (2) route no more reachable => do nothing (becoz the route is
+	     not the best
+	     (3) IGP cost is below cost of the best route => run DP
+	  */
+	  if ((pRouteInfo != NULL) &&
+	      !route_flag_get(pAdjRoute, ROUTE_FLAG_FEASIBLE)) {
+	    /* The next-hop was not reachable (route unfeasible) and is
+	       now reachable, thus run the decision process */
+	    _array_append(pCtx->pPrefixes, &sPrefix);
 	    return 0;
 	    
-	  }	
+	  } else if (pRouteInfo != NULL) {
+	    
+	    /* IGP cost is below cost of the best route, thus run the
+	       decision process */
+	    if (pRouteInfo->uWeight < uBestWeight) {
+	      _array_append(pCtx->pPrefixes, &sPrefix);
+	      return 0;
+	    }	
+	    
+	  }
 	  
 	}
 	
       }
-
+      
     }
-
   }
-  
+    
   return 0;
+}
+
+// -----[ bgp_router_prefixes_for_each ]-----------------------------
+/**
+ *
+ */
+int bgp_router_prefixes_for_each(uint32_t uKey, uint8_t uKeyLen,
+				 void * pItem, void * pContext)
+{
+  SRadixTree * pPrefixes= (SRadixTree *) pContext;
+  SRoute * pRoute= (SRoute *) pItem;
+
+  radix_tree_add(pPrefixes, pRoute->sPrefix.tNetwork,
+		 pRoute->sPrefix.uMaskLen, (void *) 1);
+
+  return 0;
+}
+
+// -----[ bgp_router_prefixes ]--------------------------------------
+/**
+ * This function builds a list of all the prefixes known in this
+ * router (in Adj-RIB-Ins and Loc-RIB).
+ */
+SRIB * bgp_router_prefixes(SBGPRouter * pRouter)
+{
+  SRadixTree * pPrefixes= radix_tree_create(32, NULL);
+  SPeer * pPeer;
+  int iIndex;
+
+  /* Get prefixes from all Adj-RIB-Ins */
+  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+    rib_for_each(pPeer->pAdjRIBIn, bgp_router_prefixes_for_each,
+		 pPrefixes);
+  }
+
+  /* Get prefixes from the RIB */
+  rib_for_each(pRouter->pLocRIB, bgp_router_prefixes_for_each,
+	       pPrefixes);
+
+  return pPrefixes;
 }
 
 // ----- bgp_router_scan_rib ----------------------------------------
@@ -1194,27 +1237,30 @@ int bgp_router_scan_rib(SBGPRouter * pRouter)
   SScanRIBCtx sCtx;
   int iIndex;
   int iResult;
+  SRIB * pPrefixes;
 
   /* initialize context */
   sCtx.pRouter= pRouter;
-  sCtx.pRoutes= routes_list_create();
+  sCtx.pPrefixes= _array_create(sizeof(SPrefix), 0, NULL, NULL);
+
+  /* Build a list of all available prefixes in this router */
+  pPrefixes= bgp_router_prefixes(pRouter);
 
   /* Traverses the whole Loc-RIB in order to find prefixes that depend
      on the IGP (links up/down and metric changes) */
-  iResult= rib_for_each(pRouter->pLocRIB,
-			bgp_router_scan_rib_for_each,
-			&sCtx);
+  iResult= radix_tree_for_each(pPrefixes,
+			       bgp_router_scan_rib_for_each,
+			       &sCtx);
   
   /* For each route in the list, run the BGP decision process */
   if (iResult == 0)
-    for (iIndex= 0; iIndex < routes_list_get_num(sCtx.pRoutes); iIndex++) {
+    for (iIndex= 0; iIndex < _array_length(sCtx.pPrefixes); iIndex++) {
       as_decision_process(pRouter, NULL,
-			  ((SRoute *) sCtx.pRoutes->data[iIndex])->sPrefix);
+			  *((SPrefix *) &sCtx.pPrefixes->data[iIndex]));
     }
-
-
-  routes_list_destroy(&sCtx.pRoutes);
-
+    
+  _array_destroy(&sCtx.pPrefixes);
+  
   return iResult;
 }
 
