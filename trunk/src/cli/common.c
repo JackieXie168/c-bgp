@@ -6,6 +6,8 @@
 // @lastdate 27/02/2004
 // ==================================================================
 
+#include <string.h>
+
 #include <libgds/log.h>
 
 #include <cli/bgp.h>
