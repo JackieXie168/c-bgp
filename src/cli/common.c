@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/02/2004
+// @lastdate 01/06/2004
 // ==================================================================
 
 #include <string.h>
@@ -15,8 +15,28 @@
 #include <cli/net.h>
 #include <cli/sim.h>
 #include <net/prefix.h>
+#include <ui/output.h>
 
 static SCli * pTheCli= NULL;
+
+// ----- cli_set_autoflush ------------------------------------------
+int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcTemp;
+
+  pcTemp= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcTemp, "on")) {
+    iOptionAutoFlush= 1;
+  } else if (!strcmp(pcTemp, "off")) {
+    iOptionAutoFlush= 0;
+  } else {
+    LOG_FATAL("Error: invalid value \"%s\" for option \"autoflush\"\n",
+	      pcTemp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
 
 // ----- cli_include ------------------------------------------------
 int cli_include(SCliContext * pContext, STokens * pTokens)
@@ -38,7 +58,24 @@ int cli_include(SCliContext * pContext, STokens * pTokens)
 int cli_print(SCliContext * pContext, STokens * pTokens)
 {
   fprintf(stdout, tokens_get_string_at(pTokens, 0));
+  
+  flushir(stdout);
+
   return CLI_SUCCESS;
+}
+
+// void cli_register_set --------------------------------------------
+void cli_register_set(SCli * pCli)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<value>", NULL);
+  pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("autoflush", cli_set_autoflush,
+					NULL, pParams));
+  cli_register_cmd(pCli, cli_cmd_create("set", NULL, pSubCmds, NULL));
 }
 
 // ----- cli_register_include ---------------------------------------
@@ -76,6 +113,7 @@ SCli * cli_get()
     cli_register_sim(pTheCli);
     cli_register_include(pTheCli);
     cli_register_print(pTheCli);
+    cli_register_set(pTheCli);
   }
   return pTheCli;
 }

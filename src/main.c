@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 26/05/2004
+// @lastdate 01/06/2004
 // ==================================================================
 
 #include <config.h>

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 22/11/2002
-// @lastdate 24/05/2004
+// @lastdate 01/06/2004
 // ==================================================================
 
 #include <assert.h>
@@ -27,6 +27,7 @@
 #include <bgp/tie_breaks.h>
 #include <net/network.h>
 #include <net/protocol.h>
+#include <ui/output.h>
 
 unsigned long route_create_count= 0;
 unsigned long route_copy_count= 0;
@@ -1199,6 +1200,8 @@ void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter)
     route_dump(pStream, (SRoute *) pRouter->pLocalNetworks->data[iIndex]);
     fprintf(pStream, "\n");
   }
+
+  flushir(pStream);
 }
 
 // ----- bgp_router_dump_peers --------------------------------------
@@ -1213,6 +1216,8 @@ void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter)
     bgp_peer_dump(pStream, (SPeer *) pRouter->pPeers->data[iIndex]);
     fprintf(pStream, "\n");
   }
+
+  flushir(pStream);
 }
 
 typedef struct {
@@ -1231,6 +1236,9 @@ int bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
 
   route_dump(pCtx->pStream, (SRoute *) pItem);
   fprintf(pCtx->pStream, "\n");
+
+  flushir(pCtx->pStream);
+
   return 0;
 }
 
@@ -1244,6 +1252,8 @@ void bgp_router_dump_rib(FILE * pStream, SBGPRouter * pRouter)
   sCtx.pRouter= pRouter;
   sCtx.pStream= pStream;
   rib_for_each(pRouter->pLocRIB, bgp_router_dump_route, &sCtx);
+
+  flushir(pStream);
 }
 
 // ----- bgp_router_dump_rib_address --------------------------------
@@ -1263,6 +1273,8 @@ void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
     route_dump(pStream, pRoute);
     fprintf(pStream, "\n");
   }
+
+  flushir(pStream);
 }
 
 // ----- bgp_router_dump_rib_prefix ---------------------------------
@@ -1279,6 +1291,8 @@ void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
     route_dump(pStream, pRoute);
     fprintf(pStream, "\n");
   }
+
+  flushir(pStream);
 }
 
 // ----- bgp_router_dump_ribin --------------------------------------
@@ -1298,6 +1312,8 @@ void bgp_router_dump_ribin(FILE * pStream, SBGPRouter * pRouter,
   } else {
     bgp_peer_dump_ribin(pStream, pPeer, sPrefix);
   }
+
+  flushir(pStream);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1626,6 +1642,8 @@ void bgp_router_dump_recorded_route(FILE * pStream,
   fprintf(pStream, "\t");
   path_dump(pStream, pPath, 0);
   fprintf(pStream, "\n");
+
+  flushir(pStream);
 }
 
 /////////////////////////////////////////////////////////////////////

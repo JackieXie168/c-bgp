@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 20/04/2004
+// @lastdate 02/06/2004
 // ==================================================================
 
 #include <assert.h>
@@ -16,6 +16,7 @@
 #include <net/network.h>
 #include <net/net_path.h>
 #include <string.h>
+#include <ui/output.h>
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
 
@@ -291,6 +292,8 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SPrefix sPrefix)
 {
   if (pNode->pRT != NULL)
     rt_dump(pStream, pNode->pRT, sPrefix);
+
+  flushir(pStream);
 }
 
 // ----- node_rt_lookup ---------------------------------------------
