@@ -25,6 +25,7 @@ typedef struct {
   FTieBreakFunction fTieBreak;
   cluster_id_t tClusterID;
   int iRouteReflector;
+  char * pcName;
 } SAS;
 
 typedef SAS SBGPRouter;

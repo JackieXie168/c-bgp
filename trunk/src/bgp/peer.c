@@ -66,6 +66,7 @@ void peer_destroy(SPeer ** ppPeer)
   }
 }
 
+   
 // ----- peer_flag_set ----------------------------------------------
 /**
  * Change the state of a flag of this peer.

@@ -62,7 +62,9 @@ libbgp_la_SOURCES = \
 	route_t.h \
 	stats.h \
 	tie_breaks.c \
-	tie_breaks.h
+	tie_breaks.h \
+	xml_topology.c \
+	xml_topology.h
 
 AM_CFLAGS = -Wall -Werror -O2
 

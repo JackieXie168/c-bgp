@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/11/2002
-// @lastdate 26/05/2004
+// @lastdate 15/09/2004
 // ==================================================================
 
 #include <assert.h>
@@ -20,6 +20,17 @@ net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
 				uint8_t uC, uint8_t uD)
 {
   return (((((((net_addr_t) uA) << 8) + uB) << 8) + uC) << 8) + uD;
+}
+
+// ----- ip_address_to_string ----------------------------------------
+/**
+ *
+ *
+ */
+void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
+{
+  sprintf(pcAddr, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255, 
+	  (tAddr >> 8) & 255, tAddr & 255);
 }
 
 // ----- ip_address_dump --------------------------------------------
@@ -78,6 +89,19 @@ void ip_prefix_dump(FILE * pStream, SPrefix sPrefix)
 	  sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
 	  (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
 	  sPrefix.uMaskLen);
+}
+
+// ----- ip_prefix_to_string ----------------------------------------
+/**
+ *
+ *
+ */
+void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix)
+{
+  sprintf(pcPrefix, "%u.%u.%u.%u/%u", 
+      pPrefix->tNetwork >> 24, (pPrefix->tNetwork >> 16) & 255,
+      (pPrefix->tNetwork >> 8) & 255, pPrefix->tNetwork & 255,
+      pPrefix->uMaskLen);
 }
 
 // ----- ip_string_to_prefix ----------------------------------------
