@@ -3,9 +3,10 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 27/02/2004
+// @lastdate 05/03/2004
 // ==================================================================
 
+#include <libgds/log.h>
 #include <libgds/memory.h>
 #include <net/routing.h>
 
@@ -110,6 +111,16 @@ int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 {
   return radix_tree_add((SRadixTree *) pRT, sPrefix.tNetwork,
 			sPrefix.uMaskLen, pRouteInfo);
+}
+
+// ----- rt_del_route -----------------------------------------------
+/**
+ *
+ */
+int rt_del_route(SNetRT * pRT, SPrefix sPrefix)
+{
+  LOG_SEVERE("Error: not implemented, sorry.\n");
+  return -1;
 }
 
 // ----- rt_dump_for_each -------------------------------------------

@@ -56,8 +56,8 @@ void fatal_error(char * pcMessage)
  */
 void simulation_init()
 {
-  fprintf(stdout, "cbgp> init.\n");
-  fflush(stdout);
+  if (iOptInteractive)
+    fprintf(stdout, "cbgp> init.\n");
   simulator_init();
 }
 
@@ -67,8 +67,8 @@ void simulation_init()
  */
 void simulation_done()
 {
-  fprintf(stdout, "cbgp> done.\n");
-  fflush(stdout);
+  if (iOptInteractive)
+    fprintf(stdout, "cbgp> done.\n");
   simulator_done();
 }
 

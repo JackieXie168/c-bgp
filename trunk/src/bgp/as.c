@@ -1123,21 +1123,21 @@ void bgp_router_dump_recorded_route(FILE * pStream,
   iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, iPreserveDups);
 
   // Display record-route results
-  ip_address_dump(stdout, pRouter->pNode->tAddr);
-  fprintf(stdout, "\t");
-  ip_prefix_dump(stdout, sPrefix);
-  fprintf(stdout, "\t");
+  ip_address_dump(pStream, pRouter->pNode->tAddr);
+  fprintf(pStream, "\t");
+  ip_prefix_dump(pStream, sPrefix);
+  fprintf(pStream, "\t");
   switch (iResult) {
-  case AS_RECORD_ROUTE_SUCCESS: fprintf(stdout, "SUCCESS"); break;
-  case AS_RECORD_ROUTE_TOO_LONG: fprintf(stdout, "TOO_LONG"); break;
-  case AS_RECORD_ROUTE_UNREACH: fprintf(stdout, "UNREACHABLE"); break;
+  case AS_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
+  case AS_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
+  case AS_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACHABLE"); break;
   default:
-    fprintf(stdout, "UNKNOWN_ERROR");
+    fprintf(pStream, "UNKNOWN_ERROR");
   }
-  fprintf(stdout, "\t");
-  path_dump(stdout, pPath, 0);
+  fprintf(pStream, "\t");
+  path_dump(pStream, pPath, 0);
   path_destroy(&pPath);
-  fprintf(stdout, "\n");
+  fprintf(pStream, "\n");
 }
 
 /////////////////////////////////////////////////////////////////////
