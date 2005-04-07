@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 05/04/2005
+// @lastdate 07/04/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -283,8 +283,10 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 
   /* Check header, length and get type (route/update/withdraw) */
   tType= mrtd_check_header(pTokens);
-  if (tType == MRTD_TYPE_INVALID)
+  if (tType == MRTD_TYPE_INVALID) {
+    LOG_SEVERE("Error: invalid headers\n");
     return -1;
+  }
 
   /* Check the PeerIP field */
   pcTemp= tokens_get_string_at(pTokens, 3);
@@ -358,9 +360,10 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return -1;
   }
 
+  /*
   if ((pRouter != NULL) && (pRouter->pNode->tAddr != tNextHop)) {
     
-    /* Look for the peer in the router... */
+    // Look for the peer in the router...
     pPeer= bgp_router_find_peer(pRouter, tNextHop);
     if (pPeer == NULL) {
       LOG_SEVERE("Error: peer not found \"");
@@ -370,7 +373,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
       return -1;
     }
       
-  }
+  }*/
 
   /* Check the LOCAL-PREF */
   if (tokens_get_ulong_at(pTokens, 9, &ulLocalPref)) {
@@ -480,8 +483,10 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
   
   switch (mrtd_create_route(pRouter, pTokens, &sPrefix, &pRoute)) {
   case MRTD_TYPE_UPDATE:
+    /*
     if (pRoute->pPeer != pPeer)
       break;
+    */
     pMsg= bgp_msg_update_create(pPeer->tAddr, pRoute);
     break;
   case MRTD_TYPE_WITHDRAW:
