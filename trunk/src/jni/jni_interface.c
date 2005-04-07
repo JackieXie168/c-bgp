@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 29/03/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -405,7 +405,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
     return  NULL;
 
   /* Convert the destination */
-  if (ip_jstring_to_address(env, jsDstAddr, &sDest.tAddr) != 0)
+  if (ip_jstring_to_address(env, jsDstAddr, &sDest.uDest.tAddr) != 0)
     return NULL;
   sDest.tType= NET_DEST_ADDRESS;
 
@@ -413,7 +413,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
   iStatus= node_record_route(pNode, sDest, &pPath, &tDelay, &tWeight);
 
   /* Convert to an IPTrace object */
-  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, sDest.tAddr,
+  joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, sDest.uDest.tAddr,
 				  pPath, iStatus, tDelay, tWeight);    
 
   net_path_destroy(&pPath);

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 06/04/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -727,6 +727,7 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
   SBGPMsgWithdraw * pMsgWithdraw;
   SRoute * pRoute;
   SRoute * pOldRoute;
+  SPrefix sPrefix;
   int iNeedDecisionProcess;
 
   LOG_DEBUG("> AS%d.peer_handle_message.begin\n", pPeer->pLocalRouter->uNumber);
@@ -770,6 +771,8 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
 	 route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
 	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE))
       iNeedDecisionProcess= 1;
+
+    sPrefix= pRoute->sPrefix;
     
     // Replace former route in Adj-RIB-In
     if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
@@ -782,8 +785,8 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
 
     // Run decision process for this route
     if (iNeedDecisionProcess)
-      bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
-				  pRoute->sPrefix);
+      bgp_router_decision_process(pPeer->pLocalRouter, pPeer, sPrefix);
+
     break;
   case BGP_MSG_WITHDRAW:
     peer_session_withdraw_rcvd(pPeer);

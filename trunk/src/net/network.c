@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 05/04/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1013,11 +1013,11 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
     iReached= 0;
     switch (sDest.tType) {
     case NET_DEST_ADDRESS:
-      iReached= (pCurrentNode->tAddr == sDest.tAddr);
+      iReached= (pCurrentNode->tAddr == sDest.uDest.tAddr);
       break;
     case NET_DEST_PREFIX:
       iReached= ip_address_in_prefix(pCurrentNode->tAddr,
-				     sDest.sPrefix);
+				     sDest.uDest.sPrefix);
     }
 
     if (iReached) {
@@ -1050,10 +1050,10 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
       // Lookup the next-hop for this destination
       switch (sDest.tType) {
       case NET_DEST_ADDRESS:
-	pLink= node_rt_lookup(pCurrentNode, sDest.tAddr);
+	pLink= node_rt_lookup(pCurrentNode, sDest.uDest.tAddr);
 	break;
       case NET_DEST_PREFIX:
-	pRouteInfo= rt_find_exact(pCurrentNode->pRT, sDest.sPrefix,
+	pRouteInfo= rt_find_exact(pCurrentNode->pRT, sDest.uDest.sPrefix,
 			     NET_ROUTE_ANY);
 	if (pRouteInfo != NULL)
 	  pLink= pRouteInfo->pNextHopIf;
