@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 29/03/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -804,7 +804,7 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest)
     break;
 
   case NET_DEST_ADDRESS:
-    pRouteInfo= rt_find_best(pRT, sDest.sPrefix.tNetwork, NET_ROUTE_ANY);
+    pRouteInfo= rt_find_best(pRT, sDest.uDest.sPrefix.tNetwork, NET_ROUTE_ANY);
     if (pRouteInfo != NULL) {
       //ip_address_dump(pStream, sDest.sPrefix.tNetwork);
       //fprintf(pStream, "\t");
@@ -814,7 +814,7 @@ void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest)
     break;
 
   case NET_DEST_PREFIX:
-    pRouteInfo= rt_find_exact(pRT, sDest.sPrefix, NET_ROUTE_ANY);
+    pRouteInfo= rt_find_exact(pRT, sDest.uDest.sPrefix, NET_ROUTE_ANY);
     if (pRouteInfo != NULL) {
       //ip_prefix_dump(pStream, sDest.sPrefix);
       //fprintf(pStream, "\t");

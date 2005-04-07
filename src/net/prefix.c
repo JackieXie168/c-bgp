@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 29/03/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -192,15 +192,15 @@ int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
   if (!strcmp(pcPrefix, "*")) {
 
     psDest->tType= NET_DEST_ANY;
-    psDest->sPrefix.uMaskLen= 0;
+    psDest->uDest.sPrefix.uMaskLen= 0;
 
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &psDest->sPrefix) &&
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &psDest->uDest.sPrefix) &&
 	     (*pcEndChar == 0)) {
 
     psDest->tType= NET_DEST_PREFIX;
 
   } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
-				   &psDest->sPrefix.tNetwork) &&
+				   &psDest->uDest.sPrefix.tNetwork) &&
 	     (*pcEndChar == 0)) {
 
     psDest->tType= NET_DEST_ADDRESS;
@@ -223,10 +223,10 @@ void ip_dest_dump(FILE * pStream, SNetDest sDest)
 {
   switch (sDest.tType) {
   case NET_DEST_ADDRESS:
-    ip_address_dump(pStream, sDest.tAddr);
+    ip_address_dump(pStream, sDest.uDest.tAddr);
     break;
   case NET_DEST_PREFIX:
-    ip_prefix_dump(pStream, sDest.sPrefix);
+    ip_prefix_dump(pStream, sDest.uDest.sPrefix);
     break;
   case NET_DEST_ANY:
     fprintf(pStream, "*");

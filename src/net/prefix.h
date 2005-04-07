@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 29/03/2005
+// @lastdate 07/04/2005
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -29,12 +29,13 @@ typedef struct {
 #define NET_DEST_ADDRESS 1
 #define NET_DEST_PREFIX  2
 #define NET_DEST_ANY     3
+typedef union {
+    SPrefix sPrefix;
+    net_addr_t tAddr;  
+} UNetDest;
 typedef struct {
   uint8_t tType;
-  union {
-    SPrefix sPrefix;
-    net_addr_t tAddr;
-  };
+  UNetDest uDest;
 } SNetDest;
 
 // ----- ip_address_to_string ----------------------------------------
