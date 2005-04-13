@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 07/04/2005
+# @lastdate 13/04/2005
 # ===================================================================
 
 use strict;
@@ -38,7 +38,9 @@ use constant CBGP_RIB_MED => 4;
 use constant CBGP_RIB_PATH => 5;
 use constant CBGP_RIB_ORIGIN => 6;
 use constant CBGP_RIB_COMMUNITY => 7;
-#use constant CBGP_RIB_ => 8;
+use constant CBGP_RIB_ECOMMUNITY => 8;
+use constant CBGP_RIB_ORIGINATOR => 9;
+use constant CBGP_RIB_CLUSTERLIST => 10;
 
 use constant MRT_PREFIX => 5;
 use constant MRT_NEXTHOP => 8;
@@ -139,6 +141,34 @@ sub test_cache_write()
     }
 }
 
+# -----[ canonic_prefix ]--------------------------------------------
+#
+# -------------------------------------------------------------------
+sub canonic_prefix($)
+{
+    my $prefix= shift;
+    my ($network, $mask);
+
+    if ($prefix =~ m/^([0-9.]+)\/([0-9]+)$/) {
+	$network= $1;
+	$mask= $2;
+    } else {
+	die "Error: invalid prefix [$prefix]";
+    }
+
+    my @fields= split /\./, $network;
+    my $network_int= (($fields[0]*256+
+		       (defined($fields[1])?$fields[1]:0))*256+
+		      (defined($fields[2])?$fields[2]:0))*256+
+		      (defined($fields[3])?$fields[3]:0);
+    $network_int= $network_int >> (32-$mask);
+    $network_int= $network_int << (32-$mask);
+    return "".(($network_int >> 24) & 255).".".
+	(($network_int >> 16) & 255).".".
+	(($network_int >> 8) & 255).".".
+	($network_int & 255)."/$mask";
+}
+
 # -----[ topo_from_ntf ]---------------------------------------------
 sub topo_from_ntf($)
 {
@@ -192,6 +222,18 @@ sub topo_3nodes_line()
     my %topo;
     $topo{'1.0.0.1'}{'1.0.0.2'}= [10, 10];
     $topo{'1.0.0.2'}{'1.0.0.3'}= [10, 10];
+    return \%topo;
+}
+
+# -----[ topo_4nodes_star ]------------------------------------------
+sub topo_star($)
+{
+    my ($num_nodes)= @_;
+    my %topo;
+    
+    for (my $index= 0; $index < $num_nodes-1; $index++) {
+	$topo{'1.0.0.1'}{'1.0.0.'.($index+2)}= [10, 10];
+    }
     return \%topo;
 }
 
@@ -487,9 +529,29 @@ sub cbgp_topo_check_igp_reachability($$)
 	    if (!exists($routes->{"$node2/32"})) {
 		return 0;
 	    }
-	    if ($routes->{"$node2/32"}->[CBGP_RT_PROTO] eq "IGP") {
+	    if ($routes->{"$node2/32"}->[CBGP_RT_PROTO] ne "IGP") {
 		return 0;
 	    }
+	}
+    }
+    return 1;
+}
+
+# -----[ cbgp_rib_check ]--------------------------------------------
+sub cbgp_rib_check($$;@)
+{
+    my ($rib, $prefix, @constraints)= @_;
+    
+    $prefix= canonic_prefix($prefix);
+    
+    if (!exists($rib->{$prefix})) {
+	return 0;
+    }
+    my $route= $rib->{$prefix};
+    foreach my $constraint (@constraints) {
+	my ($field, $value)= @$constraint;
+	if ($route->[$field] ne $value) {
+	    return 0;
 	}
     }
     return 1;
@@ -754,10 +816,10 @@ sub cbgp_show_rib_mrt($$;$)
     die if $cbgp->send("print \"done\\n\"\n");
     die if $cbgp->send("bgp options show-mode cisco\n");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~ m/^(.?)\|([0-9.]+)\|([0-9]+)\|([0-9.\/]+)\|([0-9 ]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|.+$/) {
+	if ($result =~
+    m/^(.?)\|(LOCAL|[0-9.]+)\|(LOCAL|[0-9]+)\|([0-9.\/]+)\|([0-9 null]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|([0-9]*)\|.+$/) {
 	    my @fields= split /\|/, $result;
 	    my @path= split /\s/, $fields[4];
-	    my @communities= split /\s/, $fields[9];
 	    my @route;
 	    $route[CBGP_RIB_STATUS]= $fields[0];
 	    $route[CBGP_RIB_PREFIX]= $fields[3];
@@ -766,11 +828,22 @@ sub cbgp_show_rib_mrt($$;$)
 	    $route[CBGP_RIB_PREF]= $fields[7];
 	    $route[CBGP_RIB_MED]= $fields[8];
 	    if (@fields > 9) {
+		my @communities= split /\s/, $fields[9];
 		$route[CBGP_RIB_COMMUNITY]= \@communities;
+	    }
+	    if (@fields > 10) {
+		my @communities= split /\s/, $fields[10];
+		$route[CBGP_RIB_ECOMMUNITY]= \@communities;
+	    }
+	    if (@fields > 11) {
+		$route[CBGP_RIB_ORIGINATOR]= $fields[11];
+	    }
+	    if (@fields > 12) {
+		$route[CBGP_RIB_CLUSTERLIST]= $fields[12];
 	    }
 	    $rib{$4}= \@route;
 	} else {
-	    show_error("incorrect format (show rib): \"$result\"");
+	    show_error("incorrect format (show rib mrt): \"$result\"");
 	    exit(-1);
 	}
     }
@@ -1782,14 +1855,11 @@ sub cbgp_valid_bgp_filter_match_community()
 		     "253/8|2|IGP|2.0.0.1|0|0|1:60");
     my $rib;
     $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.1");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_PREF] == 100) or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_PREF, 100])) or
 	return TEST_FAILURE;
-    (exists($rib->{"254.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"254.0.0.0/8"}->[CBGP_RIB_PREF] == 80) or
+    (cbgp_rib_check($rib, "254/8", [CBGP_RIB_PREF, 80])) or
 	return TEST_FAILURE;
-    (exists($rib->{"253.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"253.0.0.0/8"}->[CBGP_RIB_PREF] == 60) or
+    (cbgp_rib_check($rib, "253/8", [CBGP_RIB_PREF, 60])) or
 	return TEST_FAILURE;
     return TEST_SUCCESS;
 }
@@ -1825,12 +1895,10 @@ sub cbgp_valid_igp_bgp()
     die if $cbgp->send("sim run\n");
     my $rib;
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.1") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.1"])) or
 	return TEST_FAILURE;
     $rib= cbgp_show_rib($cbgp, "1.0.0.5");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.3") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.3"])) or 
 	return TEST_FAILURE;
     # Peering failure 1.0.0.1 2.0.0.1
     die if $cbgp->send("net link 1.0.0.1 2.0.0.1 down\n");
@@ -1838,8 +1906,7 @@ sub cbgp_valid_igp_bgp()
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.2") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.2"])) or
 	return TEST_FAILURE;
     # Link failure 1.0.0.1 1.0.0.2
     die if $cbgp->send("net link 1.0.0.1 1.0.0.2 down\n");
@@ -1847,8 +1914,7 @@ sub cbgp_valid_igp_bgp()
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.3") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.3"])) or 
 	return TEST_FAILURE;
     # Peering failure 1.0.0.3 2.0.0.3
     die if $cbgp->send("net link 1.0.0.3 2.0.0.3 down\n");
@@ -1856,18 +1922,22 @@ sub cbgp_valid_igp_bgp()
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.2") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.2"])) or
 	return TEST_FAILURE;
     $rib= cbgp_show_rib($cbgp, "1.0.0.5");
-    (exists($rib->{"255.0.0.0/8"})) or return TEST_FAILURE;
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] eq "1.0.0.2") or
+    (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.2"])) or
 	return TEST_FAILURE;
     print STDERR " OK :-)";
     # TODO: test link up
     # TODO: check presence of routes in Adj-RIB-ins, etc.
     # TODO: check presence of routes in IP table...
     return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_igp_bgp_med ]------------------------------------
+sub cbgp_valid_igp_bgp_med($)
+{
+    return TEST_SKIPPED;
 }
 
 # -----[ cbgp_valid_bgp_load_rib ]-----------------------------------
@@ -1914,9 +1984,105 @@ sub cbgp_valid_bgp_deflection()
 }
 
 # -----[ cbgp_valid_bgp_rr ]-----------------------------------------
-sub cbgp_valid_bgp_rr()
+# Check that
+# - a route received from an rr-client is reflected to all the peers
+# - a route received from a non rr-client is only reflected to the
+#   rr-clients
+# - a route received over eBGP is propagated to all the peers
+sub cbgp_valid_bgp_rr($)
 {
+    my ($cbgp)= @_;
 
+    my $topo= topo_star(6);
+    cbgp_topo($cbgp, $topo);
+    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+    die if $cbgp->send("bgp router 1.0.0.1\n");
+    die if $cbgp->send("\tadd network 255/8\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("bgp add router 1 1.0.0.2\n");
+    die if $cbgp->send("bgp router 1.0.0.2\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.1\n");
+    die if $cbgp->send("\tpeer 1.0.0.1 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.3\n");
+    die if $cbgp->send("\tpeer 1.0.0.3 rr-client\n");
+    die if $cbgp->send("\tpeer 1.0.0.3 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.4\n");
+    die if $cbgp->send("\tpeer 1.0.0.4 up\n");
+    die if $cbgp->send("\tadd peer 2 1.0.0.5\n");
+    die if $cbgp->send("\tpeer 1.0.0.5 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.6\n");
+    die if $cbgp->send("\tpeer 1.0.0.6 rr-client\n");
+    die if $cbgp->send("\tpeer 1.0.0.6 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("bgp add router 1 1.0.0.3\n");
+    die if $cbgp->send("bgp router 1.0.0.3\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("bgp add router 1 1.0.0.4\n");
+    die if $cbgp->send("bgp router 1.0.0.4\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("bgp add router 2 1.0.0.5\n");
+    die if $cbgp->send("bgp router 1.0.0.5\n");
+    die if $cbgp->send("\tadd network 254/8\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("bgp add router 1 1.0.0.6\n");
+    die if $cbgp->send("bgp router 1.0.0.6\n");
+    die if $cbgp->send("\tadd network 253/8\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\texit\n");
+    die if $cbgp->send("sim run\n");
+    my $rib;
+    # Peer 1.0.0.1 must have received all routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.1");
+    (cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    # RR must have received all routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.2");
+    (cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    # RR-client 1.0.0.3 must have received all routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.3");
+    (cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    # Peer 1.0.0.4 must only have received the 254/8 and 253/8 routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.4");
+    (!cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    # External peer 1.0.0.5 must have received all routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.5");
+    (cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    # RR-client 1.0.0.6 must have received all routes
+    $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.6");
+    (cbgp_rib_check($rib, "255/8") &&
+     cbgp_rib_check($rib, "254/8") &&
+     cbgp_rib_check($rib, "253/8")) or return TEST_FAILURE;
+    return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_rr_originator_id ]---------------------------
+sub cbgp_valid_bgp_rr_originator_id($)
+{
+    return TEST_SKIPPED;
+}
+
+# -----[ cbgp_valid_bgp_rr_cluster_id_list ]-------------------------
+sub cbgp_valid_bgp_rr_cluster_id_list($)
+{
     return TEST_SKIPPED;
 }
 
@@ -1992,15 +2158,14 @@ push @tests, (["bgp filter match next-hop",
 push @tests, (["bgp filter match prefix",
 	       \&cbgp_valid_bgp_filter_match_prefix]);
 push @tests, (["igp/bgp", \&cbgp_valid_igp_bgp]);
+push @tests, (["igp/bgp update med", \&cbgp_valid_igp_bgp_med]);
 push @tests, (["bgp load rib", \&cbgp_valid_bgp_load_rib]);
 push @tests, (["bgp deflection", \&cbgp_valid_bgp_deflection]);
 push @tests, (["bgp route-reflection", \&cbgp_valid_bgp_rr]);
-#push @tests, (["bgp route-reflection (originator-id)",
-#\&cbgp_valid_bgp_rr]);
-#push @tests, (["bgp route-reflection (cluster-id-list)",
-#\&cbgp_valid_bgp_rr]);
-#push @tests, (["bgp route-reflection (cluster-id-list)",
-#\&cbgp_valid_bgp_rr]);
+push @tests, (["bgp route-reflection (originator-id)",
+	       \&cbgp_valid_bgp_rr_originator_id]);
+push @tests, (["bgp route-reflection (cluster-id-list)",
+	       \&cbgp_valid_bgp_rr_cluster_id_list]);
 push @tests, (["bgp implicit-withdraw",
 	       \&cbgp_valid_bgp_implicit_withdraw]);
 #push @tests, (["", \&]);
