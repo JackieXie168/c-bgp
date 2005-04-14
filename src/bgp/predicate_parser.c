@@ -73,20 +73,19 @@ int predicate_parse_sub_expr(char ** ppcExpr, SFilterMatcher ** ppMatcher)
   int iLen;
   int iError;
 
-  pcTmpExpr = *ppcExpr;
-  while (*pcTmpExpr && (strchr(")", *pcTmpExpr) == NULL)) {
-    if (*pcTmpExpr == '\"') {
-      pcTmpExpr++;
-      while (*pcTmpExpr && *pcTmpExpr != '\"') {
-	pcTmpExpr++;
+  pcPos = *ppcExpr;
+  while (*pcPos && (strchr(")", *pcPos) == NULL)) {
+    if (*pcPos == '\"') {
+      pcPos++;
+      while (*pcPos && *pcPos != '\"') {
+	pcPos++;
       }
-      if (!*pcTmpExpr)
+      if (!*pcPos)
 	return -1;
     }
-    pcTmpExpr++;
+    pcPos++;
   }
 
-  pcPos = pcTmpExpr;
   if (pcPos == NULL)
     return -1;
 
