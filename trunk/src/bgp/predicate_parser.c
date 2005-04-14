@@ -67,13 +67,13 @@ int predicate_parse_sub_atom(char ** ppcExpr, SFilterMatcher ** ppMatcher)
  */
 int predicate_parse_sub_expr(char ** ppcExpr, SFilterMatcher ** ppMatcher)
 {
-  char * pcPos;//= strchr(*ppcExpr, ')');
+  char * pcPos;
   char *pcSubExpr;
   char *pcTmpExpr;
   int iLen;
   int iError;
 
-  pcTmpExpr = **ppcExpr;
+  pcTmpExpr = *ppcExpr;
   while (*pcTmpExpr && (strchr(")", *pcTmpExpr) == NULL)) {
     if (*pcTmpExpr == '\"') {
       pcTmpExpr++;
