@@ -738,10 +738,10 @@ SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry)
 /**
  *
  */
-#ifdef HAVE_BGPDUMP
 SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
 			   SFilterMatcher * pMatcher)
 {
+#ifdef HAVE_BGPDUMP
   BGPDUMP * fDump;
   BGPDUMP_ENTRY * pDumpEntry= NULL;
   SRoute * pRoute;
@@ -776,8 +776,10 @@ SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
   bgpdump_close_dump(fDump);
 
   return pRoutes;
-}
+#else
+  return NULL;
 #endif
+}
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
