@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 17/05/2005
+// @lastdate 18/05/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -560,6 +560,7 @@ SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter, char * pcFileName)
 /**
  *
  */
+#ifdef HAVE_BGPDUMP
 SCommunities * mrtd_process_community(struct community * com)
 {
   SCommunities * pCommunities= NULL;
@@ -578,6 +579,7 @@ SCommunities * mrtd_process_community(struct community * com)
 
   return pCommunities;
 }
+#endif
 
 // -----[ mrtd_process_aspath ]--------------------------------------
 /**
@@ -587,6 +589,7 @@ SCommunities * mrtd_process_community(struct community * com)
  * This function only supports SETs and SEQUENCEs. If such a segment
  * is found, the function will fail (and return NULL).
  */
+#ifdef HAVE_BGPDUMP
 SPath * mrtd_process_aspath(struct aspath * path)
 {
   SPath * pPath= NULL;
@@ -650,6 +653,7 @@ SPath * mrtd_process_aspath(struct aspath * path)
 
   return pPath;
 }
+#endif
 
 // -----[ mrtd_process_table_dump ]----------------------------------
 /**
@@ -661,6 +665,7 @@ SPath * mrtd_process_aspath(struct aspath * path)
  *
  * todo: conversion of communities
  */
+#ifdef HAVE_BGPDUMP
 SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
 {
   BGPDUMP_MRTD_TABLE_DUMP * pTableDump= &pEntry->body.mrtd_table_dump;
@@ -709,12 +714,14 @@ SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
 
   return pRoute;
 }
+#endif
 
 // -----[ mrtd_process_entry ]---------------------------------------
 /**
  * Convert a bgpdump entry to a route. Only supports entries of type
  * TABLE DUMP, for adress family AF_IP (IPv4).
  */
+#ifdef HAVE_BGPDUMP
 SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry)
 {
   SRoute * pRoute= NULL;
@@ -725,6 +732,7 @@ SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry)
 
   return pRoute;
 }
+#endif
 
 // -----[ mrtd_load_routes ]-----------------------------------------
 /**
