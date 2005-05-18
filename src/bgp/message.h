@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 02/02/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -73,5 +73,8 @@ extern void bgp_msg_monitor_open(char * pcFileName);
 // ----- bgp_msg_monitor_write --------------------------------------
 extern void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
 				  net_addr_t tAddr);
+
+// -----[ -message_destroy ]-----------------------------------------
+extern void _message_destroy();
 
 #endif

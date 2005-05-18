@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 31/03/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -790,9 +790,6 @@ void ft_cli_register_action_ext_community()
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
-
-void _ft_registry_init() __attribute__((constructor));
-void _ft_registry_destroy() __attribute__((destructor));
 
 // ----- _ft_registry_init --------------------------------------
 /**

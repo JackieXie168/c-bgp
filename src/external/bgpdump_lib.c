@@ -48,6 +48,10 @@ To Do             :
 -------------------------------------------------------------------------------
 */
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
 #include "bgpdump_lib.h"
 #include "bgpdump_mstream.h"
 
@@ -86,7 +90,7 @@ static    void process_attr_community_string(struct community *com);
 
 static    void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
 static    void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
-static    u_int16_t read_prefix_list(struct mstream *s, int len, u_int16_t af, struct prefix **prefixarray, struct zebra_incomplete *incomplete);
+static    uint16_t read_prefix_list(struct mstream *s, int len, uint16_t af, struct prefix **prefixarray, struct zebra_incomplete *incomplete);
 
 #if defined(linux)
 static    size_t strlcat(char *dst, const char *src, size_t size);
@@ -198,8 +202,8 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 }
 
 void bgpdump_free_mp_info(struct mp_info *info) {
-    u_int16_t afi;
-    u_int8_t safi;
+    uint16_t afi;
+    uint8_t safi;
 
     for(afi = 1; afi < BGPDUMP_MAX_AFI; afi++) {
 	for(safi = 1; safi < BGPDUMP_MAX_SAFI; safi++) {
@@ -214,7 +218,7 @@ void bgpdump_free_mp_info(struct mp_info *info) {
 }
 
 void bgpdump_free_mem(BGPDUMP_ENTRY *entry) {
-    u_int16_t i;
+    uint16_t i;
 
     if(entry!=NULL) {
 	if(entry->attr != NULL) {
@@ -312,7 +316,7 @@ int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry) {
     }
     mstream_getc(s,&entry->body.mrtd_table_dump.mask);
     mstream_getc(s,&entry->body.mrtd_table_dump.status);
-    mstream_getl(s,(u_int32_t *)&entry->body.mrtd_table_dump.uptime);
+    mstream_getl(s,(uint32_t *)&entry->body.mrtd_table_dump.uptime);
     if(afi == AFI_IP)
 	mstream_get_ipv4(s, &entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
 #ifdef BGPDUMP_HAVE_IPV6
@@ -594,8 +598,8 @@ void process_attr_init(BGPDUMP_ENTRY *entry) {
 void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomplete *incomplete) {
     u_char	flag;
     u_char	type;
-    u_int32_t	len, end;
-    u_int32_t	truelen;
+    uint32_t	len, end;
+    uint32_t	truelen;
     struct unknown_attr *unknown;
     
     mstream_getw(s, &attr->len);
@@ -888,15 +892,15 @@ void process_attr_community_string(struct community *com) {
 
   char buf[BUFSIZ];
   int i;
-  u_int32_t comval;
-  u_int16_t as;
-  u_int16_t val;
+  uint32_t comval;
+  uint16_t as;
+  uint16_t val;
 
   memset (buf, 0, BUFSIZ);
 
   for (i = 0; i < com->size; i++) 
     {
-      memcpy (&comval, com_nthval (com, i), sizeof (u_int32_t));
+      memcpy (&comval, com_nthval (com, i), sizeof (uint32_t));
       comval = ntohl (comval);
       switch (comval) 
 	{
@@ -923,10 +927,10 @@ void process_attr_community_string(struct community *com) {
 }
 
 void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete) {
-	u_int16_t afi;
-	u_int8_t safi;
-	u_int8_t num_snpa;
-	u_int8_t snpa_len;
+	uint16_t afi;
+	uint8_t safi;
+	uint8_t num_snpa;
+	uint8_t snpa_len;
 	struct mp_nlri *mp_nlri;
 
 	mstream_getw(s, &afi);
@@ -1002,8 +1006,8 @@ void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struc
 }
 
 void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete) {
-	u_int16_t afi;
-	u_int8_t safi;
+	uint16_t afi;
+	uint8_t safi;
 	struct mp_nlri *mp_nlri;
 
 	mstream_getw(s, &afi);
@@ -1035,11 +1039,11 @@ void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struc
 	mp_nlri->prefix_count = read_prefix_list(s, len, afi, &mp_nlri->nlri, incomplete);
 }
 
-u_int16_t read_prefix_list(struct mstream *s, int len, u_int16_t afi,
+uint16_t read_prefix_list(struct mstream *s, int len, uint16_t afi,
                            struct prefix **prefixarray, struct zebra_incomplete *incomplete) {
-	u_int8_t p_len;
-	u_int8_t p_bytes;
-	u_int16_t count = 0;
+	uint8_t p_len;
+	uint8_t p_bytes;
+	uint16_t count = 0;
 	struct prefix *prefixes = *prefixarray;
 
 	if(afi > BGPDUMP_MAX_AFI) {

@@ -1,4 +1,4 @@
-/* $Id: bgpdump.h,v 1.1 2005-02-23 08:16:01 bqu Exp $ */
+/* $Id: bgpdump.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
 /*
 
 Copyright (c) 2002                      RIPE NCC
@@ -52,14 +52,24 @@ To Do             :
 #ifndef _BGPDUMP_H
 #define _BGPDUMP_H
 
-#if HAVE_CONFIG
+#ifdef HAVE_CONFIG_H
 # include <config.h>
+#endif
+
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#else
+# if HAVE_STDINT_H
+#  include <stdint.h>
+# else
+#  error "no HAVE_INTTYPES_H or HAVE_STDINT_H"
+# endif 
 #endif
 
 #include <sys/types.h>
 #include <netinet/in.h>
 
-typedef u_int16_t as_t;
+typedef uint16_t as_t;
 
 typedef union union_BGPDUMP_IP_ADDRESS {
     struct in_addr	v4_addr;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 31/03/2005
+// @lastdate 13/04/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -77,8 +77,10 @@ extern int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix);
 // ----- as_add_qos_network -----------------------------------------
 extern int as_add_qos_network(SBGPRouter * pRouter, SPrefix sPrefix,
 			      net_link_delay_t tDelay);
-// ----- bgp_router_run ---------------------------------------------
-extern int bgp_router_run(SBGPRouter * pRouter);
+// ----- bgp_router_start -------------------------------------------
+extern int bgp_router_start(SBGPRouter * pRouter);
+// ----- bgp_router_stop --------------------------------------------
+extern int bgp_router_stop(SBGPRouter * pRouter);
 // ----- bgp_router_dump_adj_rib_in ---------------------------------
 extern int bgp_router_dump_adj_rib_in(FILE * pStream, SBGPRouter * pRouter,
 				      SPrefix sPrefix);

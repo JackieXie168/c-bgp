@@ -1,4 +1,4 @@
-/* $Id: bgpdump_attr.h,v 1.1 2005-02-23 08:16:01 bqu Exp $ */
+/* $Id: bgpdump_attr.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
 /*
 
 Copyright (c) 2002                      RIPE NCC
@@ -122,10 +122,10 @@ To Do             :
 
 struct unknown_attr
 {
-	u_int16_t	real_len;
-	u_int8_t	flag;
-	u_int8_t	type;
-	u_int16_t	len;
+	uint16_t	real_len;
+	uint8_t	flag;
+	uint8_t	type;
+	uint16_t	len;
 	u_char *	raw;
 };
 
@@ -135,16 +135,16 @@ struct attr
   unsigned long refcnt;
 
   /* Flag of attribute is set or not. */
-  u_int32_t flag;
+  uint32_t flag;
 
   /* Attributes. */
   u_char 		origin;
   struct in_addr 	nexthop;
-  u_int32_t 		med;
-  u_int32_t 		local_pref;
+  uint32_t 		med;
+  uint32_t 		local_pref;
   as_t 			aggregator_as;
   struct in_addr 	aggregator_addr;
-  u_int32_t 		weight;
+  uint32_t 		weight;
   struct in_addr 	originator_id;
   struct cluster_list	*cluster;
 
@@ -156,10 +156,10 @@ struct attr
   /* libbgpdump additions */
   
   struct mp_info	*mp_info;
-  u_int16_t		len;
+  uint16_t		len;
   caddr_t		data;
 
-  u_int16_t		unknown_num;
+  uint16_t		unknown_num;
   struct unknown_attr	*unknown;
 
 };
@@ -168,7 +168,7 @@ struct community
 {
   unsigned long 	refcnt;
   int 			size;
-  u_int32_t 		*val;
+  uint32_t 		*val;
   char			*str;
 };
 
@@ -219,7 +219,7 @@ struct mp_nlri {
   BGPDUMP_IP_ADDRESS	nexthop;
   BGPDUMP_IP_ADDRESS 	nexthop_local;
 
-  u_int16_t		prefix_count;
+  uint16_t		prefix_count;
   struct prefix		*nlri;
 };
 

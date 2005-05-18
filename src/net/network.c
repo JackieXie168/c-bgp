@@ -1304,8 +1304,6 @@ void test_network()
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
-void _network_destroy() __attribute__((destructor));
-
 // ----- _network_destroy -------------------------------------------
 /**
  *

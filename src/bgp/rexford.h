@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 12/02/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
@@ -54,6 +54,11 @@ extern int rexford_record_route_bm(FILE * pStream, char * pcFileName,
 /*
 extern int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix);
 */
+
+// ----- _rexford_init ----------------------------------------------
+extern void _rexford_init();
+// ----- _rexford_destroy -------------------------------------------
+extern void _rexford_destroy();
 
 #endif
 

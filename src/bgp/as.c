@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 06/04/2005
+// @lastdate 13/04/2005
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -546,12 +546,12 @@ void bgp_router_withdraw_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
   peer_withdraw_prefix(pPeer, sPrefix);
 }
 
-// ----- bgp_router_run ---------------------------------------------
+// ----- bgp_router_start -------------------------------------------
 /**
  * Run the BGP router. The router starts by sending its local prefixes
  * to its peers.
  */
-int bgp_router_run(SBGPRouter * pRouter)
+int bgp_router_start(SBGPRouter * pRouter)
 {
   int iIndex;
 
@@ -561,6 +561,41 @@ int bgp_router_run(SBGPRouter * pRouter)
       return -1;
 
   return 0;
+}
+
+// ----- bgp_router_stop --------------------------------------------
+/**
+ * Stop the BGP router. Each peering session is brought to IDLE
+ * state.
+ */
+int bgp_router_stop(SBGPRouter * pRouter)
+{
+  int iIndex;
+  
+  // Close all BGP sessions
+  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++)
+    if (bgp_peer_close_session((SPeer *) pRouter->pPeers->data[iIndex]) != 0)
+      return -1;
+
+  return 0;
+}
+
+// ----- bgp_router_reset -------------------------------------------
+/**
+ * This function shuts down every peering session, then restarts
+ * them.
+ */
+int bgp_router_reset(SBGPRouter * pRouter)
+{
+  // Stop the router
+  if (bgp_router_stop(pRouter))
+    return -1;
+
+  // Start the router
+  if (bgp_router_start(pRouter))
+    return -1;
+
+  return -1;
 }
 
 // ----- bgp_router_dump_adj_rib_in ---------------------------------
@@ -1280,17 +1315,6 @@ void bgp_router_dump_id(FILE * pStream, SBGPRouter * pRouter)
 {
   fprintf(pStream, "AS%d:", pRouter->uNumber);
   ip_address_dump(pStream, pRouter->pNode->tAddr);
-}
-
-// ----- bgp_router_reset -------------------------------------------
-/**
- * This function shuts down every peering session, then restarts
- * them.
- */
-int bgp_router_reset(SBGPRouter * pRouter)
-{
-  LOG_SEVERE("Error: not *yet* implemented, sorry.\n");
-  return -1;
 }
 
 typedef struct {

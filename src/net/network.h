@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 05/04/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -175,5 +175,8 @@ int network_domain_add(SNetwork * pNetwork, uint32_t uAS,
 						      char * pcName);
 // ----- network_domain_get -----------------------------------------
 SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
+
+// ----- _network_destroy -------------------------------------------
+extern void _network_destroy();
 
 #endif

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 07/04/2005
+// @lastdate 17/05/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -564,14 +564,14 @@ SCommunities * mrtd_process_community(struct community * com)
 {
   SCommunities * pCommunities= NULL;
   int iIndex;
-  u_int32_t comval;
+  uint32_t comval;
 
   for (iIndex = 0; iIndex < com->size; iIndex++) {
 
     if (pCommunities == NULL)
       pCommunities= comm_create();
     
-    memcpy(&comval, com_nthval(com, iIndex), sizeof (u_int32_t));
+    memcpy(&comval, com_nthval(com, iIndex), sizeof (uint32_t));
     comm_add(pCommunities, ntohl(comval));
     
   }
@@ -774,8 +774,6 @@ SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
-
-void _mrtd_destroy() __attribute__((destructor));
 
 // ----- _mrtd_destroy ----------------------------------------------
 /**

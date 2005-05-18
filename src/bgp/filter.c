@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 31/03/2005
+// @lastdate 18/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,33 +76,6 @@ uint32_t filter_path_regex_hash(void * pItem)
     return 0;
 
   return hash_utils_key_compute_string(pRegEx->pcPattern, uHashPathRegExSize);
-}
-
-void _filter_path_regex_init() __attribute__((constructor));
-void _filter_path_regex_finalize() __attribute__((destructor));
-
-
-// ----- filter_path_regex_init --------------------------------------
-/**
- *
- */
-void _filter_path_regex_init()
-{
-  pHashPathExpr = hash_init(uHashPathRegExSize, .5, filter_path_regex_compare, 
-				filter_path_regex_destroy, 
-				filter_path_regex_hash);
-  paPathExpr = ptr_array_create(0, NULL, NULL);
-}
-
-// ----- filter_path_regex_finalize ----------------------------------
-/**
- *
- *
- */
-void _filter_path_regex_finalize()
-{
-  ptr_array_destroy(&paPathExpr);
-  hash_destroy(&pHashPathExpr);
 }
 
 // ----- filter_matcher_create --------------------------------------
@@ -307,6 +280,8 @@ int filter_call(SFilter * pFilter, SBGPRouter * pRouter, SRoute * pRoute)
 int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 			 SRoute * pRoute)
 {
+  comm_t tCommunity;
+
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
@@ -329,9 +304,8 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
       return !filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
 				   pRouter, pRoute);
     case FT_MATCH_COMM_CONTAINS:
-      return
-	route_comm_contains(pRoute,
-			    *((uint32_t*) pMatcher->auParams))?1:0;
+      memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
+      return route_comm_contains(pRoute, tCommunity)?1:0;
       break;
     case FT_MATCH_NEXTHOP_EQUALS:
       return (pRoute->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
@@ -750,6 +724,8 @@ SFilterAction * filter_action_path_prepend(uint8_t uAmount)
  */
 void filter_matcher_dump(FILE * pStream, SFilterMatcher * pMatcher)
 {
+  comm_t tCommunity;
+
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
@@ -778,7 +754,8 @@ void filter_matcher_dump(FILE * pStream, SFilterMatcher * pMatcher)
       fprintf(pStream, ")");
       break;
     case FT_MATCH_COMM_CONTAINS:
-      fprintf(pStream, "comm contains %u", *((uint32_t *) pMatcher->auParams));
+      memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
+      fprintf(pStream, "comm contains %u", tCommunity);
       break;
     case FT_MATCH_NEXTHOP_EQUALS:
       fprintf(pStream, "next-hop is ");
@@ -877,3 +854,29 @@ void filter_dump(FILE * pStream, SFilter * pFilter)
   fprintf(pStream, "default. any --> ACCEPT\n");
 }
 
+/////////////////////////////////////////////////////////////////////
+// INITIALIZATION AND FINALIZATION SECTION
+/////////////////////////////////////////////////////////////////////
+
+// ----- filter_path_regex_init --------------------------------------
+/**
+ *
+ */
+void _filter_path_regex_init()
+{
+  pHashPathExpr = hash_init(uHashPathRegExSize, .5, filter_path_regex_compare, 
+				filter_path_regex_destroy, 
+				filter_path_regex_hash);
+  paPathExpr = ptr_array_create(0, NULL, NULL);
+}
+
+// ----- filter_path_regex_destroy ----------------------------------
+/**
+ *
+ *
+ */
+void _filter_path_regex_destroy()
+{
+  ptr_array_destroy(&paPathExpr);
+  hash_destroy(&pHashPathExpr);
+}

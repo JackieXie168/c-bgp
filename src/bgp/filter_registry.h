@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 01/03/2004
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __FILTER_REGISTRY_H__
@@ -28,5 +28,10 @@ extern int ft_registry_predicate_parse(char * pcExpr,
 // ----- ft_registry_action_parse -----------------------------------
 extern int ft_registry_action_parse(char * pcExpr,
 				    SFilterAction ** ppAction);
+
+// ----- _ft_registry_init --------------------------------------
+extern void _ft_registry_init();
+// ----- _ft_registry_destroy -----------------------------------
+extern void _ft_registry_destroy();
 
 #endif

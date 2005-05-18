@@ -270,7 +270,11 @@ int net_info_removal_for_each(void * pItem, void * pContext)
   SNetRT * pRT= (SNetRT *) pContext;
   SPrefix * pPrefix= *(SPrefix **) pItem;
 
+#ifdef __EXPERIMENTAL__
+  return trie_remove(pRT, pPrefix->tNetwork, pPrefix->uMaskLen);
+#else
   return radix_tree_remove(pRT, pPrefix->tNetwork, pPrefix->uMaskLen, 1);
+#endif
 }
 
 // ----- net_info_removal -------------------------------------------
@@ -417,7 +421,11 @@ void rt_il_dst(void ** ppItem)
  */
 SNetRT * rt_create()
 {
+#ifdef __EXPERIMENTAL__
+  return (SNetRT *) trie_create(rt_il_dst);
+#else
   return (SNetRT *) radix_tree_create(32, rt_il_dst);
+#endif
 }
 
 // ----- rt_destroy -------------------------------------------------
