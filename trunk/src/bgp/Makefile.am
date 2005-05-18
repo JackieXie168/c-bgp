@@ -1,3 +1,19 @@
+# Compile experimental features ?
+if WITH_EXPERIMENTAL
+  OPT_EXPERIMENTAL = -D__EXPERIMENTAL__
+else
+  OPT_EXPERIMENTAL =
+endif
+
+# Compile with debugging symbols ?
+if WITH_DEBUGGING
+  OPT_DEBUGGING = -g
+else
+  OPT_DEBUGGING =
+endif
+
+AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+
 noinst_LTLIBRARIES = libbgp.la
 
 INCLUDES = -I..
@@ -64,13 +80,4 @@ libbgp_la_SOURCES = \
 	tie_breaks.h \
 	xml_topology.c \
 	xml_topology.h
-
-# Compile experimental features ?
-if WITH_EXPERIMENTAL
-  OPT_EXPERIMENTAL = -D__EXPERIMENTAL__
-else
-  OPT_EXPERIMENTAL =
-endif
-
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL)
 

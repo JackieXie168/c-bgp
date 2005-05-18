@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 05/04/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __MRTD_H__
@@ -39,5 +39,8 @@ extern SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter,
 extern SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
 				  SFilterMatcher * pMatcher);
 #endif
+
+// ----- _mrtd_destroy ----------------------------------------------
+extern void _mrtd_destroy();
 
 #endif

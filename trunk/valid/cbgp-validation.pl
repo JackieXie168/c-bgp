@@ -974,8 +974,11 @@ sub cbgp_valid_version($)
     my ($cbgp)= @_;
     die if $cbgp->send("show version\n");
     my $result= $cbgp->expect(1);
-    if ($result =~ m/^version:\s+cbgp\s+([0-9.]+)(\s+.+)$/) {
+    if ($result =~ m/^version:\s+cbgp\s+([0-9.]+)(\-(.+))?(\s+.+)$/) {
 	$cbgp_version= $1;
+	if (defined($2)) {
+	    $cbgp_version= "$cbgp_version ($2)";
+	}
 	return TEST_SUCCESS;
     } else {
 	return TEST_FAILURE;
@@ -2179,6 +2182,7 @@ foreach my $test (@tests) {
     if (!exists($cache{$test_name}) ||
 	($cache{$test_name} != TEST_SUCCESS)) {
 	my $cbgp= CBGP->new($cbgp_path);
+	$cbgp->{log_file}= ".$test_name.log";
 	$cbgp->{log}= 1;
 	$cbgp->spawn();
 	die if $cbgp->send("set autoflush on\n");

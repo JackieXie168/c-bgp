@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 06/04/2005
+// @lastdate 13/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -673,6 +673,23 @@ void route_dump_mrt(FILE * pStream, SRoute * pRoute)
       ecomm_dump(pStream, pRoute->pECommunities, ECOMM_DUMP_RAW);
     fprintf(pStream, "|");
 
+    // Route-reflectors: Originator-ID
+    if (pRoute->pOriginator != NULL)
+      ip_address_dump(pStream, *pRoute->pOriginator);
+    fprintf(pStream, "|");
+
+    // Route-reflectors: Cluster-ID-List
+    if (pRoute->pClusterList != NULL)
+      cluster_list_dump(pStream, pRoute->pClusterList);
+    fprintf(pStream, "|");
+    
+#ifdef __ROUTER_LIST_ENABLE__
+    // Router list
+    if (pRoute->pRouterList != NULL)
+      cluster_list_dump(pStream, pRoute->pRouterList);
+    fprintf(pStream, "|");
+#endif
+
     /*
     // QoS Delay
     fprintf(pStream, "%u|%u|%u|", pRoute->tDelay.tDelay,
@@ -682,17 +699,6 @@ void route_dump_mrt(FILE * pStream, SRoute * pRoute)
 	    pRoute->tBandwidth.uMean, pRoute->tBandwidth.uWeight);
     */
 
-    // Route-reflectors: Originator
-    fprintf(pStream, "originator:");
-    if (pRoute->pOriginator != NULL)
-      ip_address_dump(pStream, *pRoute->pOriginator);
-    fprintf(pStream, "|");
-
-    fprintf(pStream, "cluster_id_list:");
-    if (pRoute->pClusterList != NULL)
-      cluster_list_dump(pStream, pRoute->pClusterList);
-    fprintf(pStream, "|");
-    
   }
 }
 

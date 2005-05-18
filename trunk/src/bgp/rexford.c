@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 14/02/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -246,7 +246,7 @@ void rexford_setup_policies()
 	  // Provider input filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_pref_set(PREF_CUST));
-	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_OUT);
+	  bgp_router_peer_set_filter(AS[uAS1], pPeer->tAddr, pFilter, FILTER_IN);
 	  // Provider output filter
 	  pFilter= filter_create();
 	  filter_add_rule(pFilter, NULL, filter_action_comm_remove(COMM_PROV));
@@ -309,7 +309,7 @@ int rexford_run()
 
   for (iIndex= 0; iIndex < MAX_AS; iIndex++)
     if (AS[iIndex] != NULL)
-      if (bgp_router_run(AS[iIndex]) != 0)
+      if (bgp_router_start(AS[iIndex]) != 0)
 	return -1;
   return 0;
 }
@@ -478,9 +478,6 @@ int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix)
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
-
-void _rexford_init() __attribute__((constructor));
-void _rexford_destroy() __attribute__((destructor));
 
 // ----- _rexford_init ----------------------------------------------
 /**

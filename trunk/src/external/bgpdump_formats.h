@@ -1,4 +1,4 @@
-/* $Id: bgpdump_formats.h,v 1.1 2005-02-23 08:16:01 bqu Exp $ */
+/* $Id: bgpdump_formats.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
 /*
 
 Copyright (c) 2002                      RIPE NCC
@@ -105,40 +105,40 @@ struct prefix {
 };
 
 typedef struct struct_BGPDUMP_MRTD_MESSAGE {
-    u_int16_t		source_as;
+    uint16_t		source_as;
     struct in_addr	source_ip;
-    u_int16_t		destination_as;
+    uint16_t		destination_as;
     struct in_addr	destination_ip;
     u_char		*bgp_message;
 } BGPDUMP_MRTD_MESSAGE;
 
 typedef struct struct_BGPDUMP_MRTD_TABLE_DUMP {
-    u_int16_t		view;
-    u_int16_t		sequence;
+    uint16_t		view;
+    uint16_t		sequence;
     BGPDUMP_IP_ADDRESS	prefix;
     u_char		mask;
     u_char		status;
     time_t		uptime;
     BGPDUMP_IP_ADDRESS	peer_ip;
     as_t		peer_as;
-    u_int16_t		attr_len;
+    uint16_t		attr_len;
 } BGPDUMP_MRTD_TABLE_DUMP;
 
 /* For Zebra BGP4MP_STATE_CHANGE */
 typedef struct struct_BGPDUMP_ZEBRA_STATE_CHANGE {
     as_t		source_as;
     as_t		destination_as;
-    u_int16_t		interface_index;
-    u_int16_t		address_family;
+    uint16_t		interface_index;
+    uint16_t		address_family;
     BGPDUMP_IP_ADDRESS	source_ip;
     BGPDUMP_IP_ADDRESS	destination_ip;
-    u_int16_t		old_state;
-    u_int16_t		new_state;
+    uint16_t		old_state;
+    uint16_t		new_state;
 } BGPDUMP_ZEBRA_STATE_CHANGE;
 
 struct zebra_incomplete {
-    u_int16_t afi;
-    u_int8_t orig_len;
+    uint16_t afi;
+    uint8_t orig_len;
     struct prefix prefix;
 };
 
@@ -147,60 +147,60 @@ typedef struct struct_BGPDUMP_ZEBRA_MESSAGE {
     /* Zebra header */
     as_t		source_as;
     as_t		destination_as;
-    u_int16_t		interface_index;
-    u_int16_t		address_family;
+    uint16_t		interface_index;
+    uint16_t		address_family;
     BGPDUMP_IP_ADDRESS	source_ip;
     BGPDUMP_IP_ADDRESS	destination_ip;
 
     /* BGP packet header fields */
-    u_int16_t		size;
+    uint16_t		size;
     u_char		type;
 
     /* For OPEN packets */
     u_char	version;
-    u_int16_t	my_as;
-    u_int16_t	hold_time;
+    uint16_t	my_as;
+    uint16_t	hold_time;
     struct	in_addr bgp_id;
     u_char	opt_len;
     u_char	*opt_data;
 
     /* For UPDATE packets */
-    u_int16_t		withdraw_count;
-    u_int16_t		announce_count;
+    uint16_t		withdraw_count;
+    uint16_t		announce_count;
     struct prefix	*withdraw;
     struct prefix	*announce;
 
     /* For corrupt update dumps */
-    u_int16_t cut_bytes;
+    uint16_t cut_bytes;
     struct zebra_incomplete incomplete;
 
     /* For NOTIFY packets */
     u_char error_code;
     u_char sub_error_code;
-    u_int16_t notify_len;
+    uint16_t notify_len;
     u_char *notify_data;
 
 } BGPDUMP_ZEBRA_MESSAGE;
 
 /* For Zebra BGP4MP_ENTRY */
 typedef struct struct_BGPDUMP_ZEBRA_ENTRY {
-    u_int16_t	view;
-    u_int16_t	status;
+    uint16_t	view;
+    uint16_t	status;
     time_t	time_last_change;
-    u_int16_t	address_family;
+    uint16_t	address_family;
     u_char	SAFI;
     u_char	next_hop_len;
     u_char	prefix_length;
     u_char	*address_prefix;
-    u_int16_t	attribute_length;
-    u_int16_t	empty;
+    uint16_t	attribute_length;
+    uint16_t	empty;
     u_char	*bgp_atribute;
 } BGPDUMP_ZEBRA_ENTRY;
 
 /* For Zebra BGP4MP_SNAPSHOT */
 typedef struct struct_BGPDUMP_ZEBRA_SNAPSHOT {
-    u_int16_t	view;
-    u_int16_t	file;
+    uint16_t	view;
+    uint16_t	file;
 } BGPDUMP_ZEBRA_SNAPSHOT;
 
 typedef union union_BGPDUMP_BODY {
@@ -215,9 +215,9 @@ typedef union union_BGPDUMP_BODY {
 /* The MRT header. Common to all records. */
 typedef struct struct_BGPDUMP_ENTRY {
     time_t		time;
-    u_int16_t		type;
-    u_int16_t		subtype;
-    u_int32_t		length;
+    uint16_t		type;
+    uint16_t		subtype;
+    uint32_t		length;
     struct attr		*attr;
     BGPDUMP_BODY 	body;
 } BGPDUMP_ENTRY;

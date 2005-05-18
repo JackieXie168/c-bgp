@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 27/01/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -92,10 +92,6 @@ SHash * route_map_hash_get()
   return pHashRouteMap;
 }
 
-
-void _route_map_init() __attribute__((constructor));
-void _route_map_finalize() __attribute__((destructor));
-
 // ----- route_map_init ----------------------------------------------
 /**
  *
@@ -111,12 +107,12 @@ void _route_map_init()
 }
 
 
-// ----- route_map_finalize ------------------------------------------
+// ----- route_map_destroy ------------------------------------------
 /**
  *
  *
  */
-void _route_map_finalize()
+void _route_map_destroy()
 {
   SHash * phRouteMap = route_map_hash_get();
   

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 27/01/2005
+// @lastdate 17/05/2005
 // ==================================================================
 // Help about this code can be found in the GNU readline manual.
 
@@ -71,9 +71,6 @@ char * rl_gets(char * pcPrompt)
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
-
-void _rl_init() __attribute__((constructor));
-void _rl_destroy() __attribute__((destructor));
 
 // ----- _rl_init ---------------------------------------------------
 /**

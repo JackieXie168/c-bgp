@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 29/03/2005
+// @lastdate 13/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -185,7 +185,7 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
 
     }
 
-    bgp_router_run(pRouter1);
+    bgp_router_start(pRouter1);
 
   }
 
@@ -200,9 +200,6 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
 // INITIALIZATION AND FINALIZATION SECTION
 //
 /////////////////////////////////////////////////////////////////////
-
-void _domain_init() __attribute__((constructor));
-void _domain_destroy() __attribute__((destructor));
 
 // ----- _domain_init -----------------------------------------------
 /**

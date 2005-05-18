@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 13/02/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -285,8 +285,7 @@ void bgp_msg_monitor_destroy(SLog ** ppLog)
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
-void _message_destroy() __attribute__((destructor));
-
+// -----[ -message_destroy ]-----------------------------------------
 void _message_destroy()
 {
   bgp_msg_monitor_destroy(&pMonitor);

@@ -4,15 +4,16 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 31/03/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #include <assert.h>
 #include <libgds/cli_ctx.h>
+#include <libgds/gds.h>
 #include <limits.h>
 #include <libgds/log.h>
 #include <stdio.h>
@@ -21,10 +22,14 @@
 #include <unistd.h>
 
 #include <bgp/as.h>
+#include <bgp/domain.h>
+#include <bgp/filter_registry.h>
+#include <bgp/mrtd.h>
 #include <bgp/peer_t.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/qos.h>
 #include <bgp/rexford.h>
+#include <bgp/route_map.h>
 #include <cli/common.h>
 #include <libgds/fifo.h>
 #include <libgds/memory.h>
@@ -34,11 +39,11 @@
 #include <libgds/str_util.h>
 
 #ifdef HAVE_LIBREADLINE
-#ifdef HAVE_READLINE_READLINE_H
-#include <readline/readline.h>
-#define INTERACTIVE_MODE_OK
-#endif
-#include <ui/rl.h>
+# ifdef HAVE_READLINE_READLINE_H
+#  include <readline/readline.h>
+# define INTERACTIVE_MODE_OK
+# endif
+# include <ui/rl.h>
 #endif
 
 // -----[ simulator's modes] -----
@@ -499,7 +504,22 @@ void option_free(char * pcArgument)
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
+void _main_init() __attribute((constructor));
 void _main_done() __attribute((destructor));
+
+void _main_init()
+{
+  gds_init();
+
+  _domain_init();
+  _ft_registry_init();
+  _filter_path_regex_init();
+  _route_map_init();
+  _rexford_init();
+#ifdef HAVE_LIBREADLINE
+  _rl_init();
+#endif
+}
 
 void _main_done()
 {
@@ -507,6 +527,21 @@ void _main_done()
   option_free(pcOptLog);
   if (pComplCmds != NULL)
     cli_cmds_destroy(&pComplCmds);
+
+  _cli_common_destroy();
+#ifdef HAVE_LIBREADLINE
+  _rl_destroy();
+#endif
+  _message_destroy();
+  _rexford_destroy();
+  _route_map_destroy();
+  _filter_path_regex_destroy();
+  _ft_registry_destroy();
+  _domain_destroy();
+  _network_destroy();
+  _mrtd_destroy();
+
+  gds_destroy();
 }
 
 /////////////////////////////////////////////////////////////////////

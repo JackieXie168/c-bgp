@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 31/03/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -155,5 +155,10 @@ extern void filter_matcher_dump(FILE * pStream,
 // ----- filter_action_dump -----------------------------------------
 extern void filter_action_dump(FILE * pStream,
 			       SFilterAction * pAction);
+
+// ----- filter_path_regex_init --------------------------------------
+extern void _filter_path_regex_init();
+// ----- filter_path_regex_destroy ----------------------------------
+extern void _filter_path_regex_destroy();
 
 #endif

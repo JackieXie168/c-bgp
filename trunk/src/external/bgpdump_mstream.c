@@ -48,14 +48,27 @@ To Do             :
 -------------------------------------------------------------------------------
 */
 
-#include <bgpdump-config.h>
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#else
+# if HAVE_STDINT_H
+#  include <stdint.h>
+# else
+#  error "no HAVE_INTTYPES_H or HAVE_STDINT_H"
+# endif 
+#endif
+
 #include "bgpdump_mstream.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
 
-void mstream_init(struct mstream *s, u_char *buffer, u_int32_t len) {
+void mstream_init(struct mstream *s, u_char *buffer, uint32_t len) {
     s->start=buffer;
     s->position=0;
     s->len=len;
@@ -69,8 +82,8 @@ u_char mstream_getc(struct mstream *s, u_char *d) {
     return data;
 }
 
-u_int16_t mstream_getw(struct mstream *s, u_int16_t *d) {
-    u_int16_t data;
+uint16_t mstream_getw(struct mstream *s, uint16_t *d) {
+    uint16_t data;
 
     mstream_get(s, &data, sizeof(data));
     data=ntohs(data);
@@ -78,8 +91,8 @@ u_int16_t mstream_getw(struct mstream *s, u_int16_t *d) {
     return data;
 }
 
-u_int32_t mstream_getl(struct mstream *s, u_int32_t *d) {
-    u_int32_t data;
+uint32_t mstream_getl(struct mstream *s, uint32_t *d) {
+    uint32_t data;
 
     mstream_get(s, &data, sizeof(data));
     data=ntohl(data);
@@ -87,19 +100,19 @@ u_int32_t mstream_getl(struct mstream *s, u_int32_t *d) {
     return data;
 }
 
-u_int32_t mstream_get_ipv4(struct mstream *s, u_int32_t *d) {
-    u_int32_t data;
+uint32_t mstream_get_ipv4(struct mstream *s, uint32_t *d) {
+    uint32_t data;
 
     mstream_get(s, &data, sizeof(data));
     if(d!=NULL) memcpy(d,&data,sizeof(data));
     return data;
 }
 
-u_int32_t mstream_can_read(struct mstream *s) {
+uint32_t mstream_can_read(struct mstream *s) {
     return s->len - s->position;
 }
 
-u_int32_t mstream_get (struct mstream *s, void *d, u_int32_t len) {
+uint32_t mstream_get (struct mstream *s, void *d, uint32_t len) {
     int room = mstream_can_read(s);
 
     if(room >= len) {

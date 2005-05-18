@@ -3,7 +3,7 @@
 //
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 14/12/2004
+// @lastdate 17/05/2005
 // ==================================================================
 
 
@@ -20,4 +20,10 @@ int route_map_del(char * pcRouteMapName);
 SFilter * route_map_get(char * pcRouteMapName);
 // ----- route_map_replace -------------------------------------------
 int route_map_replace(char * pcRouteMapName, SFilter * pFilter);
+
+// ----- route_map_init ----------------------------------------------
+extern void _route_map_init();
+// ----- route_map_destroy ------------------------------------------
+extern void _route_map_destroy();
+
 #endif //_CBGP_ROUTE_MAP_

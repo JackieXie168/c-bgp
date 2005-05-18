@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 05/04/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifndef __RL_H__
@@ -30,5 +30,10 @@ char * rl_filename_completion_function(const char * pcText, int iState)
 #  endif
 # endif
 #endif
+
+// ----- _rl_init ---------------------------------------------------
+extern void _rl_init();
+// ----- _rl_destroy ------------------------------------------------
+extern void _rl_destroy();
 
 #endif

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 05/04/2005
+// @lastdate 13/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1149,6 +1149,52 @@ int cli_bgp_router_reset(SCliContext * pContext, STokens * pTokens)
   // Reset the router
   if (bgp_router_reset(pRouter)) {
     LOG_SEVERE("Error: reset failed.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_start ---------------------------------------
+/**
+ * This function opens all the defined peerings of the given router.
+ *
+ * context: {router}
+ * tokens: {addr}
+ */
+int cli_bgp_router_start(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Start the router
+  if (bgp_router_start(pRouter)) {
+    LOG_SEVERE("Error: could not start the router.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_stop ----------------------------------------
+/**
+ * This function closes all the defined peerings of the given router.
+ *
+ * context: {router}
+ * tokens: {addr}
+ */
+int cli_bgp_router_stop(SCliContext * pContext, STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+
+  // Get BGP instance from context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Stop the router
+  if (bgp_router_stop(pRouter)) {
+    LOG_SEVERE("Error: could not stop the router.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2681,6 +2727,12 @@ int cli_register_bgp_router(SCliCmds * pCmds)
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("reset",
 					cli_bgp_router_reset,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("start",
+					cli_bgp_router_start,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("stop",
+					cli_bgp_router_stop,
 					NULL, NULL));
   cli_register_bgp_router_load(pSubCmds);
   cli_register_bgp_router_save(pSubCmds);

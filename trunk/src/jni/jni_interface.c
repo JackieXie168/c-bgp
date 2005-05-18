@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 07/04/2005
+// @lastdate 13/04/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -154,7 +154,6 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
     return;
 
   link_set_igp_weight(pLink1, jiWeight);
-  link_set_igp_weight(pLink2, jiWeight);
 }
 
 // -----[ netLinkUp ]------------------------------------------------
@@ -1171,8 +1170,6 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 
   // TODO: clean whole list !!! (routes_list are only references...)
   routes_list_destroy(&pRoutes);
-
-  fprintf(stderr, "Conversion to Java finished\n");
 
   return joArrayList;
 }

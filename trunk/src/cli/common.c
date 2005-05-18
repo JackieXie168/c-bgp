@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 06/04/2005
+// @lastdate 17/05/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -402,13 +402,11 @@ int cli_common_check_uint(char * pcValue)
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
-void _cli_destroy() __attribute__((destructor));
-
-// ----- _cli_destroy -----------------------------------------------
+// ----- _cli_common_destroy ----------------------------------------
 /**
  *
  */
-void _cli_destroy()
+void _cli_common_destroy()
 {
   cli_destroy(&pTheCli);
 }
