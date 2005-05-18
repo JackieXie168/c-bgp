@@ -88,6 +88,7 @@ int cli_set_debug(SCliContext * pContext, STokens * pTokens)
  */
 int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
 {
+#ifdef HAVE_BGPDUMP
   char * pcPredicate;
   SFilterMatcher * pMatcher;
 
@@ -102,6 +103,10 @@ int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
   mrtd_load_routes(tokens_get_string_at(pTokens, 0), 1, pMatcher);
 
   return CLI_SUCCESS;
+#else
+  LOG_SEVERE("Error: compiled without bgpdump.\n");
+  return CLI_ERROR_COMMAND_FAILED;
+#endif
 }
 
 // ----- cli_show_mem_limit -----------------------------------------
