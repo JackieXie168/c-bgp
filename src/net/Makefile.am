@@ -40,6 +40,8 @@ libnet_la_SOURCES = \
 	network.h \
 	ntf.c \
 	ntf.h \
+	ospf.c \
+	ospf.h \
 	prefix.c \
 	prefix.h \
 	protocol.c \
