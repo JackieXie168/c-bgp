@@ -19,6 +19,7 @@
 #endif
 #include <libgds/types.h>
 
+#include <net/network_t.h>
 #include <net/domain_t.h>
 #include <net/prefix.h>
 #include <net/link.h>
@@ -27,6 +28,8 @@
 #include <net/protocol.h>
 #include <net/routing.h>
 #include <sim/simulator.h>
+#include <net/subnet.h>
+
 
 #define NET_SUCCESS                0
 #define NET_ERROR_UNKNOWN_PROTOCOL -1
@@ -35,28 +38,10 @@
 #define NET_ERROR_LINK_DOWN        -4
 #define NET_ERROR_PROTOCOL_ERROR   -5
 
-extern const net_addr_t MAX_ADDR;
 
-typedef struct {
-#ifdef __EXPERIMENTAL__
-  STrie * pNodes;
-#else
-  SRadixTree * pNodes;
-#endif
-  SPtrArray  * pDomains;
-} SNetwork;
 
-typedef struct {
-  net_addr_t tAddr;
-  SPtrArray * aInterfaces;
-  char * pcName;
-  uint32_t  uAS;
-  SNetwork * pNetwork;
-  SPtrArray * pLinks;
-  SNetRT * pRT;
-  SNetProtocols * pProtocols;
-  SNetDomain * pDomain;
-} SNetNode;
+// ----- node_find_link ---------------------------------------------
+//extern SNetLink * node_belongs_to_OSPFAREA(SNetNode * pNode, uint32_t OSPFArea);
 
 typedef struct {
   net_addr_t tAddr;
@@ -70,8 +55,12 @@ void node_dump(SNetNode * pNode);
 extern uint8_t NET_OPTIONS_MAX_HOPS;
 extern uint8_t NET_OPTIONS_IGP_INTER;
 
+
+
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);
+// ----- node_create ------------------------------------------------
+extern int node_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- node_set_name ----------------------------------------------
 void node_set_name(SNetNode * pNode, const char * pcName);
 // ----- node_get_name ----------------------------------------------
@@ -95,6 +84,9 @@ unsigned int node_interface_get_number(SNetNode * pNode);
 SNetInterface * node_interface_get(SNetNode * pNode, 
 				const unsigned int uIndex);
 // ----- node_add_link ----------------------------------------------
+extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
+			 net_link_delay_t tDelay, int iRecurse);
+// ----- node_add_link_toSubnet ----------------------------------------------
 extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 			 net_link_delay_t tDelay, int iRecurse);
 // ----- node_find_link ---------------------------------------------
@@ -128,34 +120,12 @@ extern int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
 				  void * pHandler,
 				  FNetNodeHandlerDestroy fDestroy,
 				  FNetNodeHandleEvent fHandleEvent);
-// ----- network_create ---------------------------------------------
-extern SNetwork * network_create();
-// ----- network_destroy --------------------------------------------
-extern void network_destroy(SNetwork ** ppNetwork);
-// ----- network_get ------------------------------------------------
-extern SNetwork * network_get();
-// ----- network_add_node -------------------------------------------
-extern int network_add_node(SNetwork * pNetwork,
-			    SNetNode * pNode);
-// ----- network_find_node ------------------------------------------
-extern SNetNode * network_find_node(SNetwork * pNetwork,
-				    net_addr_t tAddr);
 // ----- node_send --------------------------------------------------
 extern int node_send(SNetNode * pNode, net_addr_t tAddr,
 		     uint8_t uProtocol, void * pPayLoad,
 		     FPayLoadDestroy fDestroy);
 // ----- node_recv --------------------------------------------------
 extern int node_recv(SNetNode * pNode, SNetMessage * pMessage);
-// ----- network_to_file --------------------------------------------
-extern int network_to_file(FILE * pStream, SNetwork * pNetwork);
-// ----- network_from_file ------------------------------------------
-extern SNetwork * network_from_file(FILE * pStream);
-// ----- network_shortest_path --------------------------------------
-extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
-				 net_addr_t tSrcAddr);
-// ----- network_dijkstra -------------------------------------------
-extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
-			    net_addr_t tSrcAddr);
 // ----- node_record_route ------------------------------------------
 extern int node_record_route(SNetNode * pNode, SNetDest sDest,
 			     SNetPath ** ppPath,
@@ -170,6 +140,34 @@ extern int node_ipip_enable(SNetNode * pNode);
 // ----- node_add_tunnel --------------------------------------------
 extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
 
+
+/////////////////////////////////////////////////////////////////////
+///// NETWORK METHODS
+/////////////////////////////////////////////////////////////////////
+
+// ----- network_create ---------------------------------------------
+extern SNetwork * network_create();
+// ----- network_destroy --------------------------------------------
+extern void network_destroy(SNetwork ** ppNetwork);
+// ----- network_get ------------------------------------------------
+extern SNetwork * network_get();
+// ----- network_add_node -------------------------------------------
+extern int network_add_node(SNetwork * pNetwork,
+			    SNetNode * pNode);
+// ----- network_find_node ------------------------------------------
+extern SNetNode * network_find_node(SNetwork * pNetwork,
+				    net_addr_t tAddr);
+// ----- network_to_file --------------------------------------------
+extern int network_to_file(FILE * pStream, SNetwork * pNetwork);
+// ----- network_from_file ------------------------------------------
+extern SNetwork * network_from_file(FILE * pStream);
+// ----- network_shortest_path --------------------------------------
+extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
+				 net_addr_t tSrcAddr);
+// ----- network_dijkstra -------------------------------------------
+extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
+			    net_addr_t tSrcAddr);
+
 // ----- network_domain_add -----------------------------------------
 int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
 						      char * pcName);
@@ -178,5 +176,14 @@ SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
 
 // ----- _network_destroy -------------------------------------------
 extern void _network_destroy();
+
+//Should be in subnet.h
+// ----- node_add_link_toSubnet ------------------------------------
+extern int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet, 
+                                         net_link_delay_t tDelay, int iRecurse); 
+
+
+
+
 
 #endif
