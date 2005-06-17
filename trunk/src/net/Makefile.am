@@ -38,6 +38,7 @@ libnet_la_SOURCES = \
 	net_path.h \
 	network.c \
 	network.h \
+	network_t.h \
 	ntf.c \
 	ntf.h \
 	ospf.c \
@@ -47,4 +48,7 @@ libnet_la_SOURCES = \
 	protocol.c \
 	protocol.h \
 	routing.c \
-	routing.h 
+	routing.h \
+	routing_t.h \
+	subnet.c \
+	subnet.h
