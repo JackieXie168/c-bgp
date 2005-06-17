@@ -12,15 +12,11 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
-#ifdef __EXPERIMENTAL__
-# include <libgds/patricia-tree.h>
-#else
-# include <libgds/radix-tree.h>
-#endif
 #include <libgds/types.h>
 
 #include <net/prefix.h>
 #include <net/link.h>
+#include <net/routing_t.h>
 
 #define NET_ROUTE_ANY    0xFF
 #define NET_ROUTE_STATIC 0x01
@@ -43,12 +39,6 @@ typedef struct {
 } SNetRouteInfo;
 
 typedef SPtrArray SNetRouteInfoList;
-
-#ifdef __EXPERIMENTAL__
-typedef STrie SNetRT;
-#else
-typedef SRadixTree SNetRT;
-#endif
 
 // ----- rt_perror -------------------------------------------------------
 extern void rt_perror(FILE * pStream, int iErrorCode);
