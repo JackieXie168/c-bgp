@@ -56,7 +56,7 @@ net_addr_t link_get_addr(SNetLink * pLink)
   else 
   {
     SNetSubnet * pSubnet = (pLink->UDestId).pSubnet;
-    return pSubnet->tAddr;
+    return pSubnet->pPrefix->tNetwork;// tAddr;
   }
 }
 
