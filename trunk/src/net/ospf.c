@@ -604,22 +604,22 @@ int ospf_test()
   SNetNode * pNodeK2= node_create(24);
   SNetNode * pNodeK3= node_create(25);
   
-  SNetSubnet * pSubnetTB1= subnet_create(26, NET_SUBNET_TYPE_TRANSIT);
-  SNetSubnet * pSubnetTX1= subnet_create(27, NET_SUBNET_TYPE_TRANSIT);
-  SNetSubnet * pSubnetTY1= subnet_create(28, NET_SUBNET_TYPE_TRANSIT);
-  SNetSubnet * pSubnetTK1= subnet_create(29, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTB1= subnet_create_byAddr(4, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTX1= subnet_create_byAddr(8, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTY1= subnet_create_byAddr(12, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTK1= subnet_create_byAddr(16, 30, NET_SUBNET_TYPE_TRANSIT);
   
-  SNetSubnet * pSubnetSB1= subnet_create(30, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSB2= subnet_create(31, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSX1= subnet_create(32, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSX2= subnet_create(33, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSX3= subnet_create(34, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSY1= subnet_create(35, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSY2= subnet_create(36, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSY3= subnet_create(37, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSK1= subnet_create(38, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSK2= subnet_create(39, NET_SUBNET_TYPE_STUB);
-  SNetSubnet * pSubnetSK3= subnet_create(40, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSB1= subnet_create_byAddr(20, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSB2= subnet_create_byAddr(24, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSX1= subnet_create_byAddr(28, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSX2= subnet_create_byAddr(32, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSX3= subnet_create_byAddr(36, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSY1= subnet_create_byAddr(40, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSY2= subnet_create_byAddr(44, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSY3= subnet_create_byAddr(48, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSK1= subnet_create_byAddr(52, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSK2= subnet_create_byAddr(56, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSK3= subnet_create_byAddr(60, 30, NET_SUBNET_TYPE_STUB);
   
 //  FILE * pNetFile;
   /*
