@@ -24,16 +24,21 @@
   otherwise.
 */
 typedef struct {
-  net_addr_t tAddr;
+  //net_addr_t tAddr;
+  SPrefix * pPrefix;
   uint8_t uType;
   uint32_t uOSPFArea;	/*we have only an area for a network*/
   SPtrArray * aNodes;   /*links towards all the router on the subnet*/
 } SNetSubnet;
 
 // ----- subnet_create ---------------------------------------------------
-SNetSubnet * subnet_create(net_addr_t tAddr, uint8_t uType);
+SNetSubnet * subnet_create(/*net_addr_t tAddr*/SPrefix * pPrefix, uint8_t uType);
+// ----- subnet_create ---------------------------------------------------
+SNetSubnet * subnet_create_byAddr(net_addr_t tNetwork, uint8_t uMaskLen, uint8_t uType);
 // ----- subnet_getAddr --------------------------------------------------
-net_addr_t subnet_get_Addr(SNetSubnet * pSubnet);
+//net_addr_t subnet_get_Addr(SNetSubnet * pSubnet);
+// ----- subnet_get_Prefix -----------------------------------------------
+SPrefix * subnet_get_Prefix(SNetSubnet * pSubnet);
 // ----- subnet_is_transit -----------------------------------------------
 int subnet_is_transit(SNetSubnet * pSubnet);
 // ----- subnet_is_stub -------------------------------------------------
