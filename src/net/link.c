@@ -2,6 +2,7 @@
 // @(#)link.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+//         Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
 // @lastdate 27/01/2005
 // ==================================================================
@@ -60,6 +61,19 @@ net_addr_t link_get_addr(SNetLink * pLink)
   }
 }
 
+// ----- link_get_prefix ----------------------------------------
+void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix)
+{
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER ){
+    pPrefix->tNetwork = (pLink->UDestId).tAddr;
+    pPrefix->uMaskLen = 32;
+  }
+  else 
+  {
+    pPrefix->tNetwork = (pLink->UDestId).pSubnet->pPrefix->tNetwork;
+    pPrefix->uMaskLen = (pLink->UDestId).pSubnet->pPrefix->uMaskLen;// tAddr;
+  }
+}
 // ----- link_set_type ---------------------------------------------
 void link_set_type(SNetLink * pLink, uint8_t uDestinationType)
 {

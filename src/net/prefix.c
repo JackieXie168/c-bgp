@@ -236,6 +236,25 @@ void ip_dest_dump(FILE * pStream, SNetDest sDest)
   }
 }
 
+// ----- network_nodes_destroy --------------------------------------
+void ip_prefixes_destroy(void ** ppItem)
+{
+  ip_prefix_destroy((SPrefix **) ppItem);
+}
+
+ // ----- node_links_compare -----------------------------------------
+int ip_prefixes_compare(void * pItem1, void * pItem2,
+		       unsigned int uEltSize)
+{
+  SPrefix * pPrefix1 = *((SPrefix **) pItem1);
+  SPrefix * pPrefix2 = *((SPrefix **) pItem2);
+  if ((pPrefix1->tNetwork == pPrefix2->tNetwork) &&
+    (pPrefix1->uMaskLen == pPrefix2->uMaskLen))
+    return 0;
+  else
+    return -1;
+}
+
 // ----- ip_prefix_equals -------------------------------------------
 /**
  *

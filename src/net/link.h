@@ -1,7 +1,8 @@
 // ==================================================================
 // @(#)link.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be),
+//         Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
 // @lastdate 09/03/2004
 // ==================================================================
@@ -34,6 +35,7 @@ typedef uint32_t net_link_delay_t;
 #else
 typedef double net_link_delay_t;
 #endif
+typedef SPtrArray links_list_s;
 
 typedef int (*FNetLinkForward)(net_addr_t tDstAddr, void * pContext,
 			       SNetMessage * pMsg);
@@ -65,8 +67,8 @@ typedef struct {
 
 // ----- link_get_addr ----------------------------------------
 extern net_addr_t link_get_addr(SNetLink * pLink);
-// ----- link_get_addr ----------------------------------------
-extern net_addr_t link_get_addr(SNetLink * pLink);
+// ----- link_get_prefix ----------------------------------------
+extern void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix);
 // ----- link_set_type ----------------------------------------
 extern void link_set_type(SNetLink * pLink, uint8_t uType);
 // ----- link_get_type ----------------------------------------
