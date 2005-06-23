@@ -249,10 +249,20 @@ int ip_prefixes_compare(void * pItem1, void * pItem2,
   SPrefix * pPrefix1 = *((SPrefix **) pItem1);
   SPrefix * pPrefix2 = *((SPrefix **) pItem2);
   if ((pPrefix1->tNetwork == pPrefix2->tNetwork) &&
-    (pPrefix1->uMaskLen == pPrefix2->uMaskLen))
+    (pPrefix1->uMaskLen == pPrefix2->uMaskLen)){
     return 0;
-  else
+  }
+  else if (pPrefix1->uMaskLen == pPrefix2->uMaskLen) {
+    if ((pPrefix1->tNetwork < pPrefix2->tNetwork))
+      return -1;
+    else
+      return  1;
+  }
+  else if (pPrefix1->uMaskLen < pPrefix2->uMaskLen) 
     return -1;
+  else
+    return  1;
+  
 }
 
 // ----- ip_prefix_equals -------------------------------------------
