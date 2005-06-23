@@ -590,7 +590,7 @@ void peer_route_delay_update(SPeer * pPeer, SRoute * pRoute)
   LOG_FATAL("Error: to support route-reflection !!!");
   abort();
 
-  pLink= node_find_link(pPeer->pLocalRouter->pNode, pRoute->tNextHop);
+  pLink= node_find_link_to_router(pPeer->pLocalRouter->pNode, pRoute->tNextHop);
   assert(pLink != NULL);
 
 #ifdef BGP_QOS

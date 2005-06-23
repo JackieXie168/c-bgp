@@ -111,7 +111,7 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeDstAddr);
     return CLI_ERROR_CTX_CREATE;
   }
-  *ppItem= node_find_link(pNodeSrc, pNodeDst->tAddr);
+  *ppItem= node_find_link_to_router(pNodeSrc, pNodeDst->tAddr);
   if (*ppItem == NULL) {
     LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
 	       pcNodeSrcAddr, pcNodeDstAddr);
