@@ -161,13 +161,41 @@ int node_links_compare(void * pItem1, void * pItem2,
 {
   SNetLink * pLink1= *((SNetLink **) pItem1);
   SNetLink * pLink2= *((SNetLink **) pItem2);
-
-  if (link_get_addr(pLink1) < link_get_addr(pLink2))
-    return -1;
-  else if (link_get_addr(pLink1) > link_get_addr(pLink2))
-    return 1;
-  else
-    return 0;
+//   LOG_DEBUG("...node links compare\n");
+  if (pLink1->uDestinationType == pLink2->uDestinationType){
+//         LOG_DEBUG("i link sono dello stesso tipo...\n");
+    if (pLink1->uDestinationType == NET_LINK_TYPE_ROUTER) {
+//     LOG_DEBUG("...verso router\n");
+      if (link_get_addr(pLink1) < link_get_addr(pLink2))
+        return -1;
+      else if (link_get_addr(pLink1) > link_get_addr(pLink2))
+        return 1;
+      else
+        return 0;
+     }
+     else {
+//      LOG_DEBUG("...verso subnet\n");
+       SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
+//        pPrefixL1 = (SPrefix *) MALLOC(sizeof(SPrefix));
+//        pPrefixL2 = (SPrefix *) MALLOC(sizeof(SPrefix));
+       link_get_prefix(pLink1, &sPrefixL1);
+       link_get_prefix(pLink2, &sPrefixL2);
+       pP1 = &sPrefixL1;
+       pP2 = &sPrefixL2;
+       int pfxCmp = ip_prefixes_compare(&pP1, &pP2, 0);
+//        FREE(pPrefixL1);
+//        FREE(pPrefixL2);
+       return pfxCmp;
+     }
+   }
+   else if (pLink1->uDestinationType == NET_LINK_TYPE_TRANSIT)
+     return 1;
+   else if (pLink2->uDestinationType == NET_LINK_TYPE_TRANSIT)
+     return -1;
+   else if (pLink1->uDestinationType == NET_LINK_TYPE_STUB)
+     return 1;
+   else
+     return -1;  
 }
 
 // ----- node_links_destroy -----------------------------------------
@@ -330,9 +358,9 @@ SNetNode * node_create(net_addr_t tAddr)
   pNode->pcName = NULL;
   pNode->uAS = 0;
   pNode->pOSPFAreas = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
-  pNode->pLinks= ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
-				  node_links_compare,
-				  node_links_destroy);
+  pNode->pLinks = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
+				   node_links_compare,
+				   node_links_destroy);
   pNode->pRT= rt_create();
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
@@ -388,7 +416,6 @@ int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet,
                                              net_link_delay_t tDelay, int iMutual)
 {
   SNetLink * pLink= create_link_toSubnet(pSubnet);
-  
   pLink->tDelay= tDelay;
   pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV; //??
   pLink->uIGPweight= tDelay;
@@ -396,7 +423,6 @@ int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet,
   pLink->fForward= NULL;
   
   if (ptr_array_add(pNode->pLinks, &pLink) < 0){
-    LOG_DEBUG("ptr_array_add failure\n");
     return -1;
   }
   else if (iMutual)
@@ -443,14 +469,33 @@ int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
 /**
  *
  */
-SNetLink * node_find_link(SNetNode * pNode, net_addr_t tAddr)
+SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
 {
   int iIndex;
-  net_addr_t * pAddr= &tAddr;
-  SNetLink * pLink= NULL;
+  SNetLink * pLink= NULL, * wrapLink;
   
-  if (ptr_array_sorted_find_index(pNode->pLinks, &pAddr, &iIndex) == 0)
+  wrapLink = create_link_toRouter_byAddr(tAddr);
+
+  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[iIndex];
+  return pLink;
+}
+
+// ----- node_find_link ---------------------------------------------
+/**
+ *
+ */
+SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
+{
+  int iIndex;
+  SNetLink * pLink= NULL, * wrapLink;
+  
+  wrapLink = create_link_toSubnet(pSubnet);
+    
+  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
+    pLink= (SNetLink *) pNode->pLinks->data[iIndex];
+  
+  //FREE(pPrefix);
   return pLink;
 }
 
@@ -496,7 +541,7 @@ SNetLink * node_links_lookup(SNetNode * pNode,
   SNetLink * pLink;
 
   // Link lookup: O(log(n))
-  pLink= node_find_link(pNode, tDstAddr);
+  pLink= node_find_link_to_router(pNode, tDstAddr);
   if (pLink == NULL)
     return NULL; // No link available towards this node
 
