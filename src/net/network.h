@@ -89,9 +89,10 @@ extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 // ----- node_add_link_toSubnet ----------------------------------------------
 extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 			 net_link_delay_t tDelay, int iRecurse);
-// ----- node_find_link ---------------------------------------------
-extern SNetLink * node_find_link(SNetNode * pNode,
-				 net_addr_t tAddr);
+// ----- node_find_link_to_router ---------------------------------------------
+extern SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr);
+// ----- node_find_link_to_subnet -------------------------------------------------
+extern SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet);
 // ----- node_post_event --------------------------------------------
 extern int node_post_event(SNetNode * pNode);
 
@@ -139,7 +140,11 @@ extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
 extern int node_ipip_enable(SNetNode * pNode);
 // ----- node_add_tunnel --------------------------------------------
 extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
-
+// ----- node_destroy -----------------------------------------------
+/**
+ *
+ */
+void node_destroy(SNetNode ** ppNode);
 
 /////////////////////////////////////////////////////////////////////
 ///// NETWORK METHODS
