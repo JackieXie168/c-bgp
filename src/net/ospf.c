@@ -315,133 +315,6 @@ uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet)
   return 1;
 }*/
 
-// ----- ospf_rt_test() -----------------------------------------------
-int ospf_rt_test(){
-  char * pcEndPtr;
-  SPrefix  sSubnetPfxTx;
-  SPrefix  sSubnetPfxTx1;
-  net_addr_t tAddrA, tAddrB, tAddrC;
-  
-  assert(!ip_string_to_address("192.168.0.2", &pcEndPtr, &tAddrA));
-  assert(!ip_string_to_address("192.168.0.3", &pcEndPtr, &tAddrB));
-  assert(!ip_string_to_address("192.168.0.4", &pcEndPtr, &tAddrC));
-  
-  SNetNode * pNodeA= node_create(tAddrA);
-  SNetNode * pNodeB= node_create(tAddrB);
-  SNetNode * pNodeC= node_create(tAddrC);
-  
-  assert(!ip_string_to_prefix("192.168.0.0/24", &pcEndPtr, &sSubnetPfxTx));
-  assert(!ip_string_to_prefix("192.120.0.0/24", &pcEndPtr, &sSubnetPfxTx1));
-  
-  //ip_prefix_dump(stdout, sSubnetPfxTx);
-  //ip_prefix_dump(stdout, sSubnetPfxTx1);
-  
-  SNetSubnet * pSubTx = subnet_create(sSubnetPfxTx.tNetwork,
-                                              sSubnetPfxTx.uMaskLen, NET_SUBNET_TYPE_TRANSIT);
-//   SNetSubnet * pSubTx1 = subnet_create(sSubnetPfxTx1.tNetwork,
-//                                                sSubnetPfxTx.uMaskLen,
-// 					       NET_SUBNET_TYPE_TRANSIT);
-  //subnet_dump(stdout, pSubTx);
-  //subnet_dump(stdout, pSubTx1);
- 
-  assert(node_add_link_toSubnet(pNodeA, pSubTx, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB, pSubTx, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeC, pSubTx, 100, 1) >= 0);
-  assert(node_add_link(pNodeA, pNodeC, 100, 1) >= 0);
-  
-  SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
-  assert(pLinkAS != NULL);
-  SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
-  assert(pLinkAC != NULL);
-  
-  SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB);
-  assert(pNHB != NULL);
-  assert(pNHB->pLink == pLinkAS && pNHB->tAddr == tAddrB);
-  SOSPFNextHop * pNHC1 = ospf_next_hop_create(pLinkAS, tAddrC);
-  assert(pNHB != NULL);
-  SOSPFNextHop * pNHC2 = ospf_next_hop_create(pLinkAC, tAddrC);
-  assert(pNHB != NULL);
-  
-  
-  next_hops_list_s * pNHList = ospf_nh_list_create();
-  assert(pNHList != NULL);
-  
-  ospf_nh_list_add(pNHList, pNHB);
-  //TODO ospf_nh_list_dump
-  //TODO collegare nh_list a rt... vedi sotto 
-  ospf_nh_list_destroy(&pNHList);
-  assert(pNHList == NULL);
-  
-  ospf_next_hop_destroy(&pNHB);
-  assert(pNHB == NULL);
-  ospf_next_hop_destroy(&pNHC1);
-  assert(pNHC1 == NULL);
-  ospf_next_hop_destroy(&pNHC2);
-  assert(pNHC2 == NULL);
-  
-  subnet_destroy(&pSubTx);
-//   subnet_destroy(&pSubTx1);
-  
-  node_destroy(&pNodeA);
-  node_destroy(&pNodeB);
-  node_destroy(&pNodeC);
-  
-    
-  /**/
-  
-/*SOSPFRT * pRt= OSPF_rt_create();
-  assert(pRt != NULL);
-  
-//   SNetNode * pNodeA= node_create(1);
-  SNetNode * pNodeB= node_create(2);
-  SNetNode * pNodeC= node_create(2);
-  
-//   SNetLink * pLinkToA = create_link_toRouter(pNodeA);
-  SNetLink * pLinkToB = create_link_toRouter(pNodeB);
-  SNetLink * pLinkToC2 = create_link_toRouter(pNodeC);
-  SNetLink * pLinkToC1 = create_link_toRouter(pNodeC);
-  
-  SPrefix  sPrefixB, sPrefixC;
-  sPrefixB.tNetwork = 2048;
-  sPrefixB.uMaskLen = 28;
-  sPrefixC.tNetwork = 4096;
-  sPrefixC.uMaskLen = 28;
-  
-  SOSPFRouteInfo * pRiB = OSPF_route_info_create(OSPF_DESTINATION_TYPE_ROUTER,
-                                       sPrefixB,
-				       100,
-				       BACKBONE_AREA,
-				       OSPF_PATH_TYPE_INTRA ,
-				       pLinkToB);
-  assert(pRiB != NULL);
-  SOSPFRouteInfo * pRiC = OSPF_route_info_create(OSPF_DESTINATION_TYPE_ROUTER,
-                                       sPrefixC,
-				       100,
-				       BACKBONE_AREA,
-				       OSPF_PATH_TYPE_INTRA ,
-				       pLinkToC1);
-
-  assert(pRiC != NULL);
-  assert(OSPF_rt_add_route(pRt, sPrefixB, pRiB) >= 0);
-  assert(OSPF_rt_add_route(pRt, sPrefixC, pRiC) >= 0);
- 
-  OSPF_route_info_dump(stdout, pRiB);
-  OSPF_route_info_dump(stdout, pRiC);
-  
-  assert(OSPF_route_info_add_nextHop(pRiC, pLinkToC2) >= 0); 
-  OSPF_route_info_dump(stdout, pRiC);
-  
-  assert(OSPF_rt_find_exact(pRt, sPrefixB, NET_ROUTE_ANY) == pRiB);
-  
-  OSPF_rt_dump(stdout, pRt);
-  
-  OSPF_rt_destroy(&pRt);
-  assert(pRt == NULL);
-*/  
-  return 1;
-}
-
-
 int ospf_info_test() {
   
   const int startAddr = 1024;
@@ -628,6 +501,7 @@ int ospf_info_test() {
   assert(!subnet_is_stub(pSubnetTK1));
   return 1; 
 }
+
 // ----- test_ospf -----------------------------------------------
 int ospf_test()
 {
