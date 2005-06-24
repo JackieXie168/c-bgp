@@ -23,10 +23,12 @@
 #define OSPF_PATH_TYPE_EXTERNAL_1  2
 #define OSPF_PATH_TYPE_EXTERNAL_2  3
 
+#define OSPF_NO_IP_NEXT_HOP 0
+
 typedef uint8_t ospf_dest_type_t;
 typedef uint8_t ospf_area_t;
 typedef uint8_t ospf_path_type_t;
-typedef SPtrArray next_hops_list_s;
+typedef SPtrArray next_hops_list_t;
 typedef SPtrArray SOSPFRouteInfoList;
 
 
@@ -38,6 +40,7 @@ typedef SPtrArray SOSPFRouteInfoList;
 typedef struct {
   SNetLink * pLink;  //link towards next-hop
   net_addr_t tAddr;  //ip address of next hop
+  //TODO add advertising router
 } SOSPFNextHop;
 
 
@@ -47,7 +50,7 @@ typedef struct {
   uint32_t            uWeight;
   ospf_area_t         tOSPFArea;
   ospf_path_type_t    tOSPFPathType;
-  next_hops_list_s *  aNextHops;
+  next_hops_list_t *  aNextHops;
   net_route_type_t    tType;
 } SOSPFRouteInfo;
 
@@ -56,6 +59,9 @@ typedef STrie SOSPFRT;
 #else
 typedef SRadixTree SOSPFRT;
 #endif
+
+// ----- ospf_rt_test() -----------------------------------------------
+extern int ospf_rt_test();
 
 ///////////////////////////////////////////////////////////////////////////
 //////  OSPF NEXT HOP FUNCTION
@@ -68,11 +74,11 @@ extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 // ----- ospf_next_hops_compare -----------------------------------------------
 extern int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- ospf_nh_list_create --------------------------------------------------
-extern next_hops_list_s * ospf_nh_list_create();
+extern next_hops_list_t * ospf_nh_list_create();
 // ----- ospf_nh_list_destroy --------------------------------------------------
-extern void ospf_nh_list_destroy(next_hops_list_s ** pNHList);
+extern void ospf_nh_list_destroy(next_hops_list_t ** pNHList);
 // ----- ospf_nh_list_add --------------------------------------------------
-void ospf_nh_list_add(next_hops_list_s * pNHList, SOSPFNextHop * pNH);
+extern int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH);
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -82,15 +88,15 @@ void ospf_nh_list_add(next_hops_list_s * pNHList, SOSPFNextHop * pNH);
 // ----- rt_perror -------------------------------------------------------
 extern void OSPF_rt_perror(FILE * pStream, int iErrorCode);
 // ----- route_info_create ------------------------------------------
-extern SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  uOSPFDestinationType,
-                                       SPrefix           sPrefix,
-				       uint32_t          uWeight,
-				       ospf_area_t       uOSPFArea,
-				       ospf_path_type_t  uOSPFPathType,
-				       SNetLink *        pNextHopIf);
+extern SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
+                                       SPrefix            sPrefix,
+				       uint32_t           uWeight,
+				       ospf_area_t        tOSPFArea,
+				       ospf_path_type_t   tOSPFPathType,
+				       SOSPFNextHop     * pNextHop);
 				       
 // ----- OSPF_route_info_add_nextHop -----------------------------------------
-extern int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pOSPFRouteInfo, SNetLink * pNextHopIf);
+int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH);
 // ----- OSPF_route_info_dump ------------------------------------------------
 extern void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo);
 // ----- OSPF_rt_find_exact --------------------------------------------------
