@@ -47,7 +47,7 @@ int subnet_is_transit(SNetSubnet * pSubnet);
 int subnet_is_stub(SNetSubnet * pSubnet);
 // ----- subnet_add_node ---------------------------------------------------------------
 int subnet_link_toNode(SNetSubnet * pSubnet, SNetNode * pNode); 
-// ----- Ssubnet_get_links -------------------------------------------------------------
+// ----- subnet_get_links -------------------------------------------------------------
 SPtrArray * subnet_get_links(SNetSubnet * pSubnet);
 // ----- subnet_destroy ---------------------------------------------------
 void subnet_destroy(SNetSubnet ** ppSubnet);

@@ -123,7 +123,7 @@ void spt_vertex_dst(void ** ppItem){
 }
 
 // ----- spt_vertex_get_links ---------------------------------------
-SPtrArray * spt_vertex_get_links(SSptVertex * pVertex, SNetwork * pNetwork)
+SPtrArray * spt_vertex_get_links(SSptVertex * pVertex)
 {
   if (pVertex->uDestinationType == NET_LINK_TYPE_ROUTER){
 //     LOG_DEBUG("è un router\n");
@@ -131,7 +131,7 @@ SPtrArray * spt_vertex_get_links(SSptVertex * pVertex, SNetwork * pNetwork)
   }
   else{
 //     LOG_DEBUG("è una subnet\n");
-    return subnet_get_links((SNetSubnet *)(pVertex->pObject), pNetwork);
+    return subnet_get_links((SNetSubnet *)(pVertex->pObject));
   }
 }
 
@@ -255,7 +255,7 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
     ip_prefix_dump(stdout, sDestPrefix);
     fprintf(stdout, "\n");
     radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen, pCurrentVertex);
-    aLinks = spt_vertex_get_links(pCurrentVertex, pNetwork);
+    aLinks = spt_vertex_get_links(pCurrentVertex);
     for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
       ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
       //TODO add check to link flags
@@ -495,7 +495,7 @@ int ospf_djk_test()
 //   spt_vertex_get_links(pV1);
   SPtrArray * pLinks;
   SNetLink * pLink;
-  pLinks = spt_vertex_get_links(pV1, pNetwork);
+  pLinks = spt_vertex_get_links(pV1);
   assert(pLinks != NULL);
   int iIndex;
  /* for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
@@ -504,7 +504,7 @@ int ospf_djk_test()
     fprintf(stdout, "\n");
   }*/
   
-  pLinks = spt_vertex_get_links(pV2, pNetwork);
+  pLinks = spt_vertex_get_links(pV2);
   assert(pLinks != NULL);
   for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
     ptr_array_get_at(pLinks, iIndex, &pLink);

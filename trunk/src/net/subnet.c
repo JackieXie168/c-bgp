@@ -82,7 +82,7 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
 }
 
 // ----- SPtrArray -------------------------------------------------- 
-SPtrArray * subnet_get_links(SNetSubnet * pSubnet, SNetwork * pNetwork) 
+SPtrArray * subnet_get_links(SNetSubnet * pSubnet) 
 {
   SPtrArray * aLinks;
   int iIndexN, iIndexL;
