@@ -45,7 +45,8 @@ typedef SPtrArray spt_vertex_list_t;
    void               * pObject;
    next_hops_list_t   * pNextHops;
    net_link_delay_t     uIGPweight;  
-   struct vertex_t    * father;    //ONLY FOR DEBUG we can remove
+   
+   SPtrArray          * fathers;    //ONLY FOR DEBUG we can remove
    SPtrArray          * sons;      //ONLY FOR DEBUG we can remove
  } SSptVertex;
 
@@ -59,7 +60,7 @@ SSptVertex * spt_vertex_create_byRouter(SNetNode * pNode, net_link_delay_t uIGPw
   pVertex->uIGPweight = uIGPweight;
   pVertex->pNextHops = ospf_nh_list_create();
   
-  pVertex->father = NULL;
+  pVertex->fathers = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
   pVertex->sons = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
   return pVertex;
 }
@@ -74,7 +75,7 @@ SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t u
   pVertex->uIGPweight = uIGPweight;
   pVertex->pNextHops = ospf_nh_list_create();
   
-  pVertex->father = NULL;
+  pVertex->fathers = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
   pVertex->sons = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
   return pVertex;
 }
@@ -135,32 +136,6 @@ SPtrArray * spt_vertex_get_links(SSptVertex * pVertex)
   }
 }
 
-// ----- spt_vertex_compare ---------------------------------------
-int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
-{
-  SSptVertex * pVertex1= *((SSptVertex **) pItem1);
-  SSptVertex * pVertex2= *((SSptVertex **) pItem2); 
-  
-  if (pVertex1->uDestinationType == pVertex2->uDestinationType) {
-    if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER){
-//       fprintf(stdout, "spt_vertex_compare: sono router\n");
-//       ip_address_dump(stdout, ((SNetNode *)(pVertex1->pObject))->tAddr);
-      if (((SNetNode *)(pVertex1->pObject))->tAddr < ((SNetNode *)(pVertex2->pObject))->tAddr)
-        return -1;
-      else if (((SNetNode *)(pVertex1->pObject))->tAddr > ((SNetNode *)(pVertex2->pObject))->tAddr)
-        return 1;
-      else
-	return 0;
-    }
-    else 
-      return ip_prefixes_compare(((SNetSubnet *)(pVertex1->pObject))->pPrefix, ((SNetSubnet *)(pVertex2->pObject))->pPrefix, 0);
-  }
-  else if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER)
-   return -1;
-  else 
-   return  1;
-}
-
 // ----- spt_vertex_get_links ---------------------------------------
 SPrefix spt_vertex_get_prefix(SSptVertex * pVertex)
 {     
@@ -177,6 +152,43 @@ SPrefix spt_vertex_get_prefix(SSptVertex * pVertex)
   return p;
 }
 
+// ----- spt_vertex_compare ---------------------------------------
+int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
+{
+  SSptVertex * pVertex1= *((SSptVertex **) pItem1);
+  SSptVertex * pVertex2= *((SSptVertex **) pItem2); 
+  
+  if (pVertex1->uDestinationType == pVertex2->uDestinationType) {
+    if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER){
+//        fprintf(stdout, "spt_vertex_compare: sono router\n");
+//       ip_address_dump(stdout, ((SNetNode *)(pVertex1->pObject))->tAddr);
+      if (((SNetNode *)(pVertex1->pObject))->tAddr < ((SNetNode *)(pVertex2->pObject))->tAddr)
+        return -1;
+      else if (((SNetNode *)(pVertex1->pObject))->tAddr > ((SNetNode *)(pVertex2->pObject))->tAddr)
+        return 1;
+      else
+	return 0;
+    }
+    else {
+//       fprintf(stdout, "spt_vertex_compare: sono subnet\n");
+      SPrefix sPrefV1 = spt_vertex_get_prefix(pVertex1); 
+      SPrefix sPrefV2 = spt_vertex_get_prefix(pVertex2); 
+      SPrefix * pPrefV1 = &sPrefV1;
+      SPrefix * pPrefV2 = &sPrefV2;
+//       ip_prefix_dump(stdout, sPrefV1);
+//       ip_prefix_dump(stdout, sPrefV2);
+//       fprintf(stdout, "spt_vertex_compare: prefissi presi\n");
+      return ip_prefixes_compare(&pPrefV1, &pPrefV2, 0);
+    }
+  }
+  else if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER)
+   return -1;
+  else 
+   return  1;
+}
+
+
+
 // ----- spt_get_best_candidate -----------------------------------------------
 /*
   Search for the best candidate to add to SPT.
@@ -191,7 +203,7 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
   int iBestIndex = 0, iIndex;
   
   if (ptr_array_length(paGrayVertexes) > 0) {
-    fprintf(stdout, "vertex in aGray : %d\n", ptr_array_length(paGrayVertexes));
+     fprintf(stdout, "vertex in aGray : %d\n", ptr_array_length(paGrayVertexes));
     //search for best candidate in frontier
     
 //       ptr_array_get_at(aGrayVertexes, 0, &pCurrentVertex);
@@ -201,14 +213,14 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
       ptr_array_get_at(paGrayVertexes, iIndex, &pCurrentVertex);
       assert(pCurrentVertex != NULL);
       if (pBestVertex == NULL){
-	fprintf(stdout, "prendo il primo : \n");
+// 	fprintf(stdout, "prendo il primo : \n");
 	ip_prefix_dump(stdout, spt_vertex_get_prefix(pCurrentVertex));
 	fprintf(stdout, "\n");
 	pBestVertex = pCurrentVertex;
 	iBestIndex = iIndex;
       }
       else if (pCurrentVertex->uIGPweight <  pBestVertex->uIGPweight){
-	fprintf(stdout, "trovato migliore : \n");
+// 	fprintf(stdout, "trovato migliore : \n");
 	ip_prefix_dump(stdout, spt_vertex_get_prefix(pCurrentVertex));
 	fprintf(stdout, "\n");
 	pBestVertex = pCurrentVertex;
@@ -254,7 +266,9 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
     fprintf(stdout, "Current vertex is ");
     ip_prefix_dump(stdout, sDestPrefix);
     fprintf(stdout, "\n");
+    
     radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen, pCurrentVertex);
+    
     aLinks = spt_vertex_get_links(pCurrentVertex);
     for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
       ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
@@ -287,9 +301,13 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
       pNewVertex = spt_vertex_create(pNetwork, pCurrentLink, pCurrentVertex);
       assert(pNewVertex != NULL);
       
-      
+      fprintf(stdout, "nuovo vertex creato\n");
       //check if vertex is in grayVertexes
-      int srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &iOldVertexPos);
+      int srchRes = -1;
+      if (ptr_array_length(aGrayVertexes) > 0)
+        srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &iOldVertexPos);
+      else
+        fprintf(stdout, "aGrays è vuoto\n");
       //srchres == -1 ==> item not found
       //srchres == 0  ==> item found
       pOldVertex = NULL;
@@ -304,7 +322,7 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 //             aggiungere pOldVertex a Grayvertexes
         ptr_array_add(aGrayVertexes, &pNewVertex);
   	ptr_array_add(pCurrentVertex->sons, &pNewVertex);
-  	pNewVertex->father = pCurrentVertex;
+	ptr_array_add(pNewVertex->fathers, &pCurrentVertex);
 // TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
       }
       else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
@@ -315,10 +333,19 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 //         ospf_nh_list_destroy(&(pOldVertex->pNextHops));
 // 	pOldVertex->pNextHops = ospf_nh_list_create();
 // TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
-
-        assert(ptr_array_sorted_find_index(pOldVertex->father->sons, &pOldVertex, &iPos) == 0);
- 	ptr_array_remove_at(pCurrentVertex->father->sons, iPos);
-        pOldVertex->father = pCurrentVertex;
+        int iIndex;
+	SSptVertex * pFather;
+	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
+	  ptr_array_get_at(pOldVertex->fathers, iIndex, &pFather);
+	  assert(ptr_array_sorted_find_index(pFather->sons, &pOldVertex, &iPos) == 0);
+	  ptr_array_remove_at(pFather->sons, iPos);
+	}
+	
+	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
+	  ptr_array_remove_at(pOldVertex->fathers, iIndex);
+	}
+	
+        ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
         ptr_array_add(pCurrentVertex->sons, &pOldVertex);
         spt_vertex_destroy(&pNewVertex);
 	fprintf(stdout, "vertex aggiornato(peso minore)\n");
@@ -326,6 +353,7 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
       else if (pOldVertex->uIGPweight == pNewVertex->uIGPweight) {
 // TODO        SNextHop * pNH = compute_next_hop();
 //         ospf_nh_list_add(pVertex->aNextHops, pNH);
+        ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
         ptr_array_add(pCurrentVertex->sons, &pOldVertex);
         spt_vertex_destroy(&pNewVertex);
 	fprintf(stdout, "vertex aggiornato (peso uguale)\n");
@@ -344,16 +372,34 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
   return pSpt;
 }
 
+void visit_vertex(SSptVertex * pVertex, int level, FILE * pStream){
+//   pVertex->color = GRAY;
+  SSptVertex * pChild;
+  int iIndex; 
+  if (level != 0){
+    for (iIndex = 0; iIndex < level; iIndex++)
+    	fprintf(pStream, "            ");
+    fprintf(pStream, "|");
+  }
+//   for (iIndex = 0; iIndex < level; iIndex++)
+  fprintf(pStream, "---");
+  fprintf(pStream, "> [ ");
+  ip_prefix_dump(pStream, spt_vertex_get_prefix(pVertex));
+  fprintf(pStream, " ]-[ %d ]\n", pVertex->uIGPweight);
+  level++;
+  for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
+     ptr_array_get_at(pVertex->sons, iIndex, &pChild);
+     visit_vertex(pChild, level, pStream);
+  }
+}
 // ----- spt_dump ------------------------------------------
-/*void spt_dump(SRadixTree * pSpt, net_addr_t tRadixAddr)
+void spt_dump(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
 {
   SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
-  SSptVertex * pNext = NULL;
+//   SSptVertex * pNext = NULL;
   
-//   while(pNext != NULL) {
-//     pNext = ;
-//   }
-}*/
+  visit_vertex(pRadix, 0, pStream);
+}
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for node object
 /////////////////////////////////////////////////////////////////////
@@ -444,7 +490,7 @@ int ospf_djk_test()
 //   assert(!network_add_node(pNetwork, pNodeK2));
 //   assert(!network_add_node(pNetwork, pNodeK3));
 //   LOG_DEBUG("nodes attached.\n");
-  assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB1, pNodeB2, 1000, 1) >= 0);
   assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
   assert(node_add_link(pNodeB3, pNodeB4, 100, 1) >= 0);
   assert(node_add_link(pNodeB4, pNodeB1, 100, 1) >= 0);
@@ -462,8 +508,8 @@ int ospf_djk_test()
 //   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
 //   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
-  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 50, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 200, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
@@ -531,6 +577,8 @@ int ospf_djk_test()
   assert(pFindNode != NULL);
   LOG_DEBUG("ospf_djk_test(): find node is ok...");
   SRadixTree * pSpt = OSPF_dijkstra(pNetwork, pNodeB1->tAddr, sPrefix);
+  
+  spt_dump(stdout, pSpt, pNodeB1->tAddr);
   radix_tree_destroy(&pSpt);
   
   LOG_DEBUG(" ok!\n");
