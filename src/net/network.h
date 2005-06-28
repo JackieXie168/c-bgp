@@ -98,6 +98,8 @@ extern int node_post_event(SNetNode * pNode);
 
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(FILE * pStream, SNetNode * pNode);
+// ----- node_links_destroy -----------------------------------------
+void node_links_destroy(void * pItem);
 // ----- node_links_for_each ----------------------------------------
 extern int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
 			       void * pContext);
