@@ -306,10 +306,8 @@ int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH)
 void OSPF_route_info_destroy(SOSPFRouteInfo ** ppOSPFRouteInfo)
 {
   if (*ppOSPFRouteInfo != NULL) {
-    if ((*ppOSPFRouteInfo)->aNextHops != NULL){
-      LOG_DEBUG("nh list destroy in route info\n");
+    if ((*ppOSPFRouteInfo)->aNextHops != NULL){     
       ospf_nh_list_destroy(&((*ppOSPFRouteInfo)->aNextHops));
-      LOG_DEBUG("nh list destroy in route info\n");
     }
     FREE(*ppOSPFRouteInfo);
     *ppOSPFRouteInfo= NULL;
@@ -607,6 +605,7 @@ int ospf_rt_test(){
   SPrefix  sSubnetPfxTx1;
   net_addr_t tAddrA, tAddrB, tAddrC;
   
+  LOG_DEBUG("ospf_rt_test: START\n");
   assert(!ip_string_to_address("192.168.0.2", &pcEndPtr, &tAddrA));
   assert(!ip_string_to_address("192.168.0.3", &pcEndPtr, &tAddrB));
   assert(!ip_string_to_address("192.168.0.4", &pcEndPtr, &tAddrC));
@@ -623,22 +622,22 @@ int ospf_rt_test(){
 //   SNetSubnet * pSubTx1 = subnet_create(sSubnetPfxTx1.tNetwork,
 //                                                sSubnetPfxTx.uMaskLen,
 // 					       NET_SUBNET_TYPE_TRANSIT);
-  //subnet_dump(stdout, pSubTx);
-  //subnet_dump(stdout, pSubTx1);
- 
-  //Small network for test: 3 router A,B,C on a subnet Tx
+   
+  LOG_DEBUG("ospf_rt_test: Build small network for test: 3 router A,B,C on a subnet Tx... ");
   assert(node_add_link_toSubnet(pNodeA, pSubTx, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeB, pSubTx, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeC, pSubTx, 300, 1) >= 0);
   assert(node_add_link(pNodeA, pNodeC, 100, 1) >= 0);
+  LOG_DEBUG(" ok!\n");
   
-  //CHECK node_find_link
+  LOG_DEBUG("CHECK node_find_link...");
   SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
   assert(pLinkAS != NULL);
   SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
   assert(pLinkAC != NULL);
+  LOG_DEBUG(" ok!\n");
   
-  //CHECK next hop capability
+  LOG_DEBUG("CHECK next hop features...");
   SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB);
   assert(pNHB != NULL);
   assert(pNHB->pLink == pLinkAS && pNHB->tAddr == tAddrB);
@@ -648,16 +647,18 @@ int ospf_rt_test(){
   assert(pNHB != NULL);
   SOSPFNextHop * pNHTx = ospf_next_hop_create(pLinkAS, 0);
   assert(pNHTx != NULL);
+  LOG_DEBUG(" ok!\n");
   
-  //CHECK next hop list
+  LOG_DEBUG("CHECK next hop list features...");
   next_hops_list_t * pNHList = ospf_nh_list_create();
   assert(pNHList != NULL);
   
   assert(ospf_nh_list_add(pNHList, pNHC1) >= 0);
   assert(ospf_nh_list_add(pNHList, pNHC2) >= 0);
 //   ospf_nh_list_dump(stdout, pNHList, "");
+  LOG_DEBUG(" ok!\n");
   
-  //CHECK route info functions
+  LOG_DEBUG("CHECK route info functions...");
   SPrefix sPrefixB, sPrefixC;
   sPrefixB.tNetwork = tAddrB;
   sPrefixB.uMaskLen = 32;
@@ -691,8 +692,8 @@ int ospf_rt_test(){
   assert(OSPF_route_info_add_nextHop(pRiC, pNHC2) >= 0);
 //   OSPF_route_info_dump(stdout, pRiB);
 //   OSPF_route_info_dump(stdout, pRiC);
-  
-  //CHECK routing table function
+  LOG_DEBUG(" ok!\n");
+  LOG_DEBUG("CHECK routing table function... ");
   SOSPFRT * pRT = OSPF_rt_create();
   assert(pRT != NULL);
   
@@ -700,8 +701,8 @@ int ospf_rt_test(){
   assert(OSPF_rt_add_route(pRT, sPrefixC, pRiC) >= 0);
   assert(OSPF_rt_add_route(pRT, sSubnetPfxTx, pRiTx) >= 0);
   OSPF_rt_dump(stdout, pRT);
-  
-  //TODO add advertising router
+  LOG_DEBUG(" ok!\n");
+  //TODO add advertising router... for inter area...
   
   OSPF_rt_destroy(&pRT);
   assert(pRT == NULL);
@@ -722,44 +723,7 @@ int ospf_rt_test(){
   node_destroy(&pNodeA);
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
-  
-/*
-  
-//   SNetNode * pNodeA= node_create(1);
-  SNetNode * pNodeB= node_create(2);
-  SNetNode * pNodeC= node_create(2);
-  
-//   SNetLink * pLinkToA = create_link_toRouter(pNodeA);
-  SNetLink * pLinkToB = create_link_toRouter(pNodeB);
-  SNetLink * pLinkToC2 = create_link_toRouter(pNodeC);
-  SNetLink * pLinkToC1 = create_link_toRouter(pNodeC);
-  
-  SPrefix  sPrefixB, sPrefixC;
-  sPrefixB.tNetwork = 2048;
-  sPrefixB.uMaskLen = 28;
-  sPrefixC.tNetwork = 4096;
-  sPrefixC.uMaskLen = 28;
-  
-  SOSPFRouteInfo * pRiB = OSPF_route_info_create(OSPF_DESTINATION_TYPE_ROUTER,
-                                       sPrefixB,
-				       100,
-				       BACKBONE_AREA,
-				       OSPF_PATH_TYPE_INTRA ,
-				       pLinkToB);
-  assert(pRiB != NULL);
-  SOSPFRouteInfo * pRiC = OSPF_route_info_create(OSPF_DESTINATION_TYPE_ROUTER,
-                                       sPrefixC,
-				       100,
-				       BACKBONE_AREA,
-				       OSPF_PATH_TYPE_INTRA ,
-				       pLinkToC1);
-
-  
- 
-  OSPF_route_info_dump(stdout, pRiB);
-  OSPF_route_info_dump(stdout, pRiC);
-  
-  */  
+  LOG_DEBUG("ospf_rt_test: END\n ");
   return 1;
 }
 
