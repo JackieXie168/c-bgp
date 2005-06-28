@@ -25,208 +25,335 @@
 #define DJK_NODE_TYPE_ROUTER 0
 #define DJK_NODE_TYPE_SUBNET 1
 
+// ----- spt_vertex_are_equal ---------------------------------------
+int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 
 //////////////////////////////////////////////////////////////////////////
 ///////  intra_route_computation
 //////////////////////////////////////////////////////////////////////////
 
-// typedef struct {
-//   uint8_t              uDestinationType;    /* TNET_LINK_TYPE_ROUTER , 
-//                                                NET_LINK_TYPE_TRANSIT, NET_LINK_TYPE_STUB */
-//   UDestinationId       UDestId;   
-//   SDijkNextHop       * aNextHops;
-//   net_link_delay_t     uIGPweight;  
-// } SSptVertex;
+/*typedef union {
+  SNetNode * pNode;
+  SNetSubnet * pSubnet;
+} USPtDestId;*/
 
-// ----- dijkstra_info_create ---------------------------------------
-/*SSptVertex * spt_vertex_create_byRouter(SNetNode * Node)
+typedef SPtrArray spt_vertex_list_t;
+
+ typedef struct vertex_t {
+   uint8_t              uDestinationType;    /* TNET_LINK_TYPE_ROUTER , 
+                                                NET_LINK_TYPE_TRANSIT, NET_LINK_TYPE_STUB */ 
+   void               * pObject;
+   next_hops_list_t   * pNextHops;
+   net_link_delay_t     uIGPweight;  
+   struct vertex_t    * father;    //ONLY FOR DEBUG we can remove
+   SPtrArray          * sons;      //ONLY FOR DEBUG we can remove
+ } SSptVertex;
+
+// ----- spt_vertex_create_byRouter ---------------------------------------
+SSptVertex * spt_vertex_create_byRouter(SNetNode * pNode, net_link_delay_t uIGPweight)
 {
   SSptVertex * pVertex = (SSptVertex *) MALLOC(sizeof(SSptVertex));
+  pVertex->uDestinationType = NET_LINK_TYPE_ROUTER;
+//   (pVertex->UDestId).pNode = pNode;
+  pVertex->pObject = pNode;
+  pVertex->uIGPweight = uIGPweight;
+  pVertex->pNextHops = ospf_nh_list_create();
   
-  pInfo->uIGPweight = 0;
-  pInfo->aNextHops = NULL;  ptr_array_create(ARRAY_OPTION_UNIQUE,
-				  node_links_compare, 
-// 				  NULL);*/
-//   return pInfo;
-// }
-
-
-// typedef struct {
-//   SPrefix            * pPrefix; 
-//   SNetSubnet	     * pSubnet;
-  //SPtrArray        * aNextHops;  /* list to manage Equal Cost Multi Path */
-//   SDijkNextHop       * aNextHops;
-//   net_link_delay_t     uIGPweight;  
-// } SDijkContext;
-
-
-// typedef struct {
-//   next_hops_list_s * aNextHops;
-//   net_link_delay_t   uIGPweight;
-// } SDijkstraInfo;
-
-// ----- dijkstra_info_create ---------------------------------------
-/*SDijkstraInfo * OSPF_dijkstra_info_create(net_link_delay_t uIGPweight)
-{
-  SDijkstraInfo * pInfo=
-    (SDijkstraInfo *) MALLOC(sizeof(SDijkstraInfo));
-  pInfo->uIGPweight= uIGPweight;
-  pInfo->aNextHops= ptr_array_create(ARRAY_OPTION_UNIQUE,
-				  node_links_compare, 
-				  NULL);
-  return pInfo;
+  pVertex->father = NULL;
+  pVertex->sons = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
+  return pVertex;
 }
 
-// ----- dijkstra_info_destroy --------------------------------------
-void OSPF_dijkstra_info_destroy(void ** ppItem)
-{  
-  SDijkstraInfo * pInfo= *((SDijkstraInfo **) ppItem);
-  if (pInfo->aNextHops != NULL)
-      ptr_array_destroy(&(pInfo->aNextHops));
-  FREE(pInfo);
-}*/
+// ----- spt_vertex_create_bySubnet ---------------------------------------
+SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t uIGPweight)
+{
+  SSptVertex * pVertex = (SSptVertex *) MALLOC(sizeof(SSptVertex));
+  pVertex->uDestinationType = NET_LINK_TYPE_TRANSIT;
+//   (pVertex->UDestId).pSubnet = pSubnet;
+  pVertex->pObject = pSubnet;
+  pVertex->uIGPweight = uIGPweight;
+  pVertex->pNextHops = ospf_nh_list_create();
+  
+  pVertex->father = NULL;
+  pVertex->sons = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
+  return pVertex;
+}
+
+// ----- spt_vertex_create -----------------------------------------------------------------
+SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, SSptVertex * pVFather)
+{
+  SSptVertex * pVertex;
+  
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER){
+    SNetNode * pNode;
+    fprintf(stdout, "creo vertex da router\n");
+    pNode = network_find_node(pNetwork, link_get_addr(pLink));
+    assert(pNode != NULL);
+    pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + pLink->uIGPweight);
+  }
+  else if (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT ||
+           pLink->uDestinationType == NET_LINK_TYPE_STUB){
+    SNetSubnet * pSubnet;
+    fprintf(stdout, "creo vertex da subnet\n");
+    pSubnet = link_get_subnet(pLink);
+    pVertex = spt_vertex_create_bySubnet(pSubnet, pVFather->uIGPweight + pLink->uIGPweight);
+  }
+  else
+    return NULL;
+    
+  return pVertex;
+}
+
+// ----- spt_vertex_destroy ---------------------------------------
+void spt_vertex_destroy(SSptVertex ** ppVertex){
+  if (*ppVertex != NULL){
+    if ((*ppVertex)->pNextHops != NULL)
+      ospf_nh_list_destroy(&((*ppVertex)->pNextHops));
+     if ((*ppVertex)->sons != NULL)
+       ptr_array_destroy(&((*ppVertex)->sons));
+    FREE(*ppVertex);
+    *ppVertex = NULL;
+  }    
+}
+
+// ----- spt_vertex_dst ---------------------------------------
+void spt_vertex_dst(void ** ppItem){
+  SSptVertex * pVertex = *((SSptVertex **)(ppItem));
+  spt_vertex_destroy(&pVertex);    
+}
+
+// ----- spt_vertex_get_links ---------------------------------------
+SPtrArray * spt_vertex_get_links(SSptVertex * pVertex, SNetwork * pNetwork)
+{
+  if (pVertex->uDestinationType == NET_LINK_TYPE_ROUTER){
+//     LOG_DEBUG("è un router\n");
+    return  ((SNetNode *)(pVertex->pObject))->pLinks;
+  }
+  else{
+//     LOG_DEBUG("è una subnet\n");
+    return subnet_get_links((SNetSubnet *)(pVertex->pObject), pNetwork);
+  }
+}
+
+// ----- spt_vertex_compare ---------------------------------------
+int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
+{
+  SSptVertex * pVertex1= *((SSptVertex **) pItem1);
+  SSptVertex * pVertex2= *((SSptVertex **) pItem2); 
+  
+  if (pVertex1->uDestinationType == pVertex2->uDestinationType) {
+    if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER){
+//       fprintf(stdout, "spt_vertex_compare: sono router\n");
+//       ip_address_dump(stdout, ((SNetNode *)(pVertex1->pObject))->tAddr);
+      if (((SNetNode *)(pVertex1->pObject))->tAddr < ((SNetNode *)(pVertex2->pObject))->tAddr)
+        return -1;
+      else if (((SNetNode *)(pVertex1->pObject))->tAddr > ((SNetNode *)(pVertex2->pObject))->tAddr)
+        return 1;
+      else
+	return 0;
+    }
+    else 
+      return ip_prefixes_compare(((SNetSubnet *)(pVertex1->pObject))->pPrefix, ((SNetSubnet *)(pVertex2->pObject))->pPrefix, 0);
+  }
+  else if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER)
+   return -1;
+  else 
+   return  1;
+}
+
+// ----- spt_vertex_get_links ---------------------------------------
+SPrefix spt_vertex_get_prefix(SSptVertex * pVertex)
+{     
+  SPrefix p;
+  if (pVertex->uDestinationType == NET_LINK_TYPE_ROUTER) {
+
+    p.tNetwork = ((SNetNode *)(pVertex->pObject))->tAddr;
+    p.uMaskLen = 32;
+
+  }
+  else {
+    p = *(((SNetSubnet *)(pVertex->pObject))->pPrefix);
+  }
+  return p;
+}
+
+// ----- spt_get_best_candidate -----------------------------------------------
+/*
+  Search for the best candidate to add to SPT.
+  - vertex with smallest cost are preferred
+  - transit network are preferred on router
+*/
+SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
+{
+  SSptVertex * pBestVertex = NULL;
+  SSptVertex * pCurrentVertex = NULL;
+  
+  int iBestIndex = 0, iIndex;
+  
+  if (ptr_array_length(paGrayVertexes) > 0) {
+    fprintf(stdout, "vertex in aGray : %d\n", ptr_array_length(paGrayVertexes));
+    //search for best candidate in frontier
+    
+//       ptr_array_get_at(aGrayVertexes, 0, &pCurrentVertex);
+//       ip_prefix_dump(stdout, spt_vertex_get_prefix(pNewVertex));
+// 	  fprintf(stdout, "\n");
+    for (iIndex = 0; iIndex < ptr_array_length(paGrayVertexes); iIndex++) {
+      ptr_array_get_at(paGrayVertexes, iIndex, &pCurrentVertex);
+      assert(pCurrentVertex != NULL);
+      if (pBestVertex == NULL){
+	fprintf(stdout, "prendo il primo : \n");
+	ip_prefix_dump(stdout, spt_vertex_get_prefix(pCurrentVertex));
+	fprintf(stdout, "\n");
+	pBestVertex = pCurrentVertex;
+	iBestIndex = iIndex;
+      }
+      else if (pCurrentVertex->uIGPweight <  pBestVertex->uIGPweight){
+	fprintf(stdout, "trovato migliore : \n");
+	ip_prefix_dump(stdout, spt_vertex_get_prefix(pCurrentVertex));
+	fprintf(stdout, "\n");
+	pBestVertex = pCurrentVertex;
+	iBestIndex = iIndex;
+     }
+   }  
+   fprintf(stdout, "rimuovo da aGrayVertex ...\n");
+   ptr_array_remove_at(paGrayVertexes, iBestIndex);
+  } 
+  return pBestVertex;
+}
+
 
 // ----- dijkstra ---------------------------------------------------
 /**
  * Compute the Shortest Path Tree from the given source router
  * towards all the other routers that belong to the given prefix.
  */
-/*SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
+SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 		      SPrefix sPrefix)
 {
-  SNetLink * pLink;
-  SNetNode * pNode = NULL;
-  SNetSubnet * pSubnet;
-  SFIFO * pFIFO;
-  SRadixTree * pVisited;
-  SDijkContext * pContext = NULL, * pOldContext =  NULL;
-  SPtrArray * aLinks;
-  
-  SDijkstraInfo * pInfo;
-  SPrefix  * pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));;
-  int iIndex;//, iIndexN;//, iIndexL;
+  SPrefix      sDestPrefix; 
 
-  pVisited= radix_tree_create(32, OSPF_dijkstra_info_destroy);
-  pFIFO= fifo_create(100000, NULL);
-  pContext= (SDijkContext *) MALLOC(sizeof(SDijkContext));
-  
-  
-  pContext->pSubnet = NULL;
-  
-  pPrefix->tNetwork = tSrcAddr;
-  pPrefix->uMaskLen = 32;
-  
-  pContext->pPrefix = pPrefix;
-  pContext->pSubnet = NULL;
-  pContext->aNextHops = NULL;ptr_array_create(ARRAY_OPTION_UNIQUE,
-				  ip_prefixes_compare, 
-				  ip_prefixes_destroy);*/
-/*  pContext->uIGPweight = 0;
-  
-  fifo_push(pFIFO, pContext);
-  radix_tree_add(pVisited, tSrcAddr, 32, OSPF_dijkstra_info_create(0));
+  int iIndex = 0;
+  int iOldVertexPos;
 
-  // Breadth-first search
-  while (1) {
-     pContext= (SDijkContext *) fifo_pop(pFIFO);
-
-     //pNode= network_find_node(pNetwork, pContext->pPrefix->tNetwork);//REMOVE
-     //assert(pNode != NULL);//REMOVE
-     //ptr_array_get_at(pNode->pLinks, 0, &(pLink));//REMOVE
-     //pContext->pSubnet = (pLink->UDestId).pSubnet;
-     //pContext->pPrefix->uMaskLen = 31;//REMOVE
-   
-     if (pContext == NULL)
-       break;
-     if (pContext->pPrefix->uMaskLen == 32) {//if it's a router
-        pNode= network_find_node(pNetwork, pContext->pPrefix->tNetwork);
-       assert(pNode != NULL);
-       aLinks = pNode->pLinks;
-     }
-     else {
-       pSubnet= pContext->pSubnet;
-       assert(pSubnet != NULL);
-       //subnet_dump(stdout, pSubnet);
-       aLinks = ptr_array_create(0,//ARRAY_OPTION_SORTED,
- 				  node_links_compare,
- 				  NULL);
-       aLinks = subnet_get_links(pSubnet);
-       assert(aLinks != NULL);
-       }
+//   SNetSubnet * pSubnet = NULL;
+  SPtrArray  * aLinks = NULL;
+  SNetLink   * pCurrentLink = NULL;
+  SSptVertex * pCurrentVertex = NULL, * pNewVertex = NULL, * pOldVertex;
+  SRadixTree * pSpt = radix_tree_create(32, spt_vertex_dst);
+//   SRadixTree * pFrontier= radix_tree_create(32, NULL);
+   SNetNode * pRootNode = network_find_node(pNetwork, tSrcAddr);//, * pNode = NULL;
+  assert(pRootNode != NULL);
+  spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
+                                                     spt_vertex_compare,
+     	    				            NULL);
+  //ADD root to SPT
+  pCurrentVertex = spt_vertex_create_byRouter(pRootNode, 0);
+  assert(pCurrentVertex != NULL);
+  while (pCurrentVertex != NULL) {
+    sDestPrefix = spt_vertex_get_prefix(pCurrentVertex);
+    fprintf(stdout, "Current vertex is ");
+    ip_prefix_dump(stdout, sDestPrefix);
+    fprintf(stdout, "\n");
+    radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen, pCurrentVertex);
+    aLinks = spt_vertex_get_links(pCurrentVertex, pNetwork);
+    for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
+      ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
+      //TODO add check to link flags
       
-
-     pOldContext= pContext;
-     for (iIndex= 0; iIndex < ptr_array_length(aLinks); iIndex++) {
-       ptr_array_get_at(aLinks, iIndex, &(pLink));
-       link_dump(stdout, pLink);
-       fprintf(stdout, "\n");
-       Consider only the links that have the following properties:
-	 - NET_LINK_FLAG_IGP_ADV
-	 - NET_LINK_FLAG_UP (the link must be UP)
-	 - the end-point belongs to the given prefix */
-       /*if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) &&
-	   link_get_state(pLink, NET_LINK_FLAG_UP) &&
-	   ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(link_get_addr(pLink), sPrefix)) ||
-	   (NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pNode->tAddr, sPrefix)))) {*/
-	
-	   
-/*	uint32_t uNetmaskLen;
-	if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER)
-	  uNetmaskLen = 32;
-	else
-	  uNetmaskLen = (((pLink->UDestId).pSubnet)->pPrefix)->uMaskLen;
-	  
-	//fprintf(stdout, "uNetmaskLen %d\n", uNetmaskLen);
-	
-	
-	pInfo = (SDijkstraInfo *) radix_tree_get_exact(pVisited, link_get_addr(pLink), uNetmaskLen);
-	if ((pInfo == NULL) ||
-	    (pInfo->uIGPweight > pOldContext->uIGPweight+pLink->uIGPweight)) {
-	    fprintf(stdout, "pInfo è NULL o ha peso da aggiornare\n");
-	  pContext= (SDijkContext *) MALLOC(sizeof(SDijkContext));
-	  
-	  pContext->pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix)) ;
-	  link_get_prefix(pLink, pContext->pPrefix);
-	  if (pLink->uDestinationType != NET_LINK_TYPE_ROUTER)
-	    pContext->pSubnet = (pLink->UDestId).pSubnet;
-	  
-	  //fprintf(stdout, "recuperato id per subnet...\n");
-	  //subnet_dump(stdout, pContext->pSubnet);  
-	  if (pOldContext->tNextHop == tSrcAddr) {
-	    link_get_prefix(pLink, &nextHopPrefix);
-	    pContext->tNextHop= link_get_prefix(pLink);
-	    
-	  }
-	  else
-	    pContext->tNextHop= pOldContext->tNextHop;
-	    
-	  pContext->uIGPweight= pOldContext->uIGPweight+pLink->uIGPweight;
-	  if (pInfo == NULL) {
-	    pInfo= dijkstra_info_create(pOldContext->uIGPweight+pLink->uIGPweight);
-	    pInfo->tNextHop= pContext->tNextHop;
-	    radix_tree_add(pVisited, link_get_addr(pLink), 32, pInfo);
-	  } else {
-	    pInfo->uIGPweight= pOldContext->uIGPweight+pLink->uIGPweight;
-	    pInfo->tNextHop= pOldContext->tNextHop;
-	  }
-	  assert(fifo_push(pFIFO, pContext) == 0);*/
-/*	}
-	
+//       debug...
+      fprintf(stdout, "ospf_djk(): current Link is ");
+      link_get_prefix(pCurrentLink, &sDestPrefix);
+      ip_prefix_dump(stdout, sDestPrefix);
+      fprintf(stdout, "\n");
+      
+      //first time consider only Transit Link
+      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB){
+        fprintf(stdout, "è una stub... passo al prossimo\n");
+        continue;
       }
-     break;
+      //check if vertex is in spt	
+      link_get_prefix(pCurrentLink, &sDestPrefix);
+      pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
+                                                          sDestPrefix.tNetwork, 
+							  sDestPrefix.uMaskLen);
       
-     
-     ptr_array_destroy(&aLinks);
-     FREE(pOldContext->pPrefix);
-     pOldContext->pPrefix = NULL;
-     FREE(pOldContext);
-     pOldContext = NULL;
-     }
-  fifo_destroy(&pFIFO);
+      if(pOldVertex != NULL){
+       fprintf(stdout, "è già nel spt... passo al prossimo\n");
+       continue;
+      }
+      
+      
+      //create a vertex object to compare with grayVertex
+      pNewVertex = spt_vertex_create(pNetwork, pCurrentLink, pCurrentVertex);
+      assert(pNewVertex != NULL);
+      
+      
+      //check if vertex is in grayVertexes
+      int srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &iOldVertexPos);
+      //srchres == -1 ==> item not found
+      //srchres == 0  ==> item found
+      pOldVertex = NULL;
+      if(srchRes == 0) {
+        fprintf(stdout, "vertex è già in aGrayVertexes\n");
+        ptr_array_get_at(aGrayVertexes, iOldVertexPos, &pOldVertex);
+      }
+      
+      if (pOldVertex == NULL){
+        fprintf(stdout, "vertex aggiunto\n");
+// TODO        SOSPFNextHop * pNH = compute_next_hop();
+//             aggiungere pOldVertex a Grayvertexes
+        ptr_array_add(aGrayVertexes, &pNewVertex);
+  	ptr_array_add(pCurrentVertex->sons, &pNewVertex);
+  	pNewVertex->father = pCurrentVertex;
+// TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
+      }
+      else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
+        int iPos;
+// TODO        SNextHop * pNH = compute_next_hop();
+        //TODO implement nh_list_remove
+	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
+//         ospf_nh_list_destroy(&(pOldVertex->pNextHops));
+// 	pOldVertex->pNextHops = ospf_nh_list_create();
+// TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
 
-  return pVisited;
+        assert(ptr_array_sorted_find_index(pOldVertex->father->sons, &pOldVertex, &iPos) == 0);
+ 	ptr_array_remove_at(pCurrentVertex->father->sons, iPos);
+        pOldVertex->father = pCurrentVertex;
+        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
+        spt_vertex_destroy(&pNewVertex);
+	fprintf(stdout, "vertex aggiornato(peso minore)\n");
+      }
+      else if (pOldVertex->uIGPweight == pNewVertex->uIGPweight) {
+// TODO        SNextHop * pNH = compute_next_hop();
+//         ospf_nh_list_add(pVertex->aNextHops, pNH);
+        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
+        spt_vertex_destroy(&pNewVertex);
+	fprintf(stdout, "vertex aggiornato (peso uguale)\n");
+      }
+      else {
+        fprintf(stdout, "new vertex eliminato\n");
+        spt_vertex_destroy(&pNewVertex);
+      }  
+    }//end for on links
+    if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
+        pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
+	ptr_array_destroy(&aLinks);
+    
+    pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
+  }
+  return pSpt;
+}
+
+// ----- spt_dump ------------------------------------------
+/*void spt_dump(SRadixTree * pSpt, net_addr_t tRadixAddr)
+{
+  SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
+  SSptVertex * pNext = NULL;
+  
+//   while(pNext != NULL) {
+//     pNext = ;
+//   }
 }*/
-
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for node object
 /////////////////////////////////////////////////////////////////////
@@ -267,58 +394,153 @@ uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet)
 }
 
 
-/*int ospf_djk_test()
+int ospf_djk_test()
 {
+  LOG_DEBUG("ospf_djk_test(): START\n");
+  LOG_DEBUG("ospf_djk_test(): building network for test...");
   const int startAddr = 1024;
-
-  SDijkstraInfo * pInfo = OSPF_dijkstra_info_create(0);
-  void * pVoid = (void *)pInfo;
-  OSPF_dijkstra_info_destroy(&pVoid);
-  //assert(pVoid == NULL);
-  
+//   LOG_DEBUG("point-to-point links attached.\n");
   SNetwork * pNetwork= network_create();
   SNetNode * pNodeB1= node_create(startAddr);
   SNetNode * pNodeB2= node_create(startAddr + 1);
   SNetNode * pNodeB3= node_create(startAddr + 2);
   SNetNode * pNodeB4= node_create(startAddr + 3);
+//   SNetNode * pNodeX1= node_create(startAddr + 4);
+//   SNetNode * pNodeX2= node_create(startAddr + 5);
+//   SNetNode * pNodeX3= node_create(startAddr + 6);
+//   SNetNode * pNodeY1= node_create(startAddr + 7);
+//   SNetNode * pNodeY2= node_create(startAddr + 8);
+//   SNetNode * pNodeK1= node_create(startAddr + 9);
+//   SNetNode * pNodeK2= node_create(startAddr + 10);
+//   SNetNode * pNodeK3= node_create(startAddr + 11);
   
   SNetSubnet * pSubnetTB1= subnet_create(4, 30, NET_SUBNET_TYPE_TRANSIT);
-  SNetSubnet * pSubnetTB2= subnet_create(8, 30, NET_SUBNET_TYPE_TRANSIT);
+//   SNetSubnet * pSubnetTX1= subnet_create(8, 30, NET_SUBNET_TYPE_TRANSIT);
+//   SNetSubnet * pSubnetTY1= subnet_create(12, 30, NET_SUBNET_TYPE_TRANSIT);
+//   SNetSubnet * pSubnetTK1= subnet_create(16, 30, NET_SUBNET_TYPE_TRANSIT);
+  
+//   SNetSubnet * pSubnetSB1= subnet_create(20, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSB2= subnet_create(24, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSX1= subnet_create(28, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSX2= subnet_create(32, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSX3= subnet_create(36, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSY1= subnet_create(40, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSY2= subnet_create(44, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSY3= subnet_create(48, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSK1= subnet_create(52, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSK2= subnet_create(56, 30, NET_SUBNET_TYPE_STUB);
+//   SNetSubnet * pSubnetSK3= subnet_create(60, 30, NET_SUBNET_TYPE_STUB);
   
   assert(!network_add_node(pNetwork, pNodeB1));
   assert(!network_add_node(pNetwork, pNodeB2));
   assert(!network_add_node(pNetwork, pNodeB3));
   assert(!network_add_node(pNetwork, pNodeB4));
+//   assert(!network_add_node(pNetwork, pNodeX1));
+//   assert(!network_add_node(pNetwork, pNodeX2));
+//   assert(!network_add_node(pNetwork, pNodeX3));
+//   assert(!network_add_node(pNetwork, pNodeY1));
+//   assert(!network_add_node(pNetwork, pNodeY2));
+//   assert(!network_add_node(pNetwork, pNodeK1));
+//   assert(!network_add_node(pNetwork, pNodeK2));
+//   assert(!network_add_node(pNetwork, pNodeK3));
+//   LOG_DEBUG("nodes attached.\n");
+  assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
+  assert(node_add_link(pNodeB3, pNodeB4, 100, 1) >= 0);
+  assert(node_add_link(pNodeB4, pNodeB1, 100, 1) >= 0);
+  
+//   assert(node_add_link(pNodeB2, pNodeX2, 100, 1) >= 0);
+//   assert(node_add_link(pNodeB3, pNodeX2, 100, 1) >= 0);
+//   assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
+//   assert(node_add_link(pNodeX2, pNodeX3, 100, 1) >= 0);
+// 
+//   assert(node_add_link(pNodeB3, pNodeY1, 100, 1) >= 0);
+//   assert(node_add_link(pNodeY1, pNodeY2, 100, 1) >= 0);
+  
+//   assert(node_add_link(pNodeB4, pNodeK1, 100, 1) >= 0);
+//   assert(node_add_link(pNodeB4, pNodeK2, 100, 1) >= 0);
+//   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
+//   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
   assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB2, pSubnetTB1, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB4, pSubnetTB1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 50, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
+//   LOG_DEBUG("transit-network links attached.\n");
+//   assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeB2, pSubnetSX1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeX2, pSubnetSX2, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeX3, pSubnetSX3, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeB3, pSubnetSY1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeY1, pSubnetSY2, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeY1, pSubnetSY3, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeK3, pSubnetSK1, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK2, 100, 1) >= 0);
+//   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK3, 100, 1) >= 0);
+//   LOG_DEBUG("stub-network links attached.\n");
+  LOG_DEBUG(" ok!\n");
+
+  LOG_DEBUG("ospf_djk_test(): CHECK Vertex functions...");
   
-  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB2, 100, 1) >= 0);
+  SSptVertex * pV1 = NULL; pV1 = spt_vertex_create_byRouter(pNodeB1, 0);
+  assert(pV1 != NULL);
+  SSptVertex * pV2 = NULL; pV2 = spt_vertex_create_bySubnet(pSubnetTB1, 0);
+  assert(pV2 != NULL);
   
-  SPrefix sPrefix;
-  sPrefix.tNetwork = startAddr;
+//   spt_vertex_get_links(pV1);
+  SPtrArray * pLinks;
+  SNetLink * pLink;
+  pLinks = spt_vertex_get_links(pV1, pNetwork);
+  assert(pLinks != NULL);
+  int iIndex;
+ /* for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
+    ptr_array_get_at(pLinks, iIndex, &pLink);
+    link_dump(stdout, pLink);
+    fprintf(stdout, "\n");
+  }*/
+  
+  pLinks = spt_vertex_get_links(pV2, pNetwork);
+  assert(pLinks != NULL);
+  for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
+    ptr_array_get_at(pLinks, iIndex, &pLink);
+    link_dump(stdout, pLink);
+    fprintf(stdout, "\n");
+  }
+  
+  ip_prefix_dump(stdout, spt_vertex_get_prefix(pV1));
+  fprintf(stdout, "\n");
+  ip_prefix_dump(stdout, spt_vertex_get_prefix(pV2));
+  fprintf(stdout, "\n");
+  spt_vertex_destroy(&pV1);
+  assert(pV1 == NULL);
+  spt_vertex_destroy(&pV2);
+  assert(pV2 == NULL);
+  LOG_DEBUG(" ok!\n");
+  
+  LOG_DEBUG("ospf_djk_test(): CHECK Dijkstra function...");
+  SPrefix sPrefix; 
+  sPrefix.tNetwork = 1024;
   sPrefix.uMaskLen = 22;
   
-  OSPF_dijkstra(pNetwork, pNodeB1->tAddr, sPrefix);
-  TODO meglio aggiungere a Link un puntatore al nodo: verrà usato nella procedura
-         che linka il nodo alla subnet.
-	 
-	 cicla con ptr_array_get_at
-	 prendi il link e aggiungi in array
-	 
-	 potresti scrivere una funzione che prende in un parametro la posizione
-	 del link e lo restituisce...
-	 
-  //subnet_get_links(pSubnetTB1);
+  SNetNode * pFindNode = network_find_node(pNetwork, pNodeB1->tAddr);
+  assert(pFindNode != NULL);
+  LOG_DEBUG("ospf_djk_test(): find node is ok...");
+  SRadixTree * pSpt = OSPF_dijkstra(pNetwork, pNodeB1->tAddr, sPrefix);
+  radix_tree_destroy(&pSpt);
+  
+  LOG_DEBUG(" ok!\n");
+  LOG_DEBUG("ospf_djk_test(): STOP\n");
   return 1;
-}*/
+}
 
 int ospf_info_test() {
-  
   const int startAddr = 1024;
-  
+  LOG_DEBUG("point-to-point links attached.\n");
   SNetwork * pNetwork= network_create();
   SNetNode * pNodeB1= node_create(startAddr);
   SNetNode * pNodeB2= node_create(startAddr + 1);
@@ -349,13 +571,6 @@ int ospf_info_test() {
   SNetSubnet * pSubnetSK1= subnet_create(52, 30, NET_SUBNET_TYPE_STUB);
   SNetSubnet * pSubnetSK2= subnet_create(56, 30, NET_SUBNET_TYPE_STUB);
   SNetSubnet * pSubnetSK3= subnet_create(60, 30, NET_SUBNET_TYPE_STUB);
-  
-//  FILE * pNetFile;
-  /*
-  simulator_init();
-  */
-  log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
-  log_set_stream(pMainLog, stderr);
 
   assert(!network_add_node(pNetwork, pNodeB1));
   assert(!network_add_node(pNetwork, pNodeB2));
@@ -390,7 +605,6 @@ int ospf_info_test() {
   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
-  LOG_DEBUG("point-to-point links attached.\n");
   
   assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
@@ -505,18 +719,20 @@ int ospf_info_test() {
 // ----- test_ospf -----------------------------------------------
 int ospf_test()
 {
+  log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
+  log_set_stream(pMainLog, stderr);
+  
   subnet_test();
   LOG_DEBUG("all info OSPF methods tested ... they seem ok!\n");
   
   ospf_info_test();
   LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
   
-  ospf_rt_test();
-  LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
+//     ospf_rt_test();
+//     LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
   
-//  ospf_djk_test();
-  
-//  LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
+   ospf_djk_test();
+   LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
   return 1;
 }
 
