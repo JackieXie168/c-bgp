@@ -98,6 +98,18 @@ SPrefix uint32_to_prefix(net_addr_t tPrefix, uint8_t uMaskLen)
   return sPrefix;
 }
 
+
+// ----- create_ip_prefix -------------------------------------------
+SPrefix * create_ip_prefix(net_addr_t tAddr, uint8_t uMaskLen)
+{
+  SPrefix * pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));
+  pPrefix->tNetwork= tAddr;
+  pPrefix->uMaskLen= uMaskLen;
+  return pPrefix;
+}
+
+
+
 // ----- ip_prefix_dump_string ---------------------------------------------
 /**
  *
