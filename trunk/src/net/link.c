@@ -116,6 +116,12 @@ uint32_t link_get_igp_weight(SNetLink * pLink)
   return pLink->uIGPweight;
 }
 
+// ----- link_get_subnet --------------------------------------------------
+SNetSubnet * link_get_subnet(SNetLink * pLink){
+  if (pLink->uDestinationType != NET_LINK_TYPE_ROUTER)
+    return (pLink->UDestId).pSubnet;
+  return NULL;
+}
 
 // ----- link_dump --------------------------------------------------
 void link_dump(FILE * pStream, SNetLink * pLink)
