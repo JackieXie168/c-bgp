@@ -82,14 +82,14 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
 }
 
 // ----- SPtrArray -------------------------------------------------- 
-SPtrArray * subnet_get_links(SNetSubnet * pSubnet) 
+SPtrArray * subnet_get_links(SNetSubnet * pSubnet, SNetwork * pNetwork) 
 {
   SPtrArray * aLinks;
   int iIndexN, iIndexL;
   SNetNode * pNode;
   SNetLink * pLink = NULL;
   
-  aLinks = ptr_array_create(0,  node_links_compare,  NULL);
+  aLinks = ptr_array_create(0,  node_links_compare,  node_links_destroy);
        
        assert(pSubnet->aNodes != NULL);
        assert(pSubnet->pPrefix != NULL);
@@ -98,13 +98,16 @@ SPtrArray * subnet_get_links(SNetSubnet * pSubnet)
          ptr_array_get_at(pSubnet->aNodes, iIndexN, &pNode);
 	 assert(pNode != NULL);
 	 
-	 LOG_DEBUG("ciclo sui link del nodo %d-esimo\n", iIndexN);
+
 	 for (iIndexL = 0; iIndexL < ptr_array_length(pNode->pLinks); iIndexL++) {
-	   
 	   ptr_array_get_at(pNode->pLinks, iIndexL, &pLink);
 	   assert(pLink != NULL);
 	   if (link_get_addr(pLink) == pSubnet->pPrefix->tNetwork){
-	     assert(ptr_array_add(aLinks, &pLink)>=0);
+	     SNetLink * pNewLink        = create_link_toRouter(pNode);
+	     pNewLink->uDestinationType = NET_LINK_TYPE_ROUTER;
+	     pNewLink->uFlags           = pLink->uFlags;
+	     pNewLink->uIGPweight       = pLink->uIGPweight;
+	     assert(ptr_array_add(aLinks, &pNewLink)>=0);
 	   }
 	 }
 	 
