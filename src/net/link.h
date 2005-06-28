@@ -35,7 +35,7 @@ typedef uint32_t net_link_delay_t;
 #else
 typedef double net_link_delay_t;
 #endif
-typedef SPtrArray links_list_s;
+typedef SPtrArray links_list_t;
 
 typedef int (*FNetLinkForward)(net_addr_t tDstAddr, void * pContext,
 			       SNetMessage * pMsg);
@@ -69,6 +69,8 @@ typedef struct {
 extern net_addr_t link_get_addr(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
 extern void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix);
+// ----- link_get_subnet ----------------------------------------
+extern SNetSubnet * link_get_subnet(SNetLink * pLink);
 // ----- link_set_type ----------------------------------------
 extern void link_set_type(SNetLink * pLink, uint8_t uType);
 // ----- link_get_type ----------------------------------------
