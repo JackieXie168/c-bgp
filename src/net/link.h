@@ -19,7 +19,6 @@
 #include <libgds/array.h>
 
 
-#define NET_LINK_DELAY_INT
 #define NET_LINK_FLAG_UP      0x01
 #define NET_LINK_FLAG_NOTIFY  0x02
 #define NET_LINK_FLAG_IGP_ADV 0x04
