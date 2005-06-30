@@ -14,7 +14,6 @@
 #include <net/net_types.h>
 #include <net/ospf.h>
 #include <net/ospf_rt.h>
-#include <net/ospf_rt_t.h>
 #include <net/network.h>
 #include <net/subnet.h>
 #include <net/link.h>
