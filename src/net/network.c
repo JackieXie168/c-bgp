@@ -15,13 +15,10 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <libgds/stack.h>
-//<<<<<<< network.c
 #include <libgds/fifo.h>
 
-//=======
 #include <net/net_types.h>
 #include <net/prefix.h>
-//>>>>>>> 1.31
 #include <net/icmp.h>
 #include <net/ipip.h>
 #include <net/network.h>
@@ -31,18 +28,10 @@
 #include <ui/output.h>
 #include <bgp/message.h>
 
-//<<<<<<< network.c
 #include <bgp/as_t.h>
 #include <bgp/rib.h>
-/*#include <bgp/message.h>
-=======
->>>>>>> 1.31*/
 
-//<<<<<<< network.c
 #include <net/domain.h>
-//#include <net/prefix.h>
-//=======
-//>>>>>>> 1.31
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
 
