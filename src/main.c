@@ -605,8 +605,7 @@ int main(int argc, char ** argv) {
 
   
 
-  /* Run simulation in se				lected mode... */
-  uMode = CBGP_MODE_OSPF;
+  /* Run simulation in selected mode... */
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
     if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)
@@ -619,8 +618,9 @@ int main(int argc, char ** argv) {
   case CBGP_MODE_SCRIPT:
     pInCli= fopen(pcArgMode, "r");
     if (pInCli != NULL) {
-      if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS)
+      if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
 	iExitCode= EXIT_FAILURE;
+      }
       fclose(pInCli);
     } else {
       LOG_SEVERE("Error: Unable to open script file \"%s\"\n", pcArgMode);
