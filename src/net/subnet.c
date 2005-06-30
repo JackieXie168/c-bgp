@@ -106,7 +106,7 @@ SPtrArray * subnet_get_links(SNetSubnet * pSubnet)
 	     SNetLink * pNewLink        = create_link_toRouter(pNode);
 	     pNewLink->uDestinationType = NET_LINK_TYPE_ROUTER;
 	     pNewLink->uFlags           = pLink->uFlags;
-	     pNewLink->uIGPweight       = pLink->uIGPweight;
+	     pNewLink->uIGPweight       = 0;
 	     assert(ptr_array_add(aLinks, &pNewLink)>=0);
 	   }
 	 }
