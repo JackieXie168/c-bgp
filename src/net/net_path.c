@@ -108,4 +108,21 @@ void net_path_dump(FILE * pStream, SNetPath * pPath)
   }
 }
 
+// ----- net_path_search ---------------------------------------------
+/**
+ *
+ */
+int net_path_search(SNetPath * pPath, net_addr_t tAddr)
+{
+  int iIndex;
+  int iRet = 0;
 
+  for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
+    if (tAddr == pPath->data[iIndex]) {
+      iRet = 1;
+      break;
+    }
+  }
+
+  return iRet;
+}

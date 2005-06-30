@@ -37,6 +37,7 @@
 #include <ui/rl.h>
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
+#include <libgds/memory.h>
 #include <net/prefix.h>
 #include <string.h>
 
@@ -196,6 +197,79 @@ int cli_bgp_domain_rescan(SCliContext * pContext, STokens * pTokens)
 
   return CLI_SUCCESS;
 }
+
+// ----- cli_net_node_recordroutedeflection ------------------------------
+/**
+ * context: {as}
+ * tokens: {addr}
+ */
+int cli_bgp_domain_recordroutedeflection(SCliContext * pContext,
+				  STokens * pTokens)
+{
+  SBGPDomain * pDomain;
+  char * pcDest;
+  SNetDest sDest;
+
+ // Get node from the CLI'scontext
+  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
+  if (pDomain == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  // Get destination address
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType != NET_DEST_ADDRESS) &&
+      (sDest.tType != NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0, 1);
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_node_recordroute ------------------------------------
+/**
+ * context: {as}
+ * tokens: {addr}
+ */
+int cli_bgp_domain_recordroute(SCliContext * pContext,
+				  STokens * pTokens)
+{
+  SBGPDomain * pDomain;
+  char * pcDest;
+  SNetDest sDest;
+
+ // Get node from the CLI'scontext
+  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
+  if (pDomain == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  // Get destination address
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType != NET_DEST_ADDRESS) &&
+      (sDest.tType != NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0, 0);
+
+  return CLI_SUCCESS;
+}
+
 
 // ----- cli_bgp_topology_load --------------------------------------
 /**
@@ -1949,6 +2023,26 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_router_load_ribs_in --------------------------------
+/**
+ *
+ *
+ */
+int cli_bgp_router_load_ribs_in(SCliContext * pContext,
+				STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcFileName;
+
+
+  pRouter = (SBGPRouter *) cli_context_get_item_at(pContext, 0);
+  pcFileName = tokens_get_string_at(pTokens, 1);
+  
+  if (bgp_router_load_ribs_in(pcFileName, pRouter) == -1)
+    return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_peer_up -------------------------------------
 /**
  * context: {router, peer}
@@ -2138,6 +2232,8 @@ int cli_register_bgp_assert(SCliCmds * pCmds)
 					    pSubCmds, NULL));
 }
 
+
+
 // ----- cli_register_bgp_domain ------------------------------------
 int cli_register_bgp_domain(SCliCmds * pCmds)
 {
@@ -2152,6 +2248,20 @@ int cli_register_bgp_domain(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("rescan",
 					cli_bgp_domain_rescan,
 					NULL, NULL));
+
+pParams= cli_params_create();
+  cli_params_add(pParams, "<address|prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
+					cli_bgp_domain_recordroute,
+					NULL, pParams));
+
+//sta : Cli command to check deflection in an entire domain for a prefix or an address.
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<address|prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route-deflection",
+					cli_bgp_domain_recordroutedeflection,
+					NULL, pParams));
+
   pParams= cli_params_create();
   cli_params_add(pParams, "<as-number>", NULL);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("domain",
@@ -2470,6 +2580,7 @@ int cli_register_bgp_route_map(SCliCmds * pCmds)
   
   pParams=cli_params_create();
   cli_params_add(pParams, "<route-map name>", NULL);
+//  cli_params_add(pParams, "<seq>", NULL);
 
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("route-map", 
 					  cli_ctx_create_bgp_route_map, 
@@ -2592,6 +2703,11 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
 #endif
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_load_rib,
+					NULL, pParams));
+  pParams = cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("rib-in", 
+					cli_bgp_router_load_ribs_in,
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create("load", NULL,
 					    pSubCmds, NULL));

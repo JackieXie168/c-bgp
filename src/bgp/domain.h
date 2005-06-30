@@ -38,6 +38,10 @@ extern void register_bgp_domain(SBGPDomain * pDomain);
 
 // ----- bgp_domain_rescan ------------------------------------------
 extern int bgp_domain_rescan(SBGPDomain * pDomain);
+// ----- bgp_domain_dump_recorded_route -----------------------------
+int bgp_domain_dump_recorded_route(FILE * pStream, SBGPDomain * pDomain, 
+			      SNetDest  sDest, int iDelay, 
+			      const uint8_t uDeflection);
 // ----- bgp_domain_full_mesh ---------------------------------------
 extern int bgp_domain_full_mesh(SBGPDomain * pDomain);
 

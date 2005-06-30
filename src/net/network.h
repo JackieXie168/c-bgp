@@ -132,15 +132,15 @@ extern int node_send(SNetNode * pNode, net_addr_t tAddr,
 		     FPayLoadDestroy fDestroy);
 // ----- node_recv --------------------------------------------------
 extern int node_recv(SNetNode * pNode, SNetMessage * pMessage);
-// ----- node_record_route ------------------------------------------
-extern int node_record_route(SNetNode * pNode, SNetDest sDest,
-			     SNetPath ** ppPath,
-			     net_link_delay_t * pDelay,
-			     uint32_t * pWeight);
-// ----- node_dump_recorded_route -----------------------------------
-extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-				     SNetDest sDest, int iDelay);
-
+//// ----- node_record_route ------------------------------------------
+//extern int node_record_route(SNetNode * pNode, SNetDest sDest,
+//			     SNetPath ** ppPath,
+//			     net_link_delay_t * pDelay,
+//			     uint32_t * pWeight);
+//// ----- node_dump_recorded_route -----------------------------------
+//extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+//				     SNetDest sDest, int iDelay);
+//
 // ----- node_ipip_enable -------------------------------------------
 extern int node_ipip_enable(SNetNode * pNode);
 // ----- node_add_tunnel --------------------------------------------
@@ -177,6 +177,24 @@ extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 // ----- network_dijkstra -------------------------------------------
 extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
 			    net_addr_t tSrcAddr);
+//<<<<<<< network.h
+// ----- node_record_route ------------------------------------------
+extern int node_record_route(SNetNode * pNode, SNetDest sDest,
+			     SNetPath ** ppPath,
+			     net_link_delay_t * pDelay,
+			     uint32_t * pWeight, uint8_t uDeflection, 
+			     SNetPath ** ppDeflection);
+// ----- node_dump_recorded_route -----------------------------------
+extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+				     SNetDest sDest, int iDelay,
+				     uint8_t uDeflection);
+
+// ----- node_ipip_enable -------------------------------------------
+extern int node_ipip_enable(SNetNode * pNode);
+// ----- node_add_tunnel --------------------------------------------
+extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
+/*=======
+>>>>>>> 1.19*/
 
 // ----- network_domain_add -----------------------------------------
 int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
