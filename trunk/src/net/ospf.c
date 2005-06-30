@@ -11,12 +11,15 @@
 #endif
 
 #include <assert.h>
+#include <net/net_types.h>
 #include <net/ospf.h>
 #include <net/ospf_rt.h>
+#include <net/ospf_rt_t.h>
 #include <net/network.h>
 #include <net/subnet.h>
 #include <net/link.h>
 #include <net/prefix.h>
+#include <string.h>
 
 #define X_AREA 1
 #define Y_AREA 2
@@ -29,7 +32,7 @@
 int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 
 //////////////////////////////////////////////////////////////////////////
-///////  intra_route_computation
+///////  spt computation: vertex object 
 //////////////////////////////////////////////////////////////////////////
 
 /*typedef union {
@@ -75,7 +78,7 @@ SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t u
   pVertex->uIGPweight = uIGPweight;
   pVertex->pNextHops = ospf_nh_list_create();
   
-  pVertex->fathers = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
+  pVertex->fathers = ptr_array_create(ARRAY_OPTION_UNIQUE | ARRAY_OPTION_SORTED, spt_vertex_compare, NULL);
   pVertex->sons = ptr_array_create(ARRAY_OPTION_UNIQUE, spt_vertex_compare, NULL);
   return pVertex;
 }
@@ -203,11 +206,11 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
   int iBestIndex = 0, iIndex;
   
   if (ptr_array_length(paGrayVertexes) > 0) {
-     fprintf(stdout, "vertex in aGray : %d\n", ptr_array_length(paGrayVertexes));
+    fprintf(stdout, "vertex in aGray : %d\n", ptr_array_length(paGrayVertexes));
     //search for best candidate in frontier
     
-//       ptr_array_get_at(aGrayVertexes, 0, &pCurrentVertex);
-//       ip_prefix_dump(stdout, spt_vertex_get_prefix(pNewVertex));
+//     ptr_array_get_at(aGrayVertexes, 0, &pCurrentVertex);
+//     ip_prefix_dump(stdout, spt_vertex_get_prefix(pNewVertex));
 // 	  fprintf(stdout, "\n");
     for (iIndex = 0; iIndex < ptr_array_length(paGrayVertexes); iIndex++) {
       ptr_array_get_at(paGrayVertexes, iIndex, &pCurrentVertex);
@@ -233,11 +236,59 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
   return pBestVertex;
 }
 
+// ----- spt_vertex_has_father -----------------------------------------------------------
+int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
+  int iIndex;
+  if (ptr_array_sorted_find_index(pParent->fathers, &pRoot, &iIndex) == 0)
+    return 1;
+  return 0;
+}
+
+
+// ----- calculate_next_hop -----------------------------------------------------------
+/**
+ * Calculates next hop as explained in RFC2328 (p. 167)
+ */
+ 
+//TODO write functions for next hop
+void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent, 
+                                      SSptVertex * pDestination, SNetLink * pLink){
+  SOSPFNextHop * pNH = NULL, * pNHCopy = NULL;
+  int iLink;
+
+  if (pRoot == pParent){
+//     fprintf(stdout, "spt_calculate_next_hop(): parent == root\n");
+    pNH = ospf_next_hop_create(pLink, OSPF_NO_IP_NEXT_HOP);
+    ospf_nh_list_add(pDestination->pNextHops, pNH);
+  }
+  else if (pParent->uDestinationType == NET_LINK_TYPE_TRANSIT && 
+           spt_vertex_has_father(pParent, pRoot)) {
+//     fprintf(stdout, "spt_calculate_next_hop(): parent == transit && fathers contains root\n");
+//devo trovare il link verso la subnet in root
+fprintf(stdout, "cerco il link...\n");
+    SNetLink * pLinkToSub = node_find_link_to_subnet(((SNetNode *)pRoot->pObject), ((SNetSubnet *)pParent->pObject));
+    
+    pNH = ospf_next_hop_create(pLinkToSub, spt_vertex_get_prefix(pDestination).tNetwork);
+    ospf_nh_list_add(pDestination->pNextHops, pNH);
+  }
+  else {//there is at least a router beetween root and destination
+//     fprintf(stdout, "spt_calculate_next_hop(): inherited from parent\n");
+    for(iLink = 0; iLink < ptr_array_length(pParent->pNextHops); iLink++){
+      ptr_array_get_at(pParent->pNextHops, iLink, &pNHCopy);
+      pNH = ospf_next_hop_create(pNHCopy->pLink, pNHCopy->tAddr);
+      ospf_nh_list_add(pDestination->pNextHops, pNH);
+    }
+  }
+}
+
 
 // ----- dijkstra ---------------------------------------------------
 /**
  * Compute the Shortest Path Tree from the given source router
  * towards all the other routers that belong to the given prefix.
+ * TODO 1. consider link flags
+ *      2. consider prefix
+ *      3. improve computation with fibonacci heaps
  */
 SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 		      SPrefix sPrefix)
@@ -250,16 +301,18 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 //   SNetSubnet * pSubnet = NULL;
   SPtrArray  * aLinks = NULL;
   SNetLink   * pCurrentLink = NULL;
-  SSptVertex * pCurrentVertex = NULL, * pNewVertex = NULL, * pOldVertex;
+  SSptVertex * pCurrentVertex = NULL, * pNewVertex = NULL;
+  SSptVertex * pOldVertex = NULL, * pRootVertex = NULL;
   SRadixTree * pSpt = radix_tree_create(32, spt_vertex_dst);
-//   SRadixTree * pFrontier= radix_tree_create(32, NULL);
-   SNetNode * pRootNode = network_find_node(pNetwork, tSrcAddr);//, * pNode = NULL;
+
+  SNetNode * pRootNode = network_find_node(pNetwork, tSrcAddr);//, * pNode = NULL;
   assert(pRootNode != NULL);
   spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
                                                      spt_vertex_compare,
      	    				            NULL);
   //ADD root to SPT
-  pCurrentVertex = spt_vertex_create_byRouter(pRootNode, 0);
+  pRootVertex = spt_vertex_create_byRouter(pRootNode, 0);
+  pCurrentVertex = pRootVertex;
   assert(pCurrentVertex != NULL);
   while (pCurrentVertex != NULL) {
     sDestPrefix = spt_vertex_get_prefix(pCurrentVertex);
@@ -296,7 +349,6 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
        continue;
       }
       
-      
       //create a vertex object to compare with grayVertex
       pNewVertex = spt_vertex_create(pNetwork, pCurrentLink, pCurrentVertex);
       assert(pNewVertex != NULL);
@@ -317,89 +369,131 @@ SRadixTree * OSPF_dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
       }
       
       if (pOldVertex == NULL){
-        fprintf(stdout, "vertex aggiunto\n");
-// TODO        SOSPFNextHop * pNH = compute_next_hop();
-//             aggiungere pOldVertex a Grayvertexes
-        ptr_array_add(aGrayVertexes, &pNewVertex);
+        fprintf(stdout, "vertex da aggiungere\n");
+	
+        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pNewVertex, pCurrentLink);
+        
+	ptr_array_add(aGrayVertexes, &pNewVertex);
+	//// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+	//set father and sons relationship
   	ptr_array_add(pCurrentVertex->sons, &pNewVertex);
 	ptr_array_add(pNewVertex->fathers, &pCurrentVertex);
-// TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
+	//// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
       }
       else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
-        int iPos;
-// TODO        SNextHop * pNH = compute_next_hop();
-        //TODO implement nh_list_remove
-	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
-//         ospf_nh_list_destroy(&(pOldVertex->pNextHops));
-// 	pOldVertex->pNextHops = ospf_nh_list_create();
-// TODO	ospf_nh_list_add(pOldVertex->pNextHops, pNH);
-        int iIndex;
+        fprintf(stdout, "vertex da aggiornare (peso minore)\n");
+        int iPos, iIndex;
 	SSptVertex * pFather;
+	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
+// 	Remove old next hops
+        if (ptr_array_length(pOldVertex->pNextHops) > 0){
+          ospf_nh_list_destroy(&(pOldVertex->pNextHops));
+ 	  pOldVertex->pNextHops = ospf_nh_list_create();
+        }
+        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+	//remove old father->sons relationship
 	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
 	  ptr_array_get_at(pOldVertex->fathers, iIndex, &pFather);
 	  assert(ptr_array_sorted_find_index(pFather->sons, &pOldVertex, &iPos) == 0);
 	  ptr_array_remove_at(pFather->sons, iPos);
 	}
-	
+	//remove sons->father relationship
 	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
 	  ptr_array_remove_at(pOldVertex->fathers, iIndex);
 	}
-	
+	//set new sons->father and father->sons relationship
         ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
         ptr_array_add(pCurrentVertex->sons, &pOldVertex);
-        spt_vertex_destroy(&pNewVertex);
-	fprintf(stdout, "vertex aggiornato(peso minore)\n");
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
+	spt_vertex_destroy(&pNewVertex);
       }
       else if (pOldVertex->uIGPweight == pNewVertex->uIGPweight) {
-// TODO        SNextHop * pNH = compute_next_hop();
-//         ospf_nh_list_add(pVertex->aNextHops, pNH);
+        fprintf(stdout, "vertex da aggiornare (peso uguale)\n");
+        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
+	fprintf(stdout, "next hops calcolati\n");
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
         ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
         ptr_array_add(pCurrentVertex->sons, &pOldVertex);
+	//// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
         spt_vertex_destroy(&pNewVertex);
-	fprintf(stdout, "vertex aggiornato (peso uguale)\n");
       }
       else {
         fprintf(stdout, "new vertex eliminato\n");
         spt_vertex_destroy(&pNewVertex);
       }  
     }//end for on links
+    
+    //links for subnet are dinamically created and MUST be removed
     if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
         pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
 	ptr_array_destroy(&aLinks);
-    
+    //select node with smallest weight to add to spt
     pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
   }
   return pSpt;
 }
 
-void visit_vertex(SSptVertex * pVertex, int level, FILE * pStream){
-//   pVertex->color = GRAY;
-  SSptVertex * pChild;
-  int iIndex; 
-  if (level != 0){
-    for (iIndex = 0; iIndex < level; iIndex++)
-    	fprintf(pStream, "            ");
-    fprintf(pStream, "|");
-  }
-//   for (iIndex = 0; iIndex < level; iIndex++)
-  fprintf(pStream, "---");
-  fprintf(pStream, "> [ ");
-  ip_prefix_dump(pStream, spt_vertex_get_prefix(pVertex));
-  fprintf(pStream, " ]-[ %d ]\n", pVertex->uIGPweight);
-  level++;
-  for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
-     ptr_array_get_at(pVertex->sons, iIndex, &pChild);
-     visit_vertex(pChild, level, pStream);
+//------ compute_vertical_bars -------------------------------------------
+/**
+ *  Compute string to dump a text-based graphics spt
+ */
+void compute_vertical_bars(FILE * pStream, int iLevel, char * pcBars){
+  int iIndex;
+//   strcpy(pcPrefix, "");
+  strcpy(pcBars, "");
+  if (iLevel != 0){
+    for (iIndex = 0; iIndex < iLevel; iIndex++)
+    	strcat(pcBars, "            |");
+//     strcat(pcSpace, "|");
+    
   }
 }
+
+//------ visit_vertex -------------------------------------------
+/**
+ *  Visit a node of the spt to dump it
+ */
+void visit_vertex(SSptVertex * pVertex, int iLevel, FILE * pStream){
+  char * pcPrefix = MALLOC(30);
+  char * pcSpace = MALLOC(100);
+  SPrefix sPrefix;
+  SSptVertex * pChild;
+  int iIndex; 
+  
+  compute_vertical_bars(pStream, iLevel, pcSpace);
+  fprintf(pStream, "%s\n%s", pcSpace, pcSpace);
+  strcpy(pcPrefix, "");
+  
+  sPrefix = spt_vertex_get_prefix(pVertex);
+  ip_prefix_to_string(pcPrefix, &sPrefix);
+  
+  fprintf(pStream, "---> [ %s ]-[ %d ] -- NH >> ", pcPrefix, pVertex->uIGPweight);
+
+  for(iIndex = 0; iIndex < strlen(pcPrefix) + 24 + 3; iIndex++) //last term should be dynamic
+    strcat(pcSpace, " ");
+  
+  ospf_nh_list_dump(pStream, pVertex->pNextHops, pcSpace, 0);
+  
+  iLevel++;
+  for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
+     ptr_array_get_at(pVertex->sons, iIndex, &pChild);
+     visit_vertex(pChild, iLevel, pStream);
+  }
+  
+  FREE(pcPrefix);
+  FREE(pcSpace);
+}
+
 // ----- spt_dump ------------------------------------------
 void spt_dump(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
 {
   SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
-//   SSptVertex * pNext = NULL;
-  
+ 
   visit_vertex(pRadix, 0, pStream);
 }
+
+
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for node object
 /////////////////////////////////////////////////////////////////////
@@ -422,9 +516,18 @@ int node_is_InternalRouter(SNetNode * pNode)
   return (int_array_length(pNode->pOSPFAreas) == 1);
 }
 
-
+// ----- node_ospf_rt_add_route ------------------------------------------
+extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tOSPFDestinationType,
+                       SPrefix        sPrefix,   uint32_t          uWeight,
+		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
+		       next_hops_list_t * pNHList)
+{
+ //TODO provare a richiamare la rt da node
+ //TODO implementare questa
+ return 0;
+}
 /////////////////////////////////////////////////////////////////////
-/////// OSPF methods for node object
+/////// OSPF methods for subnet object
 /////////////////////////////////////////////////////////////////////
 
 // ----- subnet_OSPFArea -------------------------------------------------
@@ -438,6 +541,76 @@ uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet)
 {
   return pSubnet->uOSPFArea;
 }
+
+/////////////////////////////////////////////////////////////////////
+/////// routing table computation from spt (intra route)
+/////////////////////////////////////////////////////////////////////
+// ----- ospf_build_route_for_each --------------------------------
+int ospf_build_route_for_each(uint32_t uKey, uint8_t uKeyLen,
+				void * pItem, void * pContext)
+{
+  SNetNode * pNode= (SNetNode *) pContext;
+  SSptVertex * pVertex= (SSptVertex *) pItem;
+  SPrefix sPrefix;
+
+  /*
+  fprintf(stderr, "node: ");
+  ip_address_dump(stderr, pNode->tAddr);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "prefix: ");
+  ip_address_dump(stderr, (net_addr_t) uKey);
+  fprintf(stderr, "/%u\n", uKeyLen);
+  fprintf(stderr, "next-hop: ");
+  ip_address_dump(stderr, pInfo->tNextHop);
+  fprintf(stderr, "\n");
+  */
+
+  // Skip route to itself
+  if (pNode->tAddr == (net_addr_t) uKey)
+    return 0;
+
+  // Add OSPF route
+  sPrefix.tNetwork= uKey;
+  sPrefix.uMaskLen= uKeyLen;
+
+  /* removes the previous route for this node/prefix if it already
+     exists */
+// TODO  node_ospf_rt_del_route(pNode, &sPrefix, NULL, NET_ROUTE_IGP);
+
+  return node_ospf_rt_add_route(pNode, OSPF_DESTINATION_TYPE_NETWORK, //TODO dynamically obtain ROUTE type
+                                sPrefix,
+				pVertex->uIGPweight,
+				BACKBONE_AREA, //TODO replace with parameter
+				OSPF_PATH_TYPE_INTRA,
+				pVertex->pNextHops);
+}
+
+// ----- igp_compute_prefix -----------------------------------------
+/**
+ *
+ */
+int ospf_node_build_intra_route(SNetwork * pNetwork, SNetNode * pNode,
+		       SPrefix sPrefix)
+{
+  int iResult;
+  SRadixTree * pTree;
+
+  /* Remove all OSPF routes from node */
+//   node_rt_del_route(pNode, NULL, NULL, NET_ROUTE_IGP);
+
+  /* Compute Minimum Spanning Tree */
+  pTree= OSPF_dijkstra(pNetwork, pNode->tAddr, sPrefix);
+  if (pTree == NULL)
+    return -1;
+
+  /* Visit spt and set route in routing table */
+  iResult= radix_tree_for_each(pTree, ospf_build_route_for_each, pNode);
+
+  radix_tree_destroy(&pTree);
+  return iResult;
+}
+
+
 
 
 int ospf_djk_test()
@@ -489,17 +662,17 @@ int ospf_djk_test()
 //   assert(!network_add_node(pNetwork, pNodeK1));
 //   assert(!network_add_node(pNetwork, pNodeK2));
 //   assert(!network_add_node(pNetwork, pNodeK3));
-//   LOG_DEBUG("nodes attached.\n");
-  assert(node_add_link(pNodeB1, pNodeB2, 1000, 1) >= 0);
+
+  assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
   assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
   assert(node_add_link(pNodeB3, pNodeB4, 100, 1) >= 0);
   assert(node_add_link(pNodeB4, pNodeB1, 100, 1) >= 0);
   
 //   assert(node_add_link(pNodeB2, pNodeX2, 100, 1) >= 0);
 //   assert(node_add_link(pNodeB3, pNodeX2, 100, 1) >= 0);
-//   assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
+// //   assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
 //   assert(node_add_link(pNodeX2, pNodeX3, 100, 1) >= 0);
-// 
+ 
 //   assert(node_add_link(pNodeB3, pNodeY1, 100, 1) >= 0);
 //   assert(node_add_link(pNodeY1, pNodeY2, 100, 1) >= 0);
   
@@ -508,15 +681,15 @@ int ospf_djk_test()
 //   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
 //   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
-  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 200, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
+// //   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
-//   LOG_DEBUG("transit-network links attached.\n");
+
 //   assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeB2, pSubnetSX1, 100, 1) >= 0);
@@ -528,7 +701,7 @@ int ospf_djk_test()
 //   assert(node_add_link_toSubnet(pNodeK3, pSubnetSK1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK2, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK3, 100, 1) >= 0);
-//   LOG_DEBUG("stub-network links attached.\n");
+
   LOG_DEBUG(" ok!\n");
 
   LOG_DEBUG("ospf_djk_test(): CHECK Vertex functions...");
