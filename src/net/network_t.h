@@ -9,7 +9,8 @@
 #ifndef __NET_NETWORK_T_H__
 #define __NET_NETWORK_T_H__
 
-#include <net/routing_t.h>
+#include <libgds/types.h>
+#include <net/net_types.h>
 #include <net/protocol.h>
 #include <net/domain_t.h>
 
@@ -33,6 +34,7 @@ typedef struct {
   SNetwork * pNetwork;
   SPtrArray * pLinks;
   SNetRT * pRT;
+//   SOSPFRT * pOspfRT; //OSPF routing table
   SNetProtocols * pProtocols;
   SNetDomain * pDomain;
 } SNetNode;
