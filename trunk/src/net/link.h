@@ -2,7 +2,7 @@
 // @(#)link.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
-//         Stefano Iasi (stefanoia@tin.it)
+//         Stefano Iasi  (stefanoia@tin.it)
 // @date 24/02/2004
 // @lastdate 09/03/2004
 // ==================================================================
@@ -11,11 +11,13 @@
 #define __NET_LINK_H__
 
 #include <stdlib.h>
-#include <net/subnet.h>
+#include <net/net_types.h>
 #include <net/message.h>
 #include <net/prefix.h>
+#include <net/network_t.h>
 #include <libgds/types.h>
 #include <libgds/array.h>
+
 
 #define NET_LINK_DELAY_INT
 #define NET_LINK_FLAG_UP      0x01
@@ -29,40 +31,7 @@
 #define NET_LINK_TYPE_TRANSIT  1
 #define NET_LINK_TYPE_STUB     2
 
-#ifdef NET_LINK_DELAY_INT
-typedef uint32_t net_link_delay_t;
-#define NET_LINK_DELAY_INFINITE MAX_UINT32_T
-#else
-typedef double net_link_delay_t;
-#endif
-typedef SPtrArray links_list_t;
 
-typedef int (*FNetLinkForward)(net_addr_t tDstAddr, void * pContext,
-			       SNetMessage * pMsg);
-
-
-/*
-  A link can point to a router or a subnet.
-  Router can be reached in topology db by IP address (tAddr),
-  Subnet can be reached in topology db by memory pointer.
-  
-  To obtain IP address MUST BE USED link_get_addr() function
-*/
-typedef union {
-  net_addr_t tAddr;
-  SNetSubnet * pSubnet;
-} UDestinationId;
-
-typedef struct {
-  uint8_t uDestinationType;    /* TNET_LINK_TYPE_ROUTER , NET_LINK_TYPE_TRANSIT, NET_LINK_TYPE_STUB */
-  //net_addr_t tAddr;
-  UDestinationId UDestId;      /* depends on uDestinationType*/
-  net_link_delay_t tDelay;
-  uint8_t uFlags;
-  uint32_t uIGPweight;      // Store IGP weight here
-  void * pContext;
-  FNetLinkForward fForward;
-} SNetLink;
 
 
 // ----- link_get_addr ----------------------------------------
