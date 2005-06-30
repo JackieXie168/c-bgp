@@ -36,6 +36,7 @@ libnet_la_SOURCES = \
 	message.h \
 	net_path.c \
 	net_path.h \
+	net_types.h \
 	network.c \
 	network.h \
 	network_t.h \
@@ -54,3 +55,5 @@ libnet_la_SOURCES = \
 	routing_t.h \
 	subnet.c \
 	subnet.h
+	 
+
