@@ -54,18 +54,22 @@ int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
 {
   SOSPFNextHop * pNH1= *((SOSPFNextHop **) pItem1);
   SOSPFNextHop * pNH2= *((SOSPFNextHop **) pItem2);
-  SPrefix pL1Prefix; //= MALLOC(sizeof(SPrefix));
-  SPrefix pL2Prefix; //= MALLOC(sizeof(SPrefix));
-  link_get_prefix(pNH1->pLink, &pL1Prefix);
-  link_get_prefix(pNH2->pLink, &pL2Prefix);
-  int prefixCmp = ip_prefixes_compare(&pL2Prefix, &pL2Prefix, 0);
-  if (prefixCmp == 0)
+
+  SPrefix sL1Prefix, * pL1Prefix = &sL1Prefix; 
+  SPrefix sL2Prefix, * pL2Prefix = &sL2Prefix; 
+  
+  link_get_prefix(pNH1->pLink, pL1Prefix);
+  link_get_prefix(pNH2->pLink, pL2Prefix);
+
+  int prefixCmp = ip_prefixes_compare(&pL1Prefix, &pL2Prefix, 0);
+  if (prefixCmp == 0){
     if (pNH1->tAddr > pNH2->tAddr)
       return 1;
     else if (pNH1->tAddr < pNH2->tAddr)
       return -1;
     else 
       return  0;
+  }
   else
     return prefixCmp;     
 }
@@ -107,7 +111,7 @@ void ospf_nh_list_get_at(next_hops_list_t * pNHList, int iIndex, SOSPFNextHop **
 // ----- ospf_nh_list_create --------------------------------------------------
 next_hops_list_t * ospf_nh_list_create()
 {
-  return ptr_array_create(ARRAY_OPTION_UNIQUE, ospf_next_hops_compare, 
+  return ptr_array_create(ARRAY_OPTION_UNIQUE|ARRAY_OPTION_SORTED, ospf_next_hops_compare, 
                                                ospf_next_hop_dst);
 }
 
@@ -263,7 +267,7 @@ SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
 				       uint32_t           uWeight,
 				       ospf_area_t        tOSPFArea,
 				       ospf_path_type_t   tOSPFPathType,
-				       SOSPFNextHop     * pNextHop)
+				       next_hops_list_t * pNHList)
 {
   SOSPFRouteInfo * pRouteInfo=
     (SOSPFRouteInfo *) MALLOC(sizeof(SOSPFRouteInfo));
@@ -274,23 +278,18 @@ SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
   pRouteInfo->tOSPFArea            = tOSPFArea;
   pRouteInfo->tType                = NET_ROUTE_IGP;
   
-  pRouteInfo->aNextHops = ospf_nh_list_create();
-  
-  if (ospf_nh_list_add(pRouteInfo->aNextHops, pNextHop) < 0){
-   ospf_nh_list_destroy(&(pRouteInfo->aNextHops));
-   return NULL;
-  }
+  pRouteInfo->aNextHops = pNHList;
   
   return pRouteInfo;
 }
 
-// ----- route_info_destroy -----------------------------------------
+// ----- route_info_destroy ----------------------------------------------------
 int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH) 
 {
   return ospf_nh_list_add(pRouteInfo->aNextHops, pNH);
 }
 
-// ----- OSPF_route_info_destroy -----------------------------------------
+// ----- OSPF_route_info_destroy -----------------------------------------------
 /**
  *
  */
@@ -641,12 +640,15 @@ int ospf_rt_test(){
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("CHECK next hop list features...");
-  next_hops_list_t * pNHList = ospf_nh_list_create();
-  assert(pNHList != NULL);
+  next_hops_list_t * pNHListB = ospf_nh_list_create();
+  assert(pNHListB != NULL);
+  next_hops_list_t * pNHListC = ospf_nh_list_create();
+  next_hops_list_t * pNHListTx = ospf_nh_list_create();
   
-  assert(ospf_nh_list_add(pNHList, pNHC1) >= 0);
-  assert(ospf_nh_list_add(pNHList, pNHC2) >= 0);
-//   ospf_nh_list_dump(stdout, pNHList, "");
+  assert(ospf_nh_list_add(pNHListB, pNHB) >= 0);
+  assert(ospf_nh_list_add(pNHListC, pNHC1) >= 0);
+  assert(ospf_nh_list_add(pNHListTx, pNHTx) >= 0);
+
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("CHECK route info functions...");
@@ -661,7 +663,7 @@ int ospf_rt_test(){
 				       100,
 				       BACKBONE_AREA,
 				       OSPF_PATH_TYPE_INTRA ,
-				       pNHB);
+				       pNHListB);
   assert(pRiB != NULL);      
   SOSPFRouteInfo * pRiC = NULL; 
   pRiC = OSPF_route_info_create(OSPF_DESTINATION_TYPE_ROUTER,
@@ -669,7 +671,7 @@ int ospf_rt_test(){
 				       100,
 				       BACKBONE_AREA,
 				       OSPF_PATH_TYPE_INTRA ,
-				       pNHC1);	       
+				       pNHListC);	       
        
   SOSPFRouteInfo * pRiTx = NULL; 
   pRiTx = OSPF_route_info_create(OSPF_DESTINATION_TYPE_NETWORK,
@@ -677,12 +679,11 @@ int ospf_rt_test(){
 				       100,
 				       BACKBONE_AREA,
 				       OSPF_PATH_TYPE_INTRA ,
-				       pNHTx);
+				       pNHListTx);
   assert(pRiTx != NULL);  
-   
+ 
   assert(OSPF_route_info_add_nextHop(pRiC, pNHC2) >= 0);
-//   OSPF_route_info_dump(stdout, pRiB);
-//   OSPF_route_info_dump(stdout, pRiC);
+
   LOG_DEBUG(" ok!\n");
   LOG_DEBUG("CHECK routing table function... ");
   SOSPFRT * pRT = OSPF_rt_create();
@@ -698,8 +699,10 @@ int ospf_rt_test(){
   OSPF_rt_destroy(&pRT);
   assert(pRT == NULL);
   
-  ospf_nh_list_destroy(&pNHList);
-  assert(pNHList == NULL);
+//   ospf_nh_list_destroy(&pNHListB);
+//   assert(pNHListB == NULL);
+//   ospf_nh_list_destroy(&pNHListC);
+//   ospf_nh_list_destroy(&pNHListTx);
  
   ospf_next_hop_destroy(&pNHB);
   assert(pNHB == NULL);
