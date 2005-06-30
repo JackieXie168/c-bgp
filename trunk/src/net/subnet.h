@@ -9,27 +9,17 @@
 #ifndef __NET_SUBNET_XYZ_H__
 #define __NET_SUBNET_XYZ_H__
 
-//#include <net/link.h>
 #include <libgds/types.h>
 #include <libgds/array.h>
+#include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/network_t.h>
+
 
 #define NET_SUBNET_TYPE_TRANSIT 0
 #define NET_SUBNET_TYPE_STUB    1
 
-/*
-  Describe transit network or stub network: if there are only one 
-  router this object describe a stub network. A trasit network
-  otherwise.
-*/
-typedef struct {
-  //net_addr_t tAddr;
-  SPrefix * pPrefix;
-  uint8_t uType;
-  uint32_t uOSPFArea;	/*we have only an area for a network*/
-  SPtrArray * aNodes;   /*links towards all the router on the subnet*/
-} SNetSubnet;
+
 
 // ----- subnet_create -----------------------------------------------------------------
 //SNetSubnet * subnet_create(/*net_addr_t tAddr*/SPrefix * pPrefix, uint8_t uType);
