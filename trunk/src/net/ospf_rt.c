@@ -102,20 +102,7 @@ void ospf_nh_list_get_at(next_hops_list_t * pNHList, int iIndex, SOSPFNextHop **
 {
   ptr_array_get_at(pNHList, iIndex, ppNH);
 } 
-/*void ospf_next_hop_dump(SOSPFNextHop * pNH)
-{ 
-  SNextHop_Dump_Context * pCtxt = (SNextHop_Dump_Context *) pContext;
-  SNetLink * pNextHop = *((SNetLink **) pItem);
-  pCtxt->uCount++;
-  if (pCtxt->uCount > 1)
-    fprintf(pCtxt->pStream,"...\t\t\t\t\t\t");
-  ip_address_dump(pCtxt->pStream, link_get_addr(pNextHop));
-  if (!link_get_state(pNextHop, NET_LINK_FLAG_UP)) 
-    fprintf(pCtxt->pStream, "\t[DOWN]\n");
-  else
-    fprintf(pCtxt->pStream, "\n");
-  return 0;
-}*/
+
 
 // ----- ospf_nh_list_create --------------------------------------------------
 next_hops_list_t * ospf_nh_list_create()
@@ -142,16 +129,20 @@ int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH)
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace)
+void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine)
 {
   int iIndex;
   SOSPFNextHop  sNH, * pNH;
   pNH = &sNH;
-  for (iIndex = 0; iIndex < ptr_array_length(pNHList); iIndex++)
+  int iStop =  ospf_nh_list_length(pNHList);
+  for (iIndex = 0; iIndex < iStop; iIndex++)
   {
     ptr_array_get_at(pNHList, iIndex, &pNH);
     ospf_next_hop_dump(pStream, pNH);
-    fprintf(pStream, "\n%s", pcSpace);
+    if (!inLine)
+      fprintf(pStream, "\n");
+    if (iIndex != iStop - 1)
+      fprintf(pStream, "%s", pcSpace);
   }
 }
 
@@ -172,7 +163,7 @@ void OSPF_rt_route_info_destroy(void ** ppItem)
  TODO 
  * - prefer the route with the lowest type (STATIC > IGP > BGP)
  * - prefer route with smallest area ?????? 
- * - prefer route with smallest path-thype (INTRA < INTER < EXT1 < EXT2)
+ * - prefer route with smallest path-thype (EXT1 > EXT2 > INTER > INTRA)
  * - prefer route with smallest cost
  * - prefer route with smallest next-hop
  */
@@ -449,7 +440,7 @@ void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo)
   fprintf(pStream, "\t");
   OSPF_route_type_dump(pStream, pRouteInfo->tType);
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
-  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\t\t\t\t\t\t");
+  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\t\t\t\t\t\t", 0);
 }
 
 
