@@ -27,6 +27,8 @@
 #define DJK_NODE_TYPE_ROUTER 0
 #define DJK_NODE_TYPE_SUBNET 1
 
+
+
 // ----- spt_vertex_are_equal ---------------------------------------
 int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 
@@ -124,6 +126,7 @@ void spt_vertex_dst(void ** ppItem){
   SSptVertex * pVertex = *((SSptVertex **)(ppItem));
   spt_vertex_destroy(&pVertex);    
 }
+
 
 // ----- spt_vertex_get_links ---------------------------------------
 SPtrArray * spt_vertex_get_links(SSptVertex * pVertex)
@@ -227,7 +230,15 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
 	fprintf(stdout, "\n");
 	pBestVertex = pCurrentVertex;
 	iBestIndex = iIndex;
-     }
+      }
+      else if (pCurrentVertex->uIGPweight == pBestVertex->uIGPweight){ 
+        if (pCurrentVertex->uDestinationType > pBestVertex->uDestinationType){ 
+	  ip_prefix_dump(stdout, spt_vertex_get_prefix(pCurrentVertex));
+	  fprintf(stdout, "\n");
+	  pBestVertex = pCurrentVertex;
+	  iBestIndex = iIndex;
+	}
+      }
    }  
    fprintf(stdout, "rimuovo da aGrayVertex ...\n");
    ptr_array_remove_at(paGrayVertexes, iBestIndex);
@@ -453,16 +464,16 @@ void compute_vertical_bars(FILE * pStream, int iLevel, char * pcBars){
 /**
  *  Visit a node of the spt to dump it
  */
-void visit_vertex(SSptVertex * pVertex, int iLevel, FILE * pStream){
+void visit_vertex(SSptVertex * pVertex, int iLevel, char * pcSpace, FILE * pStream){
   char * pcPrefix = MALLOC(30);
-  char * pcSpace = MALLOC(100);
   SPrefix sPrefix;
   SSptVertex * pChild;
   int iIndex; 
-  
+  strcpy(pcSpace, "");
+  strcpy(pcPrefix, "");
   compute_vertical_bars(pStream, iLevel, pcSpace);
   fprintf(pStream, "%s\n%s", pcSpace, pcSpace);
-  strcpy(pcPrefix, "");
+  
   
   sPrefix = spt_vertex_get_prefix(pVertex);
   ip_prefix_to_string(pcPrefix, &sPrefix);
@@ -472,31 +483,30 @@ void visit_vertex(SSptVertex * pVertex, int iLevel, FILE * pStream){
   for(iIndex = 0; iIndex < strlen(pcPrefix) + 24 + 3; iIndex++) //last term should be dynamic
     strcat(pcSpace, " ");
   
-  ospf_nh_list_dump(pStream, pVertex->pNextHops, pcSpace, 0);
+  if (pVertex->pNextHops != NULL)
+    ospf_nh_list_dump(pStream, pVertex->pNextHops, pcSpace, 0);
   
   iLevel++;
   for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
      ptr_array_get_at(pVertex->sons, iIndex, &pChild);
-     visit_vertex(pChild, iLevel, pStream);
+     visit_vertex(pChild, iLevel, pcSpace, pStream);
   }
   
   FREE(pcPrefix);
-  FREE(pcSpace);
 }
 
 // ----- spt_dump ------------------------------------------
 void spt_dump(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
 {
   SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
- 
-  visit_vertex(pRadix, 0, pStream);
+  char * pcSpace = MALLOC(500);
+  visit_vertex(pRadix, 0, pcSpace, pStream);
 }
 
 
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for node object
 /////////////////////////////////////////////////////////////////////
-
 // ----- node_add_OSPFArea ------------------------------------------
 int node_add_OSPFArea(SNetNode * pNode, uint32_t OSPFArea)
 {
@@ -521,14 +531,25 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
 		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
 		       next_hops_list_t * pNHList)
 {
- //TODO provare a richiamare la rt da node
- //TODO implementare questa
+  SOSPFRouteInfo * pRouteInfo;
+
+  //we should be do it?
+  /*pLink= node_links_lookup(pNode, tNextHop);
+  if (pLink == NULL) {
+    return NET_RT_ERROR_NH_UNREACH;
+  }*/
+
+  pRouteInfo = OSPF_route_info_create(tOSPFDestinationType,  sPrefix,
+				       uWeight, tOSPFArea, tOSPFPathType, pNHList);
+  
+  return OSPF_rt_add_route(pNode->pOspfRT, sPrefix, pRouteInfo);
  return 0;
 }
+
+
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for subnet object
 /////////////////////////////////////////////////////////////////////
-
 // ----- subnet_OSPFArea -------------------------------------------------
 void subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea)
 {
@@ -551,19 +572,7 @@ int ospf_build_route_for_each(uint32_t uKey, uint8_t uKeyLen,
   SNetNode * pNode= (SNetNode *) pContext;
   SSptVertex * pVertex= (SSptVertex *) pItem;
   SPrefix sPrefix;
-
-  /*
-  fprintf(stderr, "node: ");
-  ip_address_dump(stderr, pNode->tAddr);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "prefix: ");
-  ip_address_dump(stderr, (net_addr_t) uKey);
-  fprintf(stderr, "/%u\n", uKeyLen);
-  fprintf(stderr, "next-hop: ");
-  ip_address_dump(stderr, pInfo->tNextHop);
-  fprintf(stderr, "\n");
-  */
-
+  
   // Skip route to itself
   if (pNode->tAddr == (net_addr_t) uKey)
     return 0;
@@ -574,14 +583,19 @@ int ospf_build_route_for_each(uint32_t uKey, uint8_t uKeyLen,
 
   /* removes the previous route for this node/prefix if it already
      exists */
+     
 // TODO  node_ospf_rt_del_route(pNode, &sPrefix, NULL, NET_ROUTE_IGP);
-
   return node_ospf_rt_add_route(pNode, OSPF_DESTINATION_TYPE_NETWORK, //TODO dynamically obtain ROUTE type
                                 sPrefix,
 				pVertex->uIGPweight,
 				BACKBONE_AREA, //TODO replace with parameter
 				OSPF_PATH_TYPE_INTRA,
 				pVertex->pNextHops);
+				
+  //to prevent NextHopList destroy when spt is destroyed
+  //note: next hops list are dynamically allocated during spt computation
+  //      and linked to routing table during rt computation
+  pVertex->pNextHops = NULL;
 }
 
 // ----- igp_compute_prefix -----------------------------------------
@@ -623,27 +637,27 @@ int ospf_djk_test()
   SNetNode * pNodeB2= node_create(startAddr + 1);
   SNetNode * pNodeB3= node_create(startAddr + 2);
   SNetNode * pNodeB4= node_create(startAddr + 3);
-//   SNetNode * pNodeX1= node_create(startAddr + 4);
-//   SNetNode * pNodeX2= node_create(startAddr + 5);
-//   SNetNode * pNodeX3= node_create(startAddr + 6);
-//   SNetNode * pNodeY1= node_create(startAddr + 7);
-//   SNetNode * pNodeY2= node_create(startAddr + 8);
-//   SNetNode * pNodeK1= node_create(startAddr + 9);
-//   SNetNode * pNodeK2= node_create(startAddr + 10);
-//   SNetNode * pNodeK3= node_create(startAddr + 11);
+  SNetNode * pNodeX1= node_create(startAddr + 4);
+  SNetNode * pNodeX2= node_create(startAddr + 5);
+  SNetNode * pNodeX3= node_create(startAddr + 6);
+  SNetNode * pNodeY1= node_create(startAddr + 7);
+  SNetNode * pNodeY2= node_create(startAddr + 8);
+  SNetNode * pNodeK1= node_create(startAddr + 9);
+  SNetNode * pNodeK2= node_create(startAddr + 10);
+  SNetNode * pNodeK3= node_create(startAddr + 11);
   
   SNetSubnet * pSubnetTB1= subnet_create(4, 30, NET_SUBNET_TYPE_TRANSIT);
-//   SNetSubnet * pSubnetTX1= subnet_create(8, 30, NET_SUBNET_TYPE_TRANSIT);
-//   SNetSubnet * pSubnetTY1= subnet_create(12, 30, NET_SUBNET_TYPE_TRANSIT);
-//   SNetSubnet * pSubnetTK1= subnet_create(16, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTX1= subnet_create(8, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTY1= subnet_create(12, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTK1= subnet_create(16, 30, NET_SUBNET_TYPE_TRANSIT);
   
 //   SNetSubnet * pSubnetSB1= subnet_create(20, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSB2= subnet_create(24, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSX1= subnet_create(28, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSX2= subnet_create(32, 30, NET_SUBNET_TYPE_STUB);
-//   SNetSubnet * pSubnetSX3= subnet_create(36, 30, NET_SUBNET_TYPE_STUB);
+// //   SNetSubnet * pSubnetSX3= subnet_create(36, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSY1= subnet_create(40, 30, NET_SUBNET_TYPE_STUB);
-//   SNetSubnet * pSubnetSY2= subnet_create(44, 30, NET_SUBNET_TYPE_STUB);
+// //   SNetSubnet * pSubnetSY2= subnet_create(44, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSY3= subnet_create(48, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSK1= subnet_create(52, 30, NET_SUBNET_TYPE_STUB);
 //   SNetSubnet * pSubnetSK2= subnet_create(56, 30, NET_SUBNET_TYPE_STUB);
@@ -653,41 +667,41 @@ int ospf_djk_test()
   assert(!network_add_node(pNetwork, pNodeB2));
   assert(!network_add_node(pNetwork, pNodeB3));
   assert(!network_add_node(pNetwork, pNodeB4));
-//   assert(!network_add_node(pNetwork, pNodeX1));
-//   assert(!network_add_node(pNetwork, pNodeX2));
-//   assert(!network_add_node(pNetwork, pNodeX3));
-//   assert(!network_add_node(pNetwork, pNodeY1));
-//   assert(!network_add_node(pNetwork, pNodeY2));
-//   assert(!network_add_node(pNetwork, pNodeK1));
-//   assert(!network_add_node(pNetwork, pNodeK2));
-//   assert(!network_add_node(pNetwork, pNodeK3));
+  assert(!network_add_node(pNetwork, pNodeX1));
+  assert(!network_add_node(pNetwork, pNodeX2));
+  assert(!network_add_node(pNetwork, pNodeX3));
+  assert(!network_add_node(pNetwork, pNodeY1));
+  assert(!network_add_node(pNetwork, pNodeY2));
+  assert(!network_add_node(pNetwork, pNodeK1));
+  assert(!network_add_node(pNetwork, pNodeK2));
+  assert(!network_add_node(pNetwork, pNodeK3));
 
   assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
   assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
   assert(node_add_link(pNodeB3, pNodeB4, 100, 1) >= 0);
   assert(node_add_link(pNodeB4, pNodeB1, 100, 1) >= 0);
   
-//   assert(node_add_link(pNodeB2, pNodeX2, 100, 1) >= 0);
-//   assert(node_add_link(pNodeB3, pNodeX2, 100, 1) >= 0);
-// //   assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
-//   assert(node_add_link(pNodeX2, pNodeX3, 100, 1) >= 0);
+  assert(node_add_link(pNodeB2, pNodeX2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB3, pNodeX2, 100, 1) >= 0);
+  assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
+  assert(node_add_link(pNodeX2, pNodeX3, 100, 1) >= 0);
  
-//   assert(node_add_link(pNodeB3, pNodeY1, 100, 1) >= 0);
-//   assert(node_add_link(pNodeY1, pNodeY2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB3, pNodeY1, 100, 1) >= 0);
+  assert(node_add_link(pNodeY1, pNodeY2, 100, 1) >= 0);
   
-//   assert(node_add_link(pNodeB4, pNodeK1, 100, 1) >= 0);
-//   assert(node_add_link(pNodeB4, pNodeK2, 100, 1) >= 0);
-//   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
-//   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB4, pNodeK1, 100, 1) >= 0);
+  assert(node_add_link(pNodeB4, pNodeK2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
+  assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
    assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
    assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
-// //   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
-//   assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
+   assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
 
 //   assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) >= 0);
 //   assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) >= 0);
@@ -747,7 +761,6 @@ int ospf_djk_test()
   
   SNetNode * pFindNode = network_find_node(pNetwork, pNodeB1->tAddr);
   assert(pFindNode != NULL);
-  LOG_DEBUG("ospf_djk_test(): find node is ok...");
   SRadixTree * pSpt = OSPF_dijkstra(pNetwork, pNodeB1->tAddr, sPrefix);
   
   spt_dump(stdout, pSpt, pNodeB1->tAddr);
@@ -948,11 +961,11 @@ int ospf_test()
   ospf_info_test();
   LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
   
-//     ospf_rt_test();
-//     LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
+  ospf_rt_test();
+  LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
   
-   ospf_djk_test();
-   LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
+  ospf_djk_test();
+  LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
   return 1;
 }
 
