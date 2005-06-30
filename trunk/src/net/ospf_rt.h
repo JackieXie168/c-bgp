@@ -25,9 +25,6 @@
 
 #define OSPF_NO_IP_NEXT_HOP 0
 
-
-
-
 // ----- ospf_rt_test() -----------------------------------------------
 extern int ospf_rt_test();
 
@@ -67,7 +64,7 @@ extern SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinatio
 				       uint32_t           uWeight,
 				       ospf_area_t        tOSPFArea,
 				       ospf_path_type_t   tOSPFPathType,
-				       SOSPFNextHop     * pNextHop);
+				       next_hops_list_t * pNHList);
 				       
 // ----- OSPF_route_info_add_nextHop -----------------------------------------
 int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH);
