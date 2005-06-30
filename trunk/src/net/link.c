@@ -11,6 +11,7 @@
 #include <config.h>
 #endif
 
+#include <net/net_types.h>
 #include <net/subnet.h>
 #include <net/link.h>
 #include <libgds/memory.h>
