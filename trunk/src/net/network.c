@@ -11,20 +11,22 @@
 #endif
 
 #include <assert.h>
-#include <net/prefix.h>
+#include <string.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <libgds/stack.h>
+#include <net/net_types.h>
+#include <net/prefix.h>
 #include <net/icmp.h>
 #include <net/ipip.h>
 #include <net/network.h>
 #include <net/net_path.h>
 #include <net/ospf.h>
-#include <string.h>
+#include <net/domain.h>
 #include <ui/output.h>
 #include <bgp/message.h>
 
-#include <net/domain.h>
+
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
 
@@ -362,6 +364,7 @@ SNetNode * node_create(net_addr_t tAddr)
 				   node_links_compare,
 				   node_links_destroy);
   pNode->pRT= rt_create();
+//   pNode->pRT= OSPF_rt_create();
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
 			 NULL, icmp_event_handler);
@@ -942,7 +945,7 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
   for (iLinkIndex= 0; iLinkIndex < ptr_array_length(pNode->pLinks);
        iLinkIndex++) {
 	  pLink= (SNetLink *) pNode->pLinks->data[iLinkIndex];
-	  fprintf(pStream, "%d\t%d\t%d\n",
+	  fprintf(pStream, "%d\t%d\t%u\n",
 		  pNode->tAddr, link_get_addr(pLink), pLink->tDelay);
   }
   return 0;

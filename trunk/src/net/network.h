@@ -19,16 +19,19 @@
 #endif
 #include <libgds/types.h>
 
+#include <net/net_types.h>
 #include <net/network_t.h>
 #include <net/domain_t.h>
 #include <net/prefix.h>
-#include <net/link.h>
 #include <net/message.h>
 #include <net/net_path.h>
 #include <net/protocol.h>
+#include <net/link.h>
 #include <net/routing.h>
 #include <sim/simulator.h>
-#include <net/subnet.h>
+
+
+
 
 
 #define NET_SUCCESS                0
