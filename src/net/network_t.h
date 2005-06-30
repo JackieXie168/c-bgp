@@ -16,6 +16,8 @@
 
 extern const net_addr_t MAX_ADDR;
 
+#define OSPF_SUPPORT
+
 typedef struct {
 #ifdef __EXPERIMENTAL__
   STrie * pNodes;
@@ -30,11 +32,14 @@ typedef struct {
   SPtrArray * aInterfaces;
   char * pcName;
   uint32_t  uAS;
-  SUInt32Array * pOSPFAreas; 
+  
   SNetwork * pNetwork;
   SPtrArray * pLinks;
   SNetRT * pRT;
-//   SOSPFRT * pOspfRT; //OSPF routing table
+#ifdef OSPF_SUPPORT
+  SUInt32Array * pOSPFAreas; 
+  SOSPFRT * pOspfRT; //OSPF routing table
+#endif
   SNetProtocols * pProtocols;
   SNetDomain * pDomain;
 } SNetNode;
