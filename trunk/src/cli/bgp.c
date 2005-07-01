@@ -2023,6 +2023,7 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+#ifdef __EXPERIMENTAL__
 // ----- cli_bgp_router_load_ribs_in --------------------------------
 /**
  *
@@ -2042,6 +2043,7 @@ int cli_bgp_router_load_ribs_in(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_bgp_router_peer_up -------------------------------------
 /**
@@ -2704,11 +2706,13 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_load_rib,
 					NULL, pParams));
+#ifdef __EXPERIMENTAL__
   pParams = cli_params_create();
   cli_params_add(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in", 
 					cli_bgp_router_load_ribs_in,
 					NULL, pParams));
+#endif
   return cli_cmds_add(pCmds, cli_cmd_create("load", NULL,
 					    pSubCmds, NULL));
 }
