@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 07/04/2005
+// @lastdate 01/07/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -473,37 +473,39 @@ int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
   return ptr_array_add(pNode->pLinks, &pLink);
 }
 
-// ----- node_find_link ---------------------------------------------
+// ----- node_find_link_to_router -----------------------------------
 /**
  *
  */
 SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
 {
-  int iIndex;
-  SNetLink * pLink= NULL, * wrapLink;
+  unsigned int uIndex;
+  SNetLink * pLink= NULL, * pWrapLink;
   
-  wrapLink = create_link_toRouter_byAddr(tAddr);
+  pWrapLink= create_link_toRouter_byAddr(tAddr);
 
-  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[iIndex];
+  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+
+  link_destroy(&pWrapLink);
   return pLink;
 }
 
-// ----- node_find_link ---------------------------------------------
+// ----- node_find_link_to_subnet -----------------------------------
 /**
  *
  */
 SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
 {
-  int iIndex;
-  SNetLink * pLink= NULL, * wrapLink;
+  unsigned int uIndex;
+  SNetLink * pLink= NULL, * pWrapLink;
   
-  wrapLink = create_link_toSubnet(pSubnet);
+  pWrapLink= create_link_toSubnet(pSubnet);
     
-  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-  
-  //FREE(pPrefix);
+  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+
+  link_destroy(&pWrapLink);
   return pLink;
 }
 
