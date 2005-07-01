@@ -1,0 +1,70 @@
+// ==================================================================
+// @(#)routing.h
+//
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @date 24/02/2004
+// @lastdate 05/04/2005
+// ==================================================================
+
+#ifndef __NET_ROUTING_H__
+#define __NET_ROUTING_H__
+
+#include <stdio.h>
+
+#include <libgds/array.h>
+#include <libgds/types.h>
+
+#include <net/prefix.h>
+#include <net/link.h>
+#include <net/routing_t.h>
+
+#define NET_RT_SUCCESS               0
+#define NET_RT_ERROR_NH_UNREACH     -1
+#define NET_RT_ERROR_IF_UNKNOWN     -2
+#define NET_RT_ERROR_ADD_DUP        -3
+#define NET_RT_ERROR_DEL_UNEXISTING -4
+
+typedef SPtrArray SNetRouteInfoList;
+
+typedef struct {
+  SPrefix sPrefix;
+  uint32_t uWeight;
+  SNetLink * pNextHopIf;
+  net_route_type_t tType;
+} SNetRouteInfo;
+
+
+
+// ----- rt_perror -------------------------------------------------------
+extern void rt_perror(FILE * pStream, int iErrorCode);
+// ----- route_info_create ------------------------------------------
+extern SNetRouteInfo * route_info_create(SPrefix sPrefix,
+					 SNetLink * pNextHopIf,
+					 uint32_t uWeight,
+					 net_route_type_t tType);
+// ----- route_info_destroy -----------------------------------------
+extern void route_info_destroy(SNetRouteInfo ** ppRouteInfo);
+
+// ----- rt_create --------------------------------------------------
+extern SNetRT * rt_create();
+// ----- rt_destroy -------------------------------------------------
+extern void rt_destroy(SNetRT ** ppRT);
+// ----- rt_find_best -----------------------------------------------
+extern SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
+				    net_route_type_t tType);
+// ----- rt_find_exact ----------------------------------------------
+extern SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
+				     net_route_type_t tType);
+// ----- rt_add_route -----------------------------------------------
+extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
+			SNetRouteInfo * pRouteInfo);
+// ----- rt_del_route -----------------------------------------------
+extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
+			SNetLink * pNextHopIf, net_route_type_t tType);
+// ----- rt_dump ----------------------------------------------------
+extern void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest);
+
+// ----- rt_for_each -------------------------------------------------------
+extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
+
+#endif /* __NET_ROUTING_H__ */
