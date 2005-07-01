@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 13/04/2005
+// @lastdate 01/07/2005
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -159,12 +159,12 @@ char * bgp_router_get_name(SBGPRouter * pRouter)
  */
 SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr)
 {
-  int iIndex;
+  unsigned int uIndex;
   net_addr_t * pAddr= &tAddr;
   SPeer * pPeer= NULL;
 
-  if (ptr_array_sorted_find_index(pRouter->pPeers, &pAddr, &iIndex) != -1)
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+  if (ptr_array_sorted_find_index(pRouter->pPeers, &pAddr, &uIndex) != -1)
+    pPeer= (SPeer *) pRouter->pPeers->data[uIndex];
   return pPeer;
 }
 
