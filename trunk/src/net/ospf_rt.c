@@ -10,6 +10,7 @@
 #include <config.h>
 #endif
 
+#include <string.h>
 #include <net/ospf_rt.h>
 #include <net/routing_t.h>
 #include <net/prefix.h>
@@ -93,6 +94,25 @@ void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
   else
     fprintf(pStream, "-DIRECT-");
   fprintf(pStream, ">");
+}
+
+// ----- OSPF_next_hop_dump --------------------------------------------
+void ospf_next_hop_to_string(char * pString, SOSPFNextHop * pNH)
+{ 
+  SPrefix sPrefix;
+  char * pcTmp;
+  
+  sprintf(pString, "IF <");
+  link_get_prefix(pNH->pLink, &sPrefix);
+  pcTmp = pString + strlen("IF <");
+  ip_prefix_to_string(pcTmp, &sPrefix);
+  strcat(pString, "> IP <");
+  pcTmp = pString + strlen(pString);
+  if (pNH->tAddr != OSPF_NO_IP_NEXT_HOP)
+    ip_address_to_string(pcTmp, pNH->tAddr);
+  else
+    strcat(pString, "-DIRECT-");
+  strcat(pString, ">");
 }
 
 // ----- ospf_nh_list_length --------------------------------------------

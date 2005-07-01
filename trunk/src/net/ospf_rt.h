@@ -38,6 +38,9 @@ extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 
 // ----- ospf_next_hops_compare -----------------------------------------------
 extern int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
+// ----- ospf_next_hops_compare -----------------------------------------------
+void ospf_next_hop_to_string(char * pString, SOSPFNextHop * pNH);
+
 // ----- ospf_nh_list_create --------------------------------------------------
 extern next_hops_list_t * ospf_nh_list_create();
 // ----- ospf_nh_list_destroy --------------------------------------------------
