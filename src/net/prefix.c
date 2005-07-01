@@ -98,18 +98,6 @@ SPrefix uint32_to_prefix(net_addr_t tPrefix, uint8_t uMaskLen)
   return sPrefix;
 }
 
-
-// ----- create_ip_prefix -------------------------------------------
-SPrefix * create_ip_prefix(net_addr_t tAddr, uint8_t uMaskLen)
-{
-  SPrefix * pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));
-  pPrefix->tNetwork= tAddr;
-  pPrefix->uMaskLen= uMaskLen;
-  return pPrefix;
-}
-
-
-
 // ----- ip_prefix_dump_string ---------------------------------------------
 /**
  *
@@ -246,35 +234,6 @@ void ip_dest_dump(FILE * pStream, SNetDest sDest)
   default:
     fprintf(pStream, "???");
   }
-}
-
-// ----- network_nodes_destroy --------------------------------------
-void ip_prefixes_destroy(void ** ppItem)
-{
-  ip_prefix_destroy((SPrefix **) ppItem);
-}
-
- // ----- node_links_compare -----------------------------------------
-int ip_prefixes_compare(void * pItem1, void * pItem2,
-		       unsigned int uEltSize)
-{
-  SPrefix * pPrefix1 = *((SPrefix **) pItem1);
-  SPrefix * pPrefix2 = *((SPrefix **) pItem2);
-  if ((pPrefix1->tNetwork == pPrefix2->tNetwork) &&
-    (pPrefix1->uMaskLen == pPrefix2->uMaskLen)){
-    return 0;
-  }
-  else if (pPrefix1->uMaskLen == pPrefix2->uMaskLen) {
-    if ((pPrefix1->tNetwork < pPrefix2->tNetwork))
-      return -1;
-    else
-      return  1;
-  }
-  else if (pPrefix1->uMaskLen < pPrefix2->uMaskLen) 
-    return -1;
-  else
-    return  1;
-  
 }
 
 // ----- ip_prefix_equals -------------------------------------------

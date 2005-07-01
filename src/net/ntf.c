@@ -117,7 +117,7 @@ int ntf_load(char * pcFileName)
       }
 
       node_add_link(pNode1, pNode2, tDelay, 1);
-      pLink= node_find_link_to_router(pNode1, tNode2);
+      pLink= node_find_link(pNode1, tNode2);
       pLink->uIGPweight= uWeight;
 
     }

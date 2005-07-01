@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 01/07/2005
+// @lastdate 13/04/2005
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -21,7 +21,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-//#include <strdio.h>
 #include <string.h>
 
 #include <libgds/array.h>
@@ -159,12 +158,12 @@ char * bgp_router_get_name(SBGPRouter * pRouter)
  */
 SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr)
 {
-  unsigned int uIndex;
+  int iIndex;
   net_addr_t * pAddr= &tAddr;
   SPeer * pPeer= NULL;
 
-  if (ptr_array_sorted_find_index(pRouter->pPeers, &pAddr, &uIndex) != -1)
-    pPeer= (SPeer *) pRouter->pPeers->data[uIndex];
+  if (ptr_array_sorted_find_index(pRouter->pPeers, &pAddr, &iIndex) != -1)
+    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
   return pPeer;
 }
 
@@ -904,7 +903,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 
   // Insert the route
   iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
-			     link_get_addr(pNextHopIf), 0, NET_ROUTE_BGP);
+			     pNextHopIf->tAddr, 0, NET_ROUTE_BGP);
   if (iResult) {
     LOG_SEVERE("Error: could not add route\nError: ");
     rt_perror(stderr, iResult);
@@ -1919,65 +1918,6 @@ int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter)
     return -1;
   return 0;
 }
-
-#ifdef __EXPERIMENTAL__
-int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
-{
-  SRoute * pRoute;
-  SPeer * pPeer;
-  //SNetNode * pNode;
-  FILE * phFiRib;
-  char acFileLine[1024];
-  
-  if ( (phFiRib = fopen(pcFileName, "r")) == NULL) {
-    LOG_SEVERE("Error: rib File doest not exist\n");
-    return -1;
-  }
-
-  while (!feof(phFiRib)) {
-    if (fgets(acFileLine, sizeof(acFileLine), phFiRib) == NULL)
-      break;
-
-    if ( (pRoute = mrtd_route_from_line(pRouter, acFileLine)) != NULL ) {
-      if (pRoute == NULL) {
-	LOG_SEVERE("Error: could not build message from input\n%s\n", acFileLine);
-	fclose(phFiRib);
-	return -1;
-      }
-
-      if ( (pPeer = bgp_router_find_peer(pRouter, route_nexthop_get(pRoute))) != NULL) {
-	if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-/*	    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
-	    // Check route against import filter
-	    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-	    route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
-	    route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		   peer_route_eligible(pPeer, pRoute));
-	    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		   peer_route_feasible(pPeer, pRoute));
-	    // Update route delay attribute (if BGP-QoS)
-	    //peer_route_delay_update(pPeer, pRoute);
-	    // Update route RR-client flag
-	    peer_route_rr_client_update(pPeer, pRoute);
-
-
-	  rib_replace_route(pPeer->pAdjRIBIn, route_copy(pRoute));
-	  bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
-				pRoute->sPrefix);*/
-
-
-//	  pNode = network_find_node(network_get(), pPeer->tAddr);
-//	  bgp_msg_send(pNode, pRouter->pNode->tAddr, 
-	  peer_handle_message(pPeer,
-			bgp_msg_update_create(pRouter->uNumber, pRoute));
-	}
-      }
-    }
-  }
-  fclose(phFiRib);
-  return 0;
-}
-#endif
 
 // ----- bgp_router_save_route_mrtd ---------------------------------
 /**

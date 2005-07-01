@@ -16,7 +16,6 @@
 
 #include <bgp/as.h>
 #include <bgp/domain.h>
-#include <net/network.h>
 
 #define MAX_DOMAINS 65536
 
@@ -131,45 +130,6 @@ int bgp_domain_rescan(SBGPDomain * pDomain)
   return bgp_domain_routers_for_each(pDomain,
 				     bgp_domain_routers_rescan_fct_for_each,
 				     NULL);
-}
-
-typedef struct {
-  FILE * pStream;
-  SNetDest sDest;
-  int iDelay;
-  uint8_t uDeflection;
-} SRecordRoute;
-
-// ----- bgp_domain_routers_record_route_for_each --------------------
-int bgp_domain_routers_record_route_for_each(uint32_t uKey, uint8_t uKeyLen,
-					      void * pItem, void * pContext)
-{
-  SNetNode * pNode = (SNetNode *)((SBGPRouter *)pItem)->pNode;
-  SRecordRoute * pCont = (SRecordRoute *)pContext;
-  
-  node_dump_recorded_route(pCont->pStream, pNode, pCont->sDest,
-				      pCont->iDelay, pCont->uDeflection);
-
-  return 0;
-}
-
-
-// ----- bgp_domain_record_route -------------------------------------
-/**
- *
- */
-int bgp_domain_dump_recorded_route(FILE * pStream, SBGPDomain * pDomain, 
-			      SNetDest  sDest, int iDelay, 
-			      const uint8_t uDeflection)
-{
-  SRecordRoute pContext;
-  pContext.pStream = pStream;
-  pContext.sDest = sDest;
-  pContext.iDelay = iDelay;
-  pContext.uDeflection = uDeflection;
-
-  return bgp_domain_routers_for_each(pDomain, bgp_domain_routers_record_route_for_each,
-				     &pContext);
 }
 
 #ifdef __EXPERIMENTAL__

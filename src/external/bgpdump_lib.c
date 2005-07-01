@@ -84,8 +84,8 @@ static    void process_attr_init(BGPDUMP_ENTRY *entry);
 static    void process_attr_read(struct mstream *s,struct attr *attr, struct zebra_incomplete *incomplete);
 /* removed by bqu
 static    void process_attr_aspath_string(struct aspath *as);
-static    char aspath_delimiter_char (u_char type, u_char which);
 */
+static    char aspath_delimiter_char (u_char type, u_char which);
 static    void process_attr_community_string(struct community *com);
 
 static    void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
@@ -725,7 +725,6 @@ void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomp
     }
 }
 
-#ifdef BQU_COMMENT
 void process_attr_aspath_string(struct aspath *as) {
   int space;
   u_char type;
@@ -887,7 +886,7 @@ char aspath_delimiter_char (u_char type, u_char which) {
     }
   return ' ';
 }
-#endif
+
 
 void process_attr_community_string(struct community *com) {
 

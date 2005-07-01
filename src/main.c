@@ -38,8 +38,6 @@
 #include <sim/simulator.h>
 #include <libgds/str_util.h>
 
-#include <net/ospf.h>
-
 #ifdef HAVE_LIBREADLINE
 # ifdef HAVE_READLINE_READLINE_H
 #  include <readline/readline.h>
@@ -53,7 +51,6 @@
 #define CBGP_MODE_INTERACTIVE 1
 #define CBGP_MODE_SCRIPT      2
 #define CBGP_MODE_EXECUTE     3
-#define CBGP_MODE_OSPF        4
 
 // -----[ global options ]-----
 char * pcOptLog = NULL;
@@ -603,8 +600,6 @@ int main(int argc, char ** argv) {
 
   simulation_init();
 
-  
-
   /* Run simulation in selected mode... */
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
@@ -618,9 +613,8 @@ int main(int argc, char ** argv) {
   case CBGP_MODE_SCRIPT:
     pInCli= fopen(pcArgMode, "r");
     if (pInCli != NULL) {
-      if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
+      if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS)
 	iExitCode= EXIT_FAILURE;
-      }
       fclose(pInCli);
     } else {
       LOG_SEVERE("Error: Unable to open script file \"%s\"\n", pcArgMode);
@@ -631,15 +625,9 @@ int main(int argc, char ** argv) {
     iExitCode= (cli_execute_line(cli_get(), pcArgMode) == 0)?
       EXIT_SUCCESS:EXIT_FAILURE;
     break;
-  case CBGP_MODE_OSPF:
-    iExitCode= ospf_test();
-    if (iExitCode != 0)
-      printf("ospf_test ok!\n");
-    else 
-      printf("ospf_test has failed :-(\n");
-    break;
   }
-  
+
   simulation_done();
+
   return iExitCode;
 }

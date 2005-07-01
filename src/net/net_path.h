@@ -32,7 +32,5 @@ extern int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
 extern void net_path_dump(FILE * pStream, SNetPath * pPath);
 // ----- net_path_dump_string ---------------------------------------
 char * net_path_dump_string(SNetPath * pPath);
-// ----- net_path_search ---------------------------------------------
-int net_path_search(SNetPath * pPath, net_addr_t tAddr);
 
 #endif

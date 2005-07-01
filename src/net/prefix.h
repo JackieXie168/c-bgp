@@ -40,8 +40,6 @@ typedef struct {
 
 // ----- ip_address_to_string ----------------------------------------
 void ip_address_to_string(char * pcAddr, net_addr_t tAddr);
-// ----- create_ip_prefix ----------------------------------------
-SPrefix * create_ip_prefix(net_addr_t tAddr, uint8_t uMaskLen);
 // ----- ip_dotted_to_address ---------------------------------------
 extern net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
 				       uint8_t uC, uint8_t uD);
@@ -69,10 +67,6 @@ extern int ip_string_to_dest(char * pcPrefix, SNetDest * psDest);
 extern void ip_dest_dump(FILE * pStream, SNetDest sDest);
 // ----- ip_prefix_equals -------------------------------------------
 extern int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
-// ----- network_nodes_destroy --------------------------------------
-void ip_prefixes_destroy(void ** ppItem);
- // ----- node_links_compare -----------------------------------------
-extern int ip_prefixes_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- ip_address_in_prefix ---------------------------------------
 extern int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix);
 // ----- ip_prefix_in_prefix ----------------------------------------

@@ -119,10 +119,6 @@ extern uint16_t bgp_router_num_providers(SBGPRouter * pRouter);
 extern void bgp_router_dump_id(FILE * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_load_rib ----------------------------------------
 extern int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter);
-#ifdef __EXPERIMENTAL__
-// ----- bgp_router_load_ribs_in ------------------------------------
-int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRoutes);
-#endif
 
 // -----[ bgp_router_rerun ]-----------------------------------------
 extern int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix);

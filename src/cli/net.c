@@ -111,7 +111,7 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeDstAddr);
     return CLI_ERROR_CTX_CREATE;
   }
-  *ppItem= node_find_link_to_router(pNodeSrc, pNodeDst->tAddr);
+  *ppItem= node_find_link(pNodeSrc, pNodeDst->tAddr);
   if (*ppItem == NULL) {
     LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
 	       pcNodeSrcAddr, pcNodeDstAddr);
@@ -328,7 +328,7 @@ int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 0, 0);
+  node_dump_recorded_route(stdout, pNode, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -364,43 +364,7 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 1, 0);
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_net_node_recordroutedeflection ------------------------------
-/**
- * context: {node}
- * tokens: {addr, addr}
- */
-int cli_net_node_recordroutedeflection(SCliContext * pContext,
-				  STokens * pTokens)
-{
-  SNetNode * pNode;
-  char * pcDest;
-  SNetDest sDest;
-
- // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  // Get destination address
-  pcDest= tokens_get_string_at(pTokens, 1);
-  if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  /* Check that the destination type is adress/prefix */
-  if ((sDest.tType != NET_DEST_ADDRESS) &&
-      (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  node_dump_recorded_route(stdout, pNode, sDest, 0, 1);
+  node_dump_recorded_route(stdout, pNode, sDest, 1);
 
   return CLI_SUCCESS;
 }
@@ -804,14 +768,6 @@ int cli_register_net_node(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route-delay",
 					cli_net_node_recordroutedelay,
 					NULL, pParams));
-
-//sta : Cli command to check deflection in a network.
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<address|prefix>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("record-route-deflection",
-					cli_net_node_recordroutedeflection,
-					NULL, pParams));
-
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("spf-prefix",

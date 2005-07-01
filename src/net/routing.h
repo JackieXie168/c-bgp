@@ -12,11 +12,20 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
+#ifdef __EXPERIMENTAL__
+# include <libgds/patricia-tree.h>
+#else
+# include <libgds/radix-tree.h>
+#endif
 #include <libgds/types.h>
 
 #include <net/prefix.h>
 #include <net/link.h>
-#include <net/routing_t.h>
+
+#define NET_ROUTE_ANY    0xFF
+#define NET_ROUTE_STATIC 0x01
+#define NET_ROUTE_IGP    0x02
+#define NET_ROUTE_BGP    0x04
 
 #define NET_RT_SUCCESS               0
 #define NET_RT_ERROR_NH_UNREACH     -1
@@ -24,7 +33,7 @@
 #define NET_RT_ERROR_ADD_DUP        -3
 #define NET_RT_ERROR_DEL_UNEXISTING -4
 
-typedef SPtrArray SNetRouteInfoList;
+typedef uint8_t net_route_type_t;
 
 typedef struct {
   SPrefix sPrefix;
@@ -33,7 +42,13 @@ typedef struct {
   net_route_type_t tType;
 } SNetRouteInfo;
 
+typedef SPtrArray SNetRouteInfoList;
 
+#ifdef __EXPERIMENTAL__
+typedef STrie SNetRT;
+#else
+typedef SRadixTree SNetRT;
+#endif
 
 // ----- rt_perror -------------------------------------------------------
 extern void rt_perror(FILE * pStream, int iErrorCode);

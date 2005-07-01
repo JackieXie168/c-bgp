@@ -19,20 +19,14 @@
 #endif
 #include <libgds/types.h>
 
-#include <net/net_types.h>
-#include <net/network_t.h>
 #include <net/domain_t.h>
 #include <net/prefix.h>
+#include <net/link.h>
 #include <net/message.h>
 #include <net/net_path.h>
 #include <net/protocol.h>
-#include <net/link.h>
 #include <net/routing.h>
 #include <sim/simulator.h>
-
-
-
-
 
 #define NET_SUCCESS                0
 #define NET_ERROR_UNKNOWN_PROTOCOL -1
@@ -41,10 +35,28 @@
 #define NET_ERROR_LINK_DOWN        -4
 #define NET_ERROR_PROTOCOL_ERROR   -5
 
+extern const net_addr_t MAX_ADDR;
 
+typedef struct {
+#ifdef __EXPERIMENTAL__
+  STrie * pNodes;
+#else
+  SRadixTree * pNodes;
+#endif
+  SPtrArray  * pDomains;
+} SNetwork;
 
-// ----- node_find_link ---------------------------------------------
-//extern SNetLink * node_belongs_to_OSPFAREA(SNetNode * pNode, uint32_t OSPFArea);
+typedef struct {
+  net_addr_t tAddr;
+  SPtrArray * aInterfaces;
+  char * pcName;
+  uint32_t  uAS;
+  SNetwork * pNetwork;
+  SPtrArray * pLinks;
+  SNetRT * pRT;
+  SNetProtocols * pProtocols;
+  SNetDomain * pDomain;
+} SNetNode;
 
 typedef struct {
   net_addr_t tAddr;
@@ -58,12 +70,8 @@ void node_dump(SNetNode * pNode);
 extern uint8_t NET_OPTIONS_MAX_HOPS;
 extern uint8_t NET_OPTIONS_IGP_INTER;
 
-
-
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);
-// ----- node_create ------------------------------------------------
-extern int node_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- node_set_name ----------------------------------------------
 void node_set_name(SNetNode * pNode, const char * pcName);
 // ----- node_get_name ----------------------------------------------
@@ -89,20 +97,14 @@ SNetInterface * node_interface_get(SNetNode * pNode,
 // ----- node_add_link ----------------------------------------------
 extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 			 net_link_delay_t tDelay, int iRecurse);
-// ----- node_add_link_toSubnet ----------------------------------------------
-extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
-			 net_link_delay_t tDelay, int iRecurse);
-// ----- node_find_link_to_router ---------------------------------------------
-extern SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr);
-// ----- node_find_link_to_subnet -------------------------------------------------
-extern SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet);
+// ----- node_find_link ---------------------------------------------
+extern SNetLink * node_find_link(SNetNode * pNode,
+				 net_addr_t tAddr);
 // ----- node_post_event --------------------------------------------
 extern int node_post_event(SNetNode * pNode);
 
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(FILE * pStream, SNetNode * pNode);
-// ----- node_links_destroy -----------------------------------------
-void node_links_destroy(void * pItem);
 // ----- node_links_for_each ----------------------------------------
 extern int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
 			       void * pContext);
@@ -126,36 +128,6 @@ extern int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
 				  void * pHandler,
 				  FNetNodeHandlerDestroy fDestroy,
 				  FNetNodeHandleEvent fHandleEvent);
-// ----- node_send --------------------------------------------------
-extern int node_send(SNetNode * pNode, net_addr_t tAddr,
-		     uint8_t uProtocol, void * pPayLoad,
-		     FPayLoadDestroy fDestroy);
-// ----- node_recv --------------------------------------------------
-extern int node_recv(SNetNode * pNode, SNetMessage * pMessage);
-// ----- node_record_route ------------------------------------------
-extern int node_record_route(SNetNode * pNode, SNetDest sDest,
-			     SNetPath ** ppPath,
-			     net_link_delay_t * pDelay,
-			     uint32_t * pWeight, uint8_t uDeflection, 
-			     SNetPath ** ppDeflection);
-// ----- node_dump_recorded_route -----------------------------------
-extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-				     SNetDest sDest, int iDelay,
-				     uint8_t uDeflection);
-// ----- node_ipip_enable -------------------------------------------
-extern int node_ipip_enable(SNetNode * pNode);
-// ----- node_add_tunnel --------------------------------------------
-extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
-// ----- node_destroy -----------------------------------------------
-/**
- *
- */
-void node_destroy(SNetNode ** ppNode);
-
-/////////////////////////////////////////////////////////////////////
-///// NETWORK METHODS
-/////////////////////////////////////////////////////////////////////
-
 // ----- network_create ---------------------------------------------
 extern SNetwork * network_create();
 // ----- network_destroy --------------------------------------------
@@ -168,6 +140,12 @@ extern int network_add_node(SNetwork * pNetwork,
 // ----- network_find_node ------------------------------------------
 extern SNetNode * network_find_node(SNetwork * pNetwork,
 				    net_addr_t tAddr);
+// ----- node_send --------------------------------------------------
+extern int node_send(SNetNode * pNode, net_addr_t tAddr,
+		     uint8_t uProtocol, void * pPayLoad,
+		     FPayLoadDestroy fDestroy);
+// ----- node_recv --------------------------------------------------
+extern int node_recv(SNetNode * pNode, SNetMessage * pMessage);
 // ----- network_to_file --------------------------------------------
 extern int network_to_file(FILE * pStream, SNetwork * pNetwork);
 // ----- network_from_file ------------------------------------------
@@ -178,6 +156,19 @@ extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 // ----- network_dijkstra -------------------------------------------
 extern int network_dijkstra(SNetwork * pNetwork, FILE * pStream,
 			    net_addr_t tSrcAddr);
+// ----- node_record_route ------------------------------------------
+extern int node_record_route(SNetNode * pNode, SNetDest sDest,
+			     SNetPath ** ppPath,
+			     net_link_delay_t * pDelay,
+			     uint32_t * pWeight);
+// ----- node_dump_recorded_route -----------------------------------
+extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+				     SNetDest sDest, int iDelay);
+
+// ----- node_ipip_enable -------------------------------------------
+extern int node_ipip_enable(SNetNode * pNode);
+// ----- node_add_tunnel --------------------------------------------
+extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
 
 // ----- network_domain_add -----------------------------------------
 int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
@@ -187,14 +178,5 @@ SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
 
 // ----- _network_destroy -------------------------------------------
 extern void _network_destroy();
-
-//Should be in subnet.h
-// ----- node_add_link_toSubnet ------------------------------------
-extern int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet, 
-                                         net_link_delay_t tDelay, int iRecurse); 
-
-
-
-
 
 #endif
