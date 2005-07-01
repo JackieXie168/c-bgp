@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 //         Stefano Iasi  (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 09/03/2004
+// @lastdate 01/07/2005
 // ==================================================================
 
 #ifndef __NET_LINK_H__
@@ -57,12 +57,13 @@ extern void link_dump(FILE * pStream, SNetLink * pLink);
 
 
 
-// ----- create_link_Router ----------------------------------------
+// ----- create_link_Router -----------------------------------------
 extern SNetLink * create_link_toRouter(SNetNode * pNode);
-// ----- create_link_Router ----------------------------------------
+// ----- create_link_Router -----------------------------------------
 extern SNetLink * create_link_toRouter_byAddr(net_addr_t tAddr);
-// ----- create_link_Subnet ----------------------------------------
+// ----- create_link_Subnet -----------------------------------------
 extern SNetLink * create_link_toSubnet(SNetSubnet * pSubnet);
-
+// ----- link_destroy -----------------------------------------------
+extern void link_destroy(SNetLink ** ppLink);
 
 #endif

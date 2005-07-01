@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 //         Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 27/01/2005
+// @lastdate 01/07/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -59,6 +59,18 @@ net_addr_t link_get_addr(SNetLink * pLink)
   {
     SNetSubnet * pSubnet = (pLink->UDestId).pSubnet;
     return pSubnet->pPrefix->tNetwork;// tAddr;
+  }
+}
+
+// ----- link_destroy -----------------------------------------------
+/*
+ *
+ */
+void link_destroy(SNetLink ** ppLink)
+{
+  if (*ppLink != NULL) {
+    FREE(*ppLink);
+    *ppLink= NULL;
   }
 }
 
@@ -147,3 +159,4 @@ void link_dump(FILE * pStream, SNetLink * pLink)
   if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV))
     fprintf(pStream, "\tIGP_ADV");
 }
+
