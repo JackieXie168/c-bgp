@@ -148,7 +148,7 @@ void regex_first_search(SRegEx * pRegEx, const char * sExp)
 				pRegEx->iVectorResult, 
 				(pRegEx->uMaxResult+1)*3);
 
-  printf("exp : %s\n", sExp);
+  //printf("exp : %s\n", sExp);
   if (pRegEx->iNbrResult < 0) {
     switch (pRegEx->iNbrResult) {
       //No match of the pRegEx in sExp
@@ -202,7 +202,7 @@ int regex_search(SRegEx * pRegEx, const char * sExp)
     } else 
       regex_next_search(pRegEx, sExp);
   }
-  printf("NbrResult : %d\n", pRegEx->iNbrResult);
+  //printf("NbrResult : %d\n", pRegEx->iNbrResult);
   return pRegEx->iNbrResult;
 }
 
