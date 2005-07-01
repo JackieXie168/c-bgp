@@ -385,6 +385,8 @@ void node_destroy(SNetNode ** ppNode)
   if (*ppNode != NULL) {
     rt_destroy(&(*ppNode)->pRT);
     protocols_destroy(&(*ppNode)->pProtocols);
+    if ((*ppNode)->pOSPFAreas != NULL)
+      _array_destroy((SArray **)&(*ppNode)->pOSPFAreas);
     ptr_array_destroy(&(*ppNode)->pLinks);
     ptr_array_destroy(&(*ppNode)->aInterfaces);
     if ((*ppNode)->pcName)
@@ -488,6 +490,7 @@ SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
 
   link_destroy(&pWrapLink);
+
   return pLink;
 }
 
@@ -576,6 +579,8 @@ int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
     return NET_RT_ERROR_NH_UNREACH;
   }
 
+  link_dump(stdout,pLink);
+  printf("link : %p\n", pLink);
   // Build route info
   pRouteInfo= route_info_create(sPrefix, pLink, uWeight, uType);
 
