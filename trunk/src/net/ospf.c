@@ -214,7 +214,7 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
 //     ptr_array_get_at(aGrayVertexes, 0, &pCurrentVertex);
 //     ip_prefix_dump(stdout, spt_vertex_get_prefix(pNewVertex));
 // 	  fprintf(stdout, "\n");
-    for (iIndex = 0; iIndex < ptr_array_length(paGrayVertexes); iIndex++) {
+    for (iIndex = 0	; iIndex < ptr_array_length(paGrayVertexes); iIndex++) {
       ptr_array_get_at(paGrayVertexes, iIndex, &pCurrentVertex);
       assert(pCurrentVertex != NULL);
       if (pBestVertex == NULL){
@@ -464,14 +464,18 @@ void compute_vertical_bars(FILE * pStream, int iLevel, char * pcBars){
 /**
  *  Visit a node of the spt to dump it
  */
-void visit_vertex(SSptVertex * pVertex, int iLevel, char * pcSpace, FILE * pStream){
+void visit_vertex(SSptVertex * pVertex, int iLevel, int lastChild, char * pcSpace, 
+                  SRadixTree * pVisited, FILE * pStream){
   char * pcPrefix = MALLOC(30);
-  SPrefix sPrefix;
+  SPrefix sPrefix, sChildPfx;
   SSptVertex * pChild;
   int iIndex; 
   strcpy(pcSpace, "");
   strcpy(pcPrefix, "");
   compute_vertical_bars(pStream, iLevel, pcSpace);
+  
+
+  
   fprintf(pStream, "%s\n%s", pcSpace, pcSpace);
   
   
@@ -479,20 +483,103 @@ void visit_vertex(SSptVertex * pVertex, int iLevel, char * pcSpace, FILE * pStre
   ip_prefix_to_string(pcPrefix, &sPrefix);
   
   fprintf(pStream, "---> [ %s ]-[ %d ] -- NH >> ", pcPrefix, pVertex->uIGPweight);
-
-  for(iIndex = 0; iIndex < strlen(pcPrefix) + 24 + 3; iIndex++) //last term should be dynamic
-    strcat(pcSpace, " ");
   
-  if (pVertex->pNextHops != NULL)
+  if (pVertex->pNextHops != NULL){
+//     if (lastChild)
+//       pcSpace[strlen(pcSpace) - 1] = ' ';
+      for(iIndex = 0; iIndex < strlen(pcPrefix) + 24 + 3; iIndex++) //last term should be dynamic
+         strcat(pcSpace, " ");
     ospf_nh_list_dump(pStream, pVertex->pNextHops, pcSpace, 0);
-  
+  }
+  radix_tree_add(pVisited, sPrefix.tNetwork, sPrefix.uMaskLen, pVertex);
   iLevel++;
   for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
      ptr_array_get_at(pVertex->sons, iIndex, &pChild);
-     visit_vertex(pChild, iLevel, pcSpace, pStream);
+     sChildPfx = spt_vertex_get_prefix(pChild);
+     if (radix_tree_get_exact(pVisited, sChildPfx.tNetwork, sChildPfx.uMaskLen) != NULL)
+       continue;
+//      if (iIndex == ptr_array_length(pVertex->sons) - 1)
+       visit_vertex(pChild, iLevel, 1, pcSpace, pVisited, pStream);
+//      else
+//        visit_vertex(pChild, iLevel, 0, pcSpace, pVisited, pStream);
   }
   
   FREE(pcPrefix);
+}
+#define startAddr 1024
+
+char * ip_to_name(int tAddr){
+// const int startAddr = 1024;
+
+ switch(tAddr){
+    case startAddr      : return "RT1"; break;
+    case startAddr + 1  : return "RT2"; break;
+    case startAddr + 2  : return "RT3"; break;
+    case startAddr + 3  : return "RT4"; break;
+    case startAddr + 4  : return "RT5"; break;
+    case startAddr + 5  : return "RT6"; break;
+    case startAddr + 6  : return "RT7"; break;
+    case startAddr + 7  : return "RT8"; break;
+    case startAddr + 8  : return "RT9"; break;
+    case startAddr + 9  : return "RT10"; break;
+    case startAddr + 10 : return "RT11"; break;
+    case startAddr + 11 : return "RT12"; break;
+    case 4              : return "N1"; break;
+    case 8              : return "N2"; break;
+    case 12             : return "N3"; break;
+    case 16             : return "N4"; break;
+    case 20             : return "N6"; break;
+    case 24             : return "N7"; break;
+    case 28             : return "N8"; break;
+    case 32             : return "N9"; break;
+    case 36             : return "N10"; break;
+    case 40             : return "N11"; break;
+    default             : return "?" ; 
+  }
+}
+//------ visit_vertex -------------------------------------------
+/**
+ *  Visit a node of the spt to dump it
+ */
+void visit_vertex_dot(SSptVertex * pVertex, char * pcPfxFather, SRadixTree * pVisited, net_link_delay_t tWFather, FILE * pStream){
+  char * pcMyPrefix = MALLOC(30);
+  char cNextHop[25] = "", cNextHops[300] = "", * pcNextHops = cNextHops, * pcNH = cNextHop;
+  
+  SSptVertex * pChild;
+  SPrefix sMyPrefix = spt_vertex_get_prefix(pVertex), sChildPfx;
+  SOSPFNextHop * pNH;
+  
+  ip_prefix_to_string(pcMyPrefix, &sMyPrefix);
+  int iIndex;
+  
+  
+  //printf node
+  fprintf(pStream, "\"%s\" -> \"%s\" [label=\"%d\"];\n", pcPfxFather, pcMyPrefix, pVertex->uIGPweight - tWFather);
+    
+  if (ptr_array_length(pVertex->pNextHops) > 0){
+    //print next hop
+    for (iIndex = 0; iIndex < ptr_array_length(pVertex->pNextHops); iIndex++){
+      ptr_array_get_at(pVertex->pNextHops, iIndex, &pNH);
+      ospf_next_hop_to_string(pcNH, pNH);
+      strcat(pcNextHops, pcNH);
+      strcat(pcNextHops, "\\n");
+    }
+    fprintf(pStream, "\"%sNH\" [shape = box, label=\"%s\", style=filled, color=\".7 .3 1.0\"] \n", pcMyPrefix, pcNextHops);
+    fprintf(pStream, "\"%s\" -> \"%sNH\" [style = dotted];\n", pcMyPrefix, pcMyPrefix);
+  }
+  
+  
+  
+  radix_tree_add(pVisited, sMyPrefix.tNetwork, sMyPrefix.uMaskLen, pVertex);
+  for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
+     ptr_array_get_at(pVertex->sons, iIndex, &pChild);
+     sChildPfx = spt_vertex_get_prefix(pChild);
+     if (radix_tree_get_exact(pVisited, sChildPfx.tNetwork, sChildPfx.uMaskLen) != NULL)
+       continue;
+     visit_vertex_dot(pChild, pcMyPrefix, pVisited, pVertex->uIGPweight, pStream);
+  }
+  
+  FREE(pcMyPrefix);
 }
 
 // ----- spt_dump ------------------------------------------
@@ -500,9 +587,25 @@ void spt_dump(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
 {
   SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
   char * pcSpace = MALLOC(500);
-  visit_vertex(pRadix, 0, pcSpace, pStream);
+  SRadixTree * pVisited =  radix_tree_create(32, NULL);
+  visit_vertex(pRadix, 0, 1, pcSpace, pVisited, pStream);
 }
 
+// ----- spt_dump_dot ------------------------------------------
+void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
+{
+  SSptVertex * pRadix = (SSptVertex *)radix_tree_get_exact(pSpt, tRadixAddr, 32);
+//   char * pcSpace = MALLOC(500);
+  SPrefix sPref;
+  SRadixTree * pVisited =  radix_tree_create(32, NULL);
+  sPref.tNetwork = tRadixAddr;
+  sPref.uMaskLen = 32;
+  char pcRootPrefix[30];
+  ip_prefix_to_string(pcRootPrefix, &sPref);
+  fprintf(pStream, "digraph G {\n");
+  visit_vertex_dot(pRadix, pcRootPrefix, pVisited, 0, pStream);
+  fprintf(pStream, "}\n");
+}
 
 /////////////////////////////////////////////////////////////////////
 /////// OSPF methods for node object
@@ -623,14 +726,110 @@ int ospf_node_build_intra_route(SNetwork * pNetwork, SNetNode * pNode,
   return iResult;
 }
 
+int ospf_djk_test2()
+{
+  LOG_DEBUG("ospf_djk_test2(): START\n");
+  LOG_DEBUG("ospf_djk_test2(): building the sample network of RFC2328 for test...");
+//   const int startAddr = 1024;
+//   LOG_DEBUG("point-to-point links attached.\n");
+  SNetwork * pNetworkRFC2328= network_create();
+  SNetNode * pNodeRT1= node_create(startAddr);
+  SNetNode * pNodeRT2= node_create(startAddr + 1);
+  SNetNode * pNodeRT3= node_create(startAddr + 2);
+  SNetNode * pNodeRT4= node_create(startAddr + 3);
+  SNetNode * pNodeRT5= node_create(startAddr + 4);
+  SNetNode * pNodeRT6= node_create(startAddr + 5);
+  SNetNode * pNodeRT7= node_create(startAddr + 6);
+  SNetNode * pNodeRT8= node_create(startAddr + 7);
+  SNetNode * pNodeRT9= node_create(startAddr + 8);
+  SNetNode * pNodeRT10= node_create(startAddr + 9);
+  SNetNode * pNodeRT11= node_create(startAddr + 10);
+  SNetNode * pNodeRT12= node_create(startAddr + 11);
+  
+  SNetSubnet * pSubnetSN1= subnet_create(4, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSN2= subnet_create(8, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetTN3= subnet_create(12, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetSN4= subnet_create(16, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetTN6= subnet_create(20, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetSN7= subnet_create(24, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetTN8= subnet_create(28, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetTN9= subnet_create(32, 30, NET_SUBNET_TYPE_TRANSIT);
+  SNetSubnet * pSubnetSN10= subnet_create(36, 30, NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnetSN11= subnet_create(40, 30, NET_SUBNET_TYPE_STUB);
+  
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT1));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT2));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT3));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT4));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT5));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT6));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT7));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT8));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT9));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT10));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT11));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRT12));
 
+  assert(node_add_link_toSubnet(pNodeRT1, pSubnetSN1, 3, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT1, pSubnetTN3, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT2, pSubnetSN2, 3, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT2, pSubnetTN3, 1, 1) >= 0);
+  
+  assert(node_add_link_toSubnet(pNodeRT3, pSubnetSN4, 2, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT3, pSubnetTN3, 1, 1) >= 0);
+  assert(node_add_link(pNodeRT3, pNodeRT6, 8, 0) >= 0);
+  assert(node_add_link(pNodeRT6, pNodeRT3, 6, 0) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT4, pSubnetTN3, 1, 1) >= 0);
+ 
+  assert(node_add_link(pNodeRT4, pNodeRT5, 8, 1) >= 0);
+  assert(node_add_link(pNodeRT5, pNodeRT6, 7, 0) >= 0);
+  assert(node_add_link(pNodeRT6, pNodeRT5, 6, 0) >= 0);
+  
+  assert(node_add_link(pNodeRT5, pNodeRT7, 6, 1) >= 0);
+  assert(node_add_link(pNodeRT6, pNodeRT10, 7, 0) >= 0);
+  assert(node_add_link(pNodeRT10, pNodeRT6, 5, 0) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT7, pSubnetTN6, 1, 1) >= 0);
+
+  assert(node_add_link_toSubnet(pNodeRT8, pSubnetTN6, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT8, pSubnetSN7, 4, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT10, pSubnetTN6, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT10, pSubnetTN8, 3, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT11, pSubnetTN8, 2, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT11, pSubnetTN9, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT9, pSubnetSN11, 3, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT9, pSubnetTN9, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT12, pSubnetTN9, 1, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeRT12, pSubnetSN10, 2, 1) >= 0);
+  
+  node_links_dump(stdout, pNodeRT6);
+  LOG_DEBUG(" ok!\n");
+
+  LOG_DEBUG("ospf_djk_test2(): Computing SPT (.dot output in spt.dot)...");
+  SPrefix sPrefix; 
+  sPrefix.tNetwork = 1024;
+  sPrefix.uMaskLen = 22;
+  
+  SNetNode * pFindNode = network_find_node(pNetworkRFC2328, pNodeRT6->tAddr);
+  assert(pFindNode != NULL);
+  SRadixTree * pSpt = OSPF_dijkstra(pNetworkRFC2328, pNodeRT6->tAddr, sPrefix);
+  
+  spt_dump(stdout, pSpt, pNodeRT6->tAddr);
+  FILE * pOutDump = fopen("spt.dot", "w");
+  spt_dump_dot(pOutDump, pSpt, pNodeRT6->tAddr);
+  fclose(pOutDump);
+  radix_tree_destroy(&pSpt);
+  
+  LOG_DEBUG(" ok!\n");
+  LOG_DEBUG("ospf_djk_test2(): STOP\n");
+  return 1;
+}
 
 
 int ospf_djk_test()
 {
   LOG_DEBUG("ospf_djk_test(): START\n");
   LOG_DEBUG("ospf_djk_test(): building network for test...");
-  const int startAddr = 1024;
+//   const int startAddr = 1024;
 //   LOG_DEBUG("point-to-point links attached.\n");
   SNetwork * pNetwork= network_create();
   SNetNode * pNodeB1= node_create(startAddr);
@@ -764,6 +963,7 @@ int ospf_djk_test()
   SRadixTree * pSpt = OSPF_dijkstra(pNetwork, pNodeB1->tAddr, sPrefix);
   
   spt_dump(stdout, pSpt, pNodeB1->tAddr);
+  spt_dump_dot(stdout, pSpt, pNodeB1->tAddr);
   radix_tree_destroy(&pSpt);
   
   LOG_DEBUG(" ok!\n");
@@ -772,7 +972,7 @@ int ospf_djk_test()
 }
 
 int ospf_info_test() {
-  const int startAddr = 1024;
+//   const int startAddr = 1024;
   LOG_DEBUG("point-to-point links attached.\n");
   SNetwork * pNetwork= network_create();
   SNetNode * pNodeB1= node_create(startAddr);
@@ -964,8 +1164,12 @@ int ospf_test()
   ospf_rt_test();
   LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
   
-  ospf_djk_test();
-  LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
+//   ospf_djk_test();
+//   LOG_DEBUG("all dijkstra OSPF methods tested ... they seem ok!\n");
+  
+  LOG_DEBUG("start test on RFC2328 sample network...");
+  ospf_djk_test2();
+  LOG_DEBUG("done.");
   return 1;
 }
 
