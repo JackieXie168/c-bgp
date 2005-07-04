@@ -24,6 +24,7 @@
 #define OSPF_PATH_TYPE_EXTERNAL_2  3
 
 #define OSPF_NO_IP_NEXT_HOP 0
+#define NET_OSPF_RT_OPTION_ANY_AREA 0x01
 
 // ----- ospf_rt_test() -----------------------------------------------
 extern int ospf_rt_test();
@@ -53,8 +54,8 @@ extern int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH);
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine);
-
+// extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine);
+extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace);
 ///////////////////////////////////////////////////////////////////////////
 //////  ROUTING TABLE OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
@@ -77,7 +78,7 @@ extern void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo);
 extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
 			      net_route_type_t tType);
 // ----- OSPF_rt_dump -------------------------------------------------------------
-void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT);
+extern void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_area_t tArea);
 
 // ----- route_info_destroy --------------------------------------------------
 extern void OSPF_route_info_destroy(SOSPFRouteInfo ** ppOSPFRouteInfo);
