@@ -53,6 +53,8 @@ libnet_la_SOURCES = \
 	routing.c \
 	routing.h \
 	routing_t.h \
+	spt_vertex.c \
+	spt_vertex.h \
 	subnet.c \
 	subnet.h
 	 
