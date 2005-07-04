@@ -30,7 +30,7 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet);
 // ----- subnet_getAddr ----------------------------------------------------------------
 //net_addr_t subnet_get_Addr(SNetSubnet * pSubnet);
 // ----- subnet_get_Prefix -------------------------------------------------------------
-SPrefix * subnet_get_Prefix(SNetSubnet * pSubnet);
+SPrefix * subnet_get_prefix(SNetSubnet * pSubnet);
 // ----- subnet_is_transit -------------------------------------------------------------
 int subnet_is_transit(SNetSubnet * pSubnet);
 // ----- subnet_is_stub ----------------------------------------------------------------
