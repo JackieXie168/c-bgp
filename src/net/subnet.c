@@ -28,7 +28,7 @@ SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen, uint8_t uType)
   pSubnet->pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));
   pSubnet->pPrefix->tNetwork= tNetwork;
   pSubnet->pPrefix->uMaskLen= uMaskLen;
-  pSubnet->uOSPFArea = NO_AREA;
+  pSubnet->uOSPFArea = BACKBONE_AREA;
   pSubnet->uType = uType;
   
   pSubnet->aNodes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
@@ -137,7 +137,7 @@ int subnet_link_toNode(SNetSubnet * pSubnet, SNetNode * pNode){
 }
 
 // ----- subnet_getAddr --------------------------------------------------
-SPrefix * subnet_get_Prefix(SNetSubnet * pSubnet)
+SPrefix * subnet_get_prefix(SNetSubnet * pSubnet)
 {
   return pSubnet->pPrefix;
 }
