@@ -136,7 +136,8 @@ extern int node_recv(SNetNode * pNode, SNetMessage * pMessage);
 extern int node_record_route(SNetNode * pNode, SNetDest sDest,
 			     SNetPath ** ppPath,
 			     net_link_delay_t * pDelay,
-			     uint32_t * pWeight, uint8_t uDeflection, 
+			     uint32_t * pWeight
+			     , uint8_t uDeflection, 
 			     SNetPath ** ppDeflection);
 // ----- node_dump_recorded_route -----------------------------------
 extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,

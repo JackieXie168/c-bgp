@@ -26,7 +26,9 @@
 #include <net/domain.h>
 #include <ui/output.h>
 #include <bgp/message.h>
-
+#include <libgds/fifo.h>
+#include <bgp/as_t.h>
+#include <bgp/rib.h>
 
 
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
@@ -360,13 +362,14 @@ SNetNode * node_create(net_addr_t tAddr)
   pNode->aInterfaces = NULL;
   pNode->pcName = NULL;
   pNode->uAS = 0;
-  pNode->pOSPFAreas = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  
   pNode->pLinks = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
 				   node_links_compare,
 				   node_links_destroy);
   pNode->pRT= rt_create();
 #ifdef OSPF_SUPPORT
-  pNode->pRT= OSPF_rt_create();
+  pNode->pOSPFAreas = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  pNode->pOspfRT    = OSPF_rt_create();
 #endif
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
@@ -1070,24 +1073,22 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 #define NET_RECORD_ROUTE_DOWN           -3
 #define NET_RECORD_ROUTE_TUNNEL_UNREACH -4
 #define NET_RECORD_ROUTE_TUNNEL_BROKEN  -5
+#define NET_RECORD_ROUTE_LOOP		-6
 
-// ----- node_record_route ------------------------------------------
+// ----- node_record_route -------------------------------------------
 /**
- * Record the route towards an IPv4 destination. The destination can
- * be an IP prefix of an IP address. If the destination is an IP
- * prefix, the record-route always perform a lookup for an exact
- * matching route. If the destination is an IP address, the
- * record-route performs best-matching lookups.
+ *
  */
 int node_record_route(SNetNode * pNode, SNetDest sDest,
 		      SNetPath ** ppPath,
-		      net_link_delay_t * pDelay, uint32_t * pWeight)
+		      net_link_delay_t * pDelay, uint32_t * pWeight, 
+		      const uint8_t uDeflection, SNetPath ** ppDeflectedPath)
 {
   SNetNode * pCurrentNode= pNode;
   SNetLink * pLink= NULL;
   unsigned int uHopCount= 0;
   int iResult= NET_RECORD_ROUTE_UNREACH;
-  SNetPath * pPath= net_path_create();
+  SNetPath * pPath= net_path_create(), * pDeflectedPath=net_path_create();
   SStack * pDstStack= stack_create(10);
   net_link_delay_t tTotalDelay= 0;
   uint32_t uTotalWeight= 0;
@@ -1097,11 +1098,29 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
   SNetDest * pDestCopy;
   SNetRouteInfo * pRouteInfo;
 
+  net_addr_t tInitialBGPNextHopAddr = 0, tCurrentBGPNextHopAddr = 0;
+  SNetProtocol * pProtocol = NULL;
+  SBGPRouter * pRouter = NULL;
+  SRoute * pRoute = NULL;
+  uint8_t uDeflectionOccurs = 0;
+
   assert((sDest.tType == NET_DEST_PREFIX) ||
 	 (sDest.tType == NET_DEST_ADDRESS));
 
   while (pCurrentNode != NULL) {
       
+    if (uDeflection) {
+      pProtocol = protocols_get(pCurrentNode->pProtocols, NET_PROTOCOL_BGP);
+      pRouter = (SBGPRouter *)pProtocol->pHandler;
+    }
+    
+   /* check for a loop */
+    if (uDeflection && net_path_search(pPath, pCurrentNode->tAddr)) {
+	iResult = NET_RECORD_ROUTE_LOOP;
+	net_path_append(pPath, pCurrentNode->tAddr);
+	break;
+    }
+
     net_path_append(pPath, pCurrentNode->tAddr);
 
     tTotalDelay+= tLinkDelay;
@@ -1145,14 +1164,19 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
 
     } else {
 
+	  
       // Lookup the next-hop for this destination
       switch (sDest.tType) {
       case NET_DEST_ADDRESS:
 	pLink= node_rt_lookup(pCurrentNode, sDest.uDest.tAddr);
+	if (uDeflection) 
+	  pRoute = rib_find_best(pRouter->pLocRIB, uint32_to_prefix(sDest.uDest.tAddr, 32));
 	break;
       case NET_DEST_PREFIX:
 	pRouteInfo= rt_find_exact(pCurrentNode->pRT, sDest.uDest.sPrefix,
 			     NET_ROUTE_ANY);
+	if (uDeflection)
+	  pRoute = rib_find_exact(pRouter->pLocRIB, sDest.uDest.sPrefix);
 	if (pRouteInfo != NULL)
 	  pLink= pRouteInfo->pNextHopIf;
 	else
@@ -1168,6 +1192,38 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
       if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
 	iResult= NET_RECORD_ROUTE_DOWN;
 	break;
+      }
+
+
+      //Check if deflection happens on the forwarding path. We check it by the
+      //following test: If the Last known BGP NextHop is different from the BGP
+      //NH of the current Node it means that there is deflection. In this case
+      //we retain the new BGP NH as the last known BGP NH.
+      if (uDeflection && pRoute != NULL) {
+	tCurrentBGPNextHopAddr = route_nexthop_get(pRoute);
+	//We check that 
+	//1) it's not the initial node
+	//2) bypass the next-hop-self
+	//3) finally, the BGP NH is different between the current node and the
+	//   previous one
+	if (tInitialBGPNextHopAddr != 0 && 
+	    pCurrentNode->tAddr != tInitialBGPNextHopAddr &&
+	    tInitialBGPNextHopAddr != tCurrentBGPNextHopAddr) { 
+	  if (!uDeflectionOccurs){
+	    net_path_append(pDeflectedPath, pNode->tAddr);
+	    net_path_append(pDeflectedPath, tInitialBGPNextHopAddr);
+	    uDeflectionOccurs = 1;
+	  }
+	    /*** record deflection or print it directly ... ***/
+	    //sta : todo We must record it and print it in the previous function that calls this function.
+	    //if (uDeflectionOccurs == 0)
+	      
+	  net_path_append(pDeflectedPath, pCurrentNode->tAddr);
+	  net_path_append(pDeflectedPath, tCurrentBGPNextHopAddr);
+	    //else
+	      //net_path_append(pPath, tCurrentBGP
+	}
+	tInitialBGPNextHopAddr = tCurrentBGPNextHopAddr;
       }
 
       tLinkDelay= pLink->tDelay;
@@ -1208,6 +1264,7 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
   }
 
   *ppPath= pPath;
+  *ppDeflectedPath = pDeflectedPath;
 
   stack_destroy(&pDstStack);
 
@@ -1222,20 +1279,47 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
   return iResult;
 }
 
+typedef struct {
+  FILE * pStream;
+  // 0 -> Node Addr
+  // 1 -> NH Addr
+  uint8_t uAddrType;
+}SDeflectedDump;
+
+int print_deflected_path_for_each(void * pItem, void * pContext) 
+{
+  SDeflectedDump * pDump = (SDeflectedDump *)pContext;
+  net_addr_t tAddr = *((net_addr_t *)pItem);
+
+  if (pDump->uAddrType == 0) {
+    ip_address_dump(pDump->pStream, tAddr);
+    fprintf(pDump->pStream, "->");
+    pDump->uAddrType = 1;
+  } else {
+    fprintf(pDump->pStream, "NH:");
+    ip_address_dump(pDump->pStream, tAddr);
+    fprintf(pDump->pStream, " " );
+    pDump->uAddrType = 0;
+  }
+  return 0;
+}
+  
+
 // ----- node_dump_recorded_route -----------------------------------
 /**
  *
  */
 void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-			      SNetDest sDest, int iDelay)
+			      SNetDest sDest, int iDelay, const uint8_t uDeflection)
 {
   int iResult;
-  SNetPath * pPath;
+  SNetPath * pPath, * pDeflectedPath;
   net_link_delay_t tDelay= 0;
   uint32_t uWeight= 0;
+  SDeflectedDump pDeflectedDump;
 
   iResult= node_record_route(pNode, sDest, &pPath,
-			     &tDelay, &uWeight);
+			     &tDelay, &uWeight, uDeflection, &pDeflectedPath);
 
   ip_address_dump(pStream, pNode->tAddr);
   fprintf(pStream, "\t");
@@ -1250,6 +1334,8 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
     fprintf(pStream, "TUNNEL_UNREACH"); break;
   case NET_RECORD_ROUTE_TUNNEL_BROKEN:
     fprintf(pStream, "TUNNEL_BROKEN"); break;
+  case NET_RECORD_ROUTE_LOOP:
+    fprintf(pStream, "LOOP"); break;
   default:
     fprintf(pStream, "UNKNOWN_ERROR");
   }
@@ -1258,12 +1344,20 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   if (iDelay) {
     fprintf(pStream, "\t%u\t%u", tDelay, uWeight);
   }
+  if (uDeflection && net_path_length(pDeflectedPath) > 0) {
+    fprintf(pStream, "\tDEFLECTION\t");
+    pDeflectedDump.pStream = pStream;
+    pDeflectedDump.uAddrType = 0;
+    net_path_for_each(pDeflectedPath, print_deflected_path_for_each, &pDeflectedDump);
+  }
   fprintf(pStream, "\n");
 
   net_path_destroy(&pPath);
+  net_path_destroy(&pDeflectedPath);
 
   flushir(pStream);
 }
+
 
 // ----- network_domain_add ------------------------------------------
 /**
