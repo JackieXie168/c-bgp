@@ -14,7 +14,11 @@
 #include <net/message.h>
 #include <net/routing_t.h>
 
-
+typedef uint8_t   ospf_dest_type_t;
+typedef uint32_t   ospf_area_t;
+typedef uint8_t   ospf_path_type_t;
+typedef SPtrArray next_hops_list_t;
+typedef SPtrArray SOSPFRouteInfoList;
 
 //////////////////////////////////////////////////////////////////////
 ////// Subnet type definition
@@ -27,10 +31,10 @@
 */
 typedef struct {
   //net_addr_t tAddr;
-  SPrefix * pPrefix;
-  uint8_t uType;
-  uint32_t uOSPFArea;	/*we have only an area for a network*/
-  SPtrArray * aNodes;   /*links towards all the router on the subnet*/
+  SPrefix     * pPrefix;
+  uint8_t      uType;
+  ospf_area_t  uOSPFArea;	/*we have only an area for a network*/
+  SPtrArray *  aNodes;   /*links towards all the router on the subnet*/
 } SNetSubnet;
 
 
@@ -77,11 +81,7 @@ typedef struct {
 
 
 
-typedef uint8_t   ospf_dest_type_t;
-typedef uint8_t   ospf_area_t;
-typedef uint8_t   ospf_path_type_t;
-typedef SPtrArray next_hops_list_t;
-typedef SPtrArray SOSPFRouteInfoList;
+
 
 
 /*
