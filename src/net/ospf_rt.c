@@ -26,6 +26,8 @@
 #define NET_OSPF_RT_ERROR_ADD_DUP        -3
 #define NET_OSPF_RT_ERROR_DEL_UNEXISTING -4
 
+
+
 //////////////////////////////////////////////////////////////////////////
 ///////  next hop object & next hop list object
 //////////////////////////////////////////////////////////////////////////
@@ -85,10 +87,16 @@ void ospf_next_hop_dst(void * pItem)
 void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
 { 
   SPrefix sPrefix;
+  
+//   LOG_DEBUG("ospf_next_hop_dump\n");
+   
   fprintf(pStream, "IF <");
+//   LOG_DEBUG("...cerco di prendere il link\n");
   link_get_prefix(pNH->pLink, &sPrefix);
+//   LOG_DEBUG("...prendo il link\n");
   ip_prefix_dump(stdout, sPrefix);
-  fprintf(pStream, "> IP <");
+//   LOG_DEBUG("stampo prefisso\n");
+  fprintf(pStream, ">\tIP <");
   if (pNH->tAddr != OSPF_NO_IP_NEXT_HOP)
     ip_address_dump(pStream, pNH->tAddr);
   else
@@ -153,18 +161,17 @@ int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH)
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine)
+void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace)
 {
   int iIndex;
   SOSPFNextHop  sNH, * pNH;
   pNH = &sNH;
+  assert(pNHList != NULL);
+//   LOG_DEBUG("ospf_nh_list_dump\n");
   int iStop =  ospf_nh_list_length(pNHList);
-  for (iIndex = 0; iIndex < iStop; iIndex++)
-  {
+  for (iIndex = 0; iIndex < iStop; iIndex++) {
     ptr_array_get_at(pNHList, iIndex, &pNH);
     ospf_next_hop_dump(pStream, pNH);
-    if (!inLine)
-      fprintf(pStream, "\n");
     if (iIndex != iStop - 1)
       fprintf(pStream, "%s", pcSpace);
   }
@@ -296,6 +303,7 @@ SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
   pRouteInfo->sPrefix              = sPrefix;
   pRouteInfo->uWeight              = uWeight;
   pRouteInfo->tOSPFArea            = tOSPFArea;
+  pRouteInfo->tOSPFPathType        = tOSPFPathType;
   pRouteInfo->tType                = NET_ROUTE_IGP;
   
   pRouteInfo->aNextHops = pNHList;
@@ -329,10 +337,10 @@ void OSPF_dest_type_dump(FILE * pStream, ospf_dest_type_t tDestType)
 {
   switch (tDestType) {
     case OSPF_DESTINATION_TYPE_NETWORK : 
-           fprintf(pStream, "NETWORK");
+           fprintf(pStream, "N");
 	   break;
     case OSPF_DESTINATION_TYPE_ROUTER : 
-           fprintf(pStream, "NETWORK");
+           fprintf(pStream, "R");
 	   break;
     default : 
            fprintf(pStream, "???");
@@ -343,9 +351,9 @@ void OSPF_dest_type_dump(FILE * pStream, ospf_dest_type_t tDestType)
 void OSPF_area_dump(FILE * pStream, ospf_area_t tOSPFArea)
 {
   if (tOSPFArea == 0)
-    fprintf(pStream,"BACKBONE");
+    fprintf(pStream," B ");
   else
-    fprintf(pStream,"%d", tOSPFArea);
+    fprintf(pStream," %d ", tOSPFArea);
 }
 
 // ----- OSPF_path_type_dump -----------------------------------------
@@ -365,7 +373,7 @@ void OSPF_path_type_dump(FILE * pStream, ospf_path_type_t tOSPFPathType)
            fprintf(pStream, "EXT2");
 	   break;
     default : 
-           fprintf(pStream, "???");
+           fprintf(pStream, "%d", tOSPFPathType);
   }
 }
 
@@ -449,17 +457,32 @@ SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
  */
 void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo)
 {
+  assert(pRouteInfo != NULL);
+//   LOG_DEBUG("OSPF_route_info_dump\n");
+  
   OSPF_dest_type_dump(pStream, pRouteInfo->tOSPFDestinationType);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...dest_type\n");
+  
   ip_prefix_dump(pStream, pRouteInfo->sPrefix);
   fprintf(pStream, "\t");
+//   LOG_DEBUG("...prefix\n");
+  
   OSPF_area_dump(pStream, pRouteInfo->tOSPFArea);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...area dump\n");
+  
   OSPF_path_type_dump(pStream, pRouteInfo->tOSPFPathType);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...path_type\n");
+  
   OSPF_route_type_dump(pStream, pRouteInfo->tType);
+//   LOG_DEBUG("...route_type\n");
+  
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
-  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\t\t\t\t\t\t", 0);
+//   LOG_DEBUG("...cost\n");
+  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\n\t\t\t\t\t\t\t\t");
+//   LOG_DEBUG("...next hops list\n");
 }
 
 
@@ -504,7 +527,8 @@ int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 		 SOSPFRouteInfo * pRouteInfo)
 {
   SOSPFRouteInfoList * pRIList;
-
+// LOG_DEBUG("OSPF_rt_add_route...enter\n");
+assert(pRT != NULL);
 #ifdef __EXPERIMENTAL__
   pRIList=
     (SOSPFRouteInfoList *) trie_find_exact((STrie *) pRT,
@@ -516,7 +540,7 @@ int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 					       sPrefix.tNetwork,
 					       sPrefix.uMaskLen);
 #endif
-
+//  LOG_DEBUG("OSPF_rt_add_route...\n");
   if (pRIList == NULL) {
     pRIList= OSPF_rt_info_list_create();
 #ifdef __EXPERIMENTAL__
@@ -555,41 +579,55 @@ void OSPF_rt_perror(FILE * pStream, int iErrorCode)
 }
 
 // ----- OSPF_rt_info_list_dump ------------------------------------------
-void OSPF_rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
-		       SOSPFRouteInfoList * pRouteInfoList)
+void OSPF_rt_info_list_dump(FILE * pStream, SOSPFRouteInfoList * pRouteInfoList,
+                            int iOption, ospf_area_t tArea)
 {
   int iIndex;
 
   if (OSPF_rt_info_list_length(pRouteInfoList) == 0) {
 
-    fprintf(pStream, "\033[1;31mERROR: empty info-list for ");
-    ip_prefix_dump(pStream, sPrefix);
-    fprintf(pStream, "\033[0m\n");
+    fprintf(pStream, "\033[1;31mERROR: empty info-list ] \n");
     abort();
 
   } else {
+//     LOG_DEBUG("ci sono delle route per il prefisso\n");
     for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
 	 iIndex++) {
-      //ip_prefix_dump(pStream, sPrefix);
-      //fprintf(pStream, "\t");
-      OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
-      fprintf(pStream, "\n");
+      if (iOption & NET_OSPF_RT_OPTION_ANY_AREA) {
+        if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea == tArea) {
+          OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+          fprintf(pStream, "\n");
+        }
+      }
+      else {
+        OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+	fprintf(pStream, "\n");
+      }
     }
   }
 }
+
+typedef struct {
+  FILE * pStream;
+  ospf_area_t tArea;
+  int  iOption;
+} SOspfRtDumpContext;
 
 // ----- OSPF_rt_dump_for_each -------------------------------------------
 int OSPF_rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
 		     void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  FILE * pStream= ((SOspfRtDumpContext *)(pContext))->pStream;
+  ospf_area_t tArea= ((SOspfRtDumpContext *)(pContext))->tArea;
+  int iOption= ((SOspfRtDumpContext *)(pContext))->iOption;
+  
   SOSPFRouteInfoList * pRIList= (SOSPFRouteInfoList *) pItem;
   SPrefix sPrefix;
 
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;
-  
-  OSPF_rt_info_list_dump(pStream, sPrefix, pRIList);
+//   LOG_DEBUG("OSPF_rt_dump_for_each\n");
+  OSPF_rt_info_list_dump(pStream, pRIList, iOption, tArea);
   return 0;
 }
 
@@ -598,15 +636,20 @@ int OSPF_rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
  * Dump the routing table for the given destination. The destination
  * can be of type NET_DEST_ANY, NET_DEST_ADDRESS and NET_DEST_PREFIX.
  */
-void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT)
+void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_area_t tArea)
 {
-
+ SOspfRtDumpContext sDumpContext;
+ sDumpContext.pStream = pStream;
+ sDumpContext.tArea = tArea;
+ sDumpContext.iOption = iOption;
 #ifdef __EXPERIMENTAL__
-    trie_for_each((STrie *) pRT, OSPF_rt_dump_for_each, pStream);
+    trie_for_each((STrie *) pRT, OSPF_rt_dump_for_each, &sDumpContext);
 #else
-    radix_tree_for_each((SRadixTree *) pRT, OSPF_rt_dump_for_each, pStream);
+    radix_tree_for_each((SRadixTree *) pRT, OSPF_rt_dump_for_each, &sDumpContext);
 #endif
 }
+
+
 
 // ----- ospf_rt_test() -----------------------------------------------
 int ospf_rt_test(){
@@ -712,7 +755,7 @@ int ospf_rt_test(){
   assert(OSPF_rt_add_route(pRT, sPrefixB, pRiB) >= 0);
   assert(OSPF_rt_add_route(pRT, sPrefixC, pRiC) >= 0);
   assert(OSPF_rt_add_route(pRT, sSubnetPfxTx, pRiTx) >= 0);
-  OSPF_rt_dump(stdout, pRT);
+  OSPF_rt_dump(stdout, pRT, 0, 0);
   LOG_DEBUG(" ok!\n");
   //TODO add advertising router... for inter area...
   
