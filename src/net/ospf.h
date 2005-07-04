@@ -13,7 +13,7 @@
 #include <net/subnet.h>
 #include <net/link.h>
 
-#define NO_AREA	      0xffffffff //can be a problem! 
+// #define NO_AREA	      0xffffffff //can be a problem! 
 #define BACKBONE_AREA 0
 
 #define OSPF_DESTINATION_TYPE_NETWORK 0
