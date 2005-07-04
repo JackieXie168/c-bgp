@@ -23,6 +23,7 @@
 
 
 
+
 // ----- ospf test function --------------------------------------------
 extern int ospf_test();
 
@@ -40,6 +41,8 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
                        SPrefix        sPrefix,   uint32_t          uWeight,
 		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
 		       next_hops_list_t * pNHList);
+// ----- node_belongs_to_area -----------------------------------------------
+extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
 ///////////////////////////////////////////////////////////////////////////
 //////  SUBNET OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
@@ -47,7 +50,8 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
 extern void subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea);
 // ----- subnet_getOSPFArea ----------------------------------------------
 extern uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet);
-
+// ----- subnet_belongs_to_area ---------------------------------------------
+int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
 
 #endif
 
