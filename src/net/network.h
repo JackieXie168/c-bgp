@@ -145,6 +145,10 @@ extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
 				     uint8_t uDeflection);
 // ----- node_ipip_enable -------------------------------------------
 extern int node_ipip_enable(SNetNode * pNode);
+// ----- node_igp_domain_add -------------------------------------------
+extern int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber);
+// ----- node_belongs_to_igp_domain -------------------------------------------
+extern int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber);
 // ----- node_add_tunnel --------------------------------------------
 extern int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint);
 // ----- node_destroy -----------------------------------------------
