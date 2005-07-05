@@ -27,6 +27,8 @@
 #define NET_OSPF_RT_ERROR_DEL_UNEXISTING -4
 
 
+// ----- OSPF_next_hop_dump --------------------------------------------
+void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH);
 
 //////////////////////////////////////////////////////////////////////////
 ///////  next hop object & next hop list object
@@ -46,10 +48,16 @@ SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr)
 
 void ospf_next_hop_destroy(SOSPFNextHop ** ppNH)
 {
+//  fprintf(stdout, "\nospf_next_hop_destroy() : ");
+ 
   if (*ppNH != NULL){
+//     fprintf(stdout, "addr of NH: %p ", *ppNH);
+//     ospf_next_hop_dump(stdout, *ppNH);
     FREE(*ppNH);
     *ppNH = NULL;
   }
+//   else
+//     fprintf(stdout, "next hop != NULL\n!!! ");
 }
 
 // ----- ospf_next_hops_compare -----------------------------------------------
@@ -80,7 +88,9 @@ int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
 // ----- ospf_next_hop_dst -----------------------------------------
 void ospf_next_hop_dst(void * pItem)
 {
-  ospf_next_hop_destroy((SOSPFNextHop **) pItem);
+  SOSPFNextHop * pNH= *((SOSPFNextHop **) pItem);
+  
+  ospf_next_hop_destroy(&pNH);
 }
 
 // ----- OSPF_next_hop_dump --------------------------------------------
@@ -228,7 +238,6 @@ int OSPF_rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
 void OSPF_rt_info_list_dst(void * pItem)
 {
   SOSPFRouteInfo * pRI= *((SOSPFRouteInfo **) pItem);
-
   OSPF_route_info_destroy(&pRI);
 }
 
@@ -244,7 +253,8 @@ SOSPFRouteInfoList * OSPF_rt_info_list_create()
 // ----- OSPF_rt_info_list_destroy ---------------------------------------
 void OSPF_rt_info_list_destroy(SOSPFRouteInfoList ** ppRouteInfoList)
 {
-  ptr_array_destroy((SPtrArray **) ppRouteInfoList);
+  SPtrArray * pPtrArray = (SPtrArray *)(*ppRouteInfoList);
+  ptr_array_destroy(&pPtrArray);
 }
 
 // ----- OSPF_rt_info_list_length ----------------------------------------
@@ -324,7 +334,11 @@ int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH)
 void OSPF_route_info_destroy(SOSPFRouteInfo ** ppOSPFRouteInfo)
 {
   if (*ppOSPFRouteInfo != NULL) {
+//     fprintf(stdout, "\nOSPF_route_info_destroy(): ");
+//     OSPF_route_info_dump(stdout, (*ppOSPFRouteInfo));
     if ((*ppOSPFRouteInfo)->aNextHops != NULL){     
+      
+//       ospf_nh_list_dump(stdout, (*ppOSPFRouteInfo)->aNextHops, "\n");
       ospf_nh_list_destroy(&((*ppOSPFRouteInfo)->aNextHops));
     }
     FREE(*ppOSPFRouteInfo);
@@ -676,33 +690,33 @@ int ospf_rt_test(){
 //                                                sSubnetPfxTx.uMaskLen,
 // 					       NET_SUBNET_TYPE_TRANSIT);
    
-  LOG_DEBUG("ospf_rt_test: Build small network for test: 3 router A,B,C on a subnet Tx... ");
+  LOG_DEBUG("ospf_rt_test(): BUILS small network for test: 3 router A,B,C on a subnet Tx... ");
   assert(node_add_link_toSubnet(pNodeA, pSubTx, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeB, pSubTx, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeC, pSubTx, 300, 1) >= 0);
   assert(node_add_link(pNodeA, pNodeC, 100, 1) >= 0);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK node_find_link...");
+  LOG_DEBUG("ospf_rt_test(): CHECK node_find_link_to_subnet...");
   SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
   assert(pLinkAS != NULL);
   SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
   assert(pLinkAC != NULL);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK next hop features...");
+  LOG_DEBUG("ospf_rt_test(): CHECK next hop features...");
   SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB);
   assert(pNHB != NULL);
   assert(pNHB->pLink == pLinkAS && pNHB->tAddr == tAddrB);
   SOSPFNextHop * pNHC1 = ospf_next_hop_create(pLinkAS, tAddrC);
-  assert(pNHB != NULL);
+  assert(pNHC1 != NULL);
   SOSPFNextHop * pNHC2 = ospf_next_hop_create(pLinkAC, 0);
-  assert(pNHB != NULL);
+  assert(pNHC2 != NULL);
   SOSPFNextHop * pNHTx = ospf_next_hop_create(pLinkAS, 0);
   assert(pNHTx != NULL);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK next hop list features...");
+  LOG_DEBUG("ospf_rt_test(): CHECK next hop list features...");
   next_hops_list_t * pNHListB = ospf_nh_list_create();
   assert(pNHListB != NULL);
   next_hops_list_t * pNHListC = ospf_nh_list_create();
@@ -714,7 +728,7 @@ int ospf_rt_test(){
 
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK route info functions...");
+  LOG_DEBUG("ospf_rt_test(): CHECK route info functions...");
   SPrefix sPrefixB, sPrefixC;
   sPrefixB.tNetwork = tAddrB;
   sPrefixB.uMaskLen = 32;
@@ -748,39 +762,27 @@ int ospf_rt_test(){
   assert(OSPF_route_info_add_nextHop(pRiC, pNHC2) >= 0);
 
   LOG_DEBUG(" ok!\n");
-  LOG_DEBUG("CHECK routing table function... ");
+  LOG_DEBUG("ospf_rt_test(): CHECK routing table function...\n ");
   SOSPFRT * pRT = OSPF_rt_create();
   assert(pRT != NULL);
   
   assert(OSPF_rt_add_route(pRT, sPrefixB, pRiB) >= 0);
   assert(OSPF_rt_add_route(pRT, sPrefixC, pRiC) >= 0);
   assert(OSPF_rt_add_route(pRT, sSubnetPfxTx, pRiTx) >= 0);
-  OSPF_rt_dump(stdout, pRT, 0, 0);
-  LOG_DEBUG(" ok!\n");
-  //TODO add advertising router... for inter area...
   
+  OSPF_rt_dump(stdout, pRT, 0, 0);
+
+  LOG_DEBUG("... ok!\n");
+  //TODO add advertising router... for inter area...
+  LOG_DEBUG("ospf_rt_test(): Destorying routing table... \n");
   OSPF_rt_destroy(&pRT);
   assert(pRT == NULL);
-  
-//   ospf_nh_list_destroy(&pNHListB);
-//   assert(pNHListB == NULL);
-//   ospf_nh_list_destroy(&pNHListC);
-//   ospf_nh_list_destroy(&pNHListTx);
- 
-  ospf_next_hop_destroy(&pNHB);
-  assert(pNHB == NULL);
-  ospf_next_hop_destroy(&pNHC1);
-  assert(pNHC1 == NULL);
-  ospf_next_hop_destroy(&pNHC2);
-  assert(pNHC2 == NULL);
-  
-  subnet_destroy(&pSubTx);
-//subnet_destroy(&pSubTx1);
+  LOG_DEBUG(" ok!\n");
   
   node_destroy(&pNodeA);
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
-  LOG_DEBUG("ospf_rt_test: END\n ");
+  LOG_DEBUG("ospf_rt_test(): END\n ");
   return 1;
 }
 
