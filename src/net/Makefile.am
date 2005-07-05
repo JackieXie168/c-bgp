@@ -28,6 +28,8 @@ libnet_la_SOURCES = \
 	icmp.h \
 	igp.c \
 	igp.h \
+	igp_domain.c \
+	igp_domain.h \
 	ipip.c \
 	ipip.h \
 	link.c \
