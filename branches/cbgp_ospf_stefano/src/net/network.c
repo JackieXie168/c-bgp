@@ -368,8 +368,9 @@ SNetNode * node_create(net_addr_t tAddr)
 				   node_links_destroy);
   pNode->pRT= rt_create();
 #ifdef OSPF_SUPPORT
-  pNode->pOSPFAreas = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
-  pNode->pOspfRT    = OSPF_rt_create();
+  pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  pNode->pOspfRT     = OSPF_rt_create();
+  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
 #endif
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
@@ -388,6 +389,11 @@ void node_destroy(SNetNode ** ppNode)
     protocols_destroy(&(*ppNode)->pProtocols);
     ptr_array_destroy(&(*ppNode)->pLinks);
     ptr_array_destroy(&(*ppNode)->aInterfaces);
+#ifdef OSPF_SUPPORT
+    _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
+    OSPF_rt_destroy(&(*ppNode)->pOspfRT);
+    uint16_array_destroy(&(*ppNode)->pIGPDomains);
+#endif
     if ((*ppNode)->pcName)
       FREE((*ppNode)->pcName);
     FREE(*ppNode);
@@ -517,6 +523,23 @@ int node_ipip_enable(SNetNode * pNode)
   return node_register_protocol(pNode, NET_PROTOCOL_IPIP,
 				pNode, NULL,
 				ipip_event_handler);
+}
+
+
+// ----- node_igp_domain_add -------------------------------------------
+extern int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber){
+  return _array_add((SArray*)(pNode->pIGPDomains), &uDomainNumber);
+}
+
+// ----- node_igp_domain_add -------------------------------------------
+/** Return TRUE (1) if node belongs to igp domain tDomainNumber
+ * FALSE (0) otherwise.
+ */
+extern int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber){
+  int iIndex;
+  if  (_array_sorted_find_index((SArray*)(pNode->pIGPDomains), &uDomainNumber, &iIndex) == 0)
+    return 1;
+  return 0;
 }
 
 // ----- node_links_dump --------------------------------------------
