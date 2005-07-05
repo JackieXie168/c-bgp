@@ -159,10 +159,13 @@ int subnet_test(){
   SPrefix  sSubnetPfxTx1;
   net_addr_t tAddrA, tAddrB, tAddrC;
   
+  LOG_DEBUG("subnet_test(): START\n");
+  
   assert(!ip_string_to_address("192.168.0.2", &pcEndPtr, &tAddrA));
   assert(!ip_string_to_address("192.168.0.3", &pcEndPtr, &tAddrB));
   assert(!ip_string_to_address("192.168.0.4", &pcEndPtr, &tAddrC));
   
+  LOG_DEBUG("subnet_test(): CHECK subnet methods... \n");
   SNetNode * pNodeA= node_create(tAddrA);
   SNetNode * pNodeB= node_create(tAddrB);
   SNetNode * pNodeC= node_create(tAddrC);
@@ -204,7 +207,8 @@ int subnet_test(){
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
   
-  
+  LOG_DEBUG("ok!\n");
+  LOG_DEBUG("subnet_test(): TEST on a bigger network... \n");
   /* other test on subnet methods... */
   const int startAddr = 1024;
   
@@ -252,7 +256,7 @@ int subnet_test(){
   assert(!network_add_node(pNetwork, pNodeK2));
   assert(!network_add_node(pNetwork, pNodeK3));
   
-  LOG_DEBUG("nodes attached.\n");
+//   LOG_DEBUG("nodes attached.\n");
 
   assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
   assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
@@ -272,7 +276,7 @@ int subnet_test(){
   assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
   assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
-  LOG_DEBUG("point-to-point links attached.\n");
+//   LOG_DEBUG("point-to-point links attached.\n");
   
   assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
@@ -283,7 +287,7 @@ int subnet_test(){
   assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
   
-  LOG_DEBUG("transit-network links attached.\n");
+//   LOG_DEBUG("transit-network links attached.\n");
   
   assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) >= 0);
@@ -297,7 +301,8 @@ int subnet_test(){
   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK2, 100, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeK2, pSubnetSK3, 100, 1) >= 0);
   
-  LOG_DEBUG("stub-network links attached.\n");
+//   LOG_DEBUG("stub-network links attached.\n");
+  LOG_DEBUG("ok!\n");
   return 1;
 }
 
