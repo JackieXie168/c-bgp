@@ -19,6 +19,7 @@
 #include <net/link.h>
 #include <net/prefix.h>
 #include <net/spt_vertex.h>
+#include <net/igp_domain.h>
 #include <string.h>
 
 #define X_AREA 1
@@ -481,10 +482,10 @@ int ospf_test_sample_net()
   
 //   spt_vertex_get_links(pV1);
   SPtrArray * pLinks;
-  SNetLink * pLink;
+//   SNetLink * pLink;
   pLinks = spt_vertex_get_links(pV1);
   assert(pLinks != NULL);
-  int iIndex;
+//   int iIndex;
   /*
   for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
     ptr_array_get_at(pLinks, iIndex, &pLink);
@@ -495,17 +496,17 @@ int ospf_test_sample_net()
   
   pLinks = spt_vertex_get_links(pV2);
   assert(pLinks != NULL);
-  for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
-    ptr_array_get_at(pLinks, iIndex, &pLink);
-    link_dump(stdout, pLink);
-    fprintf(stdout, "\n");
-  }
+//   for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
+//     ptr_array_get_at(pLinks, iIndex, &pLink);
+//     link_dump(stdout, pLink);
+//     fprintf(stdout, "\n");
+//   }
   
-  ip_prefix_dump(stdout, spt_vertex_get_prefix(pV1));
-  fprintf(stdout, "\n");
-  ip_prefix_dump(stdout, spt_vertex_get_prefix(pV2));
-  fprintf(stdout, "\n");
-  spt_vertex_destroy(&pV1);
+//   ip_prefix_dump(stdout, spt_vertex_get_prefix(pV1));
+//   fprintf(stdout, "\n");
+//   ip_prefix_dump(stdout, spt_vertex_get_prefix(pV2));
+//   fprintf(stdout, "\n");
+   spt_vertex_destroy(&pV1);
   assert(pV1 == NULL);
   spt_vertex_destroy(&pV2);
   assert(pV2 == NULL);
@@ -520,7 +521,7 @@ int ospf_test_sample_net()
   assert(pFindNode != NULL);
   SRadixTree * pSpt = node_ospf_compute_spt(pNetwork, pNodeB1->tAddr, BACKBONE_AREA, sPrefix);
   
-//   spt_dump(stdout, pSpt, pNodeB1->tAddr);
+//spt_dump(stdout, pSpt, pNodeB1->tAddr);
   FILE * pOutDump = fopen("spt.test.dot", "w");
   spt_dump_dot(pOutDump, pSpt, pNodeB1->tAddr);
   fclose(pOutDump);
@@ -720,22 +721,25 @@ int ospf_test()
 {
   log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
   log_set_stream(pMainLog, stderr);
-  
+
+    
   subnet_test();
-  LOG_DEBUG("all info OSPF methods tested ... they seem ok!\n");
+//   LOG_DEBUG("all info OSPF methods tested ... they seem ok!\n");
   
   ospf_info_test();
-  LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
+//   LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
   
   ospf_rt_test();
-  LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
+//   LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
   
+  
+  IGPdomain_test();
 //   ospf_test_sample_net();
 //   LOG_DEBUG("test on sample network... seem ok!\n");
   
   
-  ospf_test_rfc2328();
-  LOG_DEBUG("test on sample network in RFC2328... seems ok!\n");
+//   ospf_test_rfc2328();
+//   LOG_DEBUG("test on sample network in RFC2328... seems ok!\n");
   return 1;
 }
 
