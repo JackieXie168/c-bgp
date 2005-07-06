@@ -93,6 +93,7 @@ void ospf_next_hop_dst(void * pItem)
   ospf_next_hop_destroy(&pNH);
 }
 
+
 // ----- OSPF_next_hop_dump --------------------------------------------
 void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
 { 
@@ -114,7 +115,7 @@ void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
   fprintf(pStream, ">");
 }
 
-// ----- OSPF_next_hop_dump --------------------------------------------
+// ----- OSPF_next_hop_string --------------------------------------------
 void ospf_next_hop_to_string(char * pString, SOSPFNextHop * pNH)
 { 
   SPrefix sPrefix;
@@ -165,6 +166,20 @@ int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH)
   return ptr_array_add(pNHList, &pNH);
 }
 
+// ----- ospf_nh_list_copy --------------------------------------------------
+next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
+{
+  next_hops_list_t * pNHLCopy = ospf_nh_list_create();
+  int iIndex;
+  SOSPFNextHop * pCurrentNH, *pNHCopy;
+  
+  for (iIndex = 0; iIndex < ptr_array_length(pNHList); iIndex++){
+    ptr_array_get_at(pNHList, iIndex, &pCurrentNH);
+    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr);
+    ospf_nh_list_add(pNHLCopy, pNHCopy);
+  }
+  return pNHLCopy;
+}
 // ----- ospf_nh_list_dump --------------------------------------------------
 /*
    pcSpace should not be NULL! 
