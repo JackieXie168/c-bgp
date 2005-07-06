@@ -128,19 +128,20 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
    int iTotSubnet = ptr_array_length(pVertex->aSubnets);
    if (iTotSubnet > 0){
      SNetLink * pLinkToSub;
-     SOSPFNextHop * pNHtoSubnet;
+     next_hops_list_t * pNHListToSubnet;
      for (iIndex = 0; iIndex < iTotSubnet; iIndex++){
        ptr_array_get_at(pVertex->aSubnets, iIndex, &pLinkToSub); 
        link_get_prefix(pLinkToSub, &sPrefix); 
-       next_hops_list_t * pRootNHList = ospf_nh_list_create();
-       pNHtoSubnet = ospf_next_hop_create(pLinkToSub,  OSPF_NO_IP_NEXT_HOP);
-       ospf_nh_list_add(pRootNHList, pNHtoSubnet);
+//        next_hops_list_t * pRootNHList = ospf_nh_list_create();ù
+       //must duplicate next hop to define a separate route correctly
+       pNHListToSubnet = ospf_nh_list_copy(pVertex->pNextHops);
+//        ospf_nh_list_add(pNHListToSubnet, pNHtoSubnet);
        node_ospf_rt_add_route(pMyContext->pNode,  OSPF_DESTINATION_TYPE_NETWORK, 
                                 sPrefix,
 				pVertex->uIGPweight + pLinkToSub->uIGPweight,
 				pMyContext->tArea, 
 				OSPF_PATH_TYPE_INTRA,
-				pRootNHList);
+				pNHListToSubnet);
      }
    }
    
@@ -180,7 +181,7 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
  *
  */
 int node_ospf_intra_route_single_area(SNetwork * pNetwork, SNetNode * pNode, ospf_area_t tArea,
-		       SPrefix sPrefix)
+		       uint16_t uIGPDomainNumber)
 {
   int iResult;
   SRadixTree * pTree;
@@ -193,7 +194,7 @@ int node_ospf_intra_route_single_area(SNetwork * pNetwork, SNetNode * pNode, osp
   //TODO   node_rt_del_route(pNode, NULL, NULL, NET_ROUTE_IGP);
   
   /* Compute Minimum Spanning Tree */
-  pTree= node_ospf_compute_spt(pNetwork, pNode->tAddr, tArea, sPrefix);
+  pTree= node_ospf_compute_spt(pNetwork, pNode->tAddr, tArea, uIGPDomainNumber);
   if (pTree == NULL)
     return -1;
 // LOG_DEBUG("start visit of spt\n");
@@ -208,13 +209,13 @@ int node_ospf_intra_route_single_area(SNetwork * pNetwork, SNetNode * pNode, osp
 }
 
 // ----- igp_compute_prefix ------------------------------------------------------------------
-int node_ospf_intra_route(SNetwork * pNetwork, SNetNode * pNode, SPrefix sPrefix)
+int node_ospf_intra_route(SNetwork * pNetwork, SNetNode * pNode, uint16_t uIGPDomainsNumber)
 {
   int iIndex, iStatus = 0;
   ospf_area_t tCurrentArea;
   for (iIndex = 0; iIndex < _array_length((SArray *)pNode->pOSPFAreas); iIndex++){
      _array_get_at((SArray *)(pNode->pOSPFAreas), iIndex, &tCurrentArea);
-     iStatus = node_ospf_intra_route_single_area(pNetwork, pNode, tCurrentArea, sPrefix);
+     iStatus = node_ospf_intra_route_single_area(pNetwork, pNode, tCurrentArea, uIGPDomainsNumber);
      if (iStatus < 0) 
        break;
   } 
@@ -299,6 +300,23 @@ int ospf_test_rfc2328()
   
   LOG_DEBUG(" done.\n");
   
+  LOG_DEBUG("ospf_test_rfc2328(): Adding other nodes to test igp domain check...");
+  SNetNode * pNodeRTE1= node_create(startAddr + 30);
+  SNetNode * pNodeRTE2= node_create(startAddr + 31);
+  SNetNode * pNodeRTE3= node_create(startAddr + 32);
+  SNetNode * pNodeRTE4= node_create(startAddr + 33);
+  
+  assert(!network_add_node(pNetworkRFC2328, pNodeRTE1));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRTE2));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRTE3));
+  assert(!network_add_node(pNetworkRFC2328, pNodeRTE4));
+  
+  assert(node_add_link_toSubnet(pNodeRTE1, pSubnetTN3, 1, 1) >= 0);
+  assert(node_add_link(pNodeRTE2, pNodeRT4, 1, 1) >= 0);
+  assert(node_add_link(pNodeRTE3, pNodeRT3, 1, 1) >= 0);
+  assert(node_add_link(pNodeRTE4, pNodeRT6, 1, 1) >= 0);
+  LOG_DEBUG(" done.\n");
+  
   LOG_DEBUG("ospf_test_rfc2328(): Assigning areas...");
   assert(node_add_OSPFArea(pNodeRT1, 1) >= 0);
   assert(node_add_OSPFArea(pNodeRT2, 1) >= 0);
@@ -332,26 +350,42 @@ int ospf_test_rfc2328()
   subnet_set_OSPFArea(pSubnetTN9, 3);
   subnet_set_OSPFArea(pSubnetSN10, 3);
   subnet_set_OSPFArea(pSubnetSN11, 3);
-  
-  
   LOG_DEBUG(" done.\n");
-  LOG_DEBUG("ospf_test_rfc2328: Computing SPT (.dot output in spt.dot)...");
-  SPrefix sPrefix; 
-  sPrefix.tNetwork = 1024;
-  sPrefix.uMaskLen = 22;
   
-  SNetNode * pFindNode = network_find_node(pNetworkRFC2328, pNodeRT6->tAddr);
-  assert(pFindNode != NULL);
-  SRadixTree * pSpt = node_ospf_compute_spt(pNetworkRFC2328, pNodeRT6->tAddr, BACKBONE_AREA, sPrefix);
-//   spt_dump(stdout, pSpt, pNodeRT6->tAddr);
-  FILE * pOutDump = fopen("spt.RFC2328.dot", "w");
-  spt_dump_dot(pOutDump, pSpt, pNodeRT6->tAddr);
+  LOG_DEBUG("ospf_test_rfc2328(): Creating igp domain...");
+  uint16_t uIGPDomain = 10;
+  SIGPDomain * pIGPDomain = get_igp_domain(uIGPDomain); //creating and registering domain
+  igp_domain_add_router(pIGPDomain, pNodeRT1);
+  igp_domain_add_router(pIGPDomain, pNodeRT2);
+  igp_domain_add_router(pIGPDomain, pNodeRT3);
+  igp_domain_add_router(pIGPDomain, pNodeRT4);
+  igp_domain_add_router(pIGPDomain, pNodeRT5);
+  igp_domain_add_router(pIGPDomain, pNodeRT6);
+  igp_domain_add_router(pIGPDomain, pNodeRT7);
+  igp_domain_add_router(pIGPDomain, pNodeRT9);
+  igp_domain_add_router(pIGPDomain, pNodeRT10);
+  igp_domain_add_router(pIGPDomain, pNodeRT11);
+  igp_domain_add_router(pIGPDomain, pNodeRT12);
+  LOG_DEBUG(" done.\n");
+  
+  LOG_DEBUG("ospf_test_rfc2328: Computing SPT for RT4 (.dot output in spt.dot)...");
+  
+  SRadixTree * pSpt = node_ospf_compute_spt(pNetworkRFC2328, pNodeRT4->tAddr, BACKBONE_AREA, uIGPDomain);
+  FILE * pOutDump = fopen("spt.RFC2328.backbone.dot", "w");
+  spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
   fclose(pOutDump);
   radix_tree_destroy(&pSpt);
+  
+  pSpt = node_ospf_compute_spt(pNetworkRFC2328, pNodeRT4->tAddr, 1, uIGPDomain);
+  pOutDump = fopen("spt.RFC2328.1.dot", "w");
+  spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
+  fclose(pOutDump);
+  radix_tree_destroy(&pSpt);
+  
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT3-BACKBONE...");
-  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, BACKBONE_AREA, sPrefix);
+  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, BACKBONE_AREA, uIGPDomain);
   fprintf(stdout, "\n");
   OSPF_rt_dump(stdout, pNodeRT3->pOspfRT, 0, 0);
   LOG_DEBUG(" ok!\n");
@@ -359,19 +393,20 @@ int ospf_test_rfc2328()
   OSPF_rt_destroy(&(pNodeRT3->pOspfRT));
   pNodeRT3->pOspfRT = OSPF_rt_create();
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT3-AREA 1...");
-  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, 1, sPrefix);
+  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, 1, uIGPDomain);
   fprintf(stdout, "\n");
   OSPF_rt_dump(stdout, pNodeRT3->pOspfRT, 0, 0);
   LOG_DEBUG(" ok!\n");
 
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT6-AREA 1 (should fail)...");
-  assert(node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT6, 1, sPrefix) < 0);
+  assert(node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT6, 1, uIGPDomain) < 0);
   LOG_DEBUG(" ok!\n");
     
   LOG_DEBUG("ospf_test_rfc2328: Try computing intra route for each area on RT4...\n");
   fprintf(stdout, "\n");
-  node_ospf_intra_route(pNetworkRFC2328, pNodeRT4, sPrefix);
+  node_ospf_intra_route(pNetworkRFC2328, pNodeRT4, uIGPDomain);
   
+  //TOTO ospf_node_rt_dump(options);
   OSPF_rt_dump(stdout, pNodeRT4->pOspfRT, NET_OSPF_RT_OPTION_ANY_AREA, 0);
   fprintf(stdout, "-------------------------------------------------------------------------------------\n");
   OSPF_rt_dump(stdout, pNodeRT4->pOspfRT, NET_OSPF_RT_OPTION_ANY_AREA, 1);
@@ -512,14 +547,27 @@ int ospf_test_sample_net()
   assert(pV2 == NULL);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("ospf_djk_test(): CHECK Dijkstra function...");
-  SPrefix sPrefix; 
-  sPrefix.tNetwork = 1024;
-  sPrefix.uMaskLen = 22;
+  LOG_DEBUG("ospf_test_rfc2328(): Creating igp domain...");
+  uint16_t uIGPDomain = 1;
+  SIGPDomain * pIGPDomain = get_igp_domain(uIGPDomain); //creating and registering domain
+  igp_domain_add_router(pIGPDomain, pNodeB1);
+  igp_domain_add_router(pIGPDomain, pNodeB2);
+  igp_domain_add_router(pIGPDomain, pNodeB3);
+  igp_domain_add_router(pIGPDomain, pNodeB4);
+  igp_domain_add_router(pIGPDomain, pNodeX1);
+  igp_domain_add_router(pIGPDomain, pNodeX2);
+  igp_domain_add_router(pIGPDomain, pNodeX3);
+  igp_domain_add_router(pIGPDomain, pNodeY1);
+  igp_domain_add_router(pIGPDomain, pNodeY2);
+  igp_domain_add_router(pIGPDomain, pNodeK1);
+  igp_domain_add_router(pIGPDomain, pNodeK2);
+  igp_domain_add_router(pIGPDomain, pNodeK3);
   
-  SNetNode * pFindNode = network_find_node(pNetwork, pNodeB1->tAddr);
-  assert(pFindNode != NULL);
-  SRadixTree * pSpt = node_ospf_compute_spt(pNetwork, pNodeB1->tAddr, BACKBONE_AREA, sPrefix);
+  LOG_DEBUG(" done.\n");
+  
+  LOG_DEBUG("ospf_djk_test(): CHECK Dijkstra function...");
+  
+  SRadixTree * pSpt = node_ospf_compute_spt(pNetwork, pNodeB1->tAddr, BACKBONE_AREA, uIGPDomain);
   
 //spt_dump(stdout, pSpt, pNodeB1->tAddr);
   FILE * pOutDump = fopen("spt.test.dot", "w");
@@ -530,7 +578,7 @@ int ospf_test_sample_net()
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_djk_test(): Computing Routing Table...");
-  node_ospf_intra_route_single_area(pNetwork, pNodeB1, BACKBONE_AREA, sPrefix);
+  node_ospf_intra_route_single_area(pNetwork, pNodeB1, BACKBONE_AREA, uIGPDomain);
   
   LOG_DEBUG(" ok!\n");
   OSPF_rt_dump(stdout, pNodeB1->pOspfRT, 0, 0);
@@ -723,191 +771,23 @@ int ospf_test()
   log_set_stream(pMainLog, stderr);
 
     
-  subnet_test();
+//   subnet_test();
 //   LOG_DEBUG("all info OSPF methods tested ... they seem ok!\n");
   
-  ospf_info_test();
+//   ospf_info_test();
 //   LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
   
-  ospf_rt_test();
+//   ospf_rt_test();
 //   LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
   
   
-  IGPdomain_test();
+//   IGPdomain_test();
 //   ospf_test_sample_net();
 //   LOG_DEBUG("test on sample network... seem ok!\n");
   
   
-//   ospf_test_rfc2328();
+   ospf_test_rfc2328();
 //   LOG_DEBUG("test on sample network in RFC2328... seems ok!\n");
   return 1;
 }
-
-/*copy of compute_spt when it not consider area... can be used for 
-  isis and simple igp computation (old version in dijkstra file not consider 
-  subnet)*/
-// ----- ospf_compute_spt ---------------------------------------------------
-/**
- * Compute the Shortest Path Tree from the given source router
- * towards all the other routers that belong to the given prefix.
- * TODO 1. consider link flags
- *      2. consider prefix
- *      3. improve computation with fibonacci heaps
- */
-/*SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr, 
-			      ospf_area_t tArea,   SPrefix sPrefix)
-{
-  SPrefix      sDestPrefix; 
-// LOG_DEBUG("entro in OSPF_dijkstra\n");
-  int iIndex = 0;
-  int iOldVertexPos;
-
-//   SNetSubnet * pSubnet = NULL;
-  SPtrArray  * aLinks = NULL;
-  SNetLink   * pCurrentLink = NULL;
-  SSptVertex * pCurrentVertex = NULL, * pNewVertex = NULL;
-  SSptVertex * pOldVertex = NULL, * pRootVertex = NULL;
-  SRadixTree * pSpt = radix_tree_create(32, spt_vertex_dst);
-
-  SNetNode * pRootNode = network_find_node(pNetwork, tSrcAddr);//, * pNode = NULL;
-  assert(pRootNode != NULL);
-  spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
-                                                     spt_vertex_compare,
-     	    				            NULL);
-  //ADD root to SPT
-  pRootVertex = spt_vertex_create_byRouter(pRootNode, 0);
-  pCurrentVertex = pRootVertex;
-  assert(pCurrentVertex != NULL);
-  while (pCurrentVertex != NULL) {
-     sDestPrefix = spt_vertex_get_prefix(pCurrentVertex);
-//     fprintf(stdout, "Current vertex is ");
-//     ip_prefix_dump(stdout, sDestPrefix);
-//     fprintf(stdout, "\n");
-    
-    radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen, pCurrentVertex);
-    
-    aLinks = spt_vertex_get_links(pCurrentVertex);
-    for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
-      ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
-   */   
-      /* Consider only the links that have the following properties:
-	 - NET_LINK_FLAG_IGP_ADV
-	 - NET_LINK_FLAG_UP (the link must be UP)
-	 - the end-point belongs to the given prefix */
-  /*    if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_IGP_ADV) &&
-	  link_get_state(pCurrentLink, NET_LINK_FLAG_UP) &&
-	  ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(link_get_addr(pLink), sPrefix)) ||
-	   (NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pNode->tAddr, sPrefix))))) 
-        continue;
-
-//       debug...
-//       fprintf(stdout, "ospf_djk(): current Link is ");
-//       link_get_prefix(pCurrentLink, &sDestPrefix);
-//       ip_prefix_dump(stdout, sDestPrefix);
-//       fprintf(stdout, "\n");
-      
-      //first time consider only Transit Link
-      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB){
-//         fprintf(stdout, "è una stub... passo al prossimo\n");
-        continue;
-      }
-      //check if vertex is in spt	
-      link_get_prefix(pCurrentLink, &sDestPrefix);
-      pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
-                                                          sDestPrefix.tNetwork, 
-							  sDestPrefix.uMaskLen);
-      
-      if(pOldVertex != NULL){
-//        fprintf(stdout, "è già nel spt... passo al prossimo\n");
-       continue;
-      }
-      
-      //create a vertex object to compare with grayVertex
-      pNewVertex = spt_vertex_create(pNetwork, pCurrentLink, pCurrentVertex);
-      assert(pNewVertex != NULL);
-      
-//       fprintf(stdout, "nuovo vertex creato\n");
-      //check if vertex is in grayVertexes
-      int srchRes = -1;
-      if (ptr_array_length(aGrayVertexes) > 0)
-        srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &iOldVertexPos);
-      else ;
-//         fprintf(stdout, "aGrays è vuoto\n");
-      //srchres == -1 ==> item not found
-      //srchres == 0  ==> item found
-      pOldVertex = NULL;
-      if(srchRes == 0) {
-//         fprintf(stdout, "vertex è già in aGrayVertexes\n");
-        ptr_array_get_at(aGrayVertexes, iOldVertexPos, &pOldVertex);
-      }
-      
-      if (pOldVertex == NULL){
-//         fprintf(stdout, "vertex da aggiungere\n");
-// 	if (spt_vertex_belongs_to_area(pNewVertex, tArea)){
-          spt_calculate_next_hop(pRootVertex, pCurrentVertex, pNewVertex, pCurrentLink);
-        
-	  ptr_array_add(aGrayVertexes, &pNewVertex);
-	  //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
-	  //set father and sons relationship
-  	  ptr_array_add(pCurrentVertex->sons, &pNewVertex);
-	  ptr_array_add(pNewVertex->fathers, &pCurrentVertex);
-	  //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
-// 	}
-// 	else
-// 	  spt_vertex_destroy(&pNewVertex);
-	
-      }
-      else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
-//         fprintf(stdout, "vertex da aggiornare (peso minore)\n");
-        int iPos, iIndex;
-	SSptVertex * pFather;
-	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
-// 	Remove old next hops
-        if (ptr_array_length(pOldVertex->pNextHops) > 0){
-          ospf_nh_list_destroy(&(pOldVertex->pNextHops));
- 	  pOldVertex->pNextHops = ospf_nh_list_create();
-        }
-        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
-        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
-	//remove old father->sons relationship
-	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
-	  ptr_array_get_at(pOldVertex->fathers, iIndex, &pFather);
-	  assert(ptr_array_sorted_find_index(pFather->sons, &pOldVertex, &iPos) == 0);
-	  ptr_array_remove_at(pFather->sons, iPos);
-	}
-	//remove sons->father relationship
-	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
-	  ptr_array_remove_at(pOldVertex->fathers, iIndex);
-	}
-	//set new sons->father and father->sons relationship
-        ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
-        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
-        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
-	spt_vertex_destroy(&pNewVertex);
-      }
-      else if (pOldVertex->uIGPweight == pNewVertex->uIGPweight) {
-//         fprintf(stdout, "vertex da aggiornare (peso uguale)\n");
-        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
-// 	fprintf(stdout, "next hops calcolati\n");
-        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
-        ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
-        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
-	//// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
-        spt_vertex_destroy(&pNewVertex);
-      }
-      else {
-//         fprintf(stdout, "new vertex eliminato\n");
-        spt_vertex_destroy(&pNewVertex);
-      }  
-    }//end for on links
-    
-    //links for subnet are dinamically created and MUST be removed
-    if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
-        pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
-	ptr_array_destroy(&aLinks);
-    //select node with smallest weight to add to spt
-    pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
-  }
-  return pSpt;
-}*/
 

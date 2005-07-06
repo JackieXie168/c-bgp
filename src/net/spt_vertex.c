@@ -12,6 +12,7 @@
 
 #include <net/spt_vertex.h>
 #include <net/ospf.h>
+#include <net/igp_domain.h>
 #include <string.h>
 
 
@@ -237,6 +238,7 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
 //     fprintf(stdout, "spt_calculate_next_hop(): parent == transit && fathers contains root\n");
 //devo trovare il link verso la subnet in root
 // fprintf(stdout, "cerco il link...\n");
+    //TODO ma il link non è già nella subnet (oggetto vertex)?
     SNetLink * pLinkToSub = node_find_link_to_subnet(((SNetNode *)pRoot->pObject), ((SNetSubnet *)pParent->pObject));
     
     pNH = ospf_next_hop_create(pLinkToSub, spt_vertex_get_prefix(pDestination).tNetwork);
@@ -263,15 +265,20 @@ int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink){
  * towards all the other routers that belong to the given prefix.
  * TODO 2. consider ospf domain (set of router)
  *      3. improve computation 
+ *
+ * PREREQUISITE:
+ *      1. igp domain MUST exist
+ *      2. ospf areas are setted right
  */
 SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr, 
-			      ospf_area_t tArea,   SPrefix sPrefix)
+			      ospf_area_t tArea,   uint16_t IGPDomainNumber)
 {
   SPrefix      sDestPrefix; 
 // LOG_DEBUG("entro in OSPF_dijkstra\n");
   int iIndex = 0;
   int iOldVertexPos;
-
+//   SIGPDomain * pIGPDomain = get_igp_domain(IGPDomainNumber);
+  
 //   SNetSubnet * pSubnet = NULL;
   SPtrArray  * aLinks = NULL;
   SNetLink   * pCurrentLink = NULL;
@@ -301,13 +308,9 @@ SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr,
       ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
       
       /* Consider only the links that have the following properties:
-	 - NET_LINK_FLAG_IGP_ADV
 	 - NET_LINK_FLAG_UP (the link must be UP)
 	 - the end-point belongs to the given prefix */
-      if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_IGP_ADV) &&
-	  link_get_state(pCurrentLink, NET_LINK_FLAG_UP) /*&&
-	  ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(link_get_addr(pLink), sPrefix)) ||
-	   (NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pNode->tAddr, sPrefix)))*/)) 
+      if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)))
         continue;
 
 //       debug...
@@ -315,18 +318,29 @@ SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr,
 //       link_get_prefix(pCurrentLink, &sDestPrefix);
 //       ip_prefix_dump(stdout, sDestPrefix);
 //       fprintf(stdout, "\n");
-      
- 
+
       //first time consider only Transit Link... but we store subnet in a list
       //so we have not to recheck all the links durign routing table computation
-      //TODO write macro link_to_subnet ??
+      //TODO write macro link_to_subnet , link_is_towards_stub
       if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB &&
           subnet_belongs_to_area(link_get_subnet(pCurrentLink), tArea)){
         spt_vertex_add_subnet(pCurrentVertex, pCurrentLink);
         continue;
       }
-      //check if vertex is in spt	
+      
       link_get_prefix(pCurrentLink, &sDestPrefix);
+      
+      //TODO network should belongs to isis???
+      //ROUTER should belongs to ospf domain (check is not performed for network)
+//       if (sDestPrefix.uMaskLen == 32) {
+//         if (!igp_domain_contains_router(pIGPDomain, sDestPrefix)) {
+//           fprintf(stdout, "trovato router che non appartiene al dominio\n");
+// 	  ip_prefix_dump(stdout, sDestPrefix);
+// 	  fprintf(stdout, "\n");
+//           continue;
+//         }
+//       } 
+      //check if vertex is in spt	
       pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
                                                           sDestPrefix.tNetwork, 
 							  sDestPrefix.uMaskLen);
