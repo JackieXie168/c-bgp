@@ -24,7 +24,7 @@
 #define OSPF_PATH_TYPE_EXTERNAL_2  3
 
 #define OSPF_NO_IP_NEXT_HOP 0
-#define NET_OSPF_RT_OPTION_ANY_AREA 0x01
+#define NET_OSPF_RT_OPTION_SORT_AREA 0x01
 
 // ----- ospf_rt_test() -----------------------------------------------
 extern int ospf_rt_test();
