@@ -158,9 +158,10 @@ int test_show_rt(uint32_t uKey, uint8_t uKeyLen,
 // ----- igp_domain_contains_router --------------------------------------------
 /**
  * Return TRUE (1) if node is in radix tree. FALSE (0) otherwise.
+ *
  */
-int igp_domain_contains_router(SIGPDomain * pDomain, SNetNode * pNode){
-  if (radix_tree_get_exact(pDomain->pRouters, pNode->tAddr, 32) == NULL)
+int igp_domain_contains_router(SIGPDomain * pDomain, SPrefix sPrefix){
+  if (radix_tree_get_exact(pDomain->pRouters, sPrefix.tNetwork, sPrefix.uMaskLen) == NULL)
     return 0;
   return 1;
 }
@@ -200,8 +201,11 @@ int IGPdomain_test(){
   assert(node_belongs_to_igp_domain(pNode2, pDomain1->uNumber) != 0);
   assert(node_belongs_to_igp_domain(pNode2, pDomain2->uNumber) != 0);
   
-  assert(igp_domain_contains_router(pDomain1, pNode1) != 0);
-  assert(igp_domain_contains_router(pDomain2, pNode1) == 0);
+  SPrefix sPrefix;
+  sPrefix.tNetwork = pNode1->tAddr;
+  sPrefix.uMaskLen = 32;
+  assert(igp_domain_contains_router(pDomain1, sPrefix) != 0);
+  assert(igp_domain_contains_router(pDomain2, sPrefix) == 0);
   
   LOG_DEBUG("test_igp_domain(): destroy domain... ");
   _IGPdomain_destroy();  
