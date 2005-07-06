@@ -270,13 +270,13 @@ int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink){
  *      1. igp domain MUST exist
  *      2. ospf areas are setted right
  */
-SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr, 
-			      ospf_area_t tArea,   uint16_t IGPDomainNumber)
+SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea)
 {
   SPrefix      sDestPrefix; 
 // LOG_DEBUG("entro in OSPF_dijkstra\n");
   int iIndex = 0;
   int iOldVertexPos;
+  SNetwork * pNetwork = pNode->pNetwork;
 //   SIGPDomain * pIGPDomain = get_igp_domain(IGPDomainNumber);
   
 //   SNetSubnet * pSubnet = NULL;
@@ -286,7 +286,7 @@ SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr,
   SSptVertex * pOldVertex = NULL, * pRootVertex = NULL;
   SRadixTree * pSpt = radix_tree_create(32, spt_vertex_dst);
 //   SNetSubnet * pStubSubnet;
-  SNetNode * pRootNode = network_find_node(pNetwork, tSrcAddr);
+  SNetNode * pRootNode = pNode;//network_find_node(pNetwork, tSrcAddr);
   assert(pRootNode != NULL);
   spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
                                                      spt_vertex_compare,

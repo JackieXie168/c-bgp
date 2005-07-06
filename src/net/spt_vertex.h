@@ -68,8 +68,7 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes);
 void spt_vertex_dst(void ** ppItem);
 
 // ----- node_ospf_compute_spt ---------------------------------------------------
-SRadixTree * node_ospf_compute_spt(SNetwork * pNetwork, net_addr_t tSrcAddr, 
-			      ospf_area_t tArea,   uint16_t IGPDomainNumber);
+SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea);
 			      
 // ----- spt_dump_dot ------------------------------------------------------------
 void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr);
