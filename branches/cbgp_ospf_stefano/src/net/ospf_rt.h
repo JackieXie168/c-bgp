@@ -48,13 +48,16 @@ extern next_hops_list_t * ospf_nh_list_create();
 extern void ospf_nh_list_destroy(next_hops_list_t ** pNHList);
 // ----- ospf_nh_list_add --------------------------------------------------
 extern int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH);
+
+// ----- ospf_nh_list_copy --------------------------------------------------
+next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList);
+
 // ----- ospf_nh_list_dump --------------------------------------------------
 /*
    pcSpace should not be NULL! 
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-// extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine);
 extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace);
 ///////////////////////////////////////////////////////////////////////////
 //////  ROUTING TABLE OSPF FUNCTION
