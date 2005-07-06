@@ -180,8 +180,8 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
-int node_ospf_intra_route_single_area(SNetwork * pNetwork, SNetNode * pNode, ospf_area_t tArea,
-		       uint16_t uIGPDomainNumber)
+int node_ospf_intra_route_single_area(SNetNode * pNode, SNetwork * pNetwork,  
+		       uint16_t uIGPDomainNumber, ospf_area_t tArea)
 {
   int iResult;
   SRadixTree * pTree;
@@ -209,13 +209,13 @@ int node_ospf_intra_route_single_area(SNetwork * pNetwork, SNetNode * pNode, osp
 }
 
 // ----- igp_compute_prefix ------------------------------------------------------------------
-int node_ospf_intra_route(SNetwork * pNetwork, SNetNode * pNode, uint16_t uIGPDomainsNumber)
+int node_ospf_intra_route(SNetNode * pNode, SNetwork * pNetwork, uint16_t uIGPDomainsNumber)
 {
   int iIndex, iStatus = 0;
   ospf_area_t tCurrentArea;
   for (iIndex = 0; iIndex < _array_length((SArray *)pNode->pOSPFAreas); iIndex++){
      _array_get_at((SArray *)(pNode->pOSPFAreas), iIndex, &tCurrentArea);
-     iStatus = node_ospf_intra_route_single_area(pNetwork, pNode, tCurrentArea, uIGPDomainsNumber);
+     iStatus = node_ospf_intra_route_single_area(pNode, pNetwork, uIGPDomainsNumber, tCurrentArea );
      if (iStatus < 0) 
        break;
   } 
@@ -385,7 +385,7 @@ int ospf_test_rfc2328()
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT3-BACKBONE...");
-  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, BACKBONE_AREA, uIGPDomain);
+  node_ospf_intra_route_single_area(pNodeRT3, pNetworkRFC2328, uIGPDomain, BACKBONE_AREA);
   fprintf(stdout, "\n");
   OSPF_rt_dump(stdout, pNodeRT3->pOspfRT, 0, 0);
   LOG_DEBUG(" ok!\n");
@@ -393,18 +393,18 @@ int ospf_test_rfc2328()
   OSPF_rt_destroy(&(pNodeRT3->pOspfRT));
   pNodeRT3->pOspfRT = OSPF_rt_create();
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT3-AREA 1...");
-  node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT3, 1, uIGPDomain);
+  node_ospf_intra_route_single_area(pNodeRT3, pNetworkRFC2328, uIGPDomain, 1);
   fprintf(stdout, "\n");
   OSPF_rt_dump(stdout, pNodeRT3->pOspfRT, 0, 0);
   LOG_DEBUG(" ok!\n");
 
   LOG_DEBUG("ospf_test_rfc2328: Computing Routing Table for RT6-AREA 1 (should fail)...");
-  assert(node_ospf_intra_route_single_area(pNetworkRFC2328, pNodeRT6, 1, uIGPDomain) < 0);
+  assert(node_ospf_intra_route_single_area(pNodeRT6, pNetworkRFC2328, uIGPDomain, 1) < 0);
   LOG_DEBUG(" ok!\n");
     
   LOG_DEBUG("ospf_test_rfc2328: Try computing intra route for each area on RT4...\n");
   fprintf(stdout, "\n");
-  node_ospf_intra_route(pNetworkRFC2328, pNodeRT4, uIGPDomain);
+  node_ospf_intra_route(pNodeRT4, pNetworkRFC2328, uIGPDomain);
   
   //TOTO ospf_node_rt_dump(options);
   OSPF_rt_dump(stdout, pNodeRT4->pOspfRT, NET_OSPF_RT_OPTION_ANY_AREA, 0);
@@ -578,7 +578,7 @@ int ospf_test_sample_net()
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_djk_test(): Computing Routing Table...");
-  node_ospf_intra_route_single_area(pNetwork, pNodeB1, BACKBONE_AREA, uIGPDomain);
+  node_ospf_intra_route_single_area(pNodeB1, pNetwork, uIGPDomain, BACKBONE_AREA);
   
   LOG_DEBUG(" ok!\n");
   OSPF_rt_dump(stdout, pNodeB1->pOspfRT, 0, 0);
