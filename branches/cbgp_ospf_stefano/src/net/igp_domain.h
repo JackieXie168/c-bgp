@@ -41,6 +41,8 @@ extern SIGPDomain * get_igp_domain(uint16_t uNumber);
 // ----- register_igp_domain ----------------------------------------
 extern void register_igp_domain(SIGPDomain * pDomain);
 
+// ----- register_igp_domain ----------------------------------------
+extern int igp_domain_contains_router(SIGPDomain * pDomain, SPrefix sPrefix);
 
 // ----- _domain_init -----------------------------------------------
 extern void _domain_init();
