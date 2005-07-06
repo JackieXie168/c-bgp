@@ -622,7 +622,7 @@ void OSPF_rt_info_list_dump(FILE * pStream, SOSPFRouteInfoList * pRouteInfoList,
 //     LOG_DEBUG("ci sono delle route per il prefisso\n");
     for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
 	 iIndex++) {
-      if (iOption & NET_OSPF_RT_OPTION_ANY_AREA) {
+      if (iOption & NET_OSPF_RT_OPTION_SORT_AREA) {
         if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea == tArea) {
           OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
           fprintf(pStream, "\n");
@@ -677,6 +677,7 @@ void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_area_t tArea)
     radix_tree_for_each((SRadixTree *) pRT, OSPF_rt_dump_for_each, &sDumpContext);
 #endif
 }
+
 
 
 
