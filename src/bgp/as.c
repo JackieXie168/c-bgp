@@ -904,7 +904,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 
   // Insert the route
   iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
-			     link_get_addr(pNextHopIf), 0, NET_ROUTE_BGP);
+			     link_get_address(pNextHopIf), 0, NET_ROUTE_BGP);
   if (iResult) {
     LOG_SEVERE("Error: could not add route\nError: ");
     rt_perror(stderr, iResult);
