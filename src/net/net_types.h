@@ -15,7 +15,7 @@
 #include <net/routing_t.h>
 
 typedef uint8_t   ospf_dest_type_t;
-typedef uint32_t   ospf_area_t;
+typedef uint32_t  ospf_area_t;
 typedef uint8_t   ospf_path_type_t;
 typedef SPtrArray next_hops_list_t;
 typedef SPtrArray SOSPFRouteInfoList;
@@ -79,11 +79,6 @@ typedef struct {
 } SNetLink;
 
 
-
-
-
-
-
 /*
    Assumption: pSubNet is valid only for destination type Subnet.
    The filed can be used only if pPrefix has a 32 bit netmask.
@@ -95,11 +90,21 @@ typedef struct {
   //TODO add advertising router
 } SOSPFNextHop;
 
+#define ospf_ri_route_type_is(N, T) ((N)->tType == T)
+#define ospf_ri_dest_type_is(N, T) ((N)->tOSPFDestinationType == T)
+#define ospf_ri_area_is(N, A) ((N)->tOSPFArea == A)
+#define ospf_ri_pathType_is(N, T) ((N)->tOSPFPathType == T)
+
+#define ospf_ri_get_area(R) ((R)->tOSPFArea)
+#define ospf_ri_get_prefix(R) ((R)->sPrefix)
+#define ospf_ri_get_weight(R) ((R)->uWeight)
+#define ospf_ri_get_pathType(R) ((R)->tOSPFPathType)
+#define ospf_ri_get_NextHops(R) ((R)->aNextHops)
 
 typedef struct {
   ospf_dest_type_t    tOSPFDestinationType;
   SPrefix             sPrefix;
-  uint32_t            uWeight;
+  net_link_delay_t    uWeight;
   ospf_area_t         tOSPFArea;
   ospf_path_type_t    tOSPFPathType;
   next_hops_list_t *  aNextHops;
