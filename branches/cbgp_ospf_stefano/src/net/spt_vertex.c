@@ -58,7 +58,7 @@ SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, SSptVertex
   if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER){
     SNetNode * pNode;
 //     fprintf(stdout, "creo vertex da router\n");
-    pNode = network_find_node(pNetwork, link_get_addr(pLink));
+    pNode = network_find_node(pNetwork, link_get_address(pLink));
     assert(pNode != NULL);
     pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + pLink->uIGPweight);
   }
@@ -277,7 +277,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   int iIndex = 0;
   int iOldVertexPos;
   SNetwork * pNetwork = pNode->pNetwork;
-//   SIGPDomain * pIGPDomain = get_igp_domain(IGPDomainNumber);
+  SIGPDomain * pIGPDomain = get_igp_domain(IGPDomainNumber);
   
 //   SNetSubnet * pSubnet = NULL;
   SPtrArray  * aLinks = NULL;
@@ -332,14 +332,14 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       
       //TODO network should belongs to isis???
       //ROUTER should belongs to ospf domain (check is not performed for network)
-//       if (sDestPrefix.uMaskLen == 32) {
-//         if (!igp_domain_contains_router(pIGPDomain, sDestPrefix)) {
-//           fprintf(stdout, "trovato router che non appartiene al dominio\n");
-// 	  ip_prefix_dump(stdout, sDestPrefix);
-// 	  fprintf(stdout, "\n");
-//           continue;
-//         }
-//       } 
+       if (sDestPrefix.uMaskLen == 32) {
+         if (!igp_domain_contains_router(pIGPDomain, sDestPrefix)) {
+//            fprintf(stdout, "trovato router che non appartiene al dominio\n");
+//  	  ip_prefix_dump(stdout, sDestPrefix);
+//  	  fprintf(stdout, "\n");
+           continue;
+         }
+       } 
       //check if vertex is in spt	
       pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
                                                           sDestPrefix.tNetwork, 

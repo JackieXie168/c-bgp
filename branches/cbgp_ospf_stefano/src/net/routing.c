@@ -146,7 +146,7 @@ void route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo)
 {
   ip_prefix_dump(pStream, pRouteInfo->sPrefix);
   fprintf(pStream, "\t");
-  ip_address_dump(pStream, link_get_addr(pRouteInfo->pNextHopIf));
+  ip_address_dump(pStream, link_get_address(pRouteInfo->pNextHopIf));
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
   route_type_dump(pStream, pRouteInfo->tType);
   if (!link_get_state(pRouteInfo->pNextHopIf, NET_LINK_FLAG_UP)) {
@@ -185,9 +185,9 @@ int rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
     return -1;
 
   // Tie-break: prefer route with lowest next-hop address
-  if (link_get_addr(pRI1->pNextHopIf) > link_get_addr(pRI2->pNextHopIf))
+  if (link_get_address(pRI1->pNextHopIf) > link_get_address(pRI2->pNextHopIf))
     return 1;
-  if (link_get_addr(pRI1->pNextHopIf) < link_get_addr(pRI2->pNextHopIf))
+  if (link_get_address(pRI1->pNextHopIf) < link_get_address(pRI2->pNextHopIf))
     return- 1;
   
   return 0;
