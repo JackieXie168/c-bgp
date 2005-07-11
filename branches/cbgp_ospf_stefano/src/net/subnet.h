@@ -41,7 +41,9 @@ int subnet_link_toNode(SNetSubnet * pSubnet, SNetNode * pNode);
 SPtrArray * subnet_get_links(SNetSubnet * pSubnet);
 // ----- subnet_destroy ---------------------------------------------------
 void subnet_destroy(SNetSubnet ** ppSubnet);
-
+// ----- subnets_compare -----------------------------------------
+int subnets_compare(void * pItem1, void * pItem2,
+		       unsigned int uEltSize);
 int subnet_test();
 #endif
 
