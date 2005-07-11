@@ -58,7 +58,7 @@ net_addr_t link_get_address(SNetLink * pLink)
   else 
   {
     SNetSubnet * pSubnet = (pLink->UDestId).pSubnet;
-    return pSubnet->pPrefix->tNetwork;// tAddr;
+    return (pSubnet->sPrefix).tNetwork;// tAddr;
   }
 }
 
@@ -83,8 +83,8 @@ void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix)
   }
   else 
   {
-    pPrefix->tNetwork = (pLink->UDestId).pSubnet->pPrefix->tNetwork;
-    pPrefix->uMaskLen = (pLink->UDestId).pSubnet->pPrefix->uMaskLen;// tAddr;
+    pPrefix->tNetwork = ((pLink->UDestId).pSubnet->sPrefix).tNetwork;
+    pPrefix->uMaskLen = ((pLink->UDestId).pSubnet->sPrefix).uMaskLen;// tAddr;
   }
 }
 // ----- link_set_type ---------------------------------------------
