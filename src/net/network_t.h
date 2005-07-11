@@ -25,6 +25,8 @@ typedef struct {
   SRadixTree * pNodes;
 #endif
   SPtrArray  * pDomains;
+  SPtrArray  * pSubnets; //Subnets are stored here only to have a single point to access 
+                         //to destroy them 
 } SNetwork;
 
 typedef struct {
@@ -37,12 +39,12 @@ typedef struct {
   SPtrArray * pLinks;
   SNetRT * pRT;
 #ifdef OSPF_SUPPORT
-  SUInt32Array * pOSPFAreas; 
-  SOSPFRT * pOspfRT; //OSPF routing table
-  SUInt16Array * pIGPDomains; //TODO define type for list of domains numbers
+  SUInt32Array  * pOSPFAreas; 
+  SOSPFRT       * pOspfRT;     //OSPF routing table
+  SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
 #endif
   SNetProtocols * pProtocols;
-  SNetDomain * pDomain;
+  SNetDomain    * pDomain;
 } SNetNode;
 
 // ----- node_links_compare -----------------------------------------
