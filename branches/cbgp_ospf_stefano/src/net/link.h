@@ -33,8 +33,8 @@
 
 
 
-// ----- link_get_addr ----------------------------------------
-extern net_addr_t link_get_addr(SNetLink * pLink);
+// ----- link_get_address ----------------------------------------
+net_addr_t link_get_address(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
 extern void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix);
 // ----- link_get_subnet ----------------------------------------
