@@ -102,7 +102,7 @@ SPtrArray * subnet_get_links(SNetSubnet * pSubnet)
 	 for (iIndexL = 0; iIndexL < ptr_array_length(pNode->pLinks); iIndexL++) {
 	   ptr_array_get_at(pNode->pLinks, iIndexL, &pLink);
 	   assert(pLink != NULL);
-	   if (link_get_addr(pLink) == pSubnet->pPrefix->tNetwork){
+	   if (link_get_address(pLink) == pSubnet->pPrefix->tNetwork){
 	     SNetLink * pNewLink        = create_link_toRouter(pNode);
 	     pNewLink->uDestinationType = NET_LINK_TYPE_ROUTER;
 	     pNewLink->uFlags           = pLink->uFlags;
@@ -191,12 +191,12 @@ int subnet_test(){
   
   
   SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
-  assert(link_get_addr(pLinkAC) == (tAddrC));
+  assert(link_get_address(pLinkAC) == (tAddrC));
   SNetLink * pLinkAB = node_find_link_to_router(pNodeA, tAddrB);
   assert(pLinkAB == NULL);
   
   SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
-  assert(link_get_addr(pLinkAS) == (pSubTx->pPrefix->tNetwork));
+  assert(link_get_address(pLinkAS) == (pSubTx->pPrefix->tNetwork));
   SNetLink * pLinkAS1 = node_find_link_to_subnet(pNodeA, pSubTx1);
   assert(pLinkAS1 == NULL);
   
@@ -303,6 +303,22 @@ int subnet_test(){
   
 //   LOG_DEBUG("stub-network links attached.\n");
   LOG_DEBUG("ok!\n");
+  
+  network_destroy(&pNetwork);
+  subnet_destroy(&pSubnetTB1);
+  subnet_destroy(&pSubnetTX1);
+  subnet_destroy(&pSubnetTY1);
+  subnet_destroy(&pSubnetTK1);
+  
+  subnet_destroy(&pSubnetSB1);
+  subnet_destroy(&pSubnetSB2);
+  subnet_destroy(&pSubnetSX1);
+  subnet_destroy(&pSubnetSX2);
+  subnet_destroy(&pSubnetSX3);
+  subnet_destroy(&pSubnetSK1);
+  subnet_destroy(&pSubnetSK2);
+  subnet_destroy(&pSubnetSK3);
+
   return 1;
 }
 
