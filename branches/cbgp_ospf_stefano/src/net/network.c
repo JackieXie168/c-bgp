@@ -23,6 +23,7 @@
 #include <net/net_path.h>
 #include <net/ospf.h>
 #include <net/ospf_rt.h>
+#include <net/subnet.h>
 #include <net/domain.h>
 #include <ui/output.h>
 #include <bgp/message.h>
@@ -351,6 +352,8 @@ SNetDomain * node_get_as(SNetNode * pNode)
   return pNode->pDomain;
 }
 
+
+
 // ----- node_create ------------------------------------------------
 /**
  *
@@ -387,8 +390,18 @@ void node_destroy(SNetNode ** ppNode)
   if (*ppNode != NULL) {
     rt_destroy(&(*ppNode)->pRT);
     protocols_destroy(&(*ppNode)->pProtocols);
-    ptr_array_destroy(&(*ppNode)->pLinks);
     ptr_array_destroy(&(*ppNode)->aInterfaces);
+    
+    //SUBNET MUST BE DESTROYED
+//     int iIndex;
+//     SNetLink * pLink;
+//     for (iIndex = 0; iIndex < ptr_array_length((*ppNode)->pLinks); iIndex++){
+//       ptr_array_get_at(&(*ppNode)->pLinks, iIndex, &pLink);
+//       if (link_check_type(pLink, NET_LINK_TYPE_TRANSIT) || link_check_type(pLink, NET_LINK_TYPE_STUB))
+//         subnet_destroy(&(link_get_subnet(pLink)));
+//     }
+    ptr_array_destroy(&(*ppNode)->pLinks);
+    
 #ifdef OSPF_SUPPORT
     _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
     OSPF_rt_destroy(&(*ppNode)->pOspfRT);
@@ -416,7 +429,7 @@ int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 
   //pLink->tAddr= pNodeB->tAddr;
   pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
+  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;//NET_LINK_FLAG_IGP_ADV OBSOLETE 
   pLink->uIGPweight= tDelay;
   pLink->pContext= NULL;
   pLink->fForward= NULL;
@@ -493,6 +506,7 @@ SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
 
   if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[iIndex];
+  link_destroy(&wrapLink);
   return pLink;
 }
 
@@ -510,7 +524,7 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
   if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[iIndex];
   
-  //FREE(pPrefix);
+  link_destroy(&wrapLink);
   return pLink;
 }
 
@@ -844,6 +858,12 @@ void network_domains_destroy(void * pItem)
     domain_destroy((SNetDomain **)pItem);
 }
 
+// ----- network_subnets_destroy -----------------------------------------
+void network_subnets_destroy(void * pItem)
+{
+  subnet_destroy(((SNetSubnet **) pItem));
+}
+
 // ----- network_create ---------------------------------------------
 /**
  *
@@ -858,6 +878,9 @@ SNetwork * network_create()
   pNetwork->pNodes= radix_tree_create(32, network_nodes_destroy);
 #endif
   pNetwork->pDomains = NULL;
+  pNetwork->pSubnets = ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
+                                        subnets_compare,
+					network_subnets_destroy);
   return pNetwork;
 }
 
@@ -874,6 +897,7 @@ void network_destroy(SNetwork ** ppNetwork)
     radix_tree_destroy(&(*ppNetwork)->pNodes);
 #endif
     ptr_array_destroy(&(*ppNetwork)->pDomains);
+    ptr_array_destroy(&(*ppNetwork)->pSubnets);
     FREE(*ppNetwork);
     *ppNetwork= NULL;
   }
@@ -903,6 +927,16 @@ int network_add_node(SNetwork * pNetwork, SNetNode * pNode)
 #else
   return radix_tree_add(pNetwork->pNodes, pNode->tAddr, 32, pNode);
 #endif
+}
+
+// ----- network_add_subnet -------------------------------------------
+/**
+ *
+ */
+int network_add_subnet(SNetwork * pNetwork, SNetSubnet * pSubnet)
+{
+//   pNode->pNetwork = pSubnet; //NO FOR NOW
+  return ptr_array_add(pNetwork->pSubnets, &pSubnet);
 }
 
 // ----- network_find_node ------------------------------------------

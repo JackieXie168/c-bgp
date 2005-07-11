@@ -170,6 +170,8 @@ extern SNetwork * network_get();
 // ----- network_add_node -------------------------------------------
 extern int network_add_node(SNetwork * pNetwork,
 			    SNetNode * pNode);
+// ----- network_add_subnet -------------------------------------------
+extern int network_add_subnet(SNetwork * pNetwork, SNetSubnet * pSubnet);
 // ----- network_find_node ------------------------------------------
 extern SNetNode * network_find_node(SNetwork * pNetwork,
 				    net_addr_t tAddr);
