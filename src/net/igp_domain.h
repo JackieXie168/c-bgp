@@ -45,9 +45,10 @@ extern void register_igp_domain(SIGPDomain * pDomain);
 extern int igp_domain_contains_router(SIGPDomain * pDomain, SPrefix sPrefix);
 
 // ----- _domain_init -----------------------------------------------
-extern void _domain_init();
+extern void _IGPdomain_init();
 // ----- _domain_destroy --------------------------------------------
-extern void _domain_destroy();
+extern void _IGPdomain_destroy();
+
 // ----- IGPdomain_test() --------------------------------------------
 extern int IGPdomain_test();
 #endif
