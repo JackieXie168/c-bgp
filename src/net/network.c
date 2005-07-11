@@ -171,9 +171,9 @@ int node_links_compare(void * pItem1, void * pItem2,
 //         LOG_DEBUG("i link sono dello stesso tipo...\n");
     if (pLink1->uDestinationType == NET_LINK_TYPE_ROUTER) {
 //     LOG_DEBUG("...verso router\n");
-      if (link_get_addr(pLink1) < link_get_addr(pLink2))
+      if (link_get_address(pLink1) < link_get_address(pLink2))
         return -1;
-      else if (link_get_addr(pLink1) > link_get_addr(pLink2))
+      else if (link_get_address(pLink1) > link_get_address(pLink2))
         return 1;
       else
         return 0;
@@ -946,7 +946,7 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 
   if (pLink->fForward == NULL) {
     // Node lookup: O(log(n))
-    pNextHop= network_find_node(pNetwork, link_get_addr(pLink));
+    pNextHop= network_find_node(pNetwork, link_get_address(pLink));
     assert(pNextHop != NULL);
     
     // Forward to node...
@@ -958,7 +958,7 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 				 0, RELATIVE_TIME));
     return NET_SUCCESS;
   } else {
-    return pLink->fForward(link_get_addr(pLink), pLink->pContext, pMessage);
+    return pLink->fForward(link_get_address(pLink), pLink->pContext, pMessage);
   }
 }
 
@@ -975,7 +975,7 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
        iLinkIndex++) {
 	  pLink= (SNetLink *) pNode->pLinks->data[iLinkIndex];
 	  fprintf(pStream, "%d\t%d\t%u\n",
-		  pNode->tAddr, link_get_addr(pLink), pLink->tDelay);
+		  pNode->tAddr, link_get_address(pLink), pLink->tDelay);
   }
   return 0;
 }
@@ -1065,12 +1065,12 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
     for (iIndex= 0; iIndex < ptr_array_length(pNode->pLinks);
 	 iIndex++) {
       pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-      if (radix_tree_get_exact(pVisited, link_get_addr(pLink), 32) == NULL) {
+      if (radix_tree_get_exact(pVisited, link_get_address(pLink), 32) == NULL) {
 	pContext= (SContext *) MALLOC(sizeof(SContext));
-	pContext->tAddr= link_get_addr(pLink);
+	pContext->tAddr= link_get_address(pLink);
 	pContext->pPath= net_path_copy(pOldContext->pPath);
-	net_path_append(pContext->pPath, link_get_addr(pLink));
-	radix_tree_add(pVisited, link_get_addr(pLink), 32,
+	net_path_append(pContext->pPath, link_get_address(pLink));
+	radix_tree_add(pVisited, link_get_address(pLink), 32,
 		       net_path_copy(pContext->pPath));
 	assert(fifo_push(pFIFO, pContext) == 0);
       }
@@ -1273,7 +1273,7 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
 
       }
 
-      pCurrentNode= network_find_node(pNode->pNetwork, link_get_addr(pLink));
+      pCurrentNode= network_find_node(pNode->pNetwork, link_get_address(pLink));
       
     }
 

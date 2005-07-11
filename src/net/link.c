@@ -50,8 +50,8 @@ SNetLink * create_link_toRouter_byAddr(net_addr_t tAddr)
   return pLink;
 }
 
-// ----- link_get_addr ----------------------------------------
-net_addr_t link_get_addr(SNetLink * pLink)
+// ----- link_get_address ----------------------------------------
+net_addr_t link_get_address(SNetLink * pLink)
 {
   if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER )
     return (pLink->UDestId).tAddr;
@@ -139,7 +139,7 @@ SNetSubnet * link_get_subnet(SNetLink * pLink){
 // ----- link_dump --------------------------------------------------
 void link_dump(FILE * pStream, SNetLink * pLink)
 {
-  ip_address_dump(pStream, link_get_addr(pLink));
+  ip_address_dump(pStream, link_get_address(pLink));
   if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER)
     fprintf(pStream, "\tTO ROUTER");
   else if (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT)

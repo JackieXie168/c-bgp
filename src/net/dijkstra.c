@@ -84,24 +84,24 @@ SRadixTree * dijkstra(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	 - the end-point belongs to the given prefix */
       if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) &&
 	  link_get_state(pLink, NET_LINK_FLAG_UP) &&
-	  ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(link_get_addr(pLink), sPrefix)) ||
+	  ((!NET_OPTIONS_IGP_INTER && ip_address_in_prefix(link_get_address(pLink), sPrefix)) ||
 	   (NET_OPTIONS_IGP_INTER && ip_address_in_prefix(pNode->tAddr, sPrefix)))) {
 
 	pInfo=
-	  (SDijkstraInfo *) radix_tree_get_exact(pVisited, link_get_addr(pLink), 32);
+	  (SDijkstraInfo *) radix_tree_get_exact(pVisited, link_get_address(pLink), 32);
 	if ((pInfo == NULL) ||
 	    (pInfo->uIGPweight > pOldContext->uIGPweight+pLink->uIGPweight)) {
 	  pContext= (SContext *) MALLOC(sizeof(SContext));
-	  pContext->tAddr= link_get_addr(pLink);
+	  pContext->tAddr= link_get_address(pLink);
 	  if (pOldContext->tNextHop == tSrcAddr)
-	    pContext->tNextHop= link_get_addr(pLink);
+	    pContext->tNextHop= link_get_address(pLink);
 	  else
 	    pContext->tNextHop= pOldContext->tNextHop;
 	  pContext->uIGPweight= pOldContext->uIGPweight+pLink->uIGPweight;
 	  if (pInfo == NULL) {
 	    pInfo= dijkstra_info_create(pOldContext->uIGPweight+pLink->uIGPweight);
 	    pInfo->tNextHop= pContext->tNextHop;
-	    radix_tree_add(pVisited, link_get_addr(pLink), 32, pInfo);
+	    radix_tree_add(pVisited, link_get_address(pLink), 32, pInfo);
 	  } else {
 	    pInfo->uIGPweight= pOldContext->uIGPweight+pLink->uIGPweight;
 	    pInfo->tNextHop= pOldContext->tNextHop;
