@@ -20,6 +20,8 @@ typedef uint8_t   ospf_path_type_t;
 typedef SPtrArray next_hops_list_t;
 typedef SPtrArray SOSPFRouteInfoList;
 
+typedef SPtrArray links_list_t;
+
 //////////////////////////////////////////////////////////////////////
 ////// Subnet type definition
 //////////////////////////////////////////////////////////////////////
@@ -31,10 +33,11 @@ typedef SPtrArray SOSPFRouteInfoList;
 */
 typedef struct {
   //net_addr_t tAddr;
-  SPrefix     * pPrefix;
-  uint8_t      uType;
-  ospf_area_t  uOSPFArea;	/*we have only an area for a network*/
-  SPtrArray *  aNodes;   /*links towards all the router on the subnet*/
+  SPrefix        sPrefix;
+  uint8_t        uType;
+  ospf_area_t    uOSPFArea;	/*we have only an area for a network*/
+//   SPtrArray *  aNodes;   /*links towards all the router on the subnet*/
+  links_list_t * pLinks;     /*links towards routers*/
 } SNetSubnet;
 
 
@@ -49,7 +52,7 @@ typedef uint32_t net_link_delay_t;
 #else
 typedef double net_link_delay_t;
 #endif
-typedef SPtrArray links_list_t;
+
 
 typedef int (*FNetLinkForward)(net_addr_t tDstAddr, void * pContext,
 			       SNetMessage * pMsg);
