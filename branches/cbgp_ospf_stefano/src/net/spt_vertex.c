@@ -127,7 +127,7 @@ SPrefix spt_vertex_get_prefix(SSptVertex * pVertex)
 
   }
   else {
-    p = *(((SNetSubnet *)(pVertex->pObject))->pPrefix);
+    p = (((SNetSubnet *)(pVertex->pObject))->sPrefix);
   }
   return p;
 }
@@ -430,9 +430,10 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
     }//end for on links
     
     //links for subnet are dinamically created and MUST be removed
-    if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
-        pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
-	ptr_array_destroy(&aLinks);
+    //NOW LINKS ON SUBNET ARE STATICS
+//     if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
+//         pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
+// 	ptr_array_destroy(&aLinks);
     //select node with smallest weight to add to spt
     pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
   }
