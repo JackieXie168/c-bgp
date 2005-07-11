@@ -16,14 +16,6 @@
 // #define NO_AREA	      0xffffffff //can be a problem! 
 #define BACKBONE_AREA 0
 
-#define OSPF_DESTINATION_TYPE_NETWORK 0
-#define OSPF_DESTINATION_TYPE_ROUTER  1
-
-
-
-
-
-
 // ----- ospf test function --------------------------------------------
 extern int ospf_test();
 
@@ -38,7 +30,7 @@ extern int node_is_BorderRouter(SNetNode * pNode);
 extern int node_is_InternalRouter(SNetNode * pNode);
 // ----- node_ospf_rt_add_route --------------------------------------------
 extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tOSPFDestinationType,
-                       SPrefix        sPrefix,   uint32_t          uWeight,
+                       SPrefix        sPrefix,   net_link_delay_t        uWeight,
 		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
 		       next_hops_list_t * pNHList);
 // ----- node_belongs_to_area -----------------------------------------------
