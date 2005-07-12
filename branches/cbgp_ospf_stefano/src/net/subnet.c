@@ -43,6 +43,9 @@ SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen, uint8_t uType)
 void subnet_destroy(SNetSubnet ** ppSubnet)
 {
   if (*ppSubnet != NULL) {
+//     fprintf(stdout, "destroing subnet: ");
+//     ip_prefix_dump(stdout, *(subnet_get_prefix(*ppSubnet)));
+//     fprintf(stdout, "\n");
     ptr_array_destroy(&(*ppSubnet)->pLinks);
     FREE(*ppSubnet);
     *ppSubnet= NULL;
@@ -281,7 +284,9 @@ int subnet_test(){
   
   assert(!network_add_subnet(pNetwork, pSubnetTB1));
   assert(!network_add_subnet(pNetwork, pSubnetTX1));
+  assert(!network_add_subnet(pNetwork, pSubnetTY1));
   assert(!network_add_subnet(pNetwork, pSubnetTK1));
+  
   assert(!network_add_subnet(pNetwork, pSubnetSB1));
   assert(!network_add_subnet(pNetwork, pSubnetSB2));
   assert(!network_add_subnet(pNetwork, pSubnetSX1));

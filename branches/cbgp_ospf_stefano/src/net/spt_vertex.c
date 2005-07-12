@@ -84,7 +84,10 @@ void spt_vertex_destroy(SSptVertex ** ppVertex){
       ptr_array_destroy(&((*ppVertex)->aSubnets));
     if ((*ppVertex)->sons != NULL)
       ptr_array_destroy(&((*ppVertex)->sons));
+    if ((*ppVertex)->fathers != NULL)
+      ptr_array_destroy(&((*ppVertex)->fathers));
     FREE(*ppVertex);
+     
     *ppVertex = NULL;
   }    
 }
@@ -92,7 +95,7 @@ void spt_vertex_destroy(SSptVertex ** ppVertex){
 // ----- spt_vertex_dst ---------------------------------------
 void spt_vertex_dst(void ** ppItem){
   SSptVertex * pVertex = *((SSptVertex **)(ppItem));
-  spt_vertex_destroy(&pVertex);    
+  spt_vertex_destroy(&pVertex); 
 }
 
 
@@ -222,7 +225,7 @@ int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
  * Calculates next hop as explained in RFC2328 (p. 167)
  */
  
-//TODO write functions for next hop
+//TODO write macro for next hop
 void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent, 
                                       SSptVertex * pDestination, SNetLink * pLink){
   SOSPFNextHop * pNH = NULL, * pNHCopy = NULL;
@@ -263,12 +266,11 @@ int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink){
 /**
  * Compute the Shortest Path Tree from the given source router
  * towards all the other routers that belong to the given prefix.
- * TODO 2. consider ospf domain (set of router)
- *      3. improve computation 
+ * TODO 3. improve computation 
  *
  * PREREQUISITE:
  *      1. igp domain MUST exist
- *      2. ospf areas are setted right
+ *      2. ospf areas are right
  */
 SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea)
 {
@@ -330,7 +332,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       
       link_get_prefix(pCurrentLink, &sDestPrefix);
       
-      //TODO network should belongs to isis???
+      //TODO network should belongs to igpDomain
       //ROUTER should belongs to ospf domain (check is not performed for network)
        if (sDestPrefix.uMaskLen == 32) {
          if (!igp_domain_contains_router(pIGPDomain, sDestPrefix)) {
@@ -437,6 +439,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
     //select node with smallest weight to add to spt
     pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
   }
+  ptr_array_destroy(&aGrayVertexes);
   return pSpt;
 }
 
@@ -601,5 +604,6 @@ void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
   fprintf(pStream, "digraph G {\n");
   visit_vertex_dot(pRadix, pcRootPrefix, pVisited, 0, pStream);
   fprintf(pStream, "}\n");
+  radix_tree_destroy(&pVisited);
 }
 
