@@ -209,6 +209,8 @@ int IGPdomain_test(){
   
   LOG_DEBUG("test_igp_domain(): destroy domain... ");
   _IGPdomain_destroy();  
+  node_destroy(&pNode1);
+  node_destroy(&pNode2);
   LOG_DEBUG("done!");
   LOG_DEBUG("test_igp_domain(): DONE!\n");
   return 1;

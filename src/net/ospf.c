@@ -547,7 +547,7 @@ int node_ospf_inter_route(SNetNode * pNode, uint16_t uIGPDomain)
 //     node_dump(pCurrentBR);
 //     ospf_build_inter_area_route_from_BR(pNode, pCurrentBR);
 //   }   
-//   ptr_array_destroy(&paReachableBR);
+  ptr_array_destroy(&paReachableBR);
   return iResult; 
 }
  
@@ -813,6 +813,7 @@ int ospf_test_rfc2328()
   LOG_DEBUG(" done.\n");
   
   LOG_DEBUG("ospf_test_rfc2328(): Creating igp domain...");
+  _IGPdomain_init();  
   uint16_t uIGPDomain = 10;
   SIGPDomain * pIGPDomain = get_igp_domain(uIGPDomain); //creating and registering domain
   igp_domain_add_router(pIGPDomain, pNodeRT1);
@@ -831,17 +832,17 @@ int ospf_test_rfc2328()
   
 //   LOG_DEBUG("ospf_test_rfc2328: Computing SPT for RT4 (.dot output in spt.dot)...");
   
-//   SRadixTree * pSpt = node_ospf_compute_spt(pNodeRT4, uIGPDomain, BACKBONE_AREA);
-//   FILE * pOutDump = fopen("spt.RFC2328.backbone.dot", "w");
-//   spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
-//   fclose(pOutDump);
-//   radix_tree_destroy(&pSpt);
+//      SRadixTree * pSpt = node_ospf_compute_spt(pNodeRT4, uIGPDomain, BACKBONE_AREA);
+//     FILE * pOutDump = fopen("spt.RFC2328.backbone.dot", "w");
+//     spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
+//     fclose(pOutDump);
+//      radix_tree_destroy(&pSpt);
   
-//   pSpt = node_ospf_compute_spt(pNodeRT4, uIGPDomain, 1);
-//   pOutDump = fopen("spt.RFC2328.1.dot", "w");
-//   spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
-//   fclose(pOutDump);
-//   radix_tree_destroy(&pSpt);
+//    pSpt = node_ospf_compute_spt(pNodeRT4, uIGPDomain, 1);
+//    pOutDump = fopen("spt.RFC2328.1.dot", "w");
+//    spt_dump_dot(pOutDump, pSpt, pNodeRT4->tAddr);
+//    fclose(pOutDump);
+//    radix_tree_destroy(&pSpt);
   
 //   LOG_DEBUG(" ok!\n");
   
@@ -891,7 +892,7 @@ int ospf_test_rfc2328()
      LOG_DEBUG(" ok!\n");
      
      LOG_DEBUG("Try to build INTER-AREA route only for intra router...");
-     assert(node_ospf_build_inter_route_ir_only(uIGPDomain) >= 0);
+//      assert(node_ospf_build_inter_route_ir_only(uIGPDomain) >= 0);
      LOG_DEBUG(" ok!\n");
      
 //   LOG_DEBUG(" ok!\n");
@@ -909,6 +910,7 @@ int ospf_test_rfc2328()
   subnet_destroy(&pSubnetTN9);
   subnet_destroy(&pSubnetSN10);
   subnet_destroy(&pSubnetSN11);*/
+  _IGPdomain_destroy();  
   network_destroy(&pNetworkRFC2328);
   return 1;
 }
@@ -1133,6 +1135,23 @@ int ospf_info_test() {
   assert(!network_add_node(pNetwork, pNodeK2));
   assert(!network_add_node(pNetwork, pNodeK3));
   
+  assert(!network_add_subnet(pNetwork, pSubnetTB1));
+  assert(!network_add_subnet(pNetwork, pSubnetTX1));
+  assert(!network_add_subnet(pNetwork, pSubnetTY1));
+  assert(!network_add_subnet(pNetwork, pSubnetTK1));
+  
+  assert(!network_add_subnet(pNetwork, pSubnetSB1));
+  assert(!network_add_subnet(pNetwork, pSubnetSB2));
+  assert(!network_add_subnet(pNetwork, pSubnetSX1));
+  assert(!network_add_subnet(pNetwork, pSubnetSX2));
+  assert(!network_add_subnet(pNetwork, pSubnetSX3));
+  assert(!network_add_subnet(pNetwork, pSubnetSY1));
+  assert(!network_add_subnet(pNetwork, pSubnetSY2));
+  assert(!network_add_subnet(pNetwork, pSubnetSY3));
+  assert(!network_add_subnet(pNetwork, pSubnetSK1));
+  assert(!network_add_subnet(pNetwork, pSubnetSK2));
+  assert(!network_add_subnet(pNetwork, pSubnetSK3));
+  
   LOG_DEBUG("nodes attached.\n");
 
   assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
@@ -1261,6 +1280,8 @@ int ospf_info_test() {
     
   assert(subnet_is_transit(pSubnetTK1));
   assert(!subnet_is_stub(pSubnetTK1));
+  
+  network_destroy(&pNetwork);
   return 1; 
 }
 
@@ -1274,18 +1295,17 @@ int ospf_test()
   subnet_test();
   LOG_DEBUG("all info OSPF methods tested ... they seem ok!\n");
   
-  ospf_info_test();
-  LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
+   ospf_info_test();
+   LOG_DEBUG("all subnet OSPF methods tested ... they seem ok!\n");
   
-  ospf_rt_test();
-  LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
+   ospf_rt_test();
+   LOG_DEBUG("all routing table OSPF methods tested ... they seem ok!\n");
  
-  IGPdomain_test();
-  LOG_DEBUG("all IGPDomain methods tested... seem ok!\n");
+   IGPdomain_test();
+   LOG_DEBUG("all IGPDomain methods tested... seem ok!\n");
    
-//   ospf_test_sample_net();
-//   LOG_DEBUG("test on sample network... seem ok!\n");
-
+//    ospf_test_sample_net();
+//    LOG_DEBUG("test on sample network... seem ok!\n");
   
    ospf_test_rfc2328();
    LOG_DEBUG("test on sample network in RFC2328... seems ok!\n");
