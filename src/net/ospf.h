@@ -13,8 +13,16 @@
 #include <net/subnet.h>
 #include <net/link.h>
 
-// #define NO_AREA	      0xffffffff //can be a problem! 
+#define OSPF_NO_AREA	      0xffffffff 
 #define BACKBONE_AREA 0
+
+//First is only a warning
+#define OSPF_LINK_TO_MYSELF_NOT_IN_AREA    -1 
+#define OSPF_SOURCE_NODE_NOT_IN_AREA       -2
+#define OSPF_DEST_NODE_NOT_IN_AREA         -3
+#define OSPF_DEST_SUBNET_NOT_IN_AREA       -4
+#define OSPF_SOURCE_NODE_LINK_MISSING      -5
+
 
 // ----- ospf test function --------------------------------------------
 extern int ospf_test();
