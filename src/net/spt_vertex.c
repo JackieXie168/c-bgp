@@ -13,6 +13,7 @@
 #include <net/spt_vertex.h>
 #include <net/ospf.h>
 #include <net/igp_domain.h>
+#include <net/link.h>
 #include <string.h>
 
 
@@ -312,8 +313,13 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       /* Consider only the links that have the following properties:
 	 - NET_LINK_FLAG_UP (the link must be UP)
 	 - the end-point belongs to the given prefix */
-      if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)))
+      if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)) || 
+          !(link_belongs_to_area(pCurrentLink, tArea))){
+	  fprintf(stdout, "AREA %d - LINK ", tArea);
+	  link_dump(stdout, pCurrentLink);
+	  fprintf(stdout, "\n");
         continue;
+      }
 
 //       debug...
 //       fprintf(stdout, "ospf_djk(): current Link is ");
@@ -324,16 +330,15 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       //first time consider only Transit Link... but we store subnet in a list
       //so we have not to recheck all the links durign routing table computation
       //TODO write macro link_to_subnet , link_is_towards_stub
-      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB &&
-          subnet_belongs_to_area(link_get_subnet(pCurrentLink), tArea)){
+      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB /*&&
+          subnet_belongs_to_area(link_get_subnet(pCurrentLink), tArea)*/){
         spt_vertex_add_subnet(pCurrentVertex, pCurrentLink);
         continue;
       }
       
       link_get_prefix(pCurrentLink, &sDestPrefix);
       
-      //TODO network should belongs to igpDomain
-      //ROUTER should belongs to ospf domain (check is not performed for network)
+      //ROUTER should belongs to ospf domain 
        if (sDestPrefix.uMaskLen == 32) {
          if (!igp_domain_contains_router(pIGPDomain, sDestPrefix)) {
 //            fprintf(stdout, "trovato router che non appartiene al dominio\n");
@@ -373,7 +378,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       
       if (pOldVertex == NULL){
 //         fprintf(stdout, "vertex da aggiungere\n");
- 	if (spt_vertex_belongs_to_area(pNewVertex, tArea)){
+//         if (spt_vertex_belongs_to_area(pNewVertex, tArea)){
           spt_calculate_next_hop(pRootVertex, pCurrentVertex, pNewVertex, pCurrentLink);
         
 	  ptr_array_add(aGrayVertexes, &pNewVertex);
@@ -382,9 +387,9 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   	  ptr_array_add(pCurrentVertex->sons, &pNewVertex);
 	  ptr_array_add(pNewVertex->fathers, &pCurrentVertex);
 	  //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
- 	}
- 	else
- 	  spt_vertex_destroy(&pNewVertex);
+// }
+//  	else
+//  	  spt_vertex_destroy(&pNewVertex);
 	
       }
       else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
@@ -604,6 +609,6 @@ void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
   fprintf(pStream, "digraph G {\n");
   visit_vertex_dot(pRadix, pcRootPrefix, pVisited, 0, pStream);
   fprintf(pStream, "}\n");
-  radix_tree_destroy(&pVisited);
+  radix_tree_destroy(&pVisited			);
 }
 
