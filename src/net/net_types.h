@@ -14,6 +14,8 @@
 #include <net/message.h>
 #include <net/routing_t.h>
 
+#define OSPF_SUPPORT
+
 typedef uint8_t   ospf_dest_type_t;
 typedef uint32_t  ospf_area_t;
 typedef uint8_t   ospf_path_type_t;
@@ -71,12 +73,15 @@ typedef union {
 } UDestinationId;
 
 typedef struct {
-  uint8_t uDestinationType;    /* TNET_LINK_TYPE_ROUTER , NET_LINK_TYPE_TRANSIT, NET_LINK_TYPE_STUB */
+  uint8_t uDestinationType;    /* NET_LINK_TYPE_ROUTER , NET_LINK_TYPE_TRANSIT, NET_LINK_TYPE_STUB */
   //net_addr_t tAddr;
   UDestinationId UDestId;      /* depends on uDestinationType*/
   net_link_delay_t tDelay;
   uint8_t          uFlags;
   uint32_t         uIGPweight;      // Store IGP weight here
+  #ifdef OSPF_SUPPORT
+  ospf_area_t      tArea;  
+  #endif
   void * pContext;
   FNetLinkForward fForward;
 } SNetLink;
