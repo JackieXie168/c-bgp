@@ -29,10 +29,21 @@
 #define NET_LINK_TYPE_ROUTER   0
 #define NET_LINK_TYPE_TRANSIT  1
 #define NET_LINK_TYPE_STUB     2
+#define NET_LINK_TYPE_ANY      2
 
+#define link_is_to_node(L)           (L->uDestinationType == NET_LINK_TYPE_ROUTER)
+#define link_belongs_to_area(L, A)   ((L)->tArea == A)
 
-
-
+// ----- create_link_Router -----------------------------------------
+extern SNetLink * create_link_toRouter(SNetNode * pNode);
+// ----- create_link_Router -----------------------------------------
+extern SNetLink * create_link_toRouter_byAddr(net_addr_t tAddr);
+// ----- create_link_Subnet -----------------------------------------
+extern SNetLink * create_link_toSubnet(SNetSubnet * pSubnet);
+// ----- create_link_toAny -----------------------------------------
+extern SNetLink * create_link_toAny(SPrefix * pPrefix);
+// ----- link_destroy -----------------------------------------------
+extern void link_destroy(SNetLink ** ppLink);
 // ----- link_get_address ----------------------------------------
 net_addr_t link_get_address(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
@@ -55,15 +66,9 @@ extern uint32_t link_get_igp_weight(SNetLink * pLink);
 extern void link_dump(FILE * pStream, SNetLink * pLink);
 
 
+// ----- link_ospf_set_area ---------------------------------------------
+extern void link_ospf_set_area(SNetLink * pLink, ospf_area_t tArea);
 
 
-// ----- create_link_Router -----------------------------------------
-extern SNetLink * create_link_toRouter(SNetNode * pNode);
-// ----- create_link_Router -----------------------------------------
-extern SNetLink * create_link_toRouter_byAddr(net_addr_t tAddr);
-// ----- create_link_Subnet -----------------------------------------
-extern SNetLink * create_link_toSubnet(SNetSubnet * pSubnet);
-// ----- link_destroy -----------------------------------------------
-extern void link_destroy(SNetLink ** ppLink);
 
 #endif
