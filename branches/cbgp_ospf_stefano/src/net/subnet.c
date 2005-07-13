@@ -134,21 +134,6 @@ int subnet_link_toNode(SNetSubnet * pSubnet, SNetNode * pNode){
   pNewLink->fForward= NULL;
   
   return ptr_array_add(pSubnet->pLinks, &pNewLink);
-  /*this is to dinamically set transit node... for now we require that 
-    transit node are known at start time
-    this can be interesting to model link failure that cause a transformation from
-    stub network to transit network
-    */
-  /*  if (subnet_is_transit(pSubnet) && pLink->uDestinationType != NET_LINK_TYPE_TRANSIT){ //count number of router on the network
-     SNetLink * pLink = node_find_link(SNetNode * pNode, net_addr_t tAddr);
-     if (pLink == NULL)
-       return 0;
-     else {
-       pLink->uDestinationType = NET_LINK_TYPE_TRANSIT;
-       return 1;
-     }
-    }
-  return 0;*/
 }
 
 // ----- subnet_getAddr --------------------------------------------------
