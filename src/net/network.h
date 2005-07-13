@@ -30,10 +30,6 @@
 #include <net/routing.h>
 #include <sim/simulator.h>
 
-
-
-
-
 #define NET_SUCCESS                0
 #define NET_ERROR_UNKNOWN_PROTOCOL -1
 #define NET_ERROR_NO_ROUTE_TO_HOST -2
@@ -72,6 +68,8 @@ char * node_get_name(SNetNode * pNode);
 SNetDomain * node_get_as(SNetNode * pNode);
 // ----- node_get_as ------------------------------------------------
 uint32_t node_get_as_id(SNetNode * pNode);
+// ----- node_get_prefix----------------------------------------------
+void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix);
 // ----- node_set_as ------------------------------------------------
 void node_set_as(SNetNode * pNode, SNetDomain * pDomain);
 // ----- node_interface_add -----------------------------------------
@@ -96,6 +94,8 @@ extern int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
 extern SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr);
 // ----- node_find_link_to_subnet -------------------------------------------------
 extern SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet);
+// ----- node_find_link -------------------------------------------------
+extern SNetLink * node_find_link(SNetNode * pNode, SPrefix * pPrefix);
 // ----- node_post_event --------------------------------------------
 extern int node_post_event(SNetNode * pNode);
 
