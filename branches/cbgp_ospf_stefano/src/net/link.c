@@ -2,7 +2,7 @@
 // @(#)link.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
-//         Stefano Iasi (stefanoia@tin.it)
+//         Stefano Iasi  (stefanoia@tin.it)
 // @date 24/02/2004
 // @lastdate 01/07/2005
 // ==================================================================
@@ -14,7 +14,9 @@
 #include <net/net_types.h>
 #include <net/subnet.h>
 #include <net/link.h>
+#include <net/ospf.h>
 #include <libgds/memory.h>
+
 
 
 /////////////////////////////////////////////////////////////////////
@@ -26,6 +28,13 @@ SNetLink * create_link_toRouter(SNetNode * pNode)
   SNetLink * pLink= (SNetLink *) MALLOC(sizeof(SNetLink));
   pLink->uDestinationType = NET_LINK_TYPE_ROUTER;
   (pLink->UDestId).tAddr = pNode->tAddr;   
+  //manage other fields
+  pLink->pContext = NULL;
+  pLink->fForward = NULL;
+  #ifdef OSPF_SUPPORT
+  pLink->tArea = OSPF_NO_AREA;  
+  #endif
+  
   return pLink;
 }
 
@@ -38,15 +47,35 @@ SNetLink * create_link_toSubnet(SNetSubnet * pSubnet)
   else 
     pLink->uDestinationType = NET_LINK_TYPE_STUB;
   (pLink->UDestId).pSubnet = pSubnet;
+  //manage other fields
+  pLink->pContext = NULL;
+  pLink->fForward = NULL;
+  #ifdef OSPF_SUPPORT
+  pLink->tArea = OSPF_NO_AREA;  
+  #endif
   return pLink;
 }
 
+// ----- create_link_toAny ----------------------------------------
+SNetLink * create_link_toAny(SPrefix * pPrefix)
+{
+  SNetLink * pLink = (SNetLink *) MALLOC(sizeof(SNetLink));
+  pLink->uDestinationType = NET_LINK_TYPE_ANY;
+  (pLink->UDestId).pSubnet = subnet_create(pPrefix->tNetwork, pPrefix->uMaskLen, NET_SUBNET_TYPE_TRANSIT);
+  return pLink;
+}
 //  ----- create_link_toRouter_byAddr ----------------------------------------
 SNetLink * create_link_toRouter_byAddr(net_addr_t tAddr)
 {
   SNetLink * pLink= (SNetLink *) MALLOC(sizeof(SNetLink));
   pLink->uDestinationType = NET_LINK_TYPE_ROUTER;
   (pLink->UDestId).tAddr = tAddr;
+  //manage other fields
+  pLink->pContext = NULL;
+  pLink->fForward = NULL;
+  #ifdef OSPF_SUPPORT
+  pLink->tArea = OSPF_NO_AREA;  
+  #endif
   return pLink;
 }
 
@@ -63,12 +92,11 @@ net_addr_t link_get_address(SNetLink * pLink)
 }
 
 // ----- link_destroy -----------------------------------------------
-/*
- *
- */
 void link_destroy(SNetLink ** ppLink)
 {
   if (*ppLink != NULL) {
+    if ((*ppLink)->uDestinationType == NET_LINK_TYPE_ANY)
+      subnet_destroy(&(((*ppLink)->UDestId).pSubnet));
     FREE(*ppLink);
     *ppLink= NULL;
   }
@@ -103,9 +131,6 @@ void link_set_state(SNetLink * pLink, uint8_t uFlag, int iState)
 }
 
 // ----- link_get_state ---------------------------------------------
-/**
- *
- */
 int link_get_state(SNetLink * pLink, uint8_t uFlag)
 {
   return (pLink->uFlags & uFlag) != 0;
@@ -136,6 +161,7 @@ SNetSubnet * link_get_subnet(SNetLink * pLink){
   return NULL;
 }
 
+
 // ----- link_dump --------------------------------------------------
 void link_dump(FILE * pStream, SNetLink * pLink)
 {
@@ -148,15 +174,20 @@ void link_dump(FILE * pStream, SNetLink * pLink)
     fprintf(pStream, "\tTO SUBNET");
     
   fprintf(pStream, "\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
+  fprintf(pStream, "\t%u", pLink->tArea);
+  
   if (link_get_state(pLink, NET_LINK_FLAG_UP))
     fprintf(pStream, "\tUP");
   else
     fprintf(pStream, "\tDOWN");
+  
   if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL))
     fprintf(pStream, "\tTUNNEL");
   else
     fprintf(pStream, "\tDIRECT");
+  
   if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV))
     fprintf(pStream, "\tIGP_ADV");
 }
+
 
