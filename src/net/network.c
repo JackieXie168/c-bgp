@@ -167,41 +167,54 @@ int node_links_compare(void * pItem1, void * pItem2,
 {
   SNetLink * pLink1= *((SNetLink **) pItem1);
   SNetLink * pLink2= *((SNetLink **) pItem2);
-//   LOG_DEBUG("...node links compare\n");
-  if (pLink1->uDestinationType == pLink2->uDestinationType){
-//         LOG_DEBUG("i link sono dello stesso tipo...\n");
-    if (pLink1->uDestinationType == NET_LINK_TYPE_ROUTER) {
-//     LOG_DEBUG("...verso router\n");
-      if (link_get_address(pLink1) < link_get_address(pLink2))
-        return -1;
-      else if (link_get_address(pLink1) > link_get_address(pLink2))
-        return 1;
-      else
-        return 0;
-     }
-     else {
-//      LOG_DEBUG("...verso subnet\n");
-       SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
-//        pPrefixL1 = (SPrefix *) MALLOC(sizeof(SPrefix));
-//        pPrefixL2 = (SPrefix *) MALLOC(sizeof(SPrefix));
-       link_get_prefix(pLink1, &sPrefixL1);
-       link_get_prefix(pLink2, &sPrefixL2);
-       pP1 = &sPrefixL1;
-       pP2 = &sPrefixL2;
-       int pfxCmp = ip_prefixes_compare(&pP1, &pP2, 0);
-//        FREE(pPrefixL1);
-//        FREE(pPrefixL2);
-       return pfxCmp;
-     }
-   }
-   else if (pLink1->uDestinationType == NET_LINK_TYPE_TRANSIT)
-     return 1;
-   else if (pLink2->uDestinationType == NET_LINK_TYPE_TRANSIT)
-     return -1;
-   else if (pLink1->uDestinationType == NET_LINK_TYPE_STUB)
-     return 1;
-   else
-     return -1;  
+  
+  /*if I'm not care on link type*/
+//   if (pLink1->uDestinationType  == NET_LINK_TYPE_ANY || 
+//                        pLink2->uDestinationType  == NET_LINK_TYPE_ANY) {
+//     fprintf(stdout, "un link è ANY confronto il prefisso: " );  
+    SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
+    link_get_prefix(pLink1, &sPrefixL1);
+    link_get_prefix(pLink2, &sPrefixL2);
+
+    pP1 = &sPrefixL1;
+    pP2 = &sPrefixL2;
+    int pfxCmp = ip_prefixes_compare(&pP1, &pP2, 0);
+
+    return pfxCmp;
+//   } 
+
+//   if ((pLink1->uDestinationType == pLink2->uDestinationType)){
+
+//     if (pLink1->uDestinationType == NET_LINK_TYPE_ROUTER) {
+
+//       if (link_get_address(pLink1) < link_get_address(pLink2))
+//         return -1;
+//       else if (link_get_address(pLink1) > link_get_address(pLink2))
+//         return 1;
+//       else
+//         return 0;
+//      }
+//      else {
+
+//        SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
+
+//        link_get_prefix(pLink1, &sPrefixL1);
+//        link_get_prefix(pLink2, &sPrefixL2);
+//        pP1 = &sPrefixL1;
+//        pP2 = &sPrefixL2;
+//        int pfxCmp = ip_prefixes_compare(&pP1, &pP2, 0);
+// 
+//        return pfxCmp;
+//      }
+//    }
+//    else if (pLink1->uDestinationType == NET_LINK_TYPE_TRANSIT)
+//      return 1;
+//    else if (pLink2->uDestinationType == NET_LINK_TYPE_TRANSIT)
+//      return -1;
+//    else if (pLink1->uDestinationType == NET_LINK_TYPE_STUB)
+//      return 1;
+// //    else
+//      return -1;  
 }
 
 // ----- node_links_destroy -----------------------------------------
@@ -217,6 +230,11 @@ char * node_get_name(SNetNode * pNode)
   return pNode->pcName;
 }
 
+// ----- node_get_prefix----------------------------------------------
+void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix){
+  pPrefix->tNetwork = pNode->tAddr;
+  pPrefix->uMaskLen = 32;
+}
 // ----- node_set_name -----------------------------------------------
 void node_set_name(SNetNode * pNode, const char * pcName)
 {
@@ -451,12 +469,12 @@ int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet,
   pLink->fForward= NULL;
   
   if (ptr_array_add(pNode->pLinks, &pLink) < 0){
-    return -1;
+    return -1;//TODO define error constant
   }
   else if (iMutual)
     return subnet_link_toNode(pSubnet, pNode);//add node to subnet's node list  
   else 
-    return 1;
+    return 0;
 }
 
 // ----- node_dump ---------------------------------------------------
@@ -493,7 +511,7 @@ int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
   return ptr_array_add(pNode->pLinks, &pLink);
 }
 
-// ----- node_find_link ---------------------------------------------
+// ----- node_find_link_to_router ---------------------------------------------
 /**
  *
  */
@@ -510,7 +528,7 @@ SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
   return pLink;
 }
 
-// ----- node_find_link ---------------------------------------------
+// ----- node_find_link_to_subnet ---------------------------------------------
 /**
  *
  */
@@ -526,6 +544,20 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
   
   link_destroy(&wrapLink);
   return pLink;
+}
+
+// ----- node_find_link ---------------------------------------------
+/**
+ *
+ */
+SNetLink * node_find_link(SNetNode * pNode, SPrefix * pPrefix)
+{
+  if (pPrefix->uMaskLen == 32)
+    return node_find_link_to_router(pNode, pPrefix->tNetwork);
+  else  {
+    SNetSubnet * pWrapSubnet = subnet_create(pPrefix->tNetwork, pPrefix->uMaskLen, 0);
+    return node_find_link_to_subnet(pNode, pWrapSubnet);
+  }
 }
 
 // ----- node_ipip_enable -------------------------------------------
