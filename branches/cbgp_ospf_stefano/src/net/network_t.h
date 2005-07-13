@@ -16,7 +16,7 @@
 
 extern const net_addr_t MAX_ADDR;
 
-#define OSPF_SUPPORT
+
 
 typedef struct {
 #ifdef __EXPERIMENTAL__
