@@ -17,6 +17,7 @@
 #define BACKBONE_AREA 0
 
 //First is only a warning
+#define OSPF_LINK_OK                        0
 #define OSPF_LINK_TO_MYSELF_NOT_IN_AREA    -1 
 #define OSPF_SOURCE_NODE_NOT_IN_AREA       -2
 #define OSPF_DEST_NODE_NOT_IN_AREA         -3
@@ -43,15 +44,27 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
 		       next_hops_list_t * pNHList);
 // ----- node_belongs_to_area -----------------------------------------------
 extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
+// ----- node_link_set_ospf_area ------------------------------------------
+extern int node_link_set_ospf_area(SNetNode * pNode, SPrefix sPfxPeer, ospf_area_t tArea);
 ///////////////////////////////////////////////////////////////////////////
 //////  SUBNET OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 // ----- subnet_OSPFArea -------------------------------------------------
-extern void subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea);
+extern int subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea);
 // ----- subnet_getOSPFArea ----------------------------------------------
 extern uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet);
 // ----- subnet_belongs_to_area ---------------------------------------------
 int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
 
+///////////////////////////////////////////////////////////////////////////
+//////  OSPF ROUTING TABLE FUNCTION
+///////////////////////////////////////////////////////////////////////////
+// ----- ospf_node_rt_dump ------------------------------------------------------------------
+extern void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption);
+///////////////////////////////////////////////////////////////////////////
+//////  OSPF DOMAIN TABLE FUNCTION
+///////////////////////////////////////////////////////////////////////////
+//----- ospf_domain_build_route ---------------------------------------------------------------
+extern int ospf_domain_build_route(uint16_t uOSPFDomain);
 #endif
 
