@@ -33,7 +33,7 @@ int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
 /////// OSPF methods for node object
 /////////////////////////////////////////////////////////////////////
 // ----- node_add_OSPFArea ------------------------------------------
-int node_add_OSPFArea(SNetNode * pNode, uint32_t OSPFArea)
+int node_add_OSPFArea(SNetNode * pNode, ospf_area_t OSPFArea)
 {
   return int_array_add(pNode->pOSPFAreas, &OSPFArea);
 }
@@ -170,16 +170,20 @@ extern int node_ospf_rt_del_route(SNetNode * pNode,   SPrefix * pPrefix,
 /////// OSPF methods for subnet object
 /////////////////////////////////////////////////////////////////////
 // ----- subnet_OSPFArea -------------------------------------------------
-void subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea)
+int subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea)
 {
-  int iIndex;
+  int iIndex, iReturn = 0;
   SNetLink * pCurrentLink = NULL;
-  
+  if (pSubnet->uOSPFArea != OSPF_NO_AREA && pSubnet->uOSPFArea != uOSPFArea)
+    iReturn = -1;
+    
   pSubnet->uOSPFArea = uOSPFArea;
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++){
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pCurrentLink);
     pCurrentLink->tArea = uOSPFArea;
   }
+  
+  return iReturn;
 }
 
 // ----- subnet_getOSPFArea ----------------------------------------------
@@ -693,7 +697,7 @@ int ospf_domain_build_intra_route(uint16_t uOSPFDomain)
  
 //----- ospf_domain_build_inter_route_for_br -----------------------------------------------------------
 /** 
- *  Helps node_ospf_build_inter_route_br_only function to interate over all the border router 
+ *  Helps ospf__domain_build_inter_route_br_only function to interate over all the border router 
  *  of the domain to build intra route.
  *
 */
@@ -704,18 +708,18 @@ int ospf_domain_build_inter_route_for_br(uint32_t uKey, uint8_t uKeyLen, void * 
   int iResult = 0;
   if (node_is_BorderRouter(pNode))
    iResult = node_ospf_inter_route(pNode, uOSPFDomain);
-  ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA);
+//   ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA);
   return iResult;
 }
 
-int node_ospf_build_inter_route_br_only(uint16_t uOSPFDomain){
+int ospf_domain_build_inter_route_br_only(uint16_t uOSPFDomain){
   SIGPDomain * pDomain = get_igp_domain(uOSPFDomain);
   return igp_domain_routers_for_each(pDomain, ospf_domain_build_inter_route_for_br, &uOSPFDomain);
 }
 
 //----- ospf_domain_build_inter_route_for_ir -----------------------------------------------------------
 /** 
- *  Helps node_ospf_build_inter_route_ir_only function to interate over all the border router 
+ *  Helps ospf_node_build_inter_route_ir_only function to interate over all the border router 
  *  of the domain to build intra route.
  *
 */
@@ -726,14 +730,30 @@ int ospf_domain_build_inter_route_for_ir(uint32_t uKey, uint8_t uKeyLen, void * 
   int iResult = 0;
   if (!node_is_BorderRouter(pNode))
    iResult = node_ospf_inter_route(pNode, uOSPFDomain);
-   ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA);
+//    ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA);
   return iResult;
 }  
 
-
-int node_ospf_build_inter_route_ir_only(uint16_t uOSPFDomain){
+//----- ospf_domain_build_inter_route_ir_only -----------------------------------------------------------
+/** 
+ *  Helps ospf_node_build_inter_route_ir_only function to interate over all the border router 
+ *  of the domain to build intra route.
+ *
+*/
+int ospf_domain_build_inter_route_ir_only(uint16_t uOSPFDomain){
   SIGPDomain * pDomain = get_igp_domain(uOSPFDomain);
   return igp_domain_routers_for_each(pDomain, ospf_domain_build_inter_route_for_ir, &uOSPFDomain);
+}
+
+//----- ospf_domain_build_route ---------------------------------------------------------------
+/** 
+ *
+*/
+int ospf_domain_build_route(uint16_t uOSPFDomain) {
+  assert(ospf_domain_build_intra_route(uOSPFDomain) >= 0);
+  assert(!ospf_domain_build_inter_route_br_only(uOSPFDomain));
+  assert(!ospf_domain_build_inter_route_ir_only(uOSPFDomain));
+  return 0;
 }
 
 int ospf_test_rfc2328()
@@ -984,12 +1004,13 @@ int ospf_test_rfc2328()
 //      ospf_node_rt_dump(stdout, pNodeRT1, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
   
      LOG_DEBUG("Try to build INTER-AREA route only for border router...");
-     assert(node_ospf_build_inter_route_br_only(uIGPDomain) >= 0);
+     assert(ospf_domain_build_inter_route_br_only(uIGPDomain) >= 0);
      LOG_DEBUG(" ok!\n");
      
      LOG_DEBUG("Try to build INTER-AREA route only for intra router...");
-     assert(node_ospf_build_inter_route_ir_only(uIGPDomain) >= 0);
+     assert(ospf_domain_build_inter_route_ir_only(uIGPDomain) >= 0);
      LOG_DEBUG(" ok!\n");
+     
      
 //   LOG_DEBUG(" ok!\n");
   
