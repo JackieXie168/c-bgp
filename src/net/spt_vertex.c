@@ -315,9 +315,9 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
 	 - the end-point belongs to the given prefix */
       if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)) || 
           !(link_belongs_to_area(pCurrentLink, tArea))){
-	  fprintf(stdout, "AREA %d - LINK ", tArea);
-	  link_dump(stdout, pCurrentLink);
-	  fprintf(stdout, "\n");
+// 	  fprintf(stdout, "AREA %d - LINK ", tArea);
+// 	  link_dump(stdout, pCurrentLink);
+// 	  fprintf(stdout, "\n");
         continue;
       }
 
