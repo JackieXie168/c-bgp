@@ -27,7 +27,7 @@ SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen, uint8_t uType)
   SNetSubnet * pSubnet= (SNetSubnet *) MALLOC(sizeof(SNetSubnet));
   (pSubnet->sPrefix).tNetwork= tNetwork;
   (pSubnet->sPrefix).uMaskLen= uMaskLen;
-  pSubnet->uOSPFArea = BACKBONE_AREA;
+  pSubnet->uOSPFArea = OSPF_NO_AREA;
   pSubnet->uType = uType;
   
 //   pSubnet->aNodes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
