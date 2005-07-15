@@ -174,7 +174,10 @@ void link_dump(FILE * pStream, SNetLink * pLink)
     fprintf(pStream, "\tTO SUBNET");
     
   fprintf(pStream, "\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
-  fprintf(pStream, "\t%u", pLink->tArea);
+  if (pLink->tArea == OSPF_NO_AREA)
+    fprintf(pStream, "\t%c", '*');
+  else 
+    fprintf(pStream, "\t%u", pLink->tArea);
   
   if (link_get_state(pLink, NET_LINK_FLAG_UP))
     fprintf(pStream, "\tUP");
