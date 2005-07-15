@@ -49,6 +49,9 @@ extern void _IGPdomain_init();
 // ----- _domain_destroy --------------------------------------------
 extern void _IGPdomain_destroy();
 
+// ----- igp_domain_dump --------------------------------------------
+extern int igp_domain_dump(FILE * pStream, SIGPDomain * pDomain);
+
 // ----- IGPdomain_test() --------------------------------------------
 extern int IGPdomain_test();
 #endif
