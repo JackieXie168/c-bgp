@@ -463,7 +463,7 @@ int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet,
 {
   SNetLink * pLink= create_link_toSubnet(pSubnet);
   pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV; //??
+  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV; //NET_LINK_FLAG_IGP_ADV OBSOLETE 
   pLink->uIGPweight= tDelay;
   pLink->pContext= NULL;
   pLink->fForward= NULL;
@@ -519,9 +519,13 @@ SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
 {
   int iIndex;
   SNetLink * pLink= NULL, * wrapLink;
-  
+//   char ipS[20], ipD[20];
+//   char * pIpS = &ipS[0], *pIpD = &ipD[0];
   wrapLink = create_link_toRouter_byAddr(tAddr);
-
+  
+//   ip_address_to_string(ipS, pNode->tAddr);
+//   ip_address_to_string(ipD, tAddr);
+// LOG_SEVERE("find_link_to_router %s ->%s \n", ipS, ipD);
   if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[iIndex];
   link_destroy(&wrapLink);
@@ -552,6 +556,13 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
  */
 SNetLink * node_find_link(SNetNode * pNode, SPrefix * pPrefix)
 {
+
+//   char ipS[20], ipD[20];
+  
+//    ip_address_to_string(ipS, pNode->tAddr);
+//   ip_prefix_to_string(ipD, pPrefix);
+// LOG_SEVERE("find_link %s ->%s \n", ipS, ipD);
+
   if (pPrefix->uMaskLen == 32)
     return node_find_link_to_router(pNode, pPrefix->tNetwork);
   else  {
@@ -984,6 +995,21 @@ SNetNode * network_find_node(SNetwork * pNetwork, net_addr_t tAddr)
 #endif
 }
 
+// ----- network_find_node ------------------------------------------
+/**
+ *
+ */
+SNetSubnet * network_find_subnet(SNetwork * pNetwork, SPrefix sPrefix)
+{ 
+  int iIndex;
+  SNetSubnet * pSubnet = NULL, * pWrapSubnet = subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
+  if (ptr_array_sorted_find_index(pNetwork->pSubnets, &pWrapSubnet, &iIndex) == 0) 
+    ptr_array_get_at(pNetwork->pSubnets, iIndex, &pSubnet);
+  
+  subnet_destroy(&pWrapSubnet);
+  return pSubnet;
+}
+
 // ----- network_forward --------------------------------------------
 /**
  * This function forwards a message through the given link. The
@@ -1152,6 +1178,17 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
   return 0;
 }
 
+//---- network_dump_subnets ---------------------------------------------
+void network_dump_subnets(FILE * pStream, SNetwork *pNetwork){
+  int iIndex, totSub;
+  SNetSubnet * pSubnet = NULL;
+  totSub = ptr_array_length(pNetwork->pSubnets);
+  for (iIndex = 0; iIndex < totSub; iIndex++){
+    ptr_array_get_at(pNetwork->pSubnets, iIndex, &pSubnet);
+    ip_prefix_dump(pStream, pSubnet->sPrefix);
+    fprintf(pStream, "\n");
+  }
+}
 /////////////////////////////////////////////////////////////////////
 // ROUTING TESTS
 /////////////////////////////////////////////////////////////////////
