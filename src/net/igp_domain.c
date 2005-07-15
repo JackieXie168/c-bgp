@@ -113,6 +113,8 @@ void register_igp_domain(SIGPDomain * pDomain)
   apIGPDomains[pDomain->uNumber]= pDomain;
 }
 
+
+
 /////////////////////////////////////////////////////////////////////
 //
 // INITIALIZATION AND FINALIZATION SECTION
@@ -145,15 +147,29 @@ void _IGPdomain_destroy()
   }
 }
 
-int test_show_rt(uint32_t uKey, uint8_t uKeyLen,
+// ---- igp_domain_dump_for_each ----------------------------------------
+/**
+ *  Helps igp_domain_dump to dump the ip address of each router 
+ *  in the igp domain.
+*/
+int igp_domain_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
 					   void * pItem, void * pContext)
 {
-/*	fprintf(stdout, "test_show_rt %p\n", pItem);
-	fflush(stdout);
-	ip_address_dump(stdout, ((SNetNode *) pItem)->tAddr);
-	fflush(stdout);*/
-	return 0;
+  FILE * pStream = (FILE *) (pContext);
+  
+  ip_address_dump(pStream, ((SNetNode *) pItem)->tAddr);
+  fprintf(stdout, "\n");
+  return 0;
 }
+
+//--- igp_domain_dump ---------------------------------------------------------
+int igp_domain_dump(FILE * pStream, SIGPDomain * pDomain)
+{
+  
+  return radix_tree_for_each(pDomain->pRouters, igp_domain_dump_for_each, pStream);
+}
+
+
 
 // ----- igp_domain_contains_router --------------------------------------------
 /**
