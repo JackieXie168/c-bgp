@@ -175,6 +175,9 @@ extern int network_add_subnet(SNetwork * pNetwork, SNetSubnet * pSubnet);
 // ----- network_find_node ------------------------------------------
 extern SNetNode * network_find_node(SNetwork * pNetwork,
 				    net_addr_t tAddr);
+				    
+// ----- network_find_subnet ------------------------------------------
+extern SNetSubnet * network_find_subnet(SNetwork * pNetwork, SPrefix sPrefix);
 // ----- network_to_file --------------------------------------------
 extern int network_to_file(FILE * pStream, SNetwork * pNetwork);
 // ----- network_from_file ------------------------------------------
@@ -191,7 +194,8 @@ int network_domain_add(SNetwork * pNetwork, uint32_t uAS,
 						      char * pcName);
 // ----- network_domain_get -----------------------------------------
 SNetDomain * network_domain_get(SNetwork * pNetwork, uint32_t);
-
+//---- network_dump_subnets ---------------------------------------------
+void network_dump_subnets(FILE * pStream, SNetwork *pNetwork);
 // ----- _network_destroy -------------------------------------------
 extern void _network_destroy();
 
