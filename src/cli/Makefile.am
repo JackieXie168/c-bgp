@@ -25,5 +25,7 @@ libcli_la_SOURCES = \
 	common.h \
 	net.c \
 	net.h \
+	net_ospf.c \
+	net_ospf.h \
 	sim.c \
 	sim.h
