@@ -1237,7 +1237,8 @@ int node_record_route(SNetNode * pNode, SNetDest sDest,
       
     if (uDeflection) {
       pProtocol = protocols_get(pCurrentNode->pProtocols, NET_PROTOCOL_BGP);
-      pRouter = (SBGPRouter *)pProtocol->pHandler;
+      if (pProtocol != NULL)
+        pRouter = (SBGPRouter *)pProtocol->pHandler;
     }
     
    /* check for a loop */
