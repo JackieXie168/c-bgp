@@ -800,16 +800,16 @@ int ospf_test_rfc2328()
   assert(!network_add_node(pNetworkRFC2328, pNodeRT11));
   assert(!network_add_node(pNetworkRFC2328, pNodeRT12));
 
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN1));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN2));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetTN3));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN4));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetTN6));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN7));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetTN8));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetTN9));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN10));
-  assert(!network_add_subnet(pNetworkRFC2328, pSubnetSN11));
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN1) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN2) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetTN3) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN4) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetTN6) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN7) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetTN8) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetTN9) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN10) >= 0);
+  assert(network_add_subnet(pNetworkRFC2328, pSubnetSN11) >= 0);
   
   assert(node_add_link_toSubnet(pNodeRT1, pSubnetSN1, 3, 1) >= 0);
   assert(node_add_link_toSubnet(pNodeRT1, pSubnetTN3, 1, 1) >= 0);
@@ -1241,89 +1241,89 @@ int ospf_info_test() {
   assert(!network_add_node(pNetwork, pNodeK2));
   assert(!network_add_node(pNetwork, pNodeK3));
   
-  assert(!network_add_subnet(pNetwork, pSubnetTB1));
-  assert(!network_add_subnet(pNetwork, pSubnetTX1));
-  assert(!network_add_subnet(pNetwork, pSubnetTY1));
-  assert(!network_add_subnet(pNetwork, pSubnetTK1));
+  assert(network_add_subnet(pNetwork, pSubnetTB1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTX1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTY1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTK1) >= 0);
   
-  assert(!network_add_subnet(pNetwork, pSubnetSB1));
-  assert(!network_add_subnet(pNetwork, pSubnetSB2));
-  assert(!network_add_subnet(pNetwork, pSubnetSX1));
-  assert(!network_add_subnet(pNetwork, pSubnetSX2));
-  assert(!network_add_subnet(pNetwork, pSubnetSX3));
-  assert(!network_add_subnet(pNetwork, pSubnetSY1));
-  assert(!network_add_subnet(pNetwork, pSubnetSY2));
-  assert(!network_add_subnet(pNetwork, pSubnetSY3));
-  assert(!network_add_subnet(pNetwork, pSubnetSK1));
-  assert(!network_add_subnet(pNetwork, pSubnetSK2));
-  assert(!network_add_subnet(pNetwork, pSubnetSK3));
+  assert(network_add_subnet(pNetwork, pSubnetSB1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSB2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX3) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY3) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK3) >= 0);
   
   LOG_DEBUG("nodes & subnet attached.\n");
 
-  assert(node_add_link(pNodeB1, pNodeB2, 100, 1) == 0);
-  assert(node_add_link(pNodeB2, pNodeB3, 100, 1) == 0);
-  assert(node_add_link(pNodeB3, pNodeB4, 100, 1) == 0);
-  assert(node_add_link(pNodeB4, pNodeB1, 100, 1) == 0);
+  assert(node_add_link(pNodeB1, pNodeB2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB2, pNodeB3, 100, 1) >= 0);
+  assert(node_add_link(pNodeB3, pNodeB4, 100, 1) >= 0);
+  assert(node_add_link(pNodeB4, pNodeB1, 100, 1) >= 0);
   
-  assert(node_add_link(pNodeB2, pNodeX2, 100, 1) == 0);
-  assert(node_add_link(pNodeB3, pNodeX2, 100, 1) == 0);
-  assert(node_add_link(pNodeX2, pNodeX1, 100, 1) == 0);
-  assert(node_add_link(pNodeX2, pNodeX3, 100, 1) == 0);
+  assert(node_add_link(pNodeB2, pNodeX2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB3, pNodeX2, 100, 1) >= 0);
+  assert(node_add_link(pNodeX2, pNodeX1, 100, 1) >= 0);
+  assert(node_add_link(pNodeX2, pNodeX3, 100, 1) >= 0);
 
-  assert(node_add_link(pNodeB3, pNodeY1, 100, 1) == 0);
-  assert(node_add_link(pNodeY1, pNodeY2, 100, 1) == 0);
+  assert(node_add_link(pNodeB3, pNodeY1, 100, 1) >= 0);
+  assert(node_add_link(pNodeY1, pNodeY2, 100, 1) >= 0);
   
-  assert(node_add_link(pNodeB4, pNodeK1, 100, 1) == 0);
-  assert(node_add_link(pNodeB4, pNodeK2, 100, 1) == 0);
-  assert(node_add_link(pNodeB1, pNodeK3, 100, 1) == 0);
-  assert(node_add_link(pNodeK3, pNodeK2, 100, 1) == 0);
+  assert(node_add_link(pNodeB4, pNodeK1, 100, 1) >= 0);
+  assert(node_add_link(pNodeB4, pNodeK2, 100, 1) >= 0);
+  assert(node_add_link(pNodeB1, pNodeK3, 100, 1) >= 0);
+  assert(node_add_link(pNodeK3, pNodeK2, 100, 1) >= 0);
   
   
-  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) == 0);
+  assert(node_add_link_toSubnet(pNodeB1, pSubnetTB1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB3, pSubnetTB1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeX1, pSubnetTX1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeX3, pSubnetTX1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB3, pSubnetTY1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeY2, pSubnetTY1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeK2, pSubnetTK1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeK1, pSubnetTK1, 100, 1) >= 0);
   
   LOG_DEBUG("transit-network links attached.\n");
   
-  assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeB2, pSubnetSX1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeX2, pSubnetSX2, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeX3, pSubnetSX3, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeB3, pSubnetSY1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeY1, pSubnetSY2, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeY1, pSubnetSY3, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeK3, pSubnetSK1, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeK2, pSubnetSK2, 100, 1) == 0);
-  assert(node_add_link_toSubnet(pNodeK2, pSubnetSK3, 100, 1) == 0);
+  assert(node_add_link_toSubnet(pNodeB2, pSubnetSB1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB1, pSubnetSB2, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB2, pSubnetSX1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeX2, pSubnetSX2, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeX3, pSubnetSX3, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB3, pSubnetSY1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeY1, pSubnetSY2, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeY1, pSubnetSY3, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeK3, pSubnetSK1, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeK2, pSubnetSK2, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeK2, pSubnetSK3, 100, 1) >= 0);
   
   LOG_DEBUG("stub-network links attached.\n");
   
-  assert(node_add_OSPFArea(pNodeB1, BACKBONE_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB1, K_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB2, BACKBONE_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB2, X_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB3, BACKBONE_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB3, X_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB3, Y_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB4, BACKBONE_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeB4, K_AREA) == 0);
+  assert(node_add_OSPFArea(pNodeB1, BACKBONE_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB1, K_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB2, BACKBONE_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB2, X_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB3, BACKBONE_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB3, X_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB3, Y_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB4, BACKBONE_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeB4, K_AREA) >= 0);
   
-  assert(node_add_OSPFArea(pNodeX1, X_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeX2, X_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeX3, X_AREA) == 0);
+  assert(node_add_OSPFArea(pNodeX1, X_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeX2, X_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeX3, X_AREA) >= 0);
   
-  assert(node_add_OSPFArea(pNodeY1, Y_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeY2, Y_AREA) == 0);
+  assert(node_add_OSPFArea(pNodeY1, Y_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeY2, Y_AREA) >= 0);
   
-  assert(node_add_OSPFArea(pNodeK1, K_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeK2, K_AREA) == 0);
-  assert(node_add_OSPFArea(pNodeK3, K_AREA) == 0);
+  assert(node_add_OSPFArea(pNodeK1, K_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeK2, K_AREA) >= 0);
+  assert(node_add_OSPFArea(pNodeK3, K_AREA) >= 0);
   
   subnet_set_OSPFArea(pSubnetTB1, BACKBONE_AREA);
   subnet_set_OSPFArea(pSubnetTX1, X_AREA);

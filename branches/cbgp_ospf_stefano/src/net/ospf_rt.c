@@ -307,7 +307,7 @@ int OSPF_rt_info_list_add(SOSPFRouteInfoList * pRouteInfoList,
 			SOSPFRouteInfo * pRouteInfo)
 {
   if (ptr_array_add((SPtrArray *) pRouteInfoList,
-		    &pRouteInfo)) {
+		    &pRouteInfo) < 0) {
     return OSPF_RT_ERROR_ADD_DUP;
   }
   return OSPF_RT_SUCCESS;

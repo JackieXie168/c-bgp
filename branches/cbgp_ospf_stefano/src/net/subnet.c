@@ -267,22 +267,22 @@ int subnet_test(){
   assert(!network_add_node(pNetwork, pNodeK2));
   assert(!network_add_node(pNetwork, pNodeK3));
   
-  assert(!network_add_subnet(pNetwork, pSubnetTB1));
-  assert(!network_add_subnet(pNetwork, pSubnetTX1));
-  assert(!network_add_subnet(pNetwork, pSubnetTY1));
-  assert(!network_add_subnet(pNetwork, pSubnetTK1));
+  assert(network_add_subnet(pNetwork, pSubnetTB1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTX1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTY1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetTK1) >= 0);
   
-  assert(!network_add_subnet(pNetwork, pSubnetSB1));
-  assert(!network_add_subnet(pNetwork, pSubnetSB2));
-  assert(!network_add_subnet(pNetwork, pSubnetSX1));
-  assert(!network_add_subnet(pNetwork, pSubnetSX2));
-  assert(!network_add_subnet(pNetwork, pSubnetSX3));
-  assert(!network_add_subnet(pNetwork, pSubnetSY1));
-  assert(!network_add_subnet(pNetwork, pSubnetSY2));
-  assert(!network_add_subnet(pNetwork, pSubnetSY3));
-  assert(!network_add_subnet(pNetwork, pSubnetSK1));
-  assert(!network_add_subnet(pNetwork, pSubnetSK2));
-  assert(!network_add_subnet(pNetwork, pSubnetSK3));
+  assert(network_add_subnet(pNetwork, pSubnetSB1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSB2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSX3) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSY3) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK1) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK2) >= 0);
+  assert(network_add_subnet(pNetwork, pSubnetSK3) >= 0);
   
   
 //   LOG_DEBUG("nodes attached.\n");
