@@ -607,7 +607,7 @@ int main(int argc, char ** argv) {
   
 
   /* Run simulation in selected mode... */
-  uMode = CBGP_MODE_OSPF;
+//  uMode = CBGP_MODE_OSPF;
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
     if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)

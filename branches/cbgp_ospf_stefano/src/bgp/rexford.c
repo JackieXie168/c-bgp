@@ -163,7 +163,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       }
 
       // Add the link and check that this link did not already exist
-      if (node_add_link(pNode1, pNode2, tDelay, 1) != 0) {
+      if (node_add_link(pNode1, pNode2, tDelay, 1) < 0) {
 	LOG_SEVERE("Error: duplicate link (%u, %u) in topology, line %u\n",
 		   uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
