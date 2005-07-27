@@ -128,7 +128,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   if ((pNodeDst= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
     return;
 
-  if (node_add_link(pNodeSrc, pNodeDst, jiWeight, 1) != 0) {
+  if (node_add_link(pNodeSrc, pNodeDst, jiWeight, 1) < 0) {
     cbgp_jni_throw_CBGPException(env, "link already exists");
     return;
   }
