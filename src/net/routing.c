@@ -227,7 +227,7 @@ int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
 			SNetRouteInfo * pRouteInfo)
 {
   if (ptr_array_add((SPtrArray *) pRouteInfoList,
-		    &pRouteInfo)) {
+		    &pRouteInfo) < 0) {
     return NET_RT_ERROR_ADD_DUP;
   }
   return NET_RT_SUCCESS;

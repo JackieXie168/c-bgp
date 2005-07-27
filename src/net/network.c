@@ -442,7 +442,7 @@ int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB,
   SNetLink * pLink= create_link_toRouter(pNodeB);//(SNetLink *) MALLOC(sizeof(SNetLink));
   
   if (iRecurse)
-    if (node_add_link(pNodeB, pNodeA, tDelay, 0))
+    if (node_add_link(pNodeB, pNodeA, tDelay, 0) < 0)
       return -1;
 
   //pLink->tAddr= pNodeB->tAddr;
