@@ -337,7 +337,7 @@ void xml_parse_igp_link_add(SLinkInfo * pLink, uint32_t uDelay)
   if (pLink->pNodeFrom && pLink->pNodeTo) {
     LOG_DEBUG("%ul %ul\n", pLink->pNodeFrom->tAddr, pLink->tFromIf);
    // if (pLink->pNodeFrom->tAddr == pLink->tFromIf) {
-      assert(!node_add_link(pLink->pNodeFrom, pLink->pNodeTo, uDelay, 0));
+      assert(node_add_link(pLink->pNodeFrom, pLink->pNodeTo, uDelay, 0) >= 0);
     /*}
     assert(!node_interface_link_add(pLink->pNodeFrom, pLink->tFromIf, pLink->tToIf, 
 			      uDelay));*/

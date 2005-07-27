@@ -111,7 +111,7 @@ int cli_net_add_subnet(SCliContext * pContext, STokens * pTokens)
   }
      
   if (network_add_subnet(network_get(), 
-                    subnet_create(sSubnetPrefix.tNetwork, sSubnetPrefix.uMaskLen, uType)) != 0) {
+                    subnet_create(sSubnetPrefix.tNetwork, sSubnetPrefix.uMaskLen, uType)) < 0) {
     LOG_SEVERE("Error: could not add subnet (unknown reason)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }

@@ -38,7 +38,7 @@ int cli_net_node_ospf_area(SCliContext * pContext, STokens * pTokens)
 
   // Add ospf area to node
   tokens_get_uint_at(pTokens, 1, &uArea);
-  if (node_add_OSPFArea(pNode, uArea) != 0) {
+  if (node_add_OSPFArea(pNode, uArea) < 0) {
     LOG_SEVERE("Error: unexpected error\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
