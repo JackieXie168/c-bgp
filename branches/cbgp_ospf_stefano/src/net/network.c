@@ -593,7 +593,7 @@ extern int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber){
  * FALSE (0) otherwise.
  */
 extern int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber){
-  unisgned int iIndex;
+  unsigned int iIndex;
   if  (_array_sorted_find_index((SArray*)(pNode->pIGPDomains), &uDomainNumber, &iIndex) == 0)
     return 1;
   return 0;

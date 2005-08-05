@@ -395,7 +395,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
 //         fprintf(stdout, "vertex da aggiornare (peso minore)\n");
 //      sta : Not really clean to declare something here! Not good ... :(
-        unsigned int iPos
+        unsigned int iPos;
 	int iIndex;
 	SSptVertex * pFather;
 	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
