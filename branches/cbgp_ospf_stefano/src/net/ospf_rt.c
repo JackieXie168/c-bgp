@@ -572,7 +572,8 @@ int OSPF_rt_info_list_del(SOSPFRouteInfoList * pRouteInfoList,
 		     SOSPFRouteInfoDel * pRIDel,
 		     SPrefix * pPrefix)
 {
-  int iIndex, iNHPos;
+  int iIndex;
+  unsigned int iNHPos;
   SOSPFRouteInfo * pRI;
   int iRemoved= 0;
   int iResult= NET_RT_ERROR_DEL_UNEXISTING;
