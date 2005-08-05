@@ -517,7 +517,7 @@ int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
  */
 SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
 {
-  int iIndex;
+  unsigned int iIndex;
   SNetLink * pLink= NULL, * wrapLink;
 //   char ipS[20], ipD[20];
 //   char * pIpS = &ipS[0], *pIpD = &ipD[0];
@@ -538,7 +538,7 @@ SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
  */
 SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
 {
-  int iIndex;
+  unsigned int iIndex;
   SNetLink * pLink= NULL, * wrapLink;
   
   wrapLink = create_link_toSubnet(pSubnet);
@@ -593,7 +593,7 @@ extern int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber){
  * FALSE (0) otherwise.
  */
 extern int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber){
-  int iIndex;
+  unisgned int iIndex;
   if  (_array_sorted_find_index((SArray*)(pNode->pIGPDomains), &uDomainNumber, &iIndex) == 0)
     return 1;
   return 0;
@@ -1001,7 +1001,7 @@ SNetNode * network_find_node(SNetwork * pNetwork, net_addr_t tAddr)
  */
 SNetSubnet * network_find_subnet(SNetwork * pNetwork, SPrefix sPrefix)
 { 
-  int iIndex;
+  unsigned int iIndex;
   SNetSubnet * pSubnet = NULL, * pWrapSubnet = subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
   if (ptr_array_sorted_find_index(pNetwork->pSubnets, &pWrapSubnet, &iIndex) == 0) 
     ptr_array_get_at(pNetwork->pSubnets, iIndex, &pSubnet);
