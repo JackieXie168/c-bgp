@@ -214,7 +214,7 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes)
 
 // ----- spt_vertex_has_father -----------------------------------------------------------
 int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
-  int iIndex;
+  unsigned int iIndex;
   if (ptr_array_sorted_find_index(pParent->fathers, &pRoot, &iIndex) == 0)
     return 1;
   return 0;
@@ -278,7 +278,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   SPrefix      sDestPrefix; 
 // LOG_DEBUG("entro in OSPF_dijkstra\n");
   int iIndex = 0;
-  int iOldVertexPos;
+  unsigned int iOldVertexPos;
   SNetwork * pNetwork = pNode->pNetwork;
   SIGPDomain * pIGPDomain = get_igp_domain(IGPDomainNumber);
   
@@ -394,7 +394,9 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       }
       else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
 //         fprintf(stdout, "vertex da aggiornare (peso minore)\n");
-        int iPos, iIndex;
+//      sta : Not really clean to declare something here! Not good ... :(
+        unsigned int iPos
+	int iIndex;
 	SSptVertex * pFather;
 	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
 // 	Remove old next hops
