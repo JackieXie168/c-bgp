@@ -41,7 +41,7 @@ int node_add_OSPFArea(SNetNode * pNode, ospf_area_t OSPFArea)
 // ----- node_belongs_to_area ------------------------------------------
 int node_belongs_to_area(SNetNode * pNode, uint32_t tArea)
 {
-  int iIndex;
+  unsigned int iIndex;
   
   return !_array_sorted_find_index((SArray *)(pNode->pOSPFAreas), &tArea, &iIndex);
 }
@@ -95,7 +95,7 @@ int node_link_set_ospf_area(SNetNode * pNode, SPrefix sPfxPeer, ospf_area_t tAre
 int node_is_BorderRouter(SNetNode * pNode)
 {
   ospf_area_t B = BACKBONE_AREA;
-  int iPos;
+  unsigned int iPos;
   return ((int_array_length(pNode->pOSPFAreas) > 1) && 
           (int_array_sorted_find_index(pNode->pOSPFAreas, &B, &iPos) == 0));
 }
