@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 17/05/2005
+// @lastdate 04/08/2005
 // ==================================================================
 
 #ifndef __BGP_DOMAIN_H__
@@ -39,15 +39,16 @@ extern void register_bgp_domain(SBGPDomain * pDomain);
 // ----- bgp_domain_rescan ------------------------------------------
 extern int bgp_domain_rescan(SBGPDomain * pDomain);
 // ----- bgp_domain_dump_recorded_route -----------------------------
-int bgp_domain_dump_recorded_route(FILE * pStream, SBGPDomain * pDomain, 
-			      SNetDest  sDest, int iDelay, 
-			      const uint8_t uDeflection);
+extern int bgp_domain_dump_recorded_route(FILE * pStream,
+					  SBGPDomain * pDomain, 
+					  SNetDest sDest,
+					  const uint8_t uOptions);
 // ----- bgp_domain_full_mesh ---------------------------------------
 extern int bgp_domain_full_mesh(SBGPDomain * pDomain);
 
-// ----- _domain_init -----------------------------------------------
-extern void _domain_init();
-// ----- _domain_destroy --------------------------------------------
-extern void _domain_destroy();
+// ----- _bgp_domain_init -------------------------------------------
+extern void _bgp_domain_init();
+// ----- _bgp_domain_destroy ----------------------------------------
+extern void _bgp_domain_destroy();
 
 #endif

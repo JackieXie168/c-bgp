@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 17/05/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
@@ -39,7 +39,7 @@
 // ----- rexford_get_as ---------------------------------------------
 extern SBGPRouter * rexford_get_as(uint16_t uASNum);
 // ----- rexford_load -----------------------------------------------
-extern int rexford_load(char * pcFileName, SNetwork * pNetwork);
+extern int rexford_load(char * pcFileName);
 // ----- rexford_setup_policies -------------------------------------
 extern void rexford_setup_policies();
 // ----- rexford_run ------------------------------------------------

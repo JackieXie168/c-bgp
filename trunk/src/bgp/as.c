@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 01/07/2005
+// @lastdate 08/08/2005
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -42,6 +42,7 @@
 #include <bgp/tie_breaks.h>
 #include <net/network.h>
 #include <net/link.h>
+#include <net/node.h>
 #include <net/protocol.h>
 #include <ui/output.h>
 
@@ -104,7 +105,6 @@ SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
   pRouter->fTieBreak= BGP_OPTIONS_TIE_BREAK;
   pRouter->tClusterID= pNode->tAddr;
   pRouter->iRouteReflector= 0;
-  pRouter->pcName= NULL;
 
   /* Register the router into its domain */
   bgp_domain_add_router(get_bgp_domain(uNumber), pRouter);
@@ -128,29 +128,9 @@ void bgp_router_destroy(SBGPRouter ** ppRouter)
       route_destroy((SRoute **) &(*ppRouter)->pLocalNetworks->data[iIndex]);
     }
     ptr_array_destroy(&(*ppRouter)->pLocalNetworks);
-    if ((*ppRouter)->pcName)
-      FREE((*ppRouter)->pcName);
     FREE(*ppRouter);
     *ppRouter= NULL;
   }
-}
-
-// ----- bgp_router_set_name ----------------------------------------
-/**
- * Set the name of the router (default is null).
- */
-void bgp_router_set_name(SBGPRouter * pRouter, char * pcName)
-{
-  pRouter->pcName= pcName;
-}
-
-// ----- bgp_router_get_name ----------------------------------------
-/**
- * Return the name of the router (can be null).
- */
-char * bgp_router_get_name(SBGPRouter * pRouter)
-{
-  return pRouter->pcName;
 }
 
 // ----- bgp_router_find_peer ---------------------------------------
@@ -370,10 +350,11 @@ int bgp_router_ecomm_process(SPeer * pPeer, SRoute * pRoute)
  *   - check standard communities (NO_ADVERTISE and NO_EXPORT)
  *   - apply redistribution communities
  *   - strip non-transitive extended communities
- *   - update Next-Hop (next-hop-self)
+ *   - update Next-Hop (next-hop-self/next-hop)
  *   - prepend AS-Path (if redistribution to an external peer)
  */
-int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * pRoute)
+int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
+				 SRoute * pRoute)
 {
   net_addr_t tOriginator;
   SRoute * pNewRoute= NULL;
@@ -497,12 +478,18 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer, SRoute * p
       // - if the 'next-hop-self' option is set for this peer
       // Note: in the case of route-reflectors, the next-hop will only
       // be changed for eBGP learned routes
-      if (iExternalSession ||
-	  (!iLocalRoute &&
-	   peer_flag_get(route_peer_get(pNewRoute),
-			 PEER_FLAG_NEXT_HOP_SELF) &&
-	   (!pRouter->iRouteReflector || iExternalRoute))) {
-	route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+      if (iExternalSession) {
+	if (pPeer->tNextHop != 0)
+	  route_nexthop_set(pNewRoute, pPeer->tNextHop);
+	else
+	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+      } else if (!pRouter->iRouteReflector || iExternalRoute) {
+	if (!iLocalRoute &&  peer_flag_get(route_peer_get(pNewRoute),
+					   PEER_FLAG_NEXT_HOP_SELF)) {
+	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+	} else if (pPeer->tNextHop != 0) {
+	  route_nexthop_set(pNewRoute, pPeer->tNextHop);
+	}
       }
 
       // Append AS-Number if external peer (eBGP session)
@@ -761,7 +748,7 @@ int bgp_router_peer_rib_out_remove(SBGPRouter * pRouter,
     iWithdrawRequired= 1;
   }
 #else
-  pNode= network_find_node(pNetwork, pPeer->tAddr);
+  pNode= network_find_node(pPeer->tAddr);
   assert(pNode != NULL);
   pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
   assert(pProtocol != NULL);
@@ -882,33 +869,33 @@ void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 {
   SNetRouteInfo * pOldRouteInfo;
-  SNetLink * pNextHopIf= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
+  SNetRouteNextHop * pNextHop= node_rt_lookup(pRouter->pNode,
+					      pRoute->tNextHop);
   int iResult;
-
-  assert(pNextHopIf != NULL);
 
   /* Check that the next-hop is reachable. It MUST be reachable at
      this point (checked upon route reception). */
-  assert(pNextHopIf != NULL);
+  assert(pNextHop != NULL);
 
   /* Get the previous route if it exists */
   pOldRouteInfo= rt_find_exact(pRouter->pNode->pRT, pRoute->sPrefix,
 			       NET_ROUTE_BGP);
   if (pOldRouteInfo != NULL) {
-    if (pOldRouteInfo->pNextHopIf == pNextHopIf)
+    if (!route_nexthop_compare(pOldRouteInfo->sNextHop, *pNextHop))
       return;
     // Remove the previous route (if it exists)
     node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
-		      NULL, NET_ROUTE_BGP);
+		      NULL, NULL, NET_ROUTE_BGP);
   }
 
   // Insert the route
-  iResult= node_rt_add_route(pRouter->pNode, pRoute->sPrefix,
-			     link_get_addr(pNextHopIf), 0, NET_ROUTE_BGP);
+  iResult= node_rt_add_route_link(pRouter->pNode, pRoute->sPrefix,
+				  pNextHop->pIface, pRoute->tNextHop,
+				  0, NET_ROUTE_BGP);
   if (iResult) {
-    LOG_SEVERE("Error: could not add route\nError: ");
+    LOG_SEVERE("Error: could not add route (");
     rt_perror(stderr, iResult);
-    LOG_SEVERE("\n");
+    LOG_SEVERE(")\n");
     abort();
   }
 }
@@ -921,7 +908,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
 {
   assert(!node_rt_del_route(pRouter->pNode, &sPrefix,
-			   NULL, NET_ROUTE_BGP));
+			    NULL, NULL, NET_ROUTE_BGP));
 }
 
 // ----- bgp_router_best_flag_off -----------------------------------
@@ -966,12 +953,12 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
  */
 int bgp_router_feasible_route(SBGPRouter * pRouter, SRoute * pRoute)
 {
-  SNetLink * pNextHopIf;
+  SNetRouteNextHop * pNextHop;
 
   /* Get the route towards the next-hop */
-  pNextHopIf= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
+  pNextHop= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
 
-  if (pNextHopIf != NULL) {
+  if (pNextHop != NULL) {
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
     return 1;
   } else {
@@ -1397,7 +1384,8 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 				   pRoute->sPrefix, NET_ROUTE_BGP);
       assert(pCurRouteInfo != NULL);
       
-      if (pCurRouteInfo->pNextHopIf != pRouteInfo->pNextHopIf) {
+      if (route_nexthop_compare(pCurRouteInfo->sNextHop,
+				pRouteInfo->sNextHop)) {
 	_array_append(pCtx->pPrefixes, &sPrefix);
 	//fprintf(stderr, "NEXT-HOP HAS CHANGED\n");
 	return 0;
@@ -1889,6 +1877,20 @@ void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
   flushir(pStream);
 }
 
+// ----- bgp_router_info --------------------------------------------
+void bgp_router_info(FILE * pStream, SBGPRouter * pRouter)
+{
+  fprintf(pStream, "router-id : ");
+  ip_address_dump(stdout, pRouter->pNode->tAddr);
+  fprintf(pStream, "\n");
+  fprintf(pStream, "as-number : %u\n", pRouter->uNumber);
+  fprintf(pStream, "cluster-id: ");
+  ip_address_dump(pStream, pRouter->tClusterID);
+  fprintf(pStream, "\n");
+  if (pRouter->pNode->pcName != NULL)
+    fprintf(pStream, "name: %s", pRouter->pNode->pcName);
+}
+
 /////////////////////////////////////////////////////////////////////
 // LOAD/SAVE FUNCTIONS
 /////////////////////////////////////////////////////////////////////
@@ -1966,7 +1968,7 @@ int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
 				pRoute->sPrefix);*/
 
 
-//	  pNode = network_find_node(network_get(), pPeer->tAddr);
+//	  pNode = network_find_node(pPeer->tAddr);
 //	  bgp_msg_send(pNode, pRouter->pNode->tAddr, 
 	  peer_handle_message(pPeer,
 			bgp_msg_update_create(pRouter->uNumber, pRoute));
@@ -2064,7 +2066,7 @@ int bgp_router_record_route(SBGPRouter * pRouter,
       }
       
       // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRouter->pNode->pNetwork, pRoute->tNextHop);
+      pNode= network_find_node(pRoute->tNextHop);
       if (pNode == NULL)
 	break;
       
@@ -2257,7 +2259,7 @@ int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
       }
       
       // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRouter->pNode->pNetwork, pRoute->tNextHop);
+      pNode= network_find_node(pRoute->tNextHop);
       if (pNode == NULL)
 	break;
       

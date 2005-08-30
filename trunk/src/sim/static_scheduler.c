@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 27/01/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -98,15 +98,19 @@ void static_scheduler_done()
 
 // ----- static_scheduler_run ---------------------------------------
 /**
+ * Process the events in the global linear queue.
  *
+ * Parameters:
+ * - iNumSteps: number of events to process during this run (if -1,
+ *   process events until queue is empty).
  */
-int static_scheduler_run(void * pContext)
+int static_scheduler_run(void * pContext, int iNumSteps)
 {
   SStaticEvent * pEvent;
   SSimulator * pSimulator= (SSimulator *) pContext;
 
   while ((pEvent= (SStaticEvent *) fifo_pop(pStaticScheduler->pEvents))
-	 != NULL) {
+	  != NULL) {
 
     pEvent->fCallback(pEvent->pContext);
 
@@ -122,7 +126,16 @@ int static_scheduler_run(void * pContext)
 		  pSimulator->dCurrentTime);
       break;
     }
+
+    // Limit on number of steps
+    if (iNumSteps > 0) {
+      iNumSteps--;
+      if (iNumSteps == 0)
+	break;
+    }
+
   }
+
   return 0;
 }
 

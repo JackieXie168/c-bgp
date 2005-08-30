@@ -4,7 +4,21 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 17/05/2005
+// @lastdate 30/08/2005
+// 
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +47,7 @@
 #include <cli/common.h>
 #include <libgds/fifo.h>
 #include <libgds/memory.h>
+#include <net/igp_domain.h>
 #include <net/network.h>
 #include <net/net_path.h>
 #include <sim/simulator.h>
@@ -66,7 +81,8 @@ char * pcArgMode= NULL;
  */
 void simulation_cli_help()
 {
-  printf("C-BGP %s\n", PACKAGE_VERSION);
+  printf("C-BGP %s ", PACKAGE_VERSION);
+  printf("Copyright (C) 2005 Bruno Quoitin\n");
   printf("Networking group, CSE Dept, UCL, Belgium\n");
   printf("\n");
   printf("Usage: cbgp [OPTIONS]\n");
@@ -80,6 +96,10 @@ void simulation_cli_help()
 #if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
   printf("  -g             track memory leaks.\n");
 #endif
+  printf("\n");
+  printf("C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
+  printf("This is free software, and you are welcome to redistribute it\n");
+  printf("under certain conditions; see file COPYING for details.\n");
   printf("\n");
 }
 
@@ -512,9 +532,11 @@ void _main_done() __attribute((destructor));
 
 void _main_init()
 {
-  gds_init();
+  gds_init(/*GDS_OPTION_MEMORY_DEBUG*/0);
 
-  _domain_init();
+  _network_create();
+  _bgp_domain_init();
+  _igp_domain_init();
   _ft_registry_init();
   _filter_path_regex_init();
   _route_map_init();
@@ -540,7 +562,8 @@ void _main_done()
   _route_map_destroy();
   _filter_path_regex_destroy();
   _ft_registry_destroy();
-  _domain_destroy();
+  _bgp_domain_destroy();
+  _igp_domain_destroy();
   _network_destroy();
   _mrtd_destroy();
 
@@ -603,9 +626,8 @@ int main(int argc, char ** argv) {
 
   simulation_init();
 
-  
-
   /* Run simulation in selected mode... */
+//  uMode = CBGP_MODE_OSPF;
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
     if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)

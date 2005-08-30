@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 14/02/2005
+// @lastdate 05/08/2005
 // ==================================================================
 
 #ifndef __PEER_T_H__

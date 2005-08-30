@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 17/05/2005
+// @lastdate 04/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <libgds/log.h>
+#include <libgds/tokenizer.h>
 
 #include <bgp/mrtd.h>
 #include <bgp/predicate_parser.h>
@@ -42,6 +43,78 @@
 #endif
 
 static SCli * pTheCli= NULL;
+
+// ----- parse_version ----------------------------------------------
+int parse_version(char * pcVersion, unsigned int * puVersion)
+{
+  STokenizer * pTokenizer;
+  STokens * pTokens;
+  int iResult= 0;
+  unsigned int uSubVersion;
+  unsigned int uVersion= 0;
+  unsigned int uFactor= 1000000;
+  unsigned int uIndex;
+
+  pTokenizer= tokenizer_create("-", 1, NULL, NULL);
+  if ((tokenizer_run(pTokenizer, pcVersion) != TOKENIZER_SUCCESS) ||
+      (tokenizer_get_num_tokens(pTokenizer) < 1)) {
+    iResult= -1;
+  } else {
+    pTokens= tokenizer_get_tokens(pTokenizer);
+    pcVersion= strdup(tokens_get_string_at(pTokens, 0));
+  }
+  tokenizer_destroy(&pTokenizer);
+  if (iResult)
+    return iResult;
+
+  pTokenizer= tokenizer_create(".", 1, NULL, NULL);
+  if (tokenizer_run(pTokenizer, pcVersion) != TOKENIZER_SUCCESS) {
+    iResult= -1;
+  } else {
+    pTokens= tokenizer_get_tokens(pTokenizer);
+    for (uIndex= 0; uIndex < tokens_get_num(pTokens); uIndex++) {
+      if (tokens_get_uint_at(pTokens, uIndex, &uSubVersion) ||
+	  (uSubVersion >= 100)) {
+	iResult= -1;
+	break;
+      }
+      uVersion+= uFactor * uSubVersion;
+      uFactor/= 100;
+    }
+    if (!iResult)
+      *puVersion= uVersion;
+  }
+  free(pcVersion);
+  tokenizer_destroy(&pTokenizer);
+  return iResult;
+}
+
+// ----- cli_require_version ----------------------------------------
+int cli_require_version(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcVersion;
+  unsigned int uRequiredVersion;
+  unsigned int uVersion;
+  
+  // Get required version
+  pcVersion= tokens_get_string_at(pTokens, 0);
+
+  if (parse_version(pcVersion, &uRequiredVersion)) {
+    LOG_SEVERE("Error: invalid version \"\".\n", pcVersion);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  if (parse_version(PACKAGE_VERSION, &uVersion)) {
+    LOG_SEVERE("Error: invalid version \"\".\n", PACKAGE_VERSION);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  if (uRequiredVersion > uVersion) {
+    LOG_SEVERE("Error: version %s > version %s.\n",
+	       pcVersion, PACKAGE_VERSION);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  return CLI_SUCCESS;
+}
 
 // ----- cli_set_autoflush ------------------------------------------
 int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
@@ -339,6 +412,21 @@ void cli_register_quit(SCli * pCli)
 					NULL, NULL));
 }
 
+// ----- cli_register_require ---------------------------------------
+void cli_register_require(SCli * pCli)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<version>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_require_version,
+					NULL, pParams));
+  cli_register_cmd(pCli, cli_cmd_create("require", cli_quit,
+					pSubCmds, NULL));
+}
+
 // ----- cli_get ----------------------------------------------------
 /**
  *
@@ -358,6 +446,7 @@ SCli * cli_get()
     cli_register_pause(pTheCli);
     cli_register_print(pTheCli);
     cli_register_quit(pTheCli);
+    cli_register_require(pTheCli);
     cli_register_set(pTheCli);
     cli_register_show(pTheCli);
   }

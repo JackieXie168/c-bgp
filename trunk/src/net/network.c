@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 07/04/2005
+// @lastdate 10/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,109 +14,61 @@
 #include <string.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/patricia-tree.h>
 #include <libgds/stack.h>
+#include <libgds/str_util.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/icmp.h>
 #include <net/ipip.h>
+#include <net/link-list.h>
 #include <net/network.h>
 #include <net/net_path.h>
+#include <net/node.h>
 #include <net/ospf.h>
 #include <net/ospf_rt.h>
-#include <net/domain.h>
+#include <net/subnet.h>
 #include <ui/output.h>
 #include <bgp/message.h>
 #include <libgds/fifo.h>
 #include <bgp/as_t.h>
 #include <bgp/rib.h>
 
-
-
 const net_addr_t MAX_ADDR= MAX_UINT32_T;
 
 SNetwork * pTheNetwork= NULL;
-
-typedef struct {
-  SNetNode * pNode;
-  SNetMessage * pMessage;
-} SNetSendContext;
 
 // ----- options -----
 uint8_t NET_OPTIONS_MAX_HOPS= 30;
 uint8_t NET_OPTIONS_IGP_INTER= 0;
 
-int network_forward(SNetwork * pNetwork, SNetLink * pLink,
-		    SNetMessage * pMessage);
-
-
-// ----- network_send_callback --------------------------------------
+// ----- network_perror ---------------------------------------------
 /**
- * This function handles a message event from the simulator.
+ * Dump an error message for the given error code.
  */
-int network_send_callback(void * pContext)
+void network_perror(FILE * pStream, int iErrorCode)
 {
-  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
-  int iResult;
-
-  // Deliver message to next-hop which will use the message localy or
-  // forward it...
-  iResult= node_recv(pSendContext->pNode, pSendContext->pMessage);
-
-  // Free the message context. The message MUST be freed by
-  // network_node_recv if the message has been delivered or in case
-  // the message can not be forwarded.
-  FREE(pContext);
-  return iResult;
-}
-
-// ----- network_send_dump ------------------------------------------
-/**
- * Callback function used to dump the content of a message event. See
- * also 'simulator_dump_events' (sim/simulator.c).
- */
-void network_send_dump(FILE * pStream, void * pContext)
-{
-  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
-
-  fprintf(pStream, "net-msg [");
-  message_dump(pStream, pSendContext->pMessage);
-  fprintf(pStream, "]");
-  if (pSendContext->pMessage->uProtocol == NET_PROTOCOL_BGP) {
-    bgp_msg_dump(pStream, NULL, pSendContext->pMessage->pPayLoad);
+  switch (iErrorCode) {
+  case NET_SUCCESS:
+    fprintf(pStream, "success"); break;
+  case NET_ERROR_UNKNOWN_PROTOCOL:
+    fprintf(pStream, "unknown protocol"); break;
+  case NET_ERROR_NO_ROUTE_TO_HOST:
+    fprintf(pStream, "no route to host"); break;
+  case NET_ERROR_TTL_EXPIRED:
+    fprintf(pStream, "ttl expired"); break;
+  case NET_ERROR_LINK_DOWN:
+    fprintf(pStream, "link down"); break;
+  case NET_ERROR_PROTOCOL_ERROR:
+    fprintf(pStream, "protocol error"); break;
+  case NET_ERROR_DST_UNREACHABLE:
+    fprintf(pStream, "destination unreachable"); break;
+  default:
+    fprintf(pStream, "unknown error (%i)", iErrorCode);
   }
 }
 
-// ----- network_send_context_create --------------------------------
-/**
- * This function creates a message context to be pushed on the
- * simulator's events queue. The context contains the message and the
- * destination node.
- */
-SNetSendContext * network_send_context_create(SNetNode * pNode,
-					      SNetMessage * pMessage)
-{
-  SNetSendContext * pSendContext=
-    (SNetSendContext *) MALLOC(sizeof(SNetSendContext));
-  
-  pSendContext->pNode= pNode;
-  pSendContext->pMessage= pMessage;
-  return pSendContext;
-}
-
-// ----- network_send_context_destroy -------------------------------
-/**
- * This function is used by the simulator to free events which will
- * not be processed.
- */
-void network_send_context_destroy(void * pContext)
-{
-  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
-
-  message_destroy(&pSendContext->pMessage);
-  FREE(pSendContext);
-}
-
-// ----- node_compare -----------------------------------------
+// ----- node_compare -----------------------------------------------
 int node_compare(void * pItem1, void * pItem2,
 		       unsigned int uEltSize)
 {
@@ -131,225 +83,27 @@ int node_compare(void * pItem1, void * pItem2,
     return 0;
 }
 
-// ----- node_interface_link_add -------------------------------------
-/**
- *
- *
- */
-int node_interface_link_add(SNetNode * pNode, net_addr_t tFromIf, 
-    net_addr_t tToIf, net_link_delay_t tDelay)
-{
-  SNetInterface * pInterface = MALLOC(sizeof(SNetInterface));
-  SNetLink * pLink= create_link_toRouter_byAddr(tToIf);//SHOULD BE A DIFFERENT TYPE OF LINK?
-  SPtrArray * pLinks;
-  unsigned int uIndex;
-
-  pInterface->tAddr = tFromIf;
-
-  if (ptr_array_sorted_find_index(pNode->aInterfaces, &pInterface, &uIndex)) {
-    LOG_DEBUG("node_interface_link_add>interface not found %ul\n", tFromIf);
-    return -1;
-  }
-  pLinks = ((SNetInterface *)pNode->aInterfaces->data[uIndex])->pLinks;
-
-  //pLink->tAddr= tToIf;
-  pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
-  pLink->uIGPweight= tDelay;
-  pLink->pContext= NULL;
-  pLink->fForward= NULL;
-  return ptr_array_add(pLinks, &pLink);
-}
-
-// ----- node_links_compare -----------------------------------------
-int node_links_compare(void * pItem1, void * pItem2,
-		       unsigned int uEltSize)
-{
-  SNetLink * pLink1= *((SNetLink **) pItem1);
-  SNetLink * pLink2= *((SNetLink **) pItem2);
-//   LOG_DEBUG("...node links compare\n");
-  if (pLink1->uDestinationType == pLink2->uDestinationType){
-//         LOG_DEBUG("i link sono dello stesso tipo...\n");
-    if (pLink1->uDestinationType == NET_LINK_TYPE_ROUTER) {
-//     LOG_DEBUG("...verso router\n");
-      if (link_get_addr(pLink1) < link_get_addr(pLink2))
-        return -1;
-      else if (link_get_addr(pLink1) > link_get_addr(pLink2))
-        return 1;
-      else
-        return 0;
-     }
-     else {
-//      LOG_DEBUG("...verso subnet\n");
-       SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
-//        pPrefixL1 = (SPrefix *) MALLOC(sizeof(SPrefix));
-//        pPrefixL2 = (SPrefix *) MALLOC(sizeof(SPrefix));
-       link_get_prefix(pLink1, &sPrefixL1);
-       link_get_prefix(pLink2, &sPrefixL2);
-       pP1 = &sPrefixL1;
-       pP2 = &sPrefixL2;
-       int pfxCmp = ip_prefixes_compare(&pP1, &pP2, 0);
-//        FREE(pPrefixL1);
-//        FREE(pPrefixL2);
-       return pfxCmp;
-     }
-   }
-   else if (pLink1->uDestinationType == NET_LINK_TYPE_TRANSIT)
-     return 1;
-   else if (pLink2->uDestinationType == NET_LINK_TYPE_TRANSIT)
-     return -1;
-   else if (pLink1->uDestinationType == NET_LINK_TYPE_STUB)
-     return 1;
-   else
-     return -1;  
-}
-
-// ----- node_links_destroy -----------------------------------------
-void node_links_destroy(void * pItem)
-{
-  FREE(*((SNetLink **) pItem));
-  *((SNetLink **) pItem)= NULL;
-}
-
-// ----- node_get_name -----------------------------------------------
+// ----- node_get_name ----------------------------------------------
 char * node_get_name(SNetNode * pNode)
 {
   return pNode->pcName;
 }
 
-// ----- node_set_name -----------------------------------------------
+// ----- node_get_prefix---------------------------------------------
+void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix){
+  pPrefix->tNetwork = pNode->tAddr;
+  pPrefix->uMaskLen = 32;
+}
+
+// ----- node_set_name ----------------------------------------------
 void node_set_name(SNetNode * pNode, const char * pcName)
 {
-  char * pcNameDup = strdup(pcName);
-  
   if (pNode->pcName)
-    FREE(pNode->pcName);
-  
-  pNode->pcName = pcNameDup;
-}
-
-// ----- node_interface_compare --------------------------------------
-/**
- *
- *
- */
-int node_interface_compare(void * pItem1, void * pItem2,
-				unsigned int uEltSize)
-{
-  SNetInterface * pInterface1 = *((SNetInterface **)pItem1);
-  SNetInterface * pInterface2 = *((SNetInterface **)pItem2);
-
-  if (pInterface1->tAddr < pInterface2->tAddr)
-    return -1;
-  else if (pInterface1->tAddr > pInterface2->tAddr)
-    return 1;
+    str_destroy(&pNode->pcName);
+  if (pcName != NULL)
+    pNode->pcName= str_create(pcName);
   else
-    return 0;
-}
-
-// ----- node_interface_destroy --------------------------------------
-/**
- *
- *
- */
-void node_interface_destroy(void * pItem)
-{
-  if (*(SNetInterface **)pItem) {
-    FREE((*(SNetInterface **)pItem)->tMask);
-    ptr_array_destroy(&(*(SNetInterface **)pItem)->pLinks);
-    FREE(*(SNetInterface **)pItem);
-    *(SNetInterface **)pItem = NULL;
-  }
-}
-
-// ----- node_interface_create ---------------------------------------
-/**
- *
- *
- */
-SNetInterface * node_interface_create()
-{
-  SNetInterface * pInterface = MALLOC(sizeof(SNetInterface));
-
-  pInterface->tAddr = 0;
-  pInterface->tMask = NULL;
-  pInterface->pLinks = ptr_array_create(ARRAY_OPTION_UNIQUE|ARRAY_OPTION_SORTED,
-			  node_links_compare, 
-			  node_links_destroy);
-  return pInterface;
-}
-
-// ----- node_interface_add ------------------------------------------
-/**
- *
- *
- */
-int node_interface_add(SNetNode * pNode, SNetInterface * pInterface)
-{
-  //We do not create aInterfaces when creating a node 'cause
-  //it's only used while loading a topology via a xml file
-  if (pNode->aInterfaces == NULL)
-    pNode->aInterfaces = ptr_array_create(ARRAY_OPTION_UNIQUE|
-					  ARRAY_OPTION_SORTED,
-					  node_interface_compare,
-					  node_interface_destroy);
-
-  return ptr_array_add(pNode->aInterfaces, (void *)&pInterface);
-}
- 
-// ----- node_interface_get_number -----------------------------------
-/**
- *
- *
- */
-unsigned int node_interface_get_number(SNetNode * pNode)
-{
-  if (pNode->aInterfaces)
-    return ptr_array_length(pNode->aInterfaces);
-  else
-    return 0;
-}
-
-// ----- node_interface_get ------------------------------------------
-/**
- *
- *
- */
-SNetInterface * node_interface_get(SNetNode * pNode, 
-				const unsigned int uIndex)
-{
-  return (SNetInterface *)pNode->aInterfaces->data[uIndex];
-}
-
-// ----- node_set_as -------------------------------------------------
-/**
- *
- *
- */
-void node_set_as(SNetNode * pNode, SNetDomain * pDomain)
-{
-  if (pNode)
-    pNode->pDomain = pDomain;
-}
-
-// ----- node_get_as -------------------------------------------------
-/**
- *
- *
- */
-uint32_t node_get_as_id(SNetNode * pNode)
-{
-  return domain_get_as(pNode->pDomain);
-}
-
-// ----- node_get_as -------------------------------------------------
-/**
- *
- *
- */
-SNetDomain * node_get_as(SNetNode * pNode)
-{
-  return pNode->pDomain;
+    pNode->pcName= NULL;
 }
 
 // ----- node_create ------------------------------------------------
@@ -360,17 +114,17 @@ SNetNode * node_create(net_addr_t tAddr)
 {
   SNetNode * pNode= (SNetNode *) MALLOC(sizeof(SNetNode));
   pNode->tAddr= tAddr;
-  pNode->aInterfaces = NULL;
-  pNode->pcName = NULL;
-  pNode->uAS = 0;
-  pNode->pOSPFAreas = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
-  pNode->pLinks = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
-				   node_links_compare,
-				   node_links_destroy);
+  pNode->pcName= NULL;
+  
+  pNode->pLinks= net_links_create();
   pNode->pRT= rt_create();
+
 #ifdef OSPF_SUPPORT
-  pNode->pRT= OSPF_rt_create();
+  pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  pNode->pOspfRT     = OSPF_rt_create();
+  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
 #endif
+
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
 			 NULL, icmp_event_handler);
@@ -386,76 +140,53 @@ void node_destroy(SNetNode ** ppNode)
   if (*ppNode != NULL) {
     rt_destroy(&(*ppNode)->pRT);
     protocols_destroy(&(*ppNode)->pProtocols);
-    ptr_array_destroy(&(*ppNode)->pLinks);
-    ptr_array_destroy(&(*ppNode)->aInterfaces);
+    net_links_destroy(&(*ppNode)->pLinks);
+
+#ifdef OSPF_SUPPORT
+    _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
+    OSPF_rt_destroy(&(*ppNode)->pOspfRT);
+    uint16_array_destroy(&(*ppNode)->pIGPDomains);
+#endif
+
     if ((*ppNode)->pcName)
-      FREE((*ppNode)->pcName);
+      str_destroy(&(*ppNode)->pcName);
     FREE(*ppNode);
     *ppNode= NULL;
   }
 }
 
-// ----- node_add_link ----------------------------------------------
-/**
- *
- */
-int node_add_link(SNetNode * pNodeA, SNetNode * pNodeB, 
-		  net_link_delay_t tDelay, int iRecurse)
-{
-  SNetLink * pLink= create_link_toRouter(pNodeB);//(SNetLink *) MALLOC(sizeof(SNetLink));
-  
-  if (iRecurse)
-    if (node_add_link(pNodeB, pNodeA, tDelay, 0))
-      return -1;
-
-  //pLink->tAddr= pNodeB->tAddr;
-  pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
-  pLink->uIGPweight= tDelay;
-  pLink->pContext= NULL;
-  pLink->fForward= NULL;
-  return ptr_array_add(pNodeA->pLinks, &pLink);
-}
-
-// ----- node_add_link_toSubnet ----------------------------------------------
-/**
- *
- */
-int node_add_link_toSubnet(SNetNode * pNode, SNetSubnet * pSubnet, 
-                                             net_link_delay_t tDelay, int iMutual)
-{
-  SNetLink * pLink= create_link_toSubnet(pSubnet);
-  pLink->tDelay= tDelay;
-  pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV; //??
-  pLink->uIGPweight= tDelay;
-  pLink->pContext= NULL;
-  pLink->fForward= NULL;
-  
-  if (ptr_array_add(pNode->pLinks, &pLink) < 0){
-    return -1;
-  }
-  else if (iMutual)
-    return subnet_link_toNode(pSubnet, pNode);//add node to subnet's node list  
-  else 
-    return 1;
-}
-
 // ----- node_dump ---------------------------------------------------
 /**
  *
- *
  */
-void node_dump(SNetNode * pNode)
+void node_dump(FILE * pStream, SNetNode * pNode)
 { 
-  ip_address_dump(stdout, pNode->tAddr);
-  fprintf(stdout, "\n");
+  ip_address_dump(pStream, pNode->tAddr);
+  fprintf(pStream, "\n");
 }
 
-// ----- node_link_change_delay -------------------------------------
+// ----- node_info --------------------------------------------------
 /**
  *
- *
  */
+void node_info(FILE * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+
+  fprintf(pStream, "loopback : ");
+  ip_address_dump(pStream, pNode->tAddr);
+  fprintf(pStream, "\n");
+  fprintf(pStream, "domain   :");
+  for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
+    fprintf(pStream, " %d", pNode->pIGPDomains->data[uIndex]);
+  }
+  fprintf(pStream, "\n");
+  if (pNode->pcName != NULL)
+    fprintf(pStream, "name     : %s\n", pNode->pcName);
+  fprintf(pStream, "addresses: ");
+  node_addresses_dump(pStream, pNode);
+  fprintf(pStream, "\n");
+}
 
 // ----- node_add_tunnel --------------------------------------------
 /**
@@ -463,49 +194,18 @@ void node_dump(SNetNode * pNode)
  */
 int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint)
 {
-  SNetLink * pLink= create_link_toRouter_byAddr(tDstPoint);
+  /*  SNetLink * pLink= create_link_toRouter_byAddr(tDstPoint);
   
   //pLink->tAddr= tDstPoint;
   pLink->tDelay= 0;
   pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_TUNNEL;
   pLink->uIGPweight= 0;
   pLink->pContext= pNode;
-  pLink->fForward= ipip_link_forward;
+  //pLink->fForward= ipip_link_forward;
+  pLink->fForward= NULL;
   return ptr_array_add(pNode->pLinks, &pLink);
-}
-
-// ----- node_find_link ---------------------------------------------
-/**
- *
- */
-SNetLink * node_find_link_to_router(SNetNode * pNode, net_addr_t tAddr)
-{
-  int iIndex;
-  SNetLink * pLink= NULL, * wrapLink;
-  
-  wrapLink = create_link_toRouter_byAddr(tAddr);
-
-  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-  return pLink;
-}
-
-// ----- node_find_link ---------------------------------------------
-/**
- *
- */
-SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
-{
-  int iIndex;
-  SNetLink * pLink= NULL, * wrapLink;
-  
-  wrapLink = create_link_toSubnet(pSubnet);
-    
-  if (ptr_array_sorted_find_index(pNode->pLinks, &wrapLink, &iIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-  
-  //FREE(pPrefix);
-  return pLink;
+  */
+  return -1;
 }
 
 // ----- node_ipip_enable -------------------------------------------
@@ -514,20 +214,41 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet)
  */
 int node_ipip_enable(SNetNode * pNode)
 {
+  /*
   return node_register_protocol(pNode, NET_PROTOCOL_IPIP,
 				pNode, NULL,
 				ipip_event_handler);
+  */
+  return -1;
+}
+
+// ----- node_igp_domain_add -------------------------------------------
+int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber)
+{
+  return _array_add((SArray*)(pNode->pIGPDomains), &uDomainNumber);
+}
+
+// ----- node_igp_domain_add -------------------------------------------
+/** Return TRUE (1) if node belongs to igp domain tDomainNumber
+ * FALSE (0) otherwise.
+ */
+int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber)
+{
+  unsigned int uIndex;
+
+  if (_array_sorted_find_index((SArray*)(pNode->pIGPDomains),
+			       &uDomainNumber, &uIndex) == 0)
+    return 1;
+  return 0;
 }
 
 // ----- node_links_dump --------------------------------------------
+/**
+ * Dump all the node's links.
+ */
 void node_links_dump(FILE * pStream, SNetNode * pNode)
 {
-  int iIndex;
-
-  for (iIndex= 0; iIndex < ptr_array_length(pNode->pLinks); iIndex++) {
-    link_dump(pStream, (SNetLink *) pNode->pLinks->data[iIndex]);
-    fprintf(pStream, "\n");
-  }
+  net_links_dump(pStream, pNode->pLinks);
 }
 
 // ----- node_links_for_each ----------------------------------------
@@ -557,59 +278,9 @@ SNetLink * node_links_lookup(SNetNode * pNode,
   return pLink;
 }
 
-// ----- node_rt_add_route ------------------------------------------
-/**
- *
- */
-int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
-		      net_addr_t tNextHop,
-		      uint32_t uWeight, uint8_t uType)
-{
-  SNetLink * pLink;
-  SNetRouteInfo * pRouteInfo;
-
-  // Lookup the next-hop's interface (no recursive lookup is allowed,
-  // it must be a direct link !)
-  pLink= node_links_lookup(pNode, tNextHop);
-  if (pLink == NULL) {
-    return NET_RT_ERROR_NH_UNREACH;
-  }
-
-  // Build route info
-  pRouteInfo= route_info_create(sPrefix, pLink, uWeight, uType);
-
-  return rt_add_route(pNode->pRT, sPrefix, pRouteInfo);
-}
-
-// ----- node_rt_del_route ------------------------------------------
-/**
- * This function removes a route from the node's routing table. The
- * route is identified by the prefix, the next-hop address (i.e. the
- * outgoing interface) and the type.
- *
- * If the next-hop is not present (NULL), all the routes matching the
- * other parameters will be removed whatever the next-hop is.
- */
-int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
-		      net_addr_t * pNextHop, uint8_t uType)
-{
-  SNetLink * pLink= NULL;
-
-  // Lookup the next-hop's interface (no recursive lookup is allowed,
-  // it must be a direct link !)
-  if (pNextHop != NULL) {
-    pLink= node_links_lookup(pNode, *pNextHop);
-    if (pLink == NULL) {
-      return NET_RT_ERROR_IF_UNKNOWN;
-    }
-  }
-
-  return rt_del_route(pNode->pRT, pPrefix, pLink, uType);
-}
-
 // ----- node_rt_dump -----------------------------------------------
 /**
- *
+ * Dump the node's routing table.
  */
 void node_rt_dump(FILE * pStream, SNetNode * pNode, SNetDest sDest)
 {
@@ -619,40 +290,84 @@ void node_rt_dump(FILE * pStream, SNetNode * pNode, SNetDest sDest)
   flushir(pStream);
 }
 
-// ----- node_rt_dump_string -----------------------------------------------
-/**
- *
- */
-/*char * node_rt_dump_string(SNetNode * pNode, SPrefix sPrefix)
-{
-  char * cRT = NULL;
-
-  if (pNode->pRT != NULL)
-    cRT = rt_dump_string(pNode->pRT, sPrefix);
-
-  return cRT;
-}*/
-
-
 // ----- node_rt_lookup ---------------------------------------------
 /**
  * This function looks for the next-hop that must be used to reach a
  * destination address. The function looks up the static/IGP/BGP
  * routing table.
  */
-SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
+SNetRouteNextHop * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 {
-  SNetLink * pLink= NULL;
+  SNetRouteNextHop * pNextHop= NULL;
   SNetRouteInfo * pRouteInfo;
 
   // Is there a static or IGP route ?
   if (pNode->pRT != NULL) {
     pRouteInfo= rt_find_best(pNode->pRT, tDstAddr, NET_ROUTE_ANY);
     if (pRouteInfo != NULL)
-      pLink= pRouteInfo->pNextHopIf;
+      pNextHop= &pRouteInfo->sNextHop;
   }
 
-  return pLink;
+  return pNextHop;
+}
+
+// ----- node_has_address -------------------------------------------
+/**
+ * This function checks if the node has the given address. The
+ * function first checks the loopback address (that identifies the
+ * node). Then, the function checks the multi-point links of the node
+ * for an 'interface' address.
+ *
+ * Return:
+ * 1 if the node has the given address
+ * 0 otherwise
+ */
+int node_has_address(SNetNode * pNode, net_addr_t tAddress)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Check loopback address
+  if (pNode->tAddr == tAddress)
+    return 1;
+
+  // Check interface addresses
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+      if (pLink->tIfaceAddr == tAddress)
+	return 1;
+    }
+  }
+
+  return 0;
+}
+
+// ----- node_addresses_dump ----------------------------------------
+/**
+ * This function shows the list of addresses owned by the node. The
+ * first address is the node's loopback address (its identifier). The
+ * other addresses are the interface addresses (that are set on
+ * multi-point links).
+ */
+void node_addresses_dump(FILE * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Show loopback address
+  ip_address_dump(pStream, pNode->tAddr);
+
+  // Show interface addresses
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+      fprintf(pStream, " ");
+      ip_address_dump(pStream, pLink->tIfaceAddr);
+    }
+  }
 }
 
 // ----- node_recv --------------------------------------------------
@@ -671,15 +386,23 @@ SNetLink * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
  */
 int node_recv(SNetNode * pNode, SNetMessage * pMessage)
 {
-  SNetLink * pLink;
+  SNetRouteNextHop * pNextHop;
   int iResult;
   SNetProtocol * pProtocol;
 
   assert(pMessage->uTTL > 0);
   pMessage->uTTL--;
 
+  //fprintf(stdout, "(");
+  //ip_address_dump(stdout, pNode->tAddr);
+  //fprintf(stdout, ") node-recv from ");
+  //ip_address_dump(stdout, pMessage->tSrcAddr);
+  //fprintf(stdout, " to ");
+  //ip_address_dump(stdout, pMessage->tDstAddr);
+  //fprintf(stdout, "\n");
+
   // Local delivery ?
-  if (pMessage->tDstAddr == pNode->tAddr) {
+  if (node_has_address(pNode, pMessage->tDstAddr)) {
     assert(pNode->pProtocols != NULL);
     pProtocol= protocols_get(pNode->pProtocols, pMessage->uProtocol);
 
@@ -715,8 +438,8 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
   }
 
   // Find route to destination
-  pLink= node_rt_lookup(pNode, pMessage->tDstAddr);
-  if (pLink == NULL) {
+  pNextHop= node_rt_lookup(pNode, pMessage->tDstAddr);
+  if (pNextHop == NULL) {
     LOG_INFO("Info: no route to host at ");
     LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
 				       pNode->tAddr);
@@ -733,7 +456,10 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
   }
 
   // Forward...
-  return network_forward(pNode->pNetwork, pLink, pMessage);
+  return network_forward(pNode->pNetwork,
+			 pNextHop->pIface,
+			 pNextHop->tAddr,
+			 pMessage);
 }
 
 // ----- node_send --------------------------------------------------
@@ -742,27 +468,37 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
  * The node must be directly connected to the sender node or there
  * must be a route towards the node in the sender's routing table.
  */
-int node_send(SNetNode * pNode, net_addr_t tDstAddr,
+int node_send(SNetNode * pNode, net_addr_t tSrcAddr, net_addr_t tDstAddr,
 	      uint8_t uProtocol, void * pPayLoad, FPayLoadDestroy fDestroy)
 {
-  SNetLink * pLink;
+  SNetRouteNextHop * pNextHop;
   SNetMessage * pMessage;
 
-  // Find outgoing interface/next-hop
-  pLink= node_rt_lookup(pNode, tDstAddr);
-  if (pLink == NULL) {
+  // Find outgoing interface & next-hop
+  pNextHop= node_rt_lookup(pNode, tDstAddr);
+  if (pNextHop == NULL) {
     if (fDestroy != NULL)
       fDestroy(&pPayLoad);
-    return -1;
+    return NET_ERROR_NO_ROUTE_TO_HOST;
+  }
+
+  if (tSrcAddr == 0) {
+    if (pNextHop->pIface->tIfaceAddr != 0)
+      tSrcAddr= pNextHop->pIface->tIfaceAddr;
+    else
+      tSrcAddr= pNode->tAddr;
   }
 
   // Build message
-  pMessage= message_create(pNode->tAddr, tDstAddr,
+  pMessage= message_create(tSrcAddr, tDstAddr,
 			   uProtocol, 255,
 			   pPayLoad, fDestroy);
 
   // Forward
-  return network_forward(pNode->pNetwork, pLink, pMessage);
+  return network_forward(pNode->pNetwork,
+			 pNextHop->pIface,
+			 pNextHop->tAddr,
+			 pMessage);
 }
 
 // ----- node_register_protocol -------------------------------------
@@ -779,9 +515,10 @@ int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
 }
 
 
-
 /////////////////////////////////////////////////////////////////////
-/////// Network methods
+//
+// NETWORK METHODS
+//
 /////////////////////////////////////////////////////////////////////
 
 // ----- network_nodes_destroy --------------------------------------
@@ -790,35 +527,10 @@ void network_nodes_destroy(void ** ppItem)
   node_destroy((SNetNode **) ppItem);
 }
 
-// ----- network_domains_compare ------------------------------------
-/**
- *
- *
- */
-int network_domains_compare(void * pItem1, void * pItem2, 
-				unsigned int uEltSize)
+// ----- network_subnets_destroy ------------------------------------
+void network_subnets_destroy(void * pItem)
 {
-  SNetDomain * pDomain1 = *((SNetDomain **)pItem1);
-  SNetDomain * pDomain2 = *((SNetDomain **)pItem2);
-
-  LOG_DEBUG("%x %x\n", pDomain1, pDomain2);
-  if (pDomain1->uAS < pDomain2->uAS)
-    return -1;
-  else if (pDomain1->uAS > pDomain2->uAS)
-    return 1;
-  else
-    return 0;
-}
-
-// ----- network_domains_destroy ------------------------------------
-/**
- *
- *
- */
-void network_domains_destroy(void * pItem)
-{
-  if (*(SNetNode **)pItem != NULL)
-    domain_destroy((SNetDomain **)pItem);
+  subnet_destroy(((SNetSubnet **) pItem));
 }
 
 // ----- network_create ---------------------------------------------
@@ -829,12 +541,11 @@ SNetwork * network_create()
 {
   SNetwork * pNetwork= (SNetwork *) MALLOC(sizeof(SNetwork));
   
-#ifdef __EXPERIMENTAL__
   pNetwork->pNodes= trie_create(network_nodes_destroy);
-#else
-  pNetwork->pNodes= radix_tree_create(32, network_nodes_destroy);
-#endif
-  pNetwork->pDomains = NULL;
+  pNetwork->pSubnets= ptr_array_create(ARRAY_OPTION_SORTED|
+				       ARRAY_OPTION_UNIQUE,
+				       subnets_compare,
+				       network_subnets_destroy);
   return pNetwork;
 }
 
@@ -845,12 +556,8 @@ SNetwork * network_create()
 void network_destroy(SNetwork ** ppNetwork)
 {
   if (*ppNetwork != NULL) {
-#ifdef __EXPERIMENTAL__
     trie_destroy(&(*ppNetwork)->pNodes);
-#else
-    radix_tree_destroy(&(*ppNetwork)->pNodes);
-#endif
-    ptr_array_destroy(&(*ppNetwork)->pDomains);
+    ptr_array_destroy(&(*ppNetwork)->pSubnets);
     FREE(*ppNetwork);
     *ppNetwork= NULL;
   }
@@ -872,27 +579,47 @@ SNetwork * network_get()
 /**
  *
  */
-int network_add_node(SNetwork * pNetwork, SNetNode * pNode)
+int network_add_node(SNetNode * pNode)
 {
-  pNode->pNetwork= pNetwork;
-#ifdef __EXPERIMENTAL__
-  return trie_insert(pNetwork->pNodes, pNode->tAddr, 32, pNode);
-#else
-  return radix_tree_add(pNetwork->pNodes, pNode->tAddr, 32, pNode);
-#endif
+  pNode->pNetwork= pTheNetwork;
+  return trie_insert(pTheNetwork->pNodes, pNode->tAddr, 32, pNode);
+}
+
+// ----- network_add_subnet -------------------------------------------
+/**
+ *
+ */
+int network_add_subnet(SNetSubnet * pSubnet)
+{
+  return ptr_array_add(pTheNetwork->pSubnets, &pSubnet);
 }
 
 // ----- network_find_node ------------------------------------------
 /**
  *
  */
-SNetNode * network_find_node(SNetwork * pNetwork, net_addr_t tAddr)
+SNetNode * network_find_node(net_addr_t tAddr)
 {
-#ifdef __EXPERIMENTAL__
-  return (SNetNode *) trie_find_exact(pNetwork->pNodes, tAddr, 32);
-# else
-  return (SNetNode *) radix_tree_get_exact(pNetwork->pNodes, tAddr, 32);
-#endif
+  return (SNetNode *) trie_find_exact(pTheNetwork->pNodes, tAddr, 32);
+}
+
+// ----- network_find_subnet ----------------------------------------
+/**
+ *
+ */
+SNetSubnet * network_find_subnet(SPrefix sPrefix)
+{ 
+  unsigned int uIndex;
+  SNetSubnet * pSubnet = NULL;
+  SNetSubnet * pWrapSubnet;
+
+  pWrapSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
+  if (ptr_array_sorted_find_index(pTheNetwork->pSubnets,
+				  &pWrapSubnet, &uIndex) == 0) 
+    ptr_array_get_at(pTheNetwork->pSubnets, uIndex, &pSubnet);
+  
+  subnet_destroy(&pWrapSubnet);
+  return pSubnet;
 }
 
 // ----- network_forward --------------------------------------------
@@ -901,42 +628,37 @@ SNetNode * network_find_node(SNetwork * pNetwork, net_addr_t tAddr)
  * function first checks if the link is up.
  */
 int network_forward(SNetwork * pNetwork, SNetLink * pLink,
-		    SNetMessage * pMessage)
+		    net_addr_t tNextHop, SNetMessage * pMsg)
 {
-  SNetNode * pNextHop;
+  SNetNode * pNextHop= NULL;
+  int iResult;
 
-  // Check link's state
-  if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
-    fprintf(stderr, "*** Message lost ***\n");
-    fprintf(stderr, "message: ");
-    message_dump(stderr, pMessage);
-    if (pMessage->uProtocol == NET_PROTOCOL_BGP)
-      bgp_msg_dump(stderr, NULL, pMessage->pPayLoad);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "link: ");
-    link_dump(stderr, pLink);
-    fprintf(stderr, "\n");
+  if (tNextHop == 0)
+    tNextHop= pMsg->tDstAddr;
+
+  // Forward along this link...
+  assert(pLink->fForward != NULL);
+  iResult= pLink->fForward(tNextHop, pLink->pContext, &pNextHop);
+
+  // If one link was DOWN, drop the message.
+  if (iResult == NET_ERROR_LINK_DOWN) {
     LOG_INFO("Info: link is down, message dropped\n");
-    message_destroy(&pMessage);
-    return NET_ERROR_LINK_DOWN; // Link is down, silently drop
+    _link_drop(pLink, pMsg);
+    return iResult;
   }
 
-  if (pLink->fForward == NULL) {
-    // Node lookup: O(log(n))
-    pNextHop= network_find_node(pNetwork, link_get_addr(pLink));
+  // Forward to node...
+  if (iResult == NET_SUCCESS) {
     assert(pNextHop != NULL);
-    
-    // Forward to node...
-    assert(!simulator_post_event(network_send_callback,
-				 network_send_dump,
-				 network_send_context_destroy,
-				 network_send_context_create(pNextHop,
-							     pMessage),
+    assert(!simulator_post_event(_network_send_callback,
+				 _network_send_dump,
+				 _network_send_context_destroy,
+				 _network_send_context_create(pNextHop,
+							      pMsg),
 				 0, RELATIVE_TIME));
-    return NET_SUCCESS;
-  } else {
-    return pLink->fForward(link_get_addr(pLink), pLink->pContext, pMessage);
   }
+
+  return iResult;
 }
 
 // ----- network_nodes_to_file --------------------------------------
@@ -950,9 +672,9 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
 
   for (iLinkIndex= 0; iLinkIndex < ptr_array_length(pNode->pLinks);
        iLinkIndex++) {
-	  pLink= (SNetLink *) pNode->pLinks->data[iLinkIndex];
-	  fprintf(pStream, "%d\t%d\t%u\n",
-		  pNode->tAddr, link_get_addr(pLink), pLink->tDelay);
+    pLink= (SNetLink *) pNode->pLinks->data[iLinkIndex];
+    link_dump(pStream, pLink);
+    fprintf(pStream, "\n");
   }
   return 0;
 }
@@ -963,13 +685,18 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
  */
 int network_to_file(FILE * pStream, SNetwork * pNetwork)
 {
-#ifdef __EXPERIMENTAL__
+  SEnumerator * pEnum= trie_get_enum(pTheNetwork->pNodes);
+  SNetNode * pNode;
+  /*
   return trie_for_each(pNetwork->pNodes, network_nodes_to_file,
 		       pStream);
-#else
-  return radix_tree_for_each(pNetwork->pNodes, network_nodes_to_file,
-			     pStream);
-#endif
+  */
+  while (enum_has_next(pEnum)) {
+    pNode= *(SNetNode **) enum_get_next(pEnum);
+    node_dump(pStream, pNode);
+  }
+  enum_destroy(&pEnum);
+  return 0;
 }
 
 // ----- network_from_file ------------------------------------------
@@ -1035,19 +762,19 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
     pContext= (SContext *) fifo_pop(pFIFO);
     if (pContext == NULL)
       break;
-    pNode= network_find_node(pNetwork, pContext->tAddr);
+    pNode= network_find_node(pContext->tAddr);
 
     pOldContext= pContext;
 
     for (iIndex= 0; iIndex < ptr_array_length(pNode->pLinks);
 	 iIndex++) {
       pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-      if (radix_tree_get_exact(pVisited, link_get_addr(pLink), 32) == NULL) {
+      if (radix_tree_get_exact(pVisited, link_get_address(pLink), 32) == NULL) {
 	pContext= (SContext *) MALLOC(sizeof(SContext));
-	pContext->tAddr= link_get_addr(pLink);
+	pContext->tAddr= link_get_address(pLink);
 	pContext->pPath= net_path_copy(pOldContext->pPath);
-	net_path_append(pContext->pPath, link_get_addr(pLink));
-	radix_tree_add(pVisited, link_get_addr(pLink), 32,
+	net_path_append(pContext->pPath, link_get_address(pLink));
+	radix_tree_add(pVisited, link_get_address(pLink), 32,
 		       net_path_copy(pContext->pPath));
 	assert(fifo_push(pFIFO, pContext) == 0);
       }
@@ -1063,340 +790,168 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
   return 0;
 }
 
-/////////////////////////////////////////////////////////////////////
-// ROUTING TESTS
-/////////////////////////////////////////////////////////////////////
-
-#define NET_RECORD_ROUTE_SUCCESS         0
-#define NET_RECORD_ROUTE_TOO_LONG       -1
-#define NET_RECORD_ROUTE_UNREACH        -2
-#define NET_RECORD_ROUTE_DOWN           -3
-#define NET_RECORD_ROUTE_TUNNEL_UNREACH -4
-#define NET_RECORD_ROUTE_TUNNEL_BROKEN  -5
-#define NET_RECORD_ROUTE_LOOP		-6
-
-// ----- node_record_route -------------------------------------------
-/**
- *
- */
-int node_record_route(SNetNode * pNode, SNetDest sDest,
-		      SNetPath ** ppPath,
-		      net_link_delay_t * pDelay, uint32_t * pWeight, const uint8_t uDeflection, SNetPath ** ppDeflectedPath)
+//---- network_dump_subnets ---------------------------------------------
+void network_dump_subnets(FILE * pStream, SNetwork *pNetwork)
 {
-  SNetNode * pCurrentNode= pNode;
-  SNetLink * pLink= NULL;
-  unsigned int uHopCount= 0;
-  int iResult= NET_RECORD_ROUTE_UNREACH;
-  SNetPath * pPath= net_path_create(), * pDeflectedPath=net_path_create();
-  SStack * pDstStack= stack_create(10);
-  net_link_delay_t tTotalDelay= 0;
-  uint32_t uTotalWeight= 0;
-  net_link_delay_t tLinkDelay= 0;
-  uint32_t uLinkWeight= 0;
-  int iReached;
-  SNetDest * pDestCopy;
-  SNetRouteInfo * pRouteInfo;
+  //  int iIndex, /*totSub*/;
+  SNetSubnet * pSubnet = NULL;
+  SEnumerator * pEnum= _array_get_enum((SArray*) pNetwork->pSubnets);
+  while (enum_has_next(pEnum)) {
+    pSubnet= *(SNetSubnet **) enum_get_next(pEnum);
+    ip_prefix_dump(pStream, pSubnet->sPrefix);
+    fprintf(pStream, "\n");
+  }
+  enum_destroy(&pEnum);
+  /*
+  totSub = ptr_array_length(pNetwork->pSubnets);
+  for (iIndex = 0; iIndex < totSub; iIndex++){
+    ptr_array_get_at(pNetwork->pSubnets, iIndex, &pSubnet);
+    ip_prefix_dump(pStream, pSubnet->sPrefix);
+    fprintf(pStream, "\n");
+    }*/
+}
 
-  net_addr_t tInitialBGPNextHopAddr = 0, tCurrentBGPNextHopAddr = 0;
-  SNetProtocol * pProtocol = NULL;
-  SBGPRouter * pRouter = NULL;
-  SRoute * pRoute = NULL;
-  uint8_t uDeflectionOccurs = 0;
+// ----- network_enum_nodes -----------------------------------------
+char * network_enum_nodes(const char * pcText, int state)
+{
+  static SEnumerator * pEnum= NULL;
+  SNetNode * pNode;
+  char acNode[16];
 
-  assert((sDest.tType == NET_DEST_PREFIX) ||
-	 (sDest.tType == NET_DEST_ADDRESS));
+  if (state == 0)
+    pEnum= trie_get_enum(pTheNetwork->pNodes);
+  while (enum_has_next(pEnum)) {
+    pNode= *((SNetNode **) enum_get_next(pEnum));
+    ip_address_to_string(acNode, pNode->tAddr);
+    if (!strncmp(pcText, acNode, strlen(pcText)))
+      return strdup(acNode);
+  }
+  enum_destroy(&pEnum);
+  return NULL;
 
-  while (pCurrentNode != NULL) {
-      
-    if (uDeflection) {
-      pProtocol = protocols_get(pCurrentNode->pProtocols, NET_PROTOCOL_BGP);
-      pRouter = (SBGPRouter *)pProtocol->pHandler;
-    }
-    
-   /* check for a loop */
-    if (uDeflection && net_path_search(pPath, pCurrentNode->tAddr)) {
-	iResult = NET_RECORD_ROUTE_LOOP;
-	net_path_append(pPath, pCurrentNode->tAddr);
-	break;
-    }
+    /*unsigned int uIndex= 0;
+  static SPtrArray * pArray= NULL;
+  SNetNode * pNode;
+  char acNode[16];
 
-    net_path_append(pPath, pCurrentNode->tAddr);
-
-    tTotalDelay+= tLinkDelay;
-    uTotalWeight+= uLinkWeight;
-
-    // Final destination reached ?
-    iReached= 0;
-    switch (sDest.tType) {
-    case NET_DEST_ADDRESS:
-      iReached= (pCurrentNode->tAddr == sDest.uDest.tAddr);
-      break;
-    case NET_DEST_PREFIX:
-      iReached= ip_address_in_prefix(pCurrentNode->tAddr,
-				     sDest.uDest.sPrefix);
-    }
-
-    if (iReached) {
-
-      // Tunnel end-point ?
-      if (stack_depth(pDstStack) > 0) {
-
-	// Does the end-point support IP-in-IP protocol ?
-	if (protocols_get(pCurrentNode->pProtocols,
-			  NET_PROTOCOL_IPIP) == NULL) {
-	  iResult= NET_RECORD_ROUTE_TUNNEL_UNREACH;
-	  break;
-	}
-	
-	// Pop destination, but current node does not change
-	pDestCopy= (SNetDest *) stack_pop(pDstStack);
-	sDest= *pDestCopy;
-	FREE(pDestCopy);
-
-      } else {
-
-	// Destination reached :-)
-	iResult= NET_RECORD_ROUTE_SUCCESS;
-	break;
-
-      }
-
-    } else {
-
-	  
-      // Lookup the next-hop for this destination
-      switch (sDest.tType) {
-      case NET_DEST_ADDRESS:
-	pLink= node_rt_lookup(pCurrentNode, sDest.uDest.tAddr);
-	if (uDeflection) 
-	  pRoute = rib_find_best(pRouter->pLocRIB, uint32_to_prefix(sDest.uDest.tAddr, 32));
-	break;
-      case NET_DEST_PREFIX:
-	pRouteInfo= rt_find_exact(pCurrentNode->pRT, sDest.uDest.sPrefix,
-			     NET_ROUTE_ANY);
-	if (uDeflection)
-	  pRoute = rib_find_exact(pRouter->pLocRIB, sDest.uDest.sPrefix);
-	if (pRouteInfo != NULL)
-	  pLink= pRouteInfo->pNextHopIf;
-	else
-	  pLink= NULL;
-	break;
-      }
-
-      /* No route: return UNREACH */
-      if (pLink == NULL)
-	break;
-
-      /* Link down: return DOWN */
-      if (!link_get_state(pLink, NET_LINK_FLAG_UP)) {
-	iResult= NET_RECORD_ROUTE_DOWN;
-	break;
-      }
-
-
-      //Check if deflection happens on the forwarding path. We check it by the
-      //following test: If the Last known BGP NextHop is different from the BGP
-      //NH of the current Node it means that there is deflection. In this case
-      //we retain the new BGP NH as the last known BGP NH.
-      if (uDeflection && pRoute != NULL) {
-	tCurrentBGPNextHopAddr = route_nexthop_get(pRoute);
-	//We check that 
-	//1) it's not the initial node
-	//2) bypass the next-hop-self
-	//3) finally, the BGP NH is different between the current node and the
-	//   previous one
-	if (tInitialBGPNextHopAddr != 0 && 
-	    pCurrentNode->tAddr != tInitialBGPNextHopAddr &&
-	    tInitialBGPNextHopAddr != tCurrentBGPNextHopAddr) { 
-	  if (!uDeflectionOccurs){
-	    net_path_append(pDeflectedPath, pNode->tAddr);
-	    net_path_append(pDeflectedPath, tInitialBGPNextHopAddr);
-	    uDeflectionOccurs = 1;
-	  }
-	    /*** record deflection or print it directly ... ***/
-	    //sta : todo We must record it and print it in the previous function that calls this function.
-	    //if (uDeflectionOccurs == 0)
-	      
-	  net_path_append(pDeflectedPath, pCurrentNode->tAddr);
-	  net_path_append(pDeflectedPath, tCurrentBGPNextHopAddr);
-	    //else
-	      //net_path_append(pPath, tCurrentBGP
-	}
-	tInitialBGPNextHopAddr = tCurrentBGPNextHopAddr;
-      }
-
-      tLinkDelay= pLink->tDelay;
-      uLinkWeight= pLink->uIGPweight;
-
-      // Handle tunnel encapsulation
-      if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL)) {
-
-	/*
-	// Push destination to stack
-	pDestCopy= (SNetDest *) MALLOC(sizeof(sDest));
-	memcpy(pDestCopy, &sDest, sizeof(sDest));
-	stack_push(pDstStack, pDestCopy);
-	
-	tDstAddr= pLink->tAddr;
-
-	// Find new destination (i.e. the tunnel end-point address)
-	pLink= node_rt_lookup(pCurrentNode, tDstAddr);
-	if (pLink == NULL) {
-	  iResult= NET_RECORD_ROUTE_TUNNEL_BROKEN;
-	  break;
-	}
-	*/
-
-      }
-
-      pCurrentNode= network_find_node(pNode->pNetwork, link_get_addr(pLink));
-      
-    }
-
-    uHopCount++;
-
-    if (uHopCount > NET_OPTIONS_MAX_HOPS) {
-      iResult= NET_RECORD_ROUTE_TOO_LONG;
-      break;
-    }
-
+  if (state == 0) {
+    pArray= trie_get_array(pTheNetwork->pNodes);
+    uIndex= 0;
+  }
+  while (uIndex < ptr_array_length(pArray)) {
+    pNode= pArray->data[uIndex++];
+    ip_address_to_string(acNode, pNode->tAddr);
+    if (!strncmp(pcText, acNode, strlen(pcText)))
+      return strdup(acNode);
   }
 
-  *ppPath= pPath;
-  *ppDeflectedPath = pDeflectedPath;
+  ptr_array_destroy(&pArray);
+  return NULL;*/
+}
 
-  stack_destroy(&pDstStack);
+/////////////////////////////////////////////////////////////////////
+//
+// NETWORK MESSAGE PROPAGATION FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
 
-  /* Returns the total route delay */
-  if (pDelay != NULL)
-    *pDelay= tTotalDelay;
+// ----- _network_send_callback -------------------------------------
+/**
+ * This function handles a message event from the simulator.
+ */
+int _network_send_callback(void * pContext)
+{
+  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
+  int iResult;
 
-  /* Returns the total route weight */
-  if (pWeight != NULL)
-    *pWeight= uTotalWeight;
+  // Deliver message to next-hop which will use the message localy or
+  // forward it...
+  iResult= node_recv(pSendContext->pNode, pSendContext->pMessage);
 
+  // Free the message context. The message MUST be freed by
+  // network_node_recv if the message has been delivered or in case
+  // the message can not be forwarded.
+  FREE(pContext);
   return iResult;
 }
 
-typedef struct {
-  FILE * pStream;
-  // 0 -> Node Addr
-  // 1 -> NH Addr
-  uint8_t uAddrType;
-}SDeflectedDump;
-
-int print_deflected_path_for_each(void * pItem, void * pContext) 
+// ----- _network_send_dump -----------------------------------------
+/**
+ * Callback function used to dump the content of a message event. See
+ * also 'simulator_dump_events' (sim/simulator.c).
+ */
+void _network_send_dump(FILE * pStream, void * pContext)
 {
-  SDeflectedDump * pDump = (SDeflectedDump *)pContext;
-  net_addr_t tAddr = *((net_addr_t *)pItem);
+  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
-  if (pDump->uAddrType == 0) {
-    ip_address_dump(pDump->pStream, tAddr);
-    fprintf(pDump->pStream, "->");
-    pDump->uAddrType = 1;
-  } else {
-    fprintf(pDump->pStream, "NH:");
-    ip_address_dump(pDump->pStream, tAddr);
-    fprintf(pDump->pStream, " " );
-    pDump->uAddrType = 0;
+  fprintf(pStream, "net-msg n-h:");
+  ip_address_dump(pStream, pSendContext->pNode->tAddr);
+  fprintf(pStream, " [");
+  message_dump(pStream, pSendContext->pMessage);
+  fprintf(pStream, "]");
+  if (pSendContext->pMessage->uProtocol == NET_PROTOCOL_BGP) {
+    bgp_msg_dump(pStream, NULL, pSendContext->pMessage->pPayLoad);
   }
-  return 0;
 }
+
+// ----- _network_send_context_create -------------------------------
+/**
+ * This function creates a message context to be pushed on the
+ * simulator's events queue. The context contains the message and the
+ * destination node.
+ */
+SNetSendContext * _network_send_context_create(SNetNode * pNode,
+					       SNetMessage * pMessage)
+{
+  SNetSendContext * pSendContext=
+    (SNetSendContext *) MALLOC(sizeof(SNetSendContext));
   
-
-// ----- node_dump_recorded_route -----------------------------------
-/**
- *
- */
-void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
-			      SNetDest sDest, int iDelay, const uint8_t uDeflection)
-{
-  int iResult;
-  SNetPath * pPath, * pDeflectedPath;
-  net_link_delay_t tDelay= 0;
-  uint32_t uWeight= 0;
-  SDeflectedDump pDeflectedDump;
-
-  iResult= node_record_route(pNode, sDest, &pPath,
-			     &tDelay, &uWeight, uDeflection, &pDeflectedPath);
-
-  ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\t");
-  ip_dest_dump(pStream, sDest);
-  fprintf(pStream, "\t");
-  switch (iResult) {
-  case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
-  case NET_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
-  case NET_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACH"); break;
-  case NET_RECORD_ROUTE_DOWN: fprintf(pStream, "DOWN"); break;
-  case NET_RECORD_ROUTE_TUNNEL_UNREACH:
-    fprintf(pStream, "TUNNEL_UNREACH"); break;
-  case NET_RECORD_ROUTE_TUNNEL_BROKEN:
-    fprintf(pStream, "TUNNEL_BROKEN"); break;
-  case NET_RECORD_ROUTE_LOOP:
-    fprintf(pStream, "LOOP"); break;
-  default:
-    fprintf(pStream, "UNKNOWN_ERROR");
-  }
-  fprintf(pStream, "\t");
-  net_path_dump(pStream, pPath);
-  if (iDelay) {
-    fprintf(pStream, "\t%u\t%u", tDelay, uWeight);
-  }
-  if (uDeflection && net_path_length(pDeflectedPath) > 0) {
-    fprintf(pStream, "\tDEFLECTION\t");
-    pDeflectedDump.pStream = pStream;
-    pDeflectedDump.uAddrType = 0;
-    net_path_for_each(pDeflectedPath, print_deflected_path_for_each, &pDeflectedDump);
-  }
-  fprintf(pStream, "\n");
-
-  net_path_destroy(&pPath);
-  net_path_destroy(&pDeflectedPath);
-
-  flushir(pStream);
+  pSendContext->pNode= pNode;
+  pSendContext->pMessage= pMessage;
+  return pSendContext;
 }
 
-
-// ----- network_domain_add ------------------------------------------
+// ----- _network_send_context_destroy -------------------------------
 /**
- *
- *
+ * This function is used by the simulator to free events which will
+ * not be processed.
  */
-int network_domain_add(SNetwork * pNetwork, uint32_t uAS, 
-						      char * pcName)
+void _network_send_context_destroy(void * pContext)
 {
-  SNetDomain * pDomain = domain_create(uAS, pcName);
-  if (pNetwork->pDomains == NULL)
-    pNetwork->pDomains = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_SORTED, 
-					network_domains_compare, 
-					network_domains_destroy);
+  SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
-  return ptr_array_add(pNetwork->pDomains, &pDomain);
-}
-
-// ----- network_domain_get ------------------------------------------
-/**
- *
- *
- */
-SNetDomain * network_domain_get (SNetwork * pNetwork, uint32_t uAS)
-{
-  unsigned int uIndex;
-  SNetDomain * pDomain = domain_create(uAS, "");
-
-  if (ptr_array_sorted_find_index(pNetwork->pDomains, &pDomain, &uIndex)) {
-    LOG_DEBUG("network_domain_get>domain not found.\n");
-    domain_destroy(&pDomain);
-    return NULL;
-  }
-  domain_destroy(&pDomain);
-
-  return (SNetDomain *)pNetwork->pDomains->data[uIndex];
+  message_destroy(&pSendContext->pMessage);
+  FREE(pSendContext);
 }
 
 /////////////////////////////////////////////////////////////////////
-// TEST
+//
+// INITIALIZATION AND FINALIZATION SECTION
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- _network_create --------------------------------------------
+void _network_create()
+{
+  pTheNetwork= network_create();
+}
+
+// ----- _network_destroy -------------------------------------------
+/**
+ *
+ */
+void _network_destroy()
+{
+  if (pTheNetwork != NULL) {
+    network_destroy(&pTheNetwork);
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// TESTS
+//
 /////////////////////////////////////////////////////////////////////
 
 // ----- node_handle_event ------------------------------------------
@@ -1411,8 +966,8 @@ int node_handle_event(void * pHandler, SNetMessage * pMessage)
   return 0;
 }
 
-// ----- test_network -----------------------------------------------
-void test_network()
+// ----- _network_test ----------------------------------------------
+void _network_test()
 {
   SNetwork * pNetwork= network_create();
   SNetNode * pNodeA0= node_create(0);
@@ -1436,19 +991,19 @@ void test_network()
   log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
   log_set_stream(pMainLog, stderr);
 
-  assert(!network_add_node(pNetwork, pNodeA0));
-  assert(!network_add_node(pNetwork, pNodeA1));
-  assert(!network_add_node(pNetwork, pNodeB0));
-  assert(!network_add_node(pNetwork, pNodeB1));
-  assert(!network_add_node(pNetwork, pNodeC0));
+  assert(!network_add_node(pNodeA0));
+  assert(!network_add_node(pNodeA1));
+  assert(!network_add_node(pNodeB0));
+  assert(!network_add_node(pNodeB1));
+  assert(!network_add_node(pNodeC0));
 
   LOG_DEBUG("nodes attached.\n");
 
-  assert(node_add_link(pNodeA0, pNodeA1, 100, 1) >= 0);
-  assert(node_add_link(pNodeA1, pNodeB0, 1000, 1) >= 0);
-  assert(node_add_link(pNodeB0, pNodeB1, 100, 1) >= 0);
-  assert(node_add_link(pNodeA1, pNodeC0, 400, 1) >= 0);
-  assert(node_add_link(pNodeC0, pNodeB0, 400, 1) >= 0);
+  assert(node_add_link_to_router(pNodeA0, pNodeA1, 100, 1) >= 0);
+  assert(node_add_link_to_router(pNodeA1, pNodeB0, 1000, 1) >= 0);
+  assert(node_add_link_to_router(pNodeB0, pNodeB1, 100, 1) >= 0);
+  assert(node_add_link_to_router(pNodeA1, pNodeC0, 400, 1) >= 0);
+  assert(node_add_link_to_router(pNodeC0, pNodeB0, 400, 1) >= 0);
 
   LOG_DEBUG("links attached.\n");
 
@@ -1459,7 +1014,7 @@ void test_network()
 
   LOG_DEBUG("network to file.\n");
 
-  assert(!node_send(pNodeA0, 1, 0, (void *) 5, NULL));
+  assert(!node_send(pNodeA0, 0, 1, 0, (void *) 5, NULL));
   simulator_run();
 
   LOG_DEBUG("message sent.\n");
@@ -1490,32 +1045,4 @@ void test_network()
 
   exit(0);
 }
-
-/////////////////////////////////////////////////////////////////////
-// INITIALIZATION AND FINALIZATION SECTION
-/////////////////////////////////////////////////////////////////////
-
-// ----- _network_destroy -------------------------------------------
-/**
- *
- */
-void _network_destroy()
-{
-  if (pTheNetwork != NULL) {
-    //fprintf(stderr, "free network: ");
-    //fflush(stderr);
-    network_destroy(&pTheNetwork);
-    //fprintf(stderr, "done.\n");
-  }
-}
-
-
-
-
-
-
-
-
-
-
 

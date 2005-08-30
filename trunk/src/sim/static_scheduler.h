@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 03/01/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
@@ -22,7 +22,7 @@ extern SStaticScheduler * static_scheduler_init();
 // ----- static_scheduler_done --------------------------------------
 extern void static_scheduler_done();
 // ----- static_scheduler_run ---------------------------------------
-extern int static_scheduler_run(void * pContext);
+extern int static_scheduler_run(void * pContext, int iNumSteps);
 // ----- static_scheduler_post --------------------------------------
 extern int static_scheduler_post(FSimEventCallback fCallback,
 				 FSimEventDump fDump,

@@ -77,7 +77,5 @@ libbgp_la_SOURCES = \
 	route_t.h \
 	stats.h \
 	tie_breaks.c \
-	tie_breaks.h \
-	xml_topology.c \
-	xml_topology.h
+	tie_breaks.h
 

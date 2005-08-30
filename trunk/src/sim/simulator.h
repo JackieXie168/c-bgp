@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 17/02/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -29,7 +29,7 @@ typedef void (*FSimEventDump)(FILE * pStream, void * pContext);
 typedef void (*FSimEventDestroy)(void * pContext);
 
 // ----- FSimSchedulerRun -------------------------------------------
-typedef int (*FSimSchedulerRun)(void * pContext);
+typedef int (*FSimSchedulerRun)(void * pContext, int iNumSteps);
 // ----- FSimSchedulerPost ------------------------------------------
 typedef int (*FSimSchedulerPost)(FSimEventCallback fCallback,
 				 FSimEventDump fDump,
@@ -51,6 +51,8 @@ extern void simulator_init();
 extern void simulator_done();
 // ----- simulator_dun ----------------------------------------------
 extern int simulator_run();
+// ----- simulator_step ---------------------------------------------
+extern int simulator_step(int iNumSteps);
 // ----- simulator_post_event ---------------------------------------
 extern int simulator_post_event(FSimEventCallback fCallback,
 				FSimEventDump fDump,

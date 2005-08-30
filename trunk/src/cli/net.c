@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 05/04/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,15 +15,29 @@
 #include <libgds/cli_ctx.h>
 #include <cli/common.h>
 #include <cli/net.h>
+#include <cli/net_domain.h>
+#include <cli/net_ospf.h>
+#include <net/node.h>
 #include <net/ntf.h>
 #include <net/prefix.h>
+#include <net/subnet.h>
 #include <libgds/log.h>
 #include <net/icmp.h>
 #include <net/igp.h>
+#include <net/igp_domain.h>
 #include <net/network.h>
 #include <net/net_path.h>
+#include <net/record-route.h>
 #include <net/routing.h>
+#include <net/ospf.h>
+#include <net/ospf_rt.h>
 #include <ui/rl.h>
+
+// ----- cli_net_enum_nodes -----------------------------------------
+char * cli_net_enum_nodes(const char * pcText, int state)
+{
+  return network_enum_nodes(pcText, state);
+}
 
 // ----- cli_net_node_by_addr ---------------------------------------
 /**
@@ -36,10 +50,28 @@ SNetNode * cli_net_node_by_addr(char * pcAddr)
 
   if (ip_string_to_address(pcAddr, &pcEndPtr, &tAddr) || (*pcEndPtr != 0))
     return NULL;
-  return network_find_node(network_get(), tAddr);
+  return network_find_node(tAddr);
+}
+
+// ----- cli_net_subnet_by_prefix ---------------------------------------
+/**
+ *
+ */
+SNetSubnet * cli_net_subnet_by_prefix(char * pcAddr)
+{
+  SPrefix sPrefix;
+  char * pcEndPtr;
+
+  if (ip_string_to_prefix(pcAddr, &pcEndPtr, &sPrefix) || (*pcEndPtr != 0))
+    return NULL;
+  return network_find_subnet(sPrefix);
 }
 
 // ----- cli_net_add_node -------------------------------------------
+/**
+ * context: {}
+ * tokens: {addr}
+ */
 int cli_net_add_node(SCliContext * pContext, STokens * pTokens)
 {
   net_addr_t tAddr;
@@ -49,12 +81,52 @@ int cli_net_add_node(SCliContext * pContext, STokens * pTokens)
 			   &pcEndPtr, &tAddr) ||
       (*pcEndPtr != 0))
     return CLI_ERROR_COMMAND_FAILED;
-  if (network_find_node(network_get(), tAddr) != NULL) {
+  if (network_find_node(tAddr) != NULL) {
     LOG_SEVERE("Error: could not add node (already exists)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
-  if (network_add_node(network_get(), node_create(tAddr))) {
+  if (network_add_node(node_create(tAddr))) {
     LOG_SEVERE("Error: could not add node (unknown reason)\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_add_subnet -------------------------------------------
+/**
+ * context: {}
+ * tokens: {prefix, type}
+ */
+int cli_net_add_subnet(SCliContext * pContext, STokens * pTokens)
+{
+  SPrefix sSubnetPrefix;
+  char * pcEndPtr;
+  char * pcType;
+  uint8_t uType;
+
+  if (ip_string_to_prefix(tokens_get_string_at(pTokens, 0),
+			   &pcEndPtr, &sSubnetPrefix) ||
+      (*pcEndPtr != 0))
+    return CLI_ERROR_COMMAND_FAILED;
+  if (network_find_subnet(sSubnetPrefix) != NULL) {
+    LOG_SEVERE("Error: could not add subnet (already exists)\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  pcType = tokens_get_string_at(pTokens, 1);
+  
+  if (strcmp(pcType, "transit") == 0)
+    uType = NET_SUBNET_TYPE_TRANSIT;
+  else if (strcmp(pcType, "stub") == 0)
+    uType = NET_SUBNET_TYPE_STUB;
+  else {
+    LOG_SEVERE("Error: wrong subnet type\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+     
+  if (network_add_subnet(subnet_create(sSubnetPrefix.tNetwork,
+				       sSubnetPrefix.uMaskLen, uType)) < 0) {
+    LOG_SEVERE("Error: could not add subnet (unknown reason)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -63,41 +135,61 @@ int cli_net_add_node(SCliContext * pContext, STokens * pTokens)
 // ----- cli_net_add_link -------------------------------------------
 /**
  * context: {}
- * tokens: {addr-src, addr-dst, delay}
+ * tokens: {addr-src, prefix-dst, delay}
  */
 int cli_net_add_link(SCliContext * pContext, STokens * pTokens)
 {
-  SNetNode * pNodeSrc, * pNodeDst;
+  SNetNode * pNodeSrc/*, * pNodeDst = NULL*/;
+  //SNetSubnet * pSubnetDst;
   unsigned int uDelay;
-  char * pcNodeAddr;
+  char * pcNodeSrcAddr, * pcDest;
+  SNetDest sDest;
+  int iErrorCode;
+  
+  // Get source node
+  pcNodeSrcAddr= tokens_get_string_at(pTokens, 0);
+  pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
+    if (pNodeSrc == NULL) {
+    LOG_SEVERE("Error: could not find node \"%s\"\n", pcNodeSrcAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  // Get destination: can be a node (router) or a subnet
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if ((ip_string_to_dest(pcDest, &sDest) < 0) ||
+      (sDest.tType == NET_DEST_ANY)) {
+    LOG_SEVERE("Error: invalid destination \"%s\".\n",
+	       pcDest);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
 
-  pcNodeAddr= tokens_get_string_at(pTokens, 0);
-  pNodeSrc= cli_net_node_by_addr(pcNodeAddr);
-  if (pNodeSrc == NULL) {
-    LOG_SEVERE("Error: could not find node \"%s\"\n", pcNodeAddr);
+  // Get delay
+  if (tokens_get_uint_at(pTokens, 2, &uDelay)) {
+    LOG_SEVERE("Error: invalid delay %s.\n",
+	       tokens_get_string_at(pTokens, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
-  pcNodeAddr= tokens_get_string_at(pTokens, 1);
-  pNodeDst= cli_net_node_by_addr(pcNodeAddr);
-  if (pNodeDst == NULL) {
-    LOG_SEVERE("Error: could not find node \"%s\"\n", pcNodeAddr);
+
+  // Add link
+  if ((iErrorCode= node_add_link(pNodeSrc, sDest, uDelay))) {
+    LOG_SEVERE("Error: could not add link %s -> %s (",
+	       pcNodeSrcAddr, pcDest);
+    node_mgmt_perror(stderr, iErrorCode);
+    LOG_SEVERE(")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
-  if (tokens_get_uint_at(pTokens, 2, &uDelay))
-    return CLI_ERROR_COMMAND_FAILED;
-  if (node_add_link(pNodeSrc, pNodeDst, (net_link_delay_t) uDelay, 1) < 0) {
-    LOG_SEVERE("Error: could not add link (already exists)\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
+
   return CLI_SUCCESS;
 }
 
 // ----- cli_ctx_create_net_link ------------------------------------
 int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 {
-  SNetNode * pNodeSrc, * pNodeDst;
-  char * pcNodeSrcAddr, * pcNodeDstAddr;
-
+  SNetNode * pNodeSrc/*, * pNodeDst*/;
+  //SNetSubnet * pSubnetDst;
+  SNetDest sDest;
+  char * pcNodeSrcAddr, * pcVertexDstPrefix; 
+  SNetLink * pLink;
 
   pcNodeSrcAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
@@ -105,18 +197,57 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeSrcAddr);
     return CLI_ERROR_CTX_CREATE;
   }
-  pcNodeDstAddr= tokens_get_string_at(pContext->pTokens, 1);
-  pNodeDst= cli_net_node_by_addr(pcNodeDstAddr);
-  if (pNodeDst == NULL) {
-    LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeDstAddr);
+  
+  pcVertexDstPrefix= tokens_get_string_at(pContext->pTokens, 1);
+  if (ip_string_to_dest(pcVertexDstPrefix, &sDest) < 0 ||
+      sDest.tType == NET_DEST_ANY) {
+    LOG_SEVERE("Error: destination id is wrong \"%s\"\n", pcVertexDstPrefix);
     return CLI_ERROR_CTX_CREATE;
   }
-  *ppItem= node_find_link_to_router(pNodeSrc, pNodeDst->tAddr);
-  if (*ppItem == NULL) {
-    LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
-	       pcNodeSrcAddr, pcNodeDstAddr);
-    return CLI_ERROR_CTX_CREATE;
+  
+  pLink= node_find_link(pNodeSrc, sDest);
+  if (pLink == NULL) {
+    LOG_SEVERE("Error: unable to find link %s -> %s\n",
+	       pcNodeSrcAddr, pcVertexDstPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
   }
+
+  *ppItem= pLink;
+
+  /*
+  if (pDest->tType == NET_DEST_ADDRESS) {
+    pNodeDst= cli_net_node_by_addr(pcVertexDstPrefix);
+    if (pNodeDst == NULL) {
+      LOG_SEVERE("Error: unable to find node \"%s\"\n", pcVertexDstPrefix);
+      FREE(pDest);
+      return CLI_ERROR_CTX_CREATE;
+    }
+    *ppItem= node_find_link_to_router(pNodeSrc, pNodeDst->tAddr);
+    if (*ppItem == NULL) {
+      LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
+	       pcNodeSrcAddr, pcVertexDstPrefix);
+      FREE(pDest);
+      return CLI_ERROR_CTX_CREATE;
+    }
+  }
+  else if (pDest->tType == NET_DEST_PREFIX) {
+    pSubnetDst= cli_net_subnet_by_prefix(pcVertexDstPrefix);
+    if (pSubnetDst == NULL) {
+      LOG_SEVERE("Error: unable to find subnet \"%s\"\n", pcVertexDstPrefix);
+      FREE(pDest);
+      return CLI_ERROR_CTX_CREATE;
+    }
+    *ppItem= node_find_link_to_subnet(pNodeSrc, pSubnetDst);
+    if (*ppItem == NULL) {
+      LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
+	       pcNodeSrcAddr, pcVertexDstPrefix);
+      FREE(pDest);
+      return CLI_ERROR_CTX_CREATE;
+    }
+  }
+  FREE(pDest);
+  LOG_DEBUG("cli_ctx_create_net_link end\n");
+  */
   return CLI_SUCCESS;
 }
 
@@ -168,6 +299,23 @@ int cli_net_node_ipip_enable(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_node_name ------------------------------------------
+/**
+ * context: {node}
+ * tokens: {addr, string}
+ */
+int cli_net_node_name(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+
+  // Get node from context
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+
+  node_set_name(pNode, tokens_get_string_at(pTokens, 1));
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_net_node_spfprefix -------------------------------------
 /**
  * context: {node}
@@ -175,12 +323,15 @@ int cli_net_node_ipip_enable(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_node_spfprefix(SCliContext * pContext, STokens * pTokens)
 {
-  SNetNode * pNode;
+  /*  SNetNode * pNode;
   char * pcPrefix;
   SPrefix sPrefix;
-  char * pcEndChar;
+  char * pcEndChar;*/
 
-  // Get node from the CLI's context
+  LOG_SEVERE("Error: spf-prefix is now deprecated. Please use \"net domain <id> compute\"\n");
+  return CLI_ERROR_COMMAND_FAILED;
+
+  /*  // Get node from the CLI's context
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
   if (pNode == NULL)
     return CLI_ERROR_COMMAND_FAILED;
@@ -194,10 +345,10 @@ int cli_net_node_spfprefix(SCliContext * pContext, STokens * pTokens)
   }
 
   // Compute the SPF from the node towards all the nodes in the prefix
-  if (igp_compute_prefix(network_get(), pNode, sPrefix))
+  if (igp_compute_prefix(pNode, sPrefix))
     return CLI_ERROR_COMMAND_FAILED;
 
-  return CLI_SUCCESS;
+    return CLI_SUCCESS;*/
 }
 
 // ----- cli_net_link_up --------------------------------------------
@@ -264,6 +415,67 @@ void cli_ctx_destroy_net_node(void ** ppItem)
 {
 }
 
+// ----- cli_ctx_create_net_node ------------------------------------
+int cli_ctx_create_net_subnet(SCliContext * pContext, void ** ppItem)
+{
+  char * pcSubnetPfx;
+  SNetSubnet * pSubnet;
+
+  pcSubnetPfx= tokens_get_string_at(pContext->pTokens, 0);
+  pSubnet = cli_net_subnet_by_prefix(pcSubnetPfx);
+  
+  if (pSubnet == NULL) {
+    LOG_SEVERE("Error: unable to find subnet \"%s\"\n", pcSubnetPfx);
+    return CLI_ERROR_CTX_CREATE;
+  }
+  *ppItem= pSubnet;
+  return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_destroy_net_subnet -----------------------------------
+void cli_ctx_destroy_net_subnet(void ** ppItem)
+{
+}
+
+// ----- cli_ctx_create_net_node_link ------------------------------------
+int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
+{
+   char * pcPrefix;//, * pcEndPtr;
+//   SPrefix sDestPrefix;
+  SNetLink * pLink = NULL;
+  SNetDest sDest;
+  
+  SNetNode * pNodeSource = (SNetNode *) cli_context_get_item_at_top(pContext);
+  pcPrefix = tokens_get_string_at(pContext->pTokens, 1);
+  
+  if (ip_string_to_dest(pcPrefix, &sDest)) {
+    LOG_SEVERE("Error: invalid destination prefix|address|* \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType == NET_DEST_ANY)) {
+    LOG_SEVERE("Error: can not use this destination type with link\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  } else if (sDest.tType == NET_DEST_ADDRESS) {
+     (sDest.uDest).sPrefix.uMaskLen = 32;
+  }
+ 
+  pLink= node_find_link(pNodeSource, sDest);
+  if (pLink == NULL) {
+    LOG_SEVERE("Error: unable to find link \"%s\"\n", pcPrefix);
+    return CLI_ERROR_CTX_CREATE;
+  }
+
+  *ppItem= pLink;
+  return CLI_SUCCESS;
+}
+
+// ----- cli_ctx_destroy_net_node_link -----------------------------------
+void cli_ctx_destroy_net_node_link(void ** ppItem)
+{
+}
+
 // ----- cli_net_node_ping ------------------------------------------
 /**
  * context: {node}
@@ -275,6 +487,7 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
   char * pcDstAddr;
   char * pcEndChar;
   net_addr_t tDstAddr;
+  int iErrorCode;
 
  // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -291,8 +504,11 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
   }
 
   // Send ICMP echo request
-  if (icmp_echo_request(pNode, tDstAddr)) {
-    LOG_SEVERE("Error: ICMP echo request failed\n");
+  iErrorCode= icmp_echo_request(pNode, tDstAddr);
+  if (iErrorCode != NET_SUCCESS) {
+    LOG_SEVERE("Error: ICMP echo request failed: ");
+    network_perror(stderr, iErrorCode);
+    LOG_SEVERE("\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -328,7 +544,7 @@ int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 0, 0);
+  node_dump_recorded_route(stdout, pNode, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -364,7 +580,9 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 1, 0);
+  node_dump_recorded_route(stdout, pNode, sDest,
+			   NET_RECORD_ROUTE_OPTION_DELAY
+			   | NET_RECORD_ROUTE_OPTION_WEIGHT);
 
   return CLI_SUCCESS;
 }
@@ -400,7 +618,8 @@ int cli_net_node_recordroutedeflection(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 0, 1);
+  node_dump_recorded_route(stdout, pNode, sDest,
+			   NET_RECORD_ROUTE_OPTION_DEFLECTION);
 
   return CLI_SUCCESS;
 }
@@ -410,7 +629,7 @@ int cli_net_node_recordroutedeflection(SCliContext * pContext,
  * This function adds a new static route to the given node.
  *
  * context: {node}
- * tokens: {addr, prefix, next-hop, weight}
+ * tokens: {addr, prefix, addr|*, addr|prefix, weight}
  */
 int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
 {
@@ -418,9 +637,11 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
   char * pcEndChar;
   char * pcPrefix;
   SPrefix sPrefix;
-  char * pcNextHopAddr;
-  net_addr_t tNextHopAddr;
+  char * pcIface, * pcNextHop;
+  net_addr_t tNextHop;
+  SNetDest sDest, sIface;
   unsigned long ulWeight;
+  int iErrorCode;
 
   // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -434,26 +655,45 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
     LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
+
+  // Get the next-hop
+  pcNextHop= tokens_get_string_at(pTokens, 2);
+  if (ip_string_to_dest(pcNextHop, &sDest) ||
+      (sDest.tType == NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: invalid next-hop \"%s\"\n",
+	       pcNextHop);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  switch (sDest.tType) {
+  case NET_DEST_ADDRESS:
+    tNextHop= sDest.uDest.tAddr; break;
+  case NET_DEST_ANY:
+    tNextHop= 0; break;
+  default:
+    abort();
+  }
   
-  // Get the next-hop's address
-  pcNextHopAddr= tokens_get_string_at(pTokens, 2);
-  if (ip_string_to_address(pcNextHopAddr, &pcEndChar, &tNextHopAddr) ||
-      (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid next-hop address \"%s\"\n",
-	       pcNextHopAddr);
+  // Get the outgoing link identifier (address/prefix)
+  pcIface= tokens_get_string_at(pTokens, 3);
+  if (ip_string_to_dest(pcIface, &sIface) ||
+      (sIface.tType == NET_DEST_ANY)) {
+    LOG_SEVERE("Error: invalid interface \"%s\"\n",
+	       pcIface);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Get the weight
-  if (tokens_get_ulong_at(pTokens, 3, &ulWeight)) {
+  if (tokens_get_ulong_at(pTokens, 4, &ulWeight)) {
     LOG_SEVERE("Error: invalid weight\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Add the route
-  if (node_rt_add_route(pNode, sPrefix, tNextHopAddr,
-			ulWeight, NET_ROUTE_STATIC)) {
-    LOG_SEVERE("Error: could not add static route\n");
+  if ((iErrorCode= node_rt_add_route_dest(pNode, sPrefix, sIface, tNextHop,
+					  ulWeight, NET_ROUTE_STATIC))) {
+    LOG_SEVERE("Error: could not add static route (");
+    rt_perror(stderr, iErrorCode);
+    LOG_SEVERE(").\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -465,7 +705,7 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
  * This function removes a static route from the given node.
  *
  * context: {node}
- * tokens: {addr, prefix, next-hop, weight}
+ * tokens: {addr, prefix, addr|*, addr|prefix|*, weight}
  */
 int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
 {
@@ -473,9 +713,11 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   char * pcEndChar;
   char * pcPrefix;
   SPrefix sPrefix;
-  char * pcNextHopAddr;
-  net_addr_t tNextHopAddr;
-  net_addr_t * pNextHopAddr= &tNextHopAddr;
+  char * pcNextHop;
+  SNetDest sDest;
+  net_addr_t tNextHop;
+  char * pcIface;
+  SNetDest sIface;
 
   // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -490,23 +732,56 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
   
-  // Get the next-hop's address
-  pcNextHopAddr= tokens_get_string_at(pTokens, 2);
-  if (!strcmp(pcNextHopAddr, "*")) {
-    pNextHopAddr= NULL;
-  } else if (ip_string_to_address(pcNextHopAddr, &pcEndChar, pNextHopAddr) ||
-	     (*pcEndChar != 0)) {
+  // Get the next-hop
+  pcNextHop= tokens_get_string_at(pTokens, 2);
+  if (ip_string_to_dest(pcNextHop, &sDest) ||
+      (sDest.tType == NET_DEST_PREFIX)) {
+    LOG_SEVERE("Error: invalid next-hop \"%s\"\n",
+	       pcNextHop);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  switch (sDest.tType) {
+  case NET_DEST_ADDRESS:
+    tNextHop= sDest.uDest.tAddr; break;
+  case NET_DEST_ANY:
+    tNextHop= 0; break;
+  default:
+    abort();
+  }
+
+  // Get the outgoing link identifier (address/prefix)
+  pcIface= tokens_get_string_at(pTokens, 3);
+  if (ip_string_to_dest(pcIface, &sIface)) {
     LOG_SEVERE("Error: invalid next-hop address \"%s\"\n",
-	       pcNextHopAddr);
+	       pcIface);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Remove the route
-  if (node_rt_del_route(pNode, &sPrefix, pNextHopAddr, NET_ROUTE_STATIC)) {
+  if (node_rt_del_route(pNode, &sPrefix, &sIface, &tNextHop,
+			NET_ROUTE_STATIC)) {
     LOG_SEVERE("Error: could not remove static route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_node_show_info -------------------------------------
+/**
+ * context: {node}
+ * tokens: {addr}
+ */
+int cli_net_node_show_info(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+
+  // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  node_info(stdout, pNode);
   return CLI_SUCCESS;
 }
 
@@ -555,7 +830,11 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
 
   // Dump routing table
   node_rt_dump(stdout, pNode, sDest);
-
+// ----- ospf_node_rt_dump ------------------------------------------------------------------
+/**  Option:
+  *  OSPF_RT_OPTION_SORT_AREA : dump routing table grouping routes by area
+  */
+  //ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
   return CLI_SUCCESS;
 }
 
@@ -621,29 +900,6 @@ int cli_net_options_maxhops(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
-// ----- cli_net_options_igpinter -----------------------------------
-/**
- * Configure the "IGP", i.e. the SPT computation, so that it also
- * consider as destinations the nodes at the end of interdomain
- * links.
- *
- * context: {}
- * tokens: {state}
- */
-int cli_net_options_igpinter(SCliContext * pContext, STokens * pTokens)
-{
-  if (!strcmp(tokens_get_string_at(pTokens, 0), "on")) {
-    NET_OPTIONS_IGP_INTER= 1;
-  } else if (!strcmp(tokens_get_string_at(pTokens, 0), "off")) {
-    NET_OPTIONS_IGP_INTER= 0;
-  } else {
-    LOG_SEVERE("Error: invalid value\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
 // ----- cli_net_show_nodes -----------------------------------------
 /**
  * Display all nodes matching the given criterion, which is a prefix
@@ -654,6 +910,21 @@ int cli_net_options_igpinter(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_show_nodes(SCliContext * pContext, STokens * pTokens)
 {
+  network_to_file(stdout, network_get());
+  return CLI_SUCCESS;
+}
+
+// ----- cli_net_show_nodes -----------------------------------------
+/**
+ * Display all nodes matching the given criterion, which is a prefix
+ * or an asterisk (meaning "all nodes").
+ *
+ * context: {}
+ * tokens: {}
+ */
+int cli_net_show_subnets(SCliContext * pContext, STokens * pTokens)
+{
+  network_dump_subnets(stdout, network_get());
   return CLI_SUCCESS;
 }
 
@@ -665,8 +936,18 @@ int cli_register_net_add(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
+  cli_params_add(pParams, "<id>", NULL);
+  cli_params_add(pParams, "<type>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("domain", cli_net_add_domain,
+					NULL, pParams));
+  pParams= cli_params_create();
   cli_params_add(pParams, "<addr>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("node", cli_net_add_node,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<transit|stub>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("subnet", cli_net_add_subnet,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<addr-src>", NULL);
@@ -729,6 +1010,9 @@ int cli_register_net_node_show(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("info",
+					cli_net_node_show_info,
+					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("links",
 					cli_net_node_show_links,
 					NULL, NULL));
@@ -750,6 +1034,7 @@ void cli_register_net_node_route(SCliCmds * pCmds)
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<next-hop>", NULL);
+  cli_params_add(pParams, "<iface>", NULL);
   cli_params_add(pParams, "<weight>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("add",
 					cli_net_node_route_add,
@@ -757,10 +1042,28 @@ void cli_register_net_node_route(SCliCmds * pCmds)
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<next-hop>", NULL);
+  cli_params_add(pParams, "<iface>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("del",
 					cli_net_node_route_del,
 					NULL, pParams));
   cli_cmds_add(pCmds, cli_cmd_create("route", NULL, pSubCmds, NULL));
+}
+
+// ----- cli_register_net_node_link --------------------------------
+int cli_register_net_node_link(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+  SCliParams * pParams;
+
+  cli_register_net_node_link_ospf(pSubCmds);
+  
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);			
+//   cli_cmds_add(pCmds, cli_cmd_create("link", NULL, pSubCmds, pParams));
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("link",
+						cli_ctx_create_net_node_link,
+						cli_ctx_destroy_net_node_link,
+						pSubCmds, pParams));
 }
 
 // ----- cli_register_net_node_tunnel -------------------------------
@@ -785,10 +1088,21 @@ int cli_register_net_node(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  
+  
+  cli_register_net_node_link(pSubCmds);
   cli_register_net_node_route(pSubCmds);
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<id>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("domain", cli_net_node_domain,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("ipip-enable",
 					cli_net_node_ipip_enable,
 					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<name>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("name", cli_net_node_name,
+					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<address>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("ping",
@@ -819,11 +1133,29 @@ int cli_register_net_node(SCliCmds * pCmds)
 					NULL, pParams));
   cli_register_net_node_show(pSubCmds);
   cli_register_net_node_tunnel(pSubCmds);
+  cli_register_net_node_ospf(pSubCmds);
   pParams= cli_params_create();
-  cli_params_add(pParams, "<addr>", NULL);
+  cli_params_add2(pParams, "<addr>", NULL, cli_net_enum_nodes);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("node",
 						cli_ctx_create_net_node,
 						cli_ctx_destroy_net_node,
+						pSubCmds, pParams));
+}
+
+// ----- cli_register_net_subnet --------------------------------------
+int cli_register_net_subnet(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+
+  pSubCmds= cli_cmds_create();
+  
+  cli_register_net_subnet_ospf(pSubCmds);
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  return cli_cmds_add(pCmds, cli_cmd_create_ctx("subnet",
+						cli_ctx_create_net_subnet,
+						cli_ctx_destroy_net_subnet,
 						pSubCmds, pParams));
 }
 
@@ -841,11 +1173,6 @@ int cli_register_net_options(SCliCmds * pCmds)
   cli_params_add(pParams, "<max-hops>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("max-hops",
 					cli_net_options_maxhops,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<state>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("igp-inter",
-					cli_net_options_igpinter,
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("options",
 						NULL, NULL,
@@ -866,9 +1193,13 @@ int cli_register_net_show(SCliCmds * pCmds)
   cli_params_add(pParams, "<prefix|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("nodes", cli_net_show_nodes,
 					NULL, pParams));
+  
+  cli_cmds_add(pSubCmds, cli_cmd_create("subnets", cli_net_show_subnets,
+					NULL, NULL));
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
+
 
 // ----- cli_register_net -------------------------------------------
 /**
@@ -880,11 +1211,14 @@ int cli_register_net(SCli * pCli)
 
   pCmds= cli_cmds_create();
   cli_register_net_add(pCmds);
+  cli_register_net_domain(pCmds);
   cli_register_net_link(pCmds);
   cli_register_net_ntf(pCmds);
   cli_register_net_node(pCmds);
+  cli_register_net_subnet(pCmds);
   cli_register_net_options(pCmds);
   cli_register_net_show(pCmds);
+  //cli_register_net_ospf(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("net", NULL, pCmds, NULL));
   return 0;
 }

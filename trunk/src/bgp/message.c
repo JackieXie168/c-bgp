@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 17/05/2005
+// @lastdate 05/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -102,7 +102,7 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
 {
   bgp_msg_monitor_write(pMsg, pNode, tAddr);
-  return node_send(pNode, tAddr, NET_PROTOCOL_BGP, pMsg,
+  return node_send(pNode, 0, tAddr, NET_PROTOCOL_BGP, pMsg,
 		   (FPayLoadDestroy) bgp_msg_destroy);
 }
 

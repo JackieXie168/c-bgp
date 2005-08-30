@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/03/2005
-// @lastdate 24/03/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,7 @@
 #include <libgds/tokenizer.h>
 
 #include <net/network.h>
+#include <net/node.h>
 #include <net/ntf.h>
 
 // -----[ ntf_load ]-------------------------------------------------
@@ -30,7 +31,6 @@ int ntf_load(char * pcFileName)
   STokenizer * pTokenizer;
   STokens * pTokens;
   uint32_t uLineNumber= 0;
-  SNetwork * pNetwork= network_get();
   char * pcNode1, * pcNode2;
   char * pcEndPtr;
   net_addr_t tNode1, tNode2;
@@ -104,19 +104,19 @@ int ntf_load(char * pcFileName)
 	}
       }
 
-      pNode1= network_find_node(pNetwork, tNode1);
+      pNode1= network_find_node(tNode1);
       if (pNode1 == NULL) {
 	pNode1= node_create(tNode1);
-	network_add_node(pNetwork, pNode1);
+	network_add_node(pNode1);
       }
 
-      pNode2= network_find_node(pNetwork, tNode2);
+      pNode2= network_find_node(tNode2);
       if (pNode2 == NULL) {
 	pNode2= node_create(tNode2);
-	network_add_node(pNetwork, pNode2);
+	network_add_node(pNode2);
       }
 
-      node_add_link(pNode1, pNode2, tDelay, 1);
+      node_add_link_to_router(pNode1, pNode2, tDelay, 1);
       pLink= node_find_link_to_router(pNode1, tNode2);
       pLink->uIGPweight= uWeight;
 

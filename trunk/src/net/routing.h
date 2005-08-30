@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 05/04/2005
+// @lastdate 04/08/2005
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -24,26 +24,43 @@
 #define NET_RT_ERROR_ADD_DUP        -3
 #define NET_RT_ERROR_DEL_UNEXISTING -4
 
+// ----- SNetRouteInfoList ------------------------------------------
 typedef SPtrArray SNetRouteInfoList;
 
+// ----- SNetRouteNextHop -------------------------------------------
+/**
+ * This type defines a route next-hop. It is composed of the outgoing
+ * link (iface) as well as the address of the destination node.
+ *
+ * If the outgoing link (iface) is a point-to-point link, the next-hop
+ * address need not be specified. To the contrary, the next-hop
+ * address is mandatory for a multi-point link such as a subnet.
+ */
+typedef struct {
+  net_addr_t tAddr;
+  SNetLink * pIface;
+} SNetRouteNextHop;
+
+// ----- SNetRouteInfo ----------------------------------------------
 typedef struct {
   SPrefix sPrefix;
   uint32_t uWeight;
-  SNetLink * pNextHopIf;
+  SNetRouteNextHop sNextHop;
   net_route_type_t tType;
 } SNetRouteInfo;
 
-
-
-// ----- rt_perror -------------------------------------------------------
+// ----- route_nexthop_compare --------------------------------------
+extern int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2);
+// ----- rt_perror --------------------------------------------------
 extern void rt_perror(FILE * pStream, int iErrorCode);
-// ----- route_info_create ------------------------------------------
-extern SNetRouteInfo * route_info_create(SPrefix sPrefix,
-					 SNetLink * pNextHopIf,
-					 uint32_t uWeight,
-					 net_route_type_t tType);
-// ----- route_info_destroy -----------------------------------------
-extern void route_info_destroy(SNetRouteInfo ** ppRouteInfo);
+// ----- net_route_info_create --------------------------------------
+extern SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
+					     SNetLink * pIface,
+					     net_addr_t tNextHop,
+					     uint32_t uWeight,
+					     net_route_type_t tType);
+// ----- net_route_info_destroy -------------------------------------
+extern void net_route_info_destroy(SNetRouteInfo ** ppRouteInfo);
 
 // ----- rt_create --------------------------------------------------
 extern SNetRT * rt_create();
@@ -60,11 +77,20 @@ extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 			SNetRouteInfo * pRouteInfo);
 // ----- rt_del_route -----------------------------------------------
 extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-			SNetLink * pNextHopIf, net_route_type_t tType);
+			SNetLink * pIface, net_addr_t * ptNextHop,
+			net_route_type_t tType);
+// ----- net_route_type_dump ----------------------------------------
+extern void net_route_type_dump(FILE * pStream, net_route_type_t tType);
+// ----- net_route_info_dump ----------------------------------------
+extern void net_route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo);
+// ----- rt_info_list_dump ------------------------------------------
+extern void rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
+			      SNetRouteInfoList * pRouteInfoList);
 // ----- rt_dump ----------------------------------------------------
 extern void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest);
 
-// ----- rt_for_each -------------------------------------------------------
-extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
+// ----- rt_for_each ------------------------------------------------
+extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
+		       void * pContext);
 
 #endif /* __NET_ROUTING_H__ */
