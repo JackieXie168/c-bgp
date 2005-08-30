@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 13/02/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifndef __AS_T_H__
@@ -31,7 +31,6 @@ typedef struct {
   FTieBreakFunction fTieBreak;
   cluster_id_t tClusterID;
   int iRouteReflector;
-  char * pcName;
   SBGPDomain * pDomain;
 } SBGPRouter;
 

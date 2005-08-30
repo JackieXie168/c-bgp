@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 05/04/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -11,11 +11,7 @@
 #endif
 
 #include <libgds/array.h>
-#ifdef __EXPERIMENTAL__
-# include <libgds/patricia-tree.h>
-#else
-# include <libgds/radix-tree.h>
-#endif
+#include <libgds/patricia-tree.h>
 #include <libgds/types.h>
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
@@ -45,11 +41,7 @@ static SPtrArray * build_router_list()
   SNetwork * pNetwork= network_get();
 
   // Build list of BGP routers
-#ifdef __EXPERIMENTAL__
   trie_for_each(pNetwork->pNodes, build_router_list_rtfe, pRL);
-#else
-  radix_tree_for_each(pNetwork->pNodes, build_router_list_rtfe, pRL);
-#endif
 
   return pRL;
 }
@@ -120,8 +112,8 @@ int bgp_assert_peerings()
   SPtrArray * pRL;
   SBGPRouter * pRouter;
   int iResult= 0;
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
+  //SNetNode * pNode;
+  //SNetProtocol * pProtocol;
   SPeer * pPeer;
   int iBadPeerings= 0;
 
@@ -131,21 +123,29 @@ int bgp_assert_peerings()
   for (iIndex= 0; iIndex < ptr_array_length(pRL); iIndex++) {
     pRouter= (SBGPRouter *) pRL->data[iIndex];
 
+    fprintf(stdout, "check router ");
+    bgp_router_dump_id(stdout, pRouter);
+    fprintf(stdout, "\n");
+
     // For all peerings...
     for (iPeerIndex= 0; iPeerIndex < ptr_array_length(pRouter->pPeers);
 	 iPeerIndex++) {
       pPeer= (SPeer *) pRouter->pPeers->data[iPeerIndex];
 
+      fprintf(stdout, "\tcheck peer ");
+      bgp_peer_dump_id(stdout, pPeer);
+      fprintf(stdout, "\n");
+
       // Check existence of BGP peer
-      pNode= network_find_node(network_get(), pPeer->tAddr);
+      /*pNode= network_find_node(pPeer->tAddr);
       if (pNode != NULL) {
 
 	// Check support for BGP protocol
 	pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
-	if (pProtocol != NULL) {
+	if (pProtocol != NULL) {*/
 	  
 	  // Check for reachability
-	  if (node_rt_lookup(pRouter->pNode, pPeer->tAddr) == NULL) {
+	  if (!bgp_peer_session_ok(pPeer)) {
 	    fprintf(stdout, "Assert: ");
 	    ip_address_dump(stdout, pRouter->pNode->tAddr);
 	    fprintf(stdout, "'s peer ");
@@ -155,7 +155,7 @@ int bgp_assert_peerings()
 	    iBadPeerings++;
 	  }
 
-	} else {
+	  /*} else {
 	  fprintf(stdout, "Assert: ");
 	  ip_address_dump(stdout, pRouter->pNode->tAddr);
 	  fprintf(stdout, "'s peer ");
@@ -173,7 +173,7 @@ int bgp_assert_peerings()
 	fprintf(stdout, " does not exist\n");
 	iResult= -1;
 	iBadPeerings++;
-      }
+	}*/
       
     }
   }

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 13/04/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,10 +27,6 @@
 #include <bgp/route_map.h>
 #include <bgp/tie_breaks.h>
 
-#ifdef HAVE_XML
-#include <bgp/xml_topology.h>
-#endif
-
 #include <cli/bgp.h>
 #include <cli/common.h>
 #include <cli/net.h>
@@ -39,6 +35,7 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <net/prefix.h>
+#include <net/record-route.h>
 #include <string.h>
 
 // ----- cli_bgp_add_router -----------------------------------------
@@ -163,7 +160,6 @@ void cli_ctx_destroy_bgp_domain(void ** ppItem)
  * context: {as}
  * tokens: {}
  */
-#ifdef __EXPERIMENTAL__
 int cli_bgp_domain_full_mesh(SCliContext * pContext, STokens * pTokens)
 {
   SBGPDomain * pDomain;
@@ -176,7 +172,6 @@ int cli_bgp_domain_full_mesh(SCliContext * pContext, STokens * pTokens)
   
   return CLI_SUCCESS;
 }
-#endif /* __EXPERIMENTAL__ */
 
 // ----- cli_bgp_domain_rescan --------------------------------------
 /**
@@ -229,7 +224,8 @@ int cli_bgp_domain_recordroutedeflection(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0, 1);
+  bgp_domain_dump_recorded_route(stdout, pDomain, sDest,
+				 NET_RECORD_ROUTE_OPTION_DEFLECTION);
 
   return CLI_SUCCESS;
 }
@@ -265,7 +261,7 @@ int cli_bgp_domain_recordroute(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0, 0);
+  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -278,38 +274,10 @@ int cli_bgp_domain_recordroute(SCliContext * pContext,
  */
 int cli_bgp_topology_load(SCliContext * pContext, STokens * pTokens)
 {
-  if (rexford_load(tokens_get_string_at(pTokens, 0), network_get()))
+  if (rexford_load(tokens_get_string_at(pTokens, 0)))
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
-
-// ------ cli_bgp_xml_topology_load ---------------------------------
-/**
- * context: {}
- * tokens: {file}
- */
-#ifdef HAVE_XML
-int cli_bgp_xml_topology_load(SCliContext * pContext, STokens * pTokens)
-{
-  if (xml_topology_load(tokens_get_string_at(pTokens, 0), network_get()))
-    return CLI_ERROR_COMMAND_FAILED;
-  return CLI_SUCCESS;
-}
-#endif
-
-// ----- cli_bgp_xml_topology_dump ----------------------------------
-/**
- * context: {}
- * tokens: {file}
- */
-#ifdef HAVE_XML
-int cli_bgp_xml_topology_dump(SCliContext * pContext, STokens * pTokens)
-{
-  if (xml_topology_dump(network_get(), tokens_get_string_at(pTokens, 0)))
-    return CLI_ERROR_COMMAND_FAILED;
-  return CLI_SUCCESS;
-}
-#endif
 
 // ----- cli_bgp_topology_policies ----------------------------------
 /**
@@ -836,15 +804,7 @@ int cli_bgp_router_show_info(SCliContext * pContext,
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Show information
-  fprintf(stdout, "router-id: ");
-  ip_address_dump(stdout, pRouter->pNode->tAddr);
-  fprintf(stdout, "\n");
-  fprintf(stdout, "as-number: %u\n", pRouter->uNumber);
-  fprintf(stdout, "cluster-id: ");
-  ip_address_dump(stdout, pRouter->tClusterID);
-  fprintf(stdout, "\n");
-  if (pRouter->pcName != NULL)
-    fprintf(stdout, "name: %s", pRouter->pcName);
+  bgp_router_info(stdout, pRouter);
 
   return CLI_SUCCESS;
 }
@@ -1967,6 +1927,40 @@ int cli_bgp_router_peer_rrclient(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_router_peer_nexthop --------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr, addr}
+ */
+int cli_bgp_router_peer_nexthop(SCliContext * pContext,
+				STokens * pTokens)
+{
+  SBGPPeer * pPeer;
+  char * pcNextHop;
+  net_addr_t tNextHop;
+  char * pcEndChar;
+
+  // Get peer from context
+  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
+  // Get next-hop address
+  pcNextHop= tokens_get_string_at(pTokens, 2);
+  if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid next-hop \"%s\".\n", pcNextHop);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Set the next-hop to be used for routes advertised to this peer
+  if (bgp_peer_set_nexthop(pPeer, tNextHop)) {
+    LOG_SEVERE("Error: could not change next-hop (");
+    LOG_SEVERE(").\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_router_peer_nexthopself ----------------------------
 /**
  * context: {router, peer}
@@ -1975,9 +1969,11 @@ int cli_bgp_router_peer_rrclient(SCliContext * pContext, STokens * pTokens)
 int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
 				    STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
+  // Get peer from context
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
   peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
   return CLI_SUCCESS;
 }
@@ -2242,11 +2238,9 @@ int cli_register_bgp_domain(SCliCmds * pCmds)
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
 
-#ifdef __EXPERIMENTAL__
   cli_cmds_add(pSubCmds, cli_cmd_create("full-mesh",
 					cli_bgp_domain_full_mesh,
 					NULL, NULL));
-#endif /* __EXPERIMENTAL__ */
   cli_cmds_add(pSubCmds, cli_cmd_create("rescan",
 					cli_bgp_domain_rescan,
 					NULL, NULL));
@@ -2292,28 +2286,6 @@ int cli_register_bgp_topology(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("policies",
 					cli_bgp_topology_policies,
 					NULL, NULL));
-#ifdef HAVE_XML
-  pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
-  cli_cmds_add(pSubCmds, cli_cmd_create("xml-load", 
-					cli_bgp_xml_topology_load,
-					NULL, pParams));
-  pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
-  cli_cmds_add(pSubCmds, cli_cmd_create("xml-dump",
-					cli_bgp_xml_topology_dump,
-					NULL, pParams));
-#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<input>", NULL);
@@ -2602,6 +2574,11 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
   cli_register_bgp_router_peer_show(pSubCmds);
   cli_cmds_add(pSubCmds, cli_cmd_create("down", cli_bgp_router_peer_down,
 					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("next-hop",
+					cli_bgp_router_peer_nexthop,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
 					cli_bgp_router_peer_nexthopself,
 					NULL, NULL));

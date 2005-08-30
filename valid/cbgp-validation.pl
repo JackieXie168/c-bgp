@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 13/04/2005
+# @lastdate 08/08/2005
 # ===================================================================
 
 use strict;
@@ -14,16 +14,23 @@ use strict;
 use Getopt::Long;
 use CBGP;
 
-use constant VERSION => '1.0';
+use constant VERSION => '1.1';
 use constant CACHE_FILE => ".cbgp-validation.cache";
 
 use constant TEST_FAILURE => 0;
 use constant TEST_SUCCESS => 1;
 use constant TEST_SKIPPED => 2;
 
+use constant CBGP_LINK_TYPE => 0;
+use constant CBGP_LINK_DST => 1;
+use constant CBGP_LINK_WEIGHT => 2;
+use constant CBGP_LINK_DELAY => 3;
+use constant CBGP_LINK_STATE => 4;
+
 use constant CBGP_RT_NEXTHOP => 0;
-use constant CBGP_RT_METRIC => 1;
-use constant CBGP_RT_PROTO => 2;
+use constant CBGP_RT_IFACE => 1;
+use constant CBGP_RT_METRIC => 2;
+use constant CBGP_RT_PROTO => 3;
 
 use constant CBGP_TR_SRC => 0;
 use constant CBGP_TR_DST => 1;
@@ -286,25 +293,50 @@ sub topo_included($$)
 }
 
 # -----[ cbgp_topo ]-------------------------------------------------
-sub cbgp_topo($$)
+sub cbgp_topo($$;$)
 {
-    my ($cbgp, $topo)= @_;
+    my ($cbgp, $topo, $domain)= @_;
     my %nodes;
+
+    if (defined($domain)) {
+	die if $cbgp->send("net add domain $domain igp\n");
+    }
 
     foreach my $node1 (keys %$topo) {
 	foreach my $node2 (keys %{$topo->{$node1}}) {
 	    my ($delay, $weight)= @{$topo->{$node1}{$node2}};
 	    if (!exists($nodes{$node1})) {
 		die if $cbgp->send("net add node $node1\n");
+		if (defined($domain)) {
+		    die if $cbgp->send("net node $node1 domain $domain\n");
+		}
 		$nodes{$node1}= 1;
 	    }
 	    if (!exists($nodes{$node2})) {
 		die if $cbgp->send("net add node $node2\n");
+		if (defined($domain)) {
+		    die if $cbgp->send("net node $node2 domain $domain\n");
+		}
 		$nodes{$node2}= 1;
 	    }
 	    die if $cbgp->send("net add link $node1 $node2 $delay\n");
 	    die if $cbgp->send("net link $node1 $node2 igp-weight $weight\n");
 	    die if $cbgp->send("net link $node2 $node1 igp-weight $weight\n");
+	}
+    }
+}
+
+# -----[ cbgp_topo_domain ]------------------------------------------
+sub cbgp_topo_domain($$$$)
+{
+    my ($cbgp, $topo, $predicate, $domain)= @_;
+
+    die if $cbgp->send("net add domain $domain igp\n");
+
+    my $nodes= topo_get_nodes($topo);
+    foreach my $node (keys %$nodes) {
+	if ($node =~ m/$predicate/) {
+	    die if $cbgp->send("net node $node domain $domain\n");
 	}
     }
 }
@@ -317,7 +349,7 @@ sub cbgp_topo_filter($)
     die if $cbgp->send("net add node 1.0.0.1\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
     die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
     die if $cbgp->send("bgp add router 1 1.0.0.1\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "virtual");
 }
@@ -334,7 +366,7 @@ sub cbgp_topo_dp($$)
 	my $peer= "$asn.0.0.1";
 	die if $cbgp->send("net add node $peer\n");
 	die if $cbgp->send("net add link 1.0.0.1 $peer 0\n");
-	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 $peer 0\n");
+	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer 0\n");
 	cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
 }
@@ -350,7 +382,7 @@ sub cbgp_topo_dp2($$)
 	my $peer= "1.0.0.".($index+2);
 	die if $cbgp->send("net add node $peer\n");
 	die if $cbgp->send("net add link 1.0.0.1 $peer ".($index+1)."\n");
-	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 $peer 0\n");
+	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer 0\n");
 	cbgp_peering($cbgp, "1.0.0.1", $peer, "1", "virtual");
     }
 }
@@ -366,7 +398,7 @@ sub cbgp_topo_dp3($;@)
 	my ($peer, $asn, $weight)= @{$peers[$index]};
 	die if $cbgp->send("net add node $peer\n");
 	die if $cbgp->send("net add link 1.0.0.1 $peer $weight\n");
-	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 $peer $weight\n");
+	die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer $weight\n");
 	cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
 }
@@ -374,12 +406,8 @@ sub cbgp_topo_dp3($;@)
 # -----[ cbgp_topo_igp_compute ]-------------------------------------
 sub cbgp_topo_igp_compute($$$)
 {
-    my ($cbgp, $topo, $prefix)= @_;
-    my $nodes= topo_get_nodes($topo);
-
-    foreach my $node (keys %$nodes) {
-	die if $cbgp->send("net node $node spf-prefix $prefix\n");
-    }
+    my ($cbgp, $topo, $domain)= @_;
+    die if $cbgp->send("net domain $domain compute\n");
 }
 
 # -----[ cbgp_topo_bgp_routers ]-------------------------------------
@@ -537,6 +565,27 @@ sub cbgp_topo_check_igp_reachability($$)
     return 1;
 }
 
+# -----[ cbgp_links_check ]------------------------------------------
+sub cbgp_links_check($$%)
+{
+    my ($links, $dest, %args)= @_;
+
+    if (!exists($links->{$dest})) {
+	return 0;
+    }
+    my $link= $links->{$dest};
+    if (exists($args{-type})) {
+	($link->[CBGP_LINK_TYPE] eq $args{-type}) or return 0;
+    }
+    if (exists($args{-weight})) {
+	($link->[CBGP_LINK_WEIGHT] == $args{-weight}) or return 0;
+    }
+    if (exists($args{-delay})) {
+	($link->[CBGP_LINK_DELAY] == $args{-delay}) or return 0;
+    }
+    return 1;
+}
+
 # -----[ cbgp_rib_check ]--------------------------------------------
 sub cbgp_rib_check($$;@)
 {
@@ -612,24 +661,32 @@ sub cbgp_topo_check_static_routes($$)
 	my $links= cbgp_show_links($cbgp, $node1);
 
 	# Add a static route over each link
-	foreach my $link (@$links) {
-	    die if $cbgp->send("net node $node1 route add $link->[0]/32 $link->[0] $link->[1]\n");
+	foreach my $link (values %$links) {
+	    die if $cbgp->send("net node $node1 route add ".
+			       $link->[CBGP_LINK_DST]."/32 * ".
+			       $link->[CBGP_LINK_DST]." ".
+			       $link->[CBGP_LINK_WEIGHT]."\n");
 	}
 
 	# Test static routes (presence)
 	my $rt= cbgp_show_rt($cbgp, $node1);
-	(scalar(keys %$rt) != @$links) and return 0;
-	foreach my $link (@$links) {
-	    my $prefix= $link->[0]."/32";
+	(scalar(keys %$rt) != scalar(keys %$links)) and return 0;
+	foreach my $link (values %$links) {
+	    my $prefix= $link->[CBGP_LINK_DST]."/32";
 	    # static route exists
 	    (!exists($rt->{$prefix})) and return 0;
-	    # next-hop is link tail-end
-	    ($rt->{$prefix}->[0] ne $link->[0]) and return 0;
+	    # next-hop is link's tail-end
+	    if ($rt->{$prefix}->[CBGP_RT_IFACE] ne
+		$link->[CBGP_LINK_DST]) {
+		print "next-hop != link's tail-end\n";
+		return 0;
+	    }
 	}
 	
 	# Test static routes (forward)
-	foreach my $link (@$links) {
-	    my $trace= cbgp_record_route($cbgp, $node1, $link->[0]);
+	foreach my $link (values %$links) {
+	    my $trace= cbgp_record_route($cbgp, $node1,
+					 $link->[CBGP_LINK_DST]);
 	    # Destination was reached
 	    ($trace->[CBGP_TR_STATUS] ne "SUCCESS") and return 0;
 	    # Path is 2 hops long
@@ -694,21 +751,60 @@ sub cbgp_recv_withdraw($$$$$)
 sub cbgp_show_links($$)
 {
     my ($cbgp, $node)= @_;
-    my @links;
+    my %links= ();
 
     die if $cbgp->send("net node $node show links\n");
     die if $cbgp->send("print \"done\\n\"\n");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~
-    m/^([0-9.]+)\s+([0-9]+)\s+([0-9]+)\s+(UP|DOWN)\s+(DIRECT|TUNNEL)\s+IGP_ADV$/)
-    {
-	push @links, ([$1, $2, $3, $4, $5]);
-	} else {
+
+	my @fields= split /\s+/, $result;
+
+	if (scalar(@fields) < 5) {
 	    show_error("incorrect format (show links): \"$result\"");
 	    exit(-1);
 	}
+
+	if (!($fields[0] =~ m/^ROUTER|TRANSIT|STUB$/)) {
+	    show_error("invalid router-type (show links): $fields[0]");
+	    exit(-1);
+	}
+	if (!($fields[1] =~ m/^[0-9.\/]+$/)) {
+	    show_error("invalid destination (show links): $fields[1]");
+	    exit(-1);
+	}
+	if (!($fields[2] =~ m/^[0-9]+$/)) {
+	    show_error("invalid weight (show links): $fields[2]");
+	    exit(-1);
+	}
+	if (!($fields[3] =~ m/^[0-9]+$/)) {
+	    show_error("invalid delay (show links): $fields[3]");
+	    exit(-1);
+	}
+	if (!($fields[4] =~ m/^UP|DOWN$/)) {
+	    show_error("invalid state (show links): $fields[4]");
+	    exit(-1);
+	}
+	
+	my $link_type= $fields[0];
+	my $link_destination= $fields[1];
+	my $link_weight= $fields[2];
+	my $link_delay= $fields[3];
+	my $link_state= $fields[4];
+
+	if (exists($links{$link_destination})) {
+	    show_error("duplicate link destination: $link_destination");
+	    exit(-1);
+	}
+
+	$links{$link_destination}=
+	    [$link_type,
+	     $link_destination,
+	     $link_weight,
+	     $link_delay,
+	     $link_state,
+	     ];
     }
-    return\@links;
+    return \%links;
 }
 
 # -----[ cbgp_show_rt ]----------------------------------------------
@@ -724,12 +820,45 @@ sub cbgp_show_rt($$;$)
     die if $cbgp->send("net node $node show rt $destination\n");
     die if $cbgp->send("print \"done\\n\"\n");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~ m/^([0-9.\/]+)\s+([0-9.]+)\s+([0-9]+)\s+(STATIC|IGP|BGP)$/) {
-	    $routes{$1}= [$2, $3, $4];
-	} else {
+	my @fields= split /\s+/, $result;
+	if (scalar(@fields) < 4) {
 	    show_error("incorrect format (show rt): \"$result\"");
 	    exit(-1);
 	}
+
+	if (!($fields[0] =~ m/^[0-9.\/]+$/)) {
+	    show_error("invalid destination (show rt): $fields[0]");
+	    exit(-1);
+	}
+	if (!($fields[1] =~ m/^[0-9.]+$/)) {
+	    show_error("invalid next-hop (show rt): $fields[1]");
+	    exit(-1);
+	}
+	if (!($fields[2] =~ m/^[0-9.\/]+$/)) {
+	    show_error("invalid interface (show rt): $fields[2]");
+	    exit(-1);
+	}
+	if (!($fields[3] =~ m/^[0-9]+$/)) {
+	    show_error("invalid metric (show rt): $fields[3]");
+	    exit(-1);
+	}
+	if (!($fields[4] =~ m/^STATIC|IGP|BGP$/)) {
+	    show_error("invalid type (show rt): $fields[4]");
+	    exit(-1);
+	}
+
+	my $rt_destination= $fields[0];
+	my $rt_nexthop= $fields[1];
+	my $rt_iface= $fields[2];
+	my $rt_metric= $fields[3];
+	my $rt_type= $fields[4];
+
+	$routes{$rt_destination}=
+	    [$rt_nexthop,
+	     $rt_iface,
+	     $rt_metric,
+	     $rt_type
+	     ];
     }
     return \%routes;
 }
@@ -880,16 +1009,24 @@ sub cbgp_topo_check_links($$)
 	foreach my $node2 (keys %{$topo->{$node1}}) {
 	    if (!exists($nodes{$node1})) {
 		$nodes{$node1}= 1;
-		my $links= cbgp_show_links($cbgp, $node1);
-		foreach my $link (@$links) {
-		    $cbgp_topo{$node1}{$link->[0]}= [$link->[1], $link->[2]];
+		my $links_hash= cbgp_show_links($cbgp, $node1);
+		my @links= values %$links_hash;
+		foreach my $link (@links) {
+		    $cbgp_topo{$node1}{$link->[CBGP_LINK_DST]}=
+			[$link->[CBGP_LINK_WEIGHT],
+			 $link->[CBGP_LINK_DELAY],
+			 ];
 		}
 	    }
 	    if (!exists($nodes{$node2})) {
 		$nodes{$node2}= 1;
-		my $links= cbgp_show_links($cbgp, $node2);
-		foreach my $link (@$links) {
-		    $cbgp_topo{$node2}{$link->[0]}= [$link->[1], $link->[2]];
+		my $links_hash= cbgp_show_links($cbgp, $node2);
+		my @links= values %$links_hash;
+		foreach my $link (@links) {
+		    $cbgp_topo{$node2}{$link->[CBGP_LINK_DST]}=
+			[$link->[CBGP_LINK_WEIGHT],
+			 $link->[CBGP_LINK_DELAY],
+			 ];
 		}
 	    }
 	}
@@ -985,6 +1122,60 @@ sub cbgp_valid_version($)
     }
 }
 
+# -----[ cbgp_valid_net_link ]---------------------------------------
+sub cbgp_valid_net_link($$)
+{
+    my ($cbgp, $topo)= @_;
+    die if $cbgp->send("net add node 1.0.0.1\n");
+    die if $cbgp->send("net add node 1.0.0.2\n");
+    die if $cbgp->send("net add node 1.0.0.3\n");
+    die if $cbgp->send("net add link 1.0.0.1 1.0.0.2 123\n");
+    die if $cbgp->send("net add link 1.0.0.2 1.0.0.3 321\n");
+    my $links;
+    $links= cbgp_show_links($cbgp, '1.0.0.1');
+    (keys(%$links) != 1) and return TEST_FAILURE;
+    cbgp_links_check($links, '1.0.0.2',
+		     -type=>'ROUTER',
+		     -weight=>123) or return TEST_FAILURE;
+    $links= cbgp_show_links($cbgp, '1.0.0.2');
+    (keys (%$links) != 2) and return TEST_FAILURE;
+    (cbgp_links_check($links, '1.0.0.1',
+		      -type=>'ROUTER',
+		      -weight=>123) &&
+     cbgp_links_check($links, '1.0.0.3',
+		      -type=>'ROUTER',
+		      -weight=>321)) or return TEST_FAILURE;
+    $links= cbgp_show_links($cbgp, '1.0.0.3');
+    (keys(%$links) != 1) and return TEST_FAILURE;
+    cbgp_links_check($links, '1.0.0.2',
+		     -type=>'ROUTER',
+		     -weight=>321) or return TEST_FAILURE;
+    return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_subnet ]-------------------------------------
+sub cbgp_valid_net_subnet($$)
+{
+    my ($cbgp, $topo)= @_;
+    die if $cbgp->send("net add node 1.0.0.1\n");
+    die if $cbgp->send("net add node 1.0.0.2\n");
+    die if $cbgp->send("net add subnet 192.168.0/24 transit\n");
+    die if $cbgp->send("net add link 1.0.0.1 192.168.0.1/24 123\n");
+    die if $cbgp->send("net add link 1.0.0.2 192.168.0.2/24 321\n");
+    my $links;
+    $links= cbgp_show_links($cbgp, '1.0.0.1');
+    (keys(%$links) != 1) and return TEST_FAILURE;
+    cbgp_links_check($links, '192.168.0.0/24',
+		     -type=>'TRANSIT',
+		     -weight=>123) or return TEST_FAILURE;
+    $links= cbgp_show_links($cbgp, '1.0.0.2');
+    (keys (%$links) != 1) and return TEST_FAILURE;
+    cbgp_links_check($links, '192.168.0.0/24',
+		     -type=>'TRANSIT',
+		     -weight=>321) or return TEST_FAILURE;
+    return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_net_create ]-------------------------------------
 sub cbgp_valid_net_create($$)
 {
@@ -997,8 +1188,8 @@ sub cbgp_valid_net_create($$)
 sub cbgp_valid_net_igp($$)
 {
     my ($cbgp, $topo)= @_;
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     return cbgp_topo_check_igp_reachability($cbgp, $topo);
 }
 
@@ -1015,11 +1206,11 @@ sub cbgp_valid_net_ntf_load($$)
 sub cbgp_valid_net_record_route($$)
 {
     my ($cbgp, $topo)= @_;
-    cbgp_topo($cbgp, $topo);
+    cbgp_topo($cbgp, $topo, 1);
     if (!cbgp_topo_check_record_route($cbgp, $topo, "UNREACH")) {
 	return TEST_FAILURE;
     }
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     if (!cbgp_topo_check_record_route($cbgp, $topo, "SUCCESS")) {
 	return TEST_FAILURE;
     }
@@ -1044,18 +1235,18 @@ sub cbgp_valid_net_longest_matching($)
     my ($cbgp)= @_;
     my $topo= topo_3nodes_line();
     cbgp_topo($cbgp, $topo);
-    die if $cbgp->send("net node 1.0.0.2 route add 1/8 1.0.0.1 10\n");
-    die if $cbgp->send("net node 1.0.0.2 route add 1.1/16 1.0.0.3 10\n");
+    die if $cbgp->send("net node 1.0.0.2 route add 1/8 * 1.0.0.1 10\n");
+    die if $cbgp->send("net node 1.0.0.2 route add 1.1/16 * 1.0.0.3 10\n");
     # Test longest-matching in show-rt
     my $rt;
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.0.0.0");
     if (!exists($rt->{"1.0.0.0/8"}) ||
-	($rt->{"1.0.0.0/8"}->[CBGP_RT_NEXTHOP] ne "1.0.0.1")) {
+	($rt->{"1.0.0.0/8"}->[CBGP_RT_IFACE] ne "1.0.0.1")) {
 	return TEST_FAILURE;
     }
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.1.0.0");
     if (!exists($rt->{"1.1.0.0/16"}) ||
-	($rt->{"1.1.0.0/16"}->[CBGP_RT_NEXTHOP] ne "1.0.0.3")) {
+	($rt->{"1.1.0.0/16"}->[CBGP_RT_IFACE] ne "1.0.0.3")) {
 	return TEST_FAILURE;
     }
     # Test longest-matching in record-route
@@ -1076,22 +1267,22 @@ sub cbgp_valid_net_protocol_priority($)
 {
     my ($cbgp)= @_;
     my $topo= topo_3nodes_line();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
-    die if $cbgp->send("net node 1.0.0.2 route add 1.0.0.1/32 1.0.0.3 10\n");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
+    die if $cbgp->send("net node 1.0.0.2 route add 1.0.0.1/32 * 1.0.0.3 10\n");
     # Test protocol-priority in show-rt
     my $rt;
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.0.0.1");
     if (!exists($rt->{"1.0.0.1/32"}) ||
 	($rt->{"1.0.0.1/32"}->[CBGP_RT_PROTO] ne "STATIC") ||
-	($rt->{"1.0.0.1/32"}->[CBGP_RT_NEXTHOP] ne "1.0.0.3")) {
+	($rt->{"1.0.0.1/32"}->[CBGP_RT_IFACE] ne "1.0.0.3")) {
 	print "1.0.0.2 --> 1.0.0.1\n";
 	return TEST_FAILURE;
     }
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.0.0.3");
     if (!exists($rt->{"1.0.0.3/32"}) ||
 	($rt->{"1.0.0.3/32"}->[CBGP_RT_PROTO] ne "IGP") ||
-	($rt->{"1.0.0.3/32"}->[CBGP_RT_NEXTHOP] ne "1.0.0.3")) {
+	($rt->{"1.0.0.3/32"}->[CBGP_RT_IFACE] ne "1.0.0.3")) {
 	print "1.0.0.2 --> 1.0.0.3\n";
 	return TEST_FAILURE;
     }
@@ -1119,8 +1310,8 @@ sub cbgp_valid_bgp_session_ibgp($)
 {
     my ($cbgp)= @_;
     my $topo= topo_3nodes_line();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     cbgp_peering($cbgp, "1.0.0.1", "1.0.0.2", 1);
     cbgp_peering($cbgp, "1.0.0.2", "1.0.0.1", 1);
@@ -1170,8 +1361,8 @@ sub cbgp_valid_bgp_session_ebgp($)
 {
     my ($cbgp)= @_;
     my $topo= topo_3nodes_line();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp add router 1 1.0.0.1\n");
     die if $cbgp->send("bgp add router 2 1.0.0.2\n");
     die if $cbgp->send("bgp add router 2 1.0.0.3\n");
@@ -1227,8 +1418,8 @@ sub cbgp_valid_bgp_session_ebgp($)
 sub cbgp_valid_bgp_domain_fullmesh($$)
 {
     my ($cbgp, $topo)= @_;
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     if (!cbgp_topo_check_sessions($cbgp, $topo, "OPENWAIT")) {
@@ -1249,8 +1440,8 @@ sub cbgp_valid_bgp_peering_up_down($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("bgp router 1.0.0.1 add network 255.255.0.0/16\n");
@@ -1280,14 +1471,14 @@ sub cbgp_valid_bgp_peerings_nexthopself($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
     die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
-    die if $cbgp->send("net node 2.0.0.1 route add 1.0.0.1/32 1.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
+    die if $cbgp->send("net node 2.0.0.1 route add 1.0.0.1/32 * 1.0.0.1 0\n");
     die if $cbgp->send("bgp add router 2 2.0.0.1\n");
     die if $cbgp->send("bgp router 2.0.0.1 add network 2.0.0.0/8\n");
     cbgp_peering($cbgp, "2.0.0.1", "1.0.0.1", 1, "next-hop-self");
@@ -1313,13 +1504,13 @@ sub cbgp_valid_bgp_virtual_peer($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
     die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
     die if $cbgp->send("sim run\n");    
     if (!cbgp_check_peering($cbgp, "1.0.0.1", "2.0.0.1", "ESTABLISHED")) {
@@ -1333,13 +1524,13 @@ sub cbgp_valid_bgp_recv_mrt($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
     die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
     die if $cbgp->send("sim run\n");
     die if $cbgp->send("bgp router 1.0.0.1 peer 2.0.0.1 recv ".
@@ -1374,13 +1565,13 @@ sub cbgp_valid_bgp_soft_restart($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0.0/30");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
     die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2,
 		 "next-hop-self", "virtual", "soft-restart");
     die if $cbgp->send("sim run\n");    
@@ -1872,17 +2063,17 @@ sub cbgp_valid_igp_bgp()
 {
     my ($cbgp)= @_;
     my $topo= topo_from_ntf("valid-igp-bgp.ntf");
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp add router 1 1.0.0.1\n");
     die if $cbgp->send("bgp add router 1 1.0.0.2\n");
     die if $cbgp->send("bgp add router 1 1.0.0.3\n");
     die if $cbgp->send("bgp add router 1 1.0.0.4\n");
     die if $cbgp->send("bgp add router 1 1.0.0.5\n");
     die if $cbgp->send("bgp domain 1 full-mesh\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.2 route add 2.0.0.2/32 2.0.0.2 0\n");
-    die if $cbgp->send("net node 1.0.0.3 route add 2.0.0.3/32 2.0.0.3 0\n");
+    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
+    die if $cbgp->send("net node 1.0.0.2 route add 2.0.0.2/32 * 2.0.0.2 0\n");
+    die if $cbgp->send("net node 1.0.0.3 route add 2.0.0.3/32 * 2.0.0.3 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2,
 		 "virtual", "next-hop-self", "soft-restart");
     cbgp_peering($cbgp, "1.0.0.2", "2.0.0.2", 2,
@@ -1905,7 +2096,7 @@ sub cbgp_valid_igp_bgp()
 	return TEST_FAILURE;
     # Peering failure 1.0.0.1 2.0.0.1
     die if $cbgp->send("net link 1.0.0.1 2.0.0.1 down\n");
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
@@ -1913,7 +2104,7 @@ sub cbgp_valid_igp_bgp()
 	return TEST_FAILURE;
     # Link failure 1.0.0.1 1.0.0.2
     die if $cbgp->send("net link 1.0.0.1 1.0.0.2 down\n");
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
@@ -1921,7 +2112,7 @@ sub cbgp_valid_igp_bgp()
 	return TEST_FAILURE;
     # Peering failure 1.0.0.3 2.0.0.3
     die if $cbgp->send("net link 1.0.0.3 2.0.0.3 down\n");
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 rescan\n");
     die if $cbgp->send("sim run\n");
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
@@ -1935,6 +2126,20 @@ sub cbgp_valid_igp_bgp()
     # TODO: check presence of routes in Adj-RIB-ins, etc.
     # TODO: check presence of routes in IP table...
     return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_igp_bgp_reach_link ]-----------------------------
+sub cbgp_valid_igp_bgp_reach_link($)
+{
+    my ($cbgp)= @_;
+    return TEST_SKIPPED;
+}
+
+# -----[ cbgp_valid_igp_bgp_reach_subnet ]-----------------------------
+sub cbgp_valid_igp_bgp_reach_subnet($)
+{
+    my ($cbgp)= @_;
+    return TEST_SKIPPED;
 }
 
 # -----[ cbgp_valid_igp_bgp_med ]------------------------------------
@@ -1997,8 +2202,8 @@ sub cbgp_valid_bgp_rr($)
     my ($cbgp)= @_;
 
     my $topo= topo_star(6);
-    cbgp_topo($cbgp, $topo);
-    cbgp_topo_igp_compute($cbgp, $topo, "1.0.0/24");
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
     die if $cbgp->send("bgp add router 1 1.0.0.1\n");
     die if $cbgp->send("bgp router 1.0.0.1\n");
     die if $cbgp->send("\tadd network 255/8\n");
@@ -2110,6 +2315,8 @@ my $topo= topo_3nodes_triangle();
 
 my @tests;
 push @tests, (["show version", \&cbgp_valid_version]);
+push @tests, (["net link", \&cbgp_valid_net_link, $topo]);
+push @tests, (["net subnet", \&cbgp_valid_net_subnet, $topo]);
 push @tests, (["net create", \&cbgp_valid_net_create, $topo]);
 push @tests, (["net igp", \&cbgp_valid_net_igp, $topo]);
 push @tests, (["net ntf load", \&cbgp_valid_net_ntf_load,
@@ -2161,6 +2368,10 @@ push @tests, (["bgp filter match next-hop",
 push @tests, (["bgp filter match prefix",
 	       \&cbgp_valid_bgp_filter_match_prefix]);
 push @tests, (["igp/bgp", \&cbgp_valid_igp_bgp]);
+push @tests, (["igp/bgp reachability link",
+	       \&cbgp_valid_igp_bgp_reach_link]);
+push @tests, (["igp/bgp reachability subnet",
+	       \&cbgp_valid_igp_bgp_reach_subnet]);
 push @tests, (["igp/bgp update med", \&cbgp_valid_igp_bgp_med]);
 push @tests, (["bgp load rib", \&cbgp_valid_bgp_load_rib]);
 push @tests, (["bgp deflection", \&cbgp_valid_bgp_deflection]);

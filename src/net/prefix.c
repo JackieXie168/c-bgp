@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 07/04/2005
+// @lastdate 05/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -107,8 +107,6 @@ SPrefix * create_ip_prefix(net_addr_t tAddr, uint8_t uMaskLen)
   pPrefix->uMaskLen= uMaskLen;
   return pPrefix;
 }
-
-
 
 // ----- ip_prefix_dump_string ---------------------------------------------
 /**
@@ -331,6 +329,27 @@ void ip_prefix_destroy(SPrefix ** ppPrefix)
     FREE(*ppPrefix);
     *ppPrefix= NULL;
   }
+}
+
+// ----- ip_build_mask ----------------------------------------------
+/**
+ * This function returns a mask of the given prefix length.
+ *
+ * Precondition:
+ * - the given prefix length must be in the range [0-32].
+ */
+net_addr_t ip_build_mask(uint8_t uMaskLen)
+{
+  return (0xffffffff << (32-uMaskLen));
+}
+
+// ----- ip_prefix_mask ---------------------------------------------
+/**
+ * This function masks the remaining bits of the prefix's address.
+ */
+void ip_prefix_mask(SPrefix * pPrefix)
+{
+  pPrefix->tNetwork&= ip_build_mask(pPrefix->uMaskLen);
 }
 
 /////////////////////////////////////////////////////////////////////

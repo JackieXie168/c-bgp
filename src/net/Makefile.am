@@ -19,19 +19,20 @@ noinst_LTLIBRARIES = libnet.la
 INCLUDES = -I..
 
 libnet_la_SOURCES = \
-	dijkstra.c \
-	dijkstra.h \
-	domain.c \
-	domain.h \
-	domain_t.h \
 	icmp.c \
 	icmp.h \
+	iface.c \
+	iface.h \
 	igp.c \
 	igp.h \
+	igp_domain.c \
+	igp_domain.h \
 	ipip.c \
 	ipip.h \
 	link.c \
 	link.h \
+	link-list.c \
+	link-list.h \
 	message.c \
 	message.h \
 	net_path.c \
@@ -40,6 +41,8 @@ libnet_la_SOURCES = \
 	network.c \
 	network.h \
 	network_t.h \
+	node.c \
+	node.h \
 	ntf.c \
 	ntf.h \
 	ospf.c \
@@ -50,9 +53,13 @@ libnet_la_SOURCES = \
 	prefix.h \
 	protocol.c \
 	protocol.h \
+	record-route.c \
+	record-route.h \
 	routing.c \
 	routing.h \
 	routing_t.h \
+	spt_vertex.c \
+	spt_vertex.h \
 	subnet.c \
 	subnet.h
 	 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 27/01/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -90,7 +90,16 @@ void simulator_done()
  */
 int simulator_run()
 {
-  return pSimulator->fSchedulerRun(pSimulator);
+  return pSimulator->fSchedulerRun(pSimulator, -1);
+}
+
+// ----- simulator_step ---------------------------------------------
+/**
+ *
+ */
+int simulator_step(int iNumSteps)
+{
+  return pSimulator->fSchedulerRun(pSimulator, iNumSteps);
 }
 
 // ----- simulator_post_event ---------------------------------------

@@ -1,3 +1,12 @@
+// ==================================================================
+// @(#)domain.c
+//
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @date 16/09/2004
+// @lastdate 29/07/2005
+// ==================================================================
+
 #ifndef __NET_DOMAIN_T_H__
 #define __NET_DOMAIN_T_H__
 
@@ -5,7 +14,6 @@
 #include <libgds/types.h>
 
 struct Domain {
-  uint32_t uAS;
   char * pcName;
   SRadixTree * rtNodes;
 };

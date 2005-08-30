@@ -17,13 +17,24 @@
 #include <net/ospf.h>
 #include <net/link.h>
 
+#define OSPF_RT_SUCCESS               0
+#define OSPF_RT_ERROR_NH_UNREACH     -1
+#define OSPF_RT_ERROR_IF_UNKNOWN     -2
+#define OSPF_RT_ERROR_ADD_DUP        -3
+#define OSPF_RT_ERROR_DEL_UNEXISTING -4
+
+#define OSPF_DESTINATION_TYPE_NETWORK 0
+#define OSPF_DESTINATION_TYPE_ROUTER  1
 
 #define OSPF_PATH_TYPE_INTRA       0
 #define OSPF_PATH_TYPE_INTER       1
 #define OSPF_PATH_TYPE_EXTERNAL_1  2
 #define OSPF_PATH_TYPE_EXTERNAL_2  3
+#define OSPF_PATH_TYPE_ANY         4
 
 #define OSPF_NO_IP_NEXT_HOP 0
+#define OSPF_RT_OPTION_SORT_AREA      0x01
+#define OSPF_RT_OPTION_SORT_PATH_TYPE 0x02
 
 // ----- ospf_rt_test() -----------------------------------------------
 extern int ospf_rt_test();
@@ -47,14 +58,19 @@ extern next_hops_list_t * ospf_nh_list_create();
 extern void ospf_nh_list_destroy(next_hops_list_t ** pNHList);
 // ----- ospf_nh_list_add --------------------------------------------------
 extern int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH);
+
+// ----- ospf_nh_list_copy --------------------------------------------------
+extern next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList);
+// ----- ospf_nh_list_add_list --------------------------------------------------------------------
+extern void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list_t * pNHListSource);
+
 // ----- ospf_nh_list_dump --------------------------------------------------
 /*
    pcSpace should not be NULL! 
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine);
-
+extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace);
 ///////////////////////////////////////////////////////////////////////////
 //////  ROUTING TABLE OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
@@ -77,7 +93,8 @@ extern void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo);
 extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
 			      net_route_type_t tType);
 // ----- OSPF_rt_dump -------------------------------------------------------------
-void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT);
+extern int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tPathType, 
+                 ospf_area_t tArea, int * piPrintedRoutes);
 
 // ----- route_info_destroy --------------------------------------------------
 extern void OSPF_route_info_destroy(SOSPFRouteInfo ** ppOSPFRouteInfo);
@@ -97,8 +114,8 @@ extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
 extern int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 			SOSPFRouteInfo * pRouteInfo);
 // ----- rt_del_route -----------------------------------------------
-extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix,
-			SNetLink * pNextHopIf, net_route_type_t tType);
+extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pNextHop,
+		 net_route_type_t tType);
 
 
 // ----- rt_for_each -------------------------------------------------------

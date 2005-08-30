@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 27/01/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -140,6 +140,29 @@ int cli_sim_run(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_sim_step -----------------------------------------------
+/**
+ * context: {}
+ * tokens: {num-steps}
+ */
+int cli_sim_step(SCliContext * pContext, STokens * pTokens)
+{
+  unsigned int uNumSteps;
+
+  // Get number of steps
+  if (tokens_get_uint_at(pTokens, 0, &uNumSteps)) {
+    LOG_SEVERE("Error: invalid number of steps \"%s\".\n",
+	       tokens_get_string_at(pTokens, 0));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Run the simulator for the given number of steps
+  if (simulator_step((int) uNumSteps))
+    return CLI_ERROR_COMMAND_FAILED;
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_sim_stop_at --------------------------------------------
 /**
  * context: {}
@@ -229,6 +252,17 @@ int cli_register_sim_run(SCliCmds * pCmds)
 					    NULL, NULL));
 }
 
+// ----- cli_register_sim_step ---------------------------------------
+int cli_register_sim_step(SCliCmds * pCmds)
+{
+  SCliParams * pParams;
+
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<num-steps>", NULL);
+  return cli_cmds_add(pCmds, cli_cmd_create("step", cli_sim_step,
+					    NULL, pParams));
+}
+
 // ----- cli_register_sim_stop --------------------------------------
 int cli_register_sim_stop(SCliCmds * pCmds)
 {
@@ -260,6 +294,7 @@ int cli_register_sim(SCli * pCli)
   cli_register_sim_options(pCmds);
   cli_register_sim_queue(pCmds);
   cli_register_sim_run(pCmds);
+  cli_register_sim_step(pCmds);
   cli_register_sim_stop(pCmds);
   cli_register_cmd(pCli, cli_cmd_create("sim", NULL, pCmds, NULL));
   return 0;

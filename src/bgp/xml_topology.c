@@ -35,7 +35,7 @@
 #include <net/prefix.h>
 #include <net/link.h>
 #include <net/protocol.h>
-#include <net/domain.h>
+//#include <net/domain.h>
 #include <net/network.h>
 
 #ifdef HAVE_XML
@@ -49,15 +49,15 @@ SNetNode * xml_parse_node_add(SNetwork * pNetwork, net_addr_t ipAddr,
 				uint32_t uAS, const char * pcName)
 {
   SNetNode * pNode;
-  SNetDomain * pDomain;
+  //  SNetDomain * pDomain;
 
   pNode = node_create(ipAddr);
   assert(!network_add_node(pNetwork, pNode));
 
-  pDomain = network_domain_get(pNetwork, uAS);
+  //  pDomain = network_domain_get(pNetwork, uAS);
   node_set_as(pNode, pDomain);
   node_set_name(pNode, pcName);
-  domain_node_add(pDomain, pNode);
+  //  domain_node_add(pDomain, pNode);
 
   return pNode;
 }
@@ -337,7 +337,7 @@ void xml_parse_igp_link_add(SLinkInfo * pLink, uint32_t uDelay)
   if (pLink->pNodeFrom && pLink->pNodeTo) {
     LOG_DEBUG("%ul %ul\n", pLink->pNodeFrom->tAddr, pLink->tFromIf);
    // if (pLink->pNodeFrom->tAddr == pLink->tFromIf) {
-      assert(!node_add_link(pLink->pNodeFrom, pLink->pNodeTo, uDelay, 0));
+      assert(node_add_link(pLink->pNodeFrom, pLink->pNodeTo, uDelay, 0) >= 0);
     /*}
     assert(!node_interface_link_add(pLink->pNodeFrom, pLink->tFromIf, pLink->tToIf, 
 			      uDelay));*/

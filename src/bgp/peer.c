@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 07/04/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,6 +17,8 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 
+#include <net/record-route.h>
+
 #include <bgp/as.h>
 #include <bgp/comm.h>
 #include <bgp/ecomm.h>
@@ -24,6 +26,7 @@
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 #include <bgp/route.h>
+#include <net/network.h>
 
 char * SESSION_STATES[4]= {
   "IDLE",
@@ -53,6 +56,7 @@ SPeer * peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   pPeer->pAdjRIBOut= rib_create(0);
   pPeer->uSessionState= SESSION_STATE_IDLE;
   pPeer->uFlags= 0;
+  pPeer->tNextHop= 0;
   return pPeer;
 }
 
@@ -99,6 +103,21 @@ int peer_flag_get(SPeer * pPeer, uint8_t uFlag)
   return (pPeer->uFlags & uFlag) != 0;
 }
 
+// ----- peer_set_nexthop -------------------------------------------
+/**
+ * Set the next-hop to be sent for routes advertised to this peer.
+ */
+int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop)
+{
+  // Check that the local router has this address
+  if (!node_has_address(pPeer->pLocalRouter->pNode, tNextHop))
+    return -1;
+
+  pPeer->tNextHop= tNextHop;
+
+  return 0;
+}
+
 // ----- peer_prefix_disseminate ------------------------------------
 /**
  * Internal helper function: send the given route to this prefix.
@@ -125,7 +144,8 @@ int peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
 //   ACTIVE     : the session is not established due to a network
 //                problem 
 //   OPENWAIT   : the router has sent an OPEN message to the peer
-//                router and awaits an OPEN message reply, or a
+//                router and awaits an OPEN message reply, or an
+//                UPDATE.
 //   ESTABLISHED: the router has received an OPEN message or an UPDATE
 //                message while being in OPENWAIT state.
 /////////////////////////////////////////////////////////////////////
@@ -139,10 +159,21 @@ int peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
  */
 int bgp_peer_session_ok(SBGPPeer * pPeer)
 {
-  SNetLink * pNextHopIf= node_rt_lookup(pPeer->pLocalRouter->pNode,
-					pPeer->tAddr);
-  return ((pNextHopIf != NULL) &&
-	  (link_get_state(pNextHopIf, NET_LINK_FLAG_UP)));
+  SNetDest sDest;
+  SNetRecordRouteInfo * pRRInfo;
+  int iResult;
+
+  sDest.tType= NET_DEST_ADDRESS;
+  sDest.uDest.tAddr= pPeer->tAddr;
+
+  // This must be updated: the router is not necessarily
+  // adjacent... need to perform a kind of traceroute...
+  pRRInfo= node_record_route(pPeer->pLocalRouter->pNode,
+			     sDest, 0);
+  iResult= (pRRInfo->iResult == NET_SUCCESS);
+  net_record_route_info_destroy(&pRRInfo);
+
+  return iResult;
 }
 
 // ----- bgp_peer_session_refresh -----------------------------------
@@ -590,7 +621,8 @@ void peer_route_delay_update(SPeer * pPeer, SRoute * pRoute)
   LOG_FATAL("Error: to support route-reflection !!!");
   abort();
 
-  pLink= node_find_link_to_router(pPeer->pLocalRouter->pNode, pRoute->tNextHop);
+  /*pLink= node_find_link_to_router(pPeer->pLocalRouter->pNode,
+    pRoute->tNextHop);*/
   assert(pLink != NULL);
 
 #ifdef BGP_QOS
@@ -699,10 +731,10 @@ int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
  */
 int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
 {
-  SNetLink * pLink= node_rt_lookup(pPeer->pLocalRouter->pNode,
-				   pRoute->tNextHop);
+  SNetRouteNextHop * pNextHop= node_rt_lookup(pPeer->pLocalRouter->pNode,
+					      pRoute->tNextHop);
 
-  return (pLink != NULL);
+  return (pNextHop != NULL);
 }
 
 // ----- peer_handle_message ----------------------------------------
@@ -873,6 +905,13 @@ void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
     fprintf(pStream, "soft-restart");
   }
   fprintf(pStream, (iOptions)?")":"");
+
+  // Session state
+  if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
+    if (!bgp_peer_session_ok(pPeer)) {
+      fprintf(pStream, "\t[DOWN]");
+    }
+  }
 }
 
 typedef struct {

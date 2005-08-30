@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 17/05/2005
+// @lastdate 08/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,6 +21,7 @@
 #include <bgp/peer.h>
 #include <bgp/rexford.h>
 #include <net/network.h>
+#include <net/node.h>
 #include <net/protocol.h>
 
 static SBGPRouter * AS[MAX_AS];
@@ -43,7 +44,7 @@ SBGPRouter * rexford_get_as(uint16_t uASNum)
  *   0 for a peer-to-peer relationship
  *   1 for a provider (AS1) to customer (AS2) relationship
  */
-int rexford_load(char * pcFileName, SNetwork * pNetwork)
+int rexford_load(char * pcFileName)
 {
   FILE * pFile;
   char acFileLine[80];
@@ -131,7 +132,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       tAddr2= (uAS2 << 16);
 
       // Find/create AS1's node
-      pNode1= network_find_node(pNetwork, tAddr1);
+      pNode1= network_find_node(tAddr1);
       if (pNode1 == NULL) {
 	pNode1= node_create(tAddr1);
 	pRouter1= bgp_router_create(uAS1, pNode1, 0);
@@ -139,7 +140,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 	assert(!node_register_protocol(pNode1, NET_PROTOCOL_BGP, pRouter1,
 				       (FNetNodeHandlerDestroy) bgp_router_destroy,
 				       bgp_router_handle_message));
-	assert(!network_add_node(pNetwork, pNode1));
+	assert(!network_add_node(pNode1));
       } else {
 	pProtocol= protocols_get(pNode1->pProtocols, NET_PROTOCOL_BGP);
 	assert(pProtocol != NULL);
@@ -147,7 +148,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       }
 
       // Find/create AS2's node
-      pNode2= network_find_node(pNetwork, tAddr2);
+      pNode2= network_find_node(tAddr2);
       if (pNode2 == NULL) {
 	pNode2= node_create(tAddr2);
 	pRouter2= bgp_router_create(uAS2, pNode2, 0);
@@ -155,7 +156,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 	assert(!node_register_protocol(pNode2, NET_PROTOCOL_BGP, pRouter2,
 				       (FNetNodeHandlerDestroy) bgp_router_destroy,
 				       bgp_router_handle_message));
-	assert(!network_add_node(pNetwork, pNode2));
+	assert(!network_add_node(pNode2));
       } else {
 	pProtocol= protocols_get(pNode2->pProtocols, NET_PROTOCOL_BGP);
 	assert(pProtocol != NULL);
@@ -163,7 +164,7 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
       }
 
       // Add the link and check that this link did not already exist
-      if (node_add_link(pNode1, pNode2, tDelay, 1) != 0) {
+      if (node_add_link_to_router(pNode1, pNode2, tDelay, 1) < 0) {
 	LOG_SEVERE("Error: duplicate link (%u, %u) in topology, line %u\n",
 		   uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
@@ -172,12 +173,12 @@ int rexford_load(char * pcFileName, SNetwork * pNetwork)
 	// Add static routes
 	sPrefix.tNetwork= tAddr2;
 	sPrefix.uMaskLen= 32;
-	assert(!node_rt_add_route(pNode1, sPrefix, tAddr2, tDelay,
-				  NET_ROUTE_STATIC));
+	assert(!node_rt_add_route(pNode1, sPrefix, tAddr2, tAddr2,
+				  tDelay, NET_ROUTE_STATIC));
 	sPrefix.tNetwork= tAddr1;
 	sPrefix.uMaskLen= 32;
-	assert(!node_rt_add_route(pNode2, sPrefix, tAddr1, tDelay,
-				  NET_ROUTE_STATIC));
+	assert(!node_rt_add_route(pNode2, sPrefix, tAddr1, tAddr1,
+				  tDelay, NET_ROUTE_STATIC));
       }
       
       // Setup peering relations

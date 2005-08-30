@@ -2,8 +2,9 @@
 // @(#)ospf_rt.c
 //
 // @author Stefano Iasi (stefanoia@tin.it)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 14/05/2005
+// @lastdate 02/08/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,12 +20,8 @@
 /*only for test function*/
 #include <net/network.h>
 
-
-#define NET_OSPF_RT_SUCCESS               0
-#define NET_OSPF_RT_ERROR_NH_UNREACH     -1
-#define NET_OSPF_RT_ERROR_IF_UNKNOWN     -2
-#define NET_OSPF_RT_ERROR_ADD_DUP        -3
-#define NET_OSPF_RT_ERROR_DEL_UNEXISTING -4
+// ----- OSPF_next_hop_dump --------------------------------------------
+void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH);
 
 //////////////////////////////////////////////////////////////////////////
 ///////  next hop object & next hop list object
@@ -44,10 +41,16 @@ SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr)
 
 void ospf_next_hop_destroy(SOSPFNextHop ** ppNH)
 {
+//  fprintf(stdout, "\nospf_next_hop_destroy() : ");
+ 
   if (*ppNH != NULL){
+//     fprintf(stdout, "addr of NH: %p ", *ppNH);
+//     ospf_next_hop_dump(stdout, *ppNH);
     FREE(*ppNH);
     *ppNH = NULL;
   }
+//   else
+//     fprintf(stdout, "next hop != NULL\n!!! ");
 }
 
 // ----- ospf_next_hops_compare -----------------------------------------------
@@ -78,17 +81,26 @@ int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
 // ----- ospf_next_hop_dst -----------------------------------------
 void ospf_next_hop_dst(void * pItem)
 {
-  ospf_next_hop_destroy((SOSPFNextHop **) pItem);
+  SOSPFNextHop * pNH= *((SOSPFNextHop **) pItem);
+  
+  ospf_next_hop_destroy(&pNH);
 }
+
 
 // ----- OSPF_next_hop_dump --------------------------------------------
 void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
 { 
   SPrefix sPrefix;
+  
+//   LOG_DEBUG("ospf_next_hop_dump\n");
+   
   fprintf(pStream, "IF <");
+//   LOG_DEBUG("...cerco di prendere il link\n");
   link_get_prefix(pNH->pLink, &sPrefix);
+//   LOG_DEBUG("...prendo il link\n");
   ip_prefix_dump(stdout, sPrefix);
-  fprintf(pStream, "> IP <");
+//   LOG_DEBUG("stampo prefisso\n");
+  fprintf(pStream, ">\tIP <");
   if (pNH->tAddr != OSPF_NO_IP_NEXT_HOP)
     ip_address_dump(pStream, pNH->tAddr);
   else
@@ -96,7 +108,7 @@ void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
   fprintf(pStream, ">");
 }
 
-// ----- OSPF_next_hop_dump --------------------------------------------
+// ----- OSPF_next_hop_string --------------------------------------------
 void ospf_next_hop_to_string(char * pString, SOSPFNextHop * pNH)
 { 
   SPrefix sPrefix;
@@ -147,24 +159,57 @@ int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH)
   return ptr_array_add(pNHList, &pNH);
 }
 
+// ----- ospf_nh_list_copy --------------------------------------------------
+next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
+{
+  next_hops_list_t * pNHLCopy = ospf_nh_list_create();
+  int iIndex;
+  SOSPFNextHop * pCurrentNH, *pNHCopy;
+  
+  for (iIndex = 0; iIndex < ptr_array_length(pNHList); iIndex++){
+    ptr_array_get_at(pNHList, iIndex, &pCurrentNH);
+    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr);
+    ospf_nh_list_add(pNHLCopy, pNHCopy);
+  }
+  return pNHLCopy;
+}
+
+// ----- ospf_nh_list_copy -------------------------------------------------------------
+/** Add next hops in pNHListSource to next hops list pNHListDest.
+  * Make a copy of each added next hop.
+  * Adding fails if NH is already in pNHListDest. 
+*/
+void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list_t * pNHListSource)
+{
+  int iIndex;
+  SOSPFNextHop * pCurrentNH, * pNHCopy;
+  
+  for (iIndex = 0; iIndex < ptr_array_length(pNHListSource); iIndex++){
+    ptr_array_get_at(pNHListSource, iIndex, &pCurrentNH);
+    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr);
+    //if next hop is already present add function fails
+    if (ospf_nh_list_add(pNHListDest, pNHCopy) < 0) 
+      ospf_next_hop_destroy(&pNHCopy);
+  }
+}
+
 // ----- ospf_nh_list_dump --------------------------------------------------
 /*
    pcSpace should not be NULL! 
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace, int inLine)
+void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace)
 {
   int iIndex;
   SOSPFNextHop  sNH, * pNH;
   pNH = &sNH;
+  assert(pNHList != NULL);
+//   LOG_DEBUG("ospf_nh_list_dump\n");
   int iStop =  ospf_nh_list_length(pNHList);
-  for (iIndex = 0; iIndex < iStop; iIndex++)
-  {
+  for (iIndex = 0; iIndex < iStop; iIndex++) {
     ptr_array_get_at(pNHList, iIndex, &pNH);
     ospf_next_hop_dump(pStream, pNH);
-    if (!inLine)
-      fprintf(pStream, "\n");
     if (iIndex != iStop - 1)
       fprintf(pStream, "%s", pcSpace);
   }
@@ -186,7 +231,6 @@ void OSPF_rt_route_info_destroy(void ** ppItem)
  * [for details see chap. 11 of RFC2328]
  TODO 
  * - prefer the route with the lowest type (STATIC > IGP > BGP)
- * - prefer route with smallest area ?????? 
  * - prefer route with smallest path-thype (EXT1 > EXT2 > INTER > INTRA)
  * - prefer route with smallest cost
  * - prefer route with smallest next-hop
@@ -221,7 +265,6 @@ int OSPF_rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
 void OSPF_rt_info_list_dst(void * pItem)
 {
   SOSPFRouteInfo * pRI= *((SOSPFRouteInfo **) pItem);
-
   OSPF_route_info_destroy(&pRI);
 }
 
@@ -237,7 +280,8 @@ SOSPFRouteInfoList * OSPF_rt_info_list_create()
 // ----- OSPF_rt_info_list_destroy ---------------------------------------
 void OSPF_rt_info_list_destroy(SOSPFRouteInfoList ** ppRouteInfoList)
 {
-  ptr_array_destroy((SPtrArray **) ppRouteInfoList);
+  SPtrArray * pPtrArray = (SPtrArray *)(*ppRouteInfoList);
+  ptr_array_destroy(&pPtrArray);
 }
 
 // ----- OSPF_rt_info_list_length ----------------------------------------
@@ -260,10 +304,10 @@ int OSPF_rt_info_list_add(SOSPFRouteInfoList * pRouteInfoList,
 			SOSPFRouteInfo * pRouteInfo)
 {
   if (ptr_array_add((SPtrArray *) pRouteInfoList,
-		    &pRouteInfo)) {
-    return NET_OSPF_RT_ERROR_ADD_DUP;
+		    &pRouteInfo) < 0) {
+    return OSPF_RT_ERROR_ADD_DUP;
   }
-  return NET_OSPF_RT_SUCCESS;
+  return OSPF_RT_SUCCESS;
 }
 
 
@@ -284,7 +328,7 @@ int OSPF_rt_info_list_add(SOSPFRouteInfoList * pRouteInfoList,
  */
 SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
                                        SPrefix            sPrefix,
-				       uint32_t           uWeight,
+				       net_link_delay_t   uWeight,
 				       ospf_area_t        tOSPFArea,
 				       ospf_path_type_t   tOSPFPathType,
 				       next_hops_list_t * pNHList)
@@ -296,6 +340,7 @@ SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
   pRouteInfo->sPrefix              = sPrefix;
   pRouteInfo->uWeight              = uWeight;
   pRouteInfo->tOSPFArea            = tOSPFArea;
+  pRouteInfo->tOSPFPathType        = tOSPFPathType;
   pRouteInfo->tType                = NET_ROUTE_IGP;
   
   pRouteInfo->aNextHops = pNHList;
@@ -316,7 +361,11 @@ int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH)
 void OSPF_route_info_destroy(SOSPFRouteInfo ** ppOSPFRouteInfo)
 {
   if (*ppOSPFRouteInfo != NULL) {
+//     fprintf(stdout, "\nOSPF_route_info_destroy(): ");
+//     OSPF_route_info_dump(stdout, (*ppOSPFRouteInfo));
     if ((*ppOSPFRouteInfo)->aNextHops != NULL){     
+      
+//       ospf_nh_list_dump(stdout, (*ppOSPFRouteInfo)->aNextHops, "\n");
       ospf_nh_list_destroy(&((*ppOSPFRouteInfo)->aNextHops));
     }
     FREE(*ppOSPFRouteInfo);
@@ -329,10 +378,10 @@ void OSPF_dest_type_dump(FILE * pStream, ospf_dest_type_t tDestType)
 {
   switch (tDestType) {
     case OSPF_DESTINATION_TYPE_NETWORK : 
-           fprintf(pStream, "NETWORK");
+           fprintf(pStream, "N");
 	   break;
     case OSPF_DESTINATION_TYPE_ROUTER : 
-           fprintf(pStream, "NETWORK");
+           fprintf(pStream, "R");
 	   break;
     default : 
            fprintf(pStream, "???");
@@ -343,9 +392,9 @@ void OSPF_dest_type_dump(FILE * pStream, ospf_dest_type_t tDestType)
 void OSPF_area_dump(FILE * pStream, ospf_area_t tOSPFArea)
 {
   if (tOSPFArea == 0)
-    fprintf(pStream,"BACKBONE");
+    fprintf(pStream," B ");
   else
-    fprintf(pStream,"%d", tOSPFArea);
+    fprintf(pStream," %d ", tOSPFArea);
 }
 
 // ----- OSPF_path_type_dump -----------------------------------------
@@ -365,7 +414,7 @@ void OSPF_path_type_dump(FILE * pStream, ospf_path_type_t tOSPFPathType)
            fprintf(pStream, "EXT2");
 	   break;
     default : 
-           fprintf(pStream, "???");
+           fprintf(pStream, "%d", tOSPFPathType);
   }
 }
 
@@ -417,14 +466,8 @@ SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
 
   /* First, retrieve the list of routes that exactly match the given
      prefix */
-#ifdef __EXPERIMENTAL__
   pRIList= (SOSPFRouteInfoList *)
     trie_find_exact((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen);
-#else
-  pRIList= (SOSPFRouteInfoList *)
-    radix_tree_get_exact((SRadixTree *) pRT, sPrefix.tNetwork,
-			 sPrefix.uMaskLen);
-#endif
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -442,6 +485,206 @@ SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
   return NULL;
 }
 
+typedef struct {
+  SPrefix * pPrefix;
+  SOSPFNextHop * pNextHop;
+  net_route_type_t tType;
+  SPtrArray * pRemovalList;
+} SOSPFRouteInfoDel;
+
+
+// ----- OSPF_info_prefix_dst -----------------------------------------
+void OSPF_info_prefix_dst(void * pItem)
+{
+  ip_prefix_destroy((SPrefix **) pItem);
+}
+
+// ----- net_info_schedule_removal -----------------------------------
+/**
+ * This function adds a prefix whose entry in the routing table must
+ * be removed. This is used when a route-info-list has been emptied.
+ */
+void OSPF_info_schedule_removal(SOSPFRouteInfoDel * pRIDel,
+			       SPrefix * pPrefix)
+{
+  if (pRIDel->pRemovalList == NULL)
+    pRIDel->pRemovalList= ptr_array_create(0, NULL, OSPF_info_prefix_dst);
+
+  pPrefix= ip_prefix_copy(pPrefix);
+  ptr_array_append(pRIDel->pRemovalList, pPrefix);
+}
+
+// ----- net_info_removal_for_each ----------------------------------
+/**
+ *
+ */
+int OSPF_info_removal_for_each(void * pItem, void * pContext)
+{
+  SNetRT * pRT= (SNetRT *) pContext;
+  SPrefix * pPrefix= *(SPrefix **) pItem;
+
+  return trie_remove(pRT, pPrefix->tNetwork, pPrefix->uMaskLen);
+}
+
+// ----- OSPF_net_info_removal -------------------------------------------
+/**
+ * Remove the scheduled prefixes from the routing table.
+ */
+int OSPF_info_removal(SOSPFRouteInfoDel * pRIDel,
+			SOSPFRT * pRT)
+{
+  int iResult= 0;
+
+  if (pRIDel->pRemovalList != NULL) {
+    iResult= _array_for_each((SArray *) pRIDel->pRemovalList,
+			     OSPF_info_removal_for_each,
+			     pRT);
+    ptr_array_destroy(&pRIDel->pRemovalList);
+  }
+  return iResult;
+}
+
+// ----- OSPF_rt_info_list_del -------------------------------------------
+/**
+ * This function removes from the route-list all the routes that match
+ * the given attributes: next-hop and route type. A wildcard can be
+ * used for the next-hop attribute (by specifying a NULL next-hop
+ * link).
+ *
+ * NOTE: If a route is found and next hop is specified, and the route
+ *       has more than one next hop, only the next hop that matches
+ *       is removed, while the route no.
+ */
+int OSPF_rt_info_list_del(SOSPFRouteInfoList * pRouteInfoList,
+			  SOSPFRouteInfoDel * pRIDel,
+			  SPrefix * pPrefix)
+{
+  int iIndex;
+  unsigned int uNHPos;
+  SOSPFRouteInfo * pRI;
+  int iRemoved= 0;
+  int iResult= NET_RT_ERROR_DEL_UNEXISTING;
+
+  /* Lookup the whole list of routes... */
+  for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
+       iIndex++) {
+    pRI= (SOSPFRouteInfo *) pRouteInfoList->data[iIndex];
+
+    /* If the type matches and the next-hop is found or we do not care
+       about the next-hop, then remove the route */
+    if (((pRIDel->pNextHop == NULL) ||
+	 ptr_array_sorted_find_index((SPtrArray *)(pRI->aNextHops),  &(pRIDel->pNextHop), &uNHPos) == 0) &&
+	(pRI->tType == pRIDel->tType)) {
+      
+	//if we care about next hop and there are more than one next hops...
+	if ((pRIDel->pNextHop != NULL) && (ptr_array_length((SPtrArray *)(pRI->aNextHops)) > 1))
+	  ptr_array_remove_at((SPtrArray *)(pRI->aNextHops), uNHPos);//... remove only next hop 
+	else
+	  ptr_array_remove_at((SPtrArray *) pRouteInfoList, iIndex);//... remove the route
+      iRemoved++;
+
+      /* If we don't use wildcards for the next-hop, we can stop here
+	 since there can not be multiple routes in the list with the
+	 same next-hop */
+//       if (pRIDel->pNextHopIf == NULL) {
+// 	iResult= NET_RT_SUCCESS;
+// 	break;
+//       }
+
+    }
+    
+  }
+  
+  /* If the list of routes does not contain any route, it should be
+     destroyed. Schedule the prefix for removal... */
+   if (OSPF_rt_info_list_length(pRouteInfoList) == 0)
+     OSPF_info_schedule_removal(pRIDel, pPrefix);
+
+  if (iRemoved > 0)
+    iResult= NET_RT_SUCCESS;
+
+  return iResult;
+}
+
+// ----- OSPF_rt_del_for_each --------------------------------------------
+/**
+ * Helper function for the 'OSPF_rt_del_route' function. Handles the
+ * deletion of a single prefix (can be called by
+ * 'radix_tree_for_each')
+ */
+int OSPF_rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
+		    void * pItem, void * pContext)
+{
+  SOSPFRouteInfoList * pRIList = (SOSPFRouteInfoList *) pItem;
+  SOSPFRouteInfoDel  * pRIDel  = (SOSPFRouteInfoDel *)  pContext;
+  SPrefix sPrefix;
+  int iResult;
+
+  if (pRIList == NULL)
+    return -1;
+
+  sPrefix.tNetwork= uKey;
+  sPrefix.uMaskLen= uKeyLen;
+
+  /* Remove from the list all the routes that match the given
+     attributes */
+  iResult= OSPF_rt_info_list_del(pRIList, pRIDel, &sPrefix);
+
+  /* If we use widlcards, the call never fails, otherwise, it depends
+     on the 'rt_info_list_del' call */
+  return ((pRIDel->pPrefix != NULL) &&
+	  (pRIDel->pNextHop != NULL)) ? iResult : 0;
+}
+
+// ----- OSPF_rt_del_route -----------------------------------------------
+/**
+ * Remove route(s) from the given routing table. The route(s) to be
+ * removed must match the given attributes: prefix, next-hop and
+ * type. However, wildcards can be used for the prefix and next-hop
+ * attributes. The NULL value corresponds to the wildcard.
+ *
+ * NOTE: if a next hop is passed and a route with the same next hop 
+ *       is found, and the route has more than one next hop, 
+ *       only the next hop is destroyed
+ */
+int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pNextHop,
+		 net_route_type_t tType)
+{
+  SOSPFRouteInfoList * pRIList;
+  SOSPFRouteInfoDel sRIDel;
+  int iResult;
+
+  /* Prepare the attributes of the routes to be removed (context) */
+  sRIDel.pPrefix= pPrefix;
+  sRIDel.pNextHop= pNextHop;
+  sRIDel.tType= tType;
+  sRIDel.pRemovalList= NULL;
+
+  /* Prefix specified ? or wildcard ? */
+  if (pPrefix != NULL) {
+
+    /* Get the list of routes towards the given prefix */
+    pRIList=
+      (SOSPFRouteInfoList *) trie_find_exact((STrie *) pRT,
+					    pPrefix->tNetwork,
+					    pPrefix->uMaskLen);
+
+    iResult= OSPF_rt_del_for_each(pPrefix->tNetwork, pPrefix->uMaskLen,
+			     pRIList, &sRIDel);
+
+  } else {
+
+    /* Remove all the routes that match the given attributes, whatever
+       the prefix is */
+    iResult= trie_for_each((STrie *) pRT, OSPF_rt_del_for_each, &sRIDel);
+
+  }
+
+  OSPF_info_removal(&sRIDel, pRT);
+
+  return iResult;
+}
+
 // ----- OSPF_route_info_dump --------------------------------------------
 /**
  * Output format:
@@ -449,17 +692,32 @@ SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
  */
 void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo)
 {
+  assert(pRouteInfo != NULL);
+//   LOG_DEBUG("OSPF_route_info_dump\n");
+  
   OSPF_dest_type_dump(pStream, pRouteInfo->tOSPFDestinationType);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...dest_type\n");
+  
   ip_prefix_dump(pStream, pRouteInfo->sPrefix);
   fprintf(pStream, "\t");
+//   LOG_DEBUG("...prefix\n");
+  
   OSPF_area_dump(pStream, pRouteInfo->tOSPFArea);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...area dump\n");
+  
   OSPF_path_type_dump(pStream, pRouteInfo->tOSPFPathType);
-  fprintf(pStream, "\t");
+  fprintf(pStream, "   ");
+//   LOG_DEBUG("...path_type\n");
+  
   OSPF_route_type_dump(pStream, pRouteInfo->tType);
+//   LOG_DEBUG("...route_type\n");
+  
   fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
-  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\t\t\t\t\t\t", 0);
+//   LOG_DEBUG("...cost\n");
+  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\n\t\t\t\t\t\t\t\t");
+//   LOG_DEBUG("...next hops list\n");
 }
 
 
@@ -475,11 +733,7 @@ void OSPF_rt_il_dst(void ** ppItem)
  */
 SOSPFRT * OSPF_rt_create()
 {
-#ifdef __EXPERIMENTAL__
   return (SOSPFRT *) trie_create(OSPF_rt_il_dst);
-#else
-  return (SOSPFRT *) radix_tree_create(32, OSPF_rt_il_dst);
-#endif
 }
 
 // ----- OSPF_rt_destroy -------------------------------------------------
@@ -488,11 +742,7 @@ SOSPFRT * OSPF_rt_create()
  */
 void OSPF_rt_destroy(SOSPFRT ** ppRT)
 {
-#ifdef __EXPERIMENTAL__
   trie_destroy((STrie **) ppRT);
-#else
-  radix_tree_destroy((SRadixTree **) ppRT);
-#endif
 }
 
 
@@ -504,27 +754,16 @@ int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 		 SOSPFRouteInfo * pRouteInfo)
 {
   SOSPFRouteInfoList * pRIList;
-
-#ifdef __EXPERIMENTAL__
+  // LOG_DEBUG("OSPF_rt_add_route...enter\n");
+  assert(pRT != NULL);
   pRIList=
     (SOSPFRouteInfoList *) trie_find_exact((STrie *) pRT,
 					  sPrefix.tNetwork,
 					  sPrefix.uMaskLen);
-#else
-  pRIList=
-    (SOSPFRouteInfoList *) radix_tree_get_exact((SRadixTree *) pRT,
-					       sPrefix.tNetwork,
-					       sPrefix.uMaskLen);
-#endif
-
+  //  LOG_DEBUG("OSPF_rt_add_route...\n");
   if (pRIList == NULL) {
     pRIList= OSPF_rt_info_list_create();
-#ifdef __EXPERIMENTAL__
     trie_insert((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen, pRIList);
-#else
-    radix_tree_add((SRadixTree *) pRT, sPrefix.tNetwork,
-		   sPrefix.uMaskLen, pRIList);
-#endif
   }
 
   return OSPF_rt_info_list_add(pRIList, pRouteInfo);
@@ -539,58 +778,91 @@ int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 void OSPF_rt_perror(FILE * pStream, int iErrorCode)
 {
   switch (iErrorCode) {
-  case NET_OSPF_RT_SUCCESS:
+  case OSPF_RT_SUCCESS:
     fprintf(pStream, "Success"); break;
-  case NET_OSPF_RT_ERROR_NH_UNREACH:
+  case OSPF_RT_ERROR_NH_UNREACH:
     fprintf(pStream, "Next-Hop is unreachable"); break;
-  case NET_OSPF_RT_ERROR_IF_UNKNOWN:
+  case OSPF_RT_ERROR_IF_UNKNOWN:
     fprintf(pStream, "Interface is unknown"); break;
-  case NET_OSPF_RT_ERROR_ADD_DUP:
+  case OSPF_RT_ERROR_ADD_DUP:
     fprintf(pStream, "Route already exists"); break;
-  case NET_OSPF_RT_ERROR_DEL_UNEXISTING:
+  case OSPF_RT_ERROR_DEL_UNEXISTING:
     fprintf(pStream, "Route does not exist"); break;
   default:
     fprintf(pStream, "Unknown error");
   }
 }
 
+typedef struct {
+  FILE * pStream;
+  ospf_area_t tArea;
+  ospf_path_type_t tPathType;
+  int    iOption;
+  int *  piPreintedRoutes;
+} SOspfRtDumpContext;
+
 // ----- OSPF_rt_info_list_dump ------------------------------------------
-void OSPF_rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
-		       SOSPFRouteInfoList * pRouteInfoList)
+int OSPF_rt_info_list_dump(FILE * pStream, SOSPFRouteInfoList * pRouteInfoList, SOspfRtDumpContext * pContext)
 {
   int iIndex;
-
-  if (OSPF_rt_info_list_length(pRouteInfoList) == 0) {
-
-    fprintf(pStream, "\033[1;31mERROR: empty info-list for ");
-    ip_prefix_dump(pStream, sPrefix);
-    fprintf(pStream, "\033[0m\n");
-    abort();
-
-  } else {
+  
     for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRouteInfoList);
 	 iIndex++) {
-      //ip_prefix_dump(pStream, sPrefix);
-      //fprintf(pStream, "\t");
-      OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
-      fprintf(pStream, "\n");
+	 
+      switch (pContext->iOption){
+        case 0                              : 
+	       OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+	       fprintf(pStream, "\n"); 
+	       (*(pContext->piPreintedRoutes))++;
+	       break;
+	       
+        case OSPF_RT_OPTION_SORT_AREA       : {
+	       if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea == pContext->tArea){
+	         OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+		 fprintf(pStream, "\n");
+		 (*(pContext->piPreintedRoutes))++;
+	       }
+	     }
+	     break;
+	     
+	case OSPF_RT_OPTION_SORT_PATH_TYPE  : {
+	       if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFPathType == pContext->tPathType){
+	         OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+		 fprintf(pStream, "\n");
+		 (*(pContext->piPreintedRoutes))++;
+	       }
+	     }
+	     break;
+	     
+	case OSPF_RT_OPTION_SORT_AREA |
+	     OSPF_RT_OPTION_SORT_PATH_TYPE  : 
+	       if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea == pContext->tArea && 
+	           ((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFPathType == pContext->tPathType){
+	         OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);
+		 fprintf(pStream, "\n");
+		 (*(pContext->piPreintedRoutes))++;
+	       }
+	     break;
+      }
     }
-  }
+  return 0;
 }
 
 // ----- OSPF_rt_dump_for_each -------------------------------------------
-int OSPF_rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
-		     void * pContext)
+int OSPF_rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem, void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  FILE * pStream= ((SOspfRtDumpContext *)(pContext))->pStream;
+//   ospf_area_t tArea= ((SOspfRtDumpContext *)(pContext))->tArea;
+//   ospf_area_t tPathType= ((SOspfRtDumpContext *)(pContext))->tPathType;
+//   int iOption= ((SOspfRtDumpContext *)(pContext))->iOption;
+  
   SOSPFRouteInfoList * pRIList= (SOSPFRouteInfoList *) pItem;
   SPrefix sPrefix;
 
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;
-  
-  OSPF_rt_info_list_dump(pStream, sPrefix, pRIList);
-  return 0;
+
+  return OSPF_rt_info_list_dump(pStream, pRIList, pContext);
 }
 
 // ----- OSPF_rt_dump ----------------------------------------------------
@@ -598,18 +870,21 @@ int OSPF_rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
  * Dump the routing table for the given destination. The destination
  * can be of type NET_DEST_ANY, NET_DEST_ADDRESS and NET_DEST_PREFIX.
  */
-void OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT)
+int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tPathType, 
+                 ospf_area_t tArea, int * piPrintedRoutes)
 {
-
-#ifdef __EXPERIMENTAL__
-    trie_for_each((STrie *) pRT, OSPF_rt_dump_for_each, pStream);
-#else
-    radix_tree_for_each((SRadixTree *) pRT, OSPF_rt_dump_for_each, pStream);
-#endif
+  SOspfRtDumpContext sDumpContext;
+  sDumpContext.pStream         = pStream;
+  sDumpContext.tPathType       = tPathType;
+  sDumpContext.tArea           = tArea;
+  sDumpContext.iOption         = iOption;
+  sDumpContext.piPreintedRoutes = piPrintedRoutes;
+  return trie_for_each((STrie *) pRT, OSPF_rt_dump_for_each, &sDumpContext);
 }
 
 // ----- ospf_rt_test() -----------------------------------------------
 int ospf_rt_test(){
+  /*
   char * pcEndPtr;
   SPrefix  sSubnetPfxTx;
   SPrefix  sSubnetPfxTx1;
@@ -633,33 +908,33 @@ int ospf_rt_test(){
 //                                                sSubnetPfxTx.uMaskLen,
 // 					       NET_SUBNET_TYPE_TRANSIT);
    
-  LOG_DEBUG("ospf_rt_test: Build small network for test: 3 router A,B,C on a subnet Tx... ");
-  assert(node_add_link_toSubnet(pNodeA, pSubTx, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB, pSubTx, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeC, pSubTx, 300, 1) >= 0);
+  LOG_DEBUG("ospf_rt_test(): BUILS small network for test: 3 router A,B,C on a subnet Tx... ");
+  assert(node_add_link_toSubnet(pNodeA, pSubTx, 0, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeB, pSubTx, 0, 100, 1) >= 0);
+  assert(node_add_link_toSubnet(pNodeC, pSubTx, 0, 300, 1) >= 0);
   assert(node_add_link(pNodeA, pNodeC, 100, 1) >= 0);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK node_find_link...");
+  LOG_DEBUG("ospf_rt_test(): CHECK node_find_link_to_subnet...");
   SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
   assert(pLinkAS != NULL);
   SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
   assert(pLinkAC != NULL);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK next hop features...");
+  LOG_DEBUG("ospf_rt_test(): CHECK next hop features...");
   SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB);
   assert(pNHB != NULL);
   assert(pNHB->pLink == pLinkAS && pNHB->tAddr == tAddrB);
   SOSPFNextHop * pNHC1 = ospf_next_hop_create(pLinkAS, tAddrC);
-  assert(pNHB != NULL);
+  assert(pNHC1 != NULL);
   SOSPFNextHop * pNHC2 = ospf_next_hop_create(pLinkAC, 0);
-  assert(pNHB != NULL);
+  assert(pNHC2 != NULL);
   SOSPFNextHop * pNHTx = ospf_next_hop_create(pLinkAS, 0);
   assert(pNHTx != NULL);
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK next hop list features...");
+  LOG_DEBUG("ospf_rt_test(): CHECK next hop list features...");
   next_hops_list_t * pNHListB = ospf_nh_list_create();
   assert(pNHListB != NULL);
   next_hops_list_t * pNHListC = ospf_nh_list_create();
@@ -671,7 +946,7 @@ int ospf_rt_test(){
 
   LOG_DEBUG(" ok!\n");
   
-  LOG_DEBUG("CHECK route info functions...");
+  LOG_DEBUG("ospf_rt_test(): CHECK route info functions...");
   SPrefix sPrefixB, sPrefixC;
   sPrefixB.tNetwork = tAddrB;
   sPrefixB.uMaskLen = 32;
@@ -705,39 +980,52 @@ int ospf_rt_test(){
   assert(OSPF_route_info_add_nextHop(pRiC, pNHC2) >= 0);
 
   LOG_DEBUG(" ok!\n");
-  LOG_DEBUG("CHECK routing table function... ");
+  LOG_DEBUG("ospf_rt_test(): CHECK routing table function...\n ");
   SOSPFRT * pRT = OSPF_rt_create();
   assert(pRT != NULL);
   
   assert(OSPF_rt_add_route(pRT, sPrefixB, pRiB) >= 0);
   assert(OSPF_rt_add_route(pRT, sPrefixC, pRiC) >= 0);
   assert(OSPF_rt_add_route(pRT, sSubnetPfxTx, pRiTx) >= 0);
-  OSPF_rt_dump(stdout, pRT);
-  LOG_DEBUG(" ok!\n");
-  //TODO add advertising router... for inter area...
+  LOG_DEBUG("... ok!\n");
+  int totRoutes;
+  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
   
+  
+  //TEST 1 - delete all IGP route for a prefix
+  LOG_DEBUG("Deleting all IGP route for a prefix... \n");
+  assert(OSPF_rt_del_route(pRT, &sPrefixB, NULL, NET_ROUTE_IGP) == 0);
+  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  
+  //TEST 2 - delete all IGP route that has next hop same as pNH;
+  LOG_DEBUG("Deleting all IGP route that has next hop same as pNH... \n");
+  SOSPFNextHop * pNH1 = ospf_next_hop_create(pNHTx->pLink, pNHTx->tAddr);
+  assert(OSPF_rt_del_route(pRT, NULL, pNH1, NET_ROUTE_IGP) == 0);
+  ospf_next_hop_destroy(&pNH1);
+  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  
+  //TEST 3 - delete only the next hop when the route has more than one
+  LOG_DEBUG("Deleting only the next hop when the route has more than one... \n");
+  SOSPFNextHop * pNH2 = ospf_next_hop_create(pNHC2->pLink, pNHC2->tAddr);
+  assert(OSPF_rt_del_route(pRT, NULL, pNH2, NET_ROUTE_IGP) == 0);
+  ospf_next_hop_destroy(&pNH2);
+  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  
+  LOG_DEBUG("... ok!\n");
+  
+  
+  //TODO add advertising router... for inter area...
+  LOG_DEBUG("ospf_rt_test(): Destroying routing table... \n");
   OSPF_rt_destroy(&pRT);
   assert(pRT == NULL);
-  
-//   ospf_nh_list_destroy(&pNHListB);
-//   assert(pNHListB == NULL);
-//   ospf_nh_list_destroy(&pNHListC);
-//   ospf_nh_list_destroy(&pNHListTx);
- 
-  ospf_next_hop_destroy(&pNHB);
-  assert(pNHB == NULL);
-  ospf_next_hop_destroy(&pNHC1);
-  assert(pNHC1 == NULL);
-  ospf_next_hop_destroy(&pNHC2);
-  assert(pNHC2 == NULL);
+  LOG_DEBUG(" ok!\n");
   
   subnet_destroy(&pSubTx);
-//subnet_destroy(&pSubTx1);
-  
   node_destroy(&pNodeA);
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
-  LOG_DEBUG("ospf_rt_test: END\n ");
+  LOG_DEBUG("ospf_rt_test(): END\n ");
+  */
   return 1;
 }
 
