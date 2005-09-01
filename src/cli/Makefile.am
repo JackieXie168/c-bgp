@@ -5,6 +5,13 @@ else
   OPT_EXPERIMENTAL =
 endif
 
+if WITH_OSPF
+  OPT_WITH_OSPF = -DOSPF_SUPPORT
+else
+  OPT_WITH_OSPF =
+endif
+
+
 # Compile with debugging symbols ?
 if WITH_DEBUGGING
   OPT_DEBUGGING = -g
@@ -12,7 +19,7 @@ else
   OPT_DEBUGGING =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF) $(OPT_DEBUGGING) 
 
 noinst_LTLIBRARIES = libcli.la
 

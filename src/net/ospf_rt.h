@@ -9,6 +9,8 @@
 #ifndef __NET_OSPF_RT_H__
 #define __NET_OSPF_RT_H__
 
+#ifdef OSPF_SUPPORT
+
 #include <libgds/types.h>
 #include <libgds/array.h>
 #include <libgds/memory.h>
@@ -122,4 +124,4 @@ extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pN
 extern int OSPF_rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
 
 #endif
-
+#endif

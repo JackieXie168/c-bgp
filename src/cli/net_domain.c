@@ -14,6 +14,7 @@
 #include <string.h>
 #include <libgds/cli_ctx.h>
 #include <net/igp_domain.h>
+#include <assert.h>
 
 // ----- cli_net_add_domain -----------------------------------------
 /**
@@ -40,7 +41,12 @@ int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
   if (!strcmp(pcType, "igp")) {
     tType= DOMAIN_IGP;
   } else if (!strcmp(pcType, "ospf")) {
+#ifdef OSPF_SUPPORT 
     tType= DOMAIN_OSPF;
+#else 
+    LOG_SEVERE("To use OSPF model you must compile cbgp with --enable-ospf option\n");
+    return CLI_ERROR_COMMAND_FAILED;
+#endif    
   } else {
     LOG_SEVERE("Error: unknown domain type %s\n",
 	       pcType);
@@ -75,12 +81,6 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
   // Get node from context
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
   
-  // Check that the domain is not yet defined
-  /*if (pNode->pDomain != NULL) {
-    LOG_SEVERE("Error: domain already defined\n");
-    return CLI_ERROR_COMMAND_FAILED;
-    }*/
-
   // Get domain id
   if (tokens_get_uint_at(pTokens, 1, &uId) ||
       (uId > 65535)) {
@@ -89,14 +89,16 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+
   pDomain= get_igp_domain(uId);
+  
   if (igp_domain_contains_router(pDomain, pNode)) {
     LOG_SEVERE("Error: could not add to domain \"%d\"\n",
 	       uId);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  igp_domain_add_router(pDomain, pNode);
 
+  igp_domain_add_router(pDomain, pNode);
   return CLI_SUCCESS;
 }
 

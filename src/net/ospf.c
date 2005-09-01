@@ -11,6 +11,8 @@
 #include <config.h>
 #endif
 
+#ifdef OSPF_SUPPORT
+
 #include <assert.h>
 #include <net/net_types.h>
 #include <net/ospf.h>
@@ -27,6 +29,7 @@
 #define X_AREA 1
 #define Y_AREA 2
 #define K_AREA 3
+
 
 // ----- subnet_belongs_to_area ------------------------------------------
 int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
@@ -1465,4 +1468,6 @@ int ospf_test()
   */
   return 1;
 }
+
+#endif
 

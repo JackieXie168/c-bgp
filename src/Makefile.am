@@ -16,6 +16,13 @@ else
   OPT_LIBALLOC_LDADD =
 endif
 
+# Compile with ospf support?
+if WITH_OSPF
+  OPT_WITH_OSPF = -DOSPF_SUPPORT
+else
+  OPT_WITH_OSPF =
+endif
+
 # Compile with Electric Fence ?
 if WITH_EFENCE
   OPT_EFENCE = -lefence
@@ -39,7 +46,7 @@ else
   OPT_DEBUGGING =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OSPF)
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES =

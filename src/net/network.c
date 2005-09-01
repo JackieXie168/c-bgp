@@ -122,9 +122,9 @@ SNetNode * node_create(net_addr_t tAddr)
 #ifdef OSPF_SUPPORT
   pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
   pNode->pOspfRT     = OSPF_rt_create();
-  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
 #endif
 
+  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
 			 NULL, icmp_event_handler);
@@ -145,9 +145,9 @@ void node_destroy(SNetNode ** ppNode)
 #ifdef OSPF_SUPPORT
     _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
     OSPF_rt_destroy(&(*ppNode)->pOspfRT);
-    uint16_array_destroy(&(*ppNode)->pIGPDomains);
 #endif
 
+    uint16_array_destroy(&(*ppNode)->pIGPDomains);
     if ((*ppNode)->pcName)
       str_destroy(&(*ppNode)->pcName);
     FREE(*ppNode);

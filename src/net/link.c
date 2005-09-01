@@ -295,6 +295,9 @@ void link_dump(FILE * pStream, SNetLink * pLink)
     fprintf(pStream, "\ttunnel");
   if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV))
     fprintf(pStream, "\tadv:yes");
+
+#ifdef OSPF_SUPPORT
   if (pLink->tArea != OSPF_NO_AREA)
     fprintf(pStream, "\tarea:%u", pLink->tArea);
+#endif
 }

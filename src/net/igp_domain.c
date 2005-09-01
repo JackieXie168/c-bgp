@@ -196,9 +196,12 @@ int igp_domain_compute(SIGPDomain * pDomain)
     return igp_compute_domain(pDomain);
     break;
   case DOMAIN_OSPF:
+#ifdef OSPF_SUPPORT
     if (ospf_domain_build_route(pDomain->uNumber) >= 0)
       return 0;
+#endif
     return -1;
+    
     break;
   default:
     return -1;

@@ -10,6 +10,7 @@
 # include <config.h>
 #endif
 
+
 #include <string.h>
 
 #include <libgds/cli_ctx.h>
@@ -22,6 +23,7 @@
 #include <libgds/log.h>
 
 
+#ifdef OSPF_SUPPORT
 
 // ----- cli_net_node_ospf_area ------------------------------------
 /**
@@ -201,3 +203,6 @@ void cli_register_net_node_link_ospf(SCliCmds * pCmds)
   
   cli_cmds_add(pCmds, cli_cmd_create("ospf", NULL, pSubCmds, NULL));
 }
+#endif
+
+

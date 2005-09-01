@@ -9,6 +9,8 @@
 #ifndef __NET_OSPF_H__
 #define __NET_OSPF_H__
 
+#ifdef OSPF_SUPPORT
+
 #include <net/net_types.h>
 #include <net/subnet.h>
 #include <net/link.h>
@@ -40,6 +42,7 @@ extern int ospf_test();
 ///////////////////////////////////////////////////////////////////////////
 //////  NODE OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
+
 // ----- node_add_OSPFArea --------------------------------------------
 extern int node_add_OSPFArea(SNetNode * pNode, uint32_t OSPFArea);
 // ----- node_is_BorderRouter --------------------------------------------
@@ -55,6 +58,8 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
 extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
 // ----- node_link_set_ospf_area ------------------------------------------
 extern int node_link_set_ospf_area(SNetNode * pNode, SPrefix sPfxPeer, ospf_area_t tArea);
+
+
 ///////////////////////////////////////////////////////////////////////////
 //////  SUBNET OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
@@ -76,4 +81,4 @@ extern void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption);
 //----- ospf_domain_build_route ---------------------------------------------------------------
 extern int ospf_domain_build_route(uint16_t uOSPFDomain);
 #endif
-
+#endif

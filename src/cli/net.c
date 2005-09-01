@@ -1054,9 +1054,10 @@ int cli_register_net_node_link(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
-
-  cli_register_net_node_link_ospf(pSubCmds);
   
+#ifdef OSPF_SUPPORT
+  cli_register_net_node_link_ospf(pSubCmds);
+#endif  
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);			
 //   cli_cmds_add(pCmds, cli_cmd_create("link", NULL, pSubCmds, pParams));
@@ -1133,7 +1134,9 @@ int cli_register_net_node(SCliCmds * pCmds)
 					NULL, pParams));
   cli_register_net_node_show(pSubCmds);
   cli_register_net_node_tunnel(pSubCmds);
+#ifdef OSPF_SUPPORT
   cli_register_net_node_ospf(pSubCmds);
+#endif
   pParams= cli_params_create();
   cli_params_add2(pParams, "<addr>", NULL, cli_net_enum_nodes);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("node",
@@ -1149,8 +1152,9 @@ int cli_register_net_subnet(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
-  
+#ifdef OSPF_SUPPORT  
   cli_register_net_subnet_ospf(pSubCmds);
+#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("subnet",
@@ -1218,7 +1222,9 @@ int cli_register_net(SCli * pCli)
   cli_register_net_subnet(pCmds);
   cli_register_net_options(pCmds);
   cli_register_net_show(pCmds);
-  //cli_register_net_ospf(pCmds);
+//#ifdef OSPF_SUPPORT
+//  cli_register_net_ospf(pCmds);
+//#endif
   cli_register_cmd(pCli, cli_cmd_create("net", NULL, pCmds, NULL));
   return 0;
 }
