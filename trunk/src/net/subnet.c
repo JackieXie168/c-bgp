@@ -49,7 +49,9 @@ SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen,
   pSubnet->sPrefix.tNetwork= tNetwork;
   pSubnet->sPrefix.uMaskLen= uMaskLen;
   ip_prefix_mask(&pSubnet->sPrefix);
+#ifdef OSPF_SUPPORT
   pSubnet->uOSPFArea = OSPF_NO_AREA;
+#endif
   pSubnet->uType = uType;
   
   // Create an array of references to links

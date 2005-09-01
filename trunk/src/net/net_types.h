@@ -16,7 +16,6 @@
 #include <net/network_t.h>
 #include <net/routing_t.h>
 
-#define OSPF_SUPPORT
 
 typedef uint8_t   ospf_dest_type_t;
 typedef uint32_t  ospf_area_t;
@@ -86,8 +85,8 @@ typedef struct {
 #ifdef OSPF_SUPPORT
   SUInt32Array  * pOSPFAreas; 
   SOSPFRT       * pOspfRT;     //OSPF routing table
-  SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
 #endif
+  SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
   SNetProtocols * pProtocols;
   SNetDomain    * pDomain;
 } SNetNode;

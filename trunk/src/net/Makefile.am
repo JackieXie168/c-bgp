@@ -12,7 +12,13 @@ else
   OPT_DEBUGGING =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+if WITH_OSPF
+  OPT_WITH_OSPF = -DOSPF_SUPPORT
+else
+  OPT_WITH_OSPF =
+endif
+
+AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OSPF)
 
 noinst_LTLIBRARIES = libnet.la
 

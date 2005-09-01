@@ -11,6 +11,8 @@
 #include <config.h>
 #endif
 
+#ifdef OSPF_SUPPORT
+
 #include <string.h>
 #include <net/ospf_rt.h>
 #include <net/routing_t.h>
@@ -1028,4 +1030,6 @@ int ospf_rt_test(){
   */
   return 1;
 }
+
+#endif
 

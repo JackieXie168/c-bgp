@@ -96,6 +96,10 @@ void simulation_cli_help()
 #if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
   printf("  -g             track memory leaks.\n");
 #endif
+
+//#ifdef OSPF_SUPPORT
+  printf("  -o             test OSPF model (cbgp must be compiled with --enable-ospf option).\n");
+//#endif
   printf("\n");
   printf("C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
   printf("This is free software, and you are welcome to redistribute it\n");
@@ -588,7 +592,7 @@ int main(int argc, char ** argv) {
   log_set_stream(pMainLog, stderr);
 
   /* Process command-line options */
-  while ((iResult= getopt(argc, argv, "c:e:hil:g")) != -1) {
+  while ((iResult= getopt(argc, argv, "c:e:hil:go")) != -1) {
     switch (iResult) {
     case 'c':
       simulation_set_mode(CBGP_MODE_SCRIPT, option_string(optarg));
@@ -614,6 +618,11 @@ int main(int argc, char ** argv) {
     case 'l':
       pcOptLog= option_string(optarg);
       break;
+#ifdef OSPF_SUPPORT
+    case 'o':  //only to test ospf function
+      simulation_set_mode(CBGP_MODE_OSPF, NULL);
+      break;
+#endif
     default:
       simulation_cli_help();
       exit(EXIT_FAILURE);
@@ -627,7 +636,6 @@ int main(int argc, char ** argv) {
   simulation_init();
 
   /* Run simulation in selected mode... */
-//  uMode = CBGP_MODE_OSPF;
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
     if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)
@@ -653,12 +661,17 @@ int main(int argc, char ** argv) {
     iExitCode= (cli_execute_line(cli_get(), pcArgMode) == 0)?
       EXIT_SUCCESS:EXIT_FAILURE;
     break;
+
   case CBGP_MODE_OSPF:
+#ifdef OSPF_SUPPORT
     iExitCode= ospf_test();
     if (iExitCode != 0)
       printf("ospf_test ok!\n");
     else 
       printf("ospf_test has failed :-(\n");
+#else
+    printf("You must compile cbgp with --enable-ospf option to use OSPF model");
+#endif
     break;
   }
   

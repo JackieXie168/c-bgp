@@ -11,6 +11,8 @@
 #include <config.h>
 #endif
 
+#ifdef OSPF_SUPPORT
+
 #include <net/spt_vertex.h>
 #include <net/node.h>
 #include <net/ospf.h>
@@ -615,4 +617,4 @@ void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr)
   fprintf(pStream, "}\n");
   radix_tree_destroy(&pVisited			);
 }
-
+#endif
