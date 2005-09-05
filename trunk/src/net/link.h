@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 08/08/2005
+// @lastdate 01/09/2005
 // ==================================================================
 
 #ifndef __NET_LINK_H__
@@ -17,7 +17,7 @@
 #include <net/network_t.h>
 #include <libgds/types.h>
 #include <libgds/array.h>
-
+#include <libgds/memory.h>
 
 #define NET_LINK_FLAG_UP      0x01
 #define NET_LINK_FLAG_NOTIFY  0x02
@@ -34,6 +34,19 @@
 #define link_is_to_node(L)           (L->uDestinationType == NET_LINK_TYPE_ROUTER)
 #define link_belongs_to_area(L, A)   ((L)->tArea == A)
 
+/*typedef struct {
+	SDest      tDest;
+	net_addr_t tIfaceAddr;
+} SLinkInfo;
+
+SLinkInfo * link_info_create(SPrefix sPrefix, net_addr_t tIfaceAddr){
+  SLinkInfo * pLinkInfo = (SLinkInfo *) MALLOC(sizeof(SLinkInfo));
+  pLinkInfo->sPrefix = sPrefix;
+  pLinkInfo->tIfaceAddr = tIfaceAddr;
+  return pLinkInfo;
+}*/
+
+
 // ----- create_link_Router -----------------------------------------
 extern SNetLink * create_link_toRouter(SNetNode * pSrcNode,
 				       SNetNode * pDstNode);
@@ -48,8 +61,10 @@ extern SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 //extern SNetLink * create_link_toAny(SPrefix * pPrefix);
 // ----- link_destroy -----------------------------------------------
 extern void link_destroy(SNetLink ** ppLink);
+// ----- link_get_iface --------------------------------------------
+extern net_addr_t link_get_iface(SNetLink * pLink);
 // ----- link_get_address ----------------------------------------
-net_addr_t link_get_address(SNetLink * pLink);
+extern net_addr_t link_get_address(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
 extern void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix);
 // ----- link_get_subnet ----------------------------------------

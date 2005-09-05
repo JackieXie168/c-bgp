@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 05/08/2003
-// @lastdate 05/08/2005
+// @lastdate 01/09/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,15 +21,13 @@ int _net_links_link_compare(void * pItem1, void * pItem2,
   SNetLink * pLink1= *((SNetLink **) pItem1);
   SNetLink * pLink2= *((SNetLink **) pItem2);
 
-  SPrefix sPrefixL1, sPrefixL2, * pP1, * pP2;
-  link_get_prefix(pLink1, &sPrefixL1);
-  link_get_prefix(pLink2, &sPrefixL2);
-  
-  pP1= &sPrefixL1;
-  pP2= &sPrefixL2;
-  int pfxCmp= ip_prefixes_compare(&pP1, &pP2, 0);
-  
-  return pfxCmp;
+  if (link_get_iface(pLink1) < link_get_iface(pLink2)) {
+    return 1;
+  } else if (link_get_iface(pLink1) > link_get_iface(pLink2)) {
+    return -1;
+  }
+
+  return 0;
 }
 
 // ----- _net_links_link_destroy -------------------------------------
