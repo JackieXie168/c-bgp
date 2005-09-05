@@ -17,6 +17,7 @@
 #include <net/ospf_rt.h>
 #include <net/routing_t.h>
 #include <net/prefix.h>
+#include <net/node.h>
 #include <assert.h>
 #include <net/link-list.h>
 /*only for test function*/
@@ -907,13 +908,12 @@ int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tP
 
 // ----- ospf_rt_test() -----------------------------------------------
 int ospf_rt_test(){
-  /*
   char * pcEndPtr;
   SPrefix  sSubnetPfxTx;
   SPrefix  sSubnetPfxTx1;
   net_addr_t tAddrA, tAddrB, tAddrC;
   
-  LOG_DEBUG("ospf_rt_test: START\n");
+  LOG_DEBUG("ospf_rt_test(): START\n");
   assert(!ip_string_to_address("192.168.0.2", &pcEndPtr, &tAddrA));
   assert(!ip_string_to_address("192.168.0.3", &pcEndPtr, &tAddrB));
   assert(!ip_string_to_address("192.168.0.4", &pcEndPtr, &tAddrC));
@@ -931,17 +931,17 @@ int ospf_rt_test(){
 //                                                sSubnetPfxTx.uMaskLen,
 // 					       NET_SUBNET_TYPE_TRANSIT);
    
-  LOG_DEBUG("ospf_rt_test(): BUILS small network for test: 3 router A,B,C on a subnet Tx... ");
-  assert(node_add_link_toSubnet(pNodeA, pSubTx, 0, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeB, pSubTx, 0, 100, 1) >= 0);
-  assert(node_add_link_toSubnet(pNodeC, pSubTx, 0, 300, 1) >= 0);
-  assert(node_add_link(pNodeA, pNodeC, 100, 1) >= 0);
+  LOG_DEBUG("ospf_rt_test(): BUILDS small network for test: 3 router A,B,C on a subnet Tx... ");
+  assert(node_add_link_to_subnet(pNodeA, pSubTx, 1, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB, pSubTx, 2, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeC, pSubTx, 3, 300, 1) >= 0);
+  assert(node_add_link_to_router(pNodeA, pNodeC, 100, 1) >= 0);
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_rt_test(): CHECK node_find_link_to_subnet...");
-  SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
+  SNetLink * pLinkAS = node_find_link(pNodeA, ip_address_to_dest(1));
   assert(pLinkAS != NULL);
-  SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
+  SNetLink * pLinkAC = node_find_link(pNodeA, ip_address_to_dest(tAddrC));
   assert(pLinkAC != NULL);
   LOG_DEBUG(" ok!\n");
   
@@ -995,7 +995,7 @@ int ospf_rt_test(){
   pRiTx = OSPF_route_info_create(OSPF_DESTINATION_TYPE_NETWORK,
                                        sSubnetPfxTx,
 				       100,
-				       BACKBONE_AREA,
+BACKBONE_AREA,
 				       OSPF_PATH_TYPE_INTRA ,
 				       pNHListTx);
   assert(pRiTx != NULL);  
@@ -1003,7 +1003,7 @@ int ospf_rt_test(){
   assert(OSPF_route_info_add_nextHop(pRiC, pNHC2) >= 0);
 
   LOG_DEBUG(" ok!\n");
-  LOG_DEBUG("ospf_rt_test(): CHECK routing table function...\n ");
+  LOG_DEBUG("ospf_rt_test(): CHECK routing table function... ");
   SOSPFRT * pRT = OSPF_rt_create();
   assert(pRT != NULL);
   
@@ -1011,34 +1011,36 @@ int ospf_rt_test(){
   assert(OSPF_rt_add_route(pRT, sPrefixC, pRiC) >= 0);
   assert(OSPF_rt_add_route(pRT, sSubnetPfxTx, pRiTx) >= 0);
   LOG_DEBUG("... ok!\n");
-  int totRoutes;
-  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  //int totRoutes;
+  //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
   
   
   //TEST 1 - delete all IGP route for a prefix
-  LOG_DEBUG("Deleting all IGP route for a prefix... \n");
+  LOG_DEBUG("ospf_rt_test(): Deleting all IGP route for a prefix... ");
   assert(OSPF_rt_del_route(pRT, &sPrefixB, NULL, NET_ROUTE_IGP) == 0);
-  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  LOG_DEBUG("ok!\n");
   
   //TEST 2 - delete all IGP route that has next hop same as pNH;
-  LOG_DEBUG("Deleting all IGP route that has next hop same as pNH... \n");
+  LOG_DEBUG("ospf_rt_test(): Deleting all IGP route that has next hop same as pNH... ");
   SOSPFNextHop * pNH1 = ospf_next_hop_create(pNHTx->pLink, pNHTx->tAddr);
   assert(OSPF_rt_del_route(pRT, NULL, pNH1, NET_ROUTE_IGP) == 0);
   ospf_next_hop_destroy(&pNH1);
-  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+  LOG_DEBUG("ok!\n");
   
   //TEST 3 - delete only the next hop when the route has more than one
-  LOG_DEBUG("Deleting only the next hop when the route has more than one... \n");
+  LOG_DEBUG("ospf_rt_test(): Deleting only the next hop when the route has more than one... ");
   SOSPFNextHop * pNH2 = ospf_next_hop_create(pNHC2->pLink, pNHC2->tAddr);
   assert(OSPF_rt_del_route(pRT, NULL, pNH2, NET_ROUTE_IGP) == 0);
   ospf_next_hop_destroy(&pNH2);
-  OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
-  
+  //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
+	  
   LOG_DEBUG("... ok!\n");
   
   
   //TODO add advertising router... for inter area...
-  LOG_DEBUG("ospf_rt_test(): Destroying routing table... \n");
+  LOG_DEBUG("ospf_rt_test(): Destroying routing table... ");
   OSPF_rt_destroy(&pRT);
   assert(pRT == NULL);
   LOG_DEBUG(" ok!\n");
@@ -1047,8 +1049,8 @@ int ospf_rt_test(){
   node_destroy(&pNodeA);
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
-  LOG_DEBUG("ospf_rt_test(): END\n ");
-  */
+  LOG_DEBUG("ospf_rt_test(): END\n");
+  
   return 1;
 }
 
