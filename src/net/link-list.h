@@ -24,4 +24,7 @@ extern void net_links_dump(FILE * pStream, SNetLinks * pLinks);
 // ----- _net_links_link_destroy -------------------------------------
 extern void _net_links_link_destroy(void * pItem);
 
+// ----- _net_links_link_compare -------------------------------------
+int _net_links_link_compare(void * pItem1, void * pItem2, unsigned int uEltSize); 
+
 #endif /*  __NET_LINK_LIST_H__ */

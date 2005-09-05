@@ -19,6 +19,7 @@
 #define BACKBONE_AREA 0
 
 //First is only a warning
+#define OSPF_SUCCESS                        0
 #define OSPF_LINK_OK                        0
 #define OSPF_LINK_TO_MYSELF_NOT_IN_AREA    -1 
 #define OSPF_SOURCE_NODE_NOT_IN_AREA       -2
@@ -56,8 +57,8 @@ extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tO
 		       next_hops_list_t * pNHList);
 // ----- node_belongs_to_area -----------------------------------------------
 extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
-// ----- node_link_set_ospf_area ------------------------------------------
-extern int node_link_set_ospf_area(SNetNode * pNode, SPrefix sPfxPeer, ospf_area_t tArea);
+// ----- link_set_ospf_area ------------------------------------------
+extern int link_set_ospf_area(SNetLink * pLink, ospf_area_t tArea);
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -80,5 +81,8 @@ extern void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption);
 ///////////////////////////////////////////////////////////////////////////
 //----- ospf_domain_build_route ---------------------------------------------------------------
 extern int ospf_domain_build_route(uint16_t uOSPFDomain);
+
+//----- ospf_print_error --------------------------------------------------------------------
+extern void ospf_print_error(FILE* pStream, int iError);
 #endif
 #endif

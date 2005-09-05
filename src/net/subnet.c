@@ -93,11 +93,11 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
     default : fprintf(pStream, "???\t");
   }
   fprintf(pStream, "LINKED TO: \t");
-   
+  //dump links 
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++) {
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pLink);
     assert(pLink != NULL);
-    ip_address_to_string(pcAddr, link_get_address(pLink));
+    ip_address_to_string(pcAddr, link_get_iface(pLink));
     fprintf(pStream, "%s\n", pcAddr);
     fprintf(pStream, "---\t\t\t\t\t\t");
   }
@@ -107,50 +107,34 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
 // ----- subnet_get_links -------------------------------------------
 links_list_t * subnet_get_links(SNetSubnet * pSubnet) 
 {
-//   SPtrArray * aLinks;
-//   int iIndexN, iIndexL;
-//   SNetNode * pNode;
-//   SNetLink * pLink = NULL;
-  
-  return pSubnet->pLinks;
- /* aLinks = ptr_array_create(0,  node_links_compare,  node_links_destroy);
-       
-       assert(pSubnet->pLinks != NULL);
-       assert(pSubnet->pPrefix != NULL);
-       
-       for (iIndexN= 0; iIndexN < ptr_array_length(pSubnet->pLinks); iIndexN++) {
-         ptr_array_get_at(pSubnet->pLinks, iIndexN, &pNode);
-	 assert(pNode != NULL);
-	 
-
-	 for (iIndexL = 0; iIndexL < ptr_array_length(pNode->pLinks); iIndexL++) {
-	   ptr_array_get_at(pNode->pLinks, iIndexL, &pLink);
-	   assert(pLink != NULL);
-	   if (link_get_address(pLink) == pSubnet->pPrefix->tNetwork){
-	     SNetLink * pNewLink        = create_link_toRouter(pNode);
-	     pNewLink->uDestinationType = NET_LINK_TYPE_ROUTER;
-	     pNewLink->uFlags           = pLink->uFlags;
-	     pNewLink->uIGPweight       = 0;
-	     assert(ptr_array_add(aLinks, &pNewLink)>=0);
-	   }
-	 }
-	 
-       }
-  return aLinks;*/
+  links_list_t * pList = net_links_create();
+  SNetLink * pLinkCopy, * pCurrentLink;
+  int iIndex;
+  for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++){
+    ptr_array_get_at(pSubnet->pLinks, iIndex, &pCurrentLink);
+    pLinkCopy = create_link_toRouter_byAddr(pCurrentLink->pSrcNode, pCurrentLink->pSrcNode->tAddr);
+    pLinkCopy->uIGPweight = 0;
+    pLinkCopy->tIfaceAddr = pCurrentLink->tIfaceAddr;
+#ifdef OSPF_SUPPORT
+    pLinkCopy->tArea = pCurrentLink->tArea;
+#endif
+    net_links_add(pList, pLinkCopy);
+  }
+  return pList;
 }
 
 // ----- subnet_link_to_node ----------------------------------------
 int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
 		    net_addr_t tIfaceAddr)
 {
-  if (ptr_array_add(pSubnet->pLinks, &pLink) < 0)
-    return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
+  if (ptr_array_add(pSubnet->pLinks, &pLink) < 0){
+    return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;}
+
   return NET_SUCCESS;
 }
 
 // ----- subnet_getAddr ---------------------------------------------
-SPrefix * subnet_get_prefix(SNetSubnet * pSubnet)
-{
+SPrefix * subnet_get_prefix(SNetSubnet * pSubnet) {
   return &(pSubnet->sPrefix);
 }
 
@@ -253,22 +237,27 @@ int _subnet_test(){
                                                sSubnetPfxTx.uMaskLen,
 					       NET_SUBNET_TYPE_TRANSIT);
   //subnet_dump(stdout, pSubTx);
-  //subnet_dump(stdout, pSubTx1);
-  
-  assert(node_add_link_to_subnet(pNodeA, pSubTx, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB, pSubTx, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeC, pSubTx, 0, 100, 1) >= 0);
-  assert(node_add_link_to_router(pNodeA, pNodeC, 100, 1) >= 0);
+  //subnet_dump(stdout, pSubTx1);a
+  net_addr_t ipIfaceA = IPV4_TO_INT(192,168,0,1);
+  net_addr_t ipIfaceB = IPV4_TO_INT(192,168,0,2); 
+  net_addr_t ipIfaceC = IPV4_TO_INT(192,168,0,3);
+  assert(node_add_link_to_subnet(pNodeA, pSubTx, ipIfaceA, 100, 1) == NET_SUCCESS);
+  assert(node_add_link_to_subnet(pNodeB, pSubTx, ipIfaceB, 100, 1) == NET_SUCCESS);
+  assert(node_add_link_to_subnet(pNodeC, pSubTx, ipIfaceC, 100, 1) == NET_SUCCESS);
+  assert(node_add_link_to_router(pNodeA, pNodeC, 100, 1) == NET_SUCCESS);
   
   
   SNetLink * pLinkAC = node_find_link_to_router(pNodeA, tAddrC);
   assert(link_get_address(pLinkAC) == (tAddrC));
+  
   SNetLink * pLinkAB = node_find_link_to_router(pNodeA, tAddrB);
   assert(pLinkAB == NULL);
   
-  SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx);
+  SNetLink * pLinkAS = node_find_link_to_subnet(pNodeA, pSubTx, ipIfaceA);
+  assert(pLinkAS != NULL);
   assert(link_get_address(pLinkAS) == ((pSubTx->sPrefix).tNetwork));
-  SNetLink * pLinkAS1 = node_find_link_to_subnet(pNodeA, pSubTx1);
+
+  SNetLink * pLinkAS1 = node_find_link_to_subnet(pNodeA, pSubTx1, ipIfaceB);
   assert(pLinkAS1 == NULL);
   
   subnet_destroy(&pSubTx);
@@ -278,12 +267,11 @@ int _subnet_test(){
   node_destroy(&pNodeB);
   node_destroy(&pNodeC);
   
-  LOG_DEBUG("ok!\n");
   LOG_DEBUG("subnet_test(): TEST on a bigger network... \n");
   /* other test on subnet methods... */
   const int startAddr = 1024;
   
-  SNetwork * pNetwork= network_create();
+  //SNetwork * pNetwork= network_create();
   SNetNode * pNodeB1= node_create(startAddr);
   SNetNode * pNodeB2= node_create(startAddr + 1);
   SNetNode * pNodeB3= node_create(startAddr + 2);
@@ -367,34 +355,32 @@ int _subnet_test(){
   
 //   LOG_DEBUG("point-to-point links attached.\n");
   
-  assert(node_add_link_to_subnet(pNodeB1, pSubnetTB1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB3, pSubnetTB1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeX1, pSubnetTX1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeX3, pSubnetTX1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB3, pSubnetTY1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeY2, pSubnetTY1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeK2, pSubnetTK1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeK1, pSubnetTK1, 0, 100, 1) >= 0);
-  
+  assert(node_add_link_to_subnet(pNodeB1, pSubnetTB1, 1, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB3, pSubnetTB1, 2, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeX1, pSubnetTX1, 3, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeX3, pSubnetTX1, 4, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB3, pSubnetTY1, 5, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeY2, pSubnetTY1, 6, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeK2, pSubnetTK1, 7, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeK1, pSubnetTK1, 8, 100, 1) >= 0);
+ 
 //   LOG_DEBUG("transit-network links attached.\n");
   
-  assert(node_add_link_to_subnet(pNodeB2, pSubnetSB1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB1, pSubnetSB2, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB2, pSubnetSX1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeX2, pSubnetSX2, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeX3, pSubnetSX3, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeB3, pSubnetSY1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeY1, pSubnetSY2, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeY1, pSubnetSY3, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeK3, pSubnetSK1, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeK2, pSubnetSK2, 0, 100, 1) >= 0);
-  assert(node_add_link_to_subnet(pNodeK2, pSubnetSK3, 0, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB2, pSubnetSB1, 9, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB1, pSubnetSB2, 10, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB2, pSubnetSX1, 11, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeX2, pSubnetSX2, 12, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeX3, pSubnetSX3, 13, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeB3, pSubnetSY1, 14, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeY1, pSubnetSY2, 15, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeY1, pSubnetSY3, 16, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeK3, pSubnetSK1, 17, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeK2, pSubnetSK2, 18, 100, 1) >= 0);
+  assert(node_add_link_to_subnet(pNodeK2, pSubnetSK3, 19, 100, 1) >= 0);
   
 //   LOG_DEBUG("stub-network links attached.\n");
   LOG_DEBUG("ok!\n");
   
-  network_destroy(&pNetwork);
-
   return 1;
 }
 

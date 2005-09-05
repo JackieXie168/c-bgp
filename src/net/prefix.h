@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-#define IPV4_TO_INT(A,B,C,D) ((((A)*256 + B)*256 + C)*256 + D)
+#define IPV4_TO_INT(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
 
 // ----- IPv4 address -----
 typedef uint32_t net_addr_t;
@@ -33,6 +33,7 @@ typedef union {
     SPrefix sPrefix;
     net_addr_t tAddr;  
 } UNetDest;
+
 typedef struct {
   uint8_t tType;
   UNetDest uDest;
@@ -86,5 +87,9 @@ extern void ip_prefix_destroy(SPrefix ** ppPrefix);
 extern net_addr_t ip_build_mask(uint8_t uMaskLen);
 // ----- ip_prefix_mask ---------------------------------------------
 extern void ip_prefix_mask(SPrefix * pPrefix);
+// ----- ip_prefix_to_dest ------------------------------------------
+extern SNetDest ip_prefix_to_dest(SPrefix sPrefix);
+// ----- ip_address_to_dest -----------------------------------------
+extern SNetDest ip_address_to_dest(net_addr_t tAddress);
 
 #endif

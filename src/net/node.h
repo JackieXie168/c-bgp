@@ -30,13 +30,13 @@ extern int node_add_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet,
 				   net_addr_t tIfaceAddr,
 				   net_link_delay_t tDelay, int iMutual);
 // ----- node_find_link ---------------------------------------------
-extern SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest);
+extern SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest/* net_addr_t tIfaceAddr*/);
 // ----- node_find_link_to_router -----------------------------------
 extern SNetLink * node_find_link_to_router(SNetNode * pNode,
 					   net_addr_t tAddr);
 // ----- node_find_link_to_subnet -----------------------------------
 extern SNetLink * node_find_link_to_subnet(SNetNode * pNode,
-					   SNetSubnet * pSubnet);
+					   SNetSubnet * pSubnet, net_addr_t tIfaceAddr);
 
 
 /////////////////////////////////////////////////////////////////////

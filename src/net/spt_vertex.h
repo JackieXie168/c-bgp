@@ -18,11 +18,14 @@
 #include <net/ospf_rt.h>
 #include <net/network.h>
 
+#define VINFO_LINKED_TO_SUBNET 0x01
+
 #define spt_vertex_is_router(V) (V)->uDestinationType == NET_LINK_TYPE_ROUTER
 #define spt_vertex_is_subnet(V) (V)->uDestinationType == NET_LINK_TYPE_STUB || (V)->uDestinationType == NET_LINK_TYPE_TRANSIT
 #define spt_vertex_to_router(V) ((SNetNode *)((V)->pObject))
 #define spt_vertex_to_subnet(V) ((SNetSubnet *)((V)->pObject))
-
+#define spt_vertex_is_linked_to_subnet(V) ((V)->tVertexInfo & VINFO_LINKED_TO_SUBNET)
+#define spt_vertex_linked_to_subnet(V) ((V)->tVertexInfo = (V)->tVertexInfo | VINFO_LINKED_TO_SUBNET)
 typedef SPtrArray spt_vertex_list_t;
 
  typedef struct vertex_t {
@@ -33,8 +36,9 @@ typedef SPtrArray spt_vertex_list_t;
    net_link_delay_t     uIGPweight;  
    SPtrArray          * aSubnets;   //to optimize routing table computation without re-search for
                                     //subnet
-   SPtrArray          * fathers;    //ONLY FOR DEBUG we can remove
-   SPtrArray          * sons;      //ONLY FOR DEBUG we can remove
+   uint8_t 	        tVertexInfo;
+   SPtrArray          * fathers;         //ONLY FOR DEBUG we can remove
+   SPtrArray          * sons;            //ONLY FOR DEBUG we can remove
  } SSptVertex;
 
 

@@ -18,12 +18,10 @@
 #include <net/routing_t.h>
 #include <net/prefix.h>
 #include <assert.h>
-
+#include <net/link-list.h>
 /*only for test function*/
 #include <net/network.h>
 
-// ----- OSPF_next_hop_dump --------------------------------------------
-void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH);
 
 //////////////////////////////////////////////////////////////////////////
 ///////  next hop object & next hop list object
@@ -60,13 +58,25 @@ int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
 {
   SOSPFNextHop * pNH1= *((SOSPFNextHop **) pItem1);
   SOSPFNextHop * pNH2= *((SOSPFNextHop **) pItem2);
+  
+  int iCmpResult =  _net_links_link_compare(&(pNH1->pLink), &(pNH2->pLink), 0);
 
+  if (iCmpResult == 0) {
+    if (pNH1->tAddr > pNH2->tAddr)
+      iCmpResult = 1;
+    else if (pNH1->tAddr < pNH2->tAddr)
+      iCmpResult = -1;
+    else 
+      iCmpResult =  0;
+  }
+  return iCmpResult;
+  /*
   SPrefix sL1Prefix, * pL1Prefix = &sL1Prefix; 
   SPrefix sL2Prefix, * pL2Prefix = &sL2Prefix; 
   
   link_get_prefix(pNH1->pLink, pL1Prefix);
   link_get_prefix(pNH2->pLink, pL2Prefix);
-
+  
   int prefixCmp = ip_prefixes_compare(&pL1Prefix, &pL2Prefix, 0);
   if (prefixCmp == 0){
     if (pNH1->tAddr > pNH2->tAddr)
@@ -77,7 +87,8 @@ int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
       return  0;
   }
   else
-    return prefixCmp;     
+    return prefixCmp;     */
+  
 }
 
 // ----- ospf_next_hop_dst -----------------------------------------
@@ -92,22 +103,15 @@ void ospf_next_hop_dst(void * pItem)
 // ----- OSPF_next_hop_dump --------------------------------------------
 void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
 { 
-  SPrefix sPrefix;
-  
-//   LOG_DEBUG("ospf_next_hop_dump\n");
+  char cAddr[20], * pcAddr = cAddr; 
    
-  fprintf(pStream, "IF <");
-//   LOG_DEBUG("...cerco di prendere il link\n");
-  link_get_prefix(pNH->pLink, &sPrefix);
-//   LOG_DEBUG("...prendo il link\n");
-  ip_prefix_dump(stdout, sPrefix);
-//   LOG_DEBUG("stampo prefisso\n");
-  fprintf(pStream, ">\tIP <");
+  fprintf(pStream, "IF ");
+  ip_address_to_string(pcAddr, link_get_iface(pNH->pLink)); 
+  fprintf(pStream, "%s\tNH ", pcAddr);
   if (pNH->tAddr != OSPF_NO_IP_NEXT_HOP)
     ip_address_dump(pStream, pNH->tAddr);
   else
-    fprintf(pStream, "-DIRECT-");
-  fprintf(pStream, ">");
+    fprintf(pStream, " -- ");
 }
 
 // ----- OSPF_next_hop_string --------------------------------------------
@@ -176,8 +180,25 @@ next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
   return pNHLCopy;
 }
 
-// ----- ospf_nh_list_copy -------------------------------------------------------------
-/** Add next hops in pNHListSource to next hops list pNHListDest.
+// ----- ospf_nh_list_find --------------------------------------------------
+/*next_hops_list_t * ospf_nh_list_find(next_hops_list_t * pNHList, SNetDest sDest)
+{
+  SOSPFNextHop * pWrapNH, sWrapNH; 
+  SNetLink * pWrapLink, sWrapLink;
+  pWrapNH = &sWrapNH;
+  pWrapLink = &sWrapLink;
+  pWrapNH->pLink = pWrapLink;
+  
+  if (sDest.tType == NET_DEST_ADDR) //dest is a router
+    (pWrapLink->UDestId).tAddr = sDest.uDest.tAddr;
+  else if (sDest.tType == NET_DEST_PREFIX) //dest is a subnet
+    
+}*/
+
+
+// ----- ospf_nh_list_add_list -------------------------------------------------------------
+/** 
+  *  Add next hops in pNHListSource to next hops list pNHListDest.
   * Make a copy of each added next hop.
   * Adding fails if NH is already in pNHListDest. 
 */

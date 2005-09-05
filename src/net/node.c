@@ -77,8 +77,10 @@ int node_add_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet,
   pLink->tDelay= tDelay;
   pLink->uIGPweight= tDelay;
 
-  if (net_links_add(pNode->pLinks, pLink) < 0)
+  if (net_links_add(pNode->pLinks, pLink) < 0) {
+fprintf(stdout, "fallisce net_links_add in node_add_link_to_subnet\n");
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
+  }
   else if (iMutual)
     return subnet_add_link(pSubnet, pLink, tIfaceAddr);
   else 
@@ -128,10 +130,10 @@ SNetLink * node_find_link_to_router(SNetNode * pNode,
   unsigned int uIndex;
   SNetLink * pLink= NULL, * pWrapLink;
 
-  pWrapLink= create_link_toRouter_byAddr(pNode, tAddr);
+  pWrapLink = create_link_toRouter_byAddr(pNode, tAddr);
   
   if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    pLink = (SNetLink *) pNode->pLinks->data[uIndex];
 
   link_destroy(&pWrapLink);
   return pLink;
@@ -139,17 +141,16 @@ SNetLink * node_find_link_to_router(SNetNode * pNode,
 
 // ----- node_find_link_to_subnet -----------------------------------
 SNetLink * node_find_link_to_subnet(SNetNode * pNode,
-				    SNetSubnet * pSubnet)
+				    SNetSubnet * pSubnet, net_addr_t tIfaceAddr)
 {
   unsigned int uIndex;
   SNetLink * pLink= NULL, * pWrapLink;
   
-  pWrapLink= create_link_toSubnet(pNode, pSubnet, 0);
-    
+  pWrapLink= create_link_toSubnet(pNode, pSubnet, tIfaceAddr);
   if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-  
   link_destroy(&pWrapLink);
+  
   return pLink;
 }
 
@@ -159,23 +160,40 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode,
  */
 SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest)
 {
-  SNetLink * pLink;
-  SNetSubnet * pWrapSubnet;
+  SNetLink * pLink = NULL;
+  SNetLink * pWrapLink = NULL;
+ 
 
-  switch (sDest.tType) {
+  /*switch (sDest.tType) {
   case NET_DEST_ADDRESS:
     pLink= node_find_link_to_router(pNode, sDest.uDest.tAddr);
     break;
   case NET_DEST_PREFIX:
     pWrapSubnet= subnet_create(sDest.uDest.sPrefix.tNetwork,
 					    sDest.uDest.sPrefix.uMaskLen, 0);
-    pLink= node_find_link_to_subnet(pNode, pWrapSubnet);
+    pLink= node_find_link_to_subnet(pNode, pWrapSubnet, tIfaceAddr);
     subnet_destroy(&pWrapSubnet);
     break;
   default:
     return NULL;
+  }*/
+  unsigned int uIndex;
+  pWrapLink= (SNetLink *) MALLOC(sizeof(SNetLink));
+  pWrapLink->uDestinationType = NET_LINK_TYPE_TRANSIT;
+  if (sDest.tType == NET_DEST_ADDRESS) {
+    pWrapLink->tIfaceAddr = sDest.uDest.tAddr;
+  } else if (sDest.tType == NET_DEST_PREFIX) {
+    pWrapLink->tIfaceAddr = sDest.uDest.sPrefix.tNetwork;
   }
+ 
+  //create_link(pNode, pSubnet, tIfaceAddr);
+  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+  link_destroy(&pWrapLink);
+  
   return pLink;
+
+//  return pLink;
 }
 
 

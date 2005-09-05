@@ -225,6 +225,31 @@ int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
   return 0;
 }
 
+//---------- ip_prefix_to_dest ----------------------------------------------
+SNetDest ip_prefix_to_dest(SPrefix sPrefix)
+{
+  SNetDest sDest;
+  if (sPrefix.uMaskLen == 32){
+    sDest.tType = NET_DEST_ADDRESS;
+    sDest.uDest.tAddr = sPrefix.tNetwork;
+  }
+  else {
+    sDest.tType = NET_DEST_PREFIX;
+    sDest.uDest.sPrefix = sPrefix;
+  }
+  return sDest;
+}
+
+//---------- ip_address_to_dest ----------------------------------------------
+SNetDest ip_address_to_dest(net_addr_t tAddress)
+{
+  SNetDest sDest;
+  sDest.tType = NET_DEST_ADDRESS;
+  sDest.uDest.tAddr = tAddress;
+  return sDest;
+}
+
+
 // ----- ip_dest_dump -----------------------------------------------
 /**
  *

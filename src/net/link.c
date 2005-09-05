@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 08/08/2005
+// @lastdate 01/09/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -98,9 +98,19 @@ net_addr_t link_get_address(SNetLink * pLink)
     return (pLink->UDestId).tAddr;
   } else {
     assert(pLink->UDestId.pSubnet != NULL);
-    return ((pLink->UDestId).pSubnet->sPrefix).tNetwork;// tAddr;
+    return ((pLink->UDestId).pSubnet->sPrefix).tNetwork;
   }
 }
+
+// ----- link_get_iface --------------------------------------------
+net_addr_t link_get_iface(SNetLink * pLink)
+{
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER ) {
+    return (pLink->UDestId).tAddr;
+  } else {
+    return pLink->tIfaceAddr;
+  }
+}	
 
 // ----- link_destroy -----------------------------------------------
 void link_destroy(SNetLink ** ppLink)
@@ -171,6 +181,14 @@ SNetSubnet * link_get_subnet(SNetLink * pLink){
     return (pLink->UDestId).pSubnet;
   return NULL;
 }
+/*
+UNetDest link_get_dest(SNetLink * pLink){
+  UNetDest uDest;
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER)
+    uDest.sPrefix = pLink->sPrefix;
+  else 
+    uDest.sPrefix = pLink->UDestId.tAddr;
+}*/
 
 
 /////////////////////////////////////////////////////////////////////

@@ -49,6 +49,8 @@ extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr);
 // ----- ospf_next_hop_destroy -------------------------------------------------------
 extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 
+// ----- OSPF_next_hop_dump --------------------------------------------
+extern void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH);
 // ----- ospf_next_hops_compare -----------------------------------------------
 extern int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- ospf_next_hops_compare -----------------------------------------------
