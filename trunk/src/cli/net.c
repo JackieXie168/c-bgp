@@ -188,8 +188,8 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   SNetNode * pNodeSrc/*, * pNodeDst*/;
   //SNetSubnet * pSubnetDst;
   SNetDest sDest;
-  char * pcNodeSrcAddr, * pcVertexDstPrefix; 
-  SNetLink * pLink;
+  char     * pcNodeSrcAddr, * pcVertexDstPrefix; 
+  SNetLink * pLink = NULL;
 
   pcNodeSrcAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
@@ -204,8 +204,12 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     LOG_SEVERE("Error: destination id is wrong \"%s\"\n", pcVertexDstPrefix);
     return CLI_ERROR_CTX_CREATE;
   }
-  
-  pLink= node_find_link(pNodeSrc, sDest);
+  /*if (sDest.tType == NET_DEST_ADDRESS)
+    pLink= node_find_link(pNodeSrc, sDest, sDest.uDest.tAddr);
+  else if (sDest.tType == NET_DEST_PREFIX)
+    pLink= node_find_link(pNodeSrc, sDest, 0); //
+    */	  
+  pLink = node_find_link(pNodeSrc, sDest);
   if (pLink == NULL) {
     LOG_SEVERE("Error: unable to find link %s -> %s\n",
 	       pcNodeSrcAddr, pcVertexDstPrefix);
@@ -460,7 +464,14 @@ int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
   } else if (sDest.tType == NET_DEST_ADDRESS) {
      (sDest.uDest).sPrefix.uMaskLen = 32;
   }
+  
+  /*if (sDest.tType == NET_DEST_ADDRESS) {
+    pLink= node_find_link(pNodeSource, sDest.uDest.tAddr);
+  } else if (sDest.tType == NET_DEST_PREFIX) {
+    pLink= node_find_link(pNodeSource, sDest.uDest.sPrefix.tAddr);
+  }*/
  
+	  
   pLink= node_find_link(pNodeSource, sDest);
   if (pLink == NULL) {
     LOG_SEVERE("Error: unable to find link \"%s\"\n", pcPrefix);
