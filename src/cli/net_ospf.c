@@ -144,7 +144,6 @@ int cli_net_node_link_ospf_area(SCliContext * pContext, STokens * pTokens)
   ospf_area_t tArea;
   int iReturn = CLI_SUCCESS;
   SNetLink * pLink;
-  SPrefix sDestPrefix;
   
   pLink = (SNetLink *) cli_context_get_item_at_top(pContext);
   pNode = (SNetNode *) cli_context_get_item_at(pContext, 0);
@@ -154,9 +153,9 @@ int cli_net_node_link_ospf_area(SCliContext * pContext, STokens * pTokens)
 	       tokens_get_string_at(pTokens, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
-  link_get_prefix(pLink, &sDestPrefix);
+  //link_get_prefix(pLink, &sDestPrefix);
   
-  switch(node_link_set_ospf_area(pNode, sDestPrefix, tArea)){
+  switch(link_set_ospf_area(pLink, tArea)){
     case  OSPF_LINK_OK : 
     break;
     
