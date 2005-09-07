@@ -85,6 +85,7 @@ typedef struct {
 #ifdef OSPF_SUPPORT
   SUInt32Array  * pOSPFAreas; 
   SOSPFRT       * pOspfRT;     //OSPF routing table
+  net_addr_t      ospf_id;
 #endif
   SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
   SNetProtocols * pProtocols;

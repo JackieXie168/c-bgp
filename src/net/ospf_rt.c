@@ -630,6 +630,7 @@ int OSPF_rt_info_list_del(SOSPFRouteInfoList * pRouteInfoList,
   return iResult;
 }
 
+
 // ----- OSPF_rt_del_for_each --------------------------------------------
 /**
  * Helper function for the 'OSPF_rt_del_route' function. Handles the
@@ -858,8 +859,10 @@ int OSPF_rt_info_list_dump(FILE * pStream, SOSPFRouteInfoList * pRouteInfoList, 
 	     }
 	     break;
 	     
-	case OSPF_RT_OPTION_SORT_AREA |
-	     OSPF_RT_OPTION_SORT_PATH_TYPE  : 
+	case OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE  : 
+//	       fprintf(stdout, "Path type to print: %d/%d Area: %d/%d\n", 
+//			       pContext->tPathType,((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFPathType, 
+//			       pContext->tArea, ((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea);
 	       if (((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFArea == pContext->tArea && 
 	           ((SOSPFRouteInfo *)(pRouteInfoList->data[iIndex]))->tOSPFPathType == pContext->tPathType){
 	         OSPF_route_info_dump(pStream, (SOSPFRouteInfo *) pRouteInfoList->data[iIndex]);

@@ -27,6 +27,9 @@
 #define OSPF_DEST_SUBNET_NOT_IN_AREA       -4
 #define OSPF_SOURCE_NODE_LINK_MISSING      -5
 
+#define OSPF_BORDER_ROUTER 0x01
+#define OSPF_INTRA_ROUTER  0x02
+
 /*
    Assumption: pSubNet is valid only for destination type Subnet.
    The filed can be used only if pPrefix has a 32 bit netmask.

@@ -27,6 +27,7 @@
 
 #define OSPF_DESTINATION_TYPE_NETWORK 0
 #define OSPF_DESTINATION_TYPE_ROUTER  1
+#define OSPF_DESTINATION_TYPE_ASBR    2
 
 #define OSPF_PATH_TYPE_INTRA       0
 #define OSPF_PATH_TYPE_INTER       1
@@ -123,7 +124,7 @@ extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pN
 
 
 // ----- rt_for_each -------------------------------------------------------
-extern int OSPF_rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
+//extern int OSPF_rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
 
 #endif
 #endif

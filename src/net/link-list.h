@@ -27,4 +27,6 @@ extern void _net_links_link_destroy(void * pItem);
 // ----- _net_links_link_compare -------------------------------------
 int _net_links_link_compare(void * pItem1, void * pItem2, unsigned int uEltSize); 
 
+// ----- net_links_get_smaller_iface --------------------------------
+net_addr_t net_links_get_smaller_iface(SNetLinks * pLinks);
 #endif /*  __NET_LINK_LIST_H__ */
