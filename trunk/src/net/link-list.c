@@ -67,3 +67,27 @@ void net_links_dump(FILE * pStream, SNetLinks * pLinks)
     fprintf(pStream, "\n");
   }
 }
+
+// ----- net_links_get_smaller_iface --------------------------------
+//
+// Returns smaller iface addr in links list.
+// Used to obtain correct OSPF-ID of a node.
+net_addr_t net_links_get_smaller_iface(SNetLinks * pLinks)
+{
+   SNetLink * pLink = NULL;
+   int iIndex;
+   for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
+     ptr_array_get_at(pLinks, ptr_array_length(pLinks)-1, &pLink);
+     if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER)
+       continue;
+     
+     return pLink->tIfaceAddr;
+   }
+	     
+   if (pLink != NULL)
+     return pLink->pSrcNode->tAddr;
+   
+   return 0;
+}
+
+	

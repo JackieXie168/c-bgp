@@ -1,5 +1,5 @@
 // ==================================================================
-// @(#)routing.h
+// @(#)routing_t.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004

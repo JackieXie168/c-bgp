@@ -262,7 +262,7 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
     //= parent>destination link's interface
     for(iLink = 0; iLink < ptr_array_length(pParent->pNextHops); iLink++){
       ptr_array_get_at(pParent->pNextHops, iLink, &pNHCopy);
-      pNH = ospf_next_hop_create(pNHCopy->pLink, link_get_iface(pLink));
+      pNH = ospf_next_hop_create(pNHCopy->pLink, pLink->tIfaceAddr);
       ospf_nh_list_add(pDestination->pNextHops, pNH);
     }
   }
