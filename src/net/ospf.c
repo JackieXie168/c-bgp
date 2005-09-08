@@ -455,6 +455,52 @@ typedef struct {
   next_hops_list_t  * pNHListToBR;  //list of next hops to BR
 } SInterRouteBuilding;
 
+// ----- ospf_route_is_adver_in_area -------------------------------------------
+/* 
+ * Given a route and an area return 
+ *
+ *  - OSPF_SUCCESS if route must be advertised in the area with SummaryLSA
+ *  - !OSPF_SUCCESS is route must not be advertised in the area with SummaryLSA
+ *  
+ */ 
+int ospf_route_is_adver_in_area(SOSPFRouteInfo * pRI, ospf_area_t tArea) {
+
+/* I must consider only OSPF route: discard other types */
+    if (!ospf_ri_route_type_is(pRI, NET_ROUTE_IGP)) 
+      return 0;
+    
+    /* If I am a border router I must not consider INTER-AREA routes of the 
+       border router that I'm examing the routing table. I must consider only
+       INTRA-AREA routes.
+       
+       This take in mind OSPF specification (RFC2328 pag. 135) that specify 
+       that in SummaryLSA a Border Router announce
+       - INTRA-AREA ROUTES of its routing table in backbone and other areas
+       - INTER-AREA ROUTES of its touting table only in area != backbone
+       */
+    /*if (node_is_BorderRouter(pMyContext->pSourceNode)) {
+      if (!ospf_ri_pathType_is(pRI, OSPF_PATH_TYPE_INTRA)) //TODO change when will be implemented EXT1 EXT2
+        return OSPF_SUCCESS; 
+     
+      
+	
+    } */
+    switch (ospf_ri_get_pathType(pRI)){
+      case OSPF_PATH_TYPE_INTRA : 
+	      if (ospf_ri_get_area(pRI) == tArea)
+                return 0;
+             
+	      if (pRI->tOSPFDestinationType == OSPF_DESTINATION_TYPE_ROUTER)
+	        return 0; 
+      break; 
+      case OSPF_PATH_TYPE_INTER : 
+	      if (tArea == BACKBONE_AREA)
+	        return 0; 
+    } 
+
+    return 1;
+}
+
 // ----- ospf_br_rt_for_each_search_intra_route ---------------------------------------------------------
 /*
  * Search intra route in Border Routers's Routing Table to build inter route.
@@ -486,38 +532,16 @@ int ospf_br_rt_for_each_search_intra_route(uint32_t uKey, uint8_t uKeyLen, void 
   for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *) pRIList); iIndex++) {
     pRI= (SOSPFRouteInfo *) pRIList->data[iIndex];
     
-    /* I must consider only OSPF route: discard other types */
-    if (!ospf_ri_route_type_is(pRI, NET_ROUTE_IGP)) 
-      continue;
-    
-    /* If I am a border router I must not consider INTER-AREA routes of the 
-       border router that I'm examing the routing table. I must consider only
-       INTRA-AREA routes.
-       
-       This take in mind OSPF specification (RFC2328 pag. 135) that specify 
-       that in SummaryLSA a Border Router announce
-       - INTRA-AREA ROUTES of its routing table in backbone and other areas
-       - INTER-AREA ROUTES of its touting table only in area != backbone
-       */
-    if (node_is_BorderRouter(pMyContext->pSourceNode)) 
-      if (!ospf_ri_pathType_is(pRI, OSPF_PATH_TYPE_INTRA)) //TODO change when will be implemented EXT1 EXT2
-        return OSPF_SUCCESS;
-
-    //In SummaryLSA routes towards BorderRouters are not announced.
-    if (pRI->tOSPFDestinationType == OSPF_DESTINATION_TYPE_ROUTER)
-	return OSPF_SUCCESS;
-    
+    if (!ospf_route_is_adver_in_area(pRI, pMyContext->tOspfArea)) 
+      continue; 
     /* Now I have a valid route to consider. I must check if I have a best route yet.   */
-    //TODO check that this should be return always INTRA-ROUTE first
+    //TODO check that this should be return always INTRA-ROUTE first
     SOSPFRouteInfo * pOldRoute = OSPF_rt_find_exact(pMyContext->pSourceNode->pOspfRT, sPrefix,
 				                          NET_ROUTE_IGP);
     /* I have not an older route and I add  the new one to RT 
        next hops are the same for Border Router but I MUST make a copy. */
     if (pOldRoute == NULL) 
     {
- //      LOG_DEBUG("I have a valid route to consider... add it: ");
-       //ip_prefix_dump(stdout, sPrefix);
-     ///  fprintf(stdout, "\n");
        node_ospf_rt_add_route(pMyContext->pSourceNode,   
                              OSPF_DESTINATION_TYPE_NETWORK,
                              sPrefix,   
@@ -532,8 +556,6 @@ int ospf_br_rt_for_each_search_intra_route(uint32_t uKey, uint8_t uKeyLen, void 
 	         ((pOldRoute->tOSPFPathType == OSPF_PATH_TYPE_INTER) && 
 	       (ospf_ri_get_weight(pOldRoute) > pMyContext->tWeightToBR + ospf_ri_get_weight(pRI)))) 
     {
- //     LOG_DEBUG("I found a valid route with a best cost... add it\n");
-	    
       pOldRoute->uWeight = pMyContext->tWeightToBR + ospf_ri_get_weight(pRI);
       pOldRoute->tOSPFArea = pMyContext->tOspfArea;
       pOldRoute->tOSPFPathType = OSPF_PATH_TYPE_INTER;
@@ -545,7 +567,6 @@ int ospf_br_rt_for_each_search_intra_route(uint32_t uKey, uint8_t uKeyLen, void 
     else if ((pOldRoute->tOSPFPathType == OSPF_PATH_TYPE_INTER) && 
                (ospf_ri_get_weight(pOldRoute) == pMyContext->tWeightToBR + ospf_ri_get_weight(pRI))) 
     {	   
-//     LOG_DEBUG("I found a valid route whit an equal cost... add it\n");
       ospf_nh_list_add_list(pOldRoute->aNextHops, pMyContext->pNHListToBR);
     }
     else{ 
@@ -609,19 +630,10 @@ int igp_domain_router_for_each_br_scan_rt(uint32_t uKey, uint8_t uKeyLen, void *
     if (pRouteToBR->tOSPFArea != ospf_node_get_area(pCtx->pSourceNode))
       return OSPF_SUCCESS;
 
-  /*fprintf(stdout, "Router ");
-  ip_address_dump(stdout, pCtx->pSourceNode->tAddr);
-		  
-  fprintf(stdout," analizza route disponibili in...");
-  ip_address_dump(stdout, (net_addr_t) uKey);
-  fprintf(stdout, " area == %d/%d \n", pRouteToBR->tOSPFArea, ospf_node_get_area(pCtx->pSourceNode));
-*/
   pCtx->tWeightToBR = pRouteToBR->uWeight;
   pCtx->pNHListToBR = pRouteToBR->aNextHops;
   pCtx->tOspfArea = ospf_node_get_area(pSrcNode);
   	     
-  //ip_address_dump(stdout, (net_addr_t)uKey);
-  //fprintf(stdout, "\n");
   return trie_for_each((STrie *) pCurrentRouter->pOspfRT,  ospf_br_rt_for_each_search_intra_route, pContext); 
 }
 
@@ -1092,7 +1104,7 @@ int ospf_test_rfc2328()
     assert(ospf_domain_build_inter_route_ir_only(uIGPDomain) >= 0);
     LOG_DEBUG(" ok!\n");
    
-//    ospf_node_rt_dump(stdout, pNodeRT9, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
+    ospf_node_rt_dump(stdout, pNodeRT7, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
  
    
 //   LOG_DEBUG(" ok!\n");
