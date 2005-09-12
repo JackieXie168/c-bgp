@@ -45,6 +45,7 @@ SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
   pLink->UDestId.pSubnet= pSubnet;
   pLink->pSrcNode= pSrcNode;
   pLink->tIfaceAddr= tIfaceAddr;
+  pLink->uMaskLen = 32;
   pLink->pContext= pLink;
   pLink->fForward= _subnet_forward;
   pLink->uIGPweight= UINT_MAX;
@@ -78,6 +79,7 @@ SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
   pLink->UDestId.tAddr= tAddr;
   pLink->pSrcNode= pSrcNode;
   pLink->tIfaceAddr= 0;
+  pLink->uMaskLen = 0;
   pLink->pContext= pLink;
   pLink->fForward= _link_forward;
   pLink->uIGPweight= UINT_MAX;
@@ -102,15 +104,41 @@ net_addr_t link_get_address(SNetLink * pLink)
   }
 }
 
-// ----- link_get_iface --------------------------------------------
-net_addr_t link_get_iface(SNetLink * pLink)
+// ----- _link_get_iface --------------------------------------------
+net_addr_t _link_get_iface(SNetLink * pLink)
 {
   if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER ) {
     return (pLink->UDestId).tAddr;
   } else {
     return pLink->tIfaceAddr;
   }
-}	
+}
+
+// ----- link_get_iface --------------------------------------------
+net_addr_t link_get_iface(SNetLink * pLink)
+{
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER ) 
+    if (!(link_to_router_has_ip_prefix(pLink) || 
+	     link_to_router_has_only_iface(pLink)))
+      return (pLink->UDestId).tAddr;
+  return pLink->tIfaceAddr;
+}
+
+
+// ----- link_set_ip_prefix --------------------------------------------
+// Can be used on a link to router to set an ip prefix or to set
+// only and interface ip on the link.
+// If passed prefix has a field uMaskLen == 32 this command specifies
+// only an interface for the link.
+// 
+// ASSUME: 
+// -link is towards a ROUTER
+// -link prefix is the same in the other direction!
+void link_set_ip_prefix(SNetLink * pLink, SPrefix sPrefix)
+{
+  pLink->tIfaceAddr = sPrefix.tNetwork;
+  pLink->uMaskLen = sPrefix.uMaskLen;
+}		
 
 // ----- link_destroy -----------------------------------------------
 void link_destroy(SNetLink ** ppLink)
@@ -121,6 +149,48 @@ void link_destroy(SNetLink ** ppLink)
     FREE(*ppLink);
     *ppLink= NULL;
   }
+}
+
+// ----- link_get_ip_prefix --------------------------------------------
+// Return ip prefix assciated to link and used in routing process.
+// If link is towards subnet prefix is the same as the subnet.
+// If link is towards router 
+//  - if a prefix is configured (uMaskLen != 0 && != 32)
+//       return configured prefix
+//    else
+//       return RouterDestinationIP/32 prefix
+//  - if only an interface is configured 
+//       return interfaceIp/32 prefix
+SPrefix link_get_ip_prefix(SNetLink * pLink)
+{ 
+  SPrefix sPrefix;
+  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER ) {
+    if (pLink->uMaskLen == 0) { //no ip subnet configured
+      sPrefix.tNetwork = (pLink->UDestId).tAddr;
+      sPrefix.uMaskLen= 32;
+    } 
+    else {//this is the case for prefix and for interface only
+      sPrefix.tNetwork = pLink->tIfaceAddr;
+      sPrefix.uMaskLen = pLink->uMaskLen;
+      ip_prefix_mask(&sPrefix);
+    }
+  }
+  else {
+    assert(pLink->UDestId.pSubnet != NULL);
+    sPrefix.tNetwork= ((pLink->UDestId).pSubnet->sPrefix).tNetwork;
+    sPrefix.uMaskLen= ((pLink->UDestId).pSubnet->sPrefix).uMaskLen;// tAddr;
+  }
+  return sPrefix;
+}
+
+// ----- link_to_router_has_ip_prefix(pCurrentLink) ----------------------------/* ASSUME: function is invoked on a link towards a ROUTER
+int link_to_router_has_ip_prefix(SNetLink * pLink) { 
+  return (pLink->uMaskLen != 0 && pLink->uMaskLen !=32);
+}
+
+// ----- link_to_router_has_ip_prefix(pCurrentLink) ----------------------------/* ASSUME: function is invoked on a link towards a ROUTER
+int link_to_router_has_only_iface(SNetLink * pLink){ 
+  return (pLink->uMaskLen == 32);
 }
 
 // ----- link_get_prefix --------------------------------------------
@@ -135,6 +205,7 @@ void link_get_prefix(SNetLink * pLink, SPrefix * pPrefix)
     pPrefix->uMaskLen= ((pLink->UDestId).pSubnet->sPrefix).uMaskLen;// tAddr;
   }
 }
+
 
 // ----- link_set_type ----------------------------------------------
 void link_set_type(SNetLink * pLink, uint8_t uDestinationType)

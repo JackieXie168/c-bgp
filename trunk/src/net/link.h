@@ -61,8 +61,11 @@ extern SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 //extern SNetLink * create_link_toAny(SPrefix * pPrefix);
 // ----- link_destroy -----------------------------------------------
 extern void link_destroy(SNetLink ** ppLink);
+// ----- _link_get_iface --------------------------------------------
+extern net_addr_t _link_get_iface(SNetLink * pLink);
 // ----- link_get_iface --------------------------------------------
 extern net_addr_t link_get_iface(SNetLink * pLink);
+
 // ----- link_get_address ----------------------------------------
 extern net_addr_t link_get_address(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
@@ -93,5 +96,14 @@ extern void link_dump(FILE * pStream, SNetLink * pLink);
 
 // ----- link_ospf_set_area -----------------------------------------
 extern void link_ospf_set_area(SNetLink * pLink, ospf_area_t tArea);
+// ----- link_to_router_has_ip_prefix(pCurrentLink) ---------------------------
+int link_to_router_has_ip_prefix(SNetLink * pLink);
+
+// ----- link_to_router_has_ip_prefix(pCurrentLink) ---------------------------
+int link_to_router_has_only_iface(SNetLink * pLink);
+// ----- link_get_ip_prefix --------------------------------------------
+SPrefix link_get_ip_prefix(SNetLink * pLink);
+// ----- link_set_ip_prefix --------------------------------------------
+void link_set_ip_prefix(SNetLink * pLink, SPrefix sPrefix);
 
 #endif

@@ -49,7 +49,7 @@ typedef double net_link_delay_t;
 
 #define ospf_ri_get_area(R) ((R)->tOSPFArea)
 #define ospf_ri_get_prefix(R) ((R)->sPrefix)
-#define ospf_ri_get_weight(R) ((R)->uWeight)
+#define ospf_ri_get_cost(R) ((R)->uWeight)
 #define ospf_ri_get_pathType(R) ((R)->tOSPFPathType)
 #define ospf_ri_get_NextHops(R) ((R)->aNextHops)
 
@@ -146,18 +146,19 @@ typedef union {
  * This type defines a link object.
  */
 typedef struct {
-  uint8_t uDestinationType;    /* ROUTER / TRANSIT / STUB */
-  UDestinationId UDestId;      /* depends on uDestinationType*/
-  SNetNode * pSrcNode;
-  net_addr_t tIfaceAddr;
+  uint8_t          uDestinationType;    /* ROUTER / TRANSIT / STUB */
+  UDestinationId   UDestId;      /* depends on uDestinationType*/
+  SNetNode       * pSrcNode;
+  net_addr_t       tIfaceAddr;
+  uint8_t          uMaskLen;//used with tIfaceAddr give IP subnet prefix on link
   net_link_delay_t tDelay;
   uint8_t          uFlags;
   uint32_t         uIGPweight;      // Store IGP weight here
 #ifdef OSPF_SUPPORT
   ospf_area_t      tArea;  
 #endif
-  void * pContext;
-  FNetLinkForward fForward;
+  void           * pContext;
+  FNetLinkForward  fForward;
 } SNetLink;
 
 
