@@ -57,24 +57,41 @@ SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t u
   return pVertex;
 }
 
-// ----- spt_vertex_create -----------------------------------------------------------------
-SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, SSptVertex * pVFather)
+// ----- spt_vertex_create ----------------------------------------------------
+/* Create a new vertex starting from link info.
+ * There are three possibility:
+ *
+ * 1) Link source is a subnet: in this case destination node is 
+ *    available in link info (link is the same from node to subnet)
+ *    and cost of the link must be consider 0
+ * 2) Link source is a node and destination is a router: in this case 
+ *    destination node must be found in network starting from 
+ *    address stored in link
+ * 3) Link source is a node and destination is a subnet: in this case
+ *    destination prefix can be obtain by subnet pointer stored in link
+ */    
+SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, 
+		                                          SSptVertex * pVFather)
 {
   SSptVertex * pVertex;
   
-  if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER){
+  if (spt_vertex_is_subnet(pVFather)){
+    pVertex = spt_vertex_create_byRouter(pLink->pSrcNode, 
+		                         pVFather->uIGPweight);
+  }
+  else if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER){
     SNetNode * pNode;
-//     fprintf(stdout, "creo vertex da router\n");
     pNode = network_find_node(link_get_address(pLink));
     assert(pNode != NULL);
-    pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + pLink->uIGPweight);
+    pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + 
+		                                pLink->uIGPweight);
   }
   else if (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT ||
            pLink->uDestinationType == NET_LINK_TYPE_STUB){
     SNetSubnet * pSubnet;
-//     fprintf(stdout, "creo vertex da subnet\n");
     pSubnet = link_get_subnet(pLink);
-    pVertex = spt_vertex_create_bySubnet(pSubnet, pVFather->uIGPweight + pLink->uIGPweight);
+    pVertex = spt_vertex_create_bySubnet(pSubnet, pVFather->uIGPweight + 
+		                                  pLink->uIGPweight);
   }
   else
     return NULL;
@@ -109,12 +126,10 @@ void spt_vertex_dst(void ** ppItem){
 // ----- spt_vertex_get_links ---------------------------------------
 SPtrArray * spt_vertex_get_links(SSptVertex * pVertex)
 {
-  if (pVertex->uDestinationType == NET_LINK_TYPE_ROUTER){
+  if (spt_vertex_is_router(pVertex)){
     return  ((SNetNode *)(pVertex->pObject))->pLinks;
   }
-  else{
-    return subnet_get_links((SNetSubnet *)(pVertex->pObject));
-  }
+  return((SNetSubnet *)(pVertex->pObject))->pLinks; 
 }
 
 // ----- spt_vertex_belongs_to_area ---------------------------------------
@@ -122,31 +137,23 @@ int spt_vertex_belongs_to_area(SSptVertex * pVertex, ospf_area_t tArea)
 {
   if (spt_vertex_is_router(pVertex))
     return  node_belongs_to_area(spt_vertex_to_router(pVertex), tArea);
-  
   return  subnet_belongs_to_area(spt_vertex_to_subnet(pVertex), tArea);
 }
 
-// ----- spt_vertex_get_prefix ---------------------------------------
-SPrefix spt_vertex_get_prefix(SSptVertex * pVertex)
+// ----- spt_vertex_get_id ---------------------------------------
+SPrefix spt_vertex_get_id(SSptVertex * pVertex)
 {     
   SPrefix p;
-  if (pVertex->uDestinationType == NET_LINK_TYPE_ROUTER) {
-
-    p.tNetwork = ((SNetNode *)(pVertex->pObject))->tAddr;
+  if (spt_vertex_is_router(pVertex)) {
+    p.tNetwork = (spt_vertex_to_router(pVertex))->tAddr;
     p.uMaskLen = 32;
-
   }
   else {
-    p = (((SNetSubnet *)(pVertex->pObject))->sPrefix);
+    p = (spt_vertex_to_subnet(pVertex))->sPrefix;
   }
   return p;
 }
 
-// ----- spt_vertex_find_next_hop_to ---------------------------------------
-/*SOSPFNextHop * spt_vertex_find_next_hop_to(SSptVertex * pVertex, SNetDest sDest)
-{
-	  
-}*/
 
 // ----- spt_vertex_compare ---------------------------------------
 int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
@@ -164,8 +171,8 @@ int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
 	return 0;
     }
     else {
-      SPrefix sPrefV1 = spt_vertex_get_prefix(pVertex1); 
-      SPrefix sPrefV2 = spt_vertex_get_prefix(pVertex2); 
+      SPrefix sPrefV1 = spt_vertex_get_id(pVertex1); 
+      SPrefix sPrefV2 = spt_vertex_get_id(pVertex2); 
       SPrefix * pPrefV1 = &sPrefV1;
       SPrefix * pPrefV2 = &sPrefV2;
       return ip_prefixes_compare(&pPrefV1, &pPrefV2, 0);
@@ -234,7 +241,7 @@ int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
 }
 
 
-// ----- calculate_next_hop -----------------------------------------------------------
+// ----- calculate_next_hop ----------------------------------------------------
 /**
  * Calculates next hop as explained in RFC2328 (p. 167)
  *
@@ -244,22 +251,17 @@ int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
  * pLink        = pParent's link towards pDestination
  */
  
-//TODO write macro for next hop
 void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent, 
-                                      SSptVertex * pDestination, SNetLink * pLink){
+                                   SSptVertex * pDestination, SNetLink * pLink){
   SOSPFNextHop * pNH = NULL, * pNHCopy = NULL;
   int iLink;
   
   if (pRoot == pParent){
-    //fprintf(stdout, "spt_calculate_next_hop(): parent == root\n");
     pNH = ospf_next_hop_create(pLink, OSPF_NO_IP_NEXT_HOP, NULL);
     ospf_nh_list_add(pDestination->pNextHops, pNH);
   }
   else if (pParent->uDestinationType == NET_LINK_TYPE_TRANSIT && 
            spt_vertex_has_father(pParent, pRoot)) {
-    //fprintf(stdout, "spt_calculate_next_hop(): parent == transit && fathers contains root\n");
-    //destination nexthop's link inherited from parent vertex and next hop's address
-    //= parent>destination link's interface
     for(iLink = 0; iLink < ptr_array_length(pParent->pNextHops); iLink++){
       ptr_array_get_at(pParent->pNextHops, iLink, &pNHCopy);
       pNH = ospf_next_hop_create(pNHCopy->pLink, pLink->tIfaceAddr, NULL);
@@ -273,25 +275,42 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
   }
 }
 
-// ----- spt_vertex_add_subnet ---------------------------------------------------
+// ----- spt_vertex_add_subnet -------------------------------------------------
 int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink){
   return ptr_array_add(pCurrentVertex->aSubnets, &pCurrentLink);
 }
 
-// ----- node_ospf_compute_spt ---------------------------------------------------
+
+// ----- spt_candidate_compute_id -------------------------------------------
+SPrefix spt_candidate_compute_id(SSptVertex * pParentVertex, 
+		                    SNetLink * pLink){
+  SPrefix sVertexId;
+  if (spt_vertex_is_subnet(pParentVertex)) { 
+    sVertexId.tNetwork = pLink->pSrcNode->tAddr;
+    sVertexId.uMaskLen = 32;
+  }
+  else
+    link_get_prefix(pLink, &sVertexId);
+  return sVertexId;
+}
+
+#define spt_candidate_is_router(C) (C.uMaskLen == 32)
+
+// ----- node_ospf_compute_spt -------------------------------------------------
 /**
  * Compute the Shortest Path Tree from the given source router
  * towards all the other routers that belong to the given domain.
  * 
- * TODO improve computation
+ * TODO - improve computation
  *
  * PREREQUISITE:
  *      1. igp domain MUST exist
  *      2. ospf areas configuration is correct
+ *      
  */
 SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea)
 {
-  SPrefix        sDestPrefix; 
+  SPrefix        sCandidateId; 
   int            iIndex = 0;
   unsigned int   uOldVertexPos;
   SNetwork     * pNetwork = pNode->pNetwork;
@@ -302,19 +321,21 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   SSptVertex   * pCurrentVertex = NULL, * pNewVertex = NULL;
   SSptVertex   * pOldVertex = NULL, * pRootVertex = NULL;
   SRadixTree   * pSpt = radix_tree_create(32, spt_vertex_dst);
-  SNetNode     * pRootNode = pNode;//network_find_node(tSrcAddr);
+  SNetNode     * pRootNode = pNode;
   assert(pRootNode != NULL);
-  spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
-                                                     spt_vertex_compare,
-     	    				            NULL);
+  spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|
+		                                       ARRAY_OPTION_UNIQUE,
+                                                       spt_vertex_compare,
+     	    				               NULL);
   //ADD root to SPT
   pRootVertex            = spt_vertex_create_byRouter(pRootNode, 0);
   pCurrentVertex         = pRootVertex;
   assert(pCurrentVertex != NULL);
   
   while (pCurrentVertex != NULL) {
-    sDestPrefix = spt_vertex_get_prefix(pCurrentVertex);
-    radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen, pCurrentVertex);
+    sCandidateId = spt_vertex_get_id(pCurrentVertex);
+    radix_tree_add(pSpt, sCandidateId.tNetwork, sCandidateId.uMaskLen,
+		         pCurrentVertex);
     
     aLinks = spt_vertex_get_links(pCurrentVertex);
     for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
@@ -323,11 +344,6 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       /* Consider only the links that have the following properties:
 	 - NET_LINK_FLAG_UP (the link must be UP)
 	 - the end-point belongs to the given prefix */
-      /*if (!link_get_state(pCurrentLink, NET_LINK_FLAG_UP)){ 
-        fprintf(stdout, "Trovato link spento sul node ");
-        ip_address_dump(stdout, pCurrentLink->pSrcNode->tAddr);
-	fprintf(stdout, "\n");
-      } */
       if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)) || 
           !(link_belongs_to_area(pCurrentLink, tArea))){
         continue;
@@ -337,7 +353,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       //first time consider only Transit Link... but we store subnet in a list
       //so we have not to recheck all the links durign routing table computation
       if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB ||
-	  (pCurrentLink->uDestinationType == NET_LINK_TYPE_ROUTER && 
+	  (pCurrentLink->uDestinationType == NET_LINK_TYPE_ROUTER && /*TODO controlla non venga da subnet*/ 
 	   (link_to_router_has_ip_prefix(pCurrentLink) || 
 	     link_to_router_has_only_iface(pCurrentLink)))) {
 	      
@@ -347,15 +363,15 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
         if (pCurrentLink->uDestinationType != NET_LINK_TYPE_ROUTER) 
 	  continue;
       }
-       
-      link_get_prefix(pCurrentLink, &sDestPrefix);
       
+      //compute vertex id 
+      sCandidateId = spt_candidate_compute_id(pCurrentVertex, pCurrentLink);
+
       //ROUTER should belongs to ospf domain 
-      if (sDestPrefix.uMaskLen == 32) {
+      if (spt_candidate_is_router(sCandidateId)) {
          if (!igp_domain_contains_router_by_addr(pIGPDomain, 
-				                sDestPrefix.tNetwork)) {
+				                sCandidateId.tNetwork)) 
            continue;
-         }
       }
       else 
 	 //if is a subnet I remember vertex is linked to it 
@@ -364,8 +380,8 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       
       //check if vertex is in spt	
       pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
-                                                          sDestPrefix.tNetwork, 
-							  sDestPrefix.uMaskLen);
+                                                          sCandidateId.tNetwork, 
+							  sCandidateId.uMaskLen);
       
       if(pOldVertex != NULL)
        continue;
@@ -415,8 +431,10 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
           ospf_nh_list_destroy(&(pOldVertex->pNextHops));
  	  pOldVertex->pNextHops = ospf_nh_list_create();
         }
-        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
-        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, 
+			                                    pCurrentLink);
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR 
+	//   FASTER RECOMPUTATION) - START
 	//remove old father->sons relationship
 	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
 	  ptr_array_get_at(pOldVertex->fathers, iIndex, &pFather);
@@ -449,6 +467,174 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       }  
     }//end for on links
     //links for subnet are dinamically created and MUST be removed
+     /*if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
+         pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
+ 	ptr_array_destroy(&aLinks);*/
+    //select node with smallest weight to add to spt
+    pCurrentVertex = spt_get_best_candidate(aGrayVertexes);
+  }
+  ptr_array_destroy(&aGrayVertexes);
+  return pSpt;
+}
+
+// ----- node_ospf_compute_rspt ---------------------------------------------------
+/**
+ * Compute the Reverse Shortest Path Tree from the given source router
+ * towards all the other routers that belong to the given domain.
+ * Algorithm is the same of SPT computation but use link in the 
+ * destination->source direction.
+ * TODO improve computation
+ *
+ * PREREQUISITE:
+ *      1. igp domain MUST exist
+ *      2. ospf areas configuration is correct
+ *      3. when a link is down it is down in all the two direction
+ */
+/*SRadixTree * node_ospf_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber, 
+		                                                 ospf_area_t tArea)
+{
+  SPrefix        sDestPrefix; 
+  int            iIndex = 0;
+  unsigned int   uOldVertexPos;
+  SNetwork     * pNetwork = pNode->pNetwork;
+  SIGPDomain   * pIGPDomain = get_igp_domain(IGPDomainNumber);
+  
+  SPtrArray    * aLinks = NULL;
+  SNetLink     * pCurrentLink = NULL;
+  SSptVertex   * pCurrentVertex = NULL, * pNewVertex = NULL;
+  SSptVertex   * pOldVertex = NULL, * pRootVertex = NULL;
+  SRadixTree   * pSpt = radix_tree_create(32, spt_vertex_dst);
+  SNetNode     * pRootNode = pNode;//network_find_node(tSrcAddr);
+  assert(pRootNode != NULL);
+  spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|
+		                                       ARRAY_OPTION_UNIQUE,
+                                                       spt_vertex_compare,
+     	    				               NULL);
+  //ADD root to SPT
+  pRootVertex            = spt_vertex_create_byRouter(pRootNode, 0);
+  pCurrentVertex         = pRootVertex;
+  assert(pCurrentVertex != NULL);
+  
+  while (pCurrentVertex != NULL) {
+    sDestPrefix = spt_vertex_get_prefix(pCurrentVertex);
+    radix_tree_add(pSpt, sDestPrefix.tNetwork, sDestPrefix.uMaskLen,
+		                               pCurrentVertex);
+    
+    aLinks = spt_vertex_get_links(pCurrentVertex);
+    for (iIndex = 0; iIndex < ptr_array_length(aLinks); iIndex++){
+      ptr_array_get_at(aLinks, iIndex, &pCurrentLink);
+      
+      * Finds the opposite-direction link: uses its cost information
+       * to give next decisions */
+      
+      /* Consider only the links that have the following properties:
+	 - NET_LINK_FLAG_UP (the link must be UP)
+	 - the end-point belongs to the given prefix */
+/*      if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)) || 
+          !(link_belongs_to_area(pCurrentLink, tArea))){
+        continue;
+      }
+
+      //considers only Transit Link... STUB subnet are not important for rspt
+      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB) {
+	  continue;
+      }
+       
+      link_get_prefix(pCurrentLink, &sDestPrefix);
+      
+      //ROUTER should belongs to ospf domain 
+      if (sDestPrefix.uMaskLen == 32) {
+         if (!igp_domain_contains_router_by_addr(pIGPDomain, 
+				                sDestPrefix.tNetwork)) {
+           continue;
+         }
+      }
+      
+      //check if vertex is in spt	
+      pOldVertex = (SSptVertex *)radix_tree_get_exact(pSpt, 
+                                                          sDestPrefix.tNetwork, 
+							  sDestPrefix.uMaskLen);
+      
+      if(pOldVertex != NULL)
+       continue;
+      //before to create vertex considers corrispondent backward link in the other direction
+      pCurrentLink = link_find_backword(pCurrentLink);
+      
+      //create a vertex object to compare with grayVertex
+      pNewVertex = spt_vertex_create(pNetwork, pCurrentLink, pCurrentVertex);
+      
+      //check if vertex is in grayVertexes
+      int srchRes = -1;
+      if (ptr_array_length(aGrayVertexes) > 0)
+        srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &uOldVertexPos);
+      else ;
+//         fprintf(stdout, "aGrays è vuoto\n");
+
+      //srchres == -1 ==> item not found
+      //srchres == 0  ==> item found
+      pOldVertex = NULL;
+      if(srchRes == 0) {
+//         fprintf(stdout, "vertex è già in aGrayVertexes\n");
+        ptr_array_get_at(aGrayVertexes, uOldVertexPos, &pOldVertex);
+      }
+      
+      if (pOldVertex == NULL){
+//         fprintf(stdout, "vertex da aggiungere\n");
+          //spt_calculate_next_hop(pRootVertex, pCurrentVertex, pNewVertex, pCurrentLink);
+        
+	  ptr_array_add(aGrayVertexes, &pNewVertex);
+	  //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+	  //set father and sons relationship
+  	  ptr_array_add(pCurrentVertex->sons, &pNewVertex);
+//	  ptr_array_add(pNewVertex->fathers, &pCurrentVertex);
+	  //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
+      }
+      else if (pOldVertex->uIGPweight > pNewVertex->uIGPweight) {
+//         fprintf(stdout, "vertex da aggiornare (peso minore)\n");
+        unsigned int uPos;
+	int iIndex;
+	SSptVertex * pFather;
+	pOldVertex->uIGPweight = pNewVertex->uIGPweight;
+// 	Remove old next hops*/
+/*        if (ptr_array_length(pOldVertex->pNextHops) > 0){
+          ospf_nh_list_destroy(&(pOldVertex->pNextHops));
+ 	  pOldVertex->pNextHops = ospf_nh_list_create();
+        }
+        spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);*/
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+	//remove old father->sons relationship
+/*	for(iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
+	  ptr_array_get_at(pOldVertex->fathers, iIndex, &pFather);
+	  assert(ptr_array_sorted_find_index(pFather->sons, &pOldVertex, &uPos) == 0);
+	  ptr_array_remove_at(pFather->sons, uPos);
+	}*/
+	
+	//remove sons->father relationship
+/*	for( iIndex = 0; iIndex < ptr_array_length(pOldVertex->fathers); iIndex++){
+	  ptr_array_remove_at(pOldVertex->fathers, iIndex);
+	}
+	//set new sons->father and father->sons relationship
+       // ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
+        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
+	spt_vertex_destroy(&pNewVertex);
+      }
+      else if (pOldVertex->uIGPweight == pNewVertex->uIGPweight) {
+//      fprintf(stdout, "vertex da aggiornare (peso uguale)\n");
+//      spt_calculate_next_hop(pRootVertex, pCurrentVertex, pOldVertex, pCurrentLink);
+// 	fprintf(stdout, "next hops calcolati\n");
+        //// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - START
+//      ptr_array_add(pOldVertex->fathers, &pCurrentVertex);
+        ptr_array_add(pCurrentVertex->sons, &pOldVertex);
+	//// THIS IS GOOD IF WE WOULD TO STORE SPT (FOR PRINT OR FOR FASTER RECOMPUTATION) - STOP
+        spt_vertex_destroy(&pNewVertex);
+      }
+      else {
+//         fprintf(stdout, "new vertex eliminato\n");
+        spt_vertex_destroy(&pNewVertex);
+      }  
+    }//end for on links
+    //links for subnet are dinamically created and MUST be removed
      if (pCurrentVertex->uDestinationType == NET_LINK_TYPE_TRANSIT ||
          pCurrentVertex->uDestinationType == NET_LINK_TYPE_STUB)
  	ptr_array_destroy(&aLinks);
@@ -457,7 +643,8 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   }
   ptr_array_destroy(&aGrayVertexes);
   return pSpt;
-}
+}*/
+
 
 //------ compute_vertical_bars -------------------------------------------
 /**
@@ -494,7 +681,7 @@ void visit_vertex(SSptVertex * pVertex, int iLevel, int lastChild, char * pcSpac
   fprintf(pStream, "%s\n%s", pcSpace, pcSpace);
   
   
-  sPrefix = spt_vertex_get_prefix(pVertex);
+  sPrefix = spt_vertex_get_id(pVertex);
   ip_prefix_to_string(pcPrefix, &sPrefix);
   
   fprintf(pStream, "---> [ %s ]-[ %d ] -- NH >> ", pcPrefix, pVertex->uIGPweight);
@@ -510,7 +697,7 @@ void visit_vertex(SSptVertex * pVertex, int iLevel, int lastChild, char * pcSpac
   iLevel++;
   for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
      ptr_array_get_at(pVertex->sons, iIndex, &pChild);
-     sChildPfx = spt_vertex_get_prefix(pChild);
+     sChildPfx = spt_vertex_get_id(pChild);
      if (radix_tree_get_exact(pVisited, sChildPfx.tNetwork, sChildPfx.uMaskLen) != NULL)
        continue;
 //      if (iIndex == ptr_array_length(pVertex->sons) - 1)
@@ -560,7 +747,7 @@ void visit_vertex_dot(SSptVertex * pVertex, char * pcPfxFather, SRadixTree * pVi
   char * pcMyPrefix = MALLOC(30);
   char cNextHop[25] = "", cNextHops[300] = "", * pcNextHops = cNextHops, * pcNH = cNextHop;
   SSptVertex * pChild;
-  SPrefix sMyPrefix = spt_vertex_get_prefix(pVertex), sChildPfx;
+  SPrefix sMyPrefix = spt_vertex_get_id(pVertex), sChildPfx;
   SOSPFNextHop * pNH;
   
   ip_prefix_to_string(pcMyPrefix, &sMyPrefix);
@@ -587,7 +774,7 @@ void visit_vertex_dot(SSptVertex * pVertex, char * pcPfxFather, SRadixTree * pVi
   assert(pVertex->sons != 0);
   for(iIndex = 0; iIndex < ptr_array_length(pVertex->sons); iIndex++){
      ptr_array_get_at(pVertex->sons, iIndex, &pChild);
-     sChildPfx = spt_vertex_get_prefix(pChild);
+     sChildPfx = spt_vertex_get_id(pChild);
      if (radix_tree_get_exact(pVisited, sChildPfx.tNetwork, sChildPfx.uMaskLen) != NULL)
        continue;
      visit_vertex_dot(pChild, pcMyPrefix, pVisited, pVertex->uIGPweight, pStream);

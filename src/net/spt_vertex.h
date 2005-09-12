@@ -52,8 +52,8 @@ SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t u
 int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- spt_vertex_get_links ---------------------------------------
 SPtrArray * spt_vertex_get_links(SSptVertex * pVertex);
-// ----- spt_vertex_get_prefix ---------------------------------------
-SPrefix spt_vertex_get_prefix(SSptVertex * pVertex);
+// ----- spt_vertex_get_id ---------------------------------------
+SPrefix spt_vertex_get_id(SSptVertex * pVertex);
 // ----- spt_vertex_add_subnet ---------------------------------------------------
 int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink);
 
