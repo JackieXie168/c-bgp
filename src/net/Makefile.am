@@ -53,6 +53,8 @@ libnet_la_SOURCES = \
 	ntf.h \
 	ospf.c \
 	ospf.h \
+	ospf_deflection.c \
+	ospf_deflection.h \
 	ospf_rt.c \
 	ospf_rt.h \
 	prefix.c \

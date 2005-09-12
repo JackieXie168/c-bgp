@@ -115,6 +115,7 @@ links_list_t * subnet_get_links(SNetSubnet * pSubnet)
     pLinkCopy = create_link_toRouter_byAddr(pCurrentLink->pSrcNode, pCurrentLink->pSrcNode->tAddr);
     pLinkCopy->uIGPweight = 0;
     pLinkCopy->tIfaceAddr = pCurrentLink->tIfaceAddr;
+    pLinkCopy->uFlags = pCurrentLink->uFlags;
 #ifdef OSPF_SUPPORT
     pLinkCopy->tArea = pCurrentLink->tArea;
 #endif

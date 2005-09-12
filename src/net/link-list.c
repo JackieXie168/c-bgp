@@ -21,9 +21,9 @@ int _net_links_link_compare(void * pItem1, void * pItem2,
   SNetLink * pLink1= *((SNetLink **) pItem1);
   SNetLink * pLink2= *((SNetLink **) pItem2);
 
-  if (link_get_iface(pLink1) < link_get_iface(pLink2)) {
+  if (_link_get_iface(pLink1) < _link_get_iface(pLink2)) {
     return 1;
-  } else if (link_get_iface(pLink1) > link_get_iface(pLink2)) {
+  } else if (_link_get_iface(pLink1) > _link_get_iface(pLink2)) {
     return -1;
   }
 

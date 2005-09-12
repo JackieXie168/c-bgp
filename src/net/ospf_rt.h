@@ -46,7 +46,8 @@ extern int ospf_rt_test();
 //////  OSPF NEXT HOP FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 // ----- ospf_next_hop_create -------------------------------------------------------
-extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr);
+extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr,
+		                           SNetNode * pNode);
 // ----- ospf_next_hop_destroy -------------------------------------------------------
 extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 
@@ -95,8 +96,8 @@ int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH)
 // ----- OSPF_route_info_dump ------------------------------------------------
 extern void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo);
 // ----- OSPF_rt_find_exact --------------------------------------------------
-extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
-			      net_route_type_t tType);
+//extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
+//			      net_route_type_t tType, ospf_area_t tArea);
 // ----- OSPF_rt_dump -------------------------------------------------------------
 extern int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tPathType, 
                  ospf_area_t tArea, int * piPrintedRoutes);
@@ -114,7 +115,7 @@ extern SOSPFRouteInfo * OSPF_rt_find_best(SOSPFRT * pRT, net_addr_t tAddr,
 				    net_route_type_t tType);
 // ----- rt_find_exact ----------------------------------------------
 extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
-				     net_route_type_t tType);
+				     net_route_type_t tType, ospf_area_t tArea);
 // ----- rt_add_route -----------------------------------------------
 extern int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
 			SOSPFRouteInfo * pRouteInfo);
@@ -124,7 +125,7 @@ extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pN
 
 
 // ----- rt_for_each -------------------------------------------------------
-//extern int OSPF_rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
+extern int OSPF_rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext);
 
 #endif
 #endif

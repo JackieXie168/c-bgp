@@ -37,7 +37,8 @@
 typedef struct {
   SNetLink * pLink;  //link towards next-hop
   net_addr_t tAddr;  //ip address of next hop
-  //TODO add advertising router
+  SNetNode * pAdvRouter; //Router that advertise 
+                         //destination with LSA (for INTER-AREA only) 
 } SOSPFNextHop;
 
 // ----- ospf test function --------------------------------------------
@@ -63,6 +64,8 @@ extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
 // ----- link_set_ospf_area ------------------------------------------
 extern int link_set_ospf_area(SNetLink * pLink, ospf_area_t tArea);
 
+// ----- ospf_node_get_id ------------------------------------------
+extern net_addr_t ospf_node_get_id(SNetNode * pNode);
 
 ///////////////////////////////////////////////////////////////////////////
 //////  SUBNET OSPF FUNCTION
@@ -79,7 +82,9 @@ int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
 ///////////////////////////////////////////////////////////////////////////
 // ----- ospf_node_rt_dump ------------------------------------------------------------------
 extern void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption);
-///////////////////////////////////////////////////////////////////////////
+// ----- ospf_route_is_adver_in_area -------------------------------------------
+int ospf_route_is_adver_in_area(SOSPFRouteInfo * pRI, ospf_area_t tArea);
+//////////////////////////////////////////////////////////////////////////
 //////  OSPF DOMAIN TABLE FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 //----- ospf_domain_build_route ---------------------------------------------------------------
@@ -87,5 +92,9 @@ extern int ospf_domain_build_route(uint16_t uOSPFDomain);
 
 //----- ospf_print_error --------------------------------------------------------------------
 extern void ospf_print_error(FILE* pStream, int iError);
+//----- ospf_domain_get_border_routers -----------------------------------------------------------
+SPtrArray * ospf_domain_get_border_routers(uint16_t uOSPFDomain);
+//----- ospf_domain_get_br_on_bb_in_area ---------------------------------------------
+SPtrArray * ospf_domain_get_br_on_bb_in_area(uint16_t uOSPFDomain, ospf_area_t tArea);
 #endif
 #endif

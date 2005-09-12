@@ -252,7 +252,7 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
   
   if (pRoot == pParent){
     //fprintf(stdout, "spt_calculate_next_hop(): parent == root\n");
-    pNH = ospf_next_hop_create(pLink, OSPF_NO_IP_NEXT_HOP);
+    pNH = ospf_next_hop_create(pLink, OSPF_NO_IP_NEXT_HOP, NULL);
     ospf_nh_list_add(pDestination->pNextHops, pNH);
   }
   else if (pParent->uDestinationType == NET_LINK_TYPE_TRANSIT && 
@@ -262,7 +262,7 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
     //= parent>destination link's interface
     for(iLink = 0; iLink < ptr_array_length(pParent->pNextHops); iLink++){
       ptr_array_get_at(pParent->pNextHops, iLink, &pNHCopy);
-      pNH = ospf_next_hop_create(pNHCopy->pLink, pLink->tIfaceAddr);
+      pNH = ospf_next_hop_create(pNHCopy->pLink, pLink->tIfaceAddr, NULL);
       ospf_nh_list_add(pDestination->pNextHops, pNH);
     }
   }
@@ -323,30 +323,43 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
       /* Consider only the links that have the following properties:
 	 - NET_LINK_FLAG_UP (the link must be UP)
 	 - the end-point belongs to the given prefix */
+      /*if (!link_get_state(pCurrentLink, NET_LINK_FLAG_UP)){ 
+        fprintf(stdout, "Trovato link spento sul node ");
+        ip_address_dump(stdout, pCurrentLink->pSrcNode->tAddr);
+	fprintf(stdout, "\n");
+      } */
       if (!(link_get_state(pCurrentLink, NET_LINK_FLAG_UP)) || 
           !(link_belongs_to_area(pCurrentLink, tArea))){
         continue;
       }
+       
 
       //first time consider only Transit Link... but we store subnet in a list
       //so we have not to recheck all the links durign routing table computation
-      //TODO write macro link_to_subnet , link_is_towards_stub
-      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB /*&&
-          subnet_belongs_to_area(link_get_subnet(pCurrentLink), tArea)*/){
-        spt_vertex_add_subnet(pCurrentVertex, pCurrentLink);
+      if (pCurrentLink->uDestinationType == NET_LINK_TYPE_STUB ||
+	  (pCurrentLink->uDestinationType == NET_LINK_TYPE_ROUTER && 
+	   (link_to_router_has_ip_prefix(pCurrentLink) || 
+	     link_to_router_has_only_iface(pCurrentLink)))) {
+	      
+	
 	spt_vertex_linked_to_subnet(pCurrentVertex);
-	continue;
+        spt_vertex_add_subnet(pCurrentVertex, pCurrentLink);
+        if (pCurrentLink->uDestinationType != NET_LINK_TYPE_ROUTER) 
+	  continue;
       }
-      
+       
       link_get_prefix(pCurrentLink, &sDestPrefix);
       
       //ROUTER should belongs to ospf domain 
       if (sDestPrefix.uMaskLen == 32) {
-         if (!igp_domain_contains_router_by_addr(pIGPDomain, sDestPrefix.tNetwork)) {
+         if (!igp_domain_contains_router_by_addr(pIGPDomain, 
+				                sDestPrefix.tNetwork)) {
            continue;
          }
       }
-      else //if is a subnet I remember vertex is linked to it (see route building process)
+      else 
+	 //if is a subnet I remember vertex is linked to it 
+	 //(see route building process)
 	 spt_vertex_linked_to_subnet(pCurrentVertex); 
       
       //check if vertex is in spt	
