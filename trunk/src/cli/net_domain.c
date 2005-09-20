@@ -15,6 +15,7 @@
 #include <libgds/cli_ctx.h>
 #include <net/igp_domain.h>
 #include <assert.h>
+#include <net/ospf_deflection.h>
 
 // ----- cli_net_add_domain -----------------------------------------
 /**
@@ -231,6 +232,22 @@ int cli_net_domain_compute(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_domain_check-deflection -------------------------------------
+/**
+ * context: {domain}
+ * tokens: {}
+ */
+int cli_net_domain_check_deflection(SCliContext * pContext, STokens * pTokens)
+{
+  SIGPDomain * pDomain;
+
+  // Get domain from context
+  pDomain= cli_context_get_item_at_top(pContext);
+
+  ospf_domain_deflection(pDomain);
+  return CLI_SUCCESS;
+}
+
 // ----- cli_register_net_domain_set --------------------------------
 int cli_register_net_domain_set(SCliCmds * pCmds)
 {
@@ -270,6 +287,8 @@ int cli_register_net_domain(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   cli_cmds_add(pSubCmds, cli_cmd_create("compute", cli_net_domain_compute,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("check-deflection", cli_net_domain_check_deflection,
 					NULL, NULL));
   cli_register_net_domain_set(pSubCmds);
   cli_register_net_domain_show(pSubCmds);
