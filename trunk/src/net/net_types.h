@@ -85,7 +85,7 @@ typedef struct {
 #ifdef OSPF_SUPPORT
   SUInt32Array  * pOSPFAreas; 
   SOSPFRT       * pOspfRT;     //OSPF routing table
-  net_addr_t      ospf_id;
+//  net_addr_t      ospf_id;
 #endif
   SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
   SNetProtocols * pProtocols;
@@ -141,7 +141,8 @@ typedef union {
   SNetSubnet * pSubnet;
 } UDestinationId;
 
-// ----- SNetLink ---------------------------------------------------
+#define link_is_to_router(L) (L->uDestinationType == NET_LINK_TYPE_ROUTER)
+// ----- SNetLink --------------------------------------------
 /**
  * This type defines a link object.
  */
@@ -150,7 +151,7 @@ typedef struct {
   UDestinationId   UDestId;      /* depends on uDestinationType*/
   SNetNode       * pSrcNode;
   net_addr_t       tIfaceAddr;
-  uint8_t          uMaskLen;//used with tIfaceAddr give IP subnet prefix on link
+  //uint8_t          uMaskLen;//used with tIfaceAddr give IP subnet prefix on link
   net_link_delay_t tDelay;
   uint8_t          uFlags;
   uint32_t         uIGPweight;      // Store IGP weight here
