@@ -20,6 +20,7 @@
 #include <net/node.h>
 #include <assert.h>
 #include <net/link-list.h>
+#include <net/net_types.h>
 /*only for test function*/
 #include <net/network.h>
 
@@ -32,12 +33,12 @@
    IpAddress is used to distinguish beetween more than one node reachable
    towards the same link (typically when link is toward transit network)
 */
-SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr, SNetNode * pNode)
+SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr)
 {
   SOSPFNextHop * pNH = (SOSPFNextHop *) MALLOC(sizeof(SOSPFNextHop));
   pNH->pLink      = pLink;
   pNH->tAddr      = tAddr;
-  pNH->pAdvRouter = pNode;
+  pNH->tAdvRouterAddr = 0;
   return pNH;
 }
 
@@ -78,8 +79,7 @@ void ospf_next_hop_dst(void * pItem)
 
 
 // ----- OSPF_next_hop_dump --------------------------------------------
-void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
-{ 
+void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH, int iPathType) { 
   char cAddr[20], * pcAddr = cAddr; 
    
   fprintf(pStream, "IF ");
@@ -89,8 +89,8 @@ void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH)
     ip_address_dump(pStream, pNH->tAddr);
   else
     fprintf(pStream, " --  ");
-  if (pNH->pAdvRouter != NULL)
-    ip_address_dump(pStream, pNH->pAdvRouter->tAddr);
+  if (iPathType == OSPF_PATH_TYPE_INTER)
+    ip_address_dump(pStream, pNH->tAdvRouterAddr);
 }
 
 // ----- OSPF_next_hop_string --------------------------------------------
@@ -153,8 +153,9 @@ next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
   
   for (iIndex = 0; iIndex < ptr_array_length(pNHList); iIndex++){
     ptr_array_get_at(pNHList, iIndex, &pCurrentNH);
-    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, 
-		     pCurrentNH->tAddr, pCurrentNH->pAdvRouter);
+    //TODO sostituire con memcopy
+    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr);
+    pNHCopy->tAdvRouterAddr = pCurrentNH->tAdvRouterAddr; 
     ospf_nh_list_add(pNHLCopy, pNHCopy);
   }
   return pNHLCopy;
@@ -176,7 +177,7 @@ next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
 }*/
 
 
-// ----- ospf_nh_list_add_list -------------------------------------------------------------
+// ----- ospf_nh_list_add_list -------------------------------------------------
 /** 
   *  Add next hops in pNHListSource to next hops list pNHListDest.
   * Make a copy of each added next hop.
@@ -189,8 +190,8 @@ void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list_t * pN
   
   for (iIndex = 0; iIndex < ptr_array_length(pNHListSource); iIndex++){
     ptr_array_get_at(pNHListSource, iIndex, &pCurrentNH);
-    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr, 
-		                   pCurrentNH->pAdvRouter);
+    pNHCopy = ospf_next_hop_create(pCurrentNH->pLink, pCurrentNH->tAddr);
+    pNHCopy->tAdvRouterAddr = pCurrentNH->tAdvRouterAddr;
     //if next hop is already present add function fails
     if (ospf_nh_list_add(pNHListDest, pNHCopy) < 0) 
       ospf_next_hop_destroy(&pNHCopy);
@@ -203,7 +204,8 @@ void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list_t * pN
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace)
+void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, 
+		       int iPathType, char * pcSpace)
 {
   int iIndex;
   SOSPFNextHop  sNH, * pNH;
@@ -213,7 +215,7 @@ void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpac
   int iStop =  ospf_nh_list_length(pNHList);
   for (iIndex = 0; iIndex < iStop; iIndex++) {
     ptr_array_get_at(pNHList, iIndex, &pNH);
-    ospf_next_hop_dump(pStream, pNH);
+    ospf_next_hop_dump(pStream, pNH, iPathType);
     if (iIndex != iStop - 1)
       fprintf(pStream, "%s", pcSpace);
   }
@@ -704,32 +706,20 @@ int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pNextHop,
  */
 void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo)
 {
-  assert(pRouteInfo != NULL);
-//   LOG_DEBUG("OSPF_route_info_dump\n");
-  
+  fprintf(pStream, " ");
   OSPF_dest_type_dump(pStream, pRouteInfo->tOSPFDestinationType);
   fprintf(pStream, "   ");
-//   LOG_DEBUG("...dest_type\n");
-  
   ip_prefix_dump(pStream, pRouteInfo->sPrefix);
-  fprintf(pStream, "\t");
-//   LOG_DEBUG("...prefix\n");
-  
-  OSPF_area_dump(pStream, pRouteInfo->tOSPFArea);
-  fprintf(pStream, "   ");
-//   LOG_DEBUG("...area dump\n");
-  
+  fprintf(pStream, "\t"); 
   OSPF_path_type_dump(pStream, pRouteInfo->tOSPFPathType);
   fprintf(pStream, "   ");
-//   LOG_DEBUG("...path_type\n");
+  OSPF_area_dump(pStream, pRouteInfo->tOSPFArea);
+  fprintf(pStream, "   ");
   
-  OSPF_route_type_dump(pStream, pRouteInfo->tType);
-//   LOG_DEBUG("...route_type\n");
-  
-  fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
-//   LOG_DEBUG("...cost\n");
-  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, "\n\t\t\t\t\t\t\t\t");
-//   LOG_DEBUG("...next hops list\n");
+  //OSPF_route_type_dump(pStream, pRouteInfo->tType);
+  //fprintf(pStream, "\t%u\t", pRouteInfo->uWeight);
+  ospf_nh_list_dump(stdout, pRouteInfo->aNextHops, 
+		    pRouteInfo->tType, "\n\t\t\t\t\t\t\t\t");
 }
 
 
@@ -893,6 +883,7 @@ int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tP
   sDumpContext.tArea           = tArea;
   sDumpContext.iOption         = iOption;
   sDumpContext.piPreintedRoutes = piPrintedRoutes;
+  
   return trie_for_each((STrie *) pRT, OSPF_rt_dump_for_each, &sDumpContext);
 }
 
@@ -936,14 +927,14 @@ int ospf_rt_test(){
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_rt_test(): CHECK next hop features...");
-  SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB, NULL);
+  SOSPFNextHop * pNHB = ospf_next_hop_create(pLinkAS, tAddrB);
   assert(pNHB != NULL);
   assert(pNHB->pLink == pLinkAS && pNHB->tAddr == tAddrB);
-  SOSPFNextHop * pNHC1 = ospf_next_hop_create(pLinkAS, tAddrC, NULL);
+  SOSPFNextHop * pNHC1 = ospf_next_hop_create(pLinkAS, tAddrC);
   assert(pNHC1 != NULL);
-  SOSPFNextHop * pNHC2 = ospf_next_hop_create(pLinkAC, 0, NULL);
+  SOSPFNextHop * pNHC2 = ospf_next_hop_create(pLinkAC, 0);
   assert(pNHC2 != NULL);
-  SOSPFNextHop * pNHTx = ospf_next_hop_create(pLinkAS, 0, NULL);
+  SOSPFNextHop * pNHTx = ospf_next_hop_create(pLinkAS, 0);
   assert(pNHTx != NULL);
   LOG_DEBUG(" ok!\n");
   
@@ -1013,7 +1004,7 @@ BACKBONE_AREA,
   
   //TEST 2 - delete all IGP route that has next hop same as pNH;
   LOG_DEBUG("ospf_rt_test(): Deleting all IGP route that has next hop same as pNH... ");
-  SOSPFNextHop * pNH1 = ospf_next_hop_create(pNHTx->pLink, pNHTx->tAddr, NULL);
+  SOSPFNextHop * pNH1 = ospf_next_hop_create(pNHTx->pLink, pNHTx->tAddr);
   assert(OSPF_rt_del_route(pRT, NULL, pNH1, NET_ROUTE_IGP) == 0);
   ospf_next_hop_destroy(&pNH1);
   //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
@@ -1021,7 +1012,7 @@ BACKBONE_AREA,
   
   //TEST 3 - delete only the next hop when the route has more than one
   LOG_DEBUG("ospf_rt_test(): Deleting only the next hop when the route has more than one... ");
-  SOSPFNextHop * pNH2 = ospf_next_hop_create(pNHC2->pLink, pNHC2->tAddr, NULL);
+  SOSPFNextHop * pNH2 = ospf_next_hop_create(pNHC2->pLink, pNHC2->tAddr);
   assert(OSPF_rt_del_route(pRT, NULL, pNH2, NET_ROUTE_IGP) == 0);
   ospf_next_hop_destroy(&pNH2);
   //OSPF_rt_dump(stdout, pRT, 0, 0, 0, &totRoutes);
