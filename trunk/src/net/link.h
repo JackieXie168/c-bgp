@@ -1,11 +1,11 @@
-// ==================================================================
+// ===========================================================
 // @(#)link.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
 // @lastdate 01/09/2005
-// ==================================================================
+// ===========================================================
 
 #ifndef __NET_LINK_H__
 #define __NET_LINK_H__
@@ -23,7 +23,8 @@
 #define NET_LINK_FLAG_NOTIFY  0x02
 #define NET_LINK_FLAG_IGP_ADV 0x04
 #define NET_LINK_FLAG_TUNNEL  0x08
-
+#define NET_LINK_FLAG_PREFIX  0x10
+#define NET_LINK_FLAG_IFACE   0x20
 // Link type distinguishes between Router, Transit Network and
 // Stub Network to compute IGP route in OSPF
 #define NET_LINK_TYPE_ROUTER   0
@@ -33,18 +34,6 @@
 
 #define link_is_to_node(L)           (L->uDestinationType == NET_LINK_TYPE_ROUTER)
 #define link_belongs_to_area(L, A)   ((L)->tArea == A)
-
-/*typedef struct {
-	SDest      tDest;
-	net_addr_t tIfaceAddr;
-} SLinkInfo;
-
-SLinkInfo * link_info_create(SPrefix sPrefix, net_addr_t tIfaceAddr){
-  SLinkInfo * pLinkInfo = (SLinkInfo *) MALLOC(sizeof(SLinkInfo));
-  pLinkInfo->sPrefix = sPrefix;
-  pLinkInfo->tIfaceAddr = tIfaceAddr;
-  return pLinkInfo;
-}*/
 
 
 // ----- create_link_Router -----------------------------------------
@@ -61,11 +50,13 @@ extern SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 //extern SNetLink * create_link_toAny(SPrefix * pPrefix);
 // ----- link_destroy -----------------------------------------------
 extern void link_destroy(SNetLink ** ppLink);
-// ----- _link_get_iface --------------------------------------------
-extern net_addr_t _link_get_iface(SNetLink * pLink);
+// ----- link_get_id --------------------------------------------
+extern net_addr_t link_get_id(SNetLink * pLink);
 // ----- link_get_iface --------------------------------------------
 extern net_addr_t link_get_iface(SNetLink * pLink);
 
+// ----- link_set_ip_iface -----------------------------------
+extern void link_set_ip_iface(SNetLink * pLink, net_addr_t tIfaceAddr);
 // ----- link_get_address ----------------------------------------
 extern net_addr_t link_get_address(SNetLink * pLink);
 // ----- link_get_prefix ----------------------------------------
@@ -99,6 +90,10 @@ extern void link_ospf_set_area(SNetLink * pLink, ospf_area_t tArea);
 // ----- link_to_router_has_ip_prefix(pCurrentLink) ---------------------------
 int link_to_router_has_ip_prefix(SNetLink * pLink);
 
+// ----- link_find_backword --------------------------------------------
+SNetLink * link_find_backword(SNetLink * pLink);
+// ----- link_find_backword --------------------------------------------
+extern SNetLink * link_find_backword(SNetLink * pLink);
 // ----- link_to_router_has_ip_prefix(pCurrentLink) ---------------------------
 int link_to_router_has_only_iface(SNetLink * pLink);
 // ----- link_get_ip_prefix --------------------------------------------
