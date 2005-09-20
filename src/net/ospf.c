@@ -98,7 +98,7 @@ net_addr_t ospf_node_compute_id(SNetNode * pNode) {
 
 // ----- ospf_node_get_id ------------------------------------------
 net_addr_t ospf_node_get_id(SNetNode * pNode) {
-  return pNode->ospf_id;
+  return pNode->tAddr;//ospf_id;
 }
 
 // ----- node_ospf_rt_add_route ------------------------------------------
@@ -276,17 +276,17 @@ void adding_route_towards_subnet(SSptVertex * pVertex,
    SNetLink * pLinkToSub;
    next_hops_list_t * pNHListToSubnet = NULL;
    SPrefix sPrefix;
+   SOSPFRouteInfo * pOldRoute = NULL;
 
    for (iIndex = 0; iIndex < iTotSubnet; iIndex++){
      ptr_array_get_at(pVertex->aSubnets, iIndex, &pLinkToSub); 
-      
        
      if (spt_vertex_is_router(pVertex) && 
          (pMyContext->pNode->tAddr == spt_vertex_to_router(pVertex)->tAddr)) {
 	   //In this case subnet is directly connected to root router so
 	   //next hops could not be inherited from vertex but must be builded
 	   SOSPFNextHop * pNH = ospf_next_hop_create(pLinkToSub, 
-			                            OSPF_NO_IP_NEXT_HOP, NULL);
+			                             OSPF_NO_IP_NEXT_HOP);
            pNHListToSubnet = ospf_nh_list_create();
 	   ospf_nh_list_add(pNHListToSubnet, pNH);
        }
@@ -302,21 +302,55 @@ void adding_route_towards_subnet(SSptVertex * pVertex,
        uint32_t tLinkToSubCost = pLinkToSub->uIGPweight;
        if (pLinkToSub->uDestinationType == NET_LINK_TYPE_ROUTER){
 	  if (link_to_router_has_only_iface(pLinkToSub)) {
-	    SNetNode * pPeer = network_find_node((pLinkToSub->UDestId).tAddr);
+	    pLinkToSub = link_find_backword(pLinkToSub);
+/*		  SNetNode * pPeer = network_find_node((pLinkToSub->UDestId).tAddr);
 	    pLinkToSub = node_find_link_to_router(pPeer,
-			                         pLinkToSub->pSrcNode->tAddr);
+			                         pLinkToSub->pSrcNode->tAddr);*/
 	    assert(pLinkToSub != NULL);
-	  } 
+	  }
        }
        sPrefix = link_get_ip_prefix(pLinkToSub); 
-       node_ospf_rt_add_route(pMyContext->pNode,  OSPF_DESTINATION_TYPE_NETWORK,
+       pOldRoute = OSPF_rt_find_exact(pMyContext->pNode->pOspfRT, 
+		                          sPrefix, NET_ROUTE_IGP, OSPF_NO_AREA);
+       
+       /* Router can have already a route in the same area 
+	* only if subnet is a subnet on a point-to-point link.
+	*/
+       if (pOldRoute == NULL)
+         node_ospf_rt_add_route(pMyContext->pNode,  
+			      OSPF_DESTINATION_TYPE_NETWORK,
                               link_get_ip_prefix(pLinkToSub),
 			      pVertex->uIGPweight + tLinkToSubCost,
 			      pMyContext->tArea, 
 			      OSPF_PATH_TYPE_INTRA,
 			      pNHListToSubnet);
+       else {
+         if (ospf_ri_get_cost(pOldRoute) >= pVertex->uIGPweight + tLinkToSubCost) {
+/*	   node_ospf_rt_del_route(pMyContext->pNode, &sPrefix, NULL, NET_ROUTE_IGP);
+	   node_ospf_rt_add_route(pMyContext->pNode,  OSPF_DESTINATION_TYPE_NETWORK,
+                              link_get_ip_prefix(pLinkToSub),
+			      pVertex->uIGPweight + tLinkToSubCost,
+			      pMyContext->tArea, 
+			      OSPF_PATH_TYPE_INTRA,
+			      pNHListToSubnet); */
+	   pOldRoute->uWeight = pVertex->uIGPweight + tLinkToSubCost;
+	   ospf_nh_list_destroy(&(pOldRoute->aNextHops));
+	   pOldRoute->aNextHops = pNHListToSubnet;
+         }
+       }
      }
    
+} 
+
+// ----- nh_list_set_adc_router ------------------------------------------------
+void nh_list_set_adv_router(next_hops_list_t * pNHList, 
+		            net_addr_t tAdvRouterAddr) {
+  int iIndex;
+  SOSPFNextHop * pNH;
+  for (iIndex = 0; iIndex < ptr_array_length(pNHList); iIndex++) {
+    ptr_array_get_at(pNHList, iIndex, &pNH);
+    pNH->tAdvRouterAddr = tAdvRouterAddr;
+  } 
 } 
 
 // ----- ospf_build_route_for_each --------------------------------
@@ -329,12 +363,9 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
   next_hops_list_t * pNHList;
   ospf_dest_type_t   tDestType;
 // LOG_DEBUG("ospf_build_route_for_each\n"); 
-  
- 
    /* removes the previous route for this node/prefix if it already
      exists */     
    node_ospf_rt_del_route(pMyContext->pNode, &sPrefix, NULL, NET_ROUTE_IGP);
-   
    adding_route_towards_subnet(pVertex, pMyContext);
      
    // Skip route to itself
@@ -350,15 +381,22 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
      if (node_is_BorderRouter(spt_vertex_to_router(pVertex))) {
        tDestType = OSPF_DESTINATION_TYPE_ROUTER;
        //This is the only case in which OSPF ID is used in routing table
-       sPrefix.tNetwork = spt_vertex_to_router(pVertex)->ospf_id;
+       sPrefix.tNetwork = ospf_node_get_id(spt_vertex_to_router(pVertex));
 /*       fprintf(stdout, "Installo route verso border routeter con id ");
-       ip_address_dump(stdout, spt_vertex_to_router(pVertex)->ospf_id);
+       ip_address_dump(stdout, ospf_node_get_is(spt_vertex_to_router(pVertex)));
        fprintf(stdout, "\n");*/
+       
+       /* Set the advertising router field in order to 
+	* managed in an omogeneus way INTER AREA Routes. 
+	* ADdv. Router will be inherited from this route. 
+	* */
+       nh_list_set_adv_router(pVertex->pNextHops, sPrefix.tNetwork);
      }
      else// Skip vertex if this is a router on almost a subnet: in this case
        // we reach them with a best-prefix-match on subnet prefix
-       if (spt_vertex_is_linked_to_subnet(pVertex))
+       if (spt_vertex_is_linked_to_subnet(pVertex)) {
 	 return 0;
+       }
    }
   //to prevent NextHopList destroy when spt is destroyed
   //note: next hops list are dynamically allocated during spt computation
@@ -372,8 +410,6 @@ int ospf_intra_route_for_each(uint32_t uKey, uint8_t uKeyLen,
 				pMyContext->tArea, 
 				OSPF_PATH_TYPE_INTRA,
 				pNHList);
-				
-  
 }
 
 // ----- node_ospf_intra_route_single_area -----------------------------------------
@@ -429,7 +465,20 @@ void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption)
   int iIndexArea, iIndexPath;
   ospf_area_t tCurrentArea;
   int printedRoute = 0;
-  
+ 
+  fprintf(stdout, "****************************************************************************\n");
+  if (pNode->pcName != NULL){ 
+    fprintf(stdout, "** %s (", pNode->pcName);
+    ip_address_dump(stdout, pNode->tAddr);
+    fprintf(stdout, ") OSPF routing table");
+  }
+  else {
+    fprintf(stdout, "** ");
+    ip_address_dump(stdout, pNode->tAddr);
+    fprintf(stdout, " OSPF routing table\n");
+  fprintf(stdout, "****************************************************************************\n");
+  }
+	
   switch (iOption) {
     case 0 : 
            OSPF_rt_dump(stdout, pNode->pOspfRT, iOption, 0, 0, &printedRoute);  
@@ -441,7 +490,7 @@ void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption)
 	     printedRoute = 0;
              OSPF_rt_dump(stdout, pNode->pOspfRT, iOption, 0, tCurrentArea, &printedRoute);
 	     if (printedRoute > 0)
-               fprintf(stdout,"-------------------------------------------------------------------------------------\n");   
+               fprintf(stdout,"--------------------------------------------------------------------\n");   
 	   }
          break;
 	 
@@ -450,7 +499,7 @@ void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption)
 	     printedRoute = 0;
              OSPF_rt_dump(stdout, pNode->pOspfRT, iOption, iIndexPath, 0, &printedRoute);
              if (printedRoute > 0)
-               fprintf(stdout,"-------------------------------------------------------------------------------------\n");   
+                  fprintf(stdout,"----------------------------------------------------------------------------\n");   
            }
          break;
 	 
@@ -461,7 +510,7 @@ void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption)
 		 printedRoute = 0;
 		 OSPF_rt_dump(stdout, pNode->pOspfRT, iOption, iIndexPath, tCurrentArea, &printedRoute);
 		 if (printedRoute > 0)
-                   fprintf(stdout,"------------------------------------------------------------------------------------------\n");   
+                  fprintf(stdout,"----------------------------------------------------------------------------\n");   
              }
 	 break;
   }
@@ -505,11 +554,9 @@ int ospf_route_is_adver_in_area(SOSPFRouteInfo * pRI, ospf_area_t tArea) {
        - INTER-AREA ROUTES of its touting table only in area != backbone
        */
     /*if (node_is_BorderRouter(pMyContext->pSourceNode)) {
-      if (!ospf_ri_pathType_is(pRI, OSPF_PATH_TYPE_INTRA)) //TODO change when will be implemented EXT1 EXT2
+      if (!ospf_ri_pathType_is(pRI, OSPF_PATH_TYPE_INTRA)) 
+      //TODO change when will be implemented EXT1 EXT2
         return OSPF_SUCCESS; 
-     
-      
-	
     } */
     switch (ospf_ri_get_pathType(pRI)){
       case OSPF_PATH_TYPE_INTRA : 
@@ -560,16 +607,18 @@ int ospf_br_rt_for_each_search_intra_route(uint32_t uKey, uint8_t uKeyLen, void 
     
     if (!ospf_route_is_adver_in_area(pRI, pMyContext->tOspfArea)) 
       continue; 
-    /* Now I have a valid route to consider. I must check if I have a best route yet.   */
+    /* Now I have a valid route to consider. I must check if I 
+     * have a best route yet.   */
     //TODO check that this should be return always INTRA-ROUTE first
     SOSPFRouteInfo * pOldRoute = 
 	    OSPF_rt_find_exact(pMyContext->pSourceNode->pOspfRT, sPrefix,
 			       NET_ROUTE_IGP, OSPF_NO_AREA);
     /* I have not an older route and I add  the new one to RT 
-       next hops are the same for Border Router but I MUST make a copy. */
+       next hops are the same for Border Router but I MUST make a copy. 
+       I also set the advertisign router field in the NH. */
     if (pOldRoute == NULL) 
     {
-       node_ospf_rt_add_route(pMyContext->pSourceNode,   
+      node_ospf_rt_add_route(pMyContext->pSourceNode,   
                              OSPF_DESTINATION_TYPE_NETWORK,
                              sPrefix,   
  		             pMyContext->tWeightToBR + ospf_ri_get_cost(pRI),
@@ -639,7 +688,7 @@ int igp_domain_router_for_each_br_scan_rt(uint32_t uKey, uint8_t uKeyLen, void *
     return OSPF_SUCCESS;
     
   //TODO route type (last parameter) should be OSPF-IGP
-  sPrefix.tNetwork = pCurrentRouter->ospf_id;//(net_addr_t) uKey;
+  sPrefix.tNetwork = ospf_node_get_id(pCurrentRouter);//(net_addr_t) uKey;
   sPrefix.uMaskLen = uKeyLen;
   
   SOSPFRouteInfo * pRouteToBR = OSPF_rt_find_exact(pSrcNode->pOspfRT, 
@@ -651,7 +700,8 @@ int igp_domain_router_for_each_br_scan_rt(uint32_t uKey, uint8_t uKeyLen, void *
   //route towards BR MUST be an INTRA-AREA route...
   if (pRouteToBR->tOSPFPathType !=  OSPF_PATH_TYPE_INTRA)
     return OSPF_SUCCESS;
-  //...and tagged to area router belongs to (BACKBONE is router is a border router)
+  //...and tagged to area router belongs to 
+  //(BACKBONE is router is a border router)
   if (node_is_BorderRouter(pCtx->pSourceNode)) {
     if (pRouteToBR->tOSPFArea != 0) //or pCurrentNode Must have a valid virtual link on backbone
       return OSPF_SUCCESS;
@@ -768,7 +818,7 @@ int ospf_domain_build_inter_route_ir_only(uint16_t uOSPFDomain){
 }
 
 //----- ospf_domain_compute_nodes_id_for_each -----------------------------------------------------------
-int ospf_domain_compute_nodes_id_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem, void * pContext)
+/*int ospf_domain_compute_nodes_id_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem, void * pContext)
 {
   SNetNode * pNode   = (SNetNode *) pItem;
   pNode->ospf_id = ospf_node_compute_id(pNode);
@@ -782,7 +832,7 @@ int ospf_domain_compute_nodes_id(uint16_t uOSPFDomain){
   assert(pDomain != NULL);
   return igp_domain_routers_for_each(pDomain, ospf_domain_compute_nodes_id_for_each, &uOSPFDomain);
 }
-
+*/
 //----- ospf_domain_get_br_for_each ---------------------------------------
 int ospf_domain_get_br_for_each(uint32_t uKey, uint8_t uKeyLen, 
 		                void * pItem, void * pContext)
@@ -852,7 +902,7 @@ SPtrArray * ospf_domain_get_br_on_bb_in_area(uint16_t uOSPFDomain,
  *
 */
 int ospf_domain_build_route(uint16_t uOSPFDomain) {
-  assert(ospf_domain_compute_nodes_id(uOSPFDomain) == OSPF_SUCCESS);
+  //assert(ospf_domain_compute_nodes_id(uOSPFDomain) == OSPF_SUCCESS);
   assert(ospf_domain_build_intra_route(uOSPFDomain) >= 0);
   assert(!ospf_domain_build_inter_route_br_only(uOSPFDomain));
   assert(!ospf_domain_build_inter_route_ir_only(uOSPFDomain));
@@ -1072,16 +1122,18 @@ int ospf_test_rfc2328()
   pLink = node_find_link(pNodeRT10, ip_address_to_dest(pNodeRT6->tAddr));
   assert(link_set_ospf_area(pLink, 0) == 0);
   SPrefix sPrefix;
-  sPrefix.tNetwork = IPV4_TO_INT(192,168,15,10);
+  sPrefix.tNetwork = IPV4_TO_INT(192,168,15,9);
   sPrefix.uMaskLen = 32;
   link_set_ip_prefix(pLink, sPrefix); 
-  assert(link_to_router_has_only_iface(pLink) != 0);
+ // assert(link_to_router_has_only_iface(pLink) == 0);
+ // assert(link_to_router_has_ip_prefix(pLink) != 0);
   
   pLink = node_find_link(pNodeRT6, ip_address_to_dest(pNodeRT10->tAddr));
-  sPrefix.tNetwork = IPV4_TO_INT(192,168,15,6);
+  sPrefix.tNetwork = IPV4_TO_INT(192,168,15,11);
   sPrefix.uMaskLen = 32;
   link_set_ip_prefix(pLink, sPrefix); 
-  assert(link_to_router_has_only_iface(pLink) != 0);
+//  assert(link_to_router_has_only_iface(pLink) == 0);
+//  assert(link_to_router_has_ip_prefix(pLink) != 0);
   
   pLink = node_find_link(pNodeRT4, ip_address_to_dest(pNodeRT5->tAddr));
   assert(link_set_ospf_area(pLink, 0) == 0);
@@ -1180,7 +1232,7 @@ int ospf_test_rfc2328()
    pLink = node_find_link(pNodeRT6, ip_address_to_dest(pNodeRT10->tAddr));
    pLink->uFlags = 0;
    */
-  ospf_domain_compute_nodes_id(uIGPDomain); 
+  //ospf_domain_compute_nodes_id(uIGPDomain); 
 /*    
     LOG_DEBUG("ospf_test_rfc2328(): Try computing intra route for each area on RT1...\n");
     fprintf(stdout, "\n");
@@ -1215,7 +1267,8 @@ int ospf_test_rfc2328()
     assert(ospf_domain_build_inter_route_ir_only(uIGPDomain) >= 0);
     LOG_DEBUG(" ok!\n");
    
-    ospf_node_rt_dump(stdout, pNodeRT4, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
+    ospf_node_rt_dump(stdout, pNodeRT4, OSPF_RT_OPTION_SORT_AREA | 
+		                        OSPF_RT_OPTION_SORT_PATH_TYPE);
  
 //   LOG_DEBUG(" ok!\n");
   

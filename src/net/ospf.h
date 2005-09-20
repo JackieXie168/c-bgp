@@ -37,7 +37,7 @@
 typedef struct {
   SNetLink * pLink;  //link towards next-hop
   net_addr_t tAddr;  //ip address of next hop
-  SNetNode * pAdvRouter; //Router that advertise 
+  net_addr_t tAdvRouterAddr; //Router that advertise 
                          //destination with LSA (for INTER-AREA only) 
 } SOSPFNextHop;
 
