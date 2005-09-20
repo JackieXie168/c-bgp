@@ -45,14 +45,13 @@ extern int ospf_rt_test();
 ///////////////////////////////////////////////////////////////////////////
 //////  OSPF NEXT HOP FUNCTION
 ///////////////////////////////////////////////////////////////////////////
-// ----- ospf_next_hop_create -------------------------------------------------------
-extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr,
-		                           SNetNode * pNode);
-// ----- ospf_next_hop_destroy -------------------------------------------------------
+// ----- ospf_next_hop_create --------------------------------------------------
+extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr);
+// ----- ospf_next_hop_destroy -------------------------------------------------
 extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 
 // ----- OSPF_next_hop_dump --------------------------------------------
-extern void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH);
+extern void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH, int iPathType); 
 // ----- ospf_next_hops_compare -----------------------------------------------
 extern int ospf_next_hops_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- ospf_next_hops_compare -----------------------------------------------
@@ -67,7 +66,7 @@ extern int ospf_nh_list_add(next_hops_list_t * pNHList, SOSPFNextHop * pNH);
 
 // ----- ospf_nh_list_copy --------------------------------------------------
 extern next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList);
-// ----- ospf_nh_list_add_list --------------------------------------------------------------------
+// ----- ospf_nh_list_add_list ------------------------------------------------
 extern void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list_t * pNHListSource);
 
 // ----- ospf_nh_list_dump --------------------------------------------------
@@ -76,7 +75,9 @@ extern void ospf_nh_list_add_list(next_hops_list_t * pNHListDest, next_hops_list
    USAGE pcSapace = "" or 
          pcSpace = "\t"
 */
-extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, char * pcSpace);
+extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList, 
+		       int iPathType, char * pcSpace);
+
 ///////////////////////////////////////////////////////////////////////////
 //////  ROUTING TABLE OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
