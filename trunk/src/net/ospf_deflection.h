@@ -12,8 +12,11 @@
 #ifdef OSPF_SUPPORT
 
 
-//----- ospf_deflection_test() ----------------------------------------------------
+//----- ospf_deflection_test() -------------------------------------------------
 int ospf_deflection_test(uint16_t uOspfDomain);
+// ----- ospf_domain_deflection ------------------------------------------------
+void ospf_domain_deflection(SIGPDomain * pDomain); 
+
 
 
 

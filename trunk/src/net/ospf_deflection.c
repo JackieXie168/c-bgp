@@ -22,6 +22,7 @@
 #include <net/link.h>
 #include <net/prefix.h>
 #include <net/igp_domain.h>
+#include <net/spt_vertex.h>
 #include <string.h>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -173,18 +174,12 @@ int build_cd_for_each(uint32_t uKey, uint8_t uKeyLen, void * pItem,
     pRIBorderRouter = OSPF_rt_find_exact(pCtx->pBR->pOspfRT, 
 		                  sRoutePrefix, NET_ROUTE_ANY, pCtx->tArea);
     if (pRIBorderRouter == NULL){
-	fprintf(stdout, "Aggiungo dest a cdl (manca route) ");
-        ip_prefix_dump(stdout, sRoutePrefix);
-	fprintf(stdout, "\n");
 
         _cd_list_add(pCtx->tCDList, sRoutePrefix);
     }
     else if (ospf_ri_get_cost(pRIExitRouter) + pCtx->tRCost_BR_ER < 
 		                         ospf_ri_get_cost(pRIBorderRouter)){
         _cd_list_add(pCtx->tCDList, sRoutePrefix);
-	fprintf(stdout, "Aggiungo dest a cdl ");
-        ip_prefix_dump(stdout, sRoutePrefix);
-	fprintf(stdout, "\n");
     } 
   }
 
@@ -210,7 +205,7 @@ int build_critical_destination_list(SCRouterInfo * pCRInfo)
 
 // ----- build_critical_routers_list -------------------------------------------
 int build_critical_routers_list(uint16_t uOspfDomain,
-                                          ospf_area_t tArea, cr_info_list_t * tCRList) {
+                                    ospf_area_t tArea, cr_info_list_t * tCRList) {
   int iIndexI, iIndexJ;
   SOSPFRouteInfo * pRouteIJArea, * pRouteIJBackbone;
   *tCRList = _cr_info_list_create();
@@ -290,35 +285,56 @@ int build_critical_routers_list(uint16_t uOspfDomain,
   }
   return ptr_array_length(*tCRList);
 }
+//------ csource_check_deflection ----------------------------------------------
+/**
+ *  Visit the revers shorthes path tree starting from pVertex to its soon.
+ *  
+ */
+void csource_check_deflection(SSptVertex * pVertex, SCRouterInfo * pCRInfo){
+  SSptVertex * pSon;
+  int iLeafIdx;
+  if (spt_vertex_is_router(pVertex) && 
+       (spt_vertex_to_router(pVertex)->tAddr != pCRInfo->pBR->tAddr)) {
+    SCDestInfo * pCDInfo;
+    int iDestIdx;
+    SPrefix vertex_id = spt_vertex_get_id(pVertex);
+    fprintf(stdout, "Visit ");
+    ip_prefix_dump(stdout, vertex_id);
+    fprintf(stdout, "\nCritical dest list: \n");
+    for (iDestIdx = 0; iDestIdx < ptr_array_length(pCRInfo->tCDList); 
+		                                                   iDestIdx++){
+      SOSPFRouteInfo * pCDRoute;
+      ptr_array_get_at(pCRInfo->tCDList, iDestIdx, &pCDInfo);
+      ip_prefix_dump(stdout, *pCDInfo);
+      fprintf(stdout, "\n");
 
-// ----- cr_list_check_deflection_for_each -------------------------------------
-/*int cr_list_check_deflection_for_each(void * pItem, void * pContext) {
-  LOG_DEBUG("arrivato!\n");
-  SCRouterInfo * pCRInfo = (SCRouterInfo *) (pItem);
-  fprintf(stdout, "CRInfo BR: \n");
-assert(pCRInfo != NULL);
-assert(pCRInfo->pBR != NULL);
-assert(pCRInfo->pER != NULL);
-  ip_address_dump(stdout, pCRInfo->pBR->tAddr);
-  fprintf(stdout, "ERInfo ER: ");
-  ip_address_dump(stdout, pCRInfo->pER->tAddr);
-  fprintf(stdout, "\n");
-  
-  fprintf(stdout, "Compute RSPT on ER\n");
-  fprintf(stdout, "Trova BR in RSPT\n");
-  fprintf(stdout, "Per ogni foglia di BR in RSPT\n");
-  fprintf(stdout, "--- Per ogni dest in CRInfo\n");
-  fprintf(stdout, "------- Trova route in routing table in foglia\n");
-  fprintf(stdout, "------- if (advRouter(route) == ER(CRInfo) deflection!\n");
-  return OSPF_SUCCESS;
-}*/
+      pCDRoute = OSPF_rt_find_exact(spt_vertex_to_router(pVertex)->pOspfRT, 
+	  	                    *pCDInfo, NET_ROUTE_IGP, OSPF_NO_AREA);
+      assert(pCDRoute != NULL);
+      
+      int iNHIdx;
+      SOSPFNextHop * pNH;
+      for (iNHIdx = 0; iNHIdx < ptr_array_length(pCDRoute->aNextHops); iNHIdx++)      {
+        ptr_array_get_at(pCDRoute->aNextHops, iNHIdx, &pNH);
+	if (pNH->tAdvRouterAddr != 0)
+	  ip_prefix_dump(stdout, pCDRoute->sPrefix);
+	if (pNH->tAdvRouterAddr == pCRInfo->pER->tAddr)
+          fprintf(stdout, "Trovata route con deflection!");
+      }   
+    } 
+  }
+  //visit children
+  for (iLeafIdx = 0; iLeafIdx < ptr_array_length(pVertex->sons); iLeafIdx++){
+    ptr_array_get_at(pVertex->sons, iLeafIdx, &pSon);
+    csource_check_deflection(pSon, pCRInfo); 
+  }
+}
 
 // ----- cr_list_check_deflection ----------------------------------------------
-int cr_list_check_deflection(cr_info_list_t tList) {
+int cr_list_check_deflection(cr_info_list_t tList,uint16_t IGPDomainNumber) {
   LOG_DEBUG("check actual deflection\n");
-  int iIndex, iDestIdx;
+  int iIndex;
   SCRouterInfo * pCRInfo;
-  SCDestInfo * pCDInfo;
 
   for (iIndex = 0; iIndex < ptr_array_length(tList); iIndex++){
     ptr_array_get_at(tList, iIndex, &pCRInfo);
@@ -328,24 +344,109 @@ int cr_list_check_deflection(cr_info_list_t tList) {
     fprintf(stdout, "\n");
     fprintf(stdout, "ERInfo ER: ");
     ip_address_dump(stdout, pCRInfo->pER->tAddr);
-    fprintf(stdout, "\nCritical dest list: \n");
-    
-    for (iDestIdx = 0; iDestIdx < ptr_array_length(pCRInfo->tCDList); 
-		                                                   iDestIdx++){
-      ptr_array_get_at(pCRInfo->tCDList, iDestIdx, &pCDInfo);
-      ip_prefix_dump(stdout, *pCDInfo);
-      fprintf(stdout, "\n");
-      
-    }
     
     fprintf(stdout, "Compute RSPT on ER\n");
-    fprintf(stdout, "Trova BR in RSPT\n");
-    fprintf(stdout, "Per ogni foglia di BR in RSPT\n");
-    fprintf(stdout, "--- Per ogni dest in CRInfo\n");
-    fprintf(stdout, "------- Trova route in routing table in foglia\n");
-    fprintf(stdout, "------- if (advRouter(route) == ER(CRInfo) deflection!\n");
+    SRadixTree * pRspt = ospf_node_compute_rspt(pCRInfo->pER, 
+		                                 IGPDomainNumber, 
+						 pCRInfo->tArea);
+    assert(pRspt != NULL);
+    SSptVertex * pBRVertex = radix_tree_get_exact(pRspt, 
+		                                  pCRInfo->pBR->tAddr, 32);
+    assert(pBRVertex != NULL);
+    csource_check_deflection(pBRVertex, pCRInfo); 
+    radix_tree_destroy(&pRspt);
+    
+        
+    //fprintf(stdout, "--- Per ogni dest in CRInfo\n");
+    //fprintf(stdout, "------- Trova route in routing table in foglia\n");
+    //fprintf(stdout, "------- if (advRouter(route) == ER(CRInfo) deflection!\n");
   }
 return 0;
+}
+
+
+
+
+// ----- check_deflection ----------------------------------------------
+int check_deflection(uint16_t IGPDomainNumber, cr_info_list_t tList) {
+  LOG_DEBUG("check actual deflection in domain %d\n", IGPDomainNumber);
+  int iIndex;
+  SCRouterInfo * pCRInfo;
+
+  for (iIndex = 0; iIndex < ptr_array_length(tList); iIndex++){
+    ptr_array_get_at(tList, iIndex, &pCRInfo);
+    
+    fprintf(stdout, "CRInfo BR: ");
+    ip_address_dump(stdout, pCRInfo->pBR->tAddr);
+    fprintf(stdout, "\n");
+    fprintf(stdout, "ERInfo ER: ");
+    ip_address_dump(stdout, pCRInfo->pER->tAddr);
+    
+    fprintf(stdout, "Compute RSPT on ER\n");
+    SRadixTree * pRspt = ospf_node_compute_rspt(pCRInfo->pER, 
+		                                 IGPDomainNumber, 
+						 pCRInfo->tArea);
+    assert(pRspt != NULL);
+    SSptVertex * pBRVertex = radix_tree_get_exact(pRspt, 
+		                                  pCRInfo->pBR->tAddr, 32);
+    assert(pBRVertex != NULL);
+    csource_check_deflection(pBRVertex, pCRInfo); 
+    radix_tree_destroy(&pRspt);
+    
+        
+    //fprintf(stdout, "--- Per ogni dest in CRInfo\n");
+    //fprintf(stdout, "------- Trova route in routing table in foglia\n");
+    //fprintf(stdout, "------- if (advRouter(route) == ER(CRInfo) deflection!\n");
+  }
+return 0;
+}
+
+
+// ----- check_deflection_in_area -------------------------------------------
+int check_deflection_in_area(uint16_t uOspfDomain, ospf_area_t tArea)
+{
+  int iIndexI, iIndexJ;
+  /* Builds the set of BR that belongs to area and are on the backbone */
+  SPtrArray * pBRList = ospf_domain_get_br_on_bb_in_area(uOspfDomain, tArea);
+  SNetNode * pBR, * pER;
+  
+  /* Build all possibile couple of border router in the set. 
+   * For each couple build RSPT on ER 
+   * */
+  for(iIndexI = 0; iIndexI < ptr_array_length(pBRList); iIndexI++) { 
+    ptr_array_get_at(pBRList, iIndexI, &pBR);
+    for(iIndexJ = 0; iIndexJ < ptr_array_length(pBRList); iIndexJ++) { 
+      if (iIndexI == iIndexJ)
+        continue;
+      ptr_array_get_at(pBRList, iIndexJ, &pER);
+      fprintf(stdout, "BR ");
+      ip_address_dump(stdout, pBR->tAddr);
+      fprintf(stdout, " - ER ");
+      ip_address_dump(stdout, pER->tAddr);
+      fprintf(stdout, "\n Computing rspt on ER\n");
+      SRadixTree * pRspt = ospf_node_compute_rspt(pER, uOspfDomain, tArea);
+      assert(pRspt != NULL);
+      SSptVertex * pBRVertex = radix_tree_get_exact(pRspt, 
+		                                    pBR->tAddr, 32);
+      
+      assert(pBRVertex != NULL);
+      
+      
+      radix_tree_destroy(&pRspt);
+    }
+  }
+  return 0;
+}
+
+// ----- ospf_domain_deflection ------------------------------------------------
+void ospf_domain_deflection(SIGPDomain * pDomain) { 
+
+  check_deflection_in_area(pDomain->uNumber, 2);
+
+/*    if (cs_check_deflection(tCBRList, uOspfDomain))
+      fprintf(stdout, "Deflection!\n");
+  //}
+  cr_info_list_destroy(tCBRList);*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -356,17 +457,21 @@ return 0;
 
 //----- ospf_deflection_test() -------------------------------------------------
 int ospf_deflection_test(uint16_t uOspfDomain) { 
-  cr_info_list_t tCBRList = NULL;
-  if (build_critical_routers_list(uOspfDomain, 2, &tCBRList)){  
-    LOG_DEBUG("CIAO!\n");
-    assert(tCBRList != NULL);
-    if (cr_list_check_deflection(tCBRList))
+  //cr_info_list_t tCBRList = NULL;
+  //if (build_critical_routers_list(uOspfDomain, 2, &tCBRList)){  
+  //  assert(tCBRList != NULL);
+  check_deflection_in_area(uOspfDomain, 2);
+
+/*    if (cs_check_deflection(tCBRList, uOspfDomain))
       fprintf(stdout, "Deflection!\n");
-    
-  }
-  cr_info_list_destroy(tCBRList);
+  //}
+  cr_info_list_destroy(tCBRList);*/
   return OSPF_SUCCESS;
 }
 
 
+
+
 #endif
+
+
