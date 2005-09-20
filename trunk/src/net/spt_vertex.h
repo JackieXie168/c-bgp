@@ -73,8 +73,13 @@ void spt_vertex_dst(void ** ppItem);
 
 // ----- node_ospf_compute_spt ---------------------------------------------------
 SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea);
-			      
-// ----- spt_dump_dot ------------------------------------------------------------
+// ----- ospf_node_compute_rspt -----------------------------------------------
+SRadixTree * ospf_node_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber, 
+  	                                                     ospf_area_t tArea);
+		      
+// ----- spt_dump_dot ----------------------------------------------------------
 void spt_dump_dot(FILE * pStream, SRadixTree * pSpt, net_addr_t tRadixAddr);
 #endif
+
+
 
