@@ -378,6 +378,37 @@ int cli_net_link_down(SCliContext * pContext, STokens * pTokens)
   link_set_state(pLink, NET_LINK_FLAG_UP, 0);
   return CLI_SUCCESS;
 }
+// ----- cli_net_link_ipprefix -------------------------------------
+/**
+ * context: {link}
+ * tokens: {addr-src, addr-dst, iface-prefix}
+ */
+int cli_net_link_ipprefix(SCliContext * pContext, STokens * pTokens)
+{
+  SNetLink * pLink;
+  char * pcIfaceAddr;
+  char * pcEndChar;
+  SPrefix sIfacePrefix;
+  
+  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
+  if (pLink == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+  if (!link_is_to_router(pLink))
+    return CLI_ERROR_COMMAND_FAILED;
+  
+  // Get src prefix
+  pcIfaceAddr= tokens_get_string_at(pContext->pTokens, 2);
+  if (ip_string_to_prefix(pcIfaceAddr, &pcEndChar, &sIfacePrefix) ||
+      (*pcEndChar != 0)) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n",
+	       pcIfaceAddr);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+
+  link_set_ip_prefix(pLink, sIfacePrefix);
+  return CLI_SUCCESS;
+}
 
 // ----- cli_net_link_igpweight -------------------------------------
 /**
@@ -840,12 +871,12 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
   }
 
   // Dump routing table
-  node_rt_dump(stdout, pNode, sDest);
+  //node_rt_dump(stdout, pNode, sDest);
 // ----- ospf_node_rt_dump ------------------------------------------------------------------
 /**  Option:
   *  OSPF_RT_OPTION_SORT_AREA : dump routing table grouping routes by area
   */
-  //ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
+  ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
   return CLI_SUCCESS;
 }
 
@@ -980,6 +1011,11 @@ int cli_register_net_link(SCliCmds * pCmds)
 					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("down", cli_net_link_down,
 					NULL, NULL));
+  
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("ipprefix", cli_net_link_ipprefix,
+					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("igp-weight", cli_net_link_igpweight,
