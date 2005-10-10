@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 08/08/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -870,13 +870,14 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+#ifndef OSPF_SUPPORT
   // Dump routing table
-  //node_rt_dump(stdout, pNode, sDest);
-// ----- ospf_node_rt_dump ------------------------------------------------------------------
-/**  Option:
-  *  OSPF_RT_OPTION_SORT_AREA : dump routing table grouping routes by area
-  */
+  node_rt_dump(stdout, pNode, sDest);
+#else
+  // Dump OSPF routing table
+  // Options: OSPF_RT_OPTION_SORT_AREA : dump routing table grouping routes by area
   ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
+#endif
   return CLI_SUCCESS;
 }
 
