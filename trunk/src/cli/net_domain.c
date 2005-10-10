@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 02/08/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -232,6 +232,7 @@ int cli_net_domain_compute(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+#ifdef OSPF_SUPPORT
 // ----- cli_net_domain_check-deflection -------------------------------------
 /**
  * context: {domain}
@@ -247,6 +248,7 @@ int cli_net_domain_check_deflection(SCliContext * pContext, STokens * pTokens)
   ospf_domain_deflection(pDomain);
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_register_net_domain_set --------------------------------
 int cli_register_net_domain_set(SCliCmds * pCmds)
@@ -288,8 +290,11 @@ int cli_register_net_domain(SCliCmds * pCmds)
   pSubCmds= cli_cmds_create();
   cli_cmds_add(pSubCmds, cli_cmd_create("compute", cli_net_domain_compute,
 					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("check-deflection", cli_net_domain_check_deflection,
+#ifdef OSPF_SUPPORT
+  cli_cmds_add(pSubCmds, cli_cmd_create("check-deflection",
+					cli_net_domain_check_deflection,
 					NULL, NULL));
+#endif
   cli_register_net_domain_set(pSubCmds);
   cli_register_net_domain_show(pSubCmds);
   pParams= cli_params_create();
