@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 01/09/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -78,7 +78,23 @@ SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
   pLink->uDestinationType = NET_LINK_TYPE_ROUTER;
   pLink->UDestId.tAddr= tAddr;
   pLink->pSrcNode= pSrcNode;
-  pLink->tIfaceAddr= tAddr;
+
+  // *** Needs to be fixed ***
+  // If we allow multiple parallel links, this interface address must
+  // become a unique interface address on this side of the link
+  // (src-node). For the moment, this interface address is set to the
+  // src-node's address. Multiple parallel links are therefore not
+  // allowed untils this is fixed.
+  pLink->tIfaceAddr= pSrcNode->tAddr;
+
+  // The interface address can _NOT_ be the dst-node's address since
+  // this will cause the source of messages to become incorrect. I
+  // detected this with BGP message sending. The destination peer
+  // detected that the BGP message was received from an unknown peer
+  // (itself).
+  // See validation script ".bgp_session_ibgp.log"
+  //pLink->tIfaceAddr= tAddr;
+
   pLink->pContext= pLink;
   pLink->fForward= _link_forward;
   pLink->uIGPweight= UINT_MAX;
