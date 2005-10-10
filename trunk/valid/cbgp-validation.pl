@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 08/08/2005
+# @lastdate 10/10/2005
 # ===================================================================
 
 use strict;
@@ -14,7 +14,7 @@ use strict;
 use Getopt::Long;
 use CBGP;
 
-use constant VERSION => '1.1';
+use constant VERSION => '1.2';
 use constant CACHE_FILE => ".cbgp-validation.cache";
 
 use constant TEST_FAILURE => 0;
@@ -2393,7 +2393,10 @@ foreach my $test (@tests) {
     if (!exists($cache{$test_name}) ||
 	($cache{$test_name} != TEST_SUCCESS)) {
 	my $cbgp= CBGP->new($cbgp_path);
-	$cbgp->{log_file}= ".$test_name.log";
+	my $log_file= ".$test_name.log";
+	($log_file =~ s/\ /\_/g);
+	unlink $log_file;
+	$cbgp->{log_file}= $log_file;
 	$cbgp->{log}= 1;
 	$cbgp->spawn();
 	die if $cbgp->send("set autoflush on\n");
