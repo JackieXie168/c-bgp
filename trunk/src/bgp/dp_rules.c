@@ -160,23 +160,6 @@ int dp_rule_lowest_origin(SPtrArray * pRoutes)
   return 0;
 }
 
-// ----- dp_rule_last_as --------------------------------------------
-/**
- *
- */
-int dp_rule_last_as(SRoute * pRoute)
-{
-  SPathSegment * pSegment;
- 
-  if (path_length(pRoute->pASPath) > 0) {
-    pSegment= (SPathSegment *)
-      pRoute->pASPath->data[ptr_array_length(pRoute->pASPath)-1];
-    return pSegment->auValue[pSegment->uLength-1];
-  } else {
-    return -1;
-  }
-}
-
 // ----- dp_rule_lowest_med -----------------------------------------
 /**
  *
@@ -229,7 +212,7 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
       
       if (pRoute != NULL) {
       
-	iLastAS= dp_rule_last_as(pRoute);
+	iLastAS= route_path_last_as(pRoute);
 	
 	iIndex2= iIndex+1;
 	while (iIndex2 < ptr_array_length(pRoutes)) {
@@ -243,7 +226,7 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
 	      route_dump(stdout, pRoute2);
 	      printf("\n");*/
 	    
-	    if (iLastAS == dp_rule_last_as(pRoute2)) {
+	    if (iLastAS == route_path_last_as(pRoute2)) {
 	      
 	      //printf("compare...[%u <-> %u]\n", pRoute->uMED, pRoute2->uMED);
 	      

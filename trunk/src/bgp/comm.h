@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 03/01/2005
+// @lastdate 14/10/2005
 // ==================================================================
 
 #ifndef __COMM_H__
@@ -17,6 +17,8 @@
 extern SCommunities * comm_create();
 // ----- comm_destroy -----------------------------------------------
 extern void comm_destroy(SCommunities ** ppCommunities);
+// ----[ comm_copy ]-------------------------------------------------
+extern SCommunities * comm_copy(SCommunities * pCommunities);
 // ----- comm_add ---------------------------------------------------
 extern int comm_add(SCommunities * pComm, comm_t uComm);
 // ----- comm_remove ------------------------------------------------
@@ -36,5 +38,8 @@ extern void comm_dump2(FILE * pStream, comm_t tCommunity,
 // ----- comm_dump --------------------------------------------------
 extern void comm_dump(FILE * pStream, SCommunities * pCommunities,
 		      int iText);
+// -----[ comm_to_string ]-------------------------------------------
+extern int comm_to_string(SCommunities * pCommunities, char * pBuffer,
+			  size_t tBufferSize);
 
 #endif

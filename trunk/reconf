@@ -3,6 +3,6 @@ rm -f config.cache
 libtoolize --automake --force --copy
 aclocal -I ../libgds/m4src
 autoheader
-automake --add-missing --gnu
+automake -I /workspace/autoconf-archive/m4source --add-missing --gnu
 autoconf
 exit

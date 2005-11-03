@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 13/04/2005
+// @lastdate 15/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -501,7 +501,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterAddPeer
   if (ip_jstring_to_address(env, jsPeerAddr, &tPeerAddr) != 0)
     return;
   
-  if (bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0) != 0) {
+  if (bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0) == NULL) {
     cbgp_jni_throw_CBGPException(env, "could not add peer");
     return;
   }

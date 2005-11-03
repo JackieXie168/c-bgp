@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 08/08/2005
+// @lastdate 15/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -35,17 +35,17 @@ char * SESSION_STATES[4]= {
   "ACTIVE"
 };
 
-// ----- peer_create ------------------------------------------------
+// ----- bgp_peer_create --------------------------------------------
 /**
  * Create a new peer structure and initialize the following
  * structures:
  *   - default input/output filters (that accept everything)
  *   - input/output adjacent RIBs
  */
-SPeer * peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
-		    SBGPRouter * pLocalRouter, uint8_t uPeerType)
+SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
+			   SBGPRouter * pLocalRouter, uint8_t uPeerType)
 {
-  SPeer * pPeer= (SPeer *) MALLOC(sizeof(SPeer));
+  SBGPPeer * pPeer= (SBGPPeer *) MALLOC(sizeof(SBGPPeer));
   pPeer->uRemoteAS= uRemoteAS;
   pPeer->tAddr= tAddr;
   pPeer->uPeerType= uPeerType;
@@ -60,11 +60,11 @@ SPeer * peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   return pPeer;
 }
 
-// ----- peer_destroy -----------------------------------------------
+// ----- bgp_peer_destroy -------------------------------------------
 /**
  * Destroy the given peer structure and free the related memory.
  */
-void peer_destroy(SPeer ** ppPeer)
+void bgp_peer_destroy(SBGPPeer ** ppPeer)
 {
   if (*ppPeer != NULL) {
 
@@ -82,11 +82,11 @@ void peer_destroy(SPeer ** ppPeer)
 }
 
    
-// ----- peer_flag_set ----------------------------------------------
+// ----- bgp_peer_flag_set ------------------------------------------
 /**
  * Change the state of a flag of this peer.
  */
-void peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState)
+void bgp_peer_flag_set(SBGPPeer * pPeer, uint8_t uFlag, int iState)
 {
   if (iState)
     pPeer->uFlags|= uFlag;
@@ -94,16 +94,16 @@ void peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState)
     pPeer->uFlags&= ~uFlag;
 }
 
-// ----- peer_flag_get ----------------------------------------------
+// ----- bgp_peer_flag_get ------------------------------------------
 /**
  * Return the state of a flag of this peer.
  */
-int peer_flag_get(SPeer * pPeer, uint8_t uFlag)
+int bgp_peer_flag_get(SBGPPeer * pPeer, uint8_t uFlag)
 {
   return (pPeer->uFlags & uFlag) != 0;
 }
 
-// ----- peer_set_nexthop -------------------------------------------
+// ----- bgp_peer_set_nexthop ---------------------------------------
 /**
  * Set the next-hop to be sent for routes advertised to this peer.
  */
@@ -233,7 +233,7 @@ int bgp_peer_open_session(SPeer * pPeer)
       (pPeer->uSessionState == SESSION_STATE_ACTIVE)) {
 
     /* Send an OPEN message to the peer (except for virtual peers) */
-    if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
       pMsg= bgp_msg_open_create(pPeer->pLocalRouter->uNumber);
       if (bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
 		       pMsg) == 0) {
@@ -252,7 +252,7 @@ int bgp_peer_open_session(SPeer * pPeer)
 	/* If the virtual peer is configured with the soft-restart
 	   option, scan the Adj-RIB-in and run the decision process
 	   for each route. */
-	if (peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART))
+	if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART))
 	  peer_rescan_adjribin(pPeer, 0);
 
       }
@@ -290,7 +290,7 @@ int bgp_peer_close_session(SPeer * pPeer)
     if ((pPeer->uSessionState == SESSION_STATE_OPENWAIT) ||
 	(pPeer->uSessionState == SESSION_STATE_ESTABLISHED)) {
 
-      if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+      if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
 	pMsg= bgp_msg_close_create(pPeer->pLocalRouter->uNumber);
 	bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr, pMsg);
       }
@@ -300,8 +300,8 @@ int bgp_peer_close_session(SPeer * pPeer)
 
     /* For virtual peers configured with the soft-restart option, do
        not clear the Adj-RIB-in. */
-    iClear= !(peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) &&
-	      peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART));
+    iClear= !(bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) &&
+	      bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART));
     peer_rescan_adjribin(pPeer, iClear);
 
     LOG_DEBUG("< AS%d.peer_close_session.end\n", pPeer->pLocalRouter->uNumber);
@@ -333,7 +333,7 @@ void bgp_peer_session_error(SBGPPeer * pPeer)
 void peer_session_open_rcvd(SPeer * pPeer)
 {
   /* Check that the message does not come from a virtual peer */
-  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     LOG_FATAL("Error: OPEN message received from virtual peer\n");
     bgp_peer_session_error(pPeer);
     abort();
@@ -368,7 +368,7 @@ void peer_session_open_rcvd(SPeer * pPeer)
 void peer_session_close_rcvd(SPeer * pPeer)
 {
   /* Check that the message does not come from a virtual peer */
-  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     LOG_FATAL("Error: CLOSE message received from virtual peer\n");
     bgp_peer_session_error(pPeer);
     abort();
@@ -379,7 +379,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ACTIVE;
-    peer_rescan_adjribin(pPeer, !peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
+    peer_rescan_adjribin(pPeer, !bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
   case SESSION_STATE_IDLE:
@@ -582,7 +582,7 @@ void peer_announce_route(SPeer * pPeer, SRoute * pRoute)
   route_peer_set(pRoute, pPeer);
 
   /* Send the message to the peer (except if this is a virtual peer) */
-  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
 		 bgp_msg_update_create(pPeer->pLocalRouter->uNumber,
 				       pRoute));
@@ -599,7 +599,7 @@ void peer_announce_route(SPeer * pPeer, SRoute * pRoute)
 void peer_withdraw_prefix(SPeer * pPeer, SPrefix sPrefix)
 {
   /* Send the message to the peer (except if this is a virtual peer) */
-  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
 		 bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
 					 sPrefix));
@@ -640,7 +640,7 @@ void peer_route_delay_update(SPeer * pPeer, SRoute * pRoute)
 void peer_route_rr_client_update(SPeer * pPeer, SRoute * pRoute)
 {
   route_flag_set(pRoute, ROUTE_FLAG_RR_CLIENT,
-		 peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT));
+		 bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT));
 }
 
 // ----- peer_comm_process ------------------------------------------
@@ -888,19 +888,19 @@ void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
   fprintf(pStream, "\tAS%d\t%s", pPeer->uRemoteAS,
 	  SESSION_STATES[pPeer->uSessionState]);
   
-  if (peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
     fprintf(pStream, "rr-client");
   }
-  if (peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
     fprintf(pStream, "next-hop-self");
   }
-  if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
     fprintf(pStream, "virtual");
   }
-  if (peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
     fprintf(pStream, "soft-restart");
   }

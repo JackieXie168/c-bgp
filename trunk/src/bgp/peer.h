@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 05/08/2005
+// @lastdate 15/10/2005
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -29,19 +29,19 @@ struct TPeer {
   net_addr_t tNextHop;
 };
 
-// ----- peer_create ------------------------------------------------
-extern SPeer * peer_create(uint16_t uRemoteAS,
-			   net_addr_t tAddr,
-			   SBGPRouter * pLocalRouter,
-			   uint8_t uPeerType);
-// ----- peer_destroy -----------------------------------------------
-extern void peer_destroy(SPeer ** ppPeer);
+// ----- bgp_peer_create --------------------------------------------
+extern SPeer * bgp_peer_create(uint16_t uRemoteAS,
+			       net_addr_t tAddr,
+			       SBGPRouter * pLocalRouter,
+			       uint8_t uPeerType);
+// ----- bgp_peer_destroy -------------------------------------------
+extern void bgp_peer_destroy(SPeer ** ppPeer);
 
-// ----- peer_flag_set ----------------------------------------------
-extern void peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState);
-// ----- peer_flag_get ----------------------------------------------
-extern int peer_flag_get(SPeer * pPeer, uint8_t uFlag);
-// ----- peer_set_nexthop -------------------------------------------
+// ----- bgp_peer_flag_set ------------------------------------------
+extern void bgp_peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState);
+// ----- bgp_peer_flag_get ------------------------------------------
+extern int bgp_peer_flag_get(SPeer * pPeer, uint8_t uFlag);
+// ----- bgp_peer_set_nexthop ---------------------------------------
 extern int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop);
 
 /////////////////////////////////////////////////////////////////////

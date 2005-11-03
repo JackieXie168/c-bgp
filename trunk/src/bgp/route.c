@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 13/04/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,7 +17,9 @@
 #include <libgds/memory.h>
 
 #include <bgp/comm.h>
+#include <bgp/comm_hash.h>
 #include <bgp/ecomm.h>
+#include <bgp/path_hash.h>
 #include <bgp/qos.h>
 #include <bgp/route.h>
 
@@ -25,9 +27,26 @@ unsigned long rt_create_count= 0;
 unsigned long rt_copy_count= 0;
 unsigned long rt_destroy_count= 0;
 
+// -----[ Forward prototypes declaration ]---------------------------
+/* Note: functions starting with underscore (_) are intended to be
+ * used inside this file only (private). These functions should be
+ * static and should not appear in the .h file.
+ */
+static void _route_path_copy(SRoute * pRoute, SBGPPath * pPath);
+static void _route_path_destroy(SRoute * pRoute);
+static void _route_comm_copy(SRoute * pRoute, SCommunities * pCommunities);
+static void _route_comm_destroy(SRoute * pRoute);
+static void _route_ecomm_copy(SRoute * pRoute, SECommunities * pCommunities);
+static void _route_ecomm_destroy(SRoute * pRoute);
+
 // ----- route_create -----------------------------------------------
 /**
- *
+ * Create a new BGP route towards the given prefix. The 'peer' field
+ * mentions the peer who announced the route to the local router. This
+ * field can be NULL if the route was originated locally or if the
+ * peer is unknown. The 'next-hop' field is the BGP nexth-op of the
+ * route. Finally, the 'origin-type' field tells how the route was
+ * originated. This is usually set to IGP.
  */
 SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
 		      net_addr_t tNextHop,
@@ -39,7 +58,7 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
   pRoute->pPeer= pPeer;
   pRoute->tNextHop= tNextHop;
   pRoute->uOriginType= uOriginType;
-  pRoute->pASPath= NULL;
+  pRoute->pASPathRef= NULL;
   pRoute->uLocalPref= ROUTE_PREF_DEFAULT;
   pRoute->uMED= ROUTE_MED_DEFAULT;
   pRoute->pCommunities= NULL;
@@ -68,15 +87,15 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
 
 // ----- route_destroy ----------------------------------------------
 /**
- *
+ * Destroy the given route.
  */
 void route_destroy(SRoute ** ppRoute)
 {
   if (*ppRoute != NULL) {
     rt_destroy_count++;
-    path_destroy(&(*ppRoute)->pASPath);
-    route_comm_strip(*ppRoute);
-    ecomm_destroy(&(*ppRoute)->pECommunities);
+    _route_path_destroy(*ppRoute);
+    _route_comm_destroy(*ppRoute);
+    _route_ecomm_destroy(*ppRoute);
 
     /* BGP QoS */
 #ifdef BGP_QOS
@@ -117,25 +136,6 @@ int route_flag_get(SRoute * pRoute, uint16_t uFlag)
   return pRoute->uFlags & uFlag;
 }
 
-// ----- route_nexthop_set ------------------------------------------
-/**
- *
- */
-void route_nexthop_set(SRoute * pRoute,
-		       net_addr_t tNextHop)
-{
-  pRoute->tNextHop= tNextHop;
-}
-
-// ----- route_nexthop_get ------------------------------------------
-/**
- *
- */
-net_addr_t route_nexthop_get(SRoute * pRoute)
-{
-  return pRoute->tNextHop;
-}
-
 // ----- route_peer_set ---------------------------------------------
 /**
  *
@@ -155,9 +155,41 @@ SPeer * route_peer_get(SRoute * pRoute)
   return pRoute->pPeer;
 }
 
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE NEXT-HOP
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- route_nexthop_set ------------------------------------------
+/**
+ * Set the route's BGP next-hop.
+ */
+void route_nexthop_set(SRoute * pRoute,
+		       net_addr_t tNextHop)
+{
+  pRoute->tNextHop= tNextHop;
+}
+
+// ----- route_nexthop_get ------------------------------------------
+/**
+ * Return the route's BGP next-hop.
+ */
+net_addr_t route_nexthop_get(SRoute * pRoute)
+{
+  return pRoute->tNextHop;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE ORIGIN
+//
+/////////////////////////////////////////////////////////////////////
+
 // ----- route_origin_set -------------------------------------------
 /**
- *
+ * Set the route's origin.
  */
 void route_origin_set(SRoute * pRoute, origin_type_t uOriginType)
 {
@@ -166,99 +198,255 @@ void route_origin_set(SRoute * pRoute, origin_type_t uOriginType)
 
 // ----- route_origin_get -------------------------------------------
 /**
- *
+ * Return the route's origin.
  */
 origin_type_t route_origin_get(SRoute * pRoute)
 {
   return pRoute->uOriginType;
 }
 
-// ----- route_path_append ------------------------------------------
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE AS-PATH
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ route_path_set ]-------------------------------------------
 /**
+ * Set the route's AS-Path and adds a global reference if required.
  *
+ * Note: the given AS-Path is not copied, but it will be referenced in
+ * the global path repository if used or destroyed if not.
  */
-int route_path_append(SRoute * pRoute, uint16_t uAS)
+void route_path_set(SRoute * pRoute, SBGPPath * pPath)
 {
-  if (pRoute->pASPath == NULL)
-    pRoute->pASPath= path_create();
-  return path_append(&pRoute->pASPath, uAS);
+  _route_path_destroy(pRoute);
+  if (pPath != NULL) {
+    assert(path_hash_add(pPath) != -1);
+    pRoute->pASPathRef= path_hash_get(pPath);
+    if (pRoute->pASPathRef != pPath)
+      path_destroy(&pPath);
+  }
 }
 
-// ----- route_path_prepend -----------------------------------------
+// -----[ route_path_get ]-------------------------------------------
 /**
+ * Return the route's AS-Path.
+ */
+SBGPPath * route_path_get(SRoute * pRoute)
+{
+  return pRoute->pASPathRef;
+}
+
+// -----[ route_path_prepend ]---------------------------------------
+/**
+ * Prepend multiple times an AS-Number at the beginning of this
+ * AS-Path. This is used when a route is propagated over an eBGP
+ * session, for instance.
  *
+ * The function first creates a copy of the current path. Then, it
+ * removes the current AS-Path from the global path
+ * repository. Finally, it appends the given AS-number to the AS-Path
+ * copy. If the prepending could be done without error, the resulting
+ * path is set as the route's AS-Path.
+ *
+ * Return value:
+ *  0   in case of success
+ *  -1  in case of failure (AS-Path would become too long)
  */
 int route_path_prepend(SRoute * pRoute, uint16_t uAS, uint8_t uAmount)
 {
+  SBGPPath * pPath;
+  if (pRoute->pASPathRef == NULL)
+    pPath= path_create();
+  else
+    pPath= path_copy(pRoute->pASPathRef);
   while (uAmount-- > 0) {
-    if (route_path_append(pRoute, uAS))
+    if (path_append(&pPath, uAS))
       return -1;
   }
+  route_path_set(pRoute, pPath);
   return 0;
 }
 
-
 // ----- route_path_contains ----------------------------------------
 /**
+ * Test if the route's AS-PAth contains the given AS-number.
  *
+ * Returns 1 if true, 0 otherwise.
  */
 int route_path_contains(SRoute * pRoute, uint16_t uAS)
 {
-  return (pRoute->pASPath != NULL) &&
-    (path_contains(pRoute->pASPath, uAS) != -1);
+  return (pRoute->pASPathRef != NULL) &&
+    (path_contains(pRoute->pASPathRef, uAS) != -1);
 }
 
 // ----- route_path_length ------------------------------------------
 /**
- *
+ * Return the length of the route's AS-Path.
  */
 int route_path_length(SRoute * pRoute)
 {
-  if (pRoute->pASPath != NULL)
-    return path_length(pRoute->pASPath);
+  if (pRoute->pASPathRef != NULL)
+    return path_length(pRoute->pASPathRef);
   else
     return 0;
 }
 
+// ----- route_path_last_as -----------------------------------------
+/**
+ * Return the last AS-number in the AS-Path. This function is
+ * currently used in dp_rules.c in order to implement the MED-based
+ * rule.
+ *
+ * Note: this function is EXPERIMENTAL and should be updated. It does
+ * not work if the last segment in the AS-Path is of type AS-SET since
+ * there is no ordering of the AS-numbers in this case.
+ */
+int route_path_last_as(SRoute * pRoute)
+{
+  if (pRoute->pASPathRef != NULL)
+    return path_last_as(pRoute->pASPathRef);
+  else
+    return -1;
+}
+
+// -----[ _route_path_copy ]-----------------------------------------
+/*
+ * Copy the given AS-Path and update the references into the global
+ * path repository.
+ */
+static void _route_path_copy(SRoute * pRoute, SBGPPath * pPath)
+{
+  _route_path_destroy(pRoute);
+  route_path_set(pRoute, path_copy(pPath));
+}
+
+// -----[ _route_path_destroy ]--------------------------------------
+/**
+ * Destroy the route's AS-Path and removes the global reference.
+ */
+static void _route_path_destroy(SRoute * pRoute)
+{
+  if (pRoute->pASPathRef != NULL) {
+    path_hash_remove(pRoute->pASPathRef);
+    pRoute->pASPathRef= NULL;
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE COMMUNITIES
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- route_comm_set ---------------------------------------------
+/**
+ * Set the route's Communities attribute and adds a global reference
+ * if required.
+ *
+ * Note: the given Communities is not copied, but it will be
+ * referenced in the global Communities repository if used or
+ * destroyed if not.
+ */
+void route_comm_set(SRoute * pRoute, SCommunities * pCommunities)
+{
+  _route_comm_destroy(pRoute);
+  if (pCommunities != NULL) {
+    assert(comm_hash_add(pCommunities) != -1);
+    pRoute->pCommunities= comm_hash_get(pCommunities);
+    if (pRoute->pCommunities != pCommunities)
+      comm_destroy(&pCommunities);
+  }
+}
+
 // ----- route_comm_append ------------------------------------------
 /**
- *
+ * Add a new community value to the Communities attribute.
  */
-int route_comm_append(SRoute * pRoute, comm_t uCommunity)
+int route_comm_append(SRoute * pRoute, comm_t tCommunity)
 {
+  SCommunities * pCommunities;
+
   if (pRoute->pCommunities == NULL)
-    pRoute->pCommunities= comm_create();
-  return comm_add(pRoute->pCommunities, uCommunity);
+    pCommunities= comm_create();
+  else
+    pCommunities= comm_copy(pRoute->pCommunities);
+  if (comm_add(pCommunities, tCommunity)) {
+    comm_destroy(&pCommunities);
+    return -1;
+  }
+  route_comm_set(pRoute, pCommunities);
+  return 0;
 }
 
 // ----- route_comm_strip -------------------------------------------
 /**
- *
+ * Remove all the community values from the Communities attribute.
  */
 void route_comm_strip(SRoute * pRoute)
 {
-  comm_destroy(&pRoute->pCommunities);
+  _route_comm_destroy(pRoute);
 }
 
 // ----- route_comm_remove ------------------------------------------
 /**
- *
+ * Remove a single community value from the Communities attribute.
  */
-void route_comm_remove(SRoute * pRoute, comm_t uCommunity)
+void route_comm_remove(SRoute * pRoute, comm_t tCommunity)
 {
-  if (pRoute->pCommunities != NULL)
-    comm_remove(pRoute->pCommunities, uCommunity);
+  SCommunities * pCommunities;
+
+  if (pRoute->pCommunities == NULL)
+    return;
+  pCommunities= comm_copy(pRoute->pCommunities);
+  comm_remove(pCommunities, tCommunity);
+  route_comm_set(pRoute, pCommunities);
 }
 
 // ----- route_comm_contains ----------------------------------------
 /**
- *
+ * Test if the Communities attribute contains the given community
+ * value.
  */
-int route_comm_contains(SRoute * pRoute, comm_t uCommunity)
+int route_comm_contains(SRoute * pRoute, comm_t tCommunity)
 {
   return (pRoute->pCommunities != NULL) &&
-    (comm_contains(pRoute->pCommunities, uCommunity) != -1);
+    (comm_contains(pRoute->pCommunities, tCommunity) != -1);
 }
+
+// -----[ _route_comm_copy ]-----------------------------------------
+/**
+ * Copy the Communities attribute and update the references into the
+ * global path repository.
+ */
+static void _route_comm_copy(SRoute * pRoute, SCommunities * pCommunities)
+{
+  _route_comm_destroy(pRoute);
+  if (pCommunities != NULL)
+    route_comm_set(pRoute, comm_copy(pCommunities));
+}
+
+// -----[ _route_comm_destroy ]--------------------------------------
+/**
+ * Destroy the Communities attribute and removes the global
+ * reference.
+ */
+static void _route_comm_destroy(SRoute * pRoute)
+{
+  if (pRoute->pCommunities != NULL) {
+    comm_hash_remove(pRoute->pCommunities);
+    pRoute->pCommunities= NULL;
+  }
+}
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE EXTENDED-COMMUNITIES
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- route_ecomm_append -----------------------------------------
 /**
@@ -280,6 +468,30 @@ void route_ecomm_strip_non_transitive(SRoute * pRoute)
   ecomm_strip_non_transitive(&pRoute->pECommunities);
 }
 
+// -----[ _route_ecomm_copy ]----------------------------------------
+static void _route_ecomm_copy(SRoute * pRoute, SECommunities * pCommunities)
+{
+  _route_ecomm_destroy(pRoute);
+  if (pCommunities != NULL)
+    pRoute->pECommunities= ecomm_copy(pCommunities);
+}
+
+// -----[ _route_ecomm_destroy ]-------------------------------------
+/**
+ * Destroy the route's extended-communities.
+ */
+static void _route_ecomm_destroy(SRoute * pRoute)
+{
+  ecomm_destroy(&pRoute->pECommunities);
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE LOCAL-PREF
+//
+/////////////////////////////////////////////////////////////////////
+
 // ----- route_localpref_set ----------------------------------------
 /**
  *
@@ -297,6 +509,13 @@ uint32_t route_localpref_get(SRoute * pRoute)
 {
   return pRoute->uLocalPref;
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE MULTI-EXIT-DISCRIMINATOR (MED)
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- route_med_clear --------------------------------------------
 /**
@@ -324,6 +543,13 @@ uint32_t route_med_get(SRoute * pRoute)
 {
   return pRoute->uMED;
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE ORIGINATOR
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- route_originator_set ---------------------------------------
 /**
@@ -375,6 +601,13 @@ int route_originator_equals(SRoute * pRoute1, SRoute * pRoute2)
       return 0;
   return 1;
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE CLUSTER-ID-LIST
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- route_cluster_list_set -------------------------------------
 /**
@@ -442,6 +675,13 @@ SClusterList * route_cluster_list_copy(SRoute * pRoute)
   return cluster_list_copy(pRoute->pClusterList);
 }
 
+
+/////////////////////////////////////////////////////////////////////
+//
+// ATTRIBUTE ROUTER-LIST (FOR DEBUGGING PURPOSES)
+//
+/////////////////////////////////////////////////////////////////////
+
 #ifdef __ROUTER_LIST_ENABLE__
 // ----- route_router_list_append -----------------------------------
 void route_router_list_append(SRoute * pRoute, net_addr_t tAddr)
@@ -466,6 +706,50 @@ SClusterList * route_router_list_copy(SRoute * pRoute)
 }
 #endif /* __ROUTER_LIST_ENABLE__ */
 
+
+/////////////////////////////////////////////////////////////////////
+//
+// ROUTE COPY & COMPARE
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- route_equals -----------------------------------------------
+/**
+ *
+ */
+int route_equals(SRoute * pRoute1, SRoute * pRoute2)
+{
+  if (pRoute1 == pRoute2) {
+    LOG_DEBUG("route_equals == 1\n");
+    return 1;
+  }
+
+  /* BGP QoS */
+#ifdef BGP_QOS
+  if (!qos_route_delay_equals(pRoute1, pRoute2) ||
+      !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
+    LOG_DEBUG("route_equals == 0\n");
+    return 0;
+  }
+#endif
+
+  if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
+      (pRoute1->pPeer == pRoute2->pPeer) &&
+      (pRoute1->uOriginType == pRoute2->uOriginType) &&
+      (path_equals(pRoute1->pASPathRef, pRoute2->pASPathRef)) &&
+      (comm_equals(pRoute1->pCommunities, pRoute2->pCommunities)) &&
+      (pRoute1->uLocalPref == pRoute2->uLocalPref) &&
+      (pRoute1->uMED == pRoute2->uMED) &&
+      (ecomm_equals(pRoute1->pECommunities, pRoute2->pECommunities)) &&
+      (route_originator_equals(pRoute1, pRoute2)) &&
+      (route_cluster_list_equals(pRoute1, pRoute2))) {
+    LOG_DEBUG("route_equals == 1\n");
+    return 1;
+  }
+    LOG_DEBUG("route_equals == 0\n");
+  return 0;
+}
+
 // ----- route_copy -------------------------------------------------
 /**
  *
@@ -477,16 +761,14 @@ SRoute * route_copy(SRoute * pRoute)
 				   pRoute->pPeer,
 				   pRoute->tNextHop,
 				   pRoute->uOriginType);
+
   rt_copy_count++;
   pNewRoute->tNextHop= pRoute->tNextHop;
-  if (pRoute->pASPath != NULL)
-    pNewRoute->pASPath= path_copy(pRoute->pASPath);
-  if (pRoute->pCommunities != NULL)
-    pNewRoute->pCommunities= sequence_copy(pRoute->pCommunities, NULL);
+  _route_path_copy(pNewRoute, pRoute->pASPathRef);
+  _route_comm_copy(pNewRoute, pRoute->pCommunities);
   pNewRoute->uLocalPref= pRoute->uLocalPref;
   pNewRoute->uMED= pRoute->uMED;
-  if (pRoute->pECommunities != NULL)
-    pNewRoute->pECommunities= ecomm_copy(pRoute->pECommunities);
+  _route_ecomm_copy(pNewRoute, pRoute->pECommunities);
   pNewRoute->uFlags= pRoute->uFlags;
 
   /* BGP QoS */
@@ -514,6 +796,13 @@ SRoute * route_copy(SRoute * pRoute)
 
   return pNewRoute;
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// ROUTE DUMP
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- route_dump -------------------------------------------------
 /**
@@ -567,7 +856,10 @@ void route_dump_cisco(FILE * pStream, SRoute * pRoute)
     fprintf(pStream, "\t%u\t%u\t", pRoute->uLocalPref, pRoute->uMED);
 
     // AS-Path
-    path_dump(pStream, pRoute->pASPath, 1);
+    if (pRoute->pASPathRef != NULL)
+      path_dump(pStream, pRoute->pASPathRef, 1);
+    else
+      fprintf(pStream, "null");
 
     // Origin
     fprintf(pStream, "\t");
@@ -638,7 +930,7 @@ void route_dump_mrt(FILE * pStream, SRoute * pRoute)
     fprintf(pStream, "|");
 
     /* AS-Path */
-    path_dump(pStream, pRoute->pASPath, 1);
+    path_dump(pStream, pRoute->pASPathRef, 1);
     fprintf(pStream, "|");
 
     /* Origin */
@@ -751,7 +1043,7 @@ char * route_dump_string(SRoute * pRoute)
     icDumpPtr += sprintf(cDump+icDumpPtr, "\t%u\t%u\t", pRoute->uLocalPref, pRoute->uMED);
 
     // AS-Path
-    cCharTmp = path_dump_string(pRoute->pASPath, 1);
+    cCharTmp = path_dump_string(pRoute->pASPathRef, 1);
     strcpy(cDump+icDumpPtr, cCharTmp);
     icDumpPtr += strlen(cCharTmp);
     FREE(cCharTmp);
@@ -770,39 +1062,13 @@ char * route_dump_string(SRoute * pRoute)
   return cDump;
 }
 
-// ----- route_equals -----------------------------------------------
-/**
- *
- */
-int route_equals(SRoute * pRoute1, SRoute * pRoute2)
+
+/////////////////////////////////////////////////////////////////////
+//
+// VALIDATION & TESTS
+//
+/////////////////////////////////////////////////////////////////////
+
+void _route_test()
 {
-  if (pRoute1 == pRoute2) {
-    LOG_DEBUG("route_equals == 1\n");
-    return 1;
-  }
-
-  /* BGP QoS */
-#ifdef BGP_QOS
-  if (!qos_route_delay_equals(pRoute1, pRoute2) ||
-      !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
-    LOG_DEBUG("route_equals == 0\n");
-    return 0;
-  }
-#endif
-
-  if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
-      (pRoute1->pPeer == pRoute2->pPeer) &&
-      (pRoute1->uOriginType == pRoute2->uOriginType) &&
-      (path_equals(pRoute1->pASPath, pRoute2->pASPath)) &&
-      (comm_equals(pRoute1->pCommunities, pRoute2->pCommunities)) &&
-      (pRoute1->uLocalPref == pRoute2->uLocalPref) &&
-      (pRoute1->uMED == pRoute2->uMED) &&
-      (ecomm_equals(pRoute1->pECommunities, pRoute2->pECommunities)) &&
-      (route_originator_equals(pRoute1, pRoute2)) &&
-      (route_cluster_list_equals(pRoute1, pRoute2))) {
-    LOG_DEBUG("route_equals == 1\n");
-    return 1;
-  }
-    LOG_DEBUG("route_equals == 0\n");
-  return 0;
 }

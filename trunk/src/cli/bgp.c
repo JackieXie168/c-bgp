@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,9 +34,16 @@
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <net/node.h>
 #include <net/prefix.h>
 #include <net/record-route.h>
 #include <string.h>
+
+// ----- cli_bgp_enum_nodes -----------------------------------------
+char * cli_bgp_enum_nodes(const char * pcText, int state)
+{
+  return network_enum_nodes(pcText, state);
+}
 
 // ----- cli_bgp_add_router -----------------------------------------
 /**
@@ -495,6 +502,27 @@ void cli_ctx_destroy_bgp_router(void ** ppItem)
 {
 }
 
+// -----[ cli_bgp_options_autocreate ]-------------------------------
+/**
+ * context: {}
+ * tokens: {on/off}
+ */
+int cli_bgp_options_autocreate(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcParam;
+
+  pcParam= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcParam, "on"))
+    BGP_OPTIONS_AUTO_CREATE= 1;
+  else if (!strcmp(pcParam, "off"))
+    BGP_OPTIONS_AUTO_CREATE= 0;
+  else {
+    LOG_SEVERE("Error: invalid value \"%s\"\n", pcParam);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_options_showmode ------------------------------------
 /**
  * context: {}
@@ -521,7 +549,7 @@ int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {function}
  */
-int cli_bgp_options_tiebreak(SCliContext * pContext, STokens * pTokens)
+/*int cli_bgp_options_tiebreak(SCliContext * pContext, STokens * pTokens)
 {
   char * pcParam;
 
@@ -537,7 +565,7 @@ int cli_bgp_options_tiebreak(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
-}
+  }*/
 
 // ----- cli_bgp_options_med ----------------------------------------
 /**
@@ -721,7 +749,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
  * context: {router}
  * tokens: {addr, function}
  */
-int cli_bgp_router_set_tiebreak(SCliContext * pContext,
+/*int cli_bgp_router_set_tiebreak(SCliContext * pContext,
 				STokens * pTokens)
 {
   char * pcParam;
@@ -744,7 +772,7 @@ int cli_bgp_router_set_tiebreak(SCliContext * pContext,
   }
 
   return CLI_SUCCESS;
-}
+  }*/
 
 // ----- cli_bgp_router_save_rib ------------------------------------
 /**
@@ -1037,7 +1065,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   SPrefix sPrefix;
   char * pcEndPtr;
   int iResult;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
 
   // Get BGP instance
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
@@ -1076,7 +1104,7 @@ int cli_bgp_router_recordroute_bm(SCliContext * pContext,
   char * pcEndPtr;
   unsigned int uBound;
   int iResult;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
 
   // Get BGP instance
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
@@ -1267,7 +1295,7 @@ int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if (bgp_router_add_peer(pRouter, uASNum, tAddr, 0)) {
+  if (bgp_router_add_peer(pRouter, uASNum, tAddr, 0) == NULL) {
     LOG_SEVERE("Error: peer already exists\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -1923,7 +1951,7 @@ int cli_bgp_router_peer_rrclient(SCliContext * pContext, STokens * pTokens)
   pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
   pRouter->iRouteReflector= 1;
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
-  peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
   return CLI_SUCCESS;
 }
 
@@ -1974,7 +2002,7 @@ int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
   // Get peer from context
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
 
-  peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
   return CLI_SUCCESS;
 }
 
@@ -1995,7 +2023,7 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
 
   /* Check that the peer is virtual */
-  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     LOG_SEVERE("Error: only virtual peers can do that\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -2075,11 +2103,11 @@ int cli_bgp_router_peer_softrestart(SCliContext * pContext, STokens * pTokens)
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
 
   // Set the virtual flag of this peer
-  if (!peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     LOG_SEVERE("Error: soft-restart option only available to virtual peers\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
-  peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
     
   return CLI_SUCCESS;
 }
@@ -2097,7 +2125,7 @@ int cli_bgp_router_peer_virtual(SCliContext * pContext, STokens * pTokens)
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
 
   // Set the virtual flag of this peer
-  peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
     
   return CLI_SUCCESS;
 }
@@ -2608,7 +2636,7 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
 					cli_bgp_router_peer_virtual,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<addr>", NULL);
+  cli_params_add2(pParams, "<addr>", NULL, cli_bgp_enum_nodes);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("peer",
 						cli_ctx_create_bgp_router_peer,
 						cli_ctx_destroy_bgp_router_peer,
@@ -2622,6 +2650,11 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<on-off>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("auto-create",
+					cli_bgp_options_autocreate,
+					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<med-type>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("med", cli_bgp_options_med,
@@ -2655,11 +2688,11 @@ int cli_register_bgp_options(SCliCmds * pCmds)
 					cli_bgp_options_qosaggrlimit,
 					NULL, pParams));
 #endif
-  pParams= cli_params_create();
+  /*pParams= cli_params_create();
   cli_params_add(pParams, "<function>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("tie-break",
 					cli_bgp_options_tiebreak,
-					NULL, pParams));
+					NULL, pParams));*/
   return cli_cmds_add(pCmds, cli_cmd_create("options", NULL,
 					    pSubCmds, NULL));
 }
@@ -2738,11 +2771,11 @@ int cli_register_bgp_router_set(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("cluster-id",
 					cli_bgp_router_set_clusterid,
 					NULL, pParams));
-  pParams= cli_params_create();
+  /*pParams= cli_params_create();
   cli_params_add(pParams, "<function>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("tie-break",
 				     cli_bgp_router_set_tiebreak,
-				     NULL, pParams));
+				     NULL, pParams));*/
   return cli_cmds_add(pCmds, cli_cmd_create("set", NULL,
 					    pSubCmds, NULL));
 }
@@ -2836,7 +2869,7 @@ int cli_register_bgp_router(SCliCmds * pCmds)
   cli_register_bgp_router_set(pSubCmds);
   cli_register_bgp_router_show(pSubCmds);
   pParams= cli_params_create();
-  cli_params_add(pParams, "<addr>", NULL);
+  cli_params_add2(pParams, "<addr>", NULL, cli_bgp_enum_nodes);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("router",
 						cli_ctx_create_bgp_router,
 						cli_ctx_destroy_bgp_router, 

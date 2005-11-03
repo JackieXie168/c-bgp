@@ -3,12 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include <libgds/str_util.h>
 
 #include <net/link.h>
 #include <net/link-list.h>
@@ -40,6 +42,63 @@ void node_mgmt_perror(FILE * pStream, int iErrorCode)
     fprintf(pStream, "unknown error (%i)", iErrorCode);
   }
 }
+
+// ----- node_get_name ----------------------------------------------
+char * node_get_name(SNetNode * pNode)
+{
+  return pNode->pcName;
+}
+
+// ----- node_set_name ----------------------------------------------
+void node_set_name(SNetNode * pNode, const char * pcName)
+{
+  if (pNode->pcName)
+    str_destroy(&pNode->pcName);
+  if (pcName != NULL)
+    pNode->pcName= str_create(pcName);
+  else
+    pNode->pcName= NULL;
+}
+
+// ----- node_dump ---------------------------------------------------
+/**
+ *
+ */
+void node_dump(FILE * pStream, SNetNode * pNode)
+{ 
+  ip_address_dump(pStream, pNode->tAddr);
+  fprintf(pStream, "\n");
+}
+
+// ----- node_info --------------------------------------------------
+/**
+ *
+ */
+void node_info(FILE * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+
+  fprintf(pStream, "loopback : ");
+  ip_address_dump(pStream, pNode->tAddr);
+  fprintf(pStream, "\n");
+  fprintf(pStream, "domain   :");
+  for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
+    fprintf(pStream, " %d", pNode->pIGPDomains->data[uIndex]);
+  }
+  fprintf(pStream, "\n");
+  if (pNode->pcName != NULL)
+    fprintf(pStream, "name     : %s\n", pNode->pcName);
+  fprintf(pStream, "addresses: ");
+  node_addresses_dump(pStream, pNode);
+  fprintf(pStream, "\n");
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NODE LINKS FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
 
 // ----- node_add_link_to_router ------------------------------------
 /**
@@ -304,3 +363,38 @@ int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
   return rt_del_route(pNode->pRT, pPrefix, pIface, ptNextHop, uType);
 }
 
+
+/////////////////////////////////////////////////////////////////////
+//
+// PROTOCOLS
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- node_register_protocol -------------------------------------
+/**
+ * Register a new protocol into the given node. The protocol is
+ * identified by a number (see protocol_t.h for definitions). The
+ * destroy callback function is used to destroy PDU corresponfing to
+ * this protocol in case the message carrying such PDU is not
+ * delivered to the handler (message dropped or incorrectly routed for
+ * instance). The protocol handler is composed of the handle_event
+ * callback function and the handler context pointer.
+ */
+int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
+			   void * pHandler,
+			   FNetNodeHandlerDestroy fDestroy,
+			   FNetNodeHandleEvent fHandleEvent)
+{
+  return protocols_register(pNode->pProtocols, uNumber, pHandler,
+			    fDestroy, fHandleEvent);
+}
+
+// -----[ node_get_protocol ]----------------------------------------
+/**
+ * Return the handler for the given protocol. If the protocol is not
+ * supported, NULL is returned.
+ */
+SNetProtocol * node_get_protocol(SNetNode * pNode, uint8_t uNumber)
+{
+  return protocols_get(pNode->pProtocols, uNumber);
+}

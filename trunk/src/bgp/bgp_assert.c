@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -56,7 +56,7 @@ int bgp_assert_reachability()
   SPtrArray * pRL;
   int iIndexSrc, iIndexDst, iIndexNet;
   SBGPRouter * pRouterSrc, * pRouterDst;
-  SPath * pPath;
+  SBGPPath * pPath;
   SRoute * pRoute;
   int iResult= 0;
 

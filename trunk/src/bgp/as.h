@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -43,6 +43,7 @@ extern uint8_t BGP_OPTIONS_NLRI;
 extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
+extern uint8_t BGP_OPTIONS_AUTO_CREATE;
 
 #define MAX_AS 65536
 
@@ -63,8 +64,10 @@ void bgp_router_set_name(SBGPRouter * pRouter, char * pcName);
 // ----- bgp_router_get_name ----------------------------------------
 char * bgp_router_get_name(SBGPRouter * pRouter);
 // ----- bgp_router_add_peer ----------------------------------------
-extern int bgp_router_add_peer(SBGPRouter * pRouter, uint16_t uRemoteAS,
-			       net_addr_t tAddr, uint8_t uPeerType);
+extern SBGPPeer * bgp_router_add_peer(SBGPRouter * pRouter,
+				      uint16_t uRemoteAS,
+				      net_addr_t tAddr,
+				      uint8_t uPeerType);
 // ----- bgp_router_find_peer ---------------------------------------
 extern SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr);
 // ----- bgp_router_peer_set_filter ---------------------------------
@@ -166,19 +169,19 @@ extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
 
 // ----- bgp_router_record_route ------------------------------------
 extern int bgp_router_record_route(SBGPRouter * pRouter,
-				   SPrefix sPrefix, SPath ** ppPath,
+				   SPrefix sPrefix, SBGPPath ** ppPath,
 				   int iPreserveDups);
 // ----- bgp_router_record_route_bounded_match ----------------------
 extern int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
 						 SPrefix sPrefix,
 						 uint8_t uBound,
-						 SPath ** ppPath,
+						 SBGPPath ** ppPath,
 						 int iPreserveDups);
 // ----- bgp_router_dump_recorded_route -----------------------------
 extern void bgp_router_dump_recorded_route(FILE * pStream,
 					   SBGPRouter * pRouter,
 					   SPrefix sPrefix,
-					   SPath * pPath,
+					   SBGPPath * pPath,
 					   int iResult);
 
 #endif

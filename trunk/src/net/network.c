@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 10/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -68,9 +68,9 @@ void network_perror(FILE * pStream, int iErrorCode)
   }
 }
 
-// ----- node_compare -----------------------------------------------
-int node_compare(void * pItem1, void * pItem2,
-		       unsigned int uEltSize)
+// ----- _network_node_compare --------------------------------------
+/*static int _network_node_compare(void * pItem1, void * pItem2,
+				 unsigned int uEltSize)
 {
   SNetNode * pNode1= *((SNetNode **) pItem1);
   SNetNode * pNode2= *((SNetNode **) pItem2);
@@ -81,29 +81,12 @@ int node_compare(void * pItem1, void * pItem2,
     return 1;
   else
     return 0;
-}
-
-// ----- node_get_name ----------------------------------------------
-char * node_get_name(SNetNode * pNode)
-{
-  return pNode->pcName;
-}
+    }*/
 
 // ----- node_get_prefix---------------------------------------------
 void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix){
   pPrefix->tNetwork = pNode->tAddr;
   pPrefix->uMaskLen = 32;
-}
-
-// ----- node_set_name ----------------------------------------------
-void node_set_name(SNetNode * pNode, const char * pcName)
-{
-  if (pNode->pcName)
-    str_destroy(&pNode->pcName);
-  if (pcName != NULL)
-    pNode->pcName= str_create(pcName);
-  else
-    pNode->pcName= NULL;
 }
 
 // ----- node_create ------------------------------------------------
@@ -153,39 +136,6 @@ void node_destroy(SNetNode ** ppNode)
     FREE(*ppNode);
     *ppNode= NULL;
   }
-}
-
-// ----- node_dump ---------------------------------------------------
-/**
- *
- */
-void node_dump(FILE * pStream, SNetNode * pNode)
-{ 
-  ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\n");
-}
-
-// ----- node_info --------------------------------------------------
-/**
- *
- */
-void node_info(FILE * pStream, SNetNode * pNode)
-{
-  unsigned int uIndex;
-
-  fprintf(pStream, "loopback : ");
-  ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\n");
-  fprintf(pStream, "domain   :");
-  for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
-    fprintf(pStream, " %d", pNode->pIGPDomains->data[uIndex]);
-  }
-  fprintf(pStream, "\n");
-  if (pNode->pcName != NULL)
-    fprintf(pStream, "name     : %s\n", pNode->pcName);
-  fprintf(pStream, "addresses: ");
-  node_addresses_dump(pStream, pNode);
-  fprintf(pStream, "\n");
 }
 
 // ----- node_add_tunnel --------------------------------------------
@@ -494,24 +444,19 @@ int node_send(SNetNode * pNode, net_addr_t tSrcAddr, net_addr_t tDstAddr,
 			   uProtocol, 255,
 			   pPayLoad, fDestroy);
 
+  //fprintf(stdout, "(");
+  //ip_address_dump(stdout, pNode->tAddr);
+  //fprintf(stdout, ") node-send from ");
+  //ip_address_dump(stdout, tSrcAddr);
+  //fprintf(stdout, " to ");
+  //ip_address_dump(stdout, tDstAddr);
+  //fprintf(stdout, "\n");
+
   // Forward
   return network_forward(pNode->pNetwork,
 			 pNextHop->pIface,
 			 pNextHop->tAddr,
 			 pMessage);
-}
-
-// ----- node_register_protocol -------------------------------------
-/**
- *
- */
-int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
-			   void * pHandler,
-			   FNetNodeHandlerDestroy fDestroy,
-			   FNetNodeHandleEvent fHandleEvent)
-{
-  return protocols_register(pNode->pProtocols, uNumber, pHandler,
-			    fDestroy, fHandleEvent);
 }
 
 
@@ -646,6 +591,16 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
     _link_drop(pLink, pMsg);
     return iResult;
   }
+
+  //fprintf(stdout, "(*) network-forward ");
+  //ip_address_dump(stdout, pMsg->tSrcAddr);
+  //fprintf(stdout, " to ");
+  //ip_address_dump(stdout, pMsg->tDstAddr);
+  //fprintf(stdout, " next-hop ");
+  //ip_address_dump(stdout, tNextHop);
+  //fprintf(stdout, " => ");
+  //ip_address_dump(stdout, pNextHop->tAddr);
+  //fprintf(stdout, "\n");
 
   // Forward to node...
   if (iResult == NET_SUCCESS) {
@@ -848,6 +803,7 @@ char * network_enum_nodes(const char * pcText, int state)
   ptr_array_destroy(&pArray);
   return NULL;*/
 }
+
 
 /////////////////////////////////////////////////////////////////////
 //

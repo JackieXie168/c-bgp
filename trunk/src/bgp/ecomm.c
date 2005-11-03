@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 27/01/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

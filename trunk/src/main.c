@@ -4,21 +4,9 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 30/08/2005
+// @lastdate 14/10/2005
 // 
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// @LICENSE@
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -36,9 +24,11 @@
 #include <unistd.h>
 
 #include <bgp/as.h>
+#include <bgp/comm_hash.h>
 #include <bgp/domain.h>
 #include <bgp/filter_registry.h>
 #include <bgp/mrtd.h>
+#include <bgp/path_hash.h>
 #include <bgp/peer_t.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/qos.h>
@@ -97,9 +87,9 @@ void simulation_cli_help()
   printf("  -g             track memory leaks.\n");
 #endif
 
-//#ifdef OSPF_SUPPORT
+#ifdef OSPF_SUPPORT
   printf("  -o             test OSPF model (cbgp must be compiled with --enable-ospf option).\n");
-//#endif
+#endif
   printf("\n");
   printf("C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
   printf("This is free software, and you are welcome to redistribute it\n");
@@ -536,7 +526,13 @@ void _main_done() __attribute((destructor));
 
 void _main_init()
 {
-  gds_init(/*GDS_OPTION_MEMORY_DEBUG*/0);
+  gds_init(0);
+  //gds_init(GDS_OPTION_MEMORY_DEBUG);
+
+  // Hash init code commented in order to allow parameter setup
+  // through he command-line/script
+  //_comm_hash_init();
+  //_path_hash_init();
 
   _network_create();
   _bgp_domain_init();
@@ -570,6 +566,8 @@ void _main_done()
   _igp_domain_destroy();
   _network_destroy();
   _mrtd_destroy();
+  _path_hash_destroy();
+  _comm_hash_destroy();
 
   gds_destroy();
 }
