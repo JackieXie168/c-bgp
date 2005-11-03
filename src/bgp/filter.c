@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 18/05/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -68,14 +68,14 @@ void filter_path_regex_destroy(void * pItem)
  * Universal hash function for string keys (discussed in Sedgewick's
  * "Algorithms in C, 3rd edition") and adapted.
  */
-uint32_t filter_path_regex_hash(void * pItem)
+uint32_t filter_path_regex_hash(void * pItem, uint32_t uHashSize)
 {
   SPathMatch * pRegEx = (SPathMatch *)pItem;
   
   if (pRegEx == NULL)
     return 0;
 
-  return hash_utils_key_compute_string(pRegEx->pcPattern, uHashPathRegExSize);
+  return hash_utils_key_compute_string(pRegEx->pcPattern, uHashPathRegExSize)%uHashSize;
 }
 
 // ----- filter_matcher_create --------------------------------------
@@ -323,7 +323,8 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
       break;
     case FT_MATCH_AS_PATH:
-      return path_match(pRoute->pASPath, *((int *) pMatcher->auParams))?1:0;
+      return path_match(route_path_get(pRoute),
+			*((int *) pMatcher->auParams))?1:0;
       break;
     default:
       abort();

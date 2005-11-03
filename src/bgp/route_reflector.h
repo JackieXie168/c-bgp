@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 07/01/2004
+// @lastdate 12/10/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_REFLECTOR_H__
@@ -24,9 +24,6 @@ typedef SUInt32Array SClusterList;
 // ---- cluster_list_create -----------------------------------------
 #define cluster_list_create() \
           (SClusterList *) uint32_array_create(0)
-// ---- cluster_list_destroy ----------------------------------------
-#define cluster_list_destroy(PPL) \
-          _array_destroy((SArray **) PPL)
 // ---- cluster_list_append -----------------------------------------
 #define cluster_list_append(PL, C) \
           _array_append((SArray *) PL, &C)
@@ -36,6 +33,9 @@ typedef SUInt32Array SClusterList;
 // ----- cluster_list_length ----------------------------------------
 #define cluster_list_length(PL) \
           _array_length((SArray *) PL)
+
+// ----- cluster_list_destroy ---------------------------------------
+extern void cluster_list_destroy(SClusterList ** ppClusterList);
 // ----- cluster_list_dump ------------------------------------------
 extern void cluster_list_dump(FILE * pStream, SClusterList * pClusterList);
 // ----- cluster_list_cmp -------------------------------------------

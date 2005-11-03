@@ -3,13 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/11/2003
-// @lastdate 06/04/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
 #define __BGP_ROUTE_T_H__
 
-#//define __ROUTER_LIST_ENABLE__
+//#define __ROUTER_LIST_ENABLE__
 
 #include <libgds/array.h>
 #include <libgds/types.h>
@@ -85,7 +85,7 @@ typedef struct TRoute {
   SPeer * pPeer;
   net_addr_t tNextHop;
   origin_type_t uOriginType;
-  SPath * pASPath;
+  SBGPPath * pASPathRef;
   SCommunities * pCommunities;
   uint32_t uLocalPref;
   uint32_t uMED;
@@ -113,4 +113,3 @@ typedef struct TRoute {
 } SRoute;
 
 #endif
-

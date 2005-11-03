@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 28/10/2003
+// @lastdate 11/10/2005
 // ==================================================================
 
 #ifndef __PATH_SEGMENT_H__
@@ -41,6 +41,11 @@ extern void path_segment_destroy(SPathSegment ** ppSegment);
  */
 extern SPathSegment * path_segment_copy(SPathSegment * pSegment);
 
+// -----[ path_segment_to_string ]-----------------------------------
+extern int path_segment_to_string(SPathSegment * pSegment,
+				  uint8_t uReverse,
+				  char * pcDst,
+				  size_t tDstSize);
 // ---- path_segment_dump_string -----------------------------------
 char * path_segment_dump_string(SPathSegment * pSegment,
 		       uint8_t uReverse);

@@ -1,10 +1,13 @@
 // ==================================================================
 // @(#)mrtd.c
 //
+// Interface with MRT data. The importation through the libbgpdump
+// library was inspired from Dan Ardelean's example code.
+//
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 18/05/2005
+// @lastdate 17/10/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -29,7 +32,10 @@
 #include <bgp/path_segment.h>
 #include <bgp/route.h>
 #include <bgp/routes_list.h>
+#include <net/network.h>
+#include <net/node.h>
 #include <net/prefix.h>
+#include <net/protocol.h>
 
 #ifdef HAVE_BGPDUMP
 # include <sys/types.h>
@@ -76,11 +82,11 @@ SPathSegment * mrtd_create_path_segment(char * pcPathSegment)
 }
 
 // ----- mrtd_create_path -------------------------------------------
-SPath * mrtd_create_path(char * pcPath)
+SBGPPath * mrtd_create_path(char * pcPath)
 {
   int iIndex;
   STokens * pPathTokens;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
   char * pcSegment;
   SPathSegment * pSegment;
   unsigned long ulASNum;
@@ -275,8 +281,9 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   unsigned long ulMed;
   char * pcTemp;
   char * pcEndPtr;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
   SCommunities * pComm= NULL;
+  SNetNode * pNode;
 
   /* No route built until now */
   *ppRoute= NULL;
@@ -360,20 +367,46 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return -1;
   }
 
-  /*
-  if ((pRouter != NULL) && (pRouter->pNode->tAddr != tNextHop)) {
+  /* Find the peer corresponding to this next-hop. Currently, the
+   * next-hop must be the peer's loopback address. */
+  if (pRouter != NULL) {
     
     // Look for the peer in the router...
     pPeer= bgp_router_find_peer(pRouter, tNextHop);
     if (pPeer == NULL) {
-      LOG_SEVERE("Error: peer not found \"");
-      LOG_ENABLED_SEVERE()
-	ip_address_dump(log_get_stream(pMainLog), tNextHop);
-      LOG_SEVERE("\"\n");
-      return -1;
+
+      /* If the peer does not exist, auto-create it if required or
+	 drop an error message. */
+      if (!BGP_OPTIONS_AUTO_CREATE) {
+	LOG_SEVERE("Error: peer not found \"");
+	LOG_ENABLED_SEVERE()
+	  ip_address_dump(log_get_stream(pMainLog), tNextHop);
+	LOG_SEVERE("\"\n");
+	path_destroy(&pPath);
+	return -1;
+      } else {
+	
+	/* If node does not exist, create it and add a link and a
+	   route towards it */
+	pNode= network_find_node(tNextHop);
+	if (pNode == NULL) {
+	  pNode= node_create(tNextHop);
+	  network_add_node(pNode);
+	  node_add_link_to_router(pNode, pRouter->pNode, 1, 1);
+	}
+
+	/* Add a new BGP session */
+	pPeer= bgp_router_add_peer(pRouter, path_last_as(pPath),
+				   tNextHop, 0);
+
+	/* If peer does not support BGP, create it virtual */
+	if (protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP) == NULL)
+	  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+
+      }
     }
       
-  }*/
+  }
 
   /* Check the LOCAL-PREF */
   if (tokens_get_ulong_at(pTokens, 9, &ulLocalPref)) {
@@ -407,8 +440,8 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   pRoute= route_create(*pPrefix, NULL, tNextHop, tOrigin);
   route_localpref_set(pRoute, ulLocalPref);
   route_med_set(pRoute, ulMed);
-  pRoute->pASPath= pPath;
-  pRoute->pCommunities= pComm;
+  route_path_set(pRoute, pPath);
+  route_comm_set(pRoute, pComm);
   pRoute->pPeer= pPeer;
   if (pRoute->pPeer == NULL)
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 1);
@@ -590,9 +623,9 @@ SCommunities * mrtd_process_community(struct community * com)
  * is found, the function will fail (and return NULL).
  */
 #ifdef HAVE_BGPDUMP
-SPath * mrtd_process_aspath(struct aspath * path)
+SBGPPath * mrtd_process_aspath(struct aspath * path)
 {
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
   SPathSegment * pSegment;
   void * pnt;
   void * end;
@@ -677,9 +710,9 @@ SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
 
   if (pEntry->subtype == AFI_IP) {
 
-    pPeer= peer_create(pTableDump->peer_as,
-		       ntohl(pTableDump->peer_ip.v4_addr.s_addr),
-		       NULL, 0);
+    pPeer= bgp_peer_create(pTableDump->peer_as,
+			   ntohl(pTableDump->peer_ip.v4_addr.s_addr),
+			   NULL, 0);
 
     sPrefix.tNetwork= ntohl(pTableDump->prefix.v4_addr.s_addr);
     sPrefix.uMaskLen= pTableDump->mask;
@@ -699,7 +732,7 @@ SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
     pRoute= route_create(sPrefix, pPeer, tNextHop, tOrigin);
 
     if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
-      pRoute->pASPath= mrtd_process_aspath(pEntry->attr->aspath);
+      route_path_set(pRoute, mrtd_process_aspath(pEntry->attr->aspath));
 
     if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
       route_localpref_set(pRoute, pEntry->attr->local_pref);
@@ -768,8 +801,12 @@ SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
 	  routes_list_append(pRoutes, pRoute);
 	}
       }
-	
       bgpdump_free_mem(pDumpEntry);
+    } else {
+      fprintf(stderr, "Error reading MRT dump entry\n");
+      if (pRoutes != NULL)
+	routes_list_destroy(&pRoutes);
+      break;
     }
   } while(fDump->eof == 0);
   

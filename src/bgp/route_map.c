@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 17/05/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -71,20 +71,18 @@ void route_map_element_destroy(void * pElt)
 // ----- route_map_hash_compute --------------------------------------
 /**
  *
- *
  */
-uint32_t route_map_hash_compute(void * pElt)
+uint32_t route_map_hash_compute(void * pElt, uint32_t uHashSize)
 {
-  SRouteMapHashElt * phRouteMapElt = (SRouteMapHashElt *)pElt;
+  SRouteMapHashElt * phRouteMapElt= (SRouteMapHashElt *)pElt;
 
   return hash_utils_key_compute_string(phRouteMapElt->pcRouteMapName, 
-					uHashRouteMapSize);
+				       uHashSize);
 }
 
 
 // ----- route_map_hash_get -----------------------------------------------
 /**
- *
  *
  */
 SHash * route_map_hash_get()

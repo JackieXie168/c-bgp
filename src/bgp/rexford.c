@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -184,13 +184,13 @@ int rexford_load(char * pcFileName)
       // Setup peering relations
       if (bgp_router_add_peer(pRouter1, uAS2, tAddr2,
 			      (uRelation == REXFORD_REL_PEER_PEER)?
-			      PEER_TYPE_PEER:PEER_TYPE_CUSTOMER) == -1) {
+			      PEER_TYPE_PEER:PEER_TYPE_CUSTOMER) == NULL) {
 	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS2, uAS1);
 	continue;
       }
       if (bgp_router_add_peer(pRouter2, uAS1, tAddr1,
 			      (uRelation == REXFORD_REL_PEER_PEER)?
-			      PEER_TYPE_PEER:PEER_TYPE_PROVIDER) == -1) {
+			      PEER_TYPE_PEER:PEER_TYPE_PROVIDER) == NULL) {
 	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS1, uAS2);
 	continue;
       }
@@ -326,7 +326,7 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
   int iError= 0;
   uint16_t uAS;
   int iResult;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
 
   if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
     while ((!feof(pFileInput)) && (!iError)) {
@@ -396,7 +396,7 @@ int rexford_record_route_bm(FILE * pStream, char * pcFileName,
   int iError= 0;
   uint16_t uAS;
   int iResult;
-  SPath * pPath= NULL;
+  SBGPPath * pPath= NULL;
 
   if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
     while ((!feof(pFileInput)) && (!iError)) {

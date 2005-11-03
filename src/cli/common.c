@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 04/08/2005
+// @lastdate 14/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,12 +12,15 @@
 
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <libgds/log.h>
 #include <libgds/tokenizer.h>
 
+#include <bgp/comm_hash.h>
 #include <bgp/mrtd.h>
+#include <bgp/path_hash.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/routes_list.h>
 #include <cli/bgp.h>
@@ -132,6 +135,76 @@ int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  return CLI_SUCCESS;
+}
+
+// ----- cli_set_comm_hash_size -------------------------------------
+int cli_set_comm_hash_size(SCliContext * pContext, STokens * pTokens)
+{
+  unsigned long ulSize;
+
+  /* Get the hash size */
+  if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
+    LOG_SEVERE("Error: invalid size \"%s\"\n",
+	       tokens_get_string_at(pTokens, 0));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Set the hash size */
+  if (comm_hash_set_size(ulSize) != 0) {
+    LOG_SEVERE("Error: could not set comm-hash size\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_comm_hash_content ]-------------------------------
+int cli_show_comm_hash_content(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcFileName;
+  FILE * pStream= stdout;
+
+  pcFileName= tokens_get_string_at(pTokens, 0);
+  if (strcmp("stdout", pcFileName)) {
+    pStream= fopen(pcFileName, "w");
+    if (pStream == NULL) {
+      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  comm_hash_content(pStream);
+  if (pStream != stdout)
+    fclose(pStream);
+  return CLI_SUCCESS;
+}
+
+// ----- cli_show_comm_hash_size ------------------------------------
+int cli_show_comm_hash_size(SCliContext * pContext, STokens * pTokens)
+{
+  fprintf(stdout, "%u\n", comm_hash_get_size());
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_comm_hash_stat ]----------------------------------
+int cli_show_comm_hash_stat(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcFileName;
+  FILE * pStream= stdout;
+
+  pcFileName= tokens_get_string_at(pTokens, 0);
+  if (strcmp("stdout", pcFileName)) {
+    pStream= fopen(pcFileName, "w");
+    if (pStream == NULL) {
+      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  comm_hash_statistics(pStream);
+  if (pStream != stdout)
+    fclose(pStream);
   return CLI_SUCCESS;
 }
 
@@ -260,6 +333,76 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
 #endif
 }
 
+// ----- cli_set_path_hash_size -------------------------------------
+int cli_set_path_hash_size(SCliContext * pContext, STokens * pTokens)
+{
+  unsigned long ulSize;
+
+  /* Get the hash size */
+  if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
+    LOG_SEVERE("Error: invalid size \"%s\"\n",
+	       tokens_get_string_at(pTokens, 0));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Set the hash size */
+  if (path_hash_set_size(ulSize) != 0) {
+    LOG_SEVERE("Error: could not set path-hash size\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_path_hash_content ]-------------------------------
+int cli_show_path_hash_content(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcFileName;
+  FILE * pStream= stdout;
+
+  pcFileName= tokens_get_string_at(pTokens, 0);
+  if (strcmp("stdout", pcFileName)) {
+    pStream= fopen(pcFileName, "w");
+    if (pStream == NULL) {
+      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  path_hash_content(pStream);
+  if (pStream != stdout)
+    fclose(pStream);
+  return CLI_SUCCESS;
+}
+
+// ----- cli_show_path_hash_size ------------------------------------
+int cli_show_path_hash_size(SCliContext * pContext, STokens * pTokens)
+{
+  fprintf(stdout, "%u\n", path_hash_get_size());
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_path_hash_stat ]----------------------------------
+int cli_show_path_hash_stat(SCliContext * pContext, STokens * pTokens)
+{
+  char * pcFileName;
+  FILE * pStream= stdout;
+
+  pcFileName= tokens_get_string_at(pTokens, 0);
+  if (strcmp("stdout", pcFileName)) {
+    pStream= fopen(pcFileName, "w");
+    if (pStream == NULL) {
+      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  path_hash_statistics(pStream);
+  if (pStream != stdout)
+    fclose(pStream);
+  return CLI_SUCCESS;
+}
+
 // ----- cli_show_version -------------------------------------------
 int cli_show_version(SCliContext * pContext, STokens * pTokens)
 {
@@ -326,6 +469,27 @@ int cli_quit(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS_TERMINATE;
 }
 
+// -----[ cli_time_diff ]--------------------------------------------
+static time_t tSavedTime= 0;
+int cli_time_diff(SCliContext * pContext, STokens * pTokens)
+{
+  time_t tCurrentTime= time(NULL);
+
+  if (tSavedTime == 0) {
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  fprintf(stdout, "%f\n", difftime(tCurrentTime, tSavedTime));
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_time_save ]--------------------------------------------
+int cli_time_save(SCliContext * pContext, STokens * pTokens)
+{
+  tSavedTime= time(NULL);
+  return CLI_SUCCESS;
+}
+
 // void cli_register_set --------------------------------------------
 void cli_register_set(SCli * pCli)
 {
@@ -338,6 +502,11 @@ void cli_register_set(SCli * pCli)
   cli_cmds_add(pSubCmds, cli_cmd_create("autoflush", cli_set_autoflush,
 					NULL, pParams));
   pParams= cli_params_create();
+  cli_params_add(pParams, "<size>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-size",
+					cli_set_comm_hash_size,
+					NULL, pParams));
+  pParams= cli_params_create();
   cli_params_add(pParams, "<on|off>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("debug", cli_set_debug,
 					NULL, pParams));
@@ -345,6 +514,15 @@ void cli_register_set(SCli * pCli)
   cli_params_add(pParams, "<value>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_set_mem_limit,
 					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<size>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-size",
+					cli_set_path_hash_size,
+					NULL, pParams));
+//  pParams= cli_params_create();
+//  cli_params_add(pParams, "<time>", NULL);
+//  cli_cmds_add(pSubCmds, cli_cmd_create("time-limit", cli_set_time_limit,
+//					NULL, pParams));
   cli_register_cmd(pCli, cli_cmd_create("set", NULL, pSubCmds, NULL));
 }
 
@@ -355,6 +533,19 @@ void cli_register_show(SCli * pCli)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<filename>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-content",
+					cli_show_comm_hash_content,
+					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-size",
+					cli_show_comm_hash_size,
+					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<filename>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-stat",
+					cli_show_comm_hash_stat,
+					NULL, pParams));
   pParams= cli_params_create();
 #ifdef _FILENAME_COMPLETION_FUNCTION
   cli_params_add2(pParams, "<filename>", NULL,
@@ -367,10 +558,26 @@ void cli_register_show(SCli * pCli)
 					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_mem_limit,
 					NULL, NULL));
+//  cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_time_limit,
+//					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<filename>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-content",
+					cli_show_path_hash_content,
+					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-size",
+					cli_show_path_hash_size,
+					NULL, NULL));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<filename>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-stat",
+					cli_show_path_hash_stat,
+					NULL, pParams));
   cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_show_version,
 					NULL, NULL));
   cli_register_cmd(pCli, cli_cmd_create("show", NULL, pSubCmds, NULL));
 }
+
 // ----- cli_register_include ---------------------------------------
 void cli_register_include(SCli * pCli)
 {
@@ -427,6 +634,20 @@ void cli_register_require(SCli * pCli)
 					pSubCmds, NULL));
 }
 
+// ----- cli_register_time ------------------------------------------
+void cli_register_time(SCli * pCli)
+{
+  SCliCmds * pSubCmds;
+
+  pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("diff", cli_time_diff,
+					NULL, NULL));
+  cli_cmds_add(pSubCmds, cli_cmd_create("save", cli_time_save,
+					NULL, NULL));
+  cli_register_cmd(pCli, cli_cmd_create("time", cli_quit,
+					pSubCmds, NULL));
+}
+
 // ----- cli_get ----------------------------------------------------
 /**
  *
@@ -449,6 +670,7 @@ SCli * cli_get()
     cli_register_require(pTheCli);
     cli_register_set(pTheCli);
     cli_register_show(pTheCli);
+    cli_register_time(pTheCli);
   }
   return pTheCli;
 }

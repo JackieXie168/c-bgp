@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 25/03/2005
+// @lastdate 12/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,12 @@
 #include <bgp/route_reflector.h>
 
 #include <net/prefix.h>
+
+// ----- cluster_list_destroy ---------------------------------------
+void cluster_list_destroy(SClusterList ** ppClusterList)
+{
+  _array_destroy((SArray **) ppClusterList);
+}
 
 // ----- cluster_list_dump ------------------------------------------
 /**

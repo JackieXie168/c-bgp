@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 05/08/2005
+// @lastdate 10/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -102,6 +102,15 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
 {
   bgp_msg_monitor_write(pMsg, pNode, tAddr);
+
+  //fprintf(stdout, "(");
+  //ip_address_dump(stdout, pNode->tAddr);
+  //fprintf(stdout, ") bgp-msg-send from ");
+  //ip_address_dump(stdout, pNode->tAddr);
+  //fprintf(stdout, " to ");
+  //ip_address_dump(stdout, tAddr);
+  //fprintf(stdout, "\n");
+  
   return node_send(pNode, 0, tAddr, NET_PROTOCOL_BGP, pMsg,
 		   (FPayLoadDestroy) bgp_msg_destroy);
 }
@@ -136,7 +145,7 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     // AS-PATH
     fprintf(pStream, "|");
     if (pMsg->uType == BGP_MSG_UPDATE) {
-      path_dump(pStream, pRoute->pASPath, 1);
+      path_dump(pStream, route_path_get(pRoute), 1);
     }
     // ORIGIN
     fprintf(pStream, "|");

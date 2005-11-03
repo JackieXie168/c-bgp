@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifndef __NET_NODE_H__
 #define __NET_NODE_H__
 
 #include <net/net_types.h>
+#include <net/protocol.h>
 
 #define NET_ERROR_MGMT_INVALID_NODE        -100
 #define NET_ERROR_MGMT_INVALID_LINK        -101
@@ -19,6 +20,22 @@
 
 // ----- node_mgmt_perror -------------------------------------------
 extern void node_mgmt_perror(FILE * pStream, int iErrorCode);
+// ----- node_set_name ----------------------------------------------
+extern void node_set_name(SNetNode * pNode, const char * pcName);
+// ----- node_get_name ----------------------------------------------
+extern char * node_get_name(SNetNode * pNode);
+// ----- node_dump --------------------------------------------------
+extern void node_dump(FILE * pStream, SNetNode * pNode);
+// ----- node_info --------------------------------------------------
+extern void node_info(FILE * pStream, SNetNode * pNode);
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NODE LINKS FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
 // ----- node_add_link ----------------------------------------------
 extern int node_add_link(SNetNode * pNode, SNetDest sDest,
 			 net_link_delay_t tDelay);
@@ -61,5 +78,18 @@ extern int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 			     uint8_t uType);
 
 
+/////////////////////////////////////////////////////////////////////
+//
+// PROTOCOLS
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- node_register_protocol -------------------------------------
+extern int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
+				  void * pHandler,
+				  FNetNodeHandlerDestroy fDestroy,
+				  FNetNodeHandleEvent fHandleEvent);
+// -----[ node_get_protocol ]----------------------------------------
+extern SNetProtocol * node_get_protocol(SNetNode * pNode, uint8_t uNumber);
 
 #endif /* __NET_NODE_H__ */

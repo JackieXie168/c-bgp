@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 27/01/2005
+// @lastdate 11/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -56,6 +57,81 @@ SPathSegment * path_segment_copy(SPathSegment * pSegment)
   memcpy(pNewSegment->auValue, pSegment->auValue,
 	 pNewSegment->uLength*sizeof(uint16_t));
   return pNewSegment;
+}
+
+// -----[ path_segment_to_string ]-----------------------------------
+/**
+ * Convert the given AS-Path segment to a string. The string memory
+ * MUST have been allocated before. The function will not write
+ * outside of the allocated buffer, based on the provided destination
+ * buffer size.
+ *
+ * Return value:
+ *   The function returns the number of character written (not
+ *   including the trailing '\0'. If the output was truncated, the
+ *   returned value is equal to the destination buffer size.
+ *
+ * Note: the function uses snprintf() in order to write into the
+ * destination buffer. The return value of snprintf() is important. A
+ * return value of size or more means that the output was truncated.
+ */
+int path_segment_to_string(SPathSegment * pSegment,
+			   uint8_t uReverse,
+			   char * pcDst,
+			   size_t tDstSize)
+{
+  int iIndex;
+  int iWritten;
+  size_t tInitialDstSize= tDstSize;
+
+  assert((pSegment->uType == AS_PATH_SEGMENT_SET) ||
+	 (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE));
+
+  if (pSegment->uType == AS_PATH_SEGMENT_SET) {
+    iWritten= snprintf(pcDst, tDstSize, "}");
+    if (iWritten == tDstSize)
+      return tInitialDstSize;
+    tDstSize-= iWritten;
+    pcDst+= iWritten;
+  }
+
+  if (uReverse) {
+    for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
+      if (iIndex < pSegment->uLength)
+	iWritten= snprintf(pcDst, tDstSize, " %u",
+			   pSegment->auValue[iIndex-1]);
+      else
+	iWritten= snprintf(pcDst, tDstSize, "%u",
+			   pSegment->auValue[iIndex-1]);	  
+      if (iWritten >= tDstSize)
+	return tInitialDstSize;
+      tDstSize-= iWritten;
+      pcDst+= iWritten;
+    }
+  } else {
+    for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
+      if (iIndex > 0)
+	iWritten= snprintf(pcDst, tDstSize, " %u",
+			   pSegment->auValue[iIndex-1]);
+      else
+	iWritten= snprintf(pcDst, tDstSize, "%u",
+			   pSegment->auValue[iIndex-1]);	  
+      if (iWritten >= tDstSize)
+	return tInitialDstSize;
+      tDstSize-= iWritten;
+      pcDst+= iWritten;
+    }
+  }
+
+  if (pSegment->uType == AS_PATH_SEGMENT_SET) {
+    iWritten= snprintf(pcDst, tDstSize, "}");
+    if (iWritten >= tDstSize)
+      return tInitialDstSize;
+    tDstSize-= iWritten;
+    pcDst+= iWritten;
+  }
+
+  return (tInitialDstSize-tDstSize);
 }
 
 // ----- path_segment_dump_string ------------------------------------------

@@ -30,6 +30,8 @@ libbgp_la_SOURCES = \
 	comm.c \
 	comm.h \
 	comm_t.h \
+	comm_hash.c \
+	comm_hash.h \
 	dp_rules.c \
 	dp_rules.h \
 	domain.c \
@@ -50,6 +52,8 @@ libbgp_la_SOURCES = \
 	mrtd.h \
 	path.c \
 	path.h \
+	path_hash.c \
+	path_hash.h \
 	path_segment.c \
 	path_segment.h \
 	peer.c \

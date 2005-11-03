@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 08/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -13,6 +13,8 @@
 // - move local-pref based rule of decision process in xxx_tie_break()
 //   function.
 // - re-check IGP/BGP interaction
+// - check if tie-break ID (uTBID) is still in use or not. Remove it
+//   if possible.
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -53,14 +55,12 @@ uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF= 0;
 uint8_t BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
 uint8_t BGP_OPTIONS_SHOW_MODE = ROUTE_SHOW_CISCO;
 uint8_t BGP_OPTIONS_RIB_OUT= 1;
+uint8_t BGP_OPTIONS_AUTO_CREATE= 0;
 //#define NO_RIB_OUT
 
-// ----- bgp_router_peers_compare -----------------------------------
-/**
- *
- */
-int bgp_router_peers_compare(void * pItem1, void * pItem2,
-			     unsigned int uEltSize)
+// ----- _bgp_router_peers_compare -----------------------------------
+static int _bgp_router_peers_compare(void * pItem1, void * pItem2,
+				     unsigned int uEltSize)
 {
   SPeer * pPeer1= *((SPeer **) pItem1);
   SPeer * pPeer2= *((SPeer **) pItem2);
@@ -73,20 +73,22 @@ int bgp_router_peers_compare(void * pItem1, void * pItem2,
     return 0;
 }
 
-// ----- bgp_router_peer_list_destroy -------------------------------
-/**
- *
- */
-void bgp_router_peers_destroy(void * pItem)
+// ----- _bgp_router_peers_destroy ----------------------------------
+static void _bgp_router_peers_destroy(void * pItem)
 {
-  SPeer * pPeer= *((SPeer **) pItem);
+  SBGPPeer * pPeer= *((SBGPPeer **) pItem);
 
-  peer_destroy(&pPeer);
+  bgp_peer_destroy(&pPeer);
 }
 
 // ----- bgp_router_create ------------------------------------------
 /**
+ * Create a BGP router in the given node.
  *
+ * Arguments:
+ * - the AS-number of the domain the router will belong to
+ * - the underlying node
+ * - a tie-break ID (this not used anymore)
  */
 SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
 			       uint32_t uTBID)
@@ -98,8 +100,8 @@ SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
   pRouter->pNode= pNode;
   pRouter->pPeers= ptr_array_create(ARRAY_OPTION_SORTED |
 				    ARRAY_OPTION_UNIQUE,
-				    bgp_router_peers_compare,
-				    bgp_router_peers_destroy);
+				    _bgp_router_peers_compare,
+				    _bgp_router_peers_destroy);
   pRouter->pLocRIB= rib_create(0);
   pRouter->pLocalNetworks= ptr_array_create_ref(0);
   pRouter->fTieBreak= BGP_OPTIONS_TIE_BREAK;
@@ -152,16 +154,17 @@ SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr)
 /**
  *
  */
-int bgp_router_add_peer(SBGPRouter * pRouter, uint16_t uRemoteAS,
-			net_addr_t tAddr, uint8_t uPeerType)
+SBGPPeer * bgp_router_add_peer(SBGPRouter * pRouter, uint16_t uRemoteAS,
+			       net_addr_t tAddr, uint8_t uPeerType)
 {
-  SPeer * pNewPeer= peer_create(uRemoteAS, tAddr, pRouter, uPeerType);
+  SBGPPeer * pNewPeer= bgp_peer_create(uRemoteAS, tAddr,
+				       pRouter, uPeerType);
 
   if (ptr_array_add(pRouter->pPeers, &pNewPeer) < 0) {
-    peer_destroy(&pNewPeer);
-    return -1;
+    bgp_peer_destroy(&pNewPeer);
+    return NULL;
   } else
-    return 0;
+    return pNewPeer;
 }
 
 // ----- bgp_router_peer_set_filter ---------------------------------
@@ -199,9 +202,7 @@ int bgp_router_add_network(SBGPRouter * pRouter, SPrefix sPrefix)
   route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
   ptr_array_append(pRouter->pLocalNetworks, pRoute);
   rib_add_route(pRouter->pLocRIB, route_copy(pRoute));
-
   bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
-
   return 0;
 }
 
@@ -431,7 +432,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     }
     // Route-Reflection: append Cluster-ID to Cluster-ID-List field
     if ((iExternalRoute || route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT)) &&
-	(!peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))
+	(!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))
       route_cluster_list_append(pNewRoute, pRouter->tClusterID);
   }
 
@@ -440,7 +441,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     // Route-reflectors: do not redistribute a route from a client peer
     // to the originator client peer
     if (route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT)) {
-      if (peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
+      if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
 	assert(route_originator_get(pNewRoute, &tOriginator) == 0);
 	if (pPeer->tAddr == tOriginator) {
 	  LOG_DEBUG("RR-filtered (client --> originator-client)\n");
@@ -454,7 +455,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     // peer to non-client peers (becoz non-client peers MUST be fully
     // meshed)
     else {
-      if (!peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
+      if (!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
 	LOG_DEBUG("RR-filtered (non-client --> non-client)\n");
 	route_destroy(&pNewRoute);
 	return -1;
@@ -484,17 +485,17 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
 	else
 	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
       } else if (!pRouter->iRouteReflector || iExternalRoute) {
-	if (!iLocalRoute &&  peer_flag_get(route_peer_get(pNewRoute),
-					   PEER_FLAG_NEXT_HOP_SELF)) {
+	if (!iLocalRoute &&  bgp_peer_flag_get(route_peer_get(pNewRoute),
+					       PEER_FLAG_NEXT_HOP_SELF)) {
 	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
 	} else if (pPeer->tNextHop != 0) {
 	  route_nexthop_set(pNewRoute, pPeer->tNextHop);
 	}
       }
 
-      // Append AS-Number if external peer (eBGP session)
+      // Prepend AS-Number if external peer (eBGP session)
       if (iExternalSession)
-	route_path_append(pNewRoute, pRouter->uNumber);
+	route_path_prepend(pNewRoute, pRouter->uNumber, 1);
       
       // Route-Reflection: clear Originator and Cluster-ID-List fields
       // if external peer (these fields are non-transitive)
@@ -1888,7 +1889,7 @@ void bgp_router_info(FILE * pStream, SBGPRouter * pRouter)
   ip_address_dump(pStream, pRouter->tClusterID);
   fprintf(pStream, "\n");
   if (pRouter->pNode->pcName != NULL)
-    fprintf(pStream, "name: %s", pRouter->pNode->pcName);
+    fprintf(pStream, "name      : %s\n", pRouter->pNode->pcName);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1948,7 +1949,7 @@ int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
       }
 
       if ( (pPeer = bgp_router_find_peer(pRouter, route_nexthop_get(pRoute))) != NULL) {
-	if (peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+	if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
 /*	    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
 	    // Check route against import filter
 	    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
@@ -2028,13 +2029,13 @@ int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter)
  * - records ASes once (do not record iBGP session crossing)
  */
 int bgp_router_record_route(SBGPRouter * pRouter,
-			    SPrefix sPrefix, SPath ** ppPath,
+			    SPrefix sPrefix, SBGPPath ** ppPath,
 			    int iPreserveDups)
 {
   SBGPRouter * pCurrentRouter= pRouter;
   SBGPRouter * pPreviousRouter= NULL;
   SRoute * pRoute;
-  SPath * pPath= path_create();
+  SBGPPath * pPath= path_create();
   SNetNode * pNode;
   SNetProtocol * pProtocol;
   int iResult= AS_RECORD_ROUTE_UNREACH;
@@ -2093,7 +2094,7 @@ int bgp_router_record_route(SBGPRouter * pRouter,
 void bgp_router_dump_recorded_route(FILE * pStream,
 				    SBGPRouter * pRouter,
 				    SPrefix sPrefix,
-				    SPath * pPath,
+				    SBGPPath * pPath,
 				    int iResult)
 {
   // Display record-route results
@@ -2209,13 +2210,13 @@ SRoute * bgp_router_bm_route(SBGPRouter * pRouter, SPrefix sPrefix,
 int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
 					  SPrefix sPrefix,
 					  uint8_t uBound,
-					  SPath ** ppPath,
+					  SBGPPath ** ppPath,
 					  int iPreserveDups)
 {
   SBGPRouter * pCurrentRouter= pRouter;
   SBGPRouter * pPreviousRouter= NULL;
   SRoute * pRoute;
-  SPath * pPath= path_create();
+  SBGPPath * pPath= path_create();
   SNetNode * pNode;
   SNetProtocol * pProtocol;
   int iResult= AS_RECORD_ROUTE_UNREACH;

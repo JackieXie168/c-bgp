@@ -57,3 +57,6 @@ bin_PROGRAMS = cbgp
 cbgp_SOURCES = \
 	main.c
 cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD)
+
+#dist-hook:
+#	find $(distdir) -type f -name *.c -exec cat \{\} | sed 's/\@LICENSE\@/THIS IS THE LICENSE/' \;

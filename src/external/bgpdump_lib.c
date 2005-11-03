@@ -48,6 +48,11 @@ To Do             :
 -------------------------------------------------------------------------------
 */
 
+/**
+ * Updated by Bruno Quoitin (bqu@info.ucl.ac.be)
+ * @lastdate 11/10/2005
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -55,6 +60,7 @@ To Do             :
 #include "bgpdump_lib.h"
 #include "bgpdump_mstream.h"
 
+#include <assert.h>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -165,6 +171,20 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
     this_entry->attr=NULL;
 
     buffer = malloc(this_entry->length);
+    /* ADDED BY BQU: we cannot rely on the length read from the
+       file. Therefore, we have to prepare to memory allocation
+       failure. */
+    if (buffer == NULL) {
+      syslog(LOG_ERR,
+	     "bgpdump_read_next: could not allocate memory "
+	     "(%d bytes read, expecting %d), "
+	     "possibly incorrect file format",
+	       bytes_read, this_entry->length);
+      free(this_entry);
+      dump->eof= 1;
+      return NULL;
+    }
+
     bytes_read = gzread(dump->f, buffer, this_entry->length);
     if(bytes_read != this_entry->length) { 
 	syslog(LOG_ERR,
@@ -176,7 +196,6 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 	return(NULL);
     }
         
-
     ok=0;
     mstream_init(&s,buffer,this_entry->length);
 

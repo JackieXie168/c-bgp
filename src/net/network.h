@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 10/08/2005
+// @lastdate 17/10/2005
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -21,7 +21,6 @@
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/net_path.h>
-#include <net/protocol.h>
 #include <net/link.h>
 #include <net/routing.h>
 #include <sim/simulator.h>
@@ -43,10 +42,6 @@ extern void network_perror(FILE * pStream, int iErrorCode);
 extern SNetNode * node_create(net_addr_t tAddr);
 // ----- node_create ------------------------------------------------
 extern int node_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
-// ----- node_set_name ----------------------------------------------
-extern void node_set_name(SNetNode * pNode, const char * pcName);
-// ----- node_get_name ----------------------------------------------
-extern char * node_get_name(SNetNode * pNode);
 // ----- node_get_prefix----------------------------------------------
 extern void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix);
 // ----- node_add_link_toSubnet -------------------------------------
@@ -59,10 +54,6 @@ extern int node_post_event(SNetNode * pNode);
 extern int node_has_address(SNetNode * pNode, net_addr_t tAddress);
 // ----- node_addresses_dump ----------------------------------------
 extern void node_addresses_dump(FILE * pStream, SNetNode * pNode);
-// ----- node_dump --------------------------------------------------
-extern void node_dump(FILE * pStream, SNetNode * pNode);
-// ----- node_info --------------------------------------------------
-extern void node_info(FILE * pStream, SNetNode * pNode);
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(FILE * pStream, SNetNode * pNode);
 // ----- node_links_destroy -----------------------------------------
@@ -79,11 +70,6 @@ extern SNetRouteNextHop * node_rt_lookup(SNetNode * pNode,
 // ----- node_rt_dump -----------------------------------------------
 extern void node_rt_dump(FILE * pStream, SNetNode * pNode,
 			 SNetDest sDest);
-// ----- node_register_protocol -------------------------------------
-extern int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
-				  void * pHandler,
-				  FNetNodeHandlerDestroy fDestroy,
-				  FNetNodeHandleEvent fHandleEvent);
 // ----- node_send --------------------------------------------------
 extern int node_send(SNetNode * pNode, net_addr_t tSrcAddr,
 		     net_addr_t tAddr, uint8_t uProtocol,

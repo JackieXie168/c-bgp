@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 10/10/2005
+# @lastdate 12/10/2005
 # ===================================================================
 
 use strict;
@@ -1560,6 +1560,39 @@ sub cbgp_valid_bgp_recv_mrt($)
     return TEST_SUCCESS;
 }
 
+# -----[ cbgp_valid_bgp_aspath_asset ]-------------------------------
+# Send an AS-Path with an AS_SET segment and checks that it is
+# correctly handled.
+# -------------------------------------------------------------------
+#sub cbgp_valid_bgp_aspath_asset($)
+#{
+#    my ($cbgp)= @_;
+#    my ($rib, $route);
+#    my $topo= topo_2nodes();
+#    cbgp_topo($cbgp, $topo, 1);
+#    cbgp_topo_igp_compute($cbgp, $topo, 1);
+#    cbgp_topo_bgp_routers($cbgp, $topo, 1);
+#    die if $cbgp->send("bgp domain 1 full-mesh\n");
+#    die if $cbgp->send("net add node 2.0.0.1\n");
+#    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
+#    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
+#    cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
+#    die if $cbgp->send("sim run\n");
+#    die if $cbgp->send("bgp router 1.0.0.1 peer 2.0.0.1 recv ".
+#		       "\"BGP4|0|A|1.0.0.1|1|255.255.0.0/16|".
+#		       "2 3 [4 5 6]|IGP|2.0.0.1|12|34|\"\n");
+#    # Check that route is in the Loc-RIB of 1.0.0.1
+#    $rib= cbgp_show_rib($cbgp, "1.0.0.1");
+#    (!exists($rib->{"255.255.0.0/16"})) and
+#	return TEST_FAILURE;
+#    $route= $rib->{"255.255.0.0/16"};
+#    print "AS-Path: ".$route->[CBGP_RIB_PATH]."\n";
+#    ($route->[CBGP_RIB_PATH] =~ m/^2 3 \[([456 ]+)\]$/) or
+#	return TEST_FAILURE;
+#    
+#    return TEST_SUCCESS;
+#}
+
 # -----[ cbgp_valid_bgp_soft_restart ]-------------------------------
 sub cbgp_valid_bgp_soft_restart($)
 {
@@ -2152,19 +2185,20 @@ sub cbgp_valid_igp_bgp_med($)
 sub cbgp_valid_bgp_load_rib($)
 {
     my ($cbgp)= @_;
-    die if $cbgp->send("net add node 213.200.87.254\n");
-    die if $cbgp->send("bgp add router 3257 213.200.87.254\n");
-    die if $cbgp->send("bgp router 213.200.87.254 load rib rib.20050401.0116.3257\n");
+    my $rib_file= "abilene-rib.ascii";
+    die if $cbgp->send("net add node 198.32.12.9\n");
+    die if $cbgp->send("bgp add router 11537 198.32.12.9\n");
+    die if $cbgp->send("bgp router 198.32.12.9 load rib $rib_file\n");
     my $rib;
-    $rib= cbgp_show_rib($cbgp, "213.200.87.254");
-    if (scalar(keys %$rib) != `cat rib.20050401.0116.3257 | wc -l`) {
+    $rib= cbgp_show_rib($cbgp, "198.32.12.9");
+    if (scalar(keys %$rib) != `cat $rib_file | wc -l`) {
 	return TEST_FAILURE;
     }
-    open(RIB, "<rib.20050401.0116.3257") or die;
+    open(RIB, "<$rib_file") or die;
     while (<RIB>) {
 	chomp;
 	my @fields= split /\|/;
-	$rib= cbgp_show_rib($cbgp, "213.200.87.254", $fields[MRT_PREFIX]);
+	$rib= cbgp_show_rib($cbgp, "198.32.12.9", $fields[MRT_PREFIX]);
 	if (scalar(keys %$rib) != 1) {
 	    print "no route\n";
 	    return TEST_FAILURE;
@@ -2337,6 +2371,7 @@ push @tests, (["bgp peering next-hop-self",
 	       \&cbgp_valid_bgp_peerings_nexthopself]);
 push @tests, (["bgp virtual peer", \&cbgp_valid_bgp_virtual_peer]);
 push @tests, (["bgp recv mrt", \&cbgp_valid_bgp_recv_mrt]);
+#push @tests, (["bgp as-path as_set", \&cbgp_valid_bgp_aspath_asset]);
 push @tests, (["bgp soft-restart", \&cbgp_valid_bgp_soft_restart]);
 push @tests, (["bgp decision-process local-pref",
 	       \&cbgp_valid_bgp_dp_localpref]);

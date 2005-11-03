@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 25/02/2005
+// @lastdate 14/10/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,9 +33,22 @@ void comm_destroy(SCommunities ** ppCommunities)
   sequence_destroy((SSequence **) ppCommunities);
 }
 
-// ----- comm_add ---------------------------------------------------
+// ----[ comm_copy ]-------------------------------------------------
 /**
  *
+ */
+SCommunities * comm_copy(SCommunities * pCommunities)
+{
+  return sequence_copy(pCommunities, NULL);
+}
+
+// ----- comm_add ---------------------------------------------------
+/**
+ * Add a community value to the given Communities attribute.
+ *
+ * Return value:
+ *   0    in case of success
+ *   -1   in case of failure
  */
 int comm_add(SCommunities * pCommunity, comm_t uCommunity)
 {
@@ -143,13 +156,45 @@ void comm_dump(FILE * pStream, SCommunities * pCommunities,
 	       int iText)
 {
   int iIndex;
-  comm_t uCommunity;
+  comm_t tCommunity;
 
   for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
     if (iIndex > 0)
       fprintf(pStream, " ");
-    uCommunity= (uint32_t) pCommunities->ppItems[iIndex];
-    comm_dump2(pStream, uCommunity, iText);
+    tCommunity= (comm_t) pCommunities->ppItems[iIndex];
+    comm_dump2(pStream, tCommunity, iText);
   }
 }
 
+// -----[ comm_to_string ]-------------------------------------------
+/**
+ * Convert the given Communities to a string. The string memory MUST
+ * have been allocated before. The function will not write outside of
+ * the allocated buffer, based on the provided destination buffer
+ * size.
+ *
+ * Return value:
+ *   The function returns a valid pointer if the Communities could be
+ *   written in the provided buffer. The returned pointer is the first
+ *   character that follows the conversion. If there was not enough
+ *   space in the buffer to write the Communities, then NULL is
+ *   returned.
+ */
+int comm_to_string(SCommunities * pCommunities, char * pBuffer,
+		   size_t tBufferSize)
+{
+  size_t tInitialSize= tBufferSize;
+  int iWritten;
+  int iIndex;
+  comm_t tCommunity;
+  
+  for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
+    tCommunity= (comm_t) pCommunities->ppItems[iIndex];
+    iWritten= snprintf(pBuffer, tBufferSize, "%ul", tCommunity);
+    if (iWritten == tBufferSize)
+      return tInitialSize;
+    tBufferSize-= iWritten;
+    pBuffer+= iWritten;
+  }
+  return tInitialSize-tBufferSize;
+}
