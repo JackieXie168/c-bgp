@@ -1,0 +1,107 @@
+C-BGP coding conventions
+========================
+(bqu@info.ucl.ac.be)
+
+
+Variables naming:
+=================
+Variable names should inform about their meaning. In addition,
+variable names can inform the user on the variable type. Our coding
+convention is to prefix any variable with a short set of letters that
+indicate the variable type. We use the following prefixes:
+
+  c  : char
+  b  : unsigned char
+  i  : int
+  u  : unsigned int
+  l  : long
+  p  : pointer
+  pp : pointer to pointer
+  a  : array
+  t  : user-defined type
+  e  : enumeration
+  s  : structure
+
+These prefixes can be combined together. Here are some examples for the
+'Var' variable:
+
+  unsigned int uVar;
+  void * pVar;
+  char * pcVar;
+  char acVar[10];
+  my_type_t tVar;
+  SMyStruct sVar;
+  SMyStruct * psVar; // we also use pVar in this case when the
+                     // variable name is meaningful.
+
+
+User-defined types:
+===================
+User-defined types can be divided in different categories: simple
+types and structured types. Simple types are types that are based on
+existing simple types such as integers, chars, etc. Structured types
+are types that are defined using the struct keyword and that contain
+multiple fields. The naming convention for simple types is to use a
+type name followed by the '_t' suffix. In addition, the name of a
+simple type only uses lower cased letters. For instance, the following
+statement defines the type 'net_addr_t' which is an alias for a
+32-bits long unsigned integer:
+
+  typedef uint32_t net_addr_t;
+
+The naming convention for structured types is to use the 'S' prefix
+(for 'structure'). For instance, the following statement defines the
+type 'SRoute':
+
+  typedef struct {
+    net_addr_t tNextHop;
+    net_addr_t tDestNetwork;
+    unsigned char bMaskLen;
+  } SRoute;
+
+
+C files:
+========
+A single C file should group data structure and functions that are
+closely related. Our convention is close to O.O. programming. A single
+C file contains the functions that are used to create instances of an
+object. An object can be a stack, a route or a router. The functions
+contained in the C file will operate on instances of this object. For
+instance, suppose that file 'foo.c' defines the SFoo data structure
+that represents an object 'foo'. Then the name of the functions that
+operate on the SFoo data structure will start with 'foo_'. Suppose
+that 'foo.c' contains a function that creates 'foo' objects and
+functions that destroy such objects, then their signatures will look
+like:
+
+  SFoo * foo_create();
+  void foo_destroy(SFoo * pFoo);
+
+
+Header files:
+=============
+Header files (.h files) should contain C preprocessor statement that
+completely encloses the code. These statements will test and define a
+macro whose name should be based on the .h file name. For instance, if
+your file is named 'foo.h', use a macro named __FOO_H__. Before any
+code, use an #ifndef statement that will test if the macro is
+defined. If the macro is already defined, the C preprocessor will skip
+the remaining of the code. Otherwise, define the macro using the
+#define statement. Here is an example:
+
+[foo.h]
+#ifndef __FOO_H__
+#define __FOO_H__
+...code here...
+#endif
+
+
+Private functions:
+==================
+These are functions that should not be called from outside an object
+(basically a .c file). These functions should be declared 'static' and
+have their name starting with an '_'. In addition these functions
+should not be declared in the corresponding .h file. If a prototype is
+required for these functions, it has to be put at the beginning of the
+.c file where the function is declared.
+
