@@ -1,8 +1,8 @@
 #!/bin/sh
 rm -f config.cache
 libtoolize --automake --force --copy
-aclocal -I ../libgds/m4src
+aclocal $1
 autoheader
-automake -I /workspace/autoconf-archive/m4source --add-missing --gnu
-autoconf
+automake --add-missing --gnu
+autoconf $1
 exit
