@@ -1,8 +1,8 @@
 #!/bin/sh
 rm -f config.cache
 libtoolize --automake --force --copy
-aclocal $1
+aclocal $@
 autoheader
 automake --add-missing --gnu
-autoconf $1
+autoconf $@
 exit
