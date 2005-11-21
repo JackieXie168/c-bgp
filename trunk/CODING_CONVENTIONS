@@ -77,6 +77,14 @@ like:
   SFoo * foo_create();
   void foo_destroy(SFoo * pFoo);
 
+In addition to this, each .c file must include the configuration
+header file 'config.h' at the beginning, i.e. before including any
+other header (.h) file. The following lines should be used:
+
+  #ifdef HAVE_CONFIG_H
+  # include <config.h>
+  #endif
+
 
 Header files:
 =============
