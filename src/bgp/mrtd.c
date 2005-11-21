@@ -7,15 +7,17 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @date 20/02/2004
-// @lastdate 17/10/2005
+// @lastdate 15/11/2005
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
+// - move neighbor auto-configuration outside mrtd.c
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -24,6 +26,7 @@
 
 #include <bgp/as_t.h>
 #include <bgp/as.h>
+#include <bgp/auto-config.h>
 #include <bgp/filter.h>
 #include <bgp/peer.h>
 #include <bgp/comm.h>
@@ -283,7 +286,6 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
   char * pcEndPtr;
   SBGPPath * pPath= NULL;
   SCommunities * pComm= NULL;
-  SNetNode * pNode;
 
   /* No route built until now */
   *ppRoute= NULL;
@@ -385,24 +387,9 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 	path_destroy(&pPath);
 	return -1;
       } else {
+
+	bgp_auto_config_session(pRouter, tNextHop, path_last_as(pPath), &pPeer);
 	
-	/* If node does not exist, create it and add a link and a
-	   route towards it */
-	pNode= network_find_node(tNextHop);
-	if (pNode == NULL) {
-	  pNode= node_create(tNextHop);
-	  network_add_node(pNode);
-	  node_add_link_to_router(pNode, pRouter->pNode, 1, 1);
-	}
-
-	/* Add a new BGP session */
-	pPeer= bgp_router_add_peer(pRouter, path_last_as(pPath),
-				   tNextHop, 0);
-
-	/* If peer does not support BGP, create it virtual */
-	if (protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP) == NULL)
-	  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
-
       }
     }
       
@@ -447,6 +434,8 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 1);
 
   *ppRoute= pRoute;
+
+  LOG_DEBUG("ROUTE CREATED :-)\n");
 
   return tType;
 }
@@ -580,6 +569,9 @@ SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter, char * pcFileName)
     routes_list_destroy(&pRoutes);
     pRoutes= NULL;
   }
+
+  LOG_DEBUG("ROUTES LOADED :-)\n");
+
   return pRoutes;
 }
 
