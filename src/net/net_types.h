@@ -4,13 +4,14 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/06/2005
-// @lastdate 05/08/2005
+// @lastdate 21/11/2005
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
 #define __NET_TYPES_H__
 
 #include <libgds/array.h>
+#include <libgds/radix-tree.h>
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/network_t.h>
@@ -34,6 +35,23 @@ typedef uint32_t net_link_delay_t;
 #else
 typedef double net_link_delay_t;
 #endif
+
+//////////////////////////////////////////////////////////////////////
+//
+// IGP DOMAIN TYPE DEFINITION
+//
+//////////////////////////////////////////////////////////////////////
+
+// Supported domain types
+typedef enum { DOMAIN_IGP, DOMAIN_OSPF } EDomainType;
+
+typedef struct {
+  uint16_t uNumber;
+  char * pcName;
+  SRadixTree * pRouters;
+  EDomainType tType;
+  uint8_t uECMP;
+} SIGPDomain;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -89,7 +107,7 @@ typedef struct {
 #endif
   SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
   SNetProtocols * pProtocols;
-  SNetDomain    * pDomain;
+  SIGPDomain    * pDomain;
 } SNetNode;
 
 
