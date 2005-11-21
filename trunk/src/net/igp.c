@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 08/08/2005
+// @lastdate 21/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,7 +14,6 @@
 
 #include <assert.h>
 #include <libgds/array.h>
-#include <net/dijkstra.h>
 #include <net/igp.h>
 #include <net/igp_domain.h>
 #include <net/network.h>
