@@ -3,25 +3,15 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 02/08/2005
+// @lastdate 21/11/2005
 // ==================================================================
 
 #ifndef __IGP_DOMAIN_H__
 #define __IGP_DOMAIN_H__
 
 #include <libgds/radix-tree.h>
+#include <net/net_types.h>
 #include <net/network.h>
-
-// Supported domain types
-typedef enum { DOMAIN_IGP, DOMAIN_OSPF } EDomainType;
-
-typedef struct {
-  uint16_t uNumber;
-  char * pcName;
-  SRadixTree * pRouters;
-  EDomainType tType;
-  uint8_t uECMP;
-} SIGPDomain;
 
 #define ospf_domain_create(N) igp_domain_create(N, DOMAIN_OSPF)
 
