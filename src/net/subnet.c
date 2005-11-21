@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 08/08/2005
+// @lastdate 21/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -210,6 +210,7 @@ int _subnet_forward(net_addr_t tNextHop, void * pContext,
 /////////////////////////////////////////////////////////////////////
 
 int _subnet_test(){
+#ifdef OSPF_SUPPORT
   char * pcEndPtr;
   SPrefix  sSubnetPfxTx;
   SPrefix  sSubnetPfxTx1;
@@ -233,10 +234,10 @@ int _subnet_test(){
   //ip_prefix_dump(stdout, sSubnetPfxTx1);
   
   SNetSubnet * pSubTx = subnet_create(sSubnetPfxTx.tNetwork,
-                                              sSubnetPfxTx.uMaskLen, NET_SUBNET_TYPE_TRANSIT);
+				      sSubnetPfxTx.uMaskLen, NET_SUBNET_TYPE_TRANSIT);
   SNetSubnet * pSubTx1 = subnet_create(sSubnetPfxTx1.tNetwork,
-                                               sSubnetPfxTx.uMaskLen,
-					       NET_SUBNET_TYPE_TRANSIT);
+				       sSubnetPfxTx.uMaskLen,
+				       NET_SUBNET_TYPE_TRANSIT);
   //subnet_dump(stdout, pSubTx);
   //subnet_dump(stdout, pSubTx1);a
   net_addr_t ipIfaceA = IPV4_TO_INT(192,168,0,1);
@@ -381,7 +382,7 @@ int _subnet_test(){
   
 //   LOG_DEBUG("stub-network links attached.\n");
   LOG_DEBUG("ok!\n");
-  
+#endif /* OSPF_SUPPORT */
   return 1;
 }
 
