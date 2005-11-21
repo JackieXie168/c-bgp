@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 17/10/2005
+// @lastdate 04/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -258,12 +258,13 @@ SBGPPath * route_path_get(SRoute * pRoute)
 int route_path_prepend(SRoute * pRoute, uint16_t uAS, uint8_t uAmount)
 {
   SBGPPath * pPath;
+
   if (pRoute->pASPathRef == NULL)
     pPath= path_create();
   else
     pPath= path_copy(pRoute->pASPathRef);
   while (uAmount-- > 0) {
-    if (path_append(&pPath, uAS))
+    if (path_append(&pPath, uAS) < 0)
       return -1;
   }
   route_path_set(pRoute, pPath);
@@ -720,7 +721,7 @@ SClusterList * route_router_list_copy(SRoute * pRoute)
 int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 {
   if (pRoute1 == pRoute2) {
-    LOG_DEBUG("route_equals == 1\n");
+    //LOG_DEBUG("route_equals == 1\n");
     return 1;
   }
 
@@ -728,7 +729,7 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 #ifdef BGP_QOS
   if (!qos_route_delay_equals(pRoute1, pRoute2) ||
       !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
-    LOG_DEBUG("route_equals == 0\n");
+    //LOG_DEBUG("route_equals == 0\n");
     return 0;
   }
 #endif
@@ -743,10 +744,10 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
       (ecomm_equals(pRoute1->pECommunities, pRoute2->pECommunities)) &&
       (route_originator_equals(pRoute1, pRoute2)) &&
       (route_cluster_list_equals(pRoute1, pRoute2))) {
-    LOG_DEBUG("route_equals == 1\n");
+    //LOG_DEBUG("route_equals == 1\n");
     return 1;
   }
-    LOG_DEBUG("route_equals == 0\n");
+  //LOG_DEBUG("route_equals == 0\n");
   return 0;
 }
 
@@ -763,15 +764,23 @@ SRoute * route_copy(SRoute * pRoute)
 				   pRoute->uOriginType);
 
   rt_copy_count++;
+  /* Route info */
+  pNewRoute->uFlags= pRoute->uFlags;
+
+  /* Route attributes */
   pNewRoute->tNextHop= pRoute->tNextHop;
   _route_path_copy(pNewRoute, pRoute->pASPathRef);
   _route_comm_copy(pNewRoute, pRoute->pCommunities);
   pNewRoute->uLocalPref= pRoute->uLocalPref;
   pNewRoute->uMED= pRoute->uMED;
   _route_ecomm_copy(pNewRoute, pRoute->pECommunities);
-  pNewRoute->uFlags= pRoute->uFlags;
 
-  /* BGP QoS */
+  /* Route-Reflection attributes */
+  if (route_originator_get(pRoute, &tOriginator) == 0)
+    route_originator_set(pNewRoute, tOriginator);
+  pNewRoute->pClusterList= route_cluster_list_copy(pRoute);
+
+  /* QoS attributes (experimental) */
 #ifdef BGP_QOS
   pNewRoute->tDelay= pRoute->tDelay;
   pNewRoute->tBandwidth= pRoute->tBandwidth;
@@ -784,11 +793,6 @@ SRoute * route_copy(SRoute * pRoute)
     pNewRoute->pAggrRoute= route_copy(pRoute->pAggrRoute);
   }
 #endif
-
-  /* Route-Reflection: Originator and Cluster-ID-List fields */
-  if (route_originator_get(pRoute, &tOriginator) == 0)
-    route_originator_set(pNewRoute, tOriginator);
-  pNewRoute->pClusterList= route_cluster_list_copy(pRoute);
 
 #ifdef __ROUTER_LIST_ENABLE__
   pNewRoute->pRouterList= route_router_list_copy(pRoute);
@@ -918,9 +922,9 @@ void route_dump_mrt(FILE * pStream, SRoute * pRoute)
     /* Peer-IP: if the route is local, the keyword LOCAL is written in
        place of the peer's IP address and AS number. */
     if (pRoute->pPeer != NULL) {
-      ip_address_dump(pStream, route_peer_get(pRoute)->tAddr);
+      ip_address_dump(pStream, pRoute->pPeer->tAddr);
       // Peer-AS
-      fprintf(pStream, "|%u|", route_peer_get(pRoute)->uRemoteAS);
+      fprintf(pStream, "|%u|", pRoute->pPeer->uRemoteAS);
     } else {
       fprintf(pStream, "LOCAL|LOCAL|");
     }
