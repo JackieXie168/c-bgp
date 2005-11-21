@@ -13,7 +13,6 @@
 #include <libgds/patricia-tree.h>
 #include <net/net_types.h>
 #include <net/protocol.h>
-#include <net/domain_t.h>
 
 extern const net_addr_t MAX_ADDR;
 

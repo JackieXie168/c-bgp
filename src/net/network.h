@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 17/10/2005
+// @lastdate 14/11/2005
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -17,7 +17,6 @@
 
 #include <net/net_types.h>
 #include <net/network_t.h>
-#include <net/domain_t.h>
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/net_path.h>
@@ -119,6 +118,8 @@ extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
 extern void network_dump_subnets(FILE * pStream, SNetwork *pNetwork);
 // ----- network_enum_nodes -----------------------------------------
 extern char * network_enum_nodes(const char * pcText, int state);
+// ----- network_enum_bgp_nodes -------------------------------------
+extern char * network_enum_bgp_nodes(const char * pcText, int state);
 // ----- _network_create --------------------------------------------
 extern void _network_create();
 // ----- _network_destroy -------------------------------------------
