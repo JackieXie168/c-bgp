@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 17/10/2005
+// @lastdate 15/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -42,7 +42,7 @@
 // ----- cli_bgp_enum_nodes -----------------------------------------
 char * cli_bgp_enum_nodes(const char * pcText, int state)
 {
-  return network_enum_nodes(pcText, state);
+  return network_enum_bgp_nodes(pcText, state);
 }
 
 // ----- cli_bgp_add_router -----------------------------------------
@@ -1038,7 +1038,7 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
-// ----- cli_bgp_router_show_route ----------------------------------
+// ----- cli_bgp_router_show_routeinfo ------------------------------
 /**
  * Display a detailled information about the best route towards the
  * given prefix. Information includes communities, and so on...
@@ -1046,9 +1046,44 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
  * context: {router}
  * tokens: {addr, prefix}
  */
-int cli_bgp_router_show_route(SCliContext * pContext,
+int cli_bgp_router_show_routeinfo(SCliContext * pContext,
+				  STokens * pTokens)
+{
+  SBGPRouter * pRouter;
+  char * pcPrefix;
+  char * pcEndPtr;
+  SPrefix sPrefix;
+
+  // Get the BGP instance from the context
+  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  // Get the prefix
+  pcPrefix= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
+			  &sPrefix) || (*pcEndPtr != '\0')) {
+    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Show the route information
+  if (bgp_router_show_route_info(stdout, pRouter, sPrefix) < 0) {
+    LOG_SEVERE("Error: failed to show info for route towards \"%s\"\n",
+	       pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
+// ----- cli_bgp_router_show_stats ----------------------------------
+int cli_bgp_router_show_stats(SCliContext * pContext,
 			      STokens * pTokens)
 {
+  SBGPRouter * pRouter=
+    (SBGPRouter *) cli_context_get_item_at_top(pContext);
+
+  bgp_router_show_stats(stdout, pRouter);
+
   return CLI_SUCCESS;
 }
 
@@ -2042,7 +2077,7 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  peer_handle_message(pPeer, pMsg);
+  bgp_peer_handle_message(pPeer, pMsg);
 
   return CLI_SUCCESS;
 }
@@ -2815,9 +2850,12 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("route",
-					cli_bgp_router_show_route,
+  cli_cmds_add(pSubCmds, cli_cmd_create("route-info",
+					cli_bgp_router_show_routeinfo,
 					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("stats",
+					cli_bgp_router_show_stats,
+					NULL, NULL));
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
