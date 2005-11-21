@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/11/2003
-// @lastdate 17/10/2005
+// @lastdate 21/11/2005
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
 #define __BGP_ROUTE_T_H__
 
 //#define __ROUTER_LIST_ENABLE__
+#define __BGP_ROUTE_INFO_DP__
 
 #include <libgds/array.h>
 #include <libgds/types.h>
@@ -81,8 +82,15 @@ extern unsigned long rt_destroy_count;
 #define ROUTE_SHOW_MRT   1
 
 typedef struct TRoute {
-  SPrefix sPrefix;
-  SPeer * pPeer;
+  SPrefix sPrefix;      // Destination prefix
+  SPeer * pPeer;        // Peer of the route
+  uint16_t uFlags;      // Flags (best, feasible, eligible, ...)
+#ifdef __BGP_ROUTE_INFO_DP__
+  uint8_t tRank;        // How the route was selected
+                        // (meaningful only if the route is currently best)
+#endif
+
+  /* Attributes */
   net_addr_t tNextHop;
   origin_type_t uOriginType;
   SBGPPath * pASPathRef;
@@ -90,10 +98,13 @@ typedef struct TRoute {
   uint32_t uLocalPref;
   uint32_t uMED;
   SECommunities * pECommunities;
-  uint16_t uFlags;
-  uint8_t tRank;
 
-  // QoS information
+  /* Route-Reflection attributes */
+  net_addr_t * pOriginator;
+  SClusterList * pClusterList;
+
+
+  /* QoS attributes (experimental) */
 #ifdef BGP_QOS
   qos_delay_t tDelay;
   qos_bandwidth_t tBandwidth;
@@ -102,11 +113,8 @@ typedef struct TRoute {
   struct TRoute * pEBGPRoute;
 #endif
 
-  // Route-Reflection
-  net_addr_t * pOriginator;
-  SClusterList * pClusterList;
-
 #ifdef __ROUTER_LIST_ENABLE__
+  /* Router-List attribute (experimental) */
   SClusterList * pRouterList;
 #endif
 
