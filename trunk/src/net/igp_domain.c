@@ -273,6 +273,7 @@ void _igp_domain_destroy()
 /////////////////////////////////////////////////////////////////////
 
 int _igp_domain_test(){
+#ifdef OSPF_SUPPORT
   LOG_DEBUG("test_igp_domain(): START\n");
 
   LOG_DEBUG("test_igp_domain(): create domains... "); 
@@ -313,5 +314,6 @@ int _igp_domain_test(){
   node_destroy(&pNode2);
   LOG_DEBUG("done!");
   LOG_DEBUG("test_igp_domain(): DONE!\n");
+#endif /* OSPF_SUPPORT */
   return 1;
 }
