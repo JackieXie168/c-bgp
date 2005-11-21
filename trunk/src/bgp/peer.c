@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 15/10/2005
+// @lastdate 15/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,7 +18,6 @@
 #include <libgds/memory.h>
 
 #include <net/record-route.h>
-
 #include <bgp/as.h>
 #include <bgp/comm.h>
 #include <bgp/ecomm.h>
@@ -35,6 +34,10 @@ char * SESSION_STATES[4]= {
   "ACTIVE"
 };
 
+// -----[ function prototypes ] -------------------------------------
+static void _bgp_peer_rescan_adjribin(SPeer * pPeer, int iClear);
+
+
 // ----- bgp_peer_create --------------------------------------------
 /**
  * Create a new peer structure and initialize the following
@@ -48,6 +51,7 @@ SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   SBGPPeer * pPeer= (SBGPPeer *) MALLOC(sizeof(SBGPPeer));
   pPeer->uRemoteAS= uRemoteAS;
   pPeer->tAddr= tAddr;
+  pPeer->tRouterID= 0;
   pPeer->uPeerType= uPeerType;
   pPeer->pLocalRouter= pLocalRouter;
   pPeer->pInFilter= NULL; // Default = ACCEPT ANY
@@ -118,12 +122,12 @@ int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop)
   return 0;
 }
 
-// ----- peer_prefix_disseminate ------------------------------------
+// ----- _bgp_peer_prefix_disseminate -------------------------------
 /**
  * Internal helper function: send the given route to this prefix.
  */
-int peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
-			    void * pItem, void * pContext)
+static int _bgp_peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
+					void * pItem, void * pContext)
 {
   SPeer * pPeer= (SPeer *) pContext;
   SRoute * pRoute= (SRoute *) pItem;
@@ -234,7 +238,8 @@ int bgp_peer_open_session(SPeer * pPeer)
 
     /* Send an OPEN message to the peer (except for virtual peers) */
     if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-      pMsg= bgp_msg_open_create(pPeer->pLocalRouter->uNumber);
+      pMsg= bgp_msg_open_create(pPeer->pLocalRouter->uNumber,
+				pPeer->pLocalRouter->tRouterID);
       if (bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
 		       pMsg) == 0) {
 	pPeer->uSessionState= SESSION_STATE_OPENWAIT;
@@ -246,15 +251,18 @@ int bgp_peer_open_session(SPeer * pPeer)
       /* For virtual peers, we check that the peer is reachable
        * through the IGP. If so, the state directly goes to
        * ESTABLISHED. Otherwise, the state goes to ACTIVE. */
-      if (1) {
+      if (bgp_peer_session_ok(pPeer)) {
 	pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
+	pPeer->tRouterID= pPeer->tAddr;
 
 	/* If the virtual peer is configured with the soft-restart
 	   option, scan the Adj-RIB-in and run the decision process
 	   for each route. */
 	if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART))
-	  peer_rescan_adjribin(pPeer, 0);
+	  _bgp_peer_rescan_adjribin(pPeer, 0);
 
+      } else {
+	pPeer->uSessionState= SESSION_STATE_ACTIVE;
       }
     }
 
@@ -297,12 +305,13 @@ int bgp_peer_close_session(SPeer * pPeer)
 
     }    
     pPeer->uSessionState= SESSION_STATE_IDLE;
+    pPeer->tRouterID= 0;
 
     /* For virtual peers configured with the soft-restart option, do
        not clear the Adj-RIB-in. */
     iClear= !(bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) &&
 	      bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART));
-    peer_rescan_adjribin(pPeer, iClear);
+    _bgp_peer_rescan_adjribin(pPeer, iClear);
 
     LOG_DEBUG("< AS%d.peer_close_session.end\n", pPeer->pLocalRouter->uNumber);
 
@@ -329,8 +338,8 @@ void bgp_peer_session_error(SBGPPeer * pPeer)
     LOG_FATAL("\n");
 }
 
-// ----- peer_session_open_rcvd -------------------------------------
-void peer_session_open_rcvd(SPeer * pPeer)
+// ----- _bgp_peer_session_open_rcvd --------------------------------
+static void _bgp_peer_session_open_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 {
   /* Check that the message does not come from a virtual peer */
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -345,15 +354,17 @@ void peer_session_open_rcvd(SPeer * pPeer)
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
 
     bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
-		 bgp_msg_open_create(pPeer->pLocalRouter->uNumber));
+		 bgp_msg_open_create(pPeer->pLocalRouter->uNumber,
+				     pPeer->pLocalRouter->tRouterID));
 
     rib_for_each(pPeer->pLocalRouter->pLocRIB,
-		 peer_prefix_disseminate, pPeer);
+		 _bgp_peer_prefix_disseminate, pPeer);
     break;
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
+    pPeer->tRouterID= ((SBGPMsgOpen *) pMsg)->tRouterID;
     rib_for_each(pPeer->pLocalRouter->pLocRIB,
-		 peer_prefix_disseminate, pPeer);
+		 _bgp_peer_prefix_disseminate, pPeer);
     break;
   default:
     LOG_FATAL("Error: OPEN received while in %s state\n",
@@ -364,8 +375,8 @@ void peer_session_open_rcvd(SPeer * pPeer)
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
-// ----- peer_session_close_rcvd ------------------------------------
-void peer_session_close_rcvd(SPeer * pPeer)
+// ----- _bgp_peer_session_close_rcvd -------------------------------
+static void _bgp_peer_session_close_rcvd(SPeer * pPeer)
 {
   /* Check that the message does not come from a virtual peer */
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -379,7 +390,7 @@ void peer_session_close_rcvd(SPeer * pPeer)
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ACTIVE;
-    peer_rescan_adjribin(pPeer, !bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
+    _bgp_peer_rescan_adjribin(pPeer, !bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
   case SESSION_STATE_IDLE:
@@ -393,8 +404,8 @@ void peer_session_close_rcvd(SPeer * pPeer)
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
-// ----- peer_session_update_rcvd -----------------------------------
-void peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
+// ----- _bgp_peer_session_update_rcvd ------------------------------
+static void _bgp_peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 {
   LOG_INFO("BGP_MSG_RCVD: UPDATE\n");
   switch (pPeer->uSessionState) {
@@ -411,8 +422,8 @@ void peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
-// ----- peer_session_withdraw_rcvd ---------------------------------
-void peer_session_withdraw_rcvd(SPeer * pPeer)
+// ----- _bgp_peer_session_withdraw_rcvd ----------------------------
+static void _bgp_peer_session_withdraw_rcvd(SPeer * pPeer)
 {
   LOG_INFO("BGP_MSG_RCVD: WITHDRAW\n");
   switch (pPeer->uSessionState) {
@@ -430,12 +441,12 @@ void peer_session_withdraw_rcvd(SPeer * pPeer)
   LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
 }
 
-// ----- peer_disable_adjribin_for_each -----------------------------
+// ----- _bgp_peer_disable_adjribin_for_each ------------------------
 /**
- *
+ * TODO: write documentation...
  */
-int peer_disable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
-				   void * pItem, void * pContext)
+static int _bgp_peer_disable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
+					       void * pItem, void * pContext)
 {
   SRoute * pRoute= (SRoute *) pItem;
   SPeer * pPeer= (SPeer *) pContext;
@@ -457,12 +468,12 @@ int peer_disable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
-// ----- peer_enable_adjribin_for_each ------------------------------
+// ----- _bgp_peer_enable_adjribin_for_each -------------------------
 /**
- *
+ * TODO: write documentation...
  */
-int peer_enable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
-				  void * pItem, void * pContext)
+static int _bgp_peer_enable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
+					      void * pItem, void * pContext)
 {
   SRoute * pRoute= (SRoute *) pItem;
   SPeer * pPeer= (SPeer *) pContext;
@@ -474,11 +485,11 @@ int peer_enable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
-// ----- peer_adjrib_clear ------------------------------------------
+// ----- _bgp_peer_adjrib_clear -------------------------------------
 /**
- *
+ * TODO: write documentation...
  */
-void peer_adjrib_clear(SPeer * pPeer, int iIn)
+static void _bgp_peer_adjrib_clear(SPeer * pPeer, int iIn)
 {
   if (iIn) {
     rib_destroy(&pPeer->pAdjRIBIn);
@@ -489,25 +500,25 @@ void peer_adjrib_clear(SPeer * pPeer, int iIn)
   }
 }
 
-// ----- peer_rescan_adjribin ---------------------------------------
+// ----- _bgp_peer_rescan_adjribin ----------------------------------
 /**
- *
+ * TODO: write documentation...
  */
-void peer_rescan_adjribin(SPeer * pPeer, int iClear)
+static void _bgp_peer_rescan_adjribin(SPeer * pPeer, int iClear)
 {
   if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
 
-    rib_for_each(pPeer->pAdjRIBIn, peer_enable_adjribin_for_each, pPeer);
+    rib_for_each(pPeer->pAdjRIBIn, _bgp_peer_enable_adjribin_for_each, pPeer);
 
   } else {
 
     // For each route in Adj-RIB-In, mark as unfeasible
     // and run decision process for each route marked as best
-    rib_for_each(pPeer->pAdjRIBIn, peer_disable_adjribin_for_each, pPeer);
+    rib_for_each(pPeer->pAdjRIBIn, _bgp_peer_disable_adjribin_for_each, pPeer);
     
     // Clear Adj-RIB-In ?
     if (iClear)
-      peer_adjrib_clear(pPeer, 1);
+      _bgp_peer_adjrib_clear(pPeer, 1);
 
   }
 
@@ -567,7 +578,7 @@ SFilter * peer_out_filter_get(SPeer * pPeer)
 //
 /////////////////////////////////////////////////////////////////////
 
-// ----- peer_announce_route ----------------------------------------
+// ----- bgp_peer_announce_route ------------------------------------
 /**
  * Announce the given route to the given peer.
  *
@@ -577,8 +588,12 @@ SFilter * peer_out_filter_get(SPeer * pPeer)
  * Note: if the route is not delivered (for instance in the case of
  * a virtual peer), the given route is freed.
  */
-void peer_announce_route(SPeer * pPeer, SRoute * pRoute)
+void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
 {
+  LOG_DEBUG("announce_route to ");
+  LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
+  LOG_DEBUG("\n");
+
   route_peer_set(pRoute, pPeer);
 
   /* Send the message to the peer (except if this is a virtual peer) */
@@ -590,13 +605,13 @@ void peer_announce_route(SPeer * pPeer, SRoute * pRoute)
       route_destroy(&pRoute);
 }
 
-// ----- peer_withdraw_prefix ---------------------------------------
+// ----- bgp_peer_withdraw_prefix -----------------------------------
 /**
  * Withdraw the given prefix to the given peer.
  *
  * Note: withdraws are not sent to virtual peers.
  */
-void peer_withdraw_prefix(SPeer * pPeer, SPrefix sPrefix)
+void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix)
 {
   /* Send the message to the peer (except if this is a virtual peer) */
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -686,13 +701,13 @@ int peer_comm_process(SRoute * pRoute)
   return 1;
 }
 
-// ----- peer_route_eligible ----------------------------------------
+// ----- bgp_peer_route_eligible ------------------------------------
 /**
  * The route is eligible if it passes the input filters. Standard
  * filters are applied first. Then, extended communities actions are
  * taken if any (see 'peer_ecomm_process').
  */
-int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
+int bgp_peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
 {
   // Check that the route's AS-path does not contain the local AS
   // number.
@@ -705,7 +720,7 @@ int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
   // (MUST be done before local cluster-ID is appended)
   if ((pRoute->pClusterList != NULL) &&
       (route_cluster_list_contains(pRoute, pPeer->pLocalRouter->tClusterID))) {
-    LOG_DEBUG("in-RR-filtered(cluster-loop)\n");
+    LOG_DEBUG("in-filtered(RR: cluster-loop)\n");
     return 0;
   }
   
@@ -724,12 +739,12 @@ int peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
   return 1;
 }
 
-// ----- peer_route_feasible ----------------------------------------
+// ----- bgp_peer_route_feasible ------------------------------------
 /**
  * The route is feasible if and only if the next-hop is reachable
  * (through a STATIC, IGP or BGP route).
  */
-int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
+int bgp_peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
 {
   SNetRouteNextHop * pNextHop= node_rt_lookup(pPeer->pLocalRouter->pNode,
 					      pRoute->tNextHop);
@@ -737,7 +752,7 @@ int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
   return (pNextHop != NULL);
 }
 
-// ----- peer_handle_message ----------------------------------------
+// ----- bgp_peer_handle_message ------------------------------------
 /**
  * Handle one route message (UPDATE or WITHDRAW).
  * This is PHASE I of the Decision Process.
@@ -753,7 +768,7 @@ int peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
  * 'unfeasible', then the decision process (phase-II) is
  * ran. Afterwards, the route is removed from the Adj-RIB-In.
  */
-int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
+int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
   SBGPMsgUpdate * pMsgUpdate;
   SBGPMsgWithdraw * pMsgWithdraw;
@@ -762,16 +777,16 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
   SPrefix sPrefix;
   int iNeedDecisionProcess;
 
-  LOG_DEBUG("> AS%d.peer_handle_message.begin\n", pPeer->pLocalRouter->uNumber);
-
-  LOG_DEBUG("\tfrom AS%d:", pPeer->uRemoteAS);
-  LOG_ENABLED_DEBUG()
-    ip_address_dump(log_get_stream(pMainLog), pPeer->tAddr);
+  LOG_DEBUG("HANDLE_MESSAGE from ");
+  LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
+  LOG_DEBUG(" in ");
+  LOG_ENABLED_DEBUG() bgp_router_dump_id(log_get_stream(pMainLog),
+					 pPeer->pLocalRouter);
   LOG_DEBUG("\n");
 
   switch (pMsg->uType) {
   case BGP_MSG_UPDATE:
-    peer_session_update_rcvd(pPeer, pMsg);
+    _bgp_peer_session_update_rcvd(pPeer, pMsg);
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
 
     pRoute= pMsgUpdate->pRoute;
@@ -785,9 +800,9 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
     route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		   peer_route_eligible(pPeer, pRoute));
+		   bgp_peer_route_eligible(pPeer, pRoute));
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		   peer_route_feasible(pPeer, pRoute));
+		   bgp_peer_route_feasible(pPeer, pRoute));
     // Update route delay attribute (if BGP-QoS)
     //peer_route_delay_update(pPeer, pRoute);
 
@@ -821,7 +836,7 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
 
     break;
   case BGP_MSG_WITHDRAW:
-    peer_session_withdraw_rcvd(pPeer);
+    _bgp_peer_session_withdraw_rcvd(pPeer);
     pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
 
     // Remove former route from AdjRIBIn
@@ -843,10 +858,10 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix) == 0);
     break;
   case BGP_MSG_CLOSE:
-    peer_session_close_rcvd(pPeer);
+    _bgp_peer_session_close_rcvd(pPeer);
     break;
   case BGP_MSG_OPEN:
-    peer_session_open_rcvd(pPeer);
+    _bgp_peer_session_open_rcvd(pPeer, pMsg);
     break;
   default:
     LOG_FATAL("Error: unknown message type received\n");
@@ -854,8 +869,6 @@ int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg)
     abort();
   }
   bgp_msg_destroy(&pMsg);
-
-  LOG_DEBUG("< AS%d.peer_handle_message.end\n", pPeer->pLocalRouter->uNumber);
 
   return 0;
 }
@@ -885,9 +898,9 @@ void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
   int iOptions= 0;
 
   ip_address_dump(pStream, pPeer->tAddr);
-  fprintf(pStream, "\tAS%d\t%s", pPeer->uRemoteAS,
+  fprintf(pStream, "\tAS%d\t%s\t", pPeer->uRemoteAS,
 	  SESSION_STATES[pPeer->uSessionState]);
-  
+  ip_address_dump(pStream, pPeer->tRouterID);
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
     fprintf(pStream, (iOptions++)?",":"\t(");
     fprintf(pStream, "rr-client");

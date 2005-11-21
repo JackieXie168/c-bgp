@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 17/05/2005
+// @lastdate 09/11/2005
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -47,6 +47,7 @@ typedef struct {
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  net_addr_t tRouterID;
 } SBGPMsgOpen;
 
 // ----- bgp_msg_update_create --------------------------------------
@@ -58,7 +59,8 @@ extern SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 // ----- bgp_msg_close_create ---------------------------------------
 extern SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS);
 // ----- bgp_msg_open_create ----------------------------------------
-extern SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS);
+extern SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS,
+				     net_addr_t tRouterID);
 
 // ----- bgp_msg_destroy --------------------------------------------
 extern void bgp_msg_destroy(SBGPMsg ** ppMsg);
