@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/04/2004
-// @lastdate 23/02/2005
+// @lastdate 15/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -31,6 +31,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   SRoute * pRoute;
   int iIndex;
   int iNumRoutes, iOldNumRoutes;
+  int iRule;
 
   fprintf(pStream, "Debug Decision Process\n");
   fprintf(pStream, "----------------------\n");
@@ -80,90 +81,15 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   if ((pOldRoute == NULL) ||
       !route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL)) {
 
-    // *** higher LOCAL-PREF ***
-    if (iNumRoutes > 1) {
+    for (iRule= 0; iRule < DP_NUM_RULES; iRule++) {
+      if (iNumRoutes <= 1)
+	break;
       iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Higher LOCAL-PREF ]\n");
-      bgp_router_decision_process_dop(pRouter, pRoutes);
+      fprintf(pStream, "[ %s ]\n", DP_RULE_NAME[iRule]);
+      DP_RULES[iRule](pRouter, pRoutes);
       iNumRoutes= ptr_array_length(pRoutes);
       if (iNumRoutes < iOldNumRoutes)
 	routes_list_dump(pStream, pRoutes);
-    }
-
-    // *** shortest AS-PATH ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Shortest AS-PATH ]\n");
-      dp_rule_shortest_path(pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-
-    // *** lowest ORIGIN ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Lowest ORIGIN ]\n");
-      dp_rule_lowest_origin(pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-
-    // *** lowest MED ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Lowest MED ]\n");
-      dp_rule_lowest_med(pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-
-    // *** eBGP over iBGP ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ eBGP over iBGP ]\n");
-      dp_rule_ebgp_over_ibgp(pRouter, pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-      
-    // *** nearest NEXT-HOP (lowest IGP-cost) ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Nearest NEXT-HOP ]\n");
-      dp_rule_nearest_next_hop(pRouter, pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-      
-    // *** shortest cluster-ID-list ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Shortest CLUSTER-ID-LIST ]\n");
-      dp_rule_shortest_cluster_list(pRouter, pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-     
-    // *** lowest neighbor address ***
-    if (iNumRoutes > 1) {
-      iOldNumRoutes= iNumRoutes;
-      fprintf(pStream, "[ Lowest Neighbor Address ]\n");
-      dp_rule_lowest_neighbor_address(pRouter, pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
-      if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(pStream, pRoutes);
-    }
-      
-    if (iNumRoutes > 1) {
-      fprintf(pStream, "[ Final Tie-break ]\n");
-      dp_rule_final(pRouter, pRoutes);
-      iNumRoutes= ptr_array_length(pRoutes);
     }
 
   } else
