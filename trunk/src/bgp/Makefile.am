@@ -22,6 +22,8 @@ libbgp_la_SOURCES = \
 	as.c \
 	as.h \
 	as_t.h \
+	auto-config.c \
+	auto-config.h \
 	bgp_assert.h \
 	bgp_assert.c \
 	bgp_debug.h \
