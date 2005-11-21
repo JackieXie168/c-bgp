@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 17/10/2005
+// @lastdate 14/11/2005
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -767,6 +767,9 @@ void network_dump_subnets(FILE * pStream, SNetwork *pNetwork)
 }
 
 // ----- network_enum_nodes -----------------------------------------
+/**
+ * This function can be used by the CLI to enumerate all known nodes.
+ */
 char * network_enum_nodes(const char * pcText, int state)
 {
   static SEnumerator * pEnum= NULL;
@@ -783,27 +786,35 @@ char * network_enum_nodes(const char * pcText, int state)
   }
   enum_destroy(&pEnum);
   return NULL;
+}
 
-    /*unsigned int uIndex= 0;
-  static SPtrArray * pArray= NULL;
+// ----- network_enum_bgp_nodes -------------------------------------
+/**
+ * This function can be used by the CLI to enumerate all known nodes
+ * that support BGP.
+ */
+char * network_enum_bgp_nodes(const char * pcText, int state)
+{
+  static SEnumerator * pEnum= NULL;
   SNetNode * pNode;
   char acNode[16];
 
-  if (state == 0) {
-    pArray= trie_get_array(pTheNetwork->pNodes);
-    uIndex= 0;
-  }
-  while (uIndex < ptr_array_length(pArray)) {
-    pNode= pArray->data[uIndex++];
+  if (state == 0)
+    pEnum= trie_get_enum(pTheNetwork->pNodes);
+  while (enum_has_next(pEnum)) {
+    pNode= *((SNetNode **) enum_get_next(pEnum));
+
+    // Test if node supports BGP. If not, skip...
+    if (node_get_protocol(pNode, NET_PROTOCOL_BGP) == NULL)
+      continue;
+
     ip_address_to_string(acNode, pNode->tAddr);
     if (!strncmp(pcText, acNode, strlen(pcText)))
       return strdup(acNode);
   }
-
-  ptr_array_destroy(&pArray);
-  return NULL;*/
+  enum_destroy(&pEnum);
+  return NULL;
 }
-
 
 /////////////////////////////////////////////////////////////////////
 //
