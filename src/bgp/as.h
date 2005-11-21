@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 17/10/2005
+// @lastdate 15/11/2005
 // ==================================================================
 
 #ifndef __AS_H__
@@ -16,6 +16,7 @@
 #include <libgds/list.h>
 
 #include <bgp/as_t.h>
+#include <bgp/dp_rules.h>
 #include <bgp/filter.h>
 #include <bgp/message.h>
 #include <bgp/peer_t.h>
@@ -52,6 +53,11 @@ extern uint8_t BGP_OPTIONS_AUTO_CREATE;
   LOG_ENABLED_DEBUG(); \
   ip_address_dump(log_get_stream(pMainLog), AS->pNode->tAddr); \
   LOG_DEBUG(M);
+
+// -----[ decision process ]-----------------------------------------
+#define DP_NUM_RULES 9
+extern char * DP_RULE_NAME[DP_NUM_RULES];
+extern FDPRule DP_RULES[DP_NUM_RULES];
 
 // ----- bgp_router_create ------------------------------------------
 extern SBGPRouter * bgp_router_create(uint16_t uNumber,
@@ -92,9 +98,9 @@ extern int bgp_router_dump_rt_dp_rule(FILE * pStream, SBGPRouter * pRouter,
 				      SPrefix sPrefix);
 // ----- bgp_router_info --------------------------------------------
 extern void bgp_router_info(FILE * pStream, SBGPRouter * pRouter);
-// ----- bgp_router_decision_process_dop ------------------------------------
+/*// ----- bgp_router_decision_process_dop ------------------------------------
 extern void bgp_router_decision_process_dop(SBGPRouter * pRouter,
-					    SPtrArray * pRoutes);
+SPtrArray * pRoutes);*/
 // ----- bgp_router_decision_process_disseminate_to_peer ------------
 extern void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 							    SPrefix sPrefix,
@@ -166,6 +172,11 @@ extern void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
 				   int iInOut);
 // ----- bgp_router_save_rib ----------------------------------------
 extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
+// -----[ bgp_router_show_stats ]------------------------------------
+extern void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter);
+// -----[ bgp_router_show_route_info ]-------------------------------
+extern int bgp_router_show_route_info(FILE * pStream, SBGPRouter * pRouter,
+				      SPrefix sPrefix);
 
 // ----- bgp_router_record_route ------------------------------------
 extern int bgp_router_record_route(SBGPRouter * pRouter,

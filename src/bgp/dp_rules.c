@@ -3,9 +3,9 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 13/02/2005
+// @lastdate 15/11/2005
 // ==================================================================
-// to-do: these routines can be optimized
+// to-do: these routines could be optimized
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -20,6 +20,11 @@
 #include <bgp/route.h>
 #include <net/network.h>
 #include <net/routing.h>
+
+// -----[ function prototypes ]--------------------------------------
+static uint32_t _dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop);
+
+
 
 // ----- bgp_dp_rule_generic ----------------------------------------
 /**
@@ -83,8 +88,8 @@ static int bgp_dp_rule_local_route_cmp(SBGPRouter * pRouter,
 
 // ----- bgp_dp_rule_local ------------------------------------------
 /**
- * This function prefers routes that are locally originated (with the
- * as_add_network function).
+ * This function prefers routes that are locally originated,
+ * i.e. inserted with the bgp_router_add_network() function.
  */
 void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
@@ -102,11 +107,40 @@ void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes)
   }
 }
 
+// ----- dp_rule_highest_pref ---------------------------------------
+/**
+ * Remove routes that do not have the highest LOCAL-PREF.
+ */
+int dp_rule_highest_pref(SBGPRouter * pRouter, SRoutes * pRoutes)
+{
+  int iIndex;
+  SRoute * pRoute;
+  uint32_t uHighestPref= 0;
+  
+  // Calculate highest degree of preference
+  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+    if (route_localpref_get(pRoute) > uHighestPref)
+      uHighestPref= route_localpref_get(pRoute);
+  }
+  // Exclude routes with a lower preference
+  iIndex= 0;
+  while (iIndex < routes_list_get_num(pRoutes)) {
+    if (route_localpref_get((SRoute *) pRoutes->data[iIndex])
+	< uHighestPref)
+      ptr_array_remove_at(pRoutes, iIndex);
+    else
+      iIndex++;
+  }
+
+  return 0;
+}
+
 // ----- dp_rule_shortest_path --------------------------------------
 /**
- *
+ * Remove routes that do not have the shortest AS-PATH.
  */
-int dp_rule_shortest_path(SPtrArray * pRoutes)
+int dp_rule_shortest_path(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   SRoute * pRoute;
@@ -133,9 +167,10 @@ int dp_rule_shortest_path(SPtrArray * pRoutes)
 
 // ----- dp_rule_lowest_origin --------------------------------------
 /**
- *
+ * Remove routes that do not have the lowest ORIGIN (IGP < EGP <
+ * INCOMPLETE).
  */
-int dp_rule_lowest_origin(SPtrArray * pRoutes)
+int dp_rule_lowest_origin(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   SRoute * pRoute;
@@ -162,9 +197,14 @@ int dp_rule_lowest_origin(SPtrArray * pRoutes)
 
 // ----- dp_rule_lowest_med -----------------------------------------
 /**
+ * Remove routes that do not have the lowest MED.
  *
+ * Note: MED comparison can be done in two different ways. With the
+ * deterministic way, MED values are only compared between routes
+ * received from teh same neighbor AS. With the always-compare way,
+ * MED can always be compared.
  */
-int dp_rule_lowest_med(SPtrArray * pRoutes)
+int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex, iIndex2;
   int iLastAS;
@@ -178,9 +218,10 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
   //     In this case, the med is always compared between two routes even if
   //     they're not announced by the sames AS.
   //   2) the deterministic MED Cisco option.
-  //     The router has to group each route by AS. Secondly, it has to elect the
-  //     best route of each group and then continuing the rules of the
-  //     tie-break.
+  //     The router has to group each route by AS. Secondly, it has to
+  //     elect the best route of each group and then continue to apply
+  //     the remaining rules of the decision process to these best
+  //     routes.
   //
   // WARNING : if the two options are set, the MED of the best routes of each
   // group has to be compared too.
@@ -263,9 +304,9 @@ int dp_rule_lowest_med(SPtrArray * pRoutes)
 
 // ----- dp_rule_ebgp_over_ibgp -------------------------------------
 /**
- *
+ * If there is an eBGP route, remove all the iBGP routes.
  */
-int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SPtrArray * pRoutes)
+int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   int iEBGP= 0;
@@ -293,11 +334,11 @@ int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SPtrArray * pRoutes)
   return 0;
 }
 
-// ----- dp_rule_igp_cost -------------------------------------------
+// ----- _dp_rule_igp_cost ------------------------------------------
 /**
  * Helper function which retrieves the IGP cost to the given next-hop.
  */
-uint32_t dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop)
+static uint32_t _dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop)
 {
   SNetRouteInfo * pRouteInfo;
 
@@ -320,9 +361,10 @@ uint32_t dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop)
 
 // ----- dp_rule_nearest_next_hop -----------------------------------
 /**
- *
+ * Remove the routes that do not have the lowest IGP cost to the BGP
+ * next-hop.
  */
-int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes)
+int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   SRoute * pRoute;
@@ -333,7 +375,7 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
 
-    uIGPcost= dp_rule_igp_cost(pRouter, pRoute->tNextHop);
+    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->tNextHop);
     if (uIGPcost < uLowestCost)
       uLowestCost= uIGPcost;
 
@@ -348,7 +390,7 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes)
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    uIGPcost= dp_rule_igp_cost(pRouter, pRoute->tNextHop);
+    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->tNextHop);
     if (uIGPcost > uLowestCost) {
       ptr_array_remove_at(pRoutes, iIndex);
     } else {
@@ -359,11 +401,47 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SPtrArray * pRoutes)
   return 0;
 }
 
+// ----- dp_rule_lowest_router_id -----------------------------------
+/**
+ * Remove routes that do not have the lowest ROUTER-ID (or
+ * ORIGINATOR-ID if the route is reflected).
+ *
+ * TODO: support ORIGINATOR-ID comparison...
+ */
+int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
+{
+  net_addr_t tLowestRouterID= MAX_ADDR;
+  net_addr_t tID;
+  SRoute * pRoute;
+  int iIndex;
+
+  // Calculate lowest ROUTER-ID (or ORIGINATOR-ID)
+  for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+    tID= route_peer_get(pRoute)->tRouterID; 
+    if (tID < tLowestRouterID)
+      tLowestRouterID= tID;
+  }
+  // Discard routes from neighbors with an higher ROUTER-ID (or
+  // ORIGINATOR-ID)
+  iIndex= 0;
+  while (iIndex < ptr_array_length(pRoutes)) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+    tID= route_peer_get(pRoute)->tRouterID; 
+    if (tID > tLowestRouterID)
+      ptr_array_remove_at(pRoutes, iIndex);
+    else
+      iIndex++;
+  }
+
+  return 0;
+}
+
 // ----- dp_rule_shortest_cluster_list ------------------------------
 /**
- *
+ * Remove the routes that do not have the shortest CLUSTER-ID-LIST.
  */
-int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SPtrArray * pRoutes)
+int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   SRoute * pRoute;
   int iIndex;
@@ -393,9 +471,10 @@ int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SPtrArray * pRoutes)
 
 // ----- dp_rule_lowest_neighbor_address ----------------------------
 /**
- *
+ * Remove routes that are not learned through the peer with the lowest
+ * IP address.
  */
-int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SPtrArray * pRoutes)
+int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   net_addr_t tLowestAddr= MAX_ADDR;
   SRoute * pRoute;
@@ -424,7 +503,7 @@ int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SPtrArray * pRoutes)
 /**
  *
  */
-int dp_rule_final(SBGPRouter * pRouter, SPtrArray * pRoutes)
+int dp_rule_final(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iResult;
 
@@ -443,4 +522,3 @@ int dp_rule_final(SBGPRouter * pRouter, SPtrArray * pRoutes)
   }
   return 0;
 }
-
