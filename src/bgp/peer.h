@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/11/2002
-// @lastdate 15/10/2005
+// @lastdate 15/11/2005
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -16,17 +16,24 @@
 #include <bgp/route.h>
 
 struct TPeer {
-  net_addr_t tAddr;
-  uint16_t uRemoteAS;
+  net_addr_t tAddr;           // IP address that is used to reach the neighbor
+  net_addr_t tRouterID;       // ROUTER-ID of the neighbor. The
+			      // ROUTER-ID is initialy 0. It is set
+			      // when an OPEN message is received. For
+			      // virtual peers is it set to the peer's
+			      // IP address when the session is
+			      // opened.
+  uint16_t uRemoteAS;         // AS-number of the neighbor.
   uint8_t uPeerType;
-  SBGPRouter * pLocalRouter;
-  SFilter * pInFilter;
+  SBGPRouter * pLocalRouter;  // Reference to the local router.
+  SFilter * pInFilter;        // Input and output filters
   SFilter * pOutFilter;
-  SRIB * pAdjRIBIn;
+  SRIB * pAdjRIBIn;           // Input and output Adj-RIB
   SRIB * pAdjRIBOut;
-  uint8_t uSessionState;
-  uint8_t uFlags;
-  net_addr_t tNextHop;
+  uint8_t uSessionState;      // Session state (handled by the FSM)
+  uint8_t uFlags;             // Configuration flags
+  net_addr_t tNextHop;        // BGP next-hop to advertise to this
+			      // peer.
 };
 
 // ----- bgp_peer_create --------------------------------------------
@@ -76,12 +83,18 @@ extern void peer_rescan_adjribin(SPeer * pPeer, int iClear);
 // BGP MESSAGE HANDLING
 /////////////////////////////////////////////////////////////////////
 
-// ----- peer_announce_route ----------------------------------------
-extern void peer_announce_route(SPeer * pPeer, SRoute * pRoute);
-// ----- peer_withdraw_prefix ---------------------------------------
-extern void peer_withdraw_prefix(SPeer * pPeer, SPrefix sPrefix);
-// ----- peer_handle_message ----------------------------------------
-extern int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg);
+// ----- bgp_peer_announce_route ------------------------------------
+extern void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute);
+// ----- bgp_peer_withdraw_prefix -----------------------------------
+extern void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix);
+// ----- bgp_peer_handle_message ------------------------------------
+extern int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg);
+
+// ----- bgp_peer_route_eligible ------------------------------------
+extern int bgp_peer_route_eligible(SPeer * pPeer, SRoute * pRoute);
+// ----- bgp_peer_route_feasible ------------------------------------
+extern int bgp_peer_route_feasible(SPeer * pPeer, SRoute * pRoute);
+
 
 /////////////////////////////////////////////////////////////////////
 // INFORMATION RETRIEVAL
@@ -90,13 +103,13 @@ extern int peer_handle_message(SPeer * pPeer, SBGPMsg * pMsg);
 // ----- bgp_peer_dump_id -------------------------------------------
 extern void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump ----------------------------------------------
-extern void bgp_peer_dump(FILE * pStream, SPeer * pPeer);
+extern void bgp_peer_dump(FILE * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump_adjrib ---------------------------------------
-extern void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
+extern void bgp_peer_dump_adjrib(FILE * pStream, SBGPPeer * pPeer,
 				 SPrefix sPrefix, int iInOut);
 // ----- bgp_peer_dump_in_filters -----------------------------------
-extern void bgp_peer_dump_in_filters(FILE * pStream, SPeer * pPeer);
+extern void bgp_peer_dump_in_filters(FILE * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump_out_filters ----------------------------------
-extern void bgp_peer_dump_out_filters(FILE * pStream, SPeer * pPeer);
+extern void bgp_peer_dump_out_filters(FILE * pStream, SBGPPeer * pPeer);
 
 #endif
