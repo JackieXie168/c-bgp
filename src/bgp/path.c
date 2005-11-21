@@ -72,13 +72,14 @@ void path_destroy(SBGPPath ** ppPath)
 SBGPPath * path_copy(SBGPPath * pPath)
 {
   SBGPPath * pNewPath= NULL;
+#ifndef __BGP_PATH_TYPE_TREE__
+  int iIndex;
+#endif
 
   if (pPath == NULL)
     return NULL;
 
 #ifndef __BGP_PATH_TYPE_TREE__
-  int iIndex;
-
   pNewPath= path_create();
   for (iIndex= 0; iIndex < path_num_segments(pPath); iIndex++)
     path_add_segment(pNewPath, path_segment_copy((SPathSegment *) 
