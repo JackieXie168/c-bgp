@@ -105,3 +105,11 @@ should not be declared in the corresponding .h file. If a prototype is
 required for these functions, it has to be put at the beginning of the
 .c file where the function is declared.
 
+
+Variable declarations:
+======================
+Local variable declarations can only be done at the beginning of
+functions. Declaration of variables at any point in the code is
+PROHIBITED since it breaks the compilation process on some
+platforms. Indeed, such declarations are not supported by every C
+compiler !!!
