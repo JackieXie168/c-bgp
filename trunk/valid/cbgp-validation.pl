@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 12/10/2005
+# @lastdate 22/11/2005
 # ===================================================================
 
 use strict;
@@ -14,7 +14,7 @@ use strict;
 use Getopt::Long;
 use CBGP;
 
-use constant VERSION => '1.2';
+use constant VERSION => '1.3';
 use constant CACHE_FILE => ".cbgp-validation.cache";
 
 use constant TEST_FAILURE => 0;
@@ -26,6 +26,10 @@ use constant CBGP_LINK_DST => 1;
 use constant CBGP_LINK_WEIGHT => 2;
 use constant CBGP_LINK_DELAY => 3;
 use constant CBGP_LINK_STATE => 4;
+
+use constant CBGP_PEER_AS => 0;
+use constant CBGP_PEER_STATE => 1;
+use constant CBGP_PEER_ROUTERID => 2;
 
 use constant CBGP_RT_NEXTHOP => 0;
 use constant CBGP_RT_IFACE => 1;
@@ -62,6 +66,7 @@ my $cbgp_version;
 
 my %cache;
 my $use_cache= 1;
+my $debug= 0;
 
 # -----[ show_error ]------------------------------------------------
 sub show_error($)
@@ -119,6 +124,15 @@ sub show_failure()
 sub show_skipped()
 {
     print STDERR "\033[70G\033[33;1mSKIPPED\033[0m\n";
+}
+
+# -----[ show_debug ]------------------------------------------------
+sub show_debug($)
+{
+    my ($msg)= @_;
+    
+    ($debug) and
+	print STDERR "debug: $msg\n";
 }
 
 # -----[ test_cache_read ]-------------------------------------------
@@ -565,23 +579,49 @@ sub cbgp_topo_check_igp_reachability($$)
     return 1;
 }
 
-# -----[ cbgp_links_check ]------------------------------------------
-sub cbgp_links_check($$%)
+# -----[ cbgp_check_link ]-------------------------------------------
+sub cbgp_check_link($$$%)
 {
-    my ($links, $dest, %args)= @_;
+    my ($cbgp, $src, $dest, %args)= @_;
+
+    my $args_str= '';
+    foreach (keys %args) {
+	$args_str.= ", $_=".$args{$_};
+    }
+    show_debug("check_link($src, $dest$args_str)");
+
+    my $links;
+    $links= cbgp_show_links($cbgp, $src);
+    if (keys(%$links) == 0) {
+	show_debug("ERROR no link from \"$src\"");
+	return TEST_FAILURE;
+    }
 
     if (!exists($links->{$dest})) {
+	show_debug("ERROR no link towards \"$dest\"");
 	return 0;
     }
     my $link= $links->{$dest};
     if (exists($args{-type})) {
-	($link->[CBGP_LINK_TYPE] eq $args{-type}) or return 0;
+	if ($link->[CBGP_LINK_TYPE] ne $args{-type}) {
+	    show_debug("ERROR incorrect type \"".$link->[CBGP_LINK_TYPE].
+		       "\" (expected=\"".$args{-type}."\")");
+	    return 0;
+	}
     }
     if (exists($args{-weight})) {
-	($link->[CBGP_LINK_WEIGHT] == $args{-weight}) or return 0;
+	if ($link->[CBGP_LINK_WEIGHT] != $args{-weight}) {
+	    show_debug("ERROR incorrect weight \"".$link->[CBGP_LINK_WEIGHT].
+		       "\" (expected=\"".$args{-weight}."\")");
+	    return 0;
+	}
     }
     if (exists($args{-delay})) {
-	($link->[CBGP_LINK_DELAY] == $args{-delay}) or return 0;
+	if ($link->[CBGP_LINK_DELAY] != $args{-delay}) {
+	    show_debug("ERROR incorrect delay \"".$link->[CBGP_LINK_DELAY].
+		       "\" (expected=\"".$args{-delay}."\")");
+	    return 0;
+	}
     }
     return 1;
 }
@@ -635,15 +675,30 @@ sub cbgp_topo_check_record_route($$$)
     my ($cbgp, $topo, $status)= @_;
     my $nodes= topo_get_nodes($topo);
 
+    show_debug("topo_check_record_route()");
+
     foreach my $node1 (keys %$nodes) {
 	foreach my $node2 (keys %$nodes) {
 	    ($node1 eq $node2) and next;
 	    my $trace= cbgp_record_route($cbgp, $node1, $node2);
+
 	    # Result should be equal to the given status
-	    ($trace->[CBGP_TR_STATUS] ne $status) and return 0;
+	    if ($trace->[CBGP_TR_STATUS] ne $status) {
+		show_debug("ERROR incorrect status \"".
+			   $trace->[CBGP_TR_STATUS].
+			   "\" (expected=\"$status\")");
+		return 0;
+	    }
+
 	    if ($trace->[CBGP_TR_STATUS] eq "SUCCESS") {
 		# Last hop should be destination
-		($#{$trace->[CBGP_TR_PATH]} eq $node2) and return 0;
+		my @path= @{$trace->[CBGP_TR_PATH]};
+		show_debug(join ", ", @path);
+		if ($path[$#path] ne $node2) {
+		    show_debug("ERROR final node != destination ".
+			       "(\"".$path[$#path]."\" != \"$node2\")");
+		    return 0;
+		}
 	    }
 	}
     }
@@ -872,8 +927,8 @@ sub cbgp_show_peers($$)
     die if $cbgp->send("bgp router $node show peers\n");
     die if $cbgp->send("print \"done\\n\"\n");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~ m/^([0-9.]+)\s+AS([0-9]+)\s+([A-Z]+)(\s+.+)?$/) {
-	    $peers{$1}= [$2, $3, $4];
+	if ($result =~ m/^([0-9.]+)\s+AS([0-9]+)\s+([A-Z]+)\s+([0-9.]+)(\s+.+)?$/) {
+	    $peers{$1}= [$2, $3, $4, $5];
 	} else {
 	    show_error("incorrect format (show peers): \"$result\"");
 	    exit(-1);
@@ -1041,12 +1096,18 @@ sub cbgp_topo_check_links($$)
 sub cbgp_check_peering($$$;$)
 {
     my ($cbgp, $router, $peer, $state)= @_;
+    
+    show_debug("check_peering($router, $peer, $state)");
 
     my $peers= cbgp_show_peers($cbgp, $router);
     if (!exists($peers->{$peer})) {
+	show_debug("ERROR peer does not exist");
 	return 0;
     }
-    if (defined($state) && ($peers->{$peer}->[1] ne $state)) {
+    if (defined($state) && ($peers->{$peer}->[CBGP_PEER_STATE] ne $state)) {
+	show_debug("ERROR incorrect state \"".
+		   $peers->{$peer}->[CBGP_PEER_STATE].
+		   "\" (expected=\"$state\")");
 	return 0;
     }
     return 1;
@@ -1105,7 +1166,18 @@ sub community_equals($$)
     return 1;
 }
 
+
+#####################################################################
+#
+# VALIDATION TESTS
+#
+#####################################################################
+
 # -----[ cbgp_valid_version ]----------------------------------------
+# Check that the version returned by C-BGP is correctly formated. This
+# is the first test since it is also used to check that the C-BGP
+# executable can be launched.
+# -------------------------------------------------------------------
 sub cbgp_valid_version($)
 {
     my ($cbgp)= @_;
@@ -1123,6 +1195,9 @@ sub cbgp_valid_version($)
 }
 
 # -----[ cbgp_valid_net_link ]---------------------------------------
+# Create a topology composed of 3 nodes and 2 links. Check that the
+# links are correcly setup. Check the links attributes.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_link($$)
 {
     my ($cbgp, $topo)= @_;
@@ -1131,52 +1206,52 @@ sub cbgp_valid_net_link($$)
     die if $cbgp->send("net add node 1.0.0.3\n");
     die if $cbgp->send("net add link 1.0.0.1 1.0.0.2 123\n");
     die if $cbgp->send("net add link 1.0.0.2 1.0.0.3 321\n");
-    my $links;
-    $links= cbgp_show_links($cbgp, '1.0.0.1');
-    (keys(%$links) != 1) and return TEST_FAILURE;
-    cbgp_links_check($links, '1.0.0.2',
-		     -type=>'ROUTER',
-		     -weight=>123) or return TEST_FAILURE;
-    $links= cbgp_show_links($cbgp, '1.0.0.2');
-    (keys (%$links) != 2) and return TEST_FAILURE;
-    (cbgp_links_check($links, '1.0.0.1',
-		      -type=>'ROUTER',
-		      -weight=>123) &&
-     cbgp_links_check($links, '1.0.0.3',
-		      -type=>'ROUTER',
-		      -weight=>321)) or return TEST_FAILURE;
-    $links= cbgp_show_links($cbgp, '1.0.0.3');
-    (keys(%$links) != 1) and return TEST_FAILURE;
-    cbgp_links_check($links, '1.0.0.2',
-		     -type=>'ROUTER',
-		     -weight=>321) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.1', '1.0.0.2',
+		    -type=>'ROUTER',
+		    -weight=>123) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.2', '1.0.0.1',
+		    -type=>'ROUTER',
+		    -weight=>123) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.2', '1.0.0.3',
+		    -type=>'ROUTER',
+		    -weight=>321) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.3', '1.0.0.2',
+		    -type=>'ROUTER',
+		    -weight=>321) or return TEST_FAILURE;
     return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_net_subnet ]-------------------------------------
+# Create a topology composed of 2 nodes and 2 subnets (1 transit and
+# one stub). Check that the links are correcly setup. Check the link
+# attributes.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_subnet($$)
 {
     my ($cbgp, $topo)= @_;
     die if $cbgp->send("net add node 1.0.0.1\n");
     die if $cbgp->send("net add node 1.0.0.2\n");
     die if $cbgp->send("net add subnet 192.168.0/24 transit\n");
+    die if $cbgp->send("net add subnet 192.168.1/24 stub\n");
     die if $cbgp->send("net add link 1.0.0.1 192.168.0.1/24 123\n");
     die if $cbgp->send("net add link 1.0.0.2 192.168.0.2/24 321\n");
-    my $links;
-    $links= cbgp_show_links($cbgp, '1.0.0.1');
-    (keys(%$links) != 1) and return TEST_FAILURE;
-    cbgp_links_check($links, '192.168.0.0/24',
-		     -type=>'TRANSIT',
-		     -weight=>123) or return TEST_FAILURE;
-    $links= cbgp_show_links($cbgp, '1.0.0.2');
-    (keys (%$links) != 1) and return TEST_FAILURE;
-    cbgp_links_check($links, '192.168.0.0/24',
-		     -type=>'TRANSIT',
-		     -weight=>321) or return TEST_FAILURE;
+    die if $cbgp->send("net add link 1.0.0.2 192.168.1.2/24 456\n");
+    cbgp_check_link($cbgp, '1.0.0.1', '192.168.0.0/24',
+		    -type=>'TRANSIT',
+		    -weight=>123) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.2', '192.168.0.0/24',
+		    -type=>'TRANSIT',
+		    -weight=>321) or return TEST_FAILURE;
+    cbgp_check_link($cbgp, '1.0.0.2', '192.168.1.0/24',
+		    -type=>'STUB',
+		    -weight=>456) or return TEST_FAILURE;
     return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_net_create ]-------------------------------------
+# Create the topology given as parameter in C-BGP, then checks that
+# the topology is correctly setup.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_create($$)
 {
     my ($cbgp, $topo)= @_;
@@ -1185,6 +1260,10 @@ sub cbgp_valid_net_create($$)
 }
 
 # -----[ cbgp_valid_net_igp ]----------------------------------------
+# Create the topology given as parameter in C-BGP and compute the
+# shortest paths. Finally checks that each node can reach the other
+# ones.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_igp($$)
 {
     my ($cbgp, $topo)= @_;
@@ -1194,6 +1273,9 @@ sub cbgp_valid_net_igp($$)
 }
 
 # -----[ cbgp_valid_net_ntf_load ]-----------------------------------
+# Load a topology from an NTF file into C-BGP (using C-BGP 's "net
+# ntf load" command). Check that the links are correctly setup.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_ntf_load($$)
 {
     my ($cbgp, $ntf_file)= @_;
@@ -1203,6 +1285,10 @@ sub cbgp_valid_net_ntf_load($$)
 }
 
 # -----[ cbgp_valid_net_record_route ]-------------------------------
+# Create the given topology in C-BGP. Check that record-route
+# fails. Then, compute the IGP routes. Check that record-route are
+# successfull.
+# -------------------------------------------------------------------
 sub cbgp_valid_net_record_route($$)
 {
     my ($cbgp, $topo)= @_;
@@ -1218,6 +1304,7 @@ sub cbgp_valid_net_record_route($$)
 }
 
 # -----[ cbgp_valid_net_static_routes ]------------------------------
+# -------------------------------------------------------------------
 sub cbgp_valid_net_static_routes($$)
 {
     my ($cbgp, $topo)= @_;
@@ -1230,6 +1317,7 @@ sub cbgp_valid_net_static_routes($$)
 }
 
 # -----[ cbgp_valid_net_longest_matching ]---------------------------
+# -------------------------------------------------------------------
 sub cbgp_valid_net_longest_matching($)
 {
     my ($cbgp)= @_;
@@ -1263,6 +1351,7 @@ sub cbgp_valid_net_longest_matching($)
 }
 
 # -----[ cbgp_valid_net_protocol_priority ]--------------------------
+# -------------------------------------------------------------------
 sub cbgp_valid_net_protocol_priority($)
 {
     my ($cbgp)= @_;
@@ -2119,6 +2208,7 @@ sub cbgp_valid_igp_bgp()
 		     "255/8|2|IGP|2.0.0.2|0|0");
     cbgp_recv_update($cbgp, "1.0.0.3", 1, "2.0.0.3",
 		     "255/8|2|IGP|2.0.0.3|0|0");
+    show_debug("blougi-boulga: sim run");
     die if $cbgp->send("sim run\n");
     my $rib;
     $rib= cbgp_show_rib($cbgp, "1.0.0.4");
@@ -2154,7 +2244,6 @@ sub cbgp_valid_igp_bgp()
     $rib= cbgp_show_rib($cbgp, "1.0.0.5");
     (cbgp_rib_check($rib, "255/8", [CBGP_RIB_NEXTHOP, "1.0.0.2"])) or
 	return TEST_FAILURE;
-    print STDERR " OK :-)";
     # TODO: test link up
     # TODO: check presence of routes in Adj-RIB-ins, etc.
     # TODO: check presence of routes in IP table...
@@ -2186,12 +2275,14 @@ sub cbgp_valid_bgp_load_rib($)
 {
     my ($cbgp)= @_;
     my $rib_file= "abilene-rib.ascii";
+    die if $cbgp->send("bgp options auto-create on\n");
     die if $cbgp->send("net add node 198.32.12.9\n");
     die if $cbgp->send("bgp add router 11537 198.32.12.9\n");
     die if $cbgp->send("bgp router 198.32.12.9 load rib $rib_file\n");
     my $rib;
     $rib= cbgp_show_rib($cbgp, "198.32.12.9");
     if (scalar(keys %$rib) != `cat $rib_file | wc -l`) {
+	show_debug("number of prefixes mismatch");
 	return TEST_FAILURE;
     }
     open(RIB, "<$rib_file") or die;
@@ -2334,16 +2425,17 @@ show_info("(c) 2005, Bruno Quoitin");
 
 my %opts;
 if (!GetOptions(\%opts, "cbgp-path:s",
-		"cache!")) {
+		"cache!",
+		"debug!")) {
     show_error("Invalid command-line options");
     exit(-1);
 }
-if (exists($opts{"cbgp-path"})) {
+(exists($opts{"cbgp-path"})) and
     $cbgp_path= $opts{"cbgp-path"};
-}
-if (exists($opts{"cache"})) {
+(exists($opts{"cache"})) and
     $use_cache= $opts{"cache"};
-}
+(exists($opts{"debug"})) and
+    $debug= $opts{"debug"};
 
 my $topo= topo_3nodes_triangle();
 
@@ -2402,12 +2494,12 @@ push @tests, (["bgp filter match next-hop",
 	       \&cbgp_valid_bgp_filter_match_nexthop]);
 push @tests, (["bgp filter match prefix",
 	       \&cbgp_valid_bgp_filter_match_prefix]);
-push @tests, (["igp/bgp", \&cbgp_valid_igp_bgp]);
-push @tests, (["igp/bgp reachability link",
+push @tests, (["igp-bgp", \&cbgp_valid_igp_bgp]);
+push @tests, (["igp-bgp reachability link",
 	       \&cbgp_valid_igp_bgp_reach_link]);
-push @tests, (["igp/bgp reachability subnet",
+push @tests, (["igp-bgp reachability subnet",
 	       \&cbgp_valid_igp_bgp_reach_subnet]);
-push @tests, (["igp/bgp update med", \&cbgp_valid_igp_bgp_med]);
+push @tests, (["igp-bgp update med", \&cbgp_valid_igp_bgp_med]);
 push @tests, (["bgp load rib", \&cbgp_valid_bgp_load_rib]);
 push @tests, (["bgp deflection", \&cbgp_valid_bgp_deflection]);
 push @tests, (["bgp route-reflection", \&cbgp_valid_bgp_rr]);
@@ -2423,21 +2515,22 @@ push @tests, (["bgp implicit-withdraw",
 
 foreach my $test (@tests) {
     my $test_name= shift @$test;
-    show_testing($test_name);
     my $result;
     if (!exists($cache{$test_name}) ||
 	($cache{$test_name} != TEST_SUCCESS)) {
 	my $cbgp= CBGP->new($cbgp_path);
 	my $log_file= ".$test_name.log";
-	($log_file =~ s/\ /\_/g);
+	($log_file =~ tr[\ -][___]);
 	unlink $log_file;
 	$cbgp->{log_file}= $log_file;
 	$cbgp->{log}= 1;
 	$cbgp->spawn();
 	die if $cbgp->send("set autoflush on\n");
 	my $func= shift @$test;
+	show_debug("testing $test_name");
 	$result= &$func($cbgp, @$test);
 	$cbgp->finalize();
+	show_testing($test_name);
 	if ($result == TEST_SUCCESS) {
 	    show_success();
 	} elsif ($result == TEST_SKIPPED) {
@@ -2447,6 +2540,7 @@ foreach my $test (@tests) {
 	}
 	$cache{$test_name}= $result;
     } else {
+	show_testing($test_name);
 	show_cache();
     }
     if ($num_failures >= $max_failures) {
