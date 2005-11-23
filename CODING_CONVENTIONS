@@ -121,3 +121,55 @@ functions. Declaration of variables at any point in the code is
 PROHIBITED since it breaks the compilation process on some
 platforms. Indeed, such declarations are not supported by every C
 compiler !!!
+
+
+Autoconf/automake process:
+==========================
+We use autoconf/automake to manage the building process. Autoconf and
+automake are responsible for the generation of Makefile's in each of
+the directories of the project. These Makefile's will be used by the
+'make' utility to build the whole project. For this purpose, autoconf
+and automake rely on multiple configuration files. The first important
+file is 'configure.in'. This file is located at the root of the
+project's directory. The second other important files are Makefile.am
+files that are located in each source sub-directory. Other files are
+also used, but we will not describe them in this document.
+
+When a new source file is added to the project (a .h or a.c file), it
+must be referenced in the Makefile.am file of its directory. For
+instance, if a file 'foo.c' is added in the './src/net' directory, the
+Makefile.am file must be modified as follows. The Makefile.am file
+contains a list of source files, under the <prefix>_SOURCES variable
+where the <prefix> is the name of the local build target. For the
+'./src/net' directory, the target will be 'libnet_la' (if you are
+interested by more details on this, open a Google window and look for
+'building convenience libraries'). So, for instance, the
+'./src/net/Makefile.am' will contain a line looking like
+
+  libnet_la_SOURCES = \
+    file_1 \
+    ... \
+    foo.c \
+    ... \
+    file_n
+
+where file_i are other source files.
+
+If a new source sub-directory is added to the project, it must be
+referenced in the 'configure.in' file at the root of the project
+tree. For instance, if a new directory './src/hlp' is added, the
+'configure.in' file must be modified as follows. The 'configure.in'
+file contains a macro named 'AC_OUTPUT'. This variable tells
+autoconf/automake where Makefile's must be generated. The path to the
+Makefile of the new directory must be added in this variable. For
+instance:
+
+  AC_OUTPUT(Makefile src/Makefile src/net/Makefile src/hlp/Makefile)
+
+In addition, a Makefile.am file must be created in the new
+directory. Once this is done, the autoconf/automake process must be
+run in order to regenerate all the building process files (mainly the
+Makefile's as well as the './configure' script at the root of the
+project). To regenerate the building process, use the './reconf'
+script located at the root of the project.
+
