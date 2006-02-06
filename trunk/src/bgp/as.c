@@ -616,6 +616,24 @@ int bgp_router_reset(SBGPRouter * pRouter)
   return -1;
 }
 
+typedef struct {
+  SRouter * pRouter;
+  SRoutes * pBestEBGPRoutes;
+} SSecondBestCtx;
+
+int bgp_router_copy_ebgp_routes(void * pItem, void * pContext)
+{
+  SSecondBestCtx * pBestEBGPRoutes = (SSecondBestCtx *) pContext;
+  SRoute * pRoute = *(SRoute ** )pItem;
+  
+  if (pRoute->pPeer->uRemoteAS != pRouter->uNumber) {
+    if (pBestEBGPRoutes == NULL)
+      pBestEBGPRoutes = routes_list_create(ROUTES_LIST_OPTION_PREF);
+    return routes_list_append(pRoutes, pRoute);
+  }
+  return 0;
+}
+
 // ----- bgp_router_decision_process_run ----------------------------
 /**
  * Select one route with the following rules (see the actual
@@ -644,6 +662,13 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 				    SRoutes * pRoutes)
 {
   int iRule;
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  uint16_t uLen, uRoute;
+  SSecondBestCtx sSecondBest, sSecondBestOld;
+  SRoutes * pEBGPRoutes;
+
+  pSecondBest.pRouter = pRouter;
+#endif
 
   // Apply the decision process rules in sequence until there is 1 or
   // 0 route remaining or until all the rules were applied.
@@ -652,6 +677,26 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
       break;
     LOG_DEBUG("rule: [ %s ]\n", DP_RULE_NAME[iRule]);
     DP_RULES[iRule](pRouter, pRoutes);
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    //Phase of collection of EBGP routes ... as we don't know the best EBGP
+    //routes, we collect for each step the remaining EBGP routes. If there is
+    //no EBGP routes in one step then we have our final set of EBGP routes.
+    //If there are additional routes then we can destroy the previous set of
+    //EBGP selected routes and save the new set.
+    sSecondBestOld.pBestEBGPRoutes = sSecondBest.pBestEBGPRoutes;
+    sSecondBestOld.pRouter = sSecondBest.pRouter;
+    sSecondBest.pBestEBGPRoutes = NULL;
+    if (routes_list_for_each(pRoutes, bgp_router_copy_ebgp_routes, &sSecondBest) != 0) {
+      LOG_FATAL("Error : Can't determine if there are EBGP learned routes\n");
+      abort();
+    }
+    if (sSecondBest.pBestEBGPRoutes == NULL) {
+      sSecondBest.pBestEBGPRoutes = sSecondBestOld.pBestEBGPRoutes;
+      sSecondBestOld.pBestEBGPRoutes = NULL;
+    } else {
+      routes_list_destroy(&(sSecondBestOld.pBestEBGPRoutes));
+    }
+#endif
   }
 
   // Check that at most a single best route will be returned.
@@ -660,6 +705,19 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
     abort();
   }
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  pEBGPRoutes = SecondBest.pBestEBGPRoutes
+  pBestRoute = routes_list_get_at(pRoutes, 0);
+  //As we advertise the EBGP best route to internal router if the overall best
+  //is already an EBGP one, we don't have to do the dp rules again as we
+  //already know it.
+  if (pBestRoute->pPeer->uRemoteAS != pRouter->uNumber)
+    route_list_destroy(&pEBGPRoutes);
+    pEBGPRoutes = 
+
+  }
+#endif
+  
   return iRule;
 }
 
@@ -946,7 +1004,11 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
  * Note: this function will update the 'feasible' flag of the eligible
  * routes.
  */
-SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter, SPrefix sPrefix)
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter, SPrefix sPrefix, const uint8_t uOnlyEBGP)
+#else
+  SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter, SPrefix sPrefix)
+#endif
 {
   SRoutes * pRoutes;
   SBGPPeer * pPeer;
@@ -963,6 +1025,9 @@ SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter, SPrefix sPrefix)
     /* Check that the peering session is in ESTABLISHED state */
     if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+      if (pPeer->uRemoteAS != pRouter->uNumber or uOnlyEBGP == 0) {
+#endif
       pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
 
       /* Check that a route is present in the Adj-RIB-in of this peer
@@ -979,6 +1044,9 @@ SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter, SPrefix sPrefix)
 
       }
     }
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    }
+#endif
   }
 
   return pRoutes;
@@ -1013,6 +1081,12 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   SRoute * pRoute, * pOldRoute;
   int iRank;
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  SRoutes * pEBGPRoutes;
+  SRoute * pOldEBGPRoute;
+  int iRankEBGP;
+#endif
+
   /* BGP QoS decision process */
 #ifdef BGP_QOS
   if (BGP_OPTIONS_NLRI == BGP_NLRI_QOS_DELAY)
@@ -1038,10 +1112,19 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
       route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL))
     return 0;
 
+  //Is this route also the best EBGP route?
+  if ((pOldRoute != NULL) && 
+      route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_ROUTE))
+    pOldEBGPRoute = pOldRoute;
+
   // *** lock all Adj-RIB-Ins ***
 
   /* Build list of eligible routes */
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix, 0);
+#else
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
+#endif
 
   /* Reset DP_IGP flag, log eligibles */
   for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
@@ -1064,7 +1147,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   if (ptr_array_length(pRoutes) == 1)
     route_flag_set((SRoute *) pRoutes->data[0], ROUTE_FLAG_DP_IGP, 1);
 
-  // Compare eligible routes
+  // Compare eligible routeS
   iRank= 0;
   if (ptr_array_length(pRoutes) > 1)
     iRank= bgp_router_decision_process_run(pRouter, pRoutes);
@@ -1074,6 +1157,19 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   // If one best-route has been selected
   if (ptr_array_length(pRoutes) > 0) {
     pRoute= route_copy((SRoute *) pRoutes->data[0]);
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    //If the Best route selected is not an EBGP one, run the decision process
+    //against the set of EBGP routes.
+    if (pRoute->pPeer->uRemoteAS == pRouter->uNumber)
+      pEBGPRoutes = bgp_router_get_feasible_routes(pRouter, sPrefix, 1);
+      if (routes_list_get_num(pEBGPRoutes) > 1)
+	iRankEBGP = bgp_router_decision_process_run(pRouter, pEBGPRoutes);
+	assert((ptr_array_length(pEBGPRoutes) == 0) ||
+	   (ptr_array_length(pEBGPRoutes) == 1));
+#endif
+      
+
 
     LOG_DEBUG("\tnew-best: ");
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
