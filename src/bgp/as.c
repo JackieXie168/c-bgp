@@ -1074,6 +1074,7 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
   return pRoutes;
 }
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
 void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter, 
 			      SRoutes * pEBGPRoutes, SRoute * pOldEBGPRoute, 
 			      SRoute * pEBGPRoute, SPrefix sPrefix)
@@ -1103,6 +1104,7 @@ void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter,
   }
 
 }
+#endif
 
 // ----- bgp_router_decision_process --------------------------------
 /**
