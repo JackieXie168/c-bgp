@@ -656,6 +656,30 @@ int cli_bgp_options_qosaggrlimit(SCliContext * pContext,
 }
 #endif
 
+// ----- cli_bgp_options_advertise_external_best -------------------
+/**
+ * context : {}
+ * tokens: {}
+ */
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+int cli_bgp_options_advertise_external_best(SCliContext * pContext,
+					STokens * pTokens)
+{
+  char * pcParam;
+
+  pcParam= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcParam, "on"))
+    BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST= 1;
+  else if (!strcmp(pcParam, "off"))
+    BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST= 0;
+  else {
+    LOG_SEVERE("Error: invalid value \"%s\"\n", pcParam);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+#endif
+
 // ----- cli_bgp_router_set_clusterid -------------------------------
 /**
  * This function changes the router's cluster-id. This also allows
@@ -1524,7 +1548,11 @@ int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
   if (!strcmp(pcType, "best")) {
     pRoutes= bgp_router_get_best_routes(pRouter, sPrefix);
   } else if (!strcmp(pcType, "feasible")) {
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix, 0);
+#else
     pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
+#endif
   } else {
     LOG_SEVERE("Error: unsupported type of routes \"%s\"\n", pcType);
     return CLI_ERROR_COMMAND_FAILED;
@@ -2721,6 +2749,14 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   cli_params_add(pParams, "<limit>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("qos-aggr-limit",
 					cli_bgp_options_qosaggrlimit,
+					NULL, pParams));
+#endif
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  pParams = cli_params_create();
+  cli_params_add(pParams, "<on-off>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("advertise-external-best",
+					cli_bgp_options_advertise_external_best,
 					NULL, pParams));
 #endif
   /*pParams= cli_params_create();

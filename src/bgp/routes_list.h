@@ -23,6 +23,8 @@ extern void routes_list_destroy(SRoutes ** ppRoutes);
 extern void routes_list_append(SRoutes * pRoutes, SRoute * pRoute);
 // ----- routes_list_remove_at --------------------------------------
 extern void routes_list_remove_at(SRoutes * pRoutes, int iIndex);
+// ----- routes_list_get_at -----------------------------------------
+SRoute * routes_list_get_at(SRoutes * pRoutes, const int iIndex);
 // ----- routes_list_get_num ----------------------------------------
 extern int routes_list_get_num(SRoutes * pRoutes);
 // ----- routes_list_dump -------------------------------------------

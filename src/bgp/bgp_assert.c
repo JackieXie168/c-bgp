@@ -242,7 +242,11 @@ int bgp_router_assert_feasible(SBGPRouter * pRouter, SPrefix sPrefix,
   int iResult= -1;
 
   // Get the feasible routes
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  pRoutes = bgp_router_get_feasible_routes(pRouter, sPrefix, 0);
+#else
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
+#endif
 
   // Find a route with the given next-hop
   for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {

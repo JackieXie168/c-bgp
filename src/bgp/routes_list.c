@@ -67,6 +67,19 @@ void routes_list_remove_at(SRoutes * pRoutes, int iIndex)
   ptr_array_remove_at((SPtrArray *) pRoutes, iIndex);
 }
 
+// ----- routes_list_get_at -----------------------------------------
+/**
+ *
+ **/
+SRoute * routes_list_get_at(SRoutes * pRoutes, const int iIndex)
+{
+  SRoute * pRoute = MALLOC(sizeof(SRoute));
+
+  ptr_array_get_at((SPtrArray *) pRoutes, iIndex, pRoute);
+
+  return pRoute;
+}
+
 // ----- routes_list_get_num ----------------------------------------
 /**
  *
