@@ -1079,7 +1079,8 @@ void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter,
 			      SRoutes * pEBGPRoutes, SRoute * pOldEBGPRoute, 
 			      SRoute * pEBGPRoute, SPrefix sPrefix)
 {
-  pEBGPRoute = route_copy((SRoute *) routes_list_get_at(pEBGPRoutes, 0));
+//  pEBGPRoute = route_copy((SRoute *) routes_list_get_at(pEBGPRoutes, 0));
+  pEBGPRoute = route_copy((SRoute *) pEBGPRoutes->data[0]);
   LOG_DEBUG("\tnew-external-best: ");
   LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pEBGPRoute);
   LOG_DEBUG("\n");
@@ -1103,6 +1104,17 @@ void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter,
     route_destroy(&pEBGPRoute);
   }
 
+}
+
+SRoute * bgp_router_get_external_best(SRoutes * pRoutes)
+{
+  int iIndex;
+
+  for (iIndex = 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+    if (route_flag_get(pRoutes->data[iIndex], ROUTE_FLAG_EXTERNAL_BEST))
+      return route_copy(pRoutes->data[iIndex]);
+  }
+  return NULL;
 }
 #endif
 
@@ -1163,26 +1175,29 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   // Local routes can not be overriden and must be kept in Loc-RIB.
   // Decision process stops here in this case.
   if ((pOldRoute != NULL) &&
-      route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL))
+      route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL)) {
     return 0;
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  //Is this route also the best EBGP route?
-  if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
-    //TODO: This route can be another one ... we must search it!
-    if ((pOldRoute != NULL) && 
-	route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_BEST))
-      pOldEBGPRoute = pOldRoute;
-    LOG_DEBUG("\told-external-best: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldEBGPRoute);
-    LOG_DEBUG("\n");
   }
-#endif
 
   // *** lock all Adj-RIB-Ins ***
 
   /* Build list of eligible routes */
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix, 0);
+
+  //Is this route also the best EBGP route?
+  if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
+    //TODO: This route can be another one ... we must search it!
+    if ((pOldRoute != NULL) && 
+	route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_BEST))
+      pOldEBGPRoute = route_copy(pOldRoute);
+    else
+      pOldEBGPRoute = bgp_router_get_external_best(pRoutes);
+    LOG_DEBUG("\told-external-best: ");
+    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldEBGPRoute);
+    LOG_DEBUG("\n");
+  }
+
 #else
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
 #endif
@@ -1230,8 +1245,16 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 	route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 1);
     
       if (pEBGPRoutes != NULL) {
-	if (routes_list_get_num(pEBGPRoutes) > 1)
+	for (iRank = 0; iRank < routes_list_get_num(pEBGPRoutes); iRank++){
+	  LOG_DEBUG("\teligible external : ");
+/*	  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), routes_list_get_at(pEBGPRoutes, iRank));
+	  LOG_DEBUG("\n");*/
+	  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pEBGPRoutes->data[0]);
+	  LOG_DEBUG("\n");
+      }
+	if (routes_list_get_num(pEBGPRoutes) > 1) {
 	  iRankEBGP = bgp_router_decision_process_run(pRouter, pEBGPRoutes);
+	}
 	assert((ptr_array_length(pEBGPRoutes) == 0) ||
 	   (ptr_array_length(pEBGPRoutes) == 1));
       }
