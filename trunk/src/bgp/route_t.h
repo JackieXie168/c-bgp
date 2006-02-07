@@ -54,7 +54,7 @@ extern unsigned long rt_destroy_count;
 					network' statement */
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-#define ROUTE_FLAG_EXTERNAL_BEST 0x0030
+#define ROUTE_FLAG_EXTERNAL_BEST 0x0040
 #endif
 
 /* QoS flags */

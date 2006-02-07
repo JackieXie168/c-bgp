@@ -803,6 +803,9 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 		   bgp_peer_route_eligible(pPeer, pRoute));
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
 		   bgp_peer_route_feasible(pPeer, pRoute));
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+#endif
     // Update route delay attribute (if BGP-QoS)
     //peer_route_delay_update(pPeer, pRoute);
 
