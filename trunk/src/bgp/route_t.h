@@ -53,6 +53,10 @@ extern unsigned long rt_destroy_count;
 					(i.e. added with the 'add
 					network' statement */
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+#define ROUTE_FLAG_EXTERNAL_BEST 0x0030
+#endif
+
 /* QoS flags */
 #define ROUTE_FLAG_BEST_EBGP  0x0100 /* best eBGP route */
 #define ROUTE_FLAG_AGGR       0x0200 /* The route is a member of an

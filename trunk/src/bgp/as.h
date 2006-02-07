@@ -45,6 +45,7 @@ extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
 extern uint8_t BGP_OPTIONS_AUTO_CREATE;
+extern uint8_t BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST;
 
 #define MAX_AS 65536
 
@@ -114,8 +115,14 @@ extern void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 extern SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter,
 					    SPrefix sPrefix);
 // ----- bgp_router_get_feasible_routes -----------------------------
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+extern SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter,
+						SPrefix sPrefix, uint8_t uEBGPRoute);
+#else
 extern SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter,
 						SPrefix sPrefix);
+#endif
+
 // ----- bgp_router_decision_process --------------------------------
 extern int bgp_router_decision_process(SBGPRouter * pRouter,
 				       SPeer * pOriginPeer,

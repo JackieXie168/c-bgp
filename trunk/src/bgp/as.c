@@ -75,14 +75,15 @@ FDPRule DP_RULES[DP_NUM_RULES]= {
 };
 
 // ----- options -----
-FTieBreakFunction BGP_OPTIONS_TIE_BREAK= TIE_BREAK_DEFAULT;
-uint8_t BGP_OPTIONS_NLRI= BGP_NLRI_BE;
-uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF= 0;
-uint8_t BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_DETERMINISTIC;
-uint8_t BGP_OPTIONS_SHOW_MODE = ROUTE_SHOW_CISCO;
-uint8_t BGP_OPTIONS_RIB_OUT= 1;
-uint8_t BGP_OPTIONS_AUTO_CREATE= 0;
-uint8_t BGP_OPTIONS_VIRTUAL_ADJ_RIB_OUT= 0;
+FTieBreakFunction BGP_OPTIONS_TIE_BREAK	    = TIE_BREAK_DEFAULT;
+uint8_t BGP_OPTIONS_NLRI		    = BGP_NLRI_BE;
+uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF	    = 0;
+uint8_t BGP_OPTIONS_MED_TYPE		    = BGP_MED_TYPE_DETERMINISTIC;
+uint8_t BGP_OPTIONS_SHOW_MODE		    = ROUTE_SHOW_CISCO;
+uint8_t BGP_OPTIONS_RIB_OUT		    = 1;
+uint8_t BGP_OPTIONS_AUTO_CREATE		    = 0;
+uint8_t BGP_OPTIONS_VIRTUAL_ADJ_RIB_OUT	    = 0;
+uint8_t BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST = 0;
 //#define NO_RIB_OUT
 
 // ----- _bgp_router_peers_compare -----------------------------------
@@ -616,23 +617,25 @@ int bgp_router_reset(SBGPRouter * pRouter)
   return -1;
 }
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
 typedef struct {
-  SRouter * pRouter;
+  SBGPRouter * pRouter;
   SRoutes * pBestEBGPRoutes;
 } SSecondBestCtx;
 
 int bgp_router_copy_ebgp_routes(void * pItem, void * pContext)
 {
-  SSecondBestCtx * pBestEBGPRoutes = (SSecondBestCtx *) pContext;
+  SSecondBestCtx * pSecondRoutes = (SSecondBestCtx *) pContext;
   SRoute * pRoute = *(SRoute ** )pItem;
   
-  if (pRoute->pPeer->uRemoteAS != pRouter->uNumber) {
-    if (pBestEBGPRoutes == NULL)
-      pBestEBGPRoutes = routes_list_create(ROUTES_LIST_OPTION_PREF);
-    return routes_list_append(pRoutes, pRoute);
+  if (pRoute->pPeer->uRemoteAS != pSecondRoutes->pRouter->uNumber) {
+    if (pSecondRoutes->pBestEBGPRoutes == NULL)
+      pSecondRoutes->pBestEBGPRoutes = routes_list_create(ROUTES_LIST_OPTION_REF);
+    routes_list_append(pSecondRoutes->pBestEBGPRoutes, pRoute);
   }
   return 0;
 }
+#endif
 
 // ----- bgp_router_decision_process_run ----------------------------
 /**
@@ -663,11 +666,12 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 {
   int iRule;
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  uint16_t uLen, uRoute;
+/*  uint16_t uLen, uRoute;
   SSecondBestCtx sSecondBest, sSecondBestOld;
   SRoutes * pEBGPRoutes;
+  SRoute * pBestRoute;
 
-  pSecondBest.pRouter = pRouter;
+  sSecondBest.pRouter = pRouter;*/
 #endif
 
   // Apply the decision process rules in sequence until there is 1 or
@@ -683,7 +687,7 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
     //no EBGP routes in one step then we have our final set of EBGP routes.
     //If there are additional routes then we can destroy the previous set of
     //EBGP selected routes and save the new set.
-    sSecondBestOld.pBestEBGPRoutes = sSecondBest.pBestEBGPRoutes;
+/*    sSecondBestOld.pBestEBGPRoutes = sSecondBest.pBestEBGPRoutes;
     sSecondBestOld.pRouter = sSecondBest.pRouter;
     sSecondBest.pBestEBGPRoutes = NULL;
     if (routes_list_for_each(pRoutes, bgp_router_copy_ebgp_routes, &sSecondBest) != 0) {
@@ -695,7 +699,7 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
       sSecondBestOld.pBestEBGPRoutes = NULL;
     } else {
       routes_list_destroy(&(sSecondBestOld.pBestEBGPRoutes));
-    }
+    }*/
 #endif
   }
 
@@ -705,18 +709,17 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
     abort();
   }
 
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  pEBGPRoutes = SecondBest.pBestEBGPRoutes
+/*#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  pEBGPRoutes = sSecondBest.pBestEBGPRoutes
   pBestRoute = routes_list_get_at(pRoutes, 0);
   //As we advertise the EBGP best route to internal router if the overall best
   //is already an EBGP one, we don't have to do the dp rules again as we
   //already know it.
   if (pBestRoute->pPeer->uRemoteAS != pRouter->uNumber)
     route_list_destroy(&pEBGPRoutes);
-    pEBGPRoutes = 
 
   }
-#endif
+#endif*/
   
   return iRule;
 }
@@ -856,6 +859,25 @@ void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 						      pRoute, pPeer);
   }
 }
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+void bgp_router_decision_process_disseminate_external_best(SBGPRouter * pRouter,
+							  SPrefix sPrefix,
+							  SRoute * pRoute)
+{
+  int iIndex;
+  SPeer * pPeer;
+
+  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+
+    if (pRouter->uNumber == pPeer->uRemoteAS)
+      bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
+						      pRoute, pPeer);
+  }
+
+}
+#endif
 
 // ----- bgp_router_rt_add_route ------------------------------------
 /**
@@ -1026,7 +1048,7 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
     if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-      if (pPeer->uRemoteAS != pRouter->uNumber or uOnlyEBGP == 0) {
+      if (pPeer->uRemoteAS != pRouter->uNumber || uOnlyEBGP == 0) {
 #endif
       pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
 
@@ -1050,6 +1072,36 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
   }
 
   return pRoutes;
+}
+
+void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter, 
+			      SRoutes * pEBGPRoutes, SRoute * pOldEBGPRoute, 
+			      SRoute * pEBGPRoute, SPrefix sPrefix)
+{
+  pEBGPRoute = route_copy((SRoute *) routes_list_get_at(pEBGPRoutes, 0));
+  LOG_DEBUG("\tnew-external-best: ");
+  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pEBGPRoute);
+  LOG_DEBUG("\n");
+
+  if ((pOldEBGPRoute == NULL) || 
+    !route_equals(pOldEBGPRoute, pEBGPRoute)) {
+
+    if (pOldEBGPRoute != NULL)
+      LOG_DEBUG("\t*** UPDATED EXTERNAL BEST ROUTE ***\n");
+    else
+      LOG_DEBUG("\t*** NEW EXTERNAL BEST ROUTE ***\n");
+
+    if (pOldEBGPRoute != NULL)
+      route_flag_set(pOldEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+
+    route_flag_set(pEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 1);
+    route_flag_set(pEBGPRoutes->data[0], ROUTE_FLAG_EXTERNAL_BEST, 1);
+
+    bgp_router_decision_process_disseminate_external_best(pRouter, sPrefix, pEBGPRoute);
+  } else {
+    route_destroy(&pEBGPRoute);
+  }
+
 }
 
 // ----- bgp_router_decision_process --------------------------------
@@ -1082,8 +1134,8 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   int iRank;
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  SRoutes * pEBGPRoutes;
-  SRoute * pOldEBGPRoute;
+  SRoutes * pEBGPRoutes= NULL;
+  SRoute * pOldEBGPRoute= NULL, * pEBGPRoute= NULL;
   int iRankEBGP;
 #endif
 
@@ -1111,11 +1163,18 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   if ((pOldRoute != NULL) &&
       route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL))
     return 0;
-
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   //Is this route also the best EBGP route?
-  if ((pOldRoute != NULL) && 
-      route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_ROUTE))
-    pOldEBGPRoute = pOldRoute;
+  if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
+    //TODO: This route can be another one ... we must search it!
+    if ((pOldRoute != NULL) && 
+	route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_BEST))
+      pOldEBGPRoute = pOldRoute;
+    LOG_DEBUG("\told-external-best: ");
+    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldEBGPRoute);
+    LOG_DEBUG("\n");
+  }
+#endif
 
   // *** lock all Adj-RIB-Ins ***
 
@@ -1154,22 +1213,28 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   assert((ptr_array_length(pRoutes) == 0) ||
 	 (ptr_array_length(pRoutes) == 1));
 
+
   // If one best-route has been selected
   if (ptr_array_length(pRoutes) > 0) {
     pRoute= route_copy((SRoute *) pRoutes->data[0]);
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-    //If the Best route selected is not an EBGP one, run the decision process
-    //against the set of EBGP routes.
-    if (pRoute->pPeer->uRemoteAS == pRouter->uNumber)
-      pEBGPRoutes = bgp_router_get_feasible_routes(pRouter, sPrefix, 1);
-      if (routes_list_get_num(pEBGPRoutes) > 1)
-	iRankEBGP = bgp_router_decision_process_run(pRouter, pEBGPRoutes);
+    if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
+      //If the Best route selected is not an EBGP one, run the decision process
+      //against the set of EBGP routes.
+      if (pRoute->pPeer->uRemoteAS == pRouter->uNumber)
+	pEBGPRoutes = bgp_router_get_feasible_routes(pRouter, sPrefix, 1);
+      else
+	route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 1);
+    
+      if (pEBGPRoutes != NULL) {
+	if (routes_list_get_num(pEBGPRoutes) > 1)
+	  iRankEBGP = bgp_router_decision_process_run(pRouter, pEBGPRoutes);
 	assert((ptr_array_length(pEBGPRoutes) == 0) ||
 	   (ptr_array_length(pEBGPRoutes) == 1));
+      }
+    }
 #endif
-      
-
 
     LOG_DEBUG("\tnew-best: ");
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
@@ -1211,6 +1276,12 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 
       bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+      if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
+	bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, pOldEBGPRoute, pEBGPRoute, sPrefix);
+      }
+#endif
+
     } else {
 
       /**************************************************************
@@ -1246,6 +1317,12 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
       route_destroy(&pRoute);
       pRoute= pOldRoute;
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+      if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
+	bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, pOldEBGPRoute, pEBGPRoute, sPrefix);
+      }
+#endif
+
     }
 
   } else {
@@ -1255,6 +1332,11 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     // If a route towards this prefix was previously installed, then
     // withdraw it. Otherwise, do nothing...
     if (pOldRoute != NULL) {
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+      if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST && pOldEBGPRoute != NULL) {
+	route_flag_set(pOldEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+      }
+#endif
       rib_remove_route(pRouter->pLocRIB, sPrefix);
       bgp_router_best_flag_off(pOldRoute);
       bgp_router_rt_del_route(pRouter, sPrefix);
@@ -1262,9 +1344,15 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     }
   }
   
+
   // *** unlock all Adj-RIB-Ins ***
 
   routes_list_destroy(&pRoutes);
+
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  routes_list_destroy(&pEBGPRoutes);
+#endif
 
   LOG_DEBUG("----------------------------------------"
 	    "---------------------------------------\n");
