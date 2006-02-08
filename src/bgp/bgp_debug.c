@@ -32,7 +32,10 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   int iIndex;
   int iNumRoutes, iOldNumRoutes;
   int iRule;
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  uint16_t uIndex;
+  SRoutes * pRoutesRIBIn;
+#endif
   fprintf(pStream, "Debug Decision Process\n");
   fprintf(pStream, "----------------------\n");
   fprintf(pStream, "AS%u, ", pRouter->uNumber);
@@ -41,7 +44,11 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   ip_prefix_dump(pStream, sPrefix);
   fprintf(pStream, "\n\n");
 
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  pOldRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix);
+#else
   pOldRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+#endif
 
   /* Display current best route: */
   fprintf(pStream, "[ Current Best route: ]\n");
@@ -65,10 +72,21 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    pRoutes = rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+    if (pRoutes != NULL) {
+      for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
+	pRoute = routes_list_get_at(pRoutes, uIndex);
+#else
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+#endif
     if ((pRoute != NULL) &&
 	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE)))
       routes_list_append(pRoutes, pRoute);
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+      }
+    }
+#endif
   }
 
   routes_list_dump(pStream, pRoutes);

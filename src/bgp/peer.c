@@ -815,12 +815,23 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     // The decision process need only be run in the following cases:
     // - the old route was the best
     // - the new route is eligible
-    pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
     iNeedDecisionProcess= 0;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    pOldRoutes = rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+    if (pOldRoutes != NULL) {
+      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes); uIndexRoute++) {
+	pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
+#else
+    pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+#endif
     if (((pOldRoute != NULL) &&
 	 route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
 	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE))
       iNeedDecisionProcess= 1;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+      }
+    }
+#endif
 
     sPrefix= pRoute->sPrefix;
     
