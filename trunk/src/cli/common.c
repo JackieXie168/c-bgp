@@ -419,6 +419,9 @@ int cli_show_version(SCliContext * pContext, STokens * pTokens)
 #ifdef __ROUTER_LIST_ENABLE__
   fprintf(stdout, " [router-list]");
 #endif
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  fprintf(stdout, " [external-best]");
+#endif
   fprintf(stdout, "\n");
 
   flushir(stdout);
