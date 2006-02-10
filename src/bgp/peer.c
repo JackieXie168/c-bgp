@@ -611,13 +611,23 @@ void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
  *
  * Note: withdraws are not sent to virtual peers.
  */
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix, net_addr_t * tNextHop)
+#else
 void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix)
+#endif
 {
   /* Send the message to the peer (except if this is a virtual peer) */
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
+		 bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
+					sPrefix, tNextHop));
+#else
     bgp_msg_send(pPeer->pLocalRouter->pNode, pPeer->tAddr,
 		 bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
 					 sPrefix));
+#endif
   }
 }
 
@@ -773,9 +783,13 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
   SBGPMsgUpdate * pMsgUpdate;
   SBGPMsgWithdraw * pMsgWithdraw;
   SRoute * pRoute;
-  SRoute * pOldRoute;
+  SRoute * pOldRoute= NULL;
   SPrefix sPrefix;
   int iNeedDecisionProcess;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SRoutes * pOldRoutes;
+  uint16_t uIndexRoute;
+#endif
 
   LOG_DEBUG("HANDLE_MESSAGE from ");
   LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
@@ -790,6 +804,10 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
 
     pRoute= pMsgUpdate->pRoute;
+    LOG_DEBUG("\tupdate: ");
+    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
+    LOG_DEBUG("\n");
+
     route_peer_set(pRoute, pPeer);
 
     // If route learned over eBGP, clear LOCAL-PREF
@@ -821,16 +839,27 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     if (pOldRoutes != NULL) {
       for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes); uIndexRoute++) {
 	pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
+    LOG_DEBUG("\tupdate: ");
+    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
+    LOG_DEBUG("\n");
 #else
     pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
 #endif
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+	if ((pOldRoute != NULL) &&
+	    route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) {
+	  iNeedDecisionProcess= 1;
+	  break;
+	}
+      }
+    } else if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+      iNeedDecisionProcess = 1;
+    }
+#else
     if (((pOldRoute != NULL) &&
 	 route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
-	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE))
+	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) 
       iNeedDecisionProcess= 1;
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      }
-    }
 #endif
 
     sPrefix= pRoute->sPrefix;
@@ -840,7 +869,11 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
       assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
     } else {
       if (pOldRoute != NULL)
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix, &(pRoute->tNextHop)) == 0);
+#else
 	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix) == 0);
+#endif
       route_destroy(&pRoute);
     }
 
@@ -854,7 +887,14 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
 
     // Remove former route from AdjRIBIn
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    //LOG_DEBUG("withdraw for nexthop : ");
+    //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), pMsgWithdraw->tNextHop);
+    //LOG_DEBUG("\n");
+    pRoute= rib_find_one_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix, (pMsgWithdraw->tNextHop));
+#else
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix);
+#endif
 
     if (pRoute == NULL) break;
     //assert(pRoute != NULL);
@@ -869,7 +909,11 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     LOG_DEBUG("\tremove: ");
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
     LOG_DEBUG("\n");
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix, (pMsgWithdraw->tNextHop)) == 0);
+#else
     assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix) == 0);
+#endif
     break;
   case BGP_MSG_CLOSE:
     _bgp_peer_session_close_rcvd(pPeer);
@@ -973,6 +1017,10 @@ void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
   SRouteDumpCtx sCtx;
   SRoute * pRoute;
   SRIB * pRIB;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SRoutes * pRoutes;
+  uint16_t uIndexRoute;
+#endif
 
   if (iInOut)
     pRIB= pPeer->pAdjRIBIn;
@@ -985,17 +1033,39 @@ void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
   if (sPrefix.uMaskLen == 0) {
     rib_for_each(pRIB, bgp_peer_dump_route, &sCtx);
   } else if (sPrefix.uMaskLen >= 32) {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    pRoutes = rib_find_best(pRIB, sPrefix);
+    if (pRoutes != NULL) {
+      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) {
+	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+#else
     pRoute= rib_find_best(pRIB, sPrefix);
+#endif
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
       fprintf(pStream, "\n");
     }
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+      }
+    }
+#endif
   } else {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    pRoutes = rib_find_exact(pRIB, sPrefix);
+    if (pRoutes != NULL) {
+      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) {
+	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+#else
     pRoute= rib_find_exact(pRIB, sPrefix);
+#endif
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
       fprintf(pStream, "\n");
     }
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+      }
+    }
+#endif
   }
 }
 

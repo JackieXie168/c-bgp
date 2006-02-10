@@ -737,10 +737,12 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetRib
       return NULL;
 
     pRoute= NULL;
+#ifndef __EXPERIMENTAL_WALTON__ 
     if (sPrefix.uMaskLen == 32)
       pRoute= rib_find_best(pRouter->pLocRIB, sPrefix);
     else
       pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
+#endif
 
     if (pRoute != NULL) {
       if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
@@ -844,6 +846,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
 	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
 
 	pRoute= NULL;
+#ifndef __EXPERIMENTAL_WALTON__ 
 	if (sPrefix.uMaskLen == 32) {
 	  if (bIn == JNI_TRUE) {
 	    pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
@@ -857,6 +860,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
 	    pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
 	  }
 	}
+#endif
 	
 	if (pRoute != NULL) {
 	  if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
@@ -868,6 +872,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
     } else {
 
       pRoute= NULL;
+#ifndef __EXPERIMENTAL_WALTON__ 
       if (sPrefix.uMaskLen == 32) {
 	if (bIn == JNI_TRUE) {
 	  pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
@@ -881,6 +886,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
 	  pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
 	}
       }
+#endif
       
       if (pRoute != NULL) {
 	if ((joRoute= cbgp_jni_new_BGPRoute(env, pRoute)) == NULL)
