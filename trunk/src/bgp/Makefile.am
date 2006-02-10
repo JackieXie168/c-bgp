@@ -11,6 +11,12 @@ else
   OPT_EXTERNAL_BEST = 
 endif
 
+if WITH_WALTON
+  OPT_WALTON = -D__EXPERIMENTAL_WALTON__
+else
+  OPT_WALTON = 
+endif
+
 # Compile with debugging symbols ?
 if WITH_DEBUGGING
   OPT_DEBUGGING = -g
@@ -18,7 +24,7 @@ else
   OPT_DEBUGGING =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_DEBUGGING)
+AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) $(OPT_DEBUGGING)
 
 noinst_LTLIBRARIES = libbgp.la
 

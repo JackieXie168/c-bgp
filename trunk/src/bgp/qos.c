@@ -381,6 +381,7 @@ void qos_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 					      SRoute * pRoute,
 					      SPeer * pPeer)
 {
+#ifndef __EXPERIMENTAL_WALTON__
   SRoute * pNewRoute;
 
   if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
@@ -411,6 +412,7 @@ void qos_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
       }
     }
   }
+#endif
 }
 
 // ----- qos_decision_process_tie_break -----------------------------
@@ -584,6 +586,7 @@ void qos_decision_process_disseminate(SBGPRouter * pRouter, SPrefix sPrefix,
 int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 			 SPrefix sPrefix)
 {
+#ifndef __EXPERIMENTAL_WALTON__
   SRoutes * pRoutes= routes_list_create();
   SRoutes * pEBGPRoutes= routes_list_create();
   int iIndex;
@@ -706,7 +709,7 @@ int qos_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   routes_list_destroy(&pEBGPRoutes);
   
   AS_LOG_DEBUG(pRouter, " < qos_decision_process.end\n");
-  
+#endif
   return 0;
 }
 

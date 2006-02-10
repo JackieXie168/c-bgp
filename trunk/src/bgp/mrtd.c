@@ -512,7 +512,12 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
     pMsg= bgp_msg_update_create(pPeer->tAddr, pRoute);
     break;
   case MRTD_TYPE_WITHDRAW:
+#if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
+    //TODO: Is it possible to change the MRT format to adapt to Walton ?
+    pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix, &pRoute->tNextHop);
+#else
     pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix);
+#endif
     break;
   default:
     route_destroy(&pRoute);

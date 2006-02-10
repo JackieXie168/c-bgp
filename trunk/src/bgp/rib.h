@@ -22,6 +22,7 @@ extern void rib_destroy(SRIB ** ppRIB);
 // ----- rib_find_best ----------------------------------------------
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
 extern SRoutes * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
+extern SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix);
 #else
 extern SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
 #endif
@@ -29,7 +30,7 @@ extern SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
 extern SRoutes * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
 extern SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix,  
-					    net_addr_t tNextHop);
+					    net_addr_t *tNextHop);
 #else
 extern SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
 #endif
@@ -40,7 +41,7 @@ extern int rib_replace_route(SRIB * pRIB, SRoute * pRoute);
 // ----- rib_remove_route -------------------------------------------
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
 extern int rib_remove_route(SRIB * pRIB, SPrefix sPrefix,
-				net_addr_t tNextHop);
+				net_addr_t * tNextHop);
 #else
 extern int rib_remove_route(SRIB * pRIB, SPrefix sPrefix);
 #endif

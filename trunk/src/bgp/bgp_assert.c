@@ -214,7 +214,7 @@ int bgp_router_assert_best(SBGPRouter * pRouter, SPrefix sPrefix,
 
   // Get the best route
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix);
+  pRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
 #else
   pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
 #endif

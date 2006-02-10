@@ -16,6 +16,7 @@
 #include <time.h>
 
 #include <libgds/memory.h>
+#include <libgds/log.h>
 
 #include <bgp/as.h>
 #include <bgp/message.h>
@@ -53,14 +54,32 @@ SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
 /**
  *
  */
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
+				  SPrefix sPrefix, net_addr_t * tNextHop)
+#else
 SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 				  SPrefix sPrefix)
+#endif
 {
   SBGPMsgWithdraw * pMsg=
     (SBGPMsgWithdraw *) MALLOC(sizeof(SBGPMsgWithdraw));
   pMsg->uType= BGP_MSG_WITHDRAW;
   pMsg->uPeerAS= uPeerAS;
   memcpy(&(pMsg->sPrefix), &sPrefix, sizeof(SPrefix));
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  //It corresponds to the path identifier described in the walton draft 
+  //... nevertheless, we keep the variable name NextHop!
+//  LOG_DEBUG("creation of withdraw : ");
+//  LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), tNextHop);
+//  LOG_DEBUG("\n");
+  if (tNextHop != NULL) {
+    pMsg->tNextHop = MALLOC(sizeof(net_addr_t));
+    memcpy(pMsg->tNextHop, tNextHop, sizeof(net_addr_t));
+  } else {
+    pMsg->tNextHop = NULL;
+  }
+#endif
   return (SBGPMsg *) pMsg;
 }
 
@@ -92,6 +111,10 @@ SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS, net_addr_t tRouterID)
 void bgp_msg_destroy(SBGPMsg ** ppMsg)
 {
   if (*ppMsg != NULL) {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    if ((*ppMsg)->uType == BGP_MSG_WITHDRAW && ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop != NULL)
+      FREE( ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop );
+#endif
     FREE(*ppMsg);
     *ppMsg= NULL;
   }

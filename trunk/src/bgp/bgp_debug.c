@@ -45,7 +45,7 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   fprintf(pStream, "\n\n");
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pOldRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix);
+  pOldRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
 #else
   pOldRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
 #endif
@@ -73,10 +73,10 @@ void bgp_debug_dp(FILE * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoutes = rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
-    if (pRoutes != NULL) {
-      for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
-	pRoute = routes_list_get_at(pRoutes, uIndex);
+    pRoutesRIBIn = rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+    if (pRoutesRIBIn != NULL) {
+      for (uIndex = 0; uIndex < routes_list_get_num(pRoutesRIBIn); uIndex++) {
+	pRoute = routes_list_get_at(pRoutesRIBIn, uIndex);
 #else
     pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
 #endif

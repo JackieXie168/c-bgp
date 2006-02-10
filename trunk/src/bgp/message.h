@@ -37,6 +37,7 @@ typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
   SPrefix sPrefix;
+  net_addr_t * tNextHop;
 } SBGPMsgWithdraw;
 
 typedef struct {
@@ -54,8 +55,14 @@ typedef struct {
 extern SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
 				       SRoute * pRoute);
 // ----- bgp_msg_withdraw_create ------------------------------------
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+extern SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
+					 SPrefix sPrefix,
+					 net_addr_t * tNextHop);
+#else
 extern SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 					 SPrefix sPrefix);
+#endif
 // ----- bgp_msg_close_create ---------------------------------------
 extern SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS);
 // ----- bgp_msg_open_create ----------------------------------------

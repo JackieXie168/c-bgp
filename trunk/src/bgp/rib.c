@@ -12,6 +12,8 @@
 # include <config.h>
 #endif
 
+#include <assert.h>
+
 #include <libgds/log.h>
 
 #include <bgp/as.h>
@@ -30,20 +32,31 @@ void rib_route_destroy(void ** ppItem)
 }
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+void rib_routes_list_destroy(void ** ppItem)
+{
+  SRoutes ** ppRoutes = (SRoutes **) ppItem;
+
+  routes_list_destroy(ppRoutes);
+}
+
 typedef struct {
   FRadixTreeForEach fForEach;
   void * pContext;
 }SRIBCtx;
 
-void rib_trie_for_each(void * pItem, void * pContext)
+//TODO : propagate the result!!!
+int rib_trie_for_each(trie_key_t uKey, trie_key_len_t uKeyLen, void * pItem, void * pContext)
 {
   uint16_t uIndex;
   SRoutes * pRoutes = (SRoutes *) pItem;
-  SRIBCtx pRIBCtx = (SRIBCtx *) pContext;
+  SRIBCtx * pRIBCtx = (SRIBCtx *) pContext;
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
-    pRIBCtx->fForEach(routes_list_get(pRoutes, uIndex), pRIBCtx->pContext);
+    pRIBCtx->fForEach(uKey, uKeyLen, 
+		      (void *)routes_list_get_at(pRoutes, uIndex), 
+		      (void *)pRIBCtx->pContext);
   }
+  return 0;
 }
 #endif
 
@@ -63,7 +76,7 @@ SRIB * rib_create(uint8_t uOptions)
   if (uOptions & RIB_OPTION_ALIAS)
     fDestroy = NULL;
   else
-    fDestroy = routes_list_destroy();
+    fDestroy = rib_routes_list_destroy;
 #else
   if (uOptions & RIB_OPTION_ALIAS)
     fDestroy= NULL;
@@ -148,32 +161,80 @@ SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 }
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix, net_addr_t tNextHop)
+// ----- rib_find_one_best -------------------------------------------
+/**
+ *
+ */
+SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix)
 {
-  SRoutes * pRoutes = rib_find_exact(pRIB, sPrefix);
+  SRoutes * pRoutes = rib_find_best(pRIB, sPrefix);
 
   if (pRoutes != NULL) {
-    for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
-      pRoute = routes_list_get_at(pRoutes, uIndex);
-      if (pRoute->tNextHop == tNextHop)
-	return pRoute;
+    assert(routes_list_get_num(pRoutes) == 0 
+	|| routes_list_get_num(pRoutes) == 1);
+    if (routes_list_get_num(pRoutes) == 1)
+      return routes_list_get_at(pRoutes, 0);
+  }
+  return NULL;
+}
+
+// ----- rib_find_onex_exact -----------------------------------------
+/**
+ *
+ */
+SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix, 
+					  net_addr_t * tNextHop)
+{
+  uint16_t uIndex;
+  SRoutes * pRoutes = rib_find_exact(pRIB, sPrefix);
+  SRoute * pRoute;
+
+  if (pRoutes != NULL) {
+    if (tNextHop != NULL) {
+  //LOG_DEBUG("removal : \n");
+  //LOG_ENABLED_DEBUG() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
+  //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), *tNextHop);
+  //LOG_DEBUG("\n");
+      for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
+	pRoute = routes_list_get_at(pRoutes, uIndex);
+	if (pRoute->tNextHop == *tNextHop)
+	  return pRoute;
+      }
+    //the next hop is not known ... we must be sure there is only one route in
+    //the RIB
+    } else {
+      assert(routes_list_get_num(pRoutes) == 0 
+	  || routes_list_get_num(pRoutes) == 1);
+      if (routes_list_get_num(pRoutes) == 1)
+	return routes_list_get_at(pRoutes, 0);
     }
   }
   return NULL;
 }
 
+// ----- _rib_insert_new_route ---------------------------------------
+/**
+ *
+ */
 int _rib_insert_new_route(SRIB * pRIB, SRoute * pRoute)
 {
+  SRoutes * pRoutes;
   //TODO: Verify that the option is good!
   pRoutes = routes_list_create(0);
-  routes_list_append(pRoute);
+  routes_list_append(pRoutes, pRoute);
   return trie_insert((STrie *) pRIB, pRoute->sPrefix.tNetwork,
 	  pRoute->sPrefix.uMaskLen, pRoutes);
 }
 
+// ----- _rib_replace_route ------------------------------------------
+/**
+ *
+ */
 int _rib_replace_route(SRIB * pRIB, SRoutes * pRoutes, SRoute * pRoute)
 {
   uint16_t uIndex;
+  SRoute * pRouteSeek;
+
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
     //It's the same route ... OK ... update it!
@@ -188,16 +249,31 @@ int _rib_replace_route(SRIB * pRIB, SRoutes * pRoutes, SRoute * pRoute)
   return 0;
 }
 
-int _rib_remove_route(SRoutes * pRoutes, SRoute * pRoute)
+// ----- _rib_remove_route -------------------------------------------
+/**
+ *
+ */
+int _rib_remove_route(SRoutes * pRoutes, net_addr_t tNextHop)
 {
   uint16_t uIndex;
+  SRoute * pRouteSeek;
+
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
-    //It's the same route ... OK ... update it!
-    if (pRouteSeek->tNextHop == pRoute->tNextHop) {
+    if (pRouteSeek->tNextHop == tNextHop) {
+      //LOG_DEBUG("remove route ");
+      //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), tNextHop);
+      //LOG_DEBUG("\n");
       routes_list_remove_at(pRoutes, uIndex);
       return 0;
-    }
+    } 
+   // else {
+   //   LOG_DEBUG("not removed ");
+   //   LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), tNextHop);
+   //   LOG_DEBUG("\n");
+   // }
+
+      
   }
   return 0;
 }
@@ -267,17 +343,15 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
 				      sPrefix.uMaskLen);
   if (pRoutes != NULL) {
     // Next-Hop == NULL => corresponds to an explicit withdraw!
-    // we may destrpy the list directly.
+    // we may destroy the list directly.
     if (tNextHop != NULL) {
-      _rib_remove_route(pRoutes, pRoute);
+      _rib_remove_route(pRoutes, *tNextHop);
       if (routes_list_get_num(pRoutes) == 0) {
-	routes_list_destroy(&pRoutes);
-        return trie_remove((STrie *) pRIB, sPrefix.tNextHop,
+        return trie_remove((STrie *) pRIB, sPrefix.tNetwork,
 				sPrefix.uMaskLen);
       }
     } else {
-      routes_list_destroy(&pRoutes);
-      return trie_remove((STrie *) pRIB, sPrefix.tNextHop,
+      return trie_remove((STrie *) pRIB, sPrefix.tNetwork,
 				sPrefix.uMaskLen);
     }
   }
@@ -303,7 +377,7 @@ int rib_for_each(SRIB * pRIB, FRadixTreeForEach fForEach,
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   int iRet;
-  SRIBCtx * pCtx = MALLOC(sizzeof(SRIBCtx));
+  SRIBCtx * pCtx = MALLOC(sizeof(SRIBCtx));
 
   pCtx->fForEach = fForEach;
   pCtx->pContext = pContext;
