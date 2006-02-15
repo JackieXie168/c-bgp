@@ -2132,6 +2132,32 @@ int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 }
 #endif
 
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+// ----- cli_bgp_router_peer_walton_limit ----------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr, announce-limit}
+ */
+int cli_bgp_router_peer_walton_limit(SCliContext * pContext, 
+						  STokens * pTokens)
+{
+  SPeer * pPeer;
+  unsigned int uWaltonLimit;
+
+  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+
+  if (tokens_get_uint_at(pTokens, 2, &uWaltonLimit)) {
+    LOG_SEVERE("Error: invalid walton limitation\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  peer_set_walton_limit(pPeer, uWaltonLimit);
+
+  return CLI_SUCCESS;
+
+  
+}
+#endif
+
 // ----- cli_bgp_router_peer_up -------------------------------------
 /**
  * context: {router, peer}
@@ -2678,6 +2704,13 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
   cli_params_add(pParams, "<prefix|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("re-adv",
 					cli_bgp_router_peer_readv,
+					NULL, pParams));
+#endif
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  pParams = cli_params_create();
+  cli_params_add(pParams, "<announce-limit>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("walton-limit", 
+					cli_bgp_router_peer_walton_limit,
 					NULL, pParams));
 #endif
   pParams= cli_params_create();

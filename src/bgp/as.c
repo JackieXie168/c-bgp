@@ -677,42 +677,16 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 				    SRoutes * pRoutes)
 {
   int iRule;
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-/*  uint16_t uLen, uRoute;
-  SSecondBestCtx sSecondBest, sSecondBestOld;
-  SRoutes * pEBGPRoutes;
-  SRoute * pBestRoute;
-
-  sSecondBest.pRouter = pRouter;*/
-#endif
 
   // Apply the decision process rules in sequence until there is 1 or
   // 0 route remaining or until all the rules were applied.
   for (iRule= 0; iRule < DP_NUM_RULES; iRule++) {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#endif
     if (routes_list_get_num(pRoutes) <= 1)
       break;
     LOG_DEBUG("rule: [ %s ]\n", DP_RULE_NAME[iRule]);
     DP_RULES[iRule](pRouter, pRoutes);
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-    //Phase of collection of EBGP routes ... as we don't know the best EBGP
-    //routes, we collect for each step the remaining EBGP routes. If there is
-    //no EBGP routes in one step then we have our final set of EBGP routes.
-    //If there are additional routes then we can destroy the previous set of
-    //EBGP selected routes and save the new set.
-/*    sSecondBestOld.pBestEBGPRoutes = sSecondBest.pBestEBGPRoutes;
-    sSecondBestOld.pRouter = sSecondBest.pRouter;
-    sSecondBest.pBestEBGPRoutes = NULL;
-    if (routes_list_for_each(pRoutes, bgp_router_copy_ebgp_routes, &sSecondBest) != 0) {
-      LOG_FATAL("Error : Can't determine if there are EBGP learned routes\n");
-      abort();
-    }
-    if (sSecondBest.pBestEBGPRoutes == NULL) {
-      sSecondBest.pBestEBGPRoutes = sSecondBestOld.pBestEBGPRoutes;
-      sSecondBestOld.pBestEBGPRoutes = NULL;
-    } else {
-      routes_list_destroy(&(sSecondBestOld.pBestEBGPRoutes));
-    }*/
-#endif
   }
 
   // Check that at most a single best route will be returned.
@@ -720,18 +694,6 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
     LOG_FATAL("Error: decision process did not return a single best route\n");
     abort();
   }
-
-/*#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  pEBGPRoutes = sSecondBest.pBestEBGPRoutes
-  pBestRoute = routes_list_get_at(pRoutes, 0);
-  //As we advertise the EBGP best route to internal router if the overall best
-  //is already an EBGP one, we don't have to do the dp rules again as we
-  //already know it.
-  if (pBestRoute->pPeer->uRemoteAS != pRouter->uNumber)
-    route_list_destroy(&pEBGPRoutes);
-
-  }
-#endif*/
   
   return iRule;
 }
@@ -867,6 +829,9 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
     } else {
       pNewRoute= route_copy(pRoute);
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+      //Withdraw all the routes present in the RIB-OUT which are not part of the set of best routes!
+      ///We must do this check because replacing a route in a RIB now adds it
+      //as a RIB is no more restricted to a database of one route per prefix.
       pRoutes = rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
       if (pRoutes != NULL) {
 	for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
@@ -874,7 +839,7 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 	  if (pRouteOut->tNextHop != pNewRoute->tNextHop) {
 	    if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &(pRouteOut->tNextHop))) {
 	      LOG_DEBUG("\tnot part anymore of the best route(s)\n");
-	      //As it may be an iBGP session, the Next-Hop may have changed!
+	      //As it may be an eBGP session, the Next-Hop may have changed!
 	      //If the next-hop is changed the path identifier as well ... :)
 	      if (pPeer->uRemoteAS != pRouter->uNumber)
 		tNextHop = pRouter->pNode->tAddr;
@@ -896,7 +861,13 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &(pRoute->tNextHop))) {
 	  LOG_DEBUG("\texplicit-withdraw\n");
-	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &(pRoute->tNextHop));
+	  //As it may be an eBGP session, the Next-Hop may have changed!
+	  //If the next-hop has changed the path identifier as well ... :)
+	  if (pPeer->uRemoteAS != pRouter->uNumber)
+	    tNextHop = pRouter->pNode->tAddr;
+	  else
+	    tNextHop = pRoute->tNextHop;
+	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &(tNextHop));
 #else
 	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
 	  LOG_DEBUG("\texplicit-withdraw\n");
@@ -1176,11 +1147,15 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
 }
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+// ----- bgp_router_check_dissemination_external_best ----------------
+/**
+ *
+ */
 void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter, 
-			      SRoutes * pEBGPRoutes, SRoute * pOldEBGPRoute, 
-			      SRoute * pEBGPRoute, SPrefix sPrefix)
+			  SRoutes * pEBGPRoutes, SRoute * pOldEBGPRoute, 
+			  SRoute * pEBGPRoute, SPrefix sPrefix)
 {
-  pEBGPRoute = route_copy((SRoute *) routes_list_get_at(pEBGPRoutes, 0));
+  pEBGPRoute = (SRoute *) routes_list_get_at(pEBGPRoutes, 0);
   LOG_DEBUG("\tnew-external-best: ");
   LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pEBGPRoute);
   LOG_DEBUG("\n");
@@ -1199,24 +1174,221 @@ void bgp_router_check_dissemination_external_best(SBGPRouter * pRouter,
     route_flag_set(pEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 1);
     route_flag_set(pEBGPRoutes->data[0], ROUTE_FLAG_EXTERNAL_BEST, 1);
 
-    bgp_router_decision_process_disseminate_external_best(pRouter, sPrefix, pEBGPRoute);
-  } else {
+    bgp_router_decision_process_disseminate_external_best(pRouter, 
+						  sPrefix, pEBGPRoute);
+  } /*else {
     route_destroy(&pEBGPRoute);
-  }
+  }*/
 
 }
 
+// ----- bgp_router_get_external_best --------------------------------
+/**
+ *
+ */
 SRoute * bgp_router_get_external_best(SRoutes * pRoutes)
 {
   int iIndex;
 
   for (iIndex = 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
     if (route_flag_get(routes_list_get_at(pRoutes, iIndex), ROUTE_FLAG_EXTERNAL_BEST))
-      return route_copy(routes_list_get_at(pRoutes, iIndex));
+      return routes_list_get_at(pRoutes, iIndex);
   }
   return NULL;
 }
+
+// ----- bgp_router_get_old_ebgp_route -------------------------------
+/**
+ *
+ */
+SRoute * bgp_router_get_old_ebgp_route(SRoutes * pRoutes, 
+					  SRoute * pOldRoute)
+{
+  SRoute * pOldEBGPRoute= NULL;
+  //Is pOldRoute route also the best EBGP route?
+  if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
+    //If the old best route also was the best external route, 
+    //it has not been announced as a best external route but 
+    //as the main best route!
+    if ((pOldRoute != NULL) && 
+	route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_BEST))
+      pOldEBGPRoute = NULL;
+    else
+      pOldEBGPRoute = bgp_router_get_external_best(pRoutes);
+    LOG_DEBUG("\told-external-best: ");
+    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), 
+						      pOldEBGPRoute);
+    LOG_DEBUG("\n");
+  }
+  return pOldEBGPRoute;
+}
 #endif
+
+// ---- bgp_router_decision_process_no_best_route --------------------
+/**
+ *
+ */
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+void bgp_router_decision_process_no_best_route(SBGPRouter * pRouter, 
+				SPrefix sPrefix, SRoute * pOldRoute, 
+				SRoute * pOldEBGPRoute)
+#else
+void bgp_router_decision_process_no_best_route(SBGPRouter * pRouter, 
+				SPrefix sPrefix, SRoute * pOldRoute)
+#endif
+{
+  LOG_DEBUG("\t*** NO BEST ROUTE ***\n");
+
+  // If a route towards this prefix was previously installed, then
+  // withdraw it. Otherwise, do nothing...
+  if (pOldRoute != NULL) {
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST && pOldEBGPRoute != NULL) {
+      route_flag_set(pOldEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+    }
+#endif
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    rib_remove_route(pRouter->pLocRIB, sPrefix, NULL);
+#else
+    rib_remove_route(pRouter->pLocRIB, sPrefix);
+#endif
+    bgp_router_best_flag_off(pOldRoute);
+    bgp_router_rt_del_route(pRouter, sPrefix);
+    bgp_router_decision_process_disseminate(pRouter, sPrefix, NULL);
+  }
+}
+
+// ----- bgp_router_decision_process_unchanged_best_route ------------
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+void bgp_router_decision_process_unchanged_best_route(SBGPRouter * pRouter, 
+					SPrefix sPrefix, SRoutes * pRoutes, 
+					SRoute * pOldRoute, SRoute * pRoute, 
+					int iRank, SRoutes * pEBGPRoutes,
+					SRoute * pOldEBGPRoute)
+#else
+void bgp_router_decision_process_unchanged_best_route(SBGPRouter * pRouter, 
+					SPrefix sPrefix, SRoutes * pRoutes, 
+					SRoute * pOldRoute, SRoute * pRoute, 
+					int iRank)
+#endif
+{
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  SRoute * pEBGPRoute;
+#endif
+  /**************************************************************
+   * In this case, both routes (old and new) are equal from the
+   * BGP point of view. There is thus no need to send BGP
+   * messages.
+   *
+   * However, it is possible that the IGP next-hop of the route
+   * has changed. If so, the route must be updated in the routing
+   * table!
+   **************************************************************/
+
+  LOG_DEBUG("\t*** BEST ROUTE UNCHANGED ***\n");
+
+  /* Mark route in Adj-RIB-In as best (since it has probably been
+     replaced). */
+  route_flag_set(routes_list_get_at(pRoutes, 0), ROUTE_FLAG_BEST, 1);
+
+  /* Update ROUTE_FLAG_DP_IGP of old route */
+  route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
+		 route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
+
+#ifdef __BGP_ROUTE_INFO_DP__
+  pOldRoute->tRank= (uint8_t) iRank;
+  ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
+#endif
+
+  /* If the IGP next-hop has changed, we need to re-insert the
+     route into the routing table with the new next-hop. */
+  bgp_router_rt_add_route(pRouter, pRoute);
+
+  /* Route has not changed. */
+  route_destroy(&pRoute);
+  pRoute= pOldRoute;
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
+    pEBGPRoute = routes_list_get_at(pEBGPRoutes, 0);
+    bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, 
+				    pOldEBGPRoute, pEBGPRoute, sPrefix);
+  }
+#endif
+}
+
+// ----- bgp_router_decision_process_update_best_route ---------------
+/**
+ *
+ */
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+void bgp_router_decision_process_update_best_route(SBGPRouter * pRouter, 
+				      SPrefix sPrefix, SRoutes * pRoutes, 
+				      SRoute * pOldRoute, SRoute * pRoute, 
+				      int iRank, SRoutes * pEBGPRoutes,
+				      SRoute * pOldEBGPRoute)
+#else
+void bgp_router_decision_process_update_best_route(SBGPRouter * pRouter, 
+				      SPrefix sPrefix, SRoutes * pRoutes, 
+				      SRoute * pOldRoute, SRoute * pRoute, 
+				      int iRank)
+#endif
+{
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  SRoute * pEBGPRoute;
+#endif
+
+  /**************************************************************
+   * In this case, the route is new or one of its BGP attributes
+   * has changed. Thus, we must update the route into the routing
+   * table and we must propagate the BGP route to the peers.
+   **************************************************************/
+
+  if (pOldRoute != NULL)
+    LOG_DEBUG("\t*** UPDATED BEST ROUTE ***\n");
+  else
+    LOG_DEBUG("\t*** NEW BEST ROUTE ***\n");
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  if (pOldRoute != NULL) {
+    //As the RIBs accept more than one route we have to delete manually 
+    //the old routes in the LOC-RIB!
+//	if (rib_find_one_exact(pRouter->pLocRIB, pOldRoute->sPrefix, &(pOldRoute->tNextHop)) != NULL) 
+    rib_remove_route(pRouter->pLocRIB, pOldRoute->sPrefix, NULL);
+  }
+#endif
+  
+ if (pOldRoute != NULL) 
+    bgp_router_best_flag_off(pOldRoute);
+
+  /* Mark route in Loc-RIB and Adj-RIB-In as best. This must be
+     done after the call to 'bgp_router_best_flag_off'. */
+  route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
+  route_flag_set(routes_list_get_at(pRoutes, 0), ROUTE_FLAG_BEST, 1);
+
+#ifdef __BGP_ROUTE_INFO_DP__
+  pRoute->tRank= (uint8_t) iRank;
+  ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
+#endif
+
+  /* Insert in Loc-RIB */
+  assert(rib_add_route(pRouter->pLocRIB, pRoute) == 0);
+
+  /* Insert in the node's routing table */
+  bgp_router_rt_add_route(pRouter, pRoute);
+
+  bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
+
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+  if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
+    pEBGPRoute = routes_list_get_at(pEBGPRoutes, 0);
+    bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, 
+				      pOldEBGPRoute, pEBGPRoute, sPrefix);
+  }
+#endif
+}
 
 // ----- bgp_router_decision_process --------------------------------
 /**
@@ -1240,7 +1412,7 @@ SRoute * bgp_router_get_external_best(SRoutes * pRoutes)
  * be run.
  */
 int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
-				SPrefix sPrefix)
+	 			SPrefix sPrefix)
 {
   SRoutes * pRoutes;
   int iIndex;
@@ -1249,8 +1421,8 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   SRoutes * pEBGPRoutes= NULL;
-  SRoute * pOldEBGPRoute= NULL, * pEBGPRoute= NULL;
-  int iRankEBGP;
+  SRoute * pOldEBGPRoute= NULL;
+  int iRankEBGP, iEBGPRoutesCount;
 #endif
 
   /* BGP QoS decision process */
@@ -1289,20 +1461,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix, 0);
 
-  //Is this route also the best EBGP route?
-  if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST) {
-    //If the old best route also was the best external route, it has not been
-    //announced as a best external route but as the main best route!
-    if ((pOldRoute != NULL) && 
-	route_flag_get(pOldRoute, ROUTE_FLAG_EXTERNAL_BEST))
-      pOldEBGPRoute = NULL;
-    else
-      pOldEBGPRoute = bgp_router_get_external_best(pRoutes);
-    LOG_DEBUG("\told-external-best: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldEBGPRoute);
-    LOG_DEBUG("\n");
-  }
-
+  pOldEBGPRoute = bgp_router_get_old_ebgp_route(pRoutes, pOldRoute);
 #else
   pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
 #endif
@@ -1350,9 +1509,11 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 	route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 1);
     
       if (pEBGPRoutes != NULL) {
-	for (iRank = 0; iRank < routes_list_get_num(pEBGPRoutes); iRank++){
+	for (iEBGPRoutesCount = 0; iEBGPRoutesCount < routes_list_get_num(pEBGPRoutes); 
+								      iEBGPRoutesCount++){
 	  LOG_DEBUG("\teligible external : ");
-	  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pEBGPRoutes->data[iRank]);
+	  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), 
+	      pEBGPRoutes->data[iEBGPRoutesCount]);
 	  LOG_DEBUG("\n");
       }
 	if (routes_list_get_num(pEBGPRoutes) > 1) {
@@ -1368,132 +1529,40 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
     LOG_DEBUG("\n");
 
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
     // New/updated route: install in Loc-RIB & advertise to peers
     if ((pOldRoute == NULL) ||
 	!route_equals(pOldRoute, pRoute)) {
-
-      /**************************************************************
-       * In this case, the route is new or one of its BGP attributes
-       * has changed. Thus, we must update the route into the routing
-       * table and we must propagate the BGP route to the peers.
-       **************************************************************/
-
-      if (pOldRoute != NULL)
-	LOG_DEBUG("\t*** UPDATED BEST ROUTE ***\n");
-      else
-	LOG_DEBUG("\t*** NEW BEST ROUTE ***\n");
-
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      if (pOldRoute != NULL)
-      {
-	//As the RIBs accept more than one route we have to delete manually the old routes in the LOC-RIB!
-//	if (rib_find_one_exact(pRouter->pLocRIB, pOldRoute->sPrefix, &(pOldRoute->tNextHop)) != NULL) {
-	  rib_remove_route(pRouter->pLocRIB, pOldRoute->sPrefix, NULL);
-//	}
-      }
-#endif
-      
-     if (pOldRoute != NULL) 
-	bgp_router_best_flag_off(pOldRoute);
-
-      /* Mark route in Loc-RIB and Adj-RIB-In as best. This must be
-	 done after the call to 'bgp_router_best_flag_off'. */
-      route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
-      route_flag_set(routes_list_get_at(pRoutes, 0), ROUTE_FLAG_BEST, 1);
-
-#ifdef __BGP_ROUTE_INFO_DP__
-      pRoute->tRank= (uint8_t) iRank;
-      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
-#endif
-
-      /* Insert in Loc-RIB */
-      assert(rib_add_route(pRouter->pLocRIB, pRoute) == 0);
-
-      /* Insert in the node's routing table */
-      bgp_router_rt_add_route(pRouter, pRoute);
-
-      bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
-
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-      if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
-	pEBGPRoute = routes_list_get_at(pEBGPRoutes, 0);
-	bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, pOldEBGPRoute, pEBGPRoute, sPrefix);
-      }
-#endif
-
+      bgp_router_decision_process_update_best_route(pRouter, sPrefix, 
+			  pRoutes, pOldRoute, pRoute, iRank, pEBGPRoutes,
+			  pOldEBGPRoute);
     } else {
-
-      /**************************************************************
-       * In this case, both routes (old and new) are equal from the
-       * BGP point of view. There is thus no need to send BGP
-       * messages.
-       *
-       * However, it is possible that the IGP next-hop of the route
-       * has changed. If so, the route must be updated in the routing
-       * table!
-       **************************************************************/
-
-      LOG_DEBUG("\t*** BEST ROUTE UNCHANGED ***\n");
-
-      /* Mark route in Adj-RIB-In as best (since it has probably been
-	 replaced). */
-      route_flag_set(routes_list_get_at(pRoutes, 0), ROUTE_FLAG_BEST, 1);
-
-      /* Update ROUTE_FLAG_DP_IGP of old route */
-      route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
-		     route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
-
-#ifdef __BGP_ROUTE_INFO_DP__
-      pOldRoute->tRank= (uint8_t) iRank;
-      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
-#endif
-
-      /* If the IGP next-hop has changed, we need to re-insert the
-	 route into the routing table with the new next-hop. */
-      bgp_router_rt_add_route(pRouter, pRoute);
-
-      /* Route has not changed. */
-      route_destroy(&pRoute);
-      pRoute= pOldRoute;
-
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-      if (pEBGPRoutes != NULL && routes_list_get_num(pEBGPRoutes) > 0) {
-	pEBGPRoute = routes_list_get_at(pEBGPRoutes, 0);
-	bgp_router_check_dissemination_external_best(pRouter, pEBGPRoutes, pOldEBGPRoute, pEBGPRoute, sPrefix);
-      }
-#endif
-
+      bgp_router_decision_process_unchanged_best_route(pRouter, sPrefix, 
+			  pRoutes, pOldRoute, pRoute, iRank, pEBGPRoutes,
+			  pOldEBGPRoute);
     }
-
-  } else {
-
-    LOG_DEBUG("\t*** NO BEST ROUTE ***\n");
-
-    // If a route towards this prefix was previously installed, then
-    // withdraw it. Otherwise, do nothing...
-    if (pOldRoute != NULL) {
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-      if (BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST && pOldEBGPRoute != NULL) {
-	route_flag_set(pOldEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
-      }
-#endif
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      rib_remove_route(pRouter->pLocRIB, sPrefix, NULL);
 #else
-      rib_remove_route(pRouter->pLocRIB, sPrefix);
-#endif
-      bgp_router_best_flag_off(pOldRoute);
-      bgp_router_rt_del_route(pRouter, sPrefix);
-      bgp_router_decision_process_disseminate(pRouter, sPrefix, NULL);
+    // New/updated route: install in Loc-RIB & advertise to peers
+    if ((pOldRoute == NULL) ||
+	!route_equals(pOldRoute, pRoute)) {
+      bgp_router_decision_process_update_best_route(pRouter, sPrefix, 
+				      pRoutes, pOldRoute, pRoute, iRank);
+    } else {
+      bgp_router_decision_process_unchanged_best_route(pRouter, sPrefix, 
+				      pRoutes, pOldRoute, pRoute, iRank);
     }
+#endif
+  } else {
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    bgp_router_decision_process_no_best_route(pRouter, sPrefix, pOldRoute, 
+							    pOldEBGPRoute);
+#else
+    bgp_router_decision_process_no_best_route(pRouter, sPrefix, pOldRoute);
+#endif
   }
-  
 
   // *** unlock all Adj-RIB-Ins ***
-
   routes_list_destroy(&pRoutes);
-
-
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   routes_list_destroy(&pEBGPRoutes);
 #endif

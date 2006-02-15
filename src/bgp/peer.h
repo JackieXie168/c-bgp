@@ -34,6 +34,9 @@ struct TPeer {
   uint8_t uFlags;             // Configuration flags
   net_addr_t tNextHop;        // BGP next-hop to advertise to this
 			      // peer.
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  uint16_t uWaltonLimit;
+#endif
 };
 
 // ----- bgp_peer_create --------------------------------------------
@@ -50,7 +53,10 @@ extern void bgp_peer_flag_set(SPeer * pPeer, uint8_t uFlag, int iState);
 extern int bgp_peer_flag_get(SPeer * pPeer, uint8_t uFlag);
 // ----- bgp_peer_set_nexthop ---------------------------------------
 extern int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop);
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+void peer_set_walton_limit(SPeer * pPeer, unsigned int uWaltonLimit);
+uint16_t peer_get_walton_limit(SPeer * pPeer);
+#endif
 /////////////////////////////////////////////////////////////////////
 // BGP FILTERS
 /////////////////////////////////////////////////////////////////////
@@ -86,7 +92,13 @@ extern void peer_rescan_adjribin(SPeer * pPeer, int iClear);
 // ----- bgp_peer_announce_route ------------------------------------
 extern void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute);
 // ----- bgp_peer_withdraw_prefix -----------------------------------
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+extern void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix,
+				      net_addr_t * tNextHop);
+
+#else
 extern void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix);
+#endif
 // ----- bgp_peer_handle_message ------------------------------------
 extern int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg);
 
