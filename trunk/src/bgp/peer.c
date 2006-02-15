@@ -61,6 +61,9 @@ SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   pPeer->uSessionState= SESSION_STATE_IDLE;
   pPeer->uFlags= 0;
   pPeer->tNextHop= 0;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  pPeer->uWaltonLimit = 1;
+#endif
   return pPeer;
 }
 
@@ -604,6 +607,18 @@ void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
   } else
       route_destroy(&pRoute);
 }
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+void peer_set_walton_limit(SPeer * pPeer, unsigned int uWaltonLimit)
+{
+  pPeer->uWaltonLimit = uWaltonLimit;
+}
+
+uint16_t peer_get_walton_limit(SPeer * pPeer)
+{
+  return pPeer->uWaltonLimit;
+}
+#endif
 
 // ----- bgp_peer_withdraw_prefix -----------------------------------
 /**

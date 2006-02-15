@@ -186,9 +186,15 @@ AM_CONDITIONAL([WITH_EXPERIMENTAL], [test "$cbgp_experimental" == "yes"])
 dnl Compile with the advertisement of the second best external to internal peers?
 AC_ARG_ENABLE(external-best,
     AC_HELP_STRING([--enable-external-best],
-      [enable the advertisement of the external best to internal routers]),
+      [enable the advertisement of the external best to internal routers (experimental)]),
     cbgp_external_best="$enableval")
 AM_CONDITIONAL([WITH_EXTERNAL_BEST], [test "$cbgp_external_best" == "yes"])
+
+AC_ARG_ENABLE(walton,
+    AC_HELP_STRING([--enable-walton],
+      [enables the advertisement of more than one path to a BGP speaker (experimental)]),
+    cbgp_walton="$enableval")
+AM_CONDITIONAL([WITH_WALTON], [test "$cbgp_walton" == "yes"])
 
 dnl Compile with OSPF support ?
 AC_ARG_ENABLE(ospf,
