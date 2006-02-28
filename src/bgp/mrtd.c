@@ -6,8 +6,10 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 20/02/2004
-// @lastdate 15/11/2005
+// @lastdate 28/02/2006
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections

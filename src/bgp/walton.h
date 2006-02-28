@@ -14,7 +14,6 @@
 # include <config.h>
 #endif
 
-//#include <libgds/types.h>
 #include <libgds/array.h>
 
 #include <bgp/as.h>

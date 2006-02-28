@@ -2,8 +2,10 @@
 // @(#)qos.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 13/11/2002
-// @lastdate 12/02/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
