@@ -2,8 +2,10 @@
 // @(#)message.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 19/05/2003
-// @lastdate 09/11/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__

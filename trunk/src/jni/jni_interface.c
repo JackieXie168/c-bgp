@@ -4,7 +4,9 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 15/10/2005
+// @lastdate 28/02/2006
+// ==================================================================
+// TODO : Cannot be used with Walton ...
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

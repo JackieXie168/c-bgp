@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 04/12/2002
-// @lastdate 07/02/2006
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

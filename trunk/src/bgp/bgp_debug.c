@@ -2,8 +2,10 @@
 // @(#)bgp_debug.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 09/04/2004
-// @lastdate 15/11/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

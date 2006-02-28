@@ -2,8 +2,9 @@
 // @(#)as.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 15/11/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifndef __AS_H__

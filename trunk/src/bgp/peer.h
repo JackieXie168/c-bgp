@@ -2,8 +2,10 @@
 // @(#)peer.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 24/11/2002
-// @lastdate 15/11/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifndef __PEER_H__

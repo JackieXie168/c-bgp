@@ -2,8 +2,10 @@
 // @(#)rib.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 04/12/2002
-// @lastdate 05/04/2005
+// @lastdate 28/02/2006
 // ==================================================================
 
 #ifndef __RIB_H__

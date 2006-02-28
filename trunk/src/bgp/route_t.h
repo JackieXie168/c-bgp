@@ -2,8 +2,10 @@
 // @(#)route_t.h
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
+// 
 // @date 20/11/2003
-// @lastdate 21/11/2005
+// @lastdate 28/0é/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
