@@ -107,6 +107,26 @@ void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes)
   }
 }
 
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+SIntArray * dp_rule_nexthop_counter_create(){
+  return int_array_create(ARRAY_OPTION_UNIQUE | ARRAY_OPTION_SORTED);
+}
+
+int dp_rule_nexthop_add(SIntArray * piNextHop, net_addr_t tNextHop)
+{
+  return int_array_add(piNextHop, &tNextHop);
+}
+
+int dp_rule_nexthop_get_count(SIntArray * piNextHop)
+{
+  return int_array_length(piNextHop);
+}
+
+void dp_rule_nexthop_destroy(SIntArray ** ppiNextHop)
+{
+  int_array_destroy(ppiNextHop);
+}
+#endif
 // ----- dp_rule_highest_pref ---------------------------------------
 /**
  * Remove routes that do not have the highest LOCAL-PREF.
@@ -116,6 +136,11 @@ int dp_rule_highest_pref(SBGPRouter * pRouter, SRoutes * pRoutes)
   int iIndex;
   SRoute * pRoute;
   uint32_t uHighestPref= 0;
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
   
   // Calculate highest degree of preference
   for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
@@ -130,10 +155,23 @@ int dp_rule_highest_pref(SBGPRouter * pRouter, SRoutes * pRoutes)
 	< uHighestPref)
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
 
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_shortest_path --------------------------------------
@@ -142,6 +180,11 @@ int dp_rule_highest_pref(SBGPRouter * pRouter, SRoutes * pRoutes)
  */
 int dp_rule_shortest_path(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
+
   int iIndex;
   SRoute * pRoute;
   uint8_t uMinLen= 255;
@@ -159,10 +202,22 @@ int dp_rule_shortest_path(SBGPRouter * pRouter, SRoutes * pRoutes)
 	> uMinLen)
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_lowest_origin --------------------------------------
@@ -175,6 +230,10 @@ int dp_rule_lowest_origin(SBGPRouter * pRouter, SRoutes * pRoutes)
   int iIndex;
   SRoute * pRoute;
   origin_type_t uLowestOrigin= ROUTE_ORIGIN_INCOMPLETE;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Calculate lowest Origin
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
@@ -189,10 +248,22 @@ int dp_rule_lowest_origin(SBGPRouter * pRouter, SRoutes * pRoutes)
 	> uLowestOrigin)
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_lowest_med -----------------------------------------
@@ -210,6 +281,10 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
   int iLastAS;
   SRoute * pRoute, * pRoute2;
   uint32_t uMinMED= UINT_MAX;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // WARNING: MED can only be compared between routes from the same AS
   // !!!
@@ -241,7 +316,14 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
       if (route_med_get((SRoute *) pRoutes->data[iIndex]) > uMinMED)
 	ptr_array_remove_at(pRoutes, iIndex);
       else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
+      iIndex++;
+    }
+#else
 	iIndex++;
+#endif
     }
     break;
 
@@ -292,14 +374,25 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
     while (iIndex < ptr_array_length(pRoutes)) {
       if (pRoutes->data[iIndex] == NULL) {
 	ptr_array_remove_at(pRoutes, iIndex);
-      } else {
+      } else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
+      iIndex++;
+    }
+#else
 	iIndex++;
-      }
+#endif
     }
     
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_ebgp_over_ibgp -------------------------------------
@@ -310,6 +403,10 @@ int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   int iEBGP= 0;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Detect if there is at least one route learned through an eBGP
   // session:
@@ -327,11 +424,23 @@ int dp_rule_ebgp_over_ibgp(SBGPRouter * pRouter, SRoutes * pRoutes)
       if (((SRoute *) pRoutes->data[iIndex])->pPeer->uRemoteAS == pRouter->uNumber)
 	ptr_array_remove_at(pRoutes, iIndex);
       else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
+      iIndex++;
+    }
+#else
 	iIndex++;
+#endif
     }
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- _dp_rule_igp_cost ------------------------------------------
@@ -370,6 +479,10 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
   SRoute * pRoute;
   uint32_t uLowestCost= UINT_MAX;
   uint32_t uIGPcost;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Calculate lowest IGP-cost
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
@@ -393,12 +506,23 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
     uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->tNextHop);
     if (uIGPcost > uLowestCost) {
       ptr_array_remove_at(pRoutes, iIndex);
-    } else {
+    } else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
     }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_lowest_router_id -----------------------------------
@@ -414,6 +538,10 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
   net_addr_t tID;
   SRoute * pRoute;
   int iIndex;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Calculate lowest ROUTER-ID (or ORIGINATOR-ID)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
@@ -431,10 +559,22 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
     if (tID > tLowestRouterID)
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_shortest_cluster_list ------------------------------
@@ -446,6 +586,10 @@ int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SRoutes * pRoutes)
   SRoute * pRoute;
   int iIndex;
   uint8_t uMinLen= 255;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Calculate shortest cluster-ID-list
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
@@ -463,10 +607,22 @@ int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SRoutes * pRoutes)
 	(cluster_list_length(pRoute->pClusterList) > uMinLen))
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_lowest_neighbor_address ----------------------------
@@ -479,6 +635,10 @@ int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SRoutes * pRoutes)
   net_addr_t tLowestAddr= MAX_ADDR;
   SRoute * pRoute;
   int iIndex;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+#endif
 
   // Calculate lowest neighbor address
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
@@ -493,10 +653,22 @@ int dp_rule_lowest_neighbor_address(SBGPRouter * pRouter, SRoutes * pRoutes)
     if (route_peer_get(pRoute)->tAddr > tLowestAddr)
       ptr_array_remove_at(pRoutes, iIndex);
     else
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    {
+      dp_rule_nexthop_add(piNextHopCounter, (routes_list_get_at(pRoutes, iIndex))->tNextHop);
       iIndex++;
+    }
+#else
+      iIndex++;
+#endif
   }
-
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+#else
   return 0;
+#endif
 }
 
 // ----- dp_rule_final ----------------------------------------------

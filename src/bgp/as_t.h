@@ -33,6 +33,12 @@ typedef struct {
   int iRouteReflector;
   SNetNode * pNode;            // Reference to the node running this BGP router
   SBGPDomain * pDomain;        // Reference to the AS containing this router
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  SPtrArray * pWaltonLimitPeers;  //This is a list of neighbors sorted on 
+				  //the walton limit number
+				  //TODO : Is it possible to get rid of the SPtrArray
+				  //* pPeers when using walton ?
+#endif
 } SBGPRouter;
 
 #endif
