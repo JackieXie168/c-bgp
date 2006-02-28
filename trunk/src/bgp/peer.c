@@ -63,6 +63,7 @@ SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   pPeer->tNextHop= 0;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   pPeer->uWaltonLimit = 1;
+  bgp_router_walton_peer_set(pPeer, 1);
 #endif
   return pPeer;
 }
@@ -611,7 +612,9 @@ void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 void peer_set_walton_limit(SPeer * pPeer, unsigned int uWaltonLimit)
 {
+  //TODO : check the MAX_VALUE !
   pPeer->uWaltonLimit = uWaltonLimit;
+  bgp_router_walton_peer_set(pPeer, uWaltonLimit);
 }
 
 uint16_t peer_get_walton_limit(SPeer * pPeer)

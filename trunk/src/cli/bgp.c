@@ -656,6 +656,29 @@ int cli_bgp_options_qosaggrlimit(SCliContext * pContext,
 }
 #endif
 
+// ----- cli_bgp_options_walton_convergence ------------------------
+/**
+ *
+ */
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+int cli_bgp_options_walton_convergence(SCliContext * pContext,
+				      STokens * pTokens)
+{
+  char * pcParam;
+
+  pcParam= tokens_get_string_at(pTokens, 0);
+  if (!strcmp(pcParam, "best"))
+    BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST = 1;
+  else if (!strcmp(pcParam, "all"))
+    BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST = 0;
+  else {
+    LOG_SEVERE("Error: invalid value \"%s\"\n", pcParam);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+#endif
+
 // ----- cli_bgp_options_advertise_external_best -------------------
 /**
  * context : {}
@@ -2790,6 +2813,13 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   cli_params_add(pParams, "<on-off>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("advertise-external-best",
 					cli_bgp_options_advertise_external_best,
+					NULL, pParams));
+#endif
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  pParams = cli_params_create();
+  cli_params_add(pParams, "<all|best>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("walton-convergence",
+					cli_bgp_options_walton_convergence,
 					NULL, pParams));
 #endif
   /*pParams= cli_params_create();

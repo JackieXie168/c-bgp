@@ -45,7 +45,12 @@ extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
 extern uint8_t BGP_OPTIONS_AUTO_CREATE;
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
 extern uint8_t BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST;
+#endif
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+uint8_t BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST;
+#endif
 
 #define MAX_AS 65536
 
@@ -122,7 +127,6 @@ extern SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter,
 extern SRoutes * bgp_router_get_feasible_routes(SBGPRouter * pRouter,
 						SPrefix sPrefix);
 #endif
-
 // ----- bgp_router_decision_process --------------------------------
 extern int bgp_router_decision_process(SBGPRouter * pRouter,
 				       SPeer * pOriginPeer,
@@ -151,6 +155,10 @@ extern int bgp_router_peer_readv_prefix(SBGPRouter * pRouter,
 
 // ----- bgp_router_reset -------------------------------------------
 extern int bgp_router_reset(SBGPRouter * pRouter);
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+// ----- bgp_router_walton_peer_set ----------------------------------
+int bgp_router_walton_peer_set(SPeer * pPeer, unsigned int uWaltonLimit);
+#endif
 
 // ----- bgp_router_scan_rib ----------------------------------------
 int bgp_router_scan_rib(SBGPRouter * pRouter);
@@ -163,6 +171,19 @@ extern void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter);
 extern int bgp_router_peers_for_each(SBGPRouter * pRouter,
 				     FArrayForEach fForEach,
 				     void * pContext);
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+int bgp_router_peer_rib_out_remove(SBGPRouter * pRouter,
+    SBGPPeer * pPeer,
+    SPrefix sPrefix,
+    net_addr_t * tNextHop);
+#else
+int bgp_router_peer_rib_out_remove(SBGPRouter * pRouter,
+    SBGPPeer * pPeer,
+    SPrefix sPrefix);
+#endif
+// ----- _bgp_router_peers_compare -----------------------------------
+int _bgp_router_peers_compare(void * pItem1, void * pItem2,
+    unsigned int uEltSize);
 // ----- bgp_router_dump_rib_string ----------------------------------------
 char * bgp_router_dump_rib_string(SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib ----------------------------------------

@@ -57,6 +57,16 @@ extern unsigned long rt_destroy_count;
 #define ROUTE_FLAG_EXTERNAL_BEST 0x0040
 #endif
 
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#define ROUTE_FLAG_WALTON_BEST 0x0080 /* This flag is used to tell a neighbor
+					 which was the best route selected by
+					 the sender router. Then it is possible
+					 to do the convergence as if it was the
+					 normal BGP behavior without taking into
+					 account the others routes received
+					 from a specified neighbor.*/
+#endif
+
 /* QoS flags */
 #define ROUTE_FLAG_BEST_EBGP  0x0100 /* best eBGP route */
 #define ROUTE_FLAG_AGGR       0x0200 /* The route is a member of an
