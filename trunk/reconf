@@ -1,8 +1,54 @@
 #!/bin/sh
+# ===================================================================
+# Rebuild configure scripts
+#
+# @author Bruno Quoitin (bqu@info.ucl.ac.be)
+# @lastdate 04/04/2006
+# ===================================================================
+# Usage:
+#   ./reconf [ -I DIR ]
+#
+# The additional directory DIR will be passed to aclocal and autoconf
+# ===================================================================
+# TODO:
+# - should check aclocal/autoconf/automake exit codes
+# - should check arguments (i.e. -I DIR)
+# ===================================================================
+
+# Remove configure cache
 rm -f config.cache
-libtoolize --automake --force --copy
+
+# Specify that libtool/automake files are copied rather than symlinked.
+#COPY="--copy"
+COPY=""
+
+# *** Look for libtoolize ***
+# On some system, GNU glibtoolize is installed instead.
+for XLIBTOOLIZE in libtoolize glibtoolize; do
+  WHICH=`which $XLIBTOOLIZE`
+  if test $? -eq 0; then
+    echo "$XLIBTOOLIZE is available"
+    LIBTOOLIZE="$XLIBTOOLIZE"  
+    break
+  fi
+done
+
+if test -z "$LIBTOOLIZE"; then
+  echo "Error: no (g)libtoolize was found"
+  exit -1
+fi
+
+# *** Run libtoolize ***
+# --automake: is required when libtool support is required by automake
+# --copy: copy files from the libtool data directory rather than
+#         creating symlinks. The other option (i.e. without --copy)
+#         might be better since if the links are broken, errors will
+#         be generated...
+# --force: replace existing libtool files in the current directory.
+$LIBTOOLIZE --automake --force $COPY
+
 aclocal $@
 autoheader
-automake --add-missing --gnu
+automake --add-missing $COPY --gnu
 autoconf $@
 exit
