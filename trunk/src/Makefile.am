@@ -31,6 +31,7 @@ else
 endif
 
 SUBDIRS = bgp cli external net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
+DIST_SUBDIRS = $(SUBDIRS)
 
 # Compile experimental features ?
 if WITH_EXPERIMENTAL
@@ -50,13 +51,13 @@ AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OS
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES =
-libcsim_la_LIBADD = -lgds -lpcre bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
-libcsim_la_LDFLAGS = -no-undefined
+libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
+libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
 
 bin_PROGRAMS = cbgp
 cbgp_SOURCES = \
 	main.c
-cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD)
+cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 
 #dist-hook:
 #	find $(distdir) -type f -name *.c -exec cat \{\} | sed 's/\@LICENSE\@/THIS IS THE LICENSE/' \;
