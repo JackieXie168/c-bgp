@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 28/02/2006
+// @lastdate 04/04/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -2456,6 +2456,7 @@ int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter)
  *   gives the number of routes with no choice. The second one, the
  *   number of routes selected based on the LOCAL-PREF, etc.
  */
+#ifdef __EXPERIMENTAL__
 void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
 {
   int iIndex;
@@ -2514,6 +2515,7 @@ void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
     fprintf(pStream, ": %d / %d\n",  iNumBest, iNumPrefixes);
   }
 }
+#endif
 
 
 /////////////////////////////////////////////////////////////////////

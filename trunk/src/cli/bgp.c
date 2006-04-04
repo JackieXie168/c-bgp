@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 28/02/2006
+// @lastdate 04/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1123,6 +1123,7 @@ int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 }
 
 // ----- cli_bgp_router_show_stats ----------------------------------
+#ifdef __EXPERIMENTAL__
 int cli_bgp_router_show_stats(SCliContext * pContext,
 			      STokens * pTokens)
 {
@@ -1133,6 +1134,7 @@ int cli_bgp_router_show_stats(SCliContext * pContext,
 
   return CLI_SUCCESS;
 }
+#endif
 
 // ----- cli_bgp_router_recordroute ---------------------------------
 /**
@@ -2952,9 +2954,11 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("route-info",
 					cli_bgp_router_show_routeinfo,
 					NULL, pParams));
+#ifdef __EXPERIMENTAL__
   cli_cmds_add(pSubCmds, cli_cmd_create("stats",
 					cli_bgp_router_show_stats,
 					NULL, NULL));
+#endif
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
