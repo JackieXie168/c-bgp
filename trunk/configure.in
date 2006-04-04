@@ -2,7 +2,7 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 2005-08-04
+dnl @version 2006-03-31
 dnl =================================================================
 
 AC_INIT([cbgp], [1.1.21])
@@ -59,15 +59,46 @@ changequote([, ])dnl
 dnl Conditional compilation with memory debugger
 AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" == "no"])
 
-dnl Test for libpcre usability (library + headers)
-AX_PATH_LIB_PCRE([pcre_ok=yes], [pcre_ok=no])
-if test "x$pcre_ok" == "xyes"; then
-  LIBS="$LIBS $PCRE_LIBS"
-  CFLAGS="$CFLAGS $PCRE_CFLAGS"
-  CFLAGS="$CPPFLAGS $PCRE_CFLAGS"
-else
-  AC_MSG_ERROR([libpcre is required to compile cbgp]);
+dnl *****************************************************************
+dnl PCRE CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(pcre,
+        [  --with-pcre=DIR         use pcre in <DIR>],
+           PATH=$withval/bin:$PATH)
+
+AC_CHECK_PROG(LIBPCRE_CONFIG, pcre-config, pcre-config, false)
+
+if test "$LIBPCRE_CONFIG" = "false"; then
+   echo "ERROR: Could not find pcre-config in your path.";
+   echo "       You need PCRE to compile C-BGP.";
+   echo "       Source: http://www.pcre.org";
+   echo "       Use --with-pcre=DIR to mention another search path";
+   exit;
+   :
 fi
+
+AC_MSG_CHECKING([for pcre libs])
+pcre_libs=`pcre-config --libs`
+AC_MSG_RESULT($pcre_libs)
+AC_MSG_CHECKING([for pcre cflags])
+pcre_cflags=`pcre-config --cflags`
+AC_MSG_RESULT($pcre_cflags)
+AC_SUBST(pcre_libs)
+AC_SUBST(pcre_cflags)
+AC_DEFINE([HAVE_LIBPCRE], 1, [Define to 1 if PCRE library was found ])
+dnl *****************************************************************
+dnl PCRE CHECK: END
+dnl *****************************************************************
+
+dnl DEPRECATED_TEST dnl Test for libpcre usability (library + headers)
+dnl DEPRECATED_TEST AX_PATH_LIB_PCRE([pcre_ok=yes], [pcre_ok=no])
+dnl DEPRECATED_TEST if test "x$pcre_ok" == "xyes"; then
+dnl DEPRECATED_TEST   LIBS="$LIBS $PCRE_LIBS"
+dnl DEPRECATED_TEST   CFLAGS="$CFLAGS $PCRE_CFLAGS"
+dnl DEPRECATED_TEST   CFLAGS="$CPPFLAGS $PCRE_CFLAGS"
+dnl DEPRECATED_TEST else
+dnl DEPRECATED_TEST   AC_MSG_ERROR([libpcre is required to compile cbgp]);
+dnl DEPRECATED_TEST fi
 
 dnl Test for XML availability
 AC_ARG_ENABLE(xml,
@@ -90,7 +121,7 @@ AC_ARG_ENABLE(jni,
       [enable JNI support]),
    cbgp_config_jni="$enableval",
 )
-if test "$cbgp_config_jni" == "yes"; then
+if test "$cbgp_config_jni" = yes; then
    AC_CHECK_CLASSPATH
    AC_PROG_JAVAC
    AC_PROG_JAVA
@@ -99,14 +130,14 @@ if test "$cbgp_config_jni" == "yes"; then
    else
       AC_PROG_JAVAH
    fi
-   AC_CHECK_HEADER(jni.h, jni_header_ok=yes, jni_header_ok=no)
-   if test "$jni_header_ok" != "yes"; then
+   AC_CHECK_HEADER(jni.h, [jni_header_ok=yes], [jni_header_ok=no])
+   if test "$jni_header_ok" != yes; then
       AC_MSG_ERROR([could not find java native interface header (jni.h)])
    else
       cbgp_jni_ok=yes
    fi
 fi
-if test "$cbgp_jni_ok" == "yes"; then
+if test "$cbgp_jni_ok" = yes; then
    AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$cbgp_jni_ok" == "yes"])
@@ -121,37 +152,130 @@ if test "x$cbgp_config_bgpdump" != "xno"; then
    AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
 fi
 
-dnl Test for readline existence. Required due to possibly undetected 
-dnl dependence with one of libcurses, libtinfo or libtermcap.
-dnl (The following tests are insipired from Peter Samuelson)
-AC_ARG_ENABLE(readline,
-   AC_HELP_STRING([--enable-readline], [enable readline support]),
-   cbgp_config_readline="$enableval",
-   cbgp_config_readline="yes"
-)
-if test "x$cbgp_config_readline" != "xno"; then
-   AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
-   if test "$readline_ok" != "yes"; then
-      AC_MSG_WARN([readline alone does not work, check with dependencies])
-      AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
-      if test "x$tc" == x; then
-         AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
-      fi
-      if test "x$tc" == x; then
-         AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
-      fi
-      unset ac_cv_lib_readline_readline
-      AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
-   fi
-   if test "$readline_ok" == "yes"; then
-      AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
-      LIBS="$LIBS -lreadline $tc"
-      AC_CHECK_HEADERS(readline/readline.h)
-      AC_CHECK_FUNCS(rl_completion_matches)
-      AC_CHECK_FUNCS(rl_filename_completion_function filename_completion_function)
-   fi
-   unset tc
+dnl *****************************************************************
+dnl READLINE CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(readline,dnl
+[  --with-readline         use the builtin minimal readline function (default)
+  --without-readline      do not use the builtin readline function
+  --with-readline=DIR     Specify the location of GNU readline],,
+  test -z "$with_readline" && with_readline=yes)
+
+dnl GNU readline and the required terminal library
+if test "$with_readline" != no; then
+  dnl check for terminal library
+  dnl this is a very cool solution from octave's configure.in
+  gp_tcap=""
+  for termlib in ncurses curses termcap terminfo termlib; do
+    AC_CHECK_LIB(${termlib}, tputs, [gp_tcap="$gp_tcap -l$termlib"])
+    case "$gp_tcap" in
+      *-l${termlib}*)
+        break
+      ;;
+    esac
+  done
+
+  dnl Default readline (should be found in current paths)
+  if test "$with_readline" = yes; then
+    AC_CHECK_LIB(readline, readline,
+      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],, [${gp_tcap}])
+  else
+    dnl Specific readline (path specified as an option)
+    if test -d $with_readline/include; then
+      readline_cflags="-I$with_readline/include"
+      CFLAGS="$CFLAGS $readline_cflags"
+      AC_SUBST($CFLAGS)
+    fi
+    if test -d $with_readline/lib; then
+      readline_libs="-L$with_readline/lib"
+      LDFLAGS="$LDFLAGS $readline_libs"
+      AC_SUBST($LDFLAGS)
+    fi
+
+    AC_CHECK_LIB(readline,readline,
+      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],,[${gp_tcap}])
+
+  fi
+
+  if test "$ac_cv_lib_readline_readline" = no; then
+    AC_MSG_ERROR([GNU readline not found])
+  else
+    AC_DEFINE(HAVE_LIBREADLINE,1,
+              [ Define if you are using the GNU readline library. ])
+    readline_libs="$TERMLIBS"
+    AC_SUBST(readline_libs)
+    AC_CHECK_HEADERS(readline/readline.h,,
+      AC_MSG_WARN([found GNU readline library but not readline.h
+ease add path to readline.h to CPPFLAGS in Makefile]))
+    readline_too_old=no
+    AC_CHECK_LIB(readline,rl_completion_matches,[],[])
+    if test "$ac_cv_lib_readline_rl_completion_matches" = yes; then
+      AC_DEFINE(HAVE_RL_COMPLETION_MATCHES, 1,
+                [ Define if rl_completion_matches is available. ])
+    else
+      readline_too_old=yes
+    fi
+    AC_CHECK_LIB(readline,rl_filename_completion_function,[], [])
+    if test "$ac_cv_lib_readline_rl_filename_completion_function" = yes; then
+      AC_DEFINE(HAVE_RL_FILENAME_COMPLETION_FUNCTION, 1,
+                [ Define if rl_filename_completion_function is available. ])
+    else
+      readline_too_old=yes
+    fi
+    AC_CHECK_LIB(readline,rl_on_new_line,[],[])
+    if test "$ac_cv_lib_readline_rl_on_new_line" = yes; then
+      AC_DEFINE(HAVE_RL_ON_NEW_LINE, 1,
+                [ Define if rl_on_new_line is available. ])
+    else
+      readline_too_old=yes
+    fi
+    if test "$readline_too_old" = yes; then
+      AC_MSG_WARN([Some readline functions were not found.
+                   Your readline library might be too old.
+                   Although C-BGP will still compile, some features
+    		   will not be available.])
+    fi
+    AC_CHECK_HEADERS(readline/history.h,,
+      AC_MSG_WARN([found GNU readline library but not history.h
+ease add path to history.h to CPPFLAGS in Makefile]))
+    
+  fi
 fi
+dnl *****************************************************************
+dnl READLINE CHECK: END
+dnl *****************************************************************
+
+dnl dnl Test for readline existence. Required due to possibly undetected 
+dnl dnl dependence with one of libcurses, libtinfo or libtermcap.
+dnl dnl (The following tests are insipired from Peter Samuelson)
+dnl AC_ARG_ENABLE(readline,
+dnl    AC_HELP_STRING([--enable-readline], [enable readline support]),
+dnl    cbgp_config_readline="$enableval",
+dnl    cbgp_config_readline="yes"
+dnl )
+dnl if test "x$cbgp_config_readline" != "xno"; then
+dnl    AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no])
+dnl    if test "$readline_ok" != "yes"; then
+dnl       AC_MSG_WARN([readline alone does not work, check with dependencies])
+dnl       AC_CHECK_LIB(curses, tputs, [tc="-lcurses"])
+dnl       if test "x$tc" == x; then
+dnl          AC_CHECK_LIB(tinfo, tputs, [tc="-ltinfo"])
+dnl       fi
+dnl       if test "x$tc" == x; then
+dnl          AC_CHECK_LIB(termcap, tputs, [tc="-ltermcap"])
+dnl       fi
+dnl       unset ac_cv_lib_readline_readline
+dnl       AC_CHECK_LIB(readline, readline, [readline_ok=yes], [readline_ok=no], [$tc])
+dnl    fi
+dnl    if test "$readline_ok" == "yes"; then
+dnl       AC_DEFINE(HAVE_LIBREADLINE, 1, [Define to 1 if you have the 'readline' library (-lreadline)])
+dnl       LIBS="$LIBS -lreadline $tc"
+dnl       AC_CHECK_HEADERS(readline/readline.h)
+dnl       AC_CHECK_FUNCS(rl_completion_matches)
+dnl       AC_CHECK_FUNCS(rl_filename_completion_function filename_completion_function)
+dnl    fi
+dnl    unset tc
+dnl fi
 
 dnl Test for libgds existence (library + headers)
 AC_ARG_WITH(libgds-dir,
