@@ -19,5 +19,6 @@ noinst_LTLIBRARIES = libutil.la
 libutil_la_SOURCES = \
 	regex.c \
 	regex.h
+libutil_la_CFLAGS = $(pcre_cflags)
 
 
