@@ -45,13 +45,19 @@
 
 #include <net/ospf.h>
 
+#define INTERACTIVE_MODE_OK
 #ifdef HAVE_LIBREADLINE
 # ifdef HAVE_READLINE_READLINE_H
 #  include <readline/readline.h>
-# define INTERACTIVE_MODE_OK
 # endif
 # include <ui/rl.h>
 #endif
+
+#define RL_ON_NEW_LINE \
+  #ifdef HAVE_RL_ON_NEW_LINE \
+    rl_on_new_line() \
+  #else \
+  #endif
 
 // -----[ simulator's modes] -----
 #define CBGP_MODE_DEFAULT     0
@@ -163,7 +169,9 @@ void rl_display_completion(char **matches, int num_matches, int max_length)
   for (iIndex= 1; iIndex <= num_matches; iIndex++) {
     fprintf(stdout, "\t%s\n", matches[iIndex]);
   }
+#ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
+#endif
 }
 #endif
 
@@ -365,7 +373,9 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
 
   /* Tell readline that we have written things. The command prompt
      must therefore start on a new line. */
+#ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
+#endif
 }
 #endif
 
@@ -392,7 +402,9 @@ void simulation_help_cmd(SCliCmd * pCmd, int iParamIndex)
   if (pCmd->pcHelp != NULL) {
     fprintf(stdout, "\nCOMMENTS:\n%s\n", pCmd->pcHelp);
   }
+#ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
+#endif
 }
 #endif
 
@@ -447,7 +459,9 @@ void simulation_help(const char * pcLine)
     }
   } else {
     fprintf(stdout, "Sorry, no help is available on this topic\n");
+#ifdef HAVE_RL_ON_NEW_LINE
     rl_on_new_line();
+#endif
   }
 }
 #endif
