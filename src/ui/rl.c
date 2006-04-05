@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 17/05/2005
+// @lastdate 31/03/2006
 // ==================================================================
 // Help about this code can be found in the GNU readline manual.
 
@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ui/rl.h>
 
 #ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
