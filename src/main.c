@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 14/10/2005
+// @lastdate 04/04/2006
 // 
 // @LICENSE@
 // ==================================================================
@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+// STA-TO-FIX: src/main_test.h is not in CVS
+//#include <main_test.h>
 
 #include <bgp/as.h>
 #include <bgp/comm_hash.h>
@@ -531,6 +534,46 @@ void option_free(char * pcArgument)
     str_destroy(&pcArgument);
 }
 
+// -----[ main_test ]------------------------------------------------
+/**
+ * Test function (only available in EXPERIMENTAL mode).
+ *
+ * Current test function measures the number of nodes required to
+ * store a complete RIB into a non-compact trie (radix-tree) or in a
+ * compact trie (Patricia tree).
+ */
+#ifdef __EXPERIMENTAL__
+int main_test(char * pcArg)
+{
+  int iIndex;
+  SRoutes * pRoutes= mrtd_ascii_load_routes(NULL, pcArg);
+  SRoute * pRoute;
+  SRadixTree * pRadixTree;
+  STrie * pTrie;
+
+  if (pRoutes != NULL) {
+    pRadixTree= radix_tree_create(32, NULL);
+    pTrie= trie_create(NULL);
+    for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+      pRoute= (SRoute *) pRoutes->data[iIndex];
+      radix_tree_add(pRadixTree, pRoute->sPrefix.tNetwork,
+		     pRoute->sPrefix.uMaskLen, pRoute);
+      trie_insert(pTrie, pRoute->sPrefix.tNetwork,
+		  pRoute->sPrefix.uMaskLen, pRoute);
+    }
+    fprintf(stdout, "radix-tree: %d\n", radix_tree_num_nodes(pRadixTree));
+    fprintf(stdout, "trie: %d\n", trie_num_nodes(pTrie));
+    radix_tree_destroy(&pRadixTree);
+    trie_destroy(&pTrie);
+    routes_list_destroy(&pRoutes);
+    return 0;
+  } else {
+    fprintf(stderr, "could not load \"%s\"\n", pcArg);
+    return -1;
+  }
+}
+#endif
+
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
@@ -598,13 +641,13 @@ int main(int argc, char ** argv) {
   int iResult;
   FILE * pInCli;
   int iExitCode= EXIT_SUCCESS;
+  SLogStream * pLogTmp;
 
   /* Initialize log */
-  log_set_level(pMainLog, LOG_LEVEL_WARNING);
-  log_set_stream(pMainLog, stderr);
+  log_set_level(pLogErr, LOG_LEVEL_WARNING);
 
   /* Process command-line options */
-  while ((iResult= getopt(argc, argv, "c:e:hil:go")) != -1) {
+  while ((iResult= getopt(argc, argv, "c:e:hil:got:")) != -1) {
     switch (iResult) {
     case 'c':
       simulation_set_mode(CBGP_MODE_SCRIPT, option_string(optarg));
@@ -635,6 +678,12 @@ int main(int argc, char ** argv) {
       simulation_set_mode(CBGP_MODE_OSPF, NULL);
       break;
 #endif
+#ifdef __EXPERIMENTAL__
+// STA-TO-FIX: declared in src/main_test.h,.c not included in CVS
+//    case 't':
+//      exit((main_test_paths(optarg) < 0)?EXIT_FAILURE:EXIT_SUCCESS);
+//      break;
+#endif
     default:
       simulation_cli_help();
       exit(EXIT_FAILURE);
@@ -642,8 +691,16 @@ int main(int argc, char ** argv) {
   }
 
   /* Setup log stream */
-  if (pcOptLog)
-    log_set_file(pMainLog, pcOptLog);
+  if (pcOptLog) {
+    pLogTmp= log_create_file(pcOptLog);
+    if (pLogTmp != NULL) {
+      log_destroy(&pLogDebug);
+      pLogDebug= pLogTmp;
+    } else {
+      LOG_ERR(LOG_LEVEL_WARNING, "Warning: couln't create \"%s\"."
+	      "Debug is directed to stderr.", pcOptLog);
+    }
+  }
 
   simulation_init();
 
@@ -665,7 +722,8 @@ int main(int argc, char ** argv) {
       }
       fclose(pInCli);
     } else {
-      LOG_SEVERE("Error: Unable to open script file \"%s\"\n", pcArgMode);
+      LOG_ERR(LOG_LEVEL_SEVERE,
+	      "Error: Unable to open script file \"%s\"\n", pcArgMode);
       iExitCode= EXIT_FAILURE;
     }
     break;
