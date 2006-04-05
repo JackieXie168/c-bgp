@@ -3,11 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 17/05/2005
+// @lastdate 31/03/2006
 // ==================================================================
 
 #ifndef __RL_H__
 #define __RL_H__
+
+#include <string.h>
 
 // ---- rl_gets -----------------------------------------------------
 extern char * rl_gets(char * pcPrompt);
