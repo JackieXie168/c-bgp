@@ -3,10 +3,10 @@
 # Rebuild configure scripts
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 05/04/2006
+# @lastdate 07/04/2006
 # ===================================================================
 # Usage:
-#   ./reconf [ -I=DIR ]
+#   ./reconf [ -I=DIR ] [ -force ]
 #
 # The optional directory DIR will be passed to aclocal and
 # autoconf. For instance, if you have installed the autoconf-archive
@@ -14,6 +14,9 @@
 # -I=/usr/local/share/aclocal
 #
 # The autoconf-archive is located at http://autoconf-archive.cryp.to
+#
+# The -force flag forces the script to be run even if configure is
+# more recent than configure.in
 # ===================================================================
 
 EXIT_SUCCESS=0
@@ -36,7 +39,9 @@ for arg in $@; do
       echo "option: -I $INCLUDE_DIR"
       INCLUDE_DIRS="$INCLUDE_DIRS -I $INCLUDE_DIR"
     fi
-    break
+  ;;
+  -force)
+    RUN=1
   ;;
   *)
     echo "Error: invalid argument [ $arg ]"
@@ -44,6 +49,15 @@ for arg in $@; do
   ;;
   esac
 done
+
+# *** Test ./configure timestamp ***
+# Test if configure is up-to-date. If so, abort, unless -force flag
+# has been passed as argument.
+if test -z "$RUN" && test configure -nt configure.in; then
+  echo "configure is up to date."
+  echo "DONE."
+  exit $EXIT_SUCCESS
+fi
 
 # *** Remove configure cache ***
 echo "(*) Cleaning config cache"
@@ -69,7 +83,7 @@ if test -z "$LIBTOOLIZE"; then
   exit $EXIT_FAILURE
 fi
 
-# *** Run libtoolize ***
+# *** Run (g)libtoolize ***
 # --automake: is required when libtool support is required by automake
 # --copy: copy files from the libtool data directory rather than
 #         creating symlinks. The other option (i.e. without --copy)
