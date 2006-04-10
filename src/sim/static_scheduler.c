@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 02/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -88,7 +88,7 @@ void static_scheduler_done()
 {
   if (pStaticScheduler != NULL) {
     if (pStaticScheduler->pEvents->uCurrentDepth > 0)
-      LOG_WARNING("Warning: %d events still in queue.\n",
+      LOG_ERR(LOG_LEVEL_WARNING, "Warning: %d events still in queue.\n",
 		  pStaticScheduler->pEvents->uCurrentDepth);
     fifo_destroy(&pStaticScheduler->pEvents);
     FREE(pStaticScheduler);
@@ -112,9 +112,20 @@ int static_scheduler_run(void * pContext, int iNumSteps)
   while ((pEvent= (SStaticEvent *) fifo_pop(pStaticScheduler->pEvents))
 	  != NULL) {
 
-    pEvent->fCallback(pEvent->pContext);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
+	      pSimulator->dCurrentTime);
 
+    //if (pEvent->fDump != NULL) {
+    //  pEvent->fDump(log_get_stream(pMainLog), pEvent->pContext);
+    //} else {
+    //  fprintf(log_get_stream(pMainLog), "unknown");
+    //}
+    //fprintf(log_get_stream(pMainLog), "\n");
+
+    pEvent->fCallback(pEvent->pContext);
     static_scheduler_event_destroy(&pEvent);
+
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
 
     // Update simulation time
     (pSimulator->dCurrentTime)+= 1;
@@ -122,8 +133,8 @@ int static_scheduler_run(void * pContext, int iNumSteps)
     // Limit on simulation time ??
     if ((pSimulator->dMaximumTime > 0) &&
 	(pSimulator->dCurrentTime >= pSimulator->dMaximumTime)) {
-      LOG_WARNING("WARNING: Simulation stopped @ %2.2f.\n",
-		  pSimulator->dCurrentTime);
+      LOG_ERR(LOG_LEVEL_WARNING, "WARNING: Simulation stopped @ %2.2f.\n",
+	      pSimulator->dCurrentTime);
       break;
     }
 
@@ -159,7 +170,7 @@ int static_scheduler_post(FSimEventCallback fCallback,
 /**
  * Return information 
  */
-void static_scheduler_dump_events(FILE * pStream)
+void static_scheduler_dump_events(SLogStream * pStream)
 {
   SStaticEvent * pEvent;
   uint32_t uDepth;
@@ -170,17 +181,17 @@ void static_scheduler_dump_events(FILE * pStream)
   uDepth= pStaticScheduler->pEvents->uCurrentDepth;
   uMaxDepth= pStaticScheduler->pEvents->uMaxDepth;
   uStart= pStaticScheduler->pEvents->uStartIndex;
-  fprintf(pStream, "Number of events queued: %u (%u)\n",
-	  uDepth, uMaxDepth);
+  log_printf(pStream, "Number of events queued: %u (%u)\n",
+	     uDepth, uMaxDepth);
   for (iIndex= 0; iIndex < uDepth; iIndex++) {
     pEvent= (SStaticEvent *) pStaticScheduler->pEvents->ppItems[(uStart+iIndex) % uMaxDepth];
-    fprintf(pStream, "(%d) ", (uStart+iIndex) % uMaxDepth);
-    fflush(pStream);
+    log_printf(pStream, "(%d) ", (uStart+iIndex) % uMaxDepth);
+    log_flush(pStream);
     if (pEvent->fDump != NULL) {
       pEvent->fDump(pStream, pEvent->pContext);
     } else {
-      fprintf(pStream, "unknown");
+      log_printf(pStream, "unknown");
     }
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
 }

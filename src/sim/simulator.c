@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 02/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -144,7 +144,7 @@ int simulator_post_event(FSimEventCallback fCallback,
 /**
  *
  */
-void simulator_dump_events(FILE * pStream)
+void simulator_dump_events(SLogStream * pStream)
 {
   if (SIM_OPTIONS_SCHEDULER == SCHEDULER_STATIC) {
     static_scheduler_dump_events(pStream);
@@ -157,7 +157,7 @@ void simulator_dump_events(FILE * pStream)
  */
 void simulator_show_infos()
 {
-  fprintf(stdout, "current time: %f\n", pSimulator->dCurrentTime);
-  fprintf(stdout, "maximum time: %f\n", pSimulator->dMaximumTime);
+  log_printf(pLogOut, "current time: %f\n", pSimulator->dCurrentTime);
+  log_printf(pLogOut, "maximum time: %f\n", pSimulator->dMaximumTime);
 }
 

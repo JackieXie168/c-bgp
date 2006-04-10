@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 12/06/2003
-// @lastdate 27/01/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -191,7 +191,7 @@ int scheduler_run(float uSimulatorTime)
 						    iIndexFirstEvent);
   SSchedEvent * pEvent;
 	
-  LOG_DEBUG("scheduler> nbr events before scheduling %d\t",
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler> nbr events before scheduling %d\t",
 	    iIndexFirstEvent + 1);
   if (pFifoEvent->uTime == uSimulatorTime) {
 		
@@ -205,10 +205,11 @@ int scheduler_run(float uSimulatorTime)
 
     list_delete(pScheduler->pEvents, iIndexFirstEvent);
   } else if (pFifoEvent->uTime < uSimulatorTime) {
-    LOG_FATAL("Existence of events which will never occur %f", pFifoEvent->uTime);
-    exit(1);
+    LOG_ERR(LOG_LEVEL_FATAL, "Existence of events which will never occur %f",
+	    pFifoEvent->uTime);
+    abort();
   }
-  LOG_DEBUG("after %d\n", iIndexFirstEvent + 1);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "after %d\n", iIndexFirstEvent + 1);
   return 0;
 }
 
@@ -218,8 +219,7 @@ int scheduler_run(float uSimulatorTime)
  */
 void scheduler_done()
 {
-  LOG_DEBUG("scheduler> uCountEvent : %d\n", uCountEvent);
-  LOG_EVERYTHING("scheduler> uCountPost : %d\n", uCountPost);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler> uCountEvent : %d\n", uCountEvent);
   if (pScheduler != NULL) {
     list_destroy(&(pScheduler->pEvents));
     FREE(pScheduler);
@@ -237,7 +237,7 @@ int scheduler_post_event(FSchedEventCallback fCallback,
   int iIndex, iRet;
   SSchedulerFifoEvent * pFifoEvent;
 
-  LOG_DEBUG("scheduler_post_event\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler_post_event\n");
 	
   pFifoEvent = scheduler_event_fifo_create(uSchedulingTime);
   uCountPost++;
