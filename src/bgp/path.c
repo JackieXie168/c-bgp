@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -22,8 +22,8 @@
 #include <bgp/path_segment.h>
 #include <bgp/filter.h>
 
-// ----- path_destroy_segment ---------------------------------------
-void path_destroy_segment(void * pItem)
+// ----- _path_destroy_segment --------------------------------------
+static void _path_destroy_segment(void * pItem)
 {
   path_segment_destroy((SPathSegment **) pItem);
 }
@@ -37,7 +37,7 @@ SBGPPath * path_create()
   SBGPPath * pNewPath;
 #ifndef  __BGP_PATH_TYPE_TREE__
   pNewPath= (SBGPPath *) ptr_array_create(0, NULL,
-					  path_destroy_segment);
+					  _path_destroy_segment);
 #else
   pNewPath= (SBGPPath *) MALLOC(sizeof(SBGPPath));
   pNewPath->pSegment= NULL;
@@ -64,6 +64,43 @@ void path_destroy(SBGPPath ** ppPath)
   }
 #endif
 }
+
+// ----- path_addref ------------------------------------------------
+/**
+ *
+ */
+/*void path_addref(SBGPPath ** ppPath)
+{
+  SBGPPath * pRefPath;
+  assert((*ppPath)->tRefCnt == 0);
+
+  pRefPath= path_hash_get(*ppPath);
+  if (pRefPath == NULL) {
+    (*ppPath)->tRefCnt++;
+  } else {
+    if (*ppPath != pRefPath)
+      path_destroy(ppPath);
+    pRefPath->tRefCnt++;
+    *ppPath= pRefPath;
+  }
+
+  pRefPath->tRefCnt++;
+  }*/
+
+// ----- path_unref -------------------------------------------------
+/**
+ *
+ */
+ /*void path_unref(SBGPPath ** ppPath)
+{
+  if ((*ppPath)->tRefCnt > 0)
+    (*ppPath)->tRefCnt--;
+
+  if ((*ppPath)->tRefCnt == 0) {
+    path_hash_remove(*ppPath);
+    path_destroy(ppPath);
+  }
+  }*/
 
 // ----- path_copy --------------------------------------------------
 /**
@@ -181,7 +218,8 @@ int path_append(SBGPPath ** ppPath, uint16_t uAS)
     pSegment= (SPathSegment *) (*ppPath)->data[iLength-1];
     switch (pSegment->uType) {
     case AS_PATH_SEGMENT_SEQUENCE:
-      if (path_segment_add((SPathSegment **) &(*ppPath)->data[iLength-1], uAS))
+      if (path_segment_add((SPathSegment **) &(*ppPath)->data[iLength-1],
+uAS))
 	return -1;
       break;
     case AS_PATH_SEGMENT_SET:
@@ -444,13 +482,13 @@ char * path_dump_string(SBGPPath * pPath, uint8_t uReverse)
 /**
  * Dump the given AS-Path to the given ouput stream.
  */
-void path_dump(FILE * pStream, SBGPPath * pPath, uint8_t uReverse)
+void path_dump(SLogStream * pStream, SBGPPath * pPath, uint8_t uReverse)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
   int iIndex;
 
   if (pPath == NULL) {
-    fprintf(pStream, "null");
+    log_printf(pStream, "null");
   } else {
     if (uReverse) {
       for (iIndex= path_num_segments(pPath); iIndex > 0;
@@ -458,13 +496,13 @@ void path_dump(FILE * pStream, SBGPPath * pPath, uint8_t uReverse)
 	path_segment_dump(pStream, (SPathSegment *) pPath->data[iIndex-1],
 			  uReverse);
 	if (iIndex > 1)
-	  fprintf(pStream, " ");
+	  log_printf(pStream, " ");
       }
     } else {
       for (iIndex= 0; iIndex < path_num_segments(pPath);
 	   iIndex++) {
 	if (iIndex > 0)
-	  fprintf(pStream, " ");
+	  log_printf(pStream, " ");
 	path_segment_dump(pStream, (SPathSegment *) pPath->data[iIndex],
 			  uReverse);
       }
@@ -534,6 +572,44 @@ uint32_t path_hash_zebra(void * pItem, uint32_t uHashSize)
 #endif
 }
 
+// -----[ path_hash_OAT ]--------------------------------------------
+/**
+ * Note: uHashSize must be a power of 2.
+ */
+uint32_t path_hash_OAT(void * pItem, uint32_t uHashSize)
+{
+#ifndef __BGP_PATH_TYPE_TREE__
+  uint32_t uHash= 0;
+  SBGPPath * pPath= (SBGPPath *) pItem;
+  uint32_t uIndex, uIndex2;
+  SPathSegment * pSegment;
+
+  for (uIndex= 0; uIndex < path_num_segments(pPath); uIndex++) {
+    pSegment= (SPathSegment *) pPath->data[uIndex];
+    // Note: segment type IDs are equal to those of Zebra
+    //(1 AS_SET, 2 AS_SEQUENCE)
+
+    uHash+= pSegment->uType;
+    uHash+= (uHash << 10);
+    uHash^= (uHash >> 6);
+ 
+    for (uIndex2= 0; uIndex2 < pSegment->uLength; uIndex2++) {
+      uHash+= pSegment->auValue[uIndex2] & 255;
+      uHash+= (uHash << 10);
+      uHash^= (uHash >> 6);
+      uHash+= pSegment->auValue[uIndex2] >> 8;
+      uHash+= (uHash << 10);
+      uHash^= (uHash >> 6);
+    }
+  }
+  uHash+= (uHash << 3);
+  uHash^= (uHash >> 11);
+  uHash+= (uHash << 15);
+  return uHash % uHashSize;
+#else
+  abort();
+#endif
+}
 
 // ----- path_equals ------------------------------------------------
 /**
@@ -612,20 +688,20 @@ void _path_test()
   path_segment_add(&pSegment, 5);
   path_segment_add(&pSegment, 6);
   path_add_segment(pPath, pSegment);
-  path_dump(stdout, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
+  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
   path_append(&pPath, 1);
-  path_dump(stdout, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
+  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
   path_append(&pPath, 2);
-  path_dump(stdout, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
+  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
   path_append(&pPath, 3);
-  path_dump(stdout, pPath, 1); fprintf(stdout, ": length=%d\n",
+  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n",
 				       path_length(pPath));
 
   path_append(&pPath2, 1);
   path_append(&pPath2, 3);
   path_append(&pPath2, 7);
   path_append(&pPath2, 6);
-  path_dump(stdout, pPath2, 1); fprintf(stdout, "\n");
+  path_dump(pLogOut, pPath2, 1); fprintf(stdout, "\n");
 
   apPaths[0]= pPath;
   apPaths[1]= pPath2;
