@@ -4,17 +4,13 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 04/04/2006
+// @lastdate 10/04/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
 // - do not keep in pLocalNetworks a _copy_ of the BGP routes locally
 //   originated. Store a reference instead => reduce memory footprint.
-// - move local-pref based rule of decision process in xxx_tie_break()
-//   function.
 // - re-check IGP/BGP interaction
-// - check if tie-break ID (uTBID) is still in use or not. Remove it
-//   if possible.
 // - check initialization and comparison of Router-ID (it was
 //   previously not exchanged in the OPEN message).
 // ==================================================================
@@ -126,10 +122,8 @@ static void _bgp_router_peers_destroy(void * pItem)
  * Arguments:
  * - the AS-number of the domain the router will belong to
  * - the underlying node
- * - a tie-break ID (this not used anymore)
  */
-SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
-    uint32_t uTBID)
+SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode)
 {
   SBGPRouter * pRouter= (SBGPRouter*) MALLOC(sizeof(SBGPRouter));
 
@@ -140,7 +134,6 @@ SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode,
   // identifier.
   pRouter->tRouterID= pNode->tAddr;
   // The Tie-Break ID should be removed...
-  pRouter->uTBID= uTBID;
   pRouter->pPeers= ptr_array_create(ARRAY_OPTION_SORTED |
       ARRAY_OPTION_UNIQUE,
       _bgp_router_peers_compare,
@@ -365,10 +358,10 @@ int bgp_router_ecomm_process(SPeer * pPeer, SRoute * pRoute)
   int iIndex;
   uint8_t uActionParam;
 
-  if (pRoute->pECommunities != NULL) {
+  if (pRoute->pAttr->pECommunities != NULL) {
 
-    for (iIndex= 0; iIndex < ecomm_length(pRoute->pECommunities); iIndex++) {
-      SECommunity * pComm= ecomm_get_index(pRoute->pECommunities, iIndex);
+    for (iIndex= 0; iIndex < ecomm_length(pRoute->pAttr->pECommunities); iIndex++) {
+      SECommunity * pComm= ecomm_get_index(pRoute->pAttr->pECommunities, iIndex);
       switch (pComm->uTypeHigh) {
 	case ECOMM_RED:
 	  if (ecomm_red_match(pComm, pPeer)) {
@@ -421,7 +414,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
   SRoute * pNewRoute= NULL;
   net_addr_t tOriginPeerAddr;
   int iExternalSession= (pRouter->uNumber != pPeer->uRemoteAS);
-  int iLocalRoute= (pRoute->tNextHop == pRouter->pNode->tAddr);
+  int iLocalRoute= (pRoute->pAttr->tNextHop == pRouter->pNode->tAddr);
   int iExternalRoute= ((!iLocalRoute) &&
       (pRouter->uNumber != route_peer_get(pRoute)->uRemoteAS));
   /* [route/session attributes]
@@ -430,42 +423,45 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
    * iLocalRoute      == the route is locally originated
    */
 
-  LOG_DEBUG("advertise_to_peer (");
-  LOG_ENABLED_DEBUG() ip_prefix_dump(log_get_stream(pMainLog), pRoute->sPrefix);
-  LOG_DEBUG(") from ");
-  LOG_ENABLED_DEBUG() bgp_router_dump_id(log_get_stream(pMainLog), pRouter);
-  LOG_DEBUG(" to ");
-  LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
-  LOG_DEBUG(" (flags:%d,%d,%d)\n", iExternalSession, iLocalRoute, iExternalRoute);
-
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "advertise_to_peer (");
+    ip_prefix_dump(pLogDebug, pRoute->sPrefix);
+    log_printf(pLogDebug, ") from ");
+    bgp_router_dump_id(pLogDebug, pRouter);
+    log_printf(pLogDebug, " to ");
+    bgp_peer_dump_id(pLogDebug, pPeer);
+    log_printf(pLogDebug, " (flags:%d,%d,%d)\n", iExternalSession,
+               iLocalRoute, iExternalRoute);
+  }
+  
 #ifdef __ROUTER_LIST_ENABLE__
   // Append the router-list with the IP address of this router
   route_router_list_append(pRoute, pRouter->pNode->tAddr);
 #endif
 
   // Do not redistribute to the next-hop peer
-  if (pPeer->tAddr == pRoute->tNextHop) {
-    LOG_DEBUG("out-filtered(next-hop-peer)\n");
+  if (pPeer->tAddr == pRoute->pAttr->tNextHop) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(next-hop-peer)\n");
     return -1;
   }
 
   // Do not redistribute to other peers
   if (route_comm_contains(pRoute, COMM_NO_ADVERTISE)) {
-    LOG_DEBUG("out-filtered(comm_no_advertise)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(comm_no_advertise)\n");
     return -1;
   }
 
   // Do not redistribute outside confederation (here AS)
   if ((iExternalSession) &&
       (route_comm_contains(pRoute, COMM_NO_EXPORT))) {
-    LOG_DEBUG("out-filtered(comm_no_export)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(comm_no_export)\n");
     return -1;
   }
 
   // Avoid loop creation (SSLD, Sender-Side Loop Detection)
   if ((iExternalSession) &&
       (route_path_contains(pRoute, pPeer->uRemoteAS))) {
-    LOG_DEBUG("out-filtered(ssld)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(ssld)\n");
     return -1;
   }
 
@@ -473,7 +469,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
   // redistribute it to an internal peer
   if ((!pRouter->iRouteReflector) && (!iLocalRoute) &&
       (!iExternalRoute) && (!iExternalSession)) {
-    LOG_DEBUG("out-filtered(iBGP-peer --> iBGP-peer)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(iBGP-peer --> iBGP-peer)\n");
     return -1;
   }
 
@@ -504,7 +500,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
       if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
 	assert(route_originator_get(pNewRoute, &tOriginator) == 0);
 	if (pPeer->tAddr == tOriginator) {
-	  LOG_DEBUG("out-filtered (RR: client --> originator-client)\n");
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (RR: client --> originator-client)\n");
 	  route_destroy(&pNewRoute);
 	  return -1;
 	}
@@ -516,7 +512,7 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     // meshed)
     else {
       if (!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
-	LOG_DEBUG("out-filtered (RR: non-client --> non-client)\n");
+	LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (RR: non-client --> non-client)\n");
 	route_destroy(&pNewRoute);
 	return -1;
       }
@@ -541,15 +537,15 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
       // be changed for eBGP learned routes
       if (iExternalSession) {
 	if (pPeer->tNextHop != 0)
-	  route_nexthop_set(pNewRoute, pPeer->tNextHop);
+	  route_set_nexthop(pNewRoute, pPeer->tNextHop);
 	else
-	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+	  route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
       } else if (!pRouter->iRouteReflector || iExternalRoute) {
 	if (!iLocalRoute &&  bgp_peer_flag_get(route_peer_get(pNewRoute),
-	      PEER_FLAG_NEXT_HOP_SELF)) {
-	  route_nexthop_set(pNewRoute, pRouter->pNode->tAddr);
+					       PEER_FLAG_NEXT_HOP_SELF)) {
+	  route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
 	} else if (pPeer->tNextHop != 0) {
-	  route_nexthop_set(pNewRoute, pPeer->tNextHop);
+	  route_set_nexthop(pNewRoute, pPeer->tNextHop);
 	}
       }
 
@@ -567,10 +563,10 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
       bgp_peer_announce_route(pPeer, pNewRoute);
       return 0;
     } else
-      LOG_DEBUG("out-filtered (policy)\n");
+      LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (policy)\n");
 
   } else
-    LOG_DEBUG("out-filtered (ext-community)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (ext-community)\n");
 
   route_destroy(&pNewRoute);
   return -1;
@@ -583,8 +579,9 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
 void bgp_router_withdraw_to_peer(SBGPRouter * pRouter, SBGPPeer * pPeer,
     SPrefix sPrefix)
 {
-  LOG_DEBUG("*** AS%d withdraw to AS%d ***\n", pRouter->uNumber,
-      pPeer->uRemoteAS);
+  LOG_DEBUG(LOG_LEVEL_DEBUG,
+	    "*** AS%d withdraw to AS%d ***\n", pRouter->uNumber,
+	    pPeer->uRemoteAS);
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   // WARNING : It is not used anymore, we don't udate then
@@ -771,27 +768,35 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 
   LOG_ENABLED_DEBUG() fprintf(log_get_stream(pMainLog), "different routes : %d\n", int_array_length(iaRoutes));
 #endif
+
   // Apply the decision process rules in sequence until there is 1 or
   // 0 route remaining or until all the rules were applied.
   for (iRule= 0; iRule < DP_NUM_RULES; iRule++) {
+
+// BQU: question to STA: can I remove this ? :-P
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 
 #endif
+
     if (routes_list_get_num(pRoutes) <= 1)
       break;
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     iNextHopCount=DP_RULES[iRule](pRouter, pRoutes);
-    LOG_DEBUG("rule: [ %s ] remains : %d\n", DP_RULE_NAME[iRule], iNextHopCount);
-    bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, iNextHopCount);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "rule: [ %s ] remains : %d\n",
+              DP_RULE_NAME[iRule], iNextHopCount);
+    bgp_router_walton_disseminate_select_peers(pRouter, pRoutes,
+                                               iNextHopCount);
 #else
-    LOG_DEBUG("rule: [ %s ]\n", DP_RULE_NAME[iRule]);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "rule: [ %s ]\n", DP_RULE_NAME[iRule]);
     DP_RULES[iRule](pRouter, pRoutes);
 #endif
+
   }
 
   // Check that at most a single best route will be returned.
   if (routes_list_get_num(pRoutes) > 1) {
-    LOG_FATAL("Error: decision process did not return a single best route\n");
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: decision process did not return a single best route\n");
     abort();
   }
   
@@ -841,13 +846,15 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 #endif
 
   if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
-    LOG_DEBUG("DISSEMINATE (");
-    LOG_ENABLED_DEBUG() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
-    LOG_DEBUG(") from ");
-    LOG_ENABLED_DEBUG() bgp_router_dump_id(log_get_stream(pMainLog), pRouter);
-    LOG_DEBUG(" to ");
-    LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "DISSEMINATE (");
+      ip_prefix_dump(pLogDebug, sPrefix);
+      log_printf(pLogDebug, ") from ");
+      bgp_router_dump_id(pLogDebug, pRouter);
+      log_printf(pLogDebug, " to ");
+      bgp_peer_dump_id(pLogDebug, pPeer);
+      log_printf(pLogDebug, "\n");
+    }
 
 
     if (pRoute == NULL) {
@@ -859,19 +866,21 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
       if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
 	bgp_peer_withdraw_prefix(pPeer, sPrefix);
 #endif
-	LOG_DEBUG("\texplicit-withdraw\n");
+	LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
       }
     } else {
       pNewRoute= route_copy(pRoute);
       if (bgp_router_advertise_to_peer(pRouter, pPeer, pNewRoute) == 0) {
-	LOG_DEBUG("\treplaced\n");
+	LOG_DEBUG(LOG_LEVEL_DEBUG, "\treplaced\n");
 	bgp_router_peer_rib_out_replace(pRouter, pPeer, pNewRoute);
       } else {
 	route_destroy(&pNewRoute);
-	LOG_DEBUG("\tfiltered\n");
+
+	LOG_DEBUG(LOG_LEVEL_DEBUG, "\tfiltered\n");
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &(pRoute->tNextHop))) {
-	  LOG_DEBUG("\texplicit-withdraw\n");
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
 	  //As it may be an eBGP session, the Next-Hop may have changed!
 	  //If the next-hop has changed the path identifier as well ... :)
 	  if (pPeer->uRemoteAS != pRouter->uNumber)
@@ -881,9 +890,10 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &(tNextHop));
 #else
 	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
-	  LOG_DEBUG("\texplicit-withdraw\n");
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
 	  bgp_peer_withdraw_prefix(pPeer, sPrefix);
 #endif
+
 	}
       }
     }
@@ -946,7 +956,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 {
   SNetRouteInfo * pOldRouteInfo;
   SNetRouteNextHop * pNextHop= node_rt_lookup(pRouter->pNode,
-					      pRoute->tNextHop);
+					      pRoute->pAttr->tNextHop);
   int iResult;
 
   /* Check that the next-hop is reachable. It MUST be reachable at
@@ -966,12 +976,12 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
 
   // Insert the route
   iResult= node_rt_add_route_link(pRouter->pNode, pRoute->sPrefix,
-				  pNextHop->pIface, pRoute->tNextHop,
+				  pNextHop->pIface, pRoute->pAttr->tNextHop,
 				  0, NET_ROUTE_BGP);
   if (iResult) {
-    LOG_SEVERE("Error: could not add route (");
-    rt_perror(stderr, iResult);
-    LOG_SEVERE(")\n");
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: could not add route (");
+    rt_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_FATAL, ")\n");
     abort();
   }
 }
@@ -1050,7 +1060,7 @@ int bgp_router_feasible_route(SBGPRouter * pRouter, SRoute * pRoute)
   SNetRouteNextHop * pNextHop;
 
   /* Get the route towards the next-hop */
-  pNextHop= node_rt_lookup(pRouter->pNode, pRoute->tNextHop);
+  pNextHop= node_rt_lookup(pRouter->pNode, pRoute->pAttr->tNextHop);
 
   if (pNextHop != NULL) {
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
@@ -1248,7 +1258,7 @@ void bgp_router_decision_process_no_best_route(SBGPRouter * pRouter,
 				SPrefix sPrefix, SRoute * pOldRoute)
 #endif
 {
-  LOG_DEBUG("\t*** NO BEST ROUTE ***\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** NO BEST ROUTE ***\n");
 
   // If a route towards this prefix was previously installed, then
   // withdraw it. Otherwise, do nothing...
@@ -1297,7 +1307,7 @@ void bgp_router_decision_process_unchanged_best_route(SBGPRouter * pRouter,
    * table!
    **************************************************************/
 
-  LOG_DEBUG("\t*** BEST ROUTE UNCHANGED ***\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** BEST ROUTE UNCHANGED ***\n");
 
   /* Mark route in Adj-RIB-In as best (since it has probably been
      replaced). */
@@ -1357,10 +1367,11 @@ void bgp_router_decision_process_update_best_route(SBGPRouter * pRouter,
    * table and we must propagate the BGP route to the peers.
    **************************************************************/
 
-  if (pOldRoute != NULL)
-    LOG_DEBUG("\t*** UPDATED BEST ROUTE ***\n");
-  else
-    LOG_DEBUG("\t*** NEW BEST ROUTE ***\n");
+  if (pOldRoute != NULL) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** UPDATED BEST ROUTE ***\n");
+  } else {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** NEW BEST ROUTE ***\n");
+  }
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   if (pOldRoute != NULL) {
@@ -1447,22 +1458,25 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     return qos_decision_process(pRouter, pOriginPeer, sPrefix);
 #endif
 
-  LOG_DEBUG("----------------------------------------"
-	    "---------------------------------------\n");
-  LOG_DEBUG("DECISION PROCESS for ");
-  LOG_ENABLED_DEBUG() ip_prefix_dump(log_get_stream(pMainLog), sPrefix);
-  LOG_DEBUG(" in ");
-  LOG_ENABLED_DEBUG() bgp_router_dump_id(log_get_stream(pMainLog), pRouter);
-  LOG_DEBUG("\n");
-
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   pOldRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
 #else
   pOldRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
 #endif
-  LOG_DEBUG("\told-best: ");
-  LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
-  LOG_DEBUG("\n");
+
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug,
+	       "----------------------------------------"
+	       "---------------------------------------\n");
+    log_printf(pLogDebug, "DECISION PROCESS for ");
+    ip_prefix_dump(pLogDebug, sPrefix);
+    log_printf(pLogDebug, " in ");
+    bgp_router_dump_id(pLogDebug, pRouter);
+    log_printf(pLogDebug, "\n");
+    log_printf(pLogDebug, "\told-best: ");
+    route_dump(pLogDebug, pOldRoute);
+    log_printf(pLogDebug, "\n");
+  }
 
   // Local routes can not be overriden and must be kept in Loc-RIB.
   // Decision process stops here in this case.
@@ -1492,9 +1506,11 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 0);
 
     /* Log eligible route */
-    LOG_DEBUG("\teligible: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\teligible: ");
+      route_dump(pLogDebug, pRoute);
+      log_printf(pLogDebug, "\n");
+    }
   }
 
   // If there is a single eligible & feasible route, it depends on the
@@ -1527,9 +1543,6 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 	 (routes_list_get_num(pRoutes) == 1));
 #endif
 
-
-
-
   // If one best-route has been selected
   if (ptr_array_length(pRoutes) > 0) {
     pRoute= route_copy((SRoute *) routes_list_get_at(pRoutes, 0));
@@ -1560,9 +1573,11 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     }
 #endif //__EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
 
-    LOG_DEBUG("\tnew-best: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\tnew-best: ");
+      route_dump(pLogDebug, pRoute);
+      log_printf(pLogDebug, "\n");
+    }
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
     // New/updated route: install in Loc-RIB & advertise to peers
@@ -1580,14 +1595,83 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     // New/updated route: install in Loc-RIB & advertise to peers
     if ((pOldRoute == NULL) ||
 	!route_equals(pOldRoute, pRoute)) {
+
+//      /**************************************************************
+//       * In this case, the route is new or one of its BGP attributes
+//       * has changed. Thus, we must update the route into the routing
+//       * table and we must propagate the BGP route to the peers.
+//       **************************************************************/
+//
+//      if (pOldRoute != NULL) {
+//	LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** UPDATED BEST ROUTE ***\n");
+//      } else {
+//	LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** NEW BEST ROUTE ***\n");
+//      }
+//
+//     if (pOldRoute != NULL)
+//	bgp_router_best_flag_off(pOldRoute);
+//
+//      /* Mark route in Loc-RIB and Adj-RIB-In as best. This must be
+//	 done after the call to 'bgp_router_best_flag_off'. */
+//      route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
+//      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
+//
+//#ifdef __BGP_ROUTE_INFO_DP__
+//      pRoute->tRank= (uint8_t) iRank;
+//      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
+//#endif
+//
+//      /* Insert in Loc-RIB */
+//      assert(rib_add_route(pRouter->pLocRIB, pRoute) == 0);
+//
+//      /* Insert in the node's routing table */
+//      bgp_router_rt_add_route(pRouter, pRoute);
+//
+//      bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
+
       bgp_router_decision_process_update_best_route(pRouter, sPrefix, 
 				      pRoutes, pOldRoute, pRoute, iRank);
     } else {
+//      /**************************************************************
+//       * In this case, both routes (old and new) are equal from the
+//       * BGP point of view. There is thus no need to send BGP
+//       * messages.
+//       *
+//       * However, it is possible that the IGP next-hop of the route
+//       * has changed. If so, the route must be updated in the routing
+//       * table!
+//       **************************************************************/
+//
+//      LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** BEST ROUTE UNCHANGED ***\n");
+//
+//      /* Mark route in Adj-RIB-In as best (since it has probably been
+//	 replaced). */
+//      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
+//
+//      /* Update ROUTE_FLAG_DP_IGP of old route */
+//      route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
+//		     route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
+//
+//#ifdef __BGP_ROUTE_INFO_DP__
+//      pOldRoute->tRank= (uint8_t) iRank;
+//      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
+//#endif
+//
+//      /* If the IGP next-hop has changed, we need to re-insert the
+//	 route into the routing table with the new next-hop. */
+//      bgp_router_rt_add_route(pRouter, pRoute);
+//
+//      /* Route has not changed. */
+//      route_destroy(&pRoute);
+//      pRoute= pOldRoute;
+
       bgp_router_decision_process_unchanged_best_route(pRouter, sPrefix, 
 				      pRoutes, pOldRoute, pRoute, iRank);
     }
 #endif //__EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+
   } else {
+
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
     bgp_router_decision_process_no_best_route(pRouter, sPrefix, pOldRoute, 
 							    pOldEBGPRoute);
@@ -1597,16 +1681,16 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
 
   }
 
-  
   // *** unlock all Adj-RIB-Ins ***
   routes_list_destroy(&pRoutes);
+
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   routes_list_destroy(&pEBGPRoutes);
 #endif
 
-  LOG_DEBUG("----------------------------------------"
+  LOG_DEBUG(LOG_LEVEL_DEBUG,
+	    "----------------------------------------"
 	    "---------------------------------------\n");
-
   return 0;
 }
 
@@ -1625,15 +1709,14 @@ int bgp_router_handle_message(void * pHandler, SNetMessage * pMessage)
   if ((pPeer= bgp_router_find_peer(pRouter, pMessage->tSrcAddr)) != NULL) {
     bgp_peer_handle_message(pPeer, pMsg);
   } else {
-    LOG_WARNING("WARNING: BGP message received from unknown peer !\n");
-    LOG_WARNING("WARNING:   destination=");
-    LOG_ENABLED_WARNING()
-      bgp_router_dump_id(log_get_stream(pMainLog), pRouter);
-    LOG_WARNING("\n");
-    LOG_WARNING("WARNING:   source=");
-    LOG_ENABLED_WARNING()
-      ip_address_dump(log_get_stream(pMainLog), pMessage->tSrcAddr);
-    LOG_WARNING("\n");
+    LOG_ERR_ENABLED(LOG_LEVEL_WARNING) {
+      log_printf(pLogErr, "WARNING: BGP message received from unknown peer !\n");
+      log_printf(pLogErr, "WARNING:   destination=");
+      bgp_router_dump_id(pLogErr, pRouter);
+      log_printf(pLogErr, "\nWARNING:   source=");
+      ip_address_dump(pLogErr, pMessage->tSrcAddr);
+      log_printf(pLogErr, "\n");
+    }
     bgp_msg_destroy(&pMsg);
     return -1;
   }
@@ -1659,9 +1742,9 @@ uint16_t bgp_router_num_providers(SBGPRouter * pRouter) {
 /**
  *
  */
-void bgp_router_dump_id(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_dump_id(SLogStream * pStream, SBGPRouter * pRouter)
 {
-  fprintf(pStream, "AS%d:", pRouter->uNumber);
+  log_printf(pStream, "AS%d:", pRouter->uNumber);
   ip_address_dump(pStream, pRouter->pNode->tAddr);
 }
 
@@ -1736,14 +1819,16 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
     /* Check if the peer that has announced this route is down */
     if ((pRoute->pPeer != NULL) &&
 	(pRoute->pPeer->uSessionState != SESSION_STATE_ESTABLISHED)) {
-      fprintf(stdout, "*** SESSION NOT ESTABLISHED [");
-      ip_prefix_dump(stdout, pRoute->sPrefix);
-      fprintf(stdout, "] ***\n");
+      LOG_ERR_ENABLED(LOG_LEVEL_WARNING) {
+	log_printf(pLogErr, "*** SESSION NOT ESTABLISHED [");
+	ip_prefix_dump(pLogErr, pRoute->sPrefix);
+	log_printf(pLogErr, "] ***\n");
+      }
       _array_append(pCtx->pPrefixes, &sPrefix);
       return 0;
     }
     
-    pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+    pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->pAttr->tNextHop,
 			     NET_ROUTE_ANY);    
     
     /* Check if the IP next-hop of the BGP route has changed. Indeed,
@@ -1798,7 +1883,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 	  
 	  /* Is there a route (IGP ?) towards the destination ? */
 	  pRouteInfo= rt_find_best(pRouter->pNode->pRT,
-				   pAdjRoute->tNextHop,
+				   pAdjRoute->pAttr->tNextHop,
 				   NET_ROUTE_ANY);
 	  
 	  /* Three cases are now possible:
@@ -2004,10 +2089,12 @@ static int _bgp_router_rerun_for_each(uint32_t uKey, uint8_t uKeyLen,
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;  
 
-  printf("decision-process [");
-  ip_prefix_dump(stdout, sPrefix);
-  printf("]\n");
-  fflush(stdout);
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "decision-process [");
+    ip_prefix_dump(pLogDebug, sPrefix);
+    log_printf(pLogDebug, "]\n");
+    log_flush(pLogDebug);
+  }
 
   return bgp_router_decision_process(pRouter, NULL, sPrefix);
 }
@@ -2023,10 +2110,12 @@ int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix)
   int iResult;
   SRadixTree * pPrefixes= NULL;
 
-  printf("rerun [");
-  ip_address_dump(stdout, pRouter->pNode->tAddr);
-  printf("]\n");
-  fflush(stdout);
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "rerun [");
+    ip_address_dump(pLogDebug, pRouter->pNode->tAddr);
+    log_printf(pLogDebug, "]\n");
+    log_flush(pLogDebug);
+  }
 
   _bgp_router_alloc_prefixes(&pPrefixes);
 
@@ -2039,8 +2128,10 @@ int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix)
 		   sPrefix.uMaskLen, (void *) 1);
   }
 
-  printf("prefix-list ok\n");
-  fflush(stdout);
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "prefix-list ok\n");
+    log_flush(pLogDebug);
+  }
 
   /* For each route in the list, run the BGP decision process */
   iResult= radix_tree_for_each(pPrefixes, _bgp_router_rerun_for_each, pRouter);
@@ -2061,7 +2152,7 @@ int bgp_router_peer_readv_prefix(SBGPRouter * pRouter, SPeer * pPeer,
   SRoute * pRoute;
 
   if (sPrefix.uMaskLen == 0) {
-    LOG_WARNING("Error: not yet implemented\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not yet implemented\n");
     return -1;
   } else {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -2086,33 +2177,31 @@ int bgp_router_peer_readv_prefix(SBGPRouter * pRouter, SPeer * pPeer,
 /**
  *
  */
-void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_dump_networks(SLogStream * pStream, SBGPRouter * pRouter)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pLocalNetworks);
        iIndex++) {
     route_dump(pStream, (SRoute *) pRouter->pLocalNetworks->data[iIndex]);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
-
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_dump_peers --------------------------------------
 /**
  *
  */
-void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_dump_peers(SLogStream * pStream, SBGPRouter * pRouter)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     bgp_peer_dump(pStream, (SPeer *) pRouter->pPeers->data[iIndex]);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
-
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_peers_for_each ----------------------------------
@@ -2127,33 +2216,35 @@ int bgp_router_peers_for_each(SBGPRouter * pRouter, FArrayForEach fForEach,
 
 typedef struct {
   SBGPRouter * pRouter;
-  FILE * pStream;
+  SLogStream * pStream;
   char * cDump;
 } SRouteDumpCtx;
 
-// ----- bgp_router_dump_route --------------------------------------
+// ----- _bgp_router_dump_route -------------------------------------
 /**
  *
  */
-int bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
-			  void * pItem, void * pContext)
+static int _bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
+				  void * pItem, void * pContext)
 {
   SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
 
   route_dump(pCtx->pStream, (SRoute *) pItem);
-  fprintf(pCtx->pStream, "\n");
+  log_printf(pCtx->pStream, "\n");
 
-  flushir(pCtx->pStream);
+  log_flush(pCtx->pStream);
 
   return 0;
 }
+
+
 
 // ----- bgp_router_dump_route_string --------------------------------------
 /**
  *
  */
 int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
-			  void * pItem, void * pContext)
+				 void * pItem, void * pContext)
 {
   SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
   uint32_t iPtr;
@@ -2181,21 +2272,21 @@ int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
-void bgp_router_dump_rib(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_dump_rib(SLogStream * pStream, SBGPRouter * pRouter)
 {
   SRouteDumpCtx sCtx;
   sCtx.pRouter= pRouter;
   sCtx.pStream= pStream;
-  rib_for_each(pRouter->pLocRIB, bgp_router_dump_route, &sCtx);
+  rib_for_each(pRouter->pLocRIB, _bgp_router_dump_route, &sCtx);
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_dump_rib_address --------------------------------
 /**
  *
  */
-void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
+void bgp_router_dump_rib_address(SLogStream * pStream, SBGPRouter * pRouter,
 				 net_addr_t tAddr)
 {
   SRoute * pRoute;
@@ -2211,17 +2302,17 @@ void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
 #endif
   if (pRoute != NULL) {
     route_dump(pStream, pRoute);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_dump_rib_prefix ---------------------------------
 /**
  *
  */
-void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
+void bgp_router_dump_rib_prefix(SLogStream * pStream, SBGPRouter * pRouter,
 				SPrefix sPrefix)
 {
   SRoute * pRoute;
@@ -2233,17 +2324,17 @@ void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
 #endif
   if (pRoute != NULL) {
     route_dump(pStream, pRoute);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_dump_adjrib -------------------------------------
 /**
  *
  */
-void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
+void bgp_router_dump_adjrib(SLogStream * pStream, SBGPRouter * pRouter,
 			    SPeer * pPeer, SPrefix sPrefix,
 			    int iInOut)
 {
@@ -2252,28 +2343,28 @@ void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
   if (pPeer == NULL) {
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
       bgp_peer_dump_adjrib(pStream, (SPeer *)
-			  pRouter->pPeers->data[iIndex], sPrefix, iInOut);
+			   pRouter->pPeers->data[iIndex], sPrefix, iInOut);
     }
   } else {
     bgp_peer_dump_adjrib(pStream, pPeer, sPrefix, iInOut);
   }
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_info --------------------------------------------
-void bgp_router_info(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_info(SLogStream * pStream, SBGPRouter * pRouter)
 {
-  fprintf(pStream, "router-id : ");
-  ip_address_dump(stdout, pRouter->tRouterID);
-  fprintf(pStream, "\n");
-  fprintf(pStream, "as-number : %u\n", pRouter->uNumber);
-  fprintf(pStream, "cluster-id: ");
+  log_printf(pStream, "router-id : ");
+  ip_address_dump(pStream, pRouter->tRouterID);
+  log_printf(pStream, "\n");
+  log_printf(pStream, "as-number : %u\n", pRouter->uNumber);
+  log_printf(pStream, "cluster-id: ");
   ip_address_dump(pStream, pRouter->tClusterID);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
   if (pRouter->pNode->pcName != NULL)
-    fprintf(pStream, "name      : %s\n", pRouter->pNode->pcName);
-  flushir(pStream);
+    log_printf(pStream, "name      : %s\n", pRouter->pNode->pcName);
+  log_flush(pStream);
 }
 
 // -----[ bgp_router_show_route_info ]-------------------------------
@@ -2283,30 +2374,91 @@ void bgp_router_info(FILE * pStream, SBGPRouter * pRouter)
  * - decision-process-rule: rule of the decision process that was
  *   used to select this route as best.
  */
-int bgp_router_show_route_info(FILE * pStream, SBGPRouter * pRouter,
-				SPrefix sPrefix)
+int bgp_router_show_route_info(SLogStream * pStream, SBGPRouter * pRouter,
+			       SRoute * pRoute)
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  SRoute * pRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
-#else
-  SRoute * pRoute= rib_find_exact(pRouter->pLocRIB, sPrefix);
-#endif
-  if (pRoute == NULL)
-    return -1;
+  SRoutes * pRoutes;
+
 #ifdef __BGP_ROUTE_INFO_DP__
   if (pRoute->tRank <= 0) {
-    fprintf(pStream, "decision-process-rule: %d [ Single choice ]\n",
-	    pRoute->tRank);
+    log_printf(pStream, "decision-process-rule: %d [ Single choice ]\n",
+	       pRoute->tRank);
   } else if (pRoute->tRank >= DP_NUM_RULES) {
-    fprintf(pStream, "decision-process-rule: %d [ Invalid rule ]\n",
-	    pRoute->tRank);
+    log_printf(pStream, "decision-process-rule: %d [ Invalid rule ]\n",
+	       pRoute->tRank);
   } else {
-    fprintf(pStream, "decision-process-rule: %d [ %s ]\n",
-	    pRoute->tRank, DP_RULE_NAME[pRoute->tRank-1]);
+    log_printf(pStream, "decision-process-rule: %d [ %s ]\n",
+	       pRoute->tRank, DP_RULE_NAME[pRoute->tRank-1]);
   }
 #endif
-  flushir(pStream);
+  pRoutes= bgp_router_get_feasible_routes(pRouter, pRoute->sPrefix);
+  if (pRoutes != NULL) {
+    log_printf(pStream, "decision-process-feasibles: %d\n",
+	       routes_list_get_num(pRoutes));
+    routes_list_destroy(&pRoutes);
+  }
+  log_flush(pStream);
   return 0;
+}
+
+// -----[ _bgp_router_show_route_info ]------------------------------
+/**
+ *
+ */
+static int _bgp_router_show_route_info(uint32_t uKey, uint8_t uKeyLen,
+				       void * pItem, void * pContext)
+{
+  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SRoute * pRoute= (SRoute *) pItem;
+
+  log_printf(pCtx->pStream, "prefix: ");
+  ip_prefix_dump(pCtx->pStream, pRoute->sPrefix);
+  log_printf(pCtx->pStream, "\n");
+  bgp_router_show_route_info(pCtx->pStream, pCtx->pRouter, pRoute);
+
+  log_flush(pCtx->pStream);
+
+  return 0;
+}
+
+// -----[ bgp_router_show_routes_info ]------------------------------
+/**
+ *
+ */
+int bgp_router_show_routes_info(SLogStream * pStream, SBGPRouter * pRouter,
+				SNetDest sDest)
+{
+  SRouteDumpCtx sCtx;
+  SRoute * pRoute;
+
+  switch (sDest.tType) {
+  case NET_DEST_ANY:
+    sCtx.pRouter= pRouter;
+    sCtx.pStream= pStream;
+    return rib_for_each(pRouter->pLocRIB, _bgp_router_show_route_info, &sCtx);
+    break;
+  case NET_DEST_ADDRESS:
+    pRoute= rib_find_best(pRouter->pLocRIB, sDest.uDest.sPrefix);
+    if (pRoute == NULL)
+      return -1;
+    bgp_router_show_route_info(pStream, pRouter, pRoute);
+    return 0;
+    break;
+  case NET_DEST_PREFIX:
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  pRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
+#else
+    pRoute= rib_find_exact(pRouter->pLocRIB, sDest.uDest.sPrefix);
+#endif
+
+    if (pRoute == NULL)
+      return -1;
+    bgp_router_show_route_info(pStream, pRouter, pRoute);
+    return 0;
+    break;
+  }
+  return -1;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -2357,7 +2509,7 @@ int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
   char acFileLine[1024];
   
   if ( (phFiRib = fopen(pcFileName, "r")) == NULL) {
-    LOG_SEVERE("Error: rib File doest not exist\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: rib File doest not exist\n");
     return -1;
   }
 
@@ -2367,12 +2519,13 @@ int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
 
     if ( (pRoute = mrtd_route_from_line(pRouter, acFileLine)) != NULL ) {
       if (pRoute == NULL) {
-	LOG_SEVERE("Error: could not build message from input\n%s\n", acFileLine);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: could not build message from input\n%s\n", acFileLine);
 	fclose(phFiRib);
 	return -1;
       }
 
-      if ( (pPeer = bgp_router_find_peer(pRouter, route_nexthop_get(pRoute))) != NULL) {
+      if ( (pPeer = bgp_router_find_peer(pRouter, route_get_nexthop(pRoute))) != NULL) {
 	if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
 /*	    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
 	    // Check route against import filter
@@ -2416,9 +2569,9 @@ int bgp_router_save_route_mrtd(uint32_t uKey, uint8_t uKeyLen,
 {
   SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
 
-  fprintf(pCtx->pStream, "TABLE_DUMP|%u|", 0);
+  log_printf(pCtx->pStream, "TABLE_DUMP|%u|", 0);
   route_dump_mrt(pCtx->pStream, (SRoute *) pItem);
-  fprintf(pCtx->pStream, "\n");
+  log_printf(pCtx->pStream, "\n");
   return 0;
 }
 
@@ -2428,17 +2581,17 @@ int bgp_router_save_route_mrtd(uint32_t uKey, uint8_t uKeyLen,
  */
 int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter)
 {
-  FILE * pFile;
+  SLogStream * pStream;
   SRouteDumpCtx sCtx;
 
-  pFile= fopen(pcFileName, "w");
-  if (pFile == NULL)
+  pStream= log_create_file(pcFileName);
+  if (pStream == NULL)
     return -1;
 
-  sCtx.pStream= pFile;
+  sCtx.pStream= pStream;
   sCtx.pRouter= pRouter;
   rib_for_each(pRouter->pLocRIB, bgp_router_save_route_mrtd, &sCtx);
-  fclose(pFile);
+  log_destroy(&pStream);
   return 0;
 }
 
@@ -2457,7 +2610,7 @@ int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter)
  *   number of routes selected based on the LOCAL-PREF, etc.
  */
 #ifdef __EXPERIMENTAL__
-void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
+void bgp_router_show_stats(SLogStream * pStream, SBGPRouter * pRouter)
 {
   int iIndex;
   SBGPPeer * pPeer;
@@ -2468,10 +2621,10 @@ void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
   int iRule;
 
   memset(&aiNumPerRule, 0, sizeof(aiNumPerRule));
-  fprintf(pStream, "num-peers: %d\n",
-	  ptr_array_length(pRouter->pPeers));
-  fprintf(pStream, "num-networks: %d\n",
-	  ptr_array_length(pRouter->pLocalNetworks));
+  log_printf(pStream, "num-peers: %d\n",
+	     ptr_array_length(pRouter->pPeers));
+  log_printf(pStream, "num-networks: %d\n",
+	     ptr_array_length(pRouter->pLocalNetworks));
 
   // Number of prefixes (best routes)
   iNumBest= 0;
@@ -2485,17 +2638,17 @@ void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
     }
   }
   enum_destroy(&pEnum);
-  fprintf(pStream, "num-best: %d\n", iNumBest);
+  log_printf(pStream, "num-best: %d\n", iNumBest);
 
   // Classification of best route selections
-  fprintf(pStream, "rule-stats:");
+  log_printf(pStream, "rule-stats:");
   for (iRule= 0; iRule <= DP_NUM_RULES; iRule++) {
-    fprintf(pStream, " %d", aiNumPerRule[iRule]);
+    log_printf(pStream, " %d", aiNumPerRule[iRule]);
   }
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 
   // Number of best/non-best routes per peer
-  fprintf(pStream, "num-prefixes/peer:\n");
+  log_printf(pStream, "num-prefixes/peer:\n");
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
     pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
     iNumPrefixes= 0;
@@ -2512,7 +2665,7 @@ void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter)
     }
     enum_destroy(&pEnum);
     bgp_peer_dump_id(pStream, pPeer);
-    fprintf(pStream, ": %d / %d\n",  iNumBest, iNumPrefixes);
+    log_printf(pStream, ": %d / %d\n",  iNumBest, iNumPrefixes);
   }
 }
 #endif
@@ -2566,13 +2719,13 @@ int bgp_router_record_route(SBGPRouter * pRouter,
       
       // If the route's next-hop is this router, then the function
       // terminates.
-      if (pRoute->tNextHop == pCurrentRouter->pNode->tAddr) {
+      if (pRoute->pAttr->tNextHop == pCurrentRouter->pNode->tAddr) {
 	iResult= AS_RECORD_ROUTE_SUCCESS;
 	break;
       }
       
       // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRoute->tNextHop);
+      pNode= network_find_node(pRoute->pAttr->tNextHop);
       if (pNode == NULL)
 	break;
       
@@ -2596,7 +2749,7 @@ int bgp_router_record_route(SBGPRouter * pRouter,
  * This function dumps the result of a call to
  * 'bgp_router_record_route'.
  */
-void bgp_router_dump_recorded_route(FILE * pStream,
+void bgp_router_dump_recorded_route(SLogStream * pStream,
 				    SBGPRouter * pRouter,
 				    SPrefix sPrefix,
 				    SBGPPath * pPath,
@@ -2604,21 +2757,21 @@ void bgp_router_dump_recorded_route(FILE * pStream,
 {
   // Display record-route results
   ip_address_dump(pStream, pRouter->pNode->tAddr);
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   ip_prefix_dump(pStream, sPrefix);
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   switch (iResult) {
-  case AS_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
-  case AS_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
-  case AS_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACHABLE"); break;
+  case AS_RECORD_ROUTE_SUCCESS: log_printf(pStream, "SUCCESS"); break;
+  case AS_RECORD_ROUTE_TOO_LONG: log_printf(pStream, "TOO_LONG"); break;
+  case AS_RECORD_ROUTE_UNREACH: log_printf(pStream, "UNREACHABLE"); break;
   default:
-    fprintf(pStream, "UNKNOWN_ERROR");
+    log_printf(pStream, "UNKNOWN_ERROR");
   }
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   path_dump(pStream, pPath, 0);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- bgp_router_bm_route ----------------------------------------
@@ -2752,20 +2905,20 @@ int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
 
       /*
 	fprintf(stdout, "NH: ");
-	ip_address_dump(stdout, pRoute->tNextHop);
+	ip_address_dump(stdout, pRoute->pAttr->tNextHop);
 	fprintf(stdout, "\t\tRT: ");
 	ip_address_dump(stdout, pCurrentRouter->pNode->tAddr);
 	fprintf(stdout, "\n");
       */
 
-      if ((pRoute->tNextHop == pCurrentRouter->pNode->tAddr) ||
+      if ((pRoute->pAttr->tNextHop == pCurrentRouter->pNode->tAddr) ||
 	  (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL))) {
 	iResult= AS_RECORD_ROUTE_SUCCESS;
 	break;
       }
       
       // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRoute->tNextHop);
+      pNode= network_find_node(pRoute->pAttr->tNextHop);
       if (pNode == NULL)
 	break;
       
