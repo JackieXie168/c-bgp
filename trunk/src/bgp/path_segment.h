@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 11/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __PATH_SEGMENT_H__
 #define __PATH_SEGMENT_H__
 
+#include <libgds/log.h>
 #include <libgds/types.h>
 
 #include <stdio.h>
@@ -53,7 +54,7 @@ char * path_segment_dump_string(SPathSegment * pSegment,
 /**
  * Dump an AS-Path segment.
  */
-extern void path_segment_dump(FILE * pStream,
+extern void path_segment_dump(SLogStream * pStream,
 			      SPathSegment * pSegment,
 			      uint8_t uReverse);
 

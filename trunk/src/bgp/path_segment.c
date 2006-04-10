@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 11/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -189,7 +189,7 @@ char * path_segment_dump_string(SPathSegment * pSegment,
 /**
  * Dump an AS-Path segment.
  */
-void path_segment_dump(FILE * pStream, SPathSegment * pSegment,
+void path_segment_dump(SLogStream * pStream, SPathSegment * pSegment,
 		       uint8_t uReverse)
 {
   int iIndex;
@@ -198,34 +198,34 @@ void path_segment_dump(FILE * pStream, SPathSegment * pSegment,
   case AS_PATH_SEGMENT_SEQUENCE:
     if (uReverse) {
       for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
-	fprintf(pStream, "%u", pSegment->auValue[iIndex-1]);
+	log_printf(pStream, "%u", pSegment->auValue[iIndex-1]);
 	if (iIndex > 1)
-	  fprintf(pStream, " ");
+	  log_printf(pStream, " ");
       }
     } else {
       for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
 	if (iIndex > 0)
-	  fprintf(pStream, " ");
-	fprintf(pStream, "%u", pSegment->auValue[iIndex]);
+	  log_printf(pStream, " ");
+	log_printf(pStream, "%u", pSegment->auValue[iIndex]);
       }
     }
     break;
   case AS_PATH_SEGMENT_SET:
-    fprintf(pStream, "{");
+    log_printf(pStream, "{");
     if (uReverse) {
       for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
-	fprintf(pStream, "%u", pSegment->auValue[iIndex-1]);
+	log_printf(pStream, "%u", pSegment->auValue[iIndex-1]);
 	if (iIndex > 1)
-	  fprintf(pStream, " ");
+	  log_printf(pStream, " ");
       }
     } else {
       for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
 	if (iIndex > 0)
-	  fprintf(pStream, " ");
-	fprintf(pStream, "%u", pSegment->auValue[iIndex]);
+	  log_printf(pStream, " ");
+	log_printf(pStream, "%u", pSegment->auValue[iIndex]);
       }
     }
-    fprintf(pStream, "}");
+    log_printf(pStream, "}");
     break;
   default:
     abort();
