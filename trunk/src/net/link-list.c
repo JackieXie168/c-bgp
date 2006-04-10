@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 05/08/2003
-// @lastdate 01/09/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -58,13 +58,13 @@ int net_links_add(SNetLinks * pLinks, SNetLink * pLink)
 }
 
 // ----- net_links_dump ---------------------------------------------
-void net_links_dump(FILE * pStream, SNetLinks * pLinks)
+void net_links_dump(SLogStream * pStream, SNetLinks * pLinks)
 {
   unsigned int uIndex;
 
   for (uIndex= 0; uIndex < ptr_array_length(pLinks); uIndex++) {
     link_dump(pStream, (SNetLink *) pLinks->data[uIndex]);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
 }
 

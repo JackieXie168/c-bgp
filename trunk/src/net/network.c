@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 14/11/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -46,25 +46,25 @@ uint8_t NET_OPTIONS_IGP_INTER= 0;
 /**
  * Dump an error message for the given error code.
  */
-void network_perror(FILE * pStream, int iErrorCode)
+void network_perror(SLogStream * pStream, int iErrorCode)
 {
   switch (iErrorCode) {
   case NET_SUCCESS:
-    fprintf(pStream, "success"); break;
+    log_printf(pStream, "success"); break;
   case NET_ERROR_UNKNOWN_PROTOCOL:
-    fprintf(pStream, "unknown protocol"); break;
+    log_printf(pStream, "unknown protocol"); break;
   case NET_ERROR_NO_ROUTE_TO_HOST:
-    fprintf(pStream, "no route to host"); break;
+    log_printf(pStream, "no route to host"); break;
   case NET_ERROR_TTL_EXPIRED:
-    fprintf(pStream, "ttl expired"); break;
+    log_printf(pStream, "ttl expired"); break;
   case NET_ERROR_LINK_DOWN:
-    fprintf(pStream, "link down"); break;
+    log_printf(pStream, "link down"); break;
   case NET_ERROR_PROTOCOL_ERROR:
-    fprintf(pStream, "protocol error"); break;
+    log_printf(pStream, "protocol error"); break;
   case NET_ERROR_DST_UNREACHABLE:
-    fprintf(pStream, "destination unreachable"); break;
+    log_printf(pStream, "destination unreachable"); break;
   default:
-    fprintf(pStream, "unknown error (%i)", iErrorCode);
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
   }
 }
 
@@ -196,7 +196,7 @@ int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber)
 /**
  * Dump all the node's links.
  */
-void node_links_dump(FILE * pStream, SNetNode * pNode)
+void node_links_dump(SLogStream * pStream, SNetNode * pNode)
 {
   net_links_dump(pStream, pNode->pLinks);
 }
@@ -232,12 +232,12 @@ SNetLink * node_links_lookup(SNetNode * pNode,
 /**
  * Dump the node's routing table.
  */
-void node_rt_dump(FILE * pStream, SNetNode * pNode, SNetDest sDest)
+void node_rt_dump(SLogStream * pStream, SNetNode * pNode, SNetDest sDest)
 {
   if (pNode->pRT != NULL)
     rt_dump(pStream, pNode->pRT, sDest);
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 
 // ----- node_rt_lookup ---------------------------------------------
@@ -301,7 +301,7 @@ int node_has_address(SNetNode * pNode, net_addr_t tAddress)
  * other addresses are the interface addresses (that are set on
  * multi-point links).
  */
-void node_addresses_dump(FILE * pStream, SNetNode * pNode)
+void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
 {
   unsigned int uIndex;
   SNetLink * pLink;
@@ -314,7 +314,7 @@ void node_addresses_dump(FILE * pStream, SNetNode * pNode)
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
     if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
 	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
-      fprintf(pStream, " ");
+      log_printf(pStream, " ");
       ip_address_dump(pStream, pLink->tIfaceAddr);
     }
   }
@@ -357,11 +357,13 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
     pProtocol= protocols_get(pNode->pProtocols, pMessage->uProtocol);
 
     if (pProtocol == NULL) {
-      LOG_SEVERE("Error: message for unknown protocol %u\n", pMessage->uProtocol);
-      LOG_SEVERE("Error: received by ");
-      LOG_ENABLED_SEVERE() ip_address_dump(log_get_stream(pMainLog),
-					   pNode->tAddr);
-      LOG_SEVERE("\n");
+      LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+	log_printf(pLogErr, "Error: message for unknown protocol %u\n",
+		   pMessage->uProtocol);
+	log_printf(pLogErr, "Error: received by ");
+	ip_address_dump(pLogErr, pNode->tAddr);
+	log_printf(pLogErr, "\n");
+      }
       iResult= NET_ERROR_UNKNOWN_PROTOCOL;
     } else
       iResult= pProtocol->fHandleEvent(pProtocol->pHandler, pMessage);
@@ -375,14 +377,14 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
 
   // Time-To-Live expired ?
   if (pMessage->uTTL == 0) {
-    LOG_INFO("Info: TTL expired\n");
-    LOG_INFO("Info: message from ");
-    LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
-				       pMessage->tSrcAddr);
-    LOG_INFO(" to ");
-    LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
-				       pMessage->tDstAddr);
-    LOG_INFO("\n");
+    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+      log_printf(pLogErr, "Info: TTL expired\n");
+      log_printf(pLogErr, "Info: message from ");
+      ip_address_dump(pLogErr, pMessage->tSrcAddr);
+      log_printf(pLogErr, " to ");
+      ip_address_dump(pLogErr, pMessage->tDstAddr);
+      log_printf(pLogErr, "\n");
+    }
     message_destroy(&pMessage);
     return NET_ERROR_TTL_EXPIRED;
   }
@@ -390,17 +392,16 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
   // Find route to destination
   pNextHop= node_rt_lookup(pNode, pMessage->tDstAddr);
   if (pNextHop == NULL) {
-    LOG_INFO("Info: no route to host at ");
-    LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
-				       pNode->tAddr);
-    LOG_INFO("\n");
-    LOG_INFO("Info: message from ");
-    LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
-				       pMessage->tSrcAddr);
-    LOG_INFO(" to ");
-    LOG_ENABLED_INFO() ip_address_dump(log_get_stream(pMainLog),
-				       pMessage->tDstAddr);
-    LOG_INFO("\n");
+    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+      log_printf(pLogErr, "Info: no route to host at ");
+      ip_address_dump(pLogErr, pNode->tAddr);
+      log_printf(pLogErr, "\n");
+      log_printf(pLogErr, "Info: message from ");
+      ip_address_dump(pLogErr, pMessage->tSrcAddr);
+      log_printf(pLogErr, " to ");
+      ip_address_dump(pLogErr, pMessage->tDstAddr);
+      log_printf(pLogErr, "\n");
+    }
     message_destroy(&pMessage);
     return NET_ERROR_NO_ROUTE_TO_HOST;
   }
@@ -587,7 +588,7 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 
   // If one link was DOWN, drop the message.
   if (iResult == NET_ERROR_LINK_DOWN) {
-    LOG_INFO("Info: link is down, message dropped\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Info: link is down, message dropped\n");
     _link_drop(pLink, pMsg);
     return iResult;
   }
@@ -616,12 +617,13 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
   return iResult;
 }
 
-// ----- network_nodes_to_file --------------------------------------
-int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
-			  void * pItem, void * pContext)
+// ----- _network_nodes_to_file -------------------------------------
+/*
+static int _network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
+				  void * pItem, void * pContext)
 {
   SNetNode * pNode= (SNetNode *) pItem;
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   SNetLink * pLink;
   int iLinkIndex;
 
@@ -629,21 +631,22 @@ int network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
        iLinkIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[iLinkIndex];
     link_dump(pStream, pLink);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
   return 0;
 }
+*/
 
 // ----- network_to_file --------------------------------------------
 /**
  *
  */
-int network_to_file(FILE * pStream, SNetwork * pNetwork)
+int network_to_file(SLogStream * pStream, SNetwork * pNetwork)
 {
   SEnumerator * pEnum= trie_get_enum(pTheNetwork->pNodes);
   SNetNode * pNode;
   /*
-  return trie_for_each(pNetwork->pNodes, network_nodes_to_file,
+  return trie_for_each(pNetwork->pNodes, _network_nodes_to_file,
 		       pStream);
   */
   while (enum_has_next(pEnum)) {
@@ -669,22 +672,22 @@ typedef struct {
   net_link_delay_t tDelay;
 } SContext;
 
-// ----- network_shortest_path_destroy ------------------------------
-void network_shortest_path_destroy(void ** pItem)
+// ----- _network_shortest_path_destroy -----------------------------
+static void _network_shortest_path_destroy(void ** pItem)
 {
   net_path_destroy((SNetPath **) pItem);
 }
 
-// ----- network_shortest_for_each ----------------------------------
-int network_shortest_for_each(uint32_t uKey, uint8_t uKeyLen,
-			      void * pItem, void * pContext)
+// ----- _network_shortest_for_each ---------------------------------
+static int _network_shortest_for_each(uint32_t uKey, uint8_t uKeyLen,
+				      void * pItem, void * pContext)
 {
   SNetPath * pPath= (SNetPath *) pItem;
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   
-  fprintf(pStream, "--> %u\t[", uKey);
+  log_printf(pStream, "--> %u\t[", uKey);
   net_path_dump(pStream, pPath);
-  fprintf(pStream, "]\n");
+  log_printf(pStream, "]\n");
   return 0;
 }
   
@@ -693,7 +696,7 @@ int network_shortest_for_each(uint32_t uKey, uint8_t uKeyLen,
  * Calculate shortest path from the given source AS towards all the
  * other ASes.
  */
-int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
+int network_shortest_path(SNetwork * pNetwork, SLogStream * pStream,
 			  net_addr_t tSrcAddr)
 {
   SNetLink * pLink;
@@ -703,7 +706,7 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
   SContext * pContext, * pOldContext;
   int iIndex;
 
-  pVisited= radix_tree_create(32, network_shortest_path_destroy);
+  pVisited= radix_tree_create(32, _network_shortest_path_destroy);
   
   pFIFO= fifo_create(100000, NULL);
   pContext= (SContext *) MALLOC(sizeof(SContext));
@@ -739,14 +742,14 @@ int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
   }
   fifo_destroy(&pFIFO);
 
-  radix_tree_for_each(pVisited, network_shortest_for_each, pStream);
+  radix_tree_for_each(pVisited, _network_shortest_for_each, pStream);
 
   radix_tree_destroy(&pVisited);
   return 0;
 }
 
 //---- network_dump_subnets ---------------------------------------------
-void network_dump_subnets(FILE * pStream, SNetwork *pNetwork)
+void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork)
 {
   //  int iIndex, /*totSub*/;
   SNetSubnet * pSubnet = NULL;
@@ -754,7 +757,7 @@ void network_dump_subnets(FILE * pStream, SNetwork *pNetwork)
   while (enum_has_next(pEnum)) {
     pSubnet= *(SNetSubnet **) enum_get_next(pEnum);
     ip_prefix_dump(pStream, pSubnet->sPrefix);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
   enum_destroy(&pEnum);
   /*
@@ -847,15 +850,15 @@ int _network_send_callback(void * pContext)
  * Callback function used to dump the content of a message event. See
  * also 'simulator_dump_events' (sim/simulator.c).
  */
-void _network_send_dump(FILE * pStream, void * pContext)
+void _network_send_dump(SLogStream * pStream, void * pContext)
 {
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
-  fprintf(pStream, "net-msg n-h:");
+  log_printf(pStream, "net-msg n-h:");
   ip_address_dump(pStream, pSendContext->pNode->tAddr);
-  fprintf(pStream, " [");
+  log_printf(pStream, " [");
   message_dump(pStream, pSendContext->pMessage);
-  fprintf(pStream, "]");
+  log_printf(pStream, "]");
   if (pSendContext->pMessage->uProtocol == NET_PROTOCOL_BGP) {
     bgp_msg_dump(pStream, NULL, pSendContext->pMessage->pPayLoad);
   }
@@ -942,7 +945,7 @@ void _network_test()
   SNetNode * pNodeB0= node_create(65536);
   SNetNode * pNodeB1= node_create(65537);
   SNetNode * pNodeC0= node_create(131072);
-  FILE * pNetFile;
+  SLogStream * pNetStream;
 
   node_register_protocol(pNodeA0, NET_PROTOCOL_ICMP, pNodeA0, NULL,
 			 node_handle_event);
@@ -955,16 +958,13 @@ void _network_test()
 
   simulator_init();
 
-  log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
-  log_set_stream(pMainLog, stderr);
-
   assert(!network_add_node(pNodeA0));
   assert(!network_add_node(pNodeA1));
   assert(!network_add_node(pNodeB0));
   assert(!network_add_node(pNodeB1));
   assert(!network_add_node(pNodeC0));
 
-  LOG_DEBUG("nodes attached.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "nodes attached.\n");
 
   assert(node_add_link_to_router(pNodeA0, pNodeA1, 100, 1) >= 0);
   assert(node_add_link_to_router(pNodeA1, pNodeB0, 1000, 1) >= 0);
@@ -972,31 +972,31 @@ void _network_test()
   assert(node_add_link_to_router(pNodeA1, pNodeC0, 400, 1) >= 0);
   assert(node_add_link_to_router(pNodeC0, pNodeB0, 400, 1) >= 0);
 
-  LOG_DEBUG("links attached.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "links attached.\n");
 
-  pNetFile= fopen("net-file", "w");
-  assert(pNetFile != NULL);
-  assert(!network_to_file(pNetFile, pNetwork));
-  fclose(pNetFile);
+  pNetStream= log_create_file("net-file");
+  assert(pNetStream != NULL);
+  assert(!network_to_file(pNetStream, pNetwork));
+  log_destroy(&pNetStream);
 
-  LOG_DEBUG("network to file.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "network to file.\n");
 
   assert(!node_send(pNodeA0, 0, 1, 0, (void *) 5, NULL));
   simulator_run();
 
-  LOG_DEBUG("message sent.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "message sent.\n");
 
-  network_shortest_path(pNetwork, stderr, pNodeA0->tAddr);
+  network_shortest_path(pNetwork, pLogErr, pNodeA0->tAddr);
 
-  LOG_DEBUG("shortest-path computed.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "shortest-path computed.\n");
 
   //network_dijkstra(pNetwork, stderr, pNodeA0->tAddr);
 
-  LOG_DEBUG("dijkstra computed.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "dijkstra computed.\n");
 
   network_destroy(&pNetwork);
 
-  LOG_DEBUG("network done.\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "network done.\n");
 
   /*
   pNetFile= fopen("net-file", "r");
@@ -1010,6 +1010,6 @@ void _network_test()
 
   simulator_done();
 
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 

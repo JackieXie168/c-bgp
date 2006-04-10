@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 27/01/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <libgds/log.h>
 #include <libgds/memory.h>
 
 #include <net/message.h>
@@ -51,12 +52,12 @@ void message_destroy(SNetMessage ** ppMessage)
 /**
  *
  */
-void message_dump(FILE * pStream, SNetMessage * pMessage)
+void message_dump(SLogStream * pStream, SNetMessage * pMessage)
 {
-  fprintf(pStream, "src:");
+  log_printf(pStream, "src:");
   ip_address_dump(pStream, pMessage->tSrcAddr);
-  fprintf(pStream, ", dst:");
+  log_printf(pStream, ", dst:");
   ip_address_dump(pStream, pMessage->tDstAddr);
-  fprintf(pStream, ", proto:%s, ttl:%d", PROTOCOL_NAMES[pMessage->uProtocol],
-	  pMessage->uTTL);
+  log_printf(pStream, ", proto:%s, ttl:%d",
+	     PROTOCOL_NAMES[pMessage->uProtocol], pMessage->uTTL);
 }

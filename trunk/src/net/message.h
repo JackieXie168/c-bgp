@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 04/01/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __NET_MESSAGE_H__
 #define __NET_MESSAGE_H__
 
+#include <libgds/log.h>
 #include <net/prefix.h>
 
 typedef void (*FPayLoadDestroy)(void ** pPayLoad);
@@ -32,6 +33,6 @@ extern SNetMessage * message_create(net_addr_t tSrcAddr,
 // ----- message_destroy --------------------------------------------
 extern void message_destroy(SNetMessage ** ppMessage);
 // ----- message_dump -----------------------------------------------
-extern void message_dump(FILE * pStream, SNetMessage * pMessage);
+extern void message_dump(SLogStream * pStream, SNetMessage * pMessage);
 
 #endif

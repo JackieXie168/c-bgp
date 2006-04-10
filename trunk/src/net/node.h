@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -19,15 +19,15 @@
 #define NET_ERROR_MGMT_INVALID_OPERATION   -120
 
 // ----- node_mgmt_perror -------------------------------------------
-extern void node_mgmt_perror(FILE * pStream, int iErrorCode);
+extern void node_mgmt_perror(SLogStream * pStream, int iErrorCode);
 // ----- node_set_name ----------------------------------------------
 extern void node_set_name(SNetNode * pNode, const char * pcName);
 // ----- node_get_name ----------------------------------------------
 extern char * node_get_name(SNetNode * pNode);
 // ----- node_dump --------------------------------------------------
-extern void node_dump(FILE * pStream, SNetNode * pNode);
+extern void node_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_info --------------------------------------------------
-extern void node_info(FILE * pStream, SNetNode * pNode);
+extern void node_info(SLogStream * pStream, SNetNode * pNode);
 
 
 /////////////////////////////////////////////////////////////////////

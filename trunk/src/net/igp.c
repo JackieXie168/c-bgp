@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 21/11/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -167,7 +167,7 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 
       // Warn if weight is 0
       if (pLink->uIGPweight == 0) {
-	LOG_WARNING("Warning: link weight is 0 !!!\n");
+	LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 !!!\n");
 	continue;
       }
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 14/11/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
+#include <libgds/log.h>
 #include <libgds/patricia-tree.h>
 #include <libgds/types.h>
 
@@ -36,7 +37,7 @@
 extern uint8_t NET_OPTIONS_MAX_HOPS;
 
 // ----- network_perror ---------------------------------------------
-extern void network_perror(FILE * pStream, int iErrorCode);
+extern void network_perror(SLogStream * pStream, int iErrorCode);
 // ----- node_create ------------------------------------------------
 extern SNetNode * node_create(net_addr_t tAddr);
 // ----- node_create ------------------------------------------------
@@ -52,9 +53,9 @@ extern int node_post_event(SNetNode * pNode);
 // ----- node_has_address -------------------------------------------
 extern int node_has_address(SNetNode * pNode, net_addr_t tAddress);
 // ----- node_addresses_dump ----------------------------------------
-extern void node_addresses_dump(FILE * pStream, SNetNode * pNode);
+extern void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_links_dump --------------------------------------------
-extern void node_links_dump(FILE * pStream, SNetNode * pNode);
+extern void node_links_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_links_destroy -----------------------------------------
 void node_links_destroy(void * pItem);
 // ----- node_links_for_each ----------------------------------------
@@ -67,7 +68,7 @@ extern SNetLink * node_links_lookup(SNetNode * pNode,
 extern SNetRouteNextHop * node_rt_lookup(SNetNode * pNode,
 					 net_addr_t tDstAddr);
 // ----- node_rt_dump -----------------------------------------------
-extern void node_rt_dump(FILE * pStream, SNetNode * pNode,
+extern void node_rt_dump(SLogStream * pStream, SNetNode * pNode,
 			 SNetDest sDest);
 // ----- node_send --------------------------------------------------
 extern int node_send(SNetNode * pNode, net_addr_t tSrcAddr,
@@ -108,14 +109,14 @@ extern SNetNode * network_find_node(net_addr_t tAddr);
 // ----- network_find_subnet ------------------------------------------
 extern SNetSubnet * network_find_subnet(SPrefix sPrefix);
 // ----- network_to_file --------------------------------------------
-extern int network_to_file(FILE * pStream, SNetwork * pNetwork);
+extern int network_to_file(SLogStream * pStream, SNetwork * pNetwork);
 // ----- network_from_file ------------------------------------------
 extern SNetwork * network_from_file(FILE * pStream);
 // ----- network_shortest_path --------------------------------------
-extern int network_shortest_path(SNetwork * pNetwork, FILE * pStream,
+extern int network_shortest_path(SNetwork * pNetwork, SLogStream * pStream,
 				 net_addr_t tSrcAddr);
 //---- network_dump_subnets -----------------------------------------
-extern void network_dump_subnets(FILE * pStream, SNetwork *pNetwork);
+extern void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork);
 // ----- network_enum_nodes -----------------------------------------
 extern char * network_enum_nodes(const char * pcText, int state);
 // ----- network_enum_bgp_nodes -------------------------------------
@@ -131,7 +132,7 @@ extern int network_forward(SNetwork * pNetwork, SNetLink * pLink,
 // ----- _network_send_callback -------------------------------------
 extern int _network_send_callback(void * pContext);
 // ----- _network_send_dump -----------------------------------------
-extern void _network_send_dump(FILE * pStream, void * pContext);
+extern void _network_send_dump(SLogStream * pStream, void * pContext);
 // ----- _network_send_context_create -------------------------------
 extern SNetSendContext * _network_send_context_create(SNetNode * pNode,
 						      SNetMessage * pMessage);

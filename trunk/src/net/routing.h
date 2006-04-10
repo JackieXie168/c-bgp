@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 04/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
+#include <libgds/log.h>
 #include <libgds/types.h>
 
 #include <net/prefix.h>
@@ -52,7 +53,7 @@ typedef struct {
 // ----- route_nexthop_compare --------------------------------------
 extern int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2);
 // ----- rt_perror --------------------------------------------------
-extern void rt_perror(FILE * pStream, int iErrorCode);
+extern void rt_perror(SLogStream * pStream, int iErrorCode);
 // ----- net_route_info_create --------------------------------------
 extern SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
 					     SNetLink * pIface,
@@ -80,14 +81,14 @@ extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
 			SNetLink * pIface, net_addr_t * ptNextHop,
 			net_route_type_t tType);
 // ----- net_route_type_dump ----------------------------------------
-extern void net_route_type_dump(FILE * pStream, net_route_type_t tType);
+extern void net_route_type_dump(SLogStream * pStream, net_route_type_t tType);
 // ----- net_route_info_dump ----------------------------------------
-extern void net_route_info_dump(FILE * pStream, SNetRouteInfo * pRouteInfo);
+extern void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo);
 // ----- rt_info_list_dump ------------------------------------------
-extern void rt_info_list_dump(FILE * pStream, SPrefix sPrefix,
+extern void rt_info_list_dump(SLogStream * pStream, SPrefix sPrefix,
 			      SNetRouteInfoList * pRouteInfoList);
 // ----- rt_dump ----------------------------------------------------
-extern void rt_dump(FILE * pStream, SNetRT * pRT, SNetDest sDest);
+extern void rt_dump(SLogStream * pStream, SNetRT * pRT, SNetDest sDest);
 
 // ----- rt_for_each ------------------------------------------------
 extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
