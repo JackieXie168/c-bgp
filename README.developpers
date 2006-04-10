@@ -1,0 +1,91 @@
+README.developpers
+==================
+(10/04/2006, bqu@info.ucl.ac.be)
+
+This short document describes how to correctly (and painlessly) setup
+the C-BGP build process ?
+
+First, you will need a decent autoconf/automake installation. We have
+successfully used the following versions:
+  autoconf v2.59
+  automake v1.6.3
+
+Libtool is another important utility. Libtool will arrange the build
+process in order to use the local compiler/linker. The build process
+of C-BGP relies on libtool. The latest stable version of GNU libtool
+is v1.5.22. We have successfully used versions 1.5.6 and 1.5.
+
+You will also need the library of Perl Compatible Regular Expressions,
+libpcre. We currently use version 4.5.
+
+The GNU readline library might also be useful though it is
+optional. If it is present, command-line completion will be
+available. It is only useful if you want to talk to C-BGP directly. A
+decent version is required (version > 4). We have used v4.3 with
+success.
+
+The next operation is to retrieve the sources from the CVS server. The
+access to the CVS server must be done over an SSH session. For this
+purpose, it is convenient to define the following environment
+variable (under bash):
+
+  export CVS_RSH=ssh
+
+You will need to checkout 2 different CVS modules: libgds and
+cbgp. The CVS repository is located at
+midway.info.ucl.ac.be:/NONAME1/cvs-repository. To checkout both
+modules you will typically issue the following commands:
+
+  mkdir workspace
+  cd workspace
+  cvs -d toto@midway.info.ucl.ac.be:/NONAME1/cvs-repository checkout libgds
+  cvs -d toto@midway.info.ucl.ac.be:/NONAME1/cvs-repository checkout cbgp
+
+This will create two directories: libgds and cbgp.
+
+As libgds is required by C-BGP, you will need to first install libgds
+in a local install directory. We recommend that you do not install
+a development version of libgds in a system-wide install directory
+such as /usr/local. Prefer a directory in your user space.
+
+To build libgds, you need to bootstrap the autoconf/automake build
+process. This can be done using the ./reconf utility. Reconf will
+create the ./configure script from the configuration file
+configure.in.
+
+  cd libgds
+  ./reconf
+
+Then, launch the configure script
+
+  ./configure --prefix=$HOME/local
+  make
+  make install
+  cd ..
+
+On the side of C-BGP, you will probably need more options. First, some
+additional M4 macros are required by autoconf/automake. These macros
+are available from the autoconf-archive
+(http://autoconf-archive.cryp.to). These macros will typically be
+installed under /usr/local/share/aclocal. If this path is not a
+standard path for your autoconf setup, you will need to provide it to
+the ./reconf script:
+
+  cd cbgp
+  ./reconf -I=/usr/local/share/aclocal
+
+Then, run the ./configure script:
+
+  ./configure --prefix=$HOME/local --with-libgds-dir=$HOME/local
+
+Additional arguments may be given to ./configure if needed:
+
+  --with-pcre=DIR         if libpcre is not found
+  --with-readline=DIR     if libreadline is not found
+  --enable-experimental   enable experimental/not-so-tested features
+                          of C-BGP
+  --enable-jni[=DIR]      enable the Java native interface of C-BGP
+
+
+Good luck!
+Bruno
