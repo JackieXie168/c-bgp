@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -77,15 +77,15 @@ extern void bgp_msg_destroy(SBGPMsg ** ppMsg);
 extern int bgp_msg_send(SNetNode * pNode,
 			net_addr_t tAddr, SBGPMsg * pMsg);
 // ----- bgp_msg_dump -----------------------------------------------
-extern void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg);
+extern void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg);
 
 // ----- bgp_msg_monitor_open ---------------------------------------
-extern void bgp_msg_monitor_open(char * pcFileName);
+extern int bgp_msg_monitor_open(char * pcFileName);
 // ----- bgp_msg_monitor_write --------------------------------------
 extern void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
 				  net_addr_t tAddr);
 
-// -----[ -message_destroy ]-----------------------------------------
+// -----[ _message_destroy ]-----------------------------------------
 extern void _message_destroy();
 
 #endif

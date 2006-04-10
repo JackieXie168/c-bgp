@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 15/11/2005
+// @lastdate 10/04/2006
 // ==================================================================
 // to-do: these routines could be optimized
 
@@ -94,16 +94,16 @@ static int bgp_dp_rule_local_route_cmp(SBGPRouter * pRouter,
 void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   if (pRouter->uNumber == 1) {
-    fprintf(stdout, "before:\n");
-    routes_list_dump(stdout, pRoutes);
+    log_printf(pLogOut, "before:\n");
+    routes_list_dump(pLogOut, pRoutes);
   }
 
   bgp_dp_rule_generic(pRouter, pRoutes,
 		      bgp_dp_rule_local_route_cmp);
 
   if (pRouter->uNumber == 1) {
-    fprintf(stdout, "after:\n");
-    routes_list_dump(stdout, pRoutes);
+    log_printf(pLogOut, "after:\n");
+    routes_list_dump(pLogOut, pRoutes);
   }
 }
 
@@ -229,7 +229,8 @@ int dp_rule_lowest_origin(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   int iIndex;
   SRoute * pRoute;
-  origin_type_t uLowestOrigin= ROUTE_ORIGIN_INCOMPLETE;
+  bgp_origin_t tLowestOrigin= ROUTE_ORIGIN_INCOMPLETE;
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
   int iNextHopCount;
@@ -238,14 +239,14 @@ int dp_rule_lowest_origin(SBGPRouter * pRouter, SRoutes * pRoutes)
   // Calculate lowest Origin
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    if (route_origin_get(pRoute) < uLowestOrigin)
-      uLowestOrigin= route_origin_get(pRoute);
+    if (route_get_origin(pRoute) < tLowestOrigin)
+      tLowestOrigin= route_get_origin(pRoute);
   }
   // Exclude routes with a greater Origin
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
-    if (route_origin_get((SRoute *) pRoutes->data[iIndex])
-	> uLowestOrigin)
+    if (route_get_origin((SRoute *) pRoutes->data[iIndex])
+	> tLowestOrigin)
       ptr_array_remove_at(pRoutes, iIndex);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -351,12 +352,12 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
 	    
 	    if (iLastAS == route_path_last_as(pRoute2)) {
 	      
-	      //printf("compare...[%u <-> %u]\n", pRoute->uMED, pRoute2->uMED);
+	      //printf("compare...[%u <-> %u]\n", pRoute->pAttr->uMED, pRoute2->pAttr->uMED);
 	      
-	      if (pRoute->uMED < pRoute2->uMED) {
+	      if (pRoute->pAttr->uMED < pRoute2->pAttr->uMED) {
 		//printf("route < route2\n");
 		pRoutes->data[iIndex2]= NULL;
-	      } else if (pRoute->uMED > pRoute2->uMED) {
+	      } else if (pRoute->pAttr->uMED > pRoute2->pAttr->uMED) {
 		//printf("route2 < route\n");
 		pRoutes->data[iIndex]= NULL;
 		break;
@@ -456,14 +457,13 @@ static uint32_t _dp_rule_igp_cost(SBGPRouter * pRouter, net_addr_t tNextHop)
   if (pRouteInfo != NULL)
     return pRouteInfo->uWeight;
 
-  LOG_FATAL("Error: unable to compute IGP cost to next-hop (");
-  LOG_ENABLED_FATAL()
-    ip_address_dump(log_get_stream(pMainLog), tNextHop);
-  LOG_FATAL(")\n");
-  LOG_FATAL("Error: ");
-  LOG_ENABLED_FATAL()
-    ip_address_dump(log_get_stream(pMainLog), pRouter->pNode->tAddr);
-  LOG_FATAL("\n");
+  LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
+    log_printf(pLogErr, "Error: unable to compute IGP cost to next-hop (");
+    ip_address_dump(pLogErr, tNextHop);
+    log_printf(pLogErr, ")\nError: ");
+    ip_address_dump(pLogErr, pRouter->pNode->tAddr);
+    log_printf(pLogErr, "\n");
+  }
   abort();
   return -1;
 }
@@ -488,7 +488,7 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
 
-    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->tNextHop);
+    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->pAttr->tNextHop);
     if (uIGPcost < uLowestCost)
       uLowestCost= uIGPcost;
 
@@ -503,7 +503,7 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->tNextHop);
+    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->pAttr->tNextHop);
     if (uIGPcost > uLowestCost) {
       ptr_array_remove_at(pRoutes, iIndex);
     } else
@@ -688,7 +688,7 @@ int dp_rule_final(SBGPRouter * pRouter, SRoutes * pRoutes)
     else if (iResult == -1) // Prefer ROUTE2
       ptr_array_remove_at(pRoutes, 0);
     else {
-      LOG_FATAL("Error: final tie-break can not decide\n");
+      LOG_ERR(LOG_LEVEL_FATAL, "Error: final tie-break can not decide\n");
       abort(); // Can not decide !!!
     }
   }

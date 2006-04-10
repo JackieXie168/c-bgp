@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/11/2005
-// @lastdate 15/11/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -62,16 +62,16 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   int iUseNextHopSelf= 0;
   SBGPPeer * pPeer;
 
-  LOG_DEBUG("AUTO-CONFIG ");
-  LOG_ENABLED_DEBUG()
-    bgp_router_dump_id(log_get_stream(pMainLog), pRouter);
-  LOG_DEBUG(" NEIGHBOR AS%d:", uRemoteAS);
-  LOG_ENABLED_DEBUG()
-    ip_address_dump(log_get_stream(pMainLog), tRemoteAddr);
-  LOG_DEBUG("\n");
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "AUTO-CONFIG ");
+    bgp_router_dump_id(pLogDebug, pRouter);
+    log_printf(pLogDebug, " NEIGHBOR AS%d:", uRemoteAS);
+    ip_address_dump(pLogDebug, tRemoteAddr);
+    log_printf(pLogDebug, "\n");
+  }
 
   // (1). If node does not exist, create it.
-  LOG_DEBUG("PHASE (1) CHECK NODE EXISTENCE\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
   pNode= network_find_node(tRemoteAddr);
   if (pNode == NULL) {
     pNode= node_create(tRemoteAddr);
@@ -82,7 +82,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   // reason for this choice is that we create the neighbors based on a
   // RIB dump and the neighbors are supposed to be connected over
   // single-hop eBGP sessions.
-  LOG_DEBUG("PHASE (2) CHECK LINK EXISTENCE\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (2) CHECK LINK EXISTENCE\n");
   pLink= node_find_link_to_router(pRouter->pNode, tRemoteAddr);
   if (pLink == NULL) {
     
@@ -97,7 +97,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   }    
 
   // (3). Check if there is a route towards the remote node.
-  LOG_DEBUG("PHASE (3) CHECK ROUTE EXISTENCE\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (3) CHECK ROUTE EXISTENCE\n");
   if (node_rt_lookup(pRouter->pNode, tRemoteAddr) == NULL) {
     // We should also add a route towards this node. Let's
     // assume that 'next-hop-self' will be used for this session
@@ -112,7 +112,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   }
   
   // Add a new BGP session.
-  LOG_DEBUG("PHASE (4) ADD BGP SESSION\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION\n");
   pPeer= bgp_router_add_peer(pRouter, uRemoteAS,
 			     tRemoteAddr, 0);
   
@@ -123,7 +123,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   else {
     // TODO: we should create the BGP session in the reverse
     // direction...
-    LOG_SEVERE("Some code is missing here...\n");
+    LOG_ERR(LOG_LEVEL_FATAL, "ERROR: Code not implemented\n");
     abort();
   }
   
@@ -135,7 +135,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   // Open the BGP session.
   assert(bgp_peer_open_session(pPeer) == 0);
 
-  LOG_DEBUG("DONE :-)\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "DONE :-)\n");
 
   *ppPeer= pPeer;
 

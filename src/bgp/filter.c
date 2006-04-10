@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 10/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -308,10 +308,10 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
       return route_comm_contains(pRoute, tCommunity)?1:0;
       break;
     case FT_MATCH_NEXTHOP_EQUALS:
-      return (pRoute->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
+      return (pRoute->pAttr->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
       break;
     case FT_MATCH_NEXTHOP_IN:
-      return ip_address_in_prefix(pRoute->tNextHop,
+      return ip_address_in_prefix(pRoute->pAttr->tNextHop,
 				  *((SPrefix*) pMatcher->auParams))?1:0;
       break;
     case FT_MATCH_PREFIX_EQUALS:
@@ -323,7 +323,7 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
       break;
     case FT_MATCH_AS_PATH:
-      return path_match(route_path_get(pRoute),
+      return path_match(route_get_path(pRoute),
 			*((int *) pMatcher->auParams))?1:0;
       break;
     default:
@@ -371,8 +371,8 @@ int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
       route_med_set(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_INTERNAL:
-      if (pRoute->tNextHop != pRouter->pNode->tAddr) {
-	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->tNextHop,
+      if (pRoute->pAttr->tNextHop != pRouter->pNode->tAddr) {
+	pRouteInfo= rt_find_best(pRouter->pNode->pRT, pRoute->pAttr->tNextHop,
 				 NET_ROUTE_ANY);
 	assert(pRouteInfo != NULL);
 	route_med_set(pRoute, pRouteInfo->uWeight);
@@ -723,105 +723,105 @@ SFilterAction * filter_action_path_prepend(uint8_t uAmount)
 /**
  *
  */
-void filter_matcher_dump(FILE * pStream, SFilterMatcher * pMatcher)
+void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
 {
   comm_t tCommunity;
 
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
-      fprintf(pStream, "(");
+      log_printf(pStream, "(");
       filter_matcher_dump(pStream, (SFilterMatcher *) pMatcher->auParams);
-      fprintf(pStream, ")AND(");
+      log_printf(pStream, ")AND(");
       filter_matcher_dump(pStream,
 			  (SFilterMatcher *)
 			  &pMatcher->auParams[sizeof(SFilterMatcher)+
 					      pMatcher->auParams[1]]);
-      fprintf(pStream, ")");
+      log_printf(pStream, ")");
       break;
     case FT_MATCH_OP_OR:
-      fprintf(pStream, "(");
+      log_printf(pStream, "(");
       filter_matcher_dump(pStream, (SFilterMatcher *) pMatcher->auParams);
-      fprintf(pStream, ")OR(");
+      log_printf(pStream, ")OR(");
       filter_matcher_dump(pStream,
 			  (SFilterMatcher *)
 			  &pMatcher->auParams[sizeof(SFilterMatcher)+
 					      pMatcher->auParams[1]]);
-      fprintf(pStream, ")");
+      log_printf(pStream, ")");
       break;
     case FT_MATCH_OP_NOT:
-      fprintf(pStream, "NOT(");
+      log_printf(pStream, "NOT(");
       filter_matcher_dump(pStream, (SFilterMatcher *) pMatcher->auParams);
-      fprintf(pStream, ")");
+      log_printf(pStream, ")");
       break;
     case FT_MATCH_COMM_CONTAINS:
       memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
-      fprintf(pStream, "comm contains %u", tCommunity);
+      log_printf(pStream, "comm contains %u", tCommunity);
       break;
     case FT_MATCH_NEXTHOP_EQUALS:
-      fprintf(pStream, "next-hop is ");
+      log_printf(pStream, "next-hop is ");
       ip_address_dump(pStream, *((net_addr_t *) pMatcher->auParams));
       break;
     case FT_MATCH_NEXTHOP_IN:
-      fprintf(pStream, "next-hop in ");
+      log_printf(pStream, "next-hop in ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
     case FT_MATCH_PREFIX_EQUALS:
-      fprintf(pStream, "prefix is ");
+      log_printf(pStream, "prefix is ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
     case FT_MATCH_PREFIX_IN:
-      fprintf(pStream, "prefix in ");
+      log_printf(pStream, "prefix in ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
     default:
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
   } else
-    fprintf(pStream, "any");
+    log_printf(pStream, "any");
 }
 
 // ----- filter_action_dump -----------------------------------------
 /**
  *
  */
-void filter_action_dump(FILE * pStream, SFilterAction * pAction)
+void filter_action_dump(SLogStream * pStream, SFilterAction * pAction)
 {
   while (pAction != NULL) {
     switch (pAction->uCode) {
-    case FT_ACTION_ACCEPT: fprintf(pStream, "ACCEPT"); break;
-    case FT_ACTION_DENY: fprintf(pStream, "DENY"); break;
+    case FT_ACTION_ACCEPT: log_printf(pStream, "ACCEPT"); break;
+    case FT_ACTION_DENY: log_printf(pStream, "DENY"); break;
     case FT_ACTION_COMM_APPEND:
-      fprintf(pStream, "append community ");
+      log_printf(pStream, "append community ");
       comm_dump2(pStream, *((uint32_t *) pAction->auParams), COMM_DUMP_TEXT);
       break;
-    case FT_ACTION_COMM_STRIP: fprintf(pStream, "comm strip"); break;
+    case FT_ACTION_COMM_STRIP: log_printf(pStream, "comm strip"); break;
     case FT_ACTION_COMM_REMOVE:
-      fprintf(pStream, "remove community %u", *((uint32_t *) pAction->auParams));
+      log_printf(pStream, "remove community %u", *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_PATH_PREPEND:
-      fprintf(pStream, "prepend as-path %u", *((uint8_t *) pAction->auParams));
+      log_printf(pStream, "prepend as-path %u", *((uint8_t *) pAction->auParams));
       break;
     case FT_ACTION_PREF_SET:
-      fprintf(pStream, "set local-pref %u", *((uint32_t *) pAction->auParams));
+      log_printf(pStream, "set local-pref %u", *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_SET:
-      fprintf(pStream, "set metric %u", *((uint32_t *) pAction->auParams));
+      log_printf(pStream, "set metric %u", *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_INTERNAL:
-      fprintf(pStream, "set metric internal");
+      log_printf(pStream, "set metric internal");
       break;
     case FT_ACTION_ECOMM_APPEND:
-      fprintf(pStream, "append ext-community ");
+      log_printf(pStream, "append ext-community ");
       ecomm_val_dump(pStream, (SECommunity *) pAction->auParams,
 		     ECOMM_DUMP_TEXT);
       break;
     default:
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     pAction= pAction->pNextAction;
     if (pAction != NULL) {
-      fprintf(pStream, ", ");
+      log_printf(pStream, ", ");
     }
   }
 }
@@ -830,29 +830,29 @@ void filter_action_dump(FILE * pStream, SFilterAction * pAction)
 /**
  *
  */
-void filter_rule_dump(FILE * pStream, SFilterRule * pRule)
+void filter_rule_dump(SLogStream * pStream, SFilterRule * pRule)
 {
   filter_matcher_dump(pStream, pRule->pMatcher);
-  fprintf(pStream, " --> ");
+  log_printf(pStream, " --> ");
   filter_action_dump(pStream, pRule->pAction);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 }
 
 // ----- filter_dump ------------------------------------------------
 /**
  *
  */
-void filter_dump(FILE * pStream, SFilter * pFilter)
+void filter_dump(SLogStream * pStream, SFilter * pFilter)
 {
   int iIndex;
 
   if (pFilter != NULL)
     for (iIndex= 0; iIndex < pFilter->pSeqRules->iSize; iIndex++) {
-      fprintf(pStream, "%u. ", iIndex);
+      log_printf(pStream, "%u. ", iIndex);
       filter_rule_dump(pStream,
 		       (SFilterRule *) pFilter->pSeqRules->ppItems[iIndex]);
     }
-  fprintf(pStream, "default. any --> ACCEPT\n");
+  log_printf(pStream, "default. any --> ACCEPT\n");
 }
 
 /////////////////////////////////////////////////////////////////////

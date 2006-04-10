@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 10/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <libgds/log.h>
 #include <libgds/memory.h>
 
 #include <bgp/ecomm.h>
@@ -165,39 +166,39 @@ void ecomm_strip_non_transitive(SECommunities ** ppComms)
 /**
  *
  */
-void ecomm_red_dump(FILE * pStream, SECommunity * pComm)
+void ecomm_red_dump(SLogStream * pStream, SECommunity * pComm)
 {
-  fprintf(pStream, "red ");
+  log_printf(pStream, "red ");
   switch ((pComm->uTypeLow >> 3) & 0x07) {
   case ECOMM_RED_ACTION_PREPEND:
-    fprintf(pStream, "prepend %u", (pComm->uTypeLow & 0x07));
+    log_printf(pStream, "prepend %u", (pComm->uTypeLow & 0x07));
     break;
   case ECOMM_RED_ACTION_NO_EXPORT:
-    fprintf(pStream, "no-export");
+    log_printf(pStream, "no-export");
     break;
   case ECOMM_RED_ACTION_IGNORE:
-    fprintf(pStream, "ignore");
+    log_printf(pStream, "ignore");
     break;
   default:
-    fprintf(pStream, "???");
+    log_printf(pStream, "???");
   }
-  fprintf(pStream, " to ");
+  log_printf(pStream, " to ");
   switch (pComm->auValue[0]) {
   case ECOMM_RED_FILTER_AS:
-    fprintf(pStream, "AS%u", *(uint16_t *) &pComm->auValue[4]);
+    log_printf(pStream, "AS%u", *(uint16_t *) &pComm->auValue[4]);
     break;
   case ECOMM_RED_FILTER_2AS:
-    fprintf(pStream, "AS%u/%u", *(uint16_t *) &pComm->auValue[2],
+    log_printf(pStream, "AS%u/%u", *(uint16_t *) &pComm->auValue[2],
 	    *(uint16_t *) &pComm->auValue[4]);
     break;
   case ECOMM_RED_FILTER_CIDR:
     ip_prefix_dump(pStream, *(SPrefix *) &pComm->auValue[1]);
     break;
   case ECOMM_RED_FILTER_AS4:
-    fprintf(pStream, "AS%u", *(uint32_t *) &pComm->auValue[2]);
+    log_printf(pStream, "AS%u", *(uint32_t *) &pComm->auValue[2]);
     break;
   default:
-    fprintf(pStream, "???");
+    log_printf(pStream, "???");
   }
 }
 
@@ -205,7 +206,7 @@ void ecomm_red_dump(FILE * pStream, SECommunity * pComm)
 /**
  * Dump an extended community.
  */
-void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
+void ecomm_val_dump(SLogStream * pStream, SECommunity * pComm,
 		    int iText)
 {
   uint32_t tValue;
@@ -219,7 +220,7 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
     case ECOMM_PREF: ecomm_pref_dump(pStream, pComm); break;
 #endif
     default:
-      fprintf(pStream, "???");
+      log_printf(pStream, "???");
     }
   } else {
     tValue= ((((((((((pComm->uIANAAuthority << 1) +
@@ -228,12 +229,12 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
 		 pComm->uTypeLow) << 8) +
 	       pComm->auValue[0]) << 8) +
 	     pComm->auValue[1]);
-    fprintf(pStream, "%u:", tValue);
+    log_printf(pStream, "%u:", tValue);
     tValue= (((((((pComm->auValue[2]) << 8) +
 		 pComm->auValue[3]) << 8) +
 	       pComm->auValue[4]) << 8) +
 	     pComm->auValue[5]);
-    fprintf(pStream, "%u", tValue);
+    log_printf(pStream, "%u", tValue);
   }
 }
 
@@ -241,14 +242,14 @@ void ecomm_val_dump(FILE * pStream, SECommunity * pComm,
 /**
  *
  */
-void ecomm_dump(FILE * pStream, SECommunities * pComms,
+void ecomm_dump(SLogStream * pStream, SECommunities * pComms,
 		int iText)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < pComms->uNum; iIndex++) {
     if (iIndex > 0)
-      fprintf(pStream, " ");
+      log_printf(pStream, " ");
     ecomm_val_dump(pStream, &pComms->asComms[iIndex], iText);
   }
 }
@@ -276,8 +277,8 @@ int ecomm_equals(SECommunities * pCommunities1,
  *
  */
 SECommunity * ecomm_red_create_as(unsigned char uActionType,
-			       unsigned char uActionParam,
-			       uint16_t uAS)
+				  unsigned char uActionParam,
+				  uint16_t uAS)
 {
   SECommunity * pComm= ecomm_val_create(0, 0);
   pComm->uTypeHigh= ECOMM_RED;
@@ -295,7 +296,7 @@ SECommunity * ecomm_red_create_as(unsigned char uActionType,
  */
 int ecomm_red_match(SECommunity * pComm, SPeer * pPeer)
 {
-  LOG_DEBUG("ecomm_red_match(AS%u <=> AS%u)\n",
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "ecomm_red_match(AS%u <=> AS%u)\n",
 	    *((uint16_t *) &pComm->auValue[4]),
 	    pPeer->uRemoteAS);
   
@@ -333,13 +334,13 @@ SECommunity * ecomm_pref_create(uint32_t uPref)
 /**
  *
  */
-void ecomm_pref_dump(FILE * pStream, SECommunity * pComm)
+void ecomm_pref_dump(SLogStream * pStream, SECommunity * pComm)
 {
   uint32_t uPref;
 
-  fprintf(pStream, "pref ");
+  log_printf(pStream, "pref ");
   memcpy(&uPref, &pComm->auValue[1], sizeof(uPref));
-  fprintf(pStream, "%u", uPref);
+  log_printf(pStream, "%u", uPref);
 }
 
 // ----- ecomm_pref_get ---------------------------------------------

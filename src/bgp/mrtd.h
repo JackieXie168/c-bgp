@@ -24,6 +24,9 @@ typedef uint8_t mrtd_input_t;
 #define MRTD_TYPE_UPDATE   'A' /* Advertisement */
 #define MRTD_TYPE_WITHDRAW 'W' /* Withdraw */
 
+// ----- mrtd_create_path -------------------------------------------
+extern SBGPPath * mrtd_create_path(char * pcPath);
+
 // ----- mrtd_route_from_line ---------------------------------------
 extern SRoute * mrtd_route_from_line(SBGPRouter * pRouter,
 				     char * pcLine);

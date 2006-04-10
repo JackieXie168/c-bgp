@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 17/05/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,6 +14,7 @@
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
 #include <libgds/hash.h>
+#include <libgds/log.h>
 
 #include <bgp/comm.h>
 #include <bgp/ecomm.h>
@@ -106,7 +107,7 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
   // Get community
   pcCommunity= tokens_get_string_at(pTokens, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
-    LOG_SEVERE("Error: invalid community \"%s\"\n", pcCommunity);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -129,7 +130,7 @@ static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -152,7 +153,7 @@ static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
   pcNextHop= tokens_get_string_at(pTokens, 0);
   if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid next-hop \"%s\"\n", pcNextHop);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n", pcNextHop);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -175,7 +176,7 @@ static int ft_cli_predicate_prefix_is(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -198,7 +199,7 @@ static int ft_cli_predicate_prefix_in(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -225,7 +226,7 @@ static int ft_cli_predicate_path (SCliContext * pContext,
 
   pcPattern= tokens_get_string_at(pTokens, 0);
   if (pcPattern == NULL) {
-    LOG_SEVERE("Error: No Regular Expression.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Regular Expression.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -240,15 +241,15 @@ static int ft_cli_predicate_path (SCliContext * pContext,
   if ( (pHashFilterRegEx = hash_search(pHashPathExpr, pFilterRegEx)) == NULL) {
     pHashFilterRegEx = pFilterRegEx;
     if ( (pHashFilterRegEx->pRegEx = regex_init(pcPattern, 20)) == NULL) {
-      LOG_SEVERE("Error: Invalid Regular Expression : \"%s\"\n", pcPattern);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Invalid Regular Expression : \"%s\"\n", pcPattern);
       return CLI_ERROR_COMMAND_FAILED;
     }
     if (hash_add(pHashPathExpr, pHashFilterRegEx) == -1) {
-      LOG_SEVERE("Error: Could'nt insert the path reg exp in the hash table\n");
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Could'nt insert the path reg exp in the hash table\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
     if ( (iPos = ptr_array_add(paPathExpr, &pHashFilterRegEx)) == -1) {
-      LOG_SEVERE("Error: Could not insert path reg exp in the array\n");
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Could not insert path reg exp in the array\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
     pHashFilterRegEx->uArrayPos = iPos;
@@ -390,13 +391,13 @@ int ft_cli_action_jump(SCliContext * pContext,
 
   if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: No Route Map name.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: No Route Map %s defined.\n", pcRouteMapName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map %s defined.\n", pcRouteMapName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -421,13 +422,14 @@ int ft_cli_action_call(SCliContext * pContext,
 
   if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: No Route Map name.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: No Route Map %s defined.\n", pcRouteMapName);
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: No Route Map %s defined.\n", pcRouteMapName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -446,7 +448,7 @@ int ft_cli_action_local_pref(SCliContext * pContext,
 
   if (tokens_get_ulong_at(pTokens, 0, &ulPref)) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: invalid local-pref\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid local-pref\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -468,7 +470,7 @@ int ft_cli_action_metric(SCliContext * pContext,
   } else {
     if (tokens_get_ulong_at(pTokens, 0, &ulMetric)) {
       *ppAction= NULL;
-      LOG_SEVERE("Error: invalid metric\n");
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid metric\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
 
@@ -489,7 +491,7 @@ int ft_cli_action_as_path_prepend(SCliContext * pContext,
 
   if (tokens_get_ulong_at(pTokens, 0, &ulAmount)) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: invalid prepending amount\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prepending amount\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -510,7 +512,7 @@ int ft_cli_action_community_add(SCliContext * pContext,
   pcCommunity= tokens_get_string_at(pTokens, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: invalid community \"%s\"\n", pcCommunity);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -531,7 +533,7 @@ int ft_cli_action_community_remove(SCliContext * pContext,
   pcCommunity= tokens_get_string_at(pTokens, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
-    LOG_SEVERE("Error: invalid community \"%s\"\n", pcCommunity);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -561,7 +563,7 @@ int ft_cli_action_red_comm_ignore(SCliContext * pContext,
   unsigned int uTarget;
 
   if (tokens_get_uint_at(pTokens, 0, &uTarget)) {
-    LOG_SEVERE("Error: invalid target\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid target\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -581,12 +583,12 @@ int ft_cli_action_red_comm_prepend(SCliContext * pContext,
   unsigned int uTarget;
   
   if (tokens_get_uint_at(pTokens, 0, &uAmount)) {
-    LOG_SEVERE("Error: invalid prepending amount\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prepending amount\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if (tokens_get_uint_at(pTokens, 1, &uTarget)) {
-    LOG_SEVERE("Error: invalid target\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid target\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -606,7 +608,7 @@ int ft_cli_action_pref_comm(SCliContext * pContext,
   unsigned int uPref;
   
   if (tokens_get_uint_at(pTokens, 0, &uPref)) {
-    LOG_SEVERE("Error: invalid preference value\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid preference value\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 

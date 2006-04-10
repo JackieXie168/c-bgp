@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/10/2005
-// @lastdate 14/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __BGP_COMM_HASH_H__
 #define __BGP_COMM_HASH_H__
 
 #include <stdlib.h>
+#include <libgds/log.h>
 
 #include <bgp/comm_t.h>
 
@@ -32,9 +33,9 @@ extern uint8_t comm_hash_get_method();
 extern int comm_hash_set_method(uint8_t uMethod);
 
 // -----[ comm_hash_content ]----------------------------------------
-extern void comm_hash_content(FILE * pStream);
+extern void comm_hash_content(SLogStream * pStream);
 // -----[ comm_hash_statistics ]-------------------------------------
-extern void comm_hash_statistics(FILE * pStream);
+extern void comm_hash_statistics(SLogStream * pStream);
 
 // -----[ _comm_hash_init ]------------------------------------------
 extern void _comm_hash_init();
