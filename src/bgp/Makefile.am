@@ -34,6 +34,8 @@ libbgp_la_SOURCES = \
 	as.c \
 	as.h \
 	as_t.h \
+	attr.c \
+	attr.h \
 	auto-config.c \
 	auto-config.h \
 	bgp_assert.h \
@@ -96,6 +98,7 @@ libbgp_la_SOURCES = \
 	stats.h \
 	tie_breaks.c \
 	tie_breaks.h \
+	types.h
 	walton.c \
 	walton.h
 
