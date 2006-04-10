@@ -3,11 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 08/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
 #define __BGP_REXFORD_H__
+
+#include <libgds/log.h>
 
 #include <net/prefix.h>
 #include <net/network.h>
@@ -45,10 +47,10 @@ extern void rexford_setup_policies();
 // ----- rexford_run ------------------------------------------------
 extern int rexford_run();
 // ----- rexford_record_route ---------------------------------------
-extern int rexford_record_route(FILE * pStream, char * pcFileName,
+extern int rexford_record_route(SLogStream * pStream, char * pcFileName,
 				SPrefix sPrefix);
 // ----- rexford_record_route_bm ------------------------------------
-extern int rexford_record_route_bm(FILE * pStream, char * pcFileName,
+extern int rexford_record_route_bm(SLogStream * pStream, char * pcFileName,
 				   SPrefix sPrefix, uint8_t uBound);
 // ----- rexford_route_dp_rule --------------------------------------
 /*

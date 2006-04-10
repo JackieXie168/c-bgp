@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 14/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -20,7 +20,7 @@
 // ----- route_create -----------------------------------------------
 extern SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
 			     net_addr_t tNextHop,
-			     origin_type_t uOriginType);
+			     bgp_origin_t tOrigin);
 // ----- route_destroy ----------------------------------------------
 extern void route_destroy(SRoute ** ppRoute);
 // ----- route_flag_set ---------------------------------------------
@@ -29,27 +29,27 @@ extern void route_flag_set(SRoute * pRoute, uint16_t uFlag,
 // ----- route_flag_get ---------------------------------------------
 extern int route_flag_get(SRoute * pRoute, uint16_t uFlag);
 
-// ----- route_nexthop_set ------------------------------------------
-extern void route_nexthop_set(SRoute * pRoute,
+// ----- route_set_nexthop ------------------------------------------
+extern void route_set_nexthop(SRoute * pRoute,
 			      net_addr_t tNextHop);
-// ----- route_nexthop_get ------------------------------------------
-extern net_addr_t route_nexthop_get(SRoute * pRoute);
+// ----- route_get_nexthop ------------------------------------------
+extern net_addr_t route_get_nexthop(SRoute * pRoute);
 
 // ----- route_peer_set ---------------------------------------------
 extern void route_peer_set(SRoute * pRoute, SPeer * pPeer);
 // ----- route_peer_get ---------------------------------------------
 extern SPeer * route_peer_get(SRoute * pRoute);
 
-// ----- route_origin_set -------------------------------------------
-extern void route_origin_set(SRoute * pRoute,
-			     origin_type_t uOriginType);
-// ----- route_origin_get -------------------------------------------
-extern origin_type_t route_origin_get(SRoute * pRoute);
+// ----- route_set_origin -------------------------------------------
+extern void route_set_origin(SRoute * pRoute,
+			     bgp_origin_t tOrigin);
+// ----- route_get_origin -------------------------------------------
+extern bgp_origin_t route_get_origin(SRoute * pRoute);
 
-// -----[ route_path_get ]-------------------------------------------
-extern SBGPPath * route_path_get(SRoute * pRoute);
-// -----[ route_path_set ]-------------------------------------------
-extern void route_path_set(SRoute * pRoute, SBGPPath * pPath);
+// -----[ route_get_path ]-------------------------------------------
+extern SBGPPath * route_get_path(SRoute * pRoute);
+// -----[ route_set_path ]-------------------------------------------
+extern void route_set_path(SRoute * pRoute, SBGPPath * pPath);
 // ----- route_path_prepend -----------------------------------------
 extern int route_path_prepend(SRoute * pRoute, uint16_t uAS,
 			      uint8_t uAmount);
@@ -60,8 +60,8 @@ extern int route_path_length(SRoute * pRoute);
 // ----- route_path_last_as -----------------------------------------
 extern int route_path_last_as(SRoute * pRoute);
 
-// ----- route_comm_set ---------------------------------------------
-extern void route_comm_set(SRoute * pRoute, SCommunities * pCommunities);
+// ----- route_set_comm ---------------------------------------------
+extern void route_set_comm(SRoute * pRoute, SCommunities * pCommunities);
 // ----- route_comm_append ------------------------------------------
 extern int route_comm_append(SRoute * pRoute, comm_t tCommunity);
 // ----- route_comm_strip -------------------------------------------
@@ -116,11 +116,11 @@ extern SRoute * route_copy(SRoute * pRoute);
 // ----- route_dump_string ------------------------------------------
 extern char * route_dump_string(SRoute * pRoute);
 // ----- route_dump -------------------------------------------------
-extern void route_dump(FILE * pStream, SRoute * pRoute);
+extern void route_dump(SLogStream * pStream, SRoute * pRoute);
 // ----- route_dump_cisco -------------------------------------------
-extern void route_dump_cisco(FILE * pStream, SRoute * pRoute);
+extern void route_dump_cisco(SLogStream * pStream, SRoute * pRoute);
 // ----- route_dump_mrt ---------------------------------------------
-extern void route_dump_mrt(FILE * pStream, SRoute * pRoute);
+extern void route_dump_mrt(SLogStream * pStream, SRoute * pRoute);
 // ----- route_equals -----------------------------------------------
 extern int route_equals(SRoute * pRoute1, SRoute * pRoute2);
 
