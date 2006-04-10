@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 18/02/2005
+// @lastdate 20/03/2005
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -21,10 +21,12 @@ public class BGPRoute extends Route
     public static final byte ROUTE_ORIGIN_INCOMPLETE= 2;
 
     // -----[ private attributes of the route ]----------------------
+    protected boolean bInternal;
     protected long lLocalPref;
     protected long lMED;
     protected byte bOrigin;
     protected ASPath path;
+    protected Communities communities;
 
     // -----[ BGPRoute ]---------------------------------------------
     /**
@@ -34,7 +36,8 @@ public class BGPRoute extends Route
      */
     public BGPRoute(IPPrefix prefix, IPAddress nexthop, long lLocalPref, long lMED,
 		    boolean bBest, boolean bFeasible, byte bOrigin,
-		    ASPath path)
+		    ASPath path, boolean bInternal,
+		    Communities communities)
     {
 	super(prefix, nexthop, bBest, bFeasible);
 
@@ -43,6 +46,8 @@ public class BGPRoute extends Route
 	this.lMED= lMED;
 	this.bOrigin= bOrigin;
 	this.path= path;
+	this.bInternal= bInternal;
+	this.communities= communities;
     }
 
     // -----[ getLocalPref ]-----------------------------------------
@@ -81,6 +86,24 @@ public class BGPRoute extends Route
 	return path;
     }
 
+    // -----[ getCommunities ]---------------------------------------
+    /**
+     * Returns the route's Communities.
+     */
+    public Communities getCommunities()
+    {
+	return communities;
+    }
+
+    // -----[ isInternal ]-------------------------------------------
+    /**
+     * Tests if the route is internal (originated on this router).
+     */
+    public boolean isInternal()
+    {
+	return bInternal;
+    }
+
     // -----[ originToString ]---------------------------------------
     /**
      * Converts the given origin to a String.
@@ -105,7 +128,10 @@ public class BGPRoute extends Route
 	String s= "";
 
 	// Flags
-	s+= (bFeasible?"*":" ");
+	if (bInternal)
+	    s+= "i";
+	else
+	    s+= (bFeasible?"*":" ");
 	s+= (bBest?">":" ");
 	s+= " ";
 
@@ -128,6 +154,10 @@ public class BGPRoute extends Route
 	case ROUTE_ORIGIN_INCOMPLETE: s+= "?"; break;
 	default:
 	    s+= "?";
+	}
+	if (communities != null) {
+	    s+= "\t";
+	    s+= communities;
 	}
 
 	return s;
