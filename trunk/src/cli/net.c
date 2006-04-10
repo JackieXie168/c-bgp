@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 10/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -82,11 +82,11 @@ int cli_net_add_node(SCliContext * pContext, STokens * pTokens)
       (*pcEndPtr != 0))
     return CLI_ERROR_COMMAND_FAILED;
   if (network_find_node(tAddr) != NULL) {
-    LOG_SEVERE("Error: could not add node (already exists)\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (already exists)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (network_add_node(node_create(tAddr))) {
-    LOG_SEVERE("Error: could not add node (unknown reason)\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (unknown reason)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -109,7 +109,7 @@ int cli_net_add_subnet(SCliContext * pContext, STokens * pTokens)
       (*pcEndPtr != 0))
     return CLI_ERROR_COMMAND_FAILED;
   if (network_find_subnet(sSubnetPrefix) != NULL) {
-    LOG_SEVERE("Error: could not add subnet (already exists)\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add subnet (already exists)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -120,13 +120,13 @@ int cli_net_add_subnet(SCliContext * pContext, STokens * pTokens)
   else if (strcmp(pcType, "stub") == 0)
     uType = NET_SUBNET_TYPE_STUB;
   else {
-    LOG_SEVERE("Error: wrong subnet type\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: wrong subnet type\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
      
   if (network_add_subnet(subnet_create(sSubnetPrefix.tNetwork,
 				       sSubnetPrefix.uMaskLen, uType)) < 0) {
-    LOG_SEVERE("Error: could not add subnet (unknown reason)\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add subnet (unknown reason)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -150,7 +150,7 @@ int cli_net_add_link(SCliContext * pContext, STokens * pTokens)
   pcNodeSrcAddr= tokens_get_string_at(pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
     if (pNodeSrc == NULL) {
-    LOG_SEVERE("Error: could not find node \"%s\"\n", pcNodeSrcAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not find node \"%s\"\n", pcNodeSrcAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -158,24 +158,24 @@ int cli_net_add_link(SCliContext * pContext, STokens * pTokens)
   pcDest= tokens_get_string_at(pTokens, 1);
   if ((ip_string_to_dest(pcDest, &sDest) < 0) ||
       (sDest.tType == NET_DEST_ANY)) {
-    LOG_SEVERE("Error: invalid destination \"%s\".\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid destination \"%s\".\n",
 	       pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Get delay
   if (tokens_get_uint_at(pTokens, 2, &uDelay)) {
-    LOG_SEVERE("Error: invalid delay %s.\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid delay %s.\n",
 	       tokens_get_string_at(pTokens, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Add link
   if ((iErrorCode= node_add_link(pNodeSrc, sDest, uDelay))) {
-    LOG_SEVERE("Error: could not add link %s -> %s (",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add link %s -> %s (",
 	       pcNodeSrcAddr, pcDest);
-    node_mgmt_perror(stderr, iErrorCode);
-    LOG_SEVERE(")\n");
+    node_mgmt_perror(pLogErr, iErrorCode);
+    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -194,14 +194,14 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   pcNodeSrcAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
   if (pNodeSrc == NULL) {
-    LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeSrcAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find node \"%s\"\n", pcNodeSrcAddr);
     return CLI_ERROR_CTX_CREATE;
   }
   
   pcVertexDstPrefix= tokens_get_string_at(pContext->pTokens, 1);
   if (ip_string_to_dest(pcVertexDstPrefix, &sDest) < 0 ||
       sDest.tType == NET_DEST_ANY) {
-    LOG_SEVERE("Error: destination id is wrong \"%s\"\n", pcVertexDstPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: destination id is wrong \"%s\"\n", pcVertexDstPrefix);
     return CLI_ERROR_CTX_CREATE;
   }
   /*if (sDest.tType == NET_DEST_ADDRESS)
@@ -211,7 +211,7 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     */	  
   pLink = node_find_link(pNodeSrc, sDest);
   if (pLink == NULL) {
-    LOG_SEVERE("Error: unable to find link %s -> %s\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find link %s -> %s\n",
 	       pcNodeSrcAddr, pcVertexDstPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -222,13 +222,13 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   if (pDest->tType == NET_DEST_ADDRESS) {
     pNodeDst= cli_net_node_by_addr(pcVertexDstPrefix);
     if (pNodeDst == NULL) {
-      LOG_SEVERE("Error: unable to find node \"%s\"\n", pcVertexDstPrefix);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find node \"%s\"\n", pcVertexDstPrefix);
       FREE(pDest);
       return CLI_ERROR_CTX_CREATE;
     }
     *ppItem= node_find_link_to_router(pNodeSrc, pNodeDst->tAddr);
     if (*ppItem == NULL) {
-      LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find link \"%s-%s\"\n",
 	       pcNodeSrcAddr, pcVertexDstPrefix);
       FREE(pDest);
       return CLI_ERROR_CTX_CREATE;
@@ -237,13 +237,13 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   else if (pDest->tType == NET_DEST_PREFIX) {
     pSubnetDst= cli_net_subnet_by_prefix(pcVertexDstPrefix);
     if (pSubnetDst == NULL) {
-      LOG_SEVERE("Error: unable to find subnet \"%s\"\n", pcVertexDstPrefix);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find subnet \"%s\"\n", pcVertexDstPrefix);
       FREE(pDest);
       return CLI_ERROR_CTX_CREATE;
     }
     *ppItem= node_find_link_to_subnet(pNodeSrc, pSubnetDst);
     if (*ppItem == NULL) {
-      LOG_SEVERE("Error: unable to find link \"%s-%s\"\n",
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find link \"%s-%s\"\n",
 	       pcNodeSrcAddr, pcVertexDstPrefix);
       FREE(pDest);
       return CLI_ERROR_CTX_CREATE;
@@ -274,7 +274,7 @@ int cli_net_ntf_load(SCliContext * pContext, STokens * pTokens)
 
   // Load given NTF file
   if (ntf_load(pcFileName) != NTF_SUCCESS) {
-    LOG_SEVERE("Error: unable to load NTF file \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to load NTF file \"%s\"\n",
 	       pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -296,7 +296,7 @@ int cli_net_node_ipip_enable(SCliContext * pContext, STokens * pTokens)
 
   // Enabled IP-in-IP
   if (node_ipip_enable(pNode)) {
-    LOG_SEVERE("Error: unexpected error.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unexpected error.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -332,7 +332,7 @@ int cli_net_node_spfprefix(SCliContext * pContext, STokens * pTokens)
   SPrefix sPrefix;
   char * pcEndChar;*/
 
-  LOG_SEVERE("Error: spf-prefix is now deprecated. Please use \"net domain <id> compute\"\n");
+  LOG_ERR(LOG_LEVEL_SEVERE, "Error: spf-prefix is now deprecated. Please use \"net domain <id> compute\"\n");
   return CLI_ERROR_COMMAND_FAILED;
 
   /*  // Get node from the CLI's context
@@ -344,7 +344,7 @@ int cli_net_node_spfprefix(SCliContext * pContext, STokens * pTokens)
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -400,7 +400,7 @@ int cli_net_link_ipprefix(SCliContext * pContext, STokens * pTokens)
   pcIfaceAddr= tokens_get_string_at(pContext->pTokens, 2);
   if (ip_string_to_prefix(pcIfaceAddr, &pcEndChar, &sIfacePrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n",
 	       pcIfaceAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -438,7 +438,7 @@ int cli_ctx_create_net_node(SCliContext * pContext, void ** ppItem)
   pcNodeAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNode= cli_net_node_by_addr(pcNodeAddr);
   if (pNode == NULL) {
-    LOG_SEVERE("Error: unable to find node \"%s\"\n", pcNodeAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find node \"%s\"\n", pcNodeAddr);
     return CLI_ERROR_CTX_CREATE;
   }
   *ppItem= pNode;
@@ -460,7 +460,7 @@ int cli_ctx_create_net_subnet(SCliContext * pContext, void ** ppItem)
   pSubnet = cli_net_subnet_by_prefix(pcSubnetPfx);
   
   if (pSubnet == NULL) {
-    LOG_SEVERE("Error: unable to find subnet \"%s\"\n", pcSubnetPfx);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find subnet \"%s\"\n", pcSubnetPfx);
     return CLI_ERROR_CTX_CREATE;
   }
   *ppItem= pSubnet;
@@ -484,13 +484,13 @@ int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
   pcPrefix = tokens_get_string_at(pContext->pTokens, 1);
   
   if (ip_string_to_dest(pcPrefix, &sDest)) {
-    LOG_SEVERE("Error: invalid destination prefix|address|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid destination prefix|address|* \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType == NET_DEST_ANY)) {
-    LOG_SEVERE("Error: can not use this destination type with link\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: can not use this destination type with link\n");
     return CLI_ERROR_COMMAND_FAILED;
   } else if (sDest.tType == NET_DEST_ADDRESS) {
      (sDest.uDest).sPrefix.uMaskLen = 32;
@@ -505,7 +505,7 @@ int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
 	  
   pLink= node_find_link(pNodeSource, sDest);
   if (pLink == NULL) {
-    LOG_SEVERE("Error: unable to find link \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find link \"%s\"\n", pcPrefix);
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -540,7 +540,7 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
   pcDstAddr= tokens_get_string_at(pContext->pTokens, 1);
   if (ip_string_to_address(pcDstAddr, &pcEndChar, &tDstAddr) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid address \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid address \"%s\"\n",
 	       pcDstAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -548,9 +548,11 @@ int cli_net_node_ping(SCliContext * pContext, STokens * pTokens)
   // Send ICMP echo request
   iErrorCode= icmp_echo_request(pNode, tDstAddr);
   if (iErrorCode != NET_SUCCESS) {
-    LOG_SEVERE("Error: ICMP echo request failed: ");
-    network_perror(stderr, iErrorCode);
-    LOG_SEVERE("\n");
+    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+      log_printf(pLogErr, "Error: ICMP echo request failed: ");
+      network_perror(pLogErr, iErrorCode);
+      log_printf(pLogErr, "\n");
+    }
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -575,18 +577,18 @@ int cli_net_node_recordroute(SCliContext * pContext, STokens * pTokens)
   // Get destination address
   pcDest= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType != NET_DEST_ADDRESS) &&
       (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: can not use this destination type with record-route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest, 0);
+  node_dump_recorded_route(pLogOut, pNode, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -611,18 +613,18 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
   // Get destination address
   pcDest= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType != NET_DEST_ADDRESS) &&
       (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: can not use this destination type with record-route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest,
+  node_dump_recorded_route(pLogOut, pNode, sDest,
 			   NET_RECORD_ROUTE_OPTION_DELAY
 			   | NET_RECORD_ROUTE_OPTION_WEIGHT);
 
@@ -649,18 +651,18 @@ int cli_net_node_recordroutedeflection(SCliContext * pContext,
   // Get destination address
   pcDest= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType != NET_DEST_ADDRESS) &&
       (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: can not use this destination type with record-route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  node_dump_recorded_route(stdout, pNode, sDest,
+  node_dump_recorded_route(pLogOut, pNode, sDest,
 			   NET_RECORD_ROUTE_OPTION_DEFLECTION);
 
   return CLI_SUCCESS;
@@ -694,7 +696,7 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -702,7 +704,7 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
   pcNextHop= tokens_get_string_at(pTokens, 2);
   if (ip_string_to_dest(pcNextHop, &sDest) ||
       (sDest.tType == NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: invalid next-hop \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n",
 	       pcNextHop);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -719,23 +721,25 @@ int cli_net_node_route_add(SCliContext * pContext, STokens * pTokens)
   pcIface= tokens_get_string_at(pTokens, 3);
   if (ip_string_to_dest(pcIface, &sIface) ||
       (sIface.tType == NET_DEST_ANY)) {
-    LOG_SEVERE("Error: invalid interface \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid interface \"%s\"\n",
 	       pcIface);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Get the weight
   if (tokens_get_ulong_at(pTokens, 4, &ulWeight)) {
-    LOG_SEVERE("Error: invalid weight\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid weight\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Add the route
   if ((iErrorCode= node_rt_add_route_dest(pNode, sPrefix, sIface, tNextHop,
 					  ulWeight, NET_ROUTE_STATIC))) {
-    LOG_SEVERE("Error: could not add static route (");
-    rt_perror(stderr, iErrorCode);
-    LOG_SEVERE(").\n");
+    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+      log_printf(pLogErr, "Error: could not add static route (");
+      rt_perror(pLogErr, iErrorCode);
+      log_printf(pLogErr, ").\n");
+    }
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -770,7 +774,7 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -778,7 +782,7 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   pcNextHop= tokens_get_string_at(pTokens, 2);
   if (ip_string_to_dest(pcNextHop, &sDest) ||
       (sDest.tType == NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: invalid next-hop \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n",
 	       pcNextHop);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -794,7 +798,7 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   // Get the outgoing link identifier (address/prefix)
   pcIface= tokens_get_string_at(pTokens, 3);
   if (ip_string_to_dest(pcIface, &sIface)) {
-    LOG_SEVERE("Error: invalid next-hop address \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop address \"%s\"\n",
 	       pcIface);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -802,7 +806,7 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   // Remove the route
   if (node_rt_del_route(pNode, &sPrefix, &sIface, &tNextHop,
 			NET_ROUTE_STATIC)) {
-    LOG_SEVERE("Error: could not remove static route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not remove static route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -823,7 +827,7 @@ int cli_net_node_show_info(SCliContext * pContext, STokens * pTokens)
   if (pNode == NULL)
     return CLI_ERROR_COMMAND_FAILED;
 
-  node_info(stdout, pNode);
+  node_info(pLogOut, pNode);
   return CLI_SUCCESS;
 }
 
@@ -842,7 +846,7 @@ int cli_net_node_show_links(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
 
   // Dump list of direct links
-  node_links_dump(stdout, pNode);
+  node_links_dump(pLogOut, pNode);
   
   return CLI_SUCCESS;
 }
@@ -866,17 +870,17 @@ int cli_net_node_show_rt(SCliContext * pContext, STokens * pTokens)
   // Get the prefix/address/*
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcPrefix, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
 #ifndef OSPF_SUPPORT
   // Dump routing table
-  node_rt_dump(stdout, pNode, sDest);
+  node_rt_dump(pLogOut, pNode, sDest);
 #else
   // Dump OSPF routing table
   // Options: OSPF_RT_OPTION_SORT_AREA : dump routing table grouping routes by area
-  ospf_node_rt_dump(stdout, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
+  ospf_node_rt_dump(pLogOut, pNode, OSPF_RT_OPTION_SORT_AREA | OSPF_RT_OPTION_SORT_PATH_TYPE);
 #endif
   return CLI_SUCCESS;
 }
@@ -900,14 +904,14 @@ int cli_net_node_tunnel_add(SCliContext * pContext, STokens * pTokens)
   pcEndPointAddr= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_address(pcEndPointAddr, &pcEndChar, &tEndPointAddr) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid end-point address \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid end-point address \"%s\"\n",
 	       pcEndPointAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Add tunnel
   if (node_add_tunnel(pNode, tEndPointAddr)) {
-    LOG_SEVERE("Error: unexpected error\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unexpected error\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -928,13 +932,13 @@ int cli_net_options_maxhops(SCliContext * pContext, STokens * pTokens)
   unsigned int uMaxHops;
 
   if (tokens_get_uint_at(pTokens, 0, &uMaxHops)) {
-    LOG_SEVERE("Error: invalid value for max-hops (%s)\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value for max-hops (%s)\n",
 	       tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if (uMaxHops > 255) {
-    LOG_SEVERE("Error: maximum number of hops is 255\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: maximum number of hops is 255\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -953,7 +957,7 @@ int cli_net_options_maxhops(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_show_nodes(SCliContext * pContext, STokens * pTokens)
 {
-  network_to_file(stdout, network_get());
+  network_to_file(pLogOut, network_get());
   return CLI_SUCCESS;
 }
 
@@ -967,7 +971,7 @@ int cli_net_show_nodes(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_show_subnets(SCliContext * pContext, STokens * pTokens)
 {
-  network_dump_subnets(stdout, network_get());
+  network_dump_subnets(pLogOut, network_get());
   return CLI_SUCCESS;
 }
 

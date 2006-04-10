@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 24/02/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <libgds/log.h>
 #include <libgds/memory.h>
 #include <stdio.h>
 #include <string.h>
@@ -167,16 +168,16 @@ void predicate_parser_test()
   while ((pcMatcher= readline("# ")) != NULL) {
 
     if (predicate_parse(&pcMatcher, &pMatcher)) {
-      fprintf(stdout, "error :(\n");
+      log_printf(pLogOut, "error :(\n");
     } else {
-      fprintf(stdout, "filter: ");
-      filter_matcher_dump(stdout, pMatcher);
-      fprintf(stdout, "\n");
+      log_printf(pLogOut, "filter: ");
+      filter_matcher_dump(pLogOut, pMatcher);
+      log_printf(pLogOut, "\n");
 
       filter_matcher_destroy(&pMatcher);
     }
 
   }
-  fprintf(stdout, "\n");
+  log_printf(pLogOut, "\n");
 #endif
 }

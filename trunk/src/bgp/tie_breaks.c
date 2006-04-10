@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 17/10/2005
+// @lastdate 21/11/2005
 // ==================================================================
 // These tie-break functions MUST satisfy the following constraints:
 // * return (1) if ROUTE1 is prefered over ROUTE2
@@ -35,9 +35,9 @@
  */
 int tie_break_next_hop(SRoute * pRoute1, SRoute * pRoute2)
 {
-  if (pRoute1->tNextHop < pRoute2->tNextHop)
+  if (pRoute1->pAttr->tNextHop < pRoute2->pAttr->tNextHop)
     return 1;
-  else if (pRoute1->tNextHop > pRoute2->tNextHop)
+  else if (pRoute1->pAttr->tNextHop > pRoute2->pAttr->tNextHop)
     return -1;
 
   return 0;
