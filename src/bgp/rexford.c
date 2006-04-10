@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include <libgds/log.h>
 #include <libgds/tokenizer.h>
 
 #include <bgp/as.h>
@@ -73,8 +74,9 @@ int rexford_load(char * pcFileName)
       uLineNumber++;
 
       if (tokenizer_run(pTokenizer, acFileLine) != TOKENIZER_SUCCESS) {
-	LOG_SEVERE("Error: unexpected parse error in topology, line %u\n",
-		   uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: unexpected parse error in topology, line %u\n",
+		uLineNumber);
 	iError= REXFORD_ERROR_UNEXPECTED;
 	break;
       }
@@ -86,16 +88,18 @@ int rexford_load(char * pcFileName)
       
       // Get and check mandatory parameters
       if (tokens_get_num(pTokens) < 3) {
-	LOG_SEVERE("Error: not enouh parameters in topology, line %u\n",
-		   uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: not enouh parameters in topology, line %u\n",
+		uLineNumber);
 	iError= REXFORD_ERROR_NUM_PARAMS;
 	break;
       }
       if ((tokens_get_uint_at(pTokens, 0, &uAS1) != 0) ||
 	  (tokens_get_uint_at(pTokens, 1, &uAS2) != 0) ||
 	  (uAS1 >= MAX_AS) || (uAS2 >= MAX_AS)) {
-	LOG_SEVERE("Error: invalid AS-NUM in topology, line %u\n",
-		  uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: invalid AS-NUM in topology, line %u\n",
+		uLineNumber);
 	iError= REXFORD_ERROR_INVALID_ASNUM;
 	break;
       }
@@ -103,8 +107,9 @@ int rexford_load(char * pcFileName)
       if ((tokens_get_uint_at(pTokens, 2, &uRelation) != 0) ||
 	  ((uRelation != REXFORD_REL_PROV_CUST) &&
 	   (uRelation != REXFORD_REL_PEER_PEER))) {
-	LOG_SEVERE("Error: invalid relation in topology, line %u\n",
-		  uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: invalid relation in topology, line %u\n",
+		uLineNumber);
 	iError= REXFORD_ERROR_INVALID_RELATION;
 	break;
       }
@@ -112,8 +117,9 @@ int rexford_load(char * pcFileName)
       // Get optional parameters
       if (tokens_get_num(pTokens) > 3) {
 	if (tokens_get_uint_at(pTokens, 3, &tDelay) != 0) {
-	  LOG_SEVERE("Error: invalid delay in topology, line %u\n",
-		    uLineNumber);
+	  LOG_ERR(LOG_LEVEL_SEVERE,
+		  "Error: invalid delay in topology, line %u\n",
+		  uLineNumber);
 	  iError= REXFORD_ERROR_INVALID_DELAY;
 	  break;
 	}
@@ -121,8 +127,9 @@ int rexford_load(char * pcFileName)
 
       // Limit number of parameters
       if (tokens_get_num(pTokens) > 4) {
-	LOG_SEVERE("Error: too many arguments in topology, line %u\n",
-		   uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: too many arguments in topology, line %u\n",
+		uLineNumber);
 	iError= 1;
 	break;
       }
@@ -135,7 +142,7 @@ int rexford_load(char * pcFileName)
       pNode1= network_find_node(tAddr1);
       if (pNode1 == NULL) {
 	pNode1= node_create(tAddr1);
-	pRouter1= bgp_router_create(uAS1, pNode1, 0);
+	pRouter1= bgp_router_create(uAS1, pNode1);
 	AS[uAS1]= pRouter1;
 	assert(!node_register_protocol(pNode1, NET_PROTOCOL_BGP, pRouter1,
 				       (FNetNodeHandlerDestroy) bgp_router_destroy,
@@ -151,7 +158,7 @@ int rexford_load(char * pcFileName)
       pNode2= network_find_node(tAddr2);
       if (pNode2 == NULL) {
 	pNode2= node_create(tAddr2);
-	pRouter2= bgp_router_create(uAS2, pNode2, 0);
+	pRouter2= bgp_router_create(uAS2, pNode2);
 	AS[uAS2]= pRouter2;
 	assert(!node_register_protocol(pNode2, NET_PROTOCOL_BGP, pRouter2,
 				       (FNetNodeHandlerDestroy) bgp_router_destroy,
@@ -165,8 +172,9 @@ int rexford_load(char * pcFileName)
 
       // Add the link and check that this link did not already exist
       if (node_add_link_to_router(pNode1, pNode2, tDelay, 1) < 0) {
-	LOG_SEVERE("Error: duplicate link (%u, %u) in topology, line %u\n",
-		   uAS1, uAS2, uLineNumber);
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: duplicate link (%u, %u) in topology, line %u\n",
+		uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
 	break;
       } else {
@@ -185,20 +193,23 @@ int rexford_load(char * pcFileName)
       if (bgp_router_add_peer(pRouter1, uAS2, tAddr2,
 			      (uRelation == REXFORD_REL_PEER_PEER)?
 			      PEER_TYPE_PEER:PEER_TYPE_CUSTOMER) == NULL) {
-	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS2, uAS1);
+	LOG_ERR(LOG_LEVEL_WARNING,
+		"warning: could not add peer AS%u to AS%u\n", uAS2, uAS1);
 	continue;
       }
       if (bgp_router_add_peer(pRouter2, uAS1, tAddr1,
 			      (uRelation == REXFORD_REL_PEER_PEER)?
 			      PEER_TYPE_PEER:PEER_TYPE_PROVIDER) == NULL) {
-	LOG_WARNING("warning: could not add peer AS%u to AS%u\n", uAS1, uAS2);
+	LOG_ERR(LOG_LEVEL_WARNING,
+		"warning: could not add peer AS%u to AS%u\n", uAS1, uAS2);
 	continue;
       }
       
     }
     fclose(pFile);
   } else {
-    LOG_SEVERE("Error: could not open topology file \"%s\"\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: could not open topology file \"%s\"\n", pcFileName);
     iError= REXFORD_ERROR_OPEN;
   }
   tokenizer_destroy(&pTokenizer);
@@ -319,7 +330,8 @@ int rexford_run()
 /**
  *
  */
-int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
+int rexford_record_route(SLogStream * pStream, char * pcFileName,
+			 SPrefix sPrefix)
 {
   FILE * pFileInput;
   char acFileLine[80];
@@ -388,7 +400,7 @@ int rexford_record_route(FILE * pStream, char * pcFileName, SPrefix sPrefix)
  *
  */
 #ifdef __EXPERIMENTAL__
-int rexford_record_route_bm(FILE * pStream, char * pcFileName,
+int rexford_record_route_bm(SLogStream * pStream, char * pcFileName,
 			    SPrefix sPrefix, uint8_t uBound)
 {
   FILE * pFileInput;

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 02/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,7 +26,7 @@ SCli * pTheCli= NULL;
  */
 int cli_sim_debug_queue(SCliContext * pContext, STokens * pTokens)
 {
-  simulator_dump_events(stderr);
+  simulator_dump_events(pLogErr);
   return CLI_SUCCESS;
 }
 
@@ -50,12 +50,11 @@ void cli_sim_event_destroy(void * pContext)
   str_destroy(&pCharContext);
 }
 
-// ----- cli_sim_event_dump -----------------------------------------
-void cli_sim_event_dump(FILE * pStream, void * pContext)
+// ----- _cli_sim_event_dump ----------------------------------------
+static void _cli_sim_event_dump(SLogStream * pStream, void * pContext)
 {
   char * pcCommand= (char *) pContext;
-
-  fprintf(pStream, "cli-event [%s]\n", pcCommand);
+  log_printf(pStream, "cli-event [%s]\n", pcCommand);
 }
 
 // ----- cli_sim_event ----------------------------------------------
@@ -70,7 +69,7 @@ int cli_sim_event(SCliContext * pContext, STokens * pTokens)
   if (tokens_get_double_at(pTokens, 0, &dTime))
     return CLI_ERROR_COMMAND_FAILED;
   simulator_post_event(cli_sim_event_callback,
-		       cli_sim_event_dump,
+		       _cli_sim_event_dump,
 		       cli_sim_event_destroy,
 		       str_create(tokens_get_string_at(pTokens, 1)),
 		       dTime,
@@ -88,7 +87,7 @@ int cli_sim_options_loglevel(SCliContext * pContext, STokens * pTokens)
   char * pcParam;
 
   pcParam= tokens_get_string_at(pTokens, 0);
-  log_set_level(pMainLog, log_str2level(pcParam));
+  log_set_level(pLogDebug, log_str2level(pcParam));
   return CLI_SUCCESS;
 }
 
@@ -127,7 +126,7 @@ int cli_sim_queue_info(SCliContext * pContext, STokens * pTokens)
  */
 int cli_sim_queue_show(SCliContext * pContext, STokens * pTokens)
 {
-  simulator_dump_events(stdout);
+  simulator_dump_events(pLogOut);
   return CLI_SUCCESS;
 }
 
@@ -151,7 +150,7 @@ int cli_sim_step(SCliContext * pContext, STokens * pTokens)
 
   // Get number of steps
   if (tokens_get_uint_at(pTokens, 0, &uNumSteps)) {
-    LOG_SEVERE("Error: invalid number of steps \"%s\".\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid number of steps \"%s\".\n",
 	       tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
