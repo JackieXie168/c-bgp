@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 04/08/2005
+// @lastdate 20/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,9 +19,9 @@
 #include <net/network.h>
 #include <net/record-route.h>
 
-#define MAX_DOMAINS 65536
+#define BGP_DOMAINS_MAX 65536
 
-SBGPDomain * apDomains[MAX_DOMAINS];
+SBGPDomain * apDomains[BGP_DOMAINS_MAX];
 
 // ----- bgp_domain_create ------------------------------------------
 /**
@@ -50,6 +50,25 @@ void bgp_domain_destroy(SBGPDomain ** ppDomain)
     FREE(*ppDomain);
     *ppDomain= NULL;
   }
+}
+
+// -----[ bgp_domains_for_each ]-------------------------------------
+/**
+ *
+ */
+int bgp_domains_for_each(FBGPDomainsForEach fForEach, void * pContext)
+{
+  uint32_t uIndex;
+  int iResult;
+
+  for (uIndex= 0; uIndex < BGP_DOMAINS_MAX; uIndex++) {
+    if (apDomains[uIndex] != NULL) {
+      iResult= fForEach(apDomains[uIndex], pContext);
+      if (iResult != 0)
+	return iResult;
+    }
+  }
+  return 0;
 }
 
 // ----- bgp_domain_add_router --------------------------------------
@@ -135,14 +154,16 @@ int bgp_domain_rescan(SBGPDomain * pDomain)
 }
 
 typedef struct {
-  FILE * pStream;
+  SLogStream * pStream;
   SNetDest sDest;
   uint8_t uOptions;
 } SRecordRoute;
 
-// ----- bgp_domain_routers_record_route_for_each --------------------
-int bgp_domain_routers_record_route_for_each(uint32_t uKey, uint8_t uKeyLen,
-					      void * pItem, void * pContext)
+// ----- _bgp_domain_routers_record_route_for_each --------------------
+static int bgp_domain_routers_record_route_for_each(uint32_t uKey,
+						    uint8_t uKeyLen,
+						    void * pItem,
+						    void * pContext)
 {
   SNetNode * pNode = (SNetNode *)((SBGPRouter *)pItem)->pNode;
   SRecordRoute * pCont = (SRecordRoute *)pContext;
@@ -156,7 +177,7 @@ int bgp_domain_routers_record_route_for_each(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
-int bgp_domain_dump_recorded_route(FILE * pStream, SBGPDomain * pDomain, 
+int bgp_domain_dump_recorded_route(SLogStream * pStream, SBGPDomain * pDomain, 
 				   SNetDest  sDest, const uint8_t uOptions)
 {
   SRecordRoute pContext;
@@ -244,7 +265,7 @@ void _bgp_domain_init()
 {
   int iIndex;
 
-  for (iIndex= 0; iIndex < MAX_DOMAINS; iIndex++) {
+  for (iIndex= 0; iIndex < BGP_DOMAINS_MAX; iIndex++) {
     apDomains[iIndex]= NULL;
   }
 }
@@ -257,7 +278,7 @@ void _bgp_domain_destroy()
 {
   int iIndex;
 
-  for (iIndex= 0; iIndex < MAX_DOMAINS; iIndex++) {
+  for (iIndex= 0; iIndex < BGP_DOMAINS_MAX; iIndex++) {
     bgp_domain_destroy(&apDomains[iIndex]);
   }
 }
