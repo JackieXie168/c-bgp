@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/09/2004
-// @lastdate 27/01/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #include <config.h>
@@ -57,8 +57,9 @@ SRegEx * regex_init(char * pattern, const unsigned int uMaxResult)
 			  &sError, &iErrorOffset,
 			  NULL);
   if (pRegEx == NULL) {
-    LOG_DEBUG("regex_compile> PCRE compilation failed at offset"
-		  "%d : %s\n", iErrorOffset, sError);
+    LOG_DEBUG(LOG_LEVEL_DEBUG,
+	      "regex_compile> PCRE compilation failed at offset"
+	      "%d : %s\n", iErrorOffset, sError);
     FREE(pRegEx);
     pRegEx = NULL;
   } else {
@@ -132,12 +133,14 @@ void regex_next_search(SRegEx * pRegEx, const char * sExp)
   } else {
     /* Other matching errors are not recoverable. */
     if (pRegEx->iNbrResult < 0) {
-	LOG_DEBUG("regex_get_next_result> Matching error %d\n", pRegEx->iNbrResult);
+      LOG_DEBUG(LOG_LEVEL_DEBUG,
+		"regex_get_next_result> Matching error %d\n", pRegEx->iNbrResult);
     }
     /* The match succeeded, but the output vector wasn't big enough. */
     /* if it does not happens before when calling regex_search, it would normally not happen here!*/
     if (pRegEx->iNbrResult == 0) {
-      LOG_DEBUG("regex_get_next_result> Match succeeded but no enough place to store results\n");
+      LOG_DEBUG(LOG_LEVEL_DEBUG,
+		"regex_get_next_result> Match succeeded but no enough place to store results\n");
     }
   }
 
@@ -171,7 +174,8 @@ void regex_first_search(SRegEx * pRegEx, const char * sExp)
      * PCRE_ERROR_BADCOUNT
      */
       default: 
-       LOG_DEBUG("regex_exec>Matching error %d\n", pRegEx->iNbrResult);
+	LOG_DEBUG(LOG_LEVEL_DEBUG,
+		  "regex_exec>Matching error %d\n", pRegEx->iNbrResult);
     }
     FREE(pRegEx->iVectorResult);
     pRegEx->iVectorResult = NULL;
