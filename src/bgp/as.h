@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifndef __AS_H__
@@ -46,9 +46,11 @@ extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
 extern uint8_t BGP_OPTIONS_AUTO_CREATE;
+
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
 extern uint8_t BGP_OPTIONS_ADVERTISE_EXTERNAL_BEST;
 #endif
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 uint8_t BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST;
 #endif
@@ -68,12 +70,11 @@ extern FDPRule DP_RULES[DP_NUM_RULES];
 
 // ----- bgp_router_create ------------------------------------------
 extern SBGPRouter * bgp_router_create(uint16_t uNumber,
-				      SNetNode * pNode,
-				      uint32_t uTBID);
+				      SNetNode * pNode);
 // ----- bgp_router_destroy -----------------------------------------
 extern void bgp_router_destroy(SBGPRouter ** ppRouter);
 // ----- bgp_router_set_name ----------------------------------------
-void bgp_router_set_name(SBGPRouter * pRouter, char * pcName);
+//void bgp_router_set_name(SBGPRouter * pRouter, char * pcName);
 // ----- bgp_router_get_name ----------------------------------------
 char * bgp_router_get_name(SBGPRouter * pRouter);
 // ----- bgp_router_add_peer ----------------------------------------
@@ -104,7 +105,7 @@ extern int bgp_router_dump_adj_rib_in(FILE * pStream, SBGPRouter * pRouter,
 extern int bgp_router_dump_rt_dp_rule(FILE * pStream, SBGPRouter * pRouter,
 				      SPrefix sPrefix);
 // ----- bgp_router_info --------------------------------------------
-extern void bgp_router_info(FILE * pStream, SBGPRouter * pRouter);
+extern void bgp_router_info(SLogStream * pStream, SBGPRouter * pRouter);
 /*// ----- bgp_router_decision_process_dop ------------------------------------
 extern void bgp_router_decision_process_dop(SBGPRouter * pRouter,
 SPtrArray * pRoutes);*/
@@ -139,7 +140,7 @@ extern int bgp_router_ecomm_red_process(SPeer * pPeer, SRoute * pRoute);
 // ----- bgp_router_num_providers -----------------------------------
 extern uint16_t bgp_router_num_providers(SBGPRouter * pRouter);
 // ----- bgp_router_dump_id -----------------------------------------
-extern void bgp_router_dump_id(FILE * pStream, SBGPRouter * pRouter);
+extern void bgp_router_dump_id(SLogStream * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_load_rib ----------------------------------------
 extern int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter);
 #ifdef __EXPERIMENTAL__
@@ -165,9 +166,10 @@ int bgp_router_walton_peer_set(SPeer * pPeer, unsigned int uWaltonLimit);
 int bgp_router_scan_rib(SBGPRouter * pRouter);
 
 // ----- bgp_router_dump_networks -----------------------------------
-extern void bgp_router_dump_networks(FILE * pStream, SBGPRouter * pRouter);
+extern void bgp_router_dump_networks(SLogStream * pStream,
+				     SBGPRouter * pRouter);
 // ----- bgp_router_dump_peers --------------------------------------
-extern void bgp_router_dump_peers(FILE * pStream, SBGPRouter * pRouter);
+extern void bgp_router_dump_peers(SLogStream * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_peers_for_each ----------------------------------
 extern int bgp_router_peers_for_each(SBGPRouter * pRouter,
 				     FArrayForEach fForEach,
@@ -188,24 +190,28 @@ int _bgp_router_peers_compare(void * pItem1, void * pItem2,
 // ----- bgp_router_dump_rib_string ----------------------------------------
 char * bgp_router_dump_rib_string(SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib ----------------------------------------
-extern void bgp_router_dump_rib(FILE * pStream, SBGPRouter * pRouter);
+extern void bgp_router_dump_rib(SLogStream * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_dump_rib_address --------------------------------
-extern void bgp_router_dump_rib_address(FILE * pStream, SBGPRouter * pRouter,
+extern void bgp_router_dump_rib_address(SLogStream * pStream,
+					SBGPRouter * pRouter,
 					net_addr_t tAddr);
 // ----- bgp_router_dump_rib_prefix ---------------------------------
-extern void bgp_router_dump_rib_prefix(FILE * pStream, SBGPRouter * pRouter,
+extern void bgp_router_dump_rib_prefix(SLogStream * pStream,
+				       SBGPRouter * pRouter,
 				       SPrefix sPrefix);
 // ----- bgp_router_dump_adjrib -------------------------------------
-extern void bgp_router_dump_adjrib(FILE * pStream, SBGPRouter * pRouter,
+extern void bgp_router_dump_adjrib(SLogStream * pStream,
+				   SBGPRouter * pRouter,
 				   SPeer * pPeer, SPrefix sPrefix,
 				   int iInOut);
 // ----- bgp_router_save_rib ----------------------------------------
 extern int bgp_router_save_rib(char * pcFileName, SBGPRouter * pRouter);
 // -----[ bgp_router_show_stats ]------------------------------------
-extern void bgp_router_show_stats(FILE * pStream, SBGPRouter * pRouter);
-// -----[ bgp_router_show_route_info ]-------------------------------
-extern int bgp_router_show_route_info(FILE * pStream, SBGPRouter * pRouter,
-				      SPrefix sPrefix);
+extern void bgp_router_show_stats(SLogStream * pStream, SBGPRouter * pRouter);
+// -----[ bgp_router_show_routes_info ]------------------------------
+extern int bgp_router_show_routes_info(SLogStream * pStream,
+				       SBGPRouter * pRouter,
+				       SNetDest sDest);
 
 // ----- bgp_router_record_route ------------------------------------
 extern int bgp_router_record_route(SBGPRouter * pRouter,
@@ -218,7 +224,7 @@ extern int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
 						 SBGPPath ** ppPath,
 						 int iPreserveDups);
 // ----- bgp_router_dump_recorded_route -----------------------------
-extern void bgp_router_dump_recorded_route(FILE * pStream,
+extern void bgp_router_dump_recorded_route(SLogStream * pStream,
 					   SBGPRouter * pRouter,
 					   SPrefix sPrefix,
 					   SBGPPath * pPath,
