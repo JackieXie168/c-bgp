@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 24/11/2002
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -115,15 +115,15 @@ extern int bgp_peer_route_feasible(SPeer * pPeer, SRoute * pRoute);
 /////////////////////////////////////////////////////////////////////
 
 // ----- bgp_peer_dump_id -------------------------------------------
-extern void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer);
+extern void bgp_peer_dump_id(SLogStream * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump ----------------------------------------------
-extern void bgp_peer_dump(FILE * pStream, SBGPPeer * pPeer);
+extern void bgp_peer_dump(SLogStream * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump_adjrib ---------------------------------------
-extern void bgp_peer_dump_adjrib(FILE * pStream, SBGPPeer * pPeer,
+extern void bgp_peer_dump_adjrib(SLogStream * pStream, SBGPPeer * pPeer,
 				 SPrefix sPrefix, int iInOut);
 // ----- bgp_peer_dump_in_filters -----------------------------------
-extern void bgp_peer_dump_in_filters(FILE * pStream, SBGPPeer * pPeer);
+extern void bgp_peer_dump_in_filters(SLogStream * pStream, SBGPPeer * pPeer);
 // ----- bgp_peer_dump_out_filters ----------------------------------
-extern void bgp_peer_dump_out_filters(FILE * pStream, SBGPPeer * pPeer);
+extern void bgp_peer_dump_out_filters(SLogStream * pStream, SBGPPeer * pPeer);
 
 #endif

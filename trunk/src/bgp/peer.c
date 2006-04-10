@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -273,7 +273,7 @@ int bgp_peer_open_session(SPeer * pPeer)
 
     return 0;
   } else {
-    LOG_WARNING("Warning: session already opened\n");
+    LOG_ERR(LOG_LEVEL_WARNING, "Warning: session already opened\n");
     return -1;
   }
 }
@@ -294,9 +294,11 @@ int bgp_peer_close_session(SPeer * pPeer)
 
   if (pPeer->uSessionState != SESSION_STATE_IDLE) {
 
-    LOG_DEBUG("> AS%d.peer_close_session.begin\n",
-	      pPeer->pLocalRouter->uNumber);
-    LOG_DEBUG("\tpeer: AS%d\n", pPeer->uRemoteAS);
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "> AS%d.peer_close_session.begin\n",
+		 pPeer->pLocalRouter->uNumber);
+      log_printf(pLogDebug, "\tpeer: AS%d\n", pPeer->uRemoteAS);
+    }
 
     /* If the session is in OPENWAIT or ESTABLISHED state, send a
        CLOSE message to the peer (except for virtual peers). */
@@ -318,11 +320,12 @@ int bgp_peer_close_session(SPeer * pPeer)
 	      bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART));
     _bgp_peer_rescan_adjribin(pPeer, iClear);
 
-    LOG_DEBUG("< AS%d.peer_close_session.end\n", pPeer->pLocalRouter->uNumber);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "< AS%d.peer_close_session.end\n",
+	      pPeer->pLocalRouter->uNumber);
 
     return 0;
   } else {
-    LOG_WARNING("Warning: session not opened\n");
+    LOG_ERR(LOG_LEVEL_WARNING, "Warning: session not opened\n");
     return -1;
   }
 }
@@ -335,12 +338,13 @@ int bgp_peer_close_session(SPeer * pPeer)
  */
 void bgp_peer_session_error(SBGPPeer * pPeer)
 {
-    LOG_FATAL("Error: peer=");
-    bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
-    LOG_FATAL("\n");
-    LOG_FATAL("Error: router=");
-    bgp_router_dump_id(log_get_stream(pMainLog), pPeer->pLocalRouter);
-    LOG_FATAL("\n");
+  LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
+    log_printf(pLogErr, "Error: peer=");
+    bgp_peer_dump_id(pLogErr, pPeer);
+    log_printf(pLogErr, "\nError: router=");
+    bgp_router_dump_id(pLogErr, pPeer->pLocalRouter);
+    log_printf(pLogErr, "\n");
+  }
 }
 
 // ----- _bgp_peer_session_open_rcvd --------------------------------
@@ -348,12 +352,13 @@ static void _bgp_peer_session_open_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 {
   /* Check that the message does not come from a virtual peer */
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_FATAL("Error: OPEN message received from virtual peer\n");
+    LOG_ERR(LOG_LEVEL_FATAL,
+	    "Error: OPEN message received from virtual peer\n");
     bgp_peer_session_error(pPeer);
     abort();
   }
 
-  LOG_INFO("BGP_MSG_RCVD: OPEN\n");
+  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: OPEN\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ACTIVE:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
@@ -372,12 +377,13 @@ static void _bgp_peer_session_open_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 		 _bgp_peer_prefix_disseminate, pPeer);
     break;
   default:
-    LOG_FATAL("Error: OPEN received while in %s state\n",
-	      SESSION_STATES[pPeer->uSessionState]);
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: OPEN received while in %s state\n",
+	    SESSION_STATES[pPeer->uSessionState]);
     bgp_peer_session_error(pPeer);
     abort();
   }
-  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- _bgp_peer_session_close_rcvd -------------------------------
@@ -385,12 +391,13 @@ static void _bgp_peer_session_close_rcvd(SPeer * pPeer)
 {
   /* Check that the message does not come from a virtual peer */
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_FATAL("Error: CLOSE message received from virtual peer\n");
+    LOG_ERR(LOG_LEVEL_FATAL,
+	    "Error: CLOSE message received from virtual peer\n");
     bgp_peer_session_error(pPeer);
     abort();
   }
 
-  LOG_INFO("BGP_MSG_RCVD: CLOSE\n");
+  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: CLOSE\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
@@ -401,18 +408,19 @@ static void _bgp_peer_session_close_rcvd(SPeer * pPeer)
   case SESSION_STATE_IDLE:
     break;
   default:
-    LOG_FATAL("Error: CLOSE received while in %s state\n",
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: CLOSE received while in %s state\n",
 	      SESSION_STATES[pPeer->uSessionState]);
     bgp_peer_session_error(pPeer);
     abort();    
   }
-  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- _bgp_peer_session_update_rcvd ------------------------------
 static void _bgp_peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
 {
-  LOG_INFO("BGP_MSG_RCVD: UPDATE\n");
+  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: UPDATE\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
@@ -420,17 +428,20 @@ static void _bgp_peer_session_update_rcvd(SPeer * pPeer, SBGPMsg * pMsg)
   case SESSION_STATE_ESTABLISHED:
     break;
   default:
-    LOG_WARNING("Warning: UPDATE received while in %s state\n",
-	      SESSION_STATES[pPeer->uSessionState]);
+    LOG_ERR(LOG_LEVEL_WARNING,
+	    "Warning: UPDATE received while in %s state\n",
+	    SESSION_STATES[pPeer->uSessionState]);
     bgp_peer_session_error(pPeer);
+    abort();
   }
-  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- _bgp_peer_session_withdraw_rcvd ----------------------------
 static void _bgp_peer_session_withdraw_rcvd(SPeer * pPeer)
 {
-  LOG_INFO("BGP_MSG_RCVD: WITHDRAW\n");
+  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: WITHDRAW\n");
   switch (pPeer->uSessionState) {
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
@@ -438,12 +449,13 @@ static void _bgp_peer_session_withdraw_rcvd(SPeer * pPeer)
   case SESSION_STATE_ESTABLISHED:
     break;
   default:
-    LOG_FATAL("Error: WITHDRAW received while in %s state\n",
-	      SESSION_STATES[pPeer->uSessionState]);
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: WITHDRAW received while in %s state\n",
+	    SESSION_STATES[pPeer->uSessionState]);
     bgp_peer_session_error(pPeer);
     abort();    
   }
-  LOG_DEBUG("BGP_FSM_STATE: %s\n", SESSION_STATES[pPeer->uSessionState]);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[pPeer->uSessionState]);
 }
 
 // ----- _bgp_peer_disable_adjribin_for_each ------------------------
@@ -463,9 +475,11 @@ static int _bgp_peer_disable_adjribin_for_each(uint32_t uKey, uint8_t uKeyLen,
      Loc-RIB (i.e. marked as best) */
   if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
 
-    LOG_DEBUG("\trescan: ", pPeer->pLocalRouter->uNumber);
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\trescan: ", pPeer->pLocalRouter->uNumber);
+      route_dump(pLogDebug, pRoute);
+      log_printf(pLogDebug, "\n");
+    }
     bgp_router_decision_process(pPeer->pLocalRouter, pPeer, pRoute->sPrefix);
 
   }
@@ -595,9 +609,11 @@ SFilter * peer_out_filter_get(SPeer * pPeer)
  */
 void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
 {
-  LOG_DEBUG("announce_route to ");
-  LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
-  LOG_DEBUG("\n");
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "announce_route to ");
+    bgp_peer_dump_id(pLogDebug, pPeer);
+    log_printf(pLogDebug, "\n");
+  }
 
   route_peer_set(pRoute, pPeer);
 
@@ -661,8 +677,9 @@ void peer_route_delay_update(SPeer * pPeer, SRoute * pRoute)
 {
   SNetLink * pLink;
 
-  LOG_FATAL("Error: peer_route_delay_update MUST be modified\n");
-  LOG_FATAL("Error: to support route-reflection !!!");
+  LOG_ERR(LOG_LEVEL_FATAL,
+	  "Error: peer_route_delay_update MUST be modified\n"
+	  "Error: to support route-reflection !!!");
   abort();
 
   /*pLink= node_find_link_to_router(pPeer->pLocalRouter->pNode,
@@ -702,7 +719,7 @@ int peer_comm_process(SRoute * pRoute)
   int iIndex;
 
   /* Classical communities */
-  if (pRoute->pCommunities != NULL) {
+  if (pRoute->pAttr->pCommunities != NULL) {
 #ifdef __EXPERIMENTAL__
     if (route_comm_contains(pRoute, COMM_DEPREF)) {
       route_localpref_set(pRoute, 0);
@@ -711,10 +728,10 @@ int peer_comm_process(SRoute * pRoute)
   }
 
   /* Extended communities */
-  if (pRoute->pECommunities != NULL) {
+  if (pRoute->pAttr->pECommunities != NULL) {
 
-    for (iIndex= 0; iIndex < ecomm_length(pRoute->pECommunities); iIndex++) {
-      SECommunity * pComm= ecomm_get_index(pRoute->pECommunities, iIndex);
+    for (iIndex= 0; iIndex < ecomm_length(pRoute->pAttr->pECommunities); iIndex++) {
+      SECommunity * pComm= ecomm_get_index(pRoute->pAttr->pECommunities, iIndex);
       switch (pComm->uTypeHigh) {
 
 #ifdef __EXPERIMENTAL__
@@ -741,7 +758,7 @@ int bgp_peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
   // Check that the route's AS-path does not contain the local AS
   // number.
   if (route_path_contains(pRoute, pPeer->pLocalRouter->uNumber)) {
-    LOG_DEBUG("in-filtered(as-path loop)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(as-path loop)\n");
     return 0;
   }
 
@@ -749,19 +766,19 @@ int bgp_peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
   // (MUST be done before local cluster-ID is appended)
   if ((pRoute->pClusterList != NULL) &&
       (route_cluster_list_contains(pRoute, pPeer->pLocalRouter->tClusterID))) {
-    LOG_DEBUG("in-filtered(RR: cluster-loop)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(RR: cluster-loop)\n");
     return 0;
   }
   
   // Apply the input filters.
   if (!filter_apply(pPeer->pInFilter, pPeer->pLocalRouter, pRoute)) {
-    LOG_DEBUG("in-filtered(filter)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(filter)\n");
     return 0;
   }
 
   // Process communities.
   if (!peer_comm_process(pRoute)) {
-    LOG_DEBUG("in-filtered(community)\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(community)\n");
     return 0;
   }
 
@@ -776,7 +793,7 @@ int bgp_peer_route_eligible(SPeer * pPeer, SRoute * pRoute)
 int bgp_peer_route_feasible(SPeer * pPeer, SRoute * pRoute)
 {
   SNetRouteNextHop * pNextHop= node_rt_lookup(pPeer->pLocalRouter->pNode,
-					      pRoute->tNextHop);
+					      pRoute->pAttr->tNextHop);
 
   return (pNextHop != NULL);
 }
@@ -810,12 +827,13 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
   uint16_t uIndexRoute;
 #endif
 
-  LOG_DEBUG("HANDLE_MESSAGE from ");
-  LOG_ENABLED_DEBUG() bgp_peer_dump_id(log_get_stream(pMainLog), pPeer);
-  LOG_DEBUG(" in ");
-  LOG_ENABLED_DEBUG() bgp_router_dump_id(log_get_stream(pMainLog),
-					 pPeer->pLocalRouter);
-  LOG_DEBUG("\n");
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "HANDLE_MESSAGE from ");
+    bgp_peer_dump_id(pLogDebug, pPeer);
+    log_printf(pLogDebug, " in ");
+    bgp_router_dump_id(pLogDebug, pPeer->pLocalRouter);
+    log_printf(pLogDebug, "\n");
+  }
 
   switch (pMsg->uType) {
   case BGP_MSG_UPDATE:
@@ -823,9 +841,12 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
 
     pRoute= pMsgUpdate->pRoute;
-    LOG_DEBUG("\tupdate: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-    LOG_DEBUG("\n");
+
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\tupdate: ");
+      route_dump(pLogDebug, pRoute);
+      log_printf(pLogDebug, "\n");
+    }
 
     route_peer_set(pRoute, pPeer);
 
@@ -840,9 +861,11 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 		   bgp_peer_route_eligible(pPeer, pRoute));
     route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
 		   bgp_peer_route_feasible(pPeer, pRoute));
+
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
     route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
 #endif
+
     // Update route delay attribute (if BGP-QoS)
     //peer_route_delay_update(pPeer, pRoute);
 
@@ -925,14 +948,18 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
 			pMsgWithdraw->sPrefix);
 
-    LOG_DEBUG("\tremove: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\tremove: ");
+      route_dump(pLogDebug, pRoute);
+      log_printf(pLogDebug, "\n");
+    }
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix, (pMsgWithdraw->tNextHop)) == 0);
 #else
     assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix) == 0);
 #endif
+
     break;
   case BGP_MSG_CLOSE:
     _bgp_peer_session_close_rcvd(pPeer);
@@ -941,8 +968,8 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     _bgp_peer_session_open_rcvd(pPeer, pMsg);
     break;
   default:
-    LOG_FATAL("Error: unknown message type received\n");
-    LOG_FATAL("Error: \n");
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: unknown message type received\n");
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: \n");
     abort();
   }
   bgp_msg_destroy(&pMsg);
@@ -960,9 +987,9 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 /**
  *
  */
-void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer)
+void bgp_peer_dump_id(SLogStream * pStream, SBGPPeer * pPeer)
 {
-  fprintf(pStream, "AS%d:", pPeer->uRemoteAS);
+  log_printf(pStream, "AS%d:", pPeer->uRemoteAS);
   ip_address_dump(pStream, pPeer->tAddr);
 }
 
@@ -970,43 +997,43 @@ void bgp_peer_dump_id(FILE * pStream, SBGPPeer * pPeer)
 /**
  *
  */
-void bgp_peer_dump(FILE * pStream, SPeer * pPeer)
+void bgp_peer_dump(SLogStream * pStream, SPeer * pPeer)
 {
   int iOptions= 0;
 
   ip_address_dump(pStream, pPeer->tAddr);
-  fprintf(pStream, "\tAS%d\t%s\t", pPeer->uRemoteAS,
+  log_printf(pStream, "\tAS%d\t%s\t", pPeer->uRemoteAS,
 	  SESSION_STATES[pPeer->uSessionState]);
   ip_address_dump(pStream, pPeer->tRouterID);
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
-    fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "rr-client");
+    log_printf(pStream, (iOptions++)?",":"\t(");
+    log_printf(pStream, "rr-client");
   }
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
-    fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "next-hop-self");
+    log_printf(pStream, (iOptions++)?",":"\t(");
+    log_printf(pStream, "next-hop-self");
   }
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "virtual");
+    log_printf(pStream, (iOptions++)?",":"\t(");
+    log_printf(pStream, "virtual");
   }
   if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
-    fprintf(pStream, (iOptions++)?",":"\t(");
-    fprintf(pStream, "soft-restart");
+    log_printf(pStream, (iOptions++)?",":"\t(");
+    log_printf(pStream, "soft-restart");
   }
-  fprintf(pStream, (iOptions)?")":"");
+  log_printf(pStream, (iOptions)?")":"");
 
   // Session state
   if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
     if (!bgp_peer_session_ok(pPeer)) {
-      fprintf(pStream, "\t[DOWN]");
+      log_printf(pStream, "\t[DOWN]");
     }
   }
 }
 
 typedef struct {
   SPeer * pPeer;
-  FILE * pStream;
+  SLogStream * pStream;
 } SRouteDumpCtx;
 
 // ----- bgp_peer_dump_route ----------------------------------------
@@ -1014,12 +1041,12 @@ typedef struct {
  *
  */
 int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
-			  void * pItem, void * pContext)
+			void * pItem, void * pContext)
 {
   SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
 
   route_dump(pCtx->pStream, (SRoute *) pItem);
-  fprintf(pCtx->pStream, "\n");
+  log_printf(pCtx->pStream, "\n");
   return 0;
 }
 
@@ -1030,7 +1057,7 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
  * Parameters:
  * - iInOut, if 1, dump Adj-RIB-In, otherwize, dump Adj-RIB-Out.
  */
-void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
+void bgp_peer_dump_adjrib(SLogStream * pStream, SPeer * pPeer,
 			  SPrefix sPrefix, int iInOut)
 {
   SRouteDumpCtx sCtx;
@@ -1062,7 +1089,7 @@ void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
 #endif
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
-      fprintf(pStream, "\n");
+      log_printf(pStream, "\n");
     }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
       }
@@ -1079,7 +1106,7 @@ void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
 #endif
     if (pRoute != NULL) {
       route_dump(pStream, pRoute);
-      fprintf(pStream, "\n");
+      log_printf(pStream, "\n");
     }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
       }
@@ -1092,7 +1119,7 @@ void bgp_peer_dump_adjrib(FILE * pStream, SPeer * pPeer,
 /**
  *
  */
-void bgp_peer_dump_in_filters(FILE * pStream, SPeer * pPeer)
+void bgp_peer_dump_in_filters(SLogStream * pStream, SPeer * pPeer)
 {
   filter_dump(pStream, pPeer->pInFilter);
 }
@@ -1101,7 +1128,7 @@ void bgp_peer_dump_in_filters(FILE * pStream, SPeer * pPeer)
 /**
  *
  */
-void bgp_peer_dump_out_filters(FILE * pStream, SPeer * pPeer)
+void bgp_peer_dump_out_filters(SLogStream * pStream, SPeer * pPeer)
 {
   filter_dump(pStream, pPeer->pOutFilter);
 }
