@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 02/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <libgds/fifo.h>
+#include <libgds/log.h>
 #include <sim/simulator.h>
 
 typedef struct {
@@ -31,6 +32,6 @@ extern int static_scheduler_post(FSimEventCallback fCallback,
 				 double uSchedulingTime,
 				 uint8_t uDeltaType);
 // ----- static_scheduler_dump_events -------------------------------
-extern void static_scheduler_dump_events(FILE * pStream);
+extern void static_scheduler_dump_events(SLogStream * pStream);
 
 #endif

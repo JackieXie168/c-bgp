@@ -24,7 +24,7 @@ extern uint8_t SIM_OPTIONS_SCHEDULER;
 // ----- FSimEventCallback ------------------------------------------
 typedef int (*FSimEventCallback)(void * pContext);
 // ----- FSimEventDump ----------------------------------------------
-typedef void (*FSimEventDump)(FILE * pStream, void * pContext);
+typedef void (*FSimEventDump)(SLogStream * pStream, void * pContext);
 // ----- FSimEventDestroy -------------------------------------------
 typedef void (*FSimEventDestroy)(void * pContext);
 
@@ -65,7 +65,7 @@ extern double simulator_get_time();
 extern void simulator_set_max_time(double dMaximumTime);
 
 // ----- simulator_dump_events --------------------------------------
-extern void simulator_dump_events(FILE * pStream);
+extern void simulator_dump_events(SLogStream * pStream);
 // ----- simulator_show_infos ---------------------------------------
 extern void simulator_show_infos();
 
