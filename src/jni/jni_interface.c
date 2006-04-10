@@ -4,28 +4,45 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 28/02/2006
+// @lastdate 31/03/2006
 // ==================================================================
-// TODO : Cannot be used with Walton ...
+// TODO :
+//   cannot be used with Walton [ to be fixed by STA ]
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <libgds/cli_ctx.h>
+#include <libgds/gds.h>
+#include <libgds/log.h>
 #include <libgds/str_util.h>
+
+/*** jni_md.h ***
+ * Include machine-dependent typedefs (is this portable ?)
+ * This header file is located in linux/jni_md.h under Linux while it
+ * is located in solaris/jni_md.h under Solaris. I haven't found a
+ * specification for this. So we might get portability problems at a
+ * point...
+ */
+#include <jni_md.h>
 
 #include <jni.h>
 #include <string.h>
 #include <assert.h>
 
 #include <jni/be_ac_ucl_ingi_cbgp_CBGP.h>
+#include <jni/jni_base.h>
 #include <jni/jni_util.h>
+#include <jni/jni_net_Link.h>
 
 #include <net/network.h>
+#include <net/node.h>
 #include <net/protocol.h>
 #include <net/prefix.h>
 #include <net/igp.h>
+#include <net/record-route.h>
 #include <net/routing.h>
 
 #include <bgp/as.h>
@@ -35,19 +52,36 @@
 #include <bgp/peer.h>
 #include <bgp/filter.h>
 #include <bgp/filter_t.h>
+#include <bgp/filter_registry.h>
+#include <bgp/rexford.h>
+#include <bgp/route_map.h>
 
 #include <sim/simulator.h>
 
 #include <cli/common.h>
 
-#include <libgds/log.h>
-#include <libgds/cli_ctx.h>
+// -----[ SConsoleCtx ]----------------------------------------------
+/**
+ * Context structure used for console callbacks
+ * (ConsoleEventListener).
+ *
+ * IMPORTANT NOTE: the joListener field must contain a global
+ * reference to the Java listener !!! Use NewGlobalRef to create a
+ * global reference from a local reference.
+ */
+typedef struct {
+  JavaVM * jVM;
+  jobject joCBGP;
+  jobject joListener;
+} SConsoleCtx;
 
-/* BQU: TO BE FIXED!!!
-SFilter * pFilter;
-SFilterMatcher * pMatcher;
-SFilterAction * pAction;
-*/
+static SConsoleCtx sConsoleOutCtx;
+static SConsoleCtx sConsoleErrCtx;
+
+
+/////////////////////////////////////////////////////////////////////
+// C-BGP Java Native Interface Initialization/finalization
+/////////////////////////////////////////////////////////////////////
 
 // -----[ init ]-----------------------------------------------------
 /*
@@ -58,22 +92,46 @@ SFilterAction * pAction;
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   (JNIEnv * env, jobject obj, jstring file_log)
 {
-  const jbyte * cFileLog;
+  //const char * cFileLog;
 
-  cFileLog = (*env)->GetStringUTFChars(env, file_log, NULL);
-  
+  // Initialize GDS library
+  gds_init(0);
+  //gds_init(GDS_OPTION_MEMORY_DEBUG);
+
+  // Initialize console listeners contexts
+  sConsoleOutCtx.jVM= NULL;
+  sConsoleErrCtx.jVM= NULL;
+  sConsoleOutCtx.joListener= NULL;
+  sConsoleErrCtx.joListener= NULL;
+
+  log_set_level(pLogDebug, LOG_LEVEL_WARNING);
+
+  /*
+  cFileLog = (*env)->GetStringUTFChars(env, file_log, JNI_FALSE);
   //log_set_level(pMainLog, LOG_LEVEL_WARNING);
-  
   log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
   if (strcmp(cFileLog, ""))
     log_set_file(pMainLog, (char *)cFileLog);
   else
     log_set_stream(pMainLog, stderr);
-
-
   (*env)->ReleaseStringUTFChars(env, file_log, cFileLog);
+  */
 
+  // Hash init code commented in order to allow parameter setup
+  // through he command-line/script
+  //_comm_hash_init();
+  //_path_hash_init();
+
+  _network_create();
+  _bgp_domain_init();
+  _igp_domain_init();
+  _ft_registry_init();
+  _filter_path_regex_init();
+  _route_map_init();
+  _rexford_init();
   simulator_init(); 
+
+  fprintf(stdout, "C-BGP library started.\n");
 }
 
 // -----[ destroy ]--------------------------------------------------
@@ -83,23 +141,301 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
-  (JNIEnv * env, jobject obj)
+  (JNIEnv * env, jobject joCBGP)
 {
+  // Delete global references to console listeners
+  if (sConsoleOutCtx.joListener != NULL) {
+    (*env)->DeleteGlobalRef(env, sConsoleOutCtx.joListener);
+    sConsoleOutCtx.joListener= NULL;
+  }
+  if (sConsoleErrCtx.joListener != NULL) {
+    (*env)->DeleteGlobalRef(env, sConsoleErrCtx.joListener);
+    sConsoleErrCtx.joListener= NULL;
+  }
+
+  // Free simulator data structures...
   simulator_done();
+
+  fprintf(stdout, "C-BGP library stopped.\n");
 }
+
+// -----[ _console_listener ]----------------------------------------
+static void _console_listener(void * pContext, char * pcBuffer)
+{
+  SConsoleCtx * pCtx= (SConsoleCtx *) pContext;
+  JavaVM * jVM= pCtx->jVM;
+  JNIEnv * jEnv= NULL;
+  void * pTmp= &jEnv; // Need this unless GCC will complain about the
+		      // typecast (void **) &jEnv
+  jobject joEvent= NULL;
+  
+  // Attach the current thread to the Java VM (and get a pointer to
+  // the JNI environment). This is required since the calling thread
+  // might be different from the one that initialized the related
+  // console listener object.
+  if ((*jVM)->AttachCurrentThread(jVM, pTmp, NULL) != 0) {
+    fprintf(stderr, "ERROR: AttachCurrentThread failed in JNI::_console_listener\n");
+    return;
+  }
+
+  // Create new ConsoleEvent object.
+  if ((joEvent= cbgp_jni_new_ConsoleEvent(jEnv, pcBuffer)) == NULL)
+    return;
+
+  // Call the listener "eventFired" method.
+  cbgp_jni_call_void(jEnv, pCtx->joListener,
+		     "eventFired",
+		     "(Lbe/ac/ucl/ingi/cbgp/ConsoleEvent;)V",
+		     joEvent);
+}
+
+// -----[ consoleSetOutListener ]------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    consoleSetOutListener
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/ConsoleEventListener;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
+  (JNIEnv * jEnv, jobject joCBGP, jobject joListener)
+{
+  fprintf(stderr, "console_set_out_listener[%p]\n", jEnv);
+  
+  log_destroy(&pLogOut);
+  sConsoleOutCtx.joCBGP= joCBGP;
+
+  // Remove global reference to former listener (if applicable)
+  if (sConsoleOutCtx.joListener != NULL)
+    (*jEnv)->DeleteGlobalRef(jEnv, sConsoleOutCtx.joListener);
+
+  // Get reference to Java Virtual Machine (required by the JNI callback)
+  if (sConsoleOutCtx.jVM == NULL)
+    if ((*jEnv)->GetJavaVM(jEnv, &sConsoleOutCtx.jVM) != 0) {
+      cbgp_jni_throw_CBGPException(jEnv, "could not get reference to Java VM");
+      return;
+    }
+
+  // Add a global reference to the listener object (returns NULL if
+  // system has run out of memory)
+  sConsoleOutCtx.joListener= (*jEnv)->NewGlobalRef(jEnv, joListener);
+  if (sConsoleOutCtx.joListener == NULL) {
+    fprintf(stderr, "ERROR: NewGlobalRef returned NULL in consoleSetOutListener");
+    return;
+  }
+
+  pLogOut= log_create_callback(_console_listener, &sConsoleOutCtx);
+}
+
+// -----[ consoleSetErrListener ]------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    consoleSetErrListener
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/ConsoleEventListener;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetErrListener
+  (JNIEnv * jEnv, jobject joCBGP, jobject joListener)
+{
+  fprintf(stderr, "console_set_err_listener[%p]\n", jEnv);
+  log_destroy(&pLogErr);
+  sConsoleErrCtx.joCBGP= joCBGP;
+
+  // Remove global reference to former listener (if applicable)
+  if (sConsoleErrCtx.joListener != NULL)
+    (*jEnv)->DeleteGlobalRef(jEnv, sConsoleErrCtx.joListener);
+
+  // Get reference to Java Virtual Machine (required by the JNI callback)
+  if (sConsoleErrCtx.jVM == NULL)
+    if ((*jEnv)->GetJavaVM(jEnv, &sConsoleErrCtx.jVM) != 0) {
+      cbgp_jni_throw_CBGPException(jEnv, "could not get reference to Java VM");
+      return;
+    }
+
+  // Add a global reference to the listener object (returns NULL if
+  // system has run out of memory)
+  sConsoleErrCtx.joListener= (*jEnv)->NewGlobalRef(jEnv, joListener);
+  if (sConsoleErrCtx.joListener == NULL) {
+    fprintf(stderr, "ERROR: NewGlobalRef returned NULL in consoleSetErrListener");
+    return;
+  }
+
+  pLogErr= log_create_callback(_console_listener, &sConsoleErrCtx);
+}
+
+// -----[ consoleSetLevel ]------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    consoleSetLevel
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetLevel
+  (JNIEnv * env, jobject joCBGP, jint iLevel)
+{
+  if ((iLevel < 0) || (iLevel > 255)) {
+    cbgp_jni_throw_CBGPException(env, "invalid log-level");
+    return;
+  }
+
+  //log_set_level(pMainLog, (uint8_t) iLevel);
+}
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////
+// IGP Domains Management
+/////////////////////////////////////////////////////////////////////
+
+// -----[ netAddDomain ]---------------------------------------------
+/**
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netAddDomain
+ * Signature: (I)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
+(JNIEnv * env, jobject joCBGP, jint iDomain)
+{
+  if ((iDomain < 0) || (iDomain > 65535)) {
+    cbgp_jni_throw_CBGPException(env, "invalid domain number");
+    return;
+  }
+
+  if (exists_igp_domain((uint16_t) iDomain)) {
+    cbgp_jni_throw_CBGPException(env, "domain already exists");
+    return;
+  }
+
+  register_igp_domain(igp_domain_create((uint16_t) iDomain, DOMAIN_IGP));
+}
+
+// -----[ _netGetDomains ]-------------------------------------------
+static int _netGetDomains(SIGPDomain * pDomain, void * pContext)
+{
+  SJNIContext * pCtx= (SJNIContext *) pContext;
+  jobject joDomain;
+
+  // Create IGPDomain instance
+  joDomain= cbgp_jni_new_IGPDomain(pCtx->jEnv, pDomain);
+  if (joDomain == NULL)
+    return -1;
+
+  // Add to Vector
+  if (cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joDomain) != 0)
+    return -1;
+  
+  return 0;
+}
+
+// -----[ netGetDomains ]--------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netGetDomains
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
+  (JNIEnv * jEnv, jobject obj)
+{
+  SJNIContext sCtx;
+  jobject joVector;
+
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return NULL;
+
+  sCtx.jEnv= jEnv;
+  sCtx.joVector= joVector;
+
+  if (igp_domain_for_each(_netGetDomains, &sCtx) != 0) {
+    cbgp_jni_throw_CBGPException(jEnv, "could not get list of domains");
+    return NULL;
+  }
+
+  return joVector;
+}
+
+// -----[ _netDomainGetNodes ]---------------------------------------
+static int _netDomainGetNodes(uint32_t uKey, uint8_t uKeyLen,
+			      void * pItem, void * pContext)
+{
+  SJNIContext * pCtx= (SJNIContext *) pContext;
+  SNetNode * pNode= (SNetNode * ) pItem;
+  jobject joNode;
+
+  if ((joNode= cbgp_jni_new_Node(pCtx->jEnv, pNode)) == NULL)
+    return -1;
+  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joNode);
+}
+
+// -----[ netDomainGetNodes ]----------------------------------------
+/**
+ * Class:  be_ac_ucl_ingi_cbgp_CBGP
+ * Method: netDomainGetNodes
+ * Signature: (I;)Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netDomainGetNodes
+(JNIEnv * env, jobject obj, jint iNumber)
+{
+  jobject joVector;
+  SJNIContext sCtx;
+  SIGPDomain * pDomain= cbgp_jni_net_domain_from_int(env, iNumber);
+
+  if (pDomain == NULL)
+    return NULL;
+
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
+    return NULL;
+
+  sCtx.joVector= joVector;
+  sCtx.jEnv= env;
+
+  if (igp_domain_routers_for_each(pDomain, _netDomainGetNodes, &sCtx))
+    return NULL;
+
+  return joVector;
+}
+
+// -----[ netDomainCompute ]-----------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netDomainCompute
+ * Signature: (I;)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netDomainCompute
+  (JNIEnv * env, jobject obj, jint iNumber)
+{
+  SIGPDomain * pDomain= cbgp_jni_net_domain_from_int(env, iNumber);
+
+  if (pDomain == NULL)
+    return;
+
+  if (igp_compute_domain(pDomain) != 0) {
+    cbgp_jni_throw_CBGPException(env, "could not compute IGP paths");
+    return;
+  }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// Nodes management
+//////////////////////////////////////////////////////////////////////
 
 // -----[ netAddNode ]-----------------------------------------------
 /**
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeAdd
+ * Method:    netAddNode
  * Signature: (I)I
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
-  (JNIEnv * env, jobject obj, jstring jsAddr)
+(JNIEnv * env, jobject obj, jstring jsAddr, jint iDomain)
 {
+  SIGPDomain * pDomain;
   SNetNode * pNode; 
-  SNetwork * pNetwork= network_get();
   net_addr_t tNetAddr;
+
+  // Check that the domain is valid
+  pDomain= cbgp_jni_net_domain_from_int(env, iDomain);
+  if (pDomain == NULL)
+    return;
 
   if (ip_jstring_to_address(env, jsAddr, &tNetAddr) != 0)
     return;
@@ -108,102 +444,47 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
     return;
   }
 
-  if (network_add_node(pNetwork, pNode) != 0) {
+  if (network_add_node(pNode) != 0) {
     cbgp_jni_throw_CBGPException(env, "node already exists");
     return;
   }
+
+  igp_domain_add_router(pDomain, pNode);
 }
 
-// -----[ netAddLink ]-----------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkAdd
- * Signature: (II)I
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
-  (JNIEnv *env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
-{
-  SNetNode * pNodeSrc, * pNodeDst;
-
-  if ((pNodeSrc= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return;
-  if ((pNodeDst= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return;
-
-  if (node_add_link(pNodeSrc, pNodeDst, jiWeight, 1) < 0) {
-    cbgp_jni_throw_CBGPException(env, "link already exists");
-    return;
-  }
-}
-
-// -----[ netLinkWeight ]--------------------------------------------
-/**
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkWeight
- * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
-  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jint jiWeight)
-{
-  SNetLink * pLink1, * pLink2;
-
-  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
-  if (pLink1 == NULL)
-    return;
-
-  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
-  if (pLink2 == NULL)
-    return;
-
-  link_set_igp_weight(pLink1, jiWeight);
-}
-
-// -----[ netLinkUp ]------------------------------------------------
+// -----[ netGetNodes ]----------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeLinkUp
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ * Method:    netGetNodes
+ * Signature: ()Ljava/util/Vector;
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
-  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr, jboolean bUp)
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
+  (JNIEnv * env, jobject obj)
 {
-  SNetLink * pLink1, * pLink2;
-
-  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
-  if (pLink1 == NULL)
-    return;
-
-  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
-  if (pLink2 == NULL)
-    return;
-
-  link_set_state(pLink1, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
-  link_set_state(pLink2, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
-}
-  
-// -----[ netNodeSpfPrefix ]-----------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    nodeSpfPrefix
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
- */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeSpfPrefix
-  (JNIEnv * env, jobject obj, jstring jsAddr, jstring jsPrefix)
-{
-  SNetwork * pNetwork= network_get();
-  SPrefix sPrefix;
+  SEnumerator * pEnum= trie_get_enum(network_get()->pNodes);
   SNetNode * pNode;
+  jobject joVector;
+  jobject joNode;
 
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
-    return;
-  if (ip_jstring_to_prefix(env, jsPrefix, &sPrefix) != 0)
-    return;
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(env)) == NULL)
+    return NULL;
 
-  // Compute the SPF from the node towards all the nodes in the prefix
-  if (igp_compute_prefix(pNetwork, pNode, sPrefix) != 0) {
-    cbgp_jni_throw_CBGPException(env, "could not compute IGP paths");
-    return;
+  while (enum_has_next(pEnum)) {
+    pNode= *(SNetNode **) enum_get_next(pEnum);
+
+    // Create Node object
+    if ((joNode= cbgp_jni_new_Node(env, pNode)) == NULL) {
+      joVector= NULL;
+      break;
+    }
+
+    // Add to Vector
+    cbgp_jni_Vector_add(env, joVector, joNode);
   }
+  enum_destroy(&pEnum);
+
+  return joVector;
 }
 
 // -----[ nodeInterfaceAdd ]-----------------------------------------
@@ -260,7 +541,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
   if (ip_jstring_to_address(env, jsNexthop, &tNextHop) != 0)
     return;
 
-  if (node_rt_add_route(pNode, sPrefix, tNextHop,
+  if (node_rt_add_route(pNode, sPrefix, tNextHop, tNextHop,
 			jiWeight, NET_ROUTE_STATIC) != 0) {
     cbgp_jni_throw_CBGPException(env, "could not add route");
     return;
@@ -270,11 +551,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRouteAdd
 // -----[ cbgp_jni_get_link ]----------------------------------------
 int cbgp_jni_get_link(void * pItem, void * pContext)
 {
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
   SNetLink * pLink= *((SNetLink **) pItem);
   jobject joLink;
 
-  if ((joLink= cbgp_jni_new_Link(pCtx->jEnv, pLink)) == NULL)
+  if ((joLink= cbgp_jni_new_net_Link(pCtx->jEnv, pLink)) == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joLink);
@@ -291,7 +572,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetLinks
 {
   SNetNode * pNode;
   jobject joVector;
-  SRouteDumpCtx sCtx;
+  SJNIContext sCtx;
 
   /* Get the node */
   if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
@@ -313,7 +594,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetLinks
 int cbgp_jni_get_rt_route(uint32_t uKey, uint8_t uKeyLen,
 			  void * pItem, void * pContext)
 {
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
   SNetRouteInfo * pRI= (SNetRouteInfo *) pItem;
   SPrefix sPrefix;
   jobject joRoute;
@@ -339,7 +620,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeGetRT
   SPrefix sPrefix;
   jobject joVector;
   jobject joRoute;
-  SRouteDumpCtx sCtx;
+  SJNIContext sCtx;
   SNetRouteInfo * pRI;
 
   /* Get the node */
@@ -396,10 +677,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
   SNetNode * pNode;
   jobject joIPTrace;
   SNetDest sDest;
-  SNetPath * pPath;
-  net_link_delay_t tDelay;
-  net_link_delay_t tWeight;
-  int iStatus;
+  SNetRecordRouteInfo * RRInfo;
 
   /* Get the node */
   if ((pNode= cbgp_jni_net_node_from_string(env, jsNodeAddr)) == NULL)
@@ -411,17 +689,190 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeRecordRoute
   sDest.tType= NET_DEST_ADDRESS;
 
   /* Trace the IP-level route */
-  iStatus= node_record_route(pNode, sDest, &pPath, &tDelay, &tWeight);
+  RRInfo= node_record_route(pNode, sDest,
+			    NET_RECORD_ROUTE_OPTION_DELAY |
+			    NET_RECORD_ROUTE_OPTION_WEIGHT);
 
   /* Convert to an IPTrace object */
   joIPTrace= cbgp_jni_new_IPTrace(env, pNode->tAddr, sDest.uDest.tAddr,
-				  pPath, iStatus, tDelay, tWeight);    
+				  RRInfo->pPath, RRInfo->iResult,
+				  RRInfo->tDelay, RRInfo->uWeight);
 
-  net_path_destroy(&pPath);
+  net_path_destroy(&RRInfo->pPath);
 
   return joIPTrace;
 }
 
+
+/////////////////////////////////////////////////////////////////////
+// Links management
+/////////////////////////////////////////////////////////////////////
+
+// -----[ netAddLink ]-----------------------------------------------
+/**
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    nodeLinkAdd
+ * Signature: (II)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
+  (JNIEnv *env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr,
+   jint jiWeight)
+{
+  SNetNode * pNodeSrc, * pNodeDst;
+
+  if ((pNodeSrc= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
+    return;
+  if ((pNodeDst= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
+    return;
+
+  if (node_add_link_to_router(pNodeSrc, pNodeDst, jiWeight, 1) < 0) {
+    cbgp_jni_throw_CBGPException(env, "link already exists");
+    return;
+  }
+}
+
+// -----[ netLinkWeight ]--------------------------------------------
+/**
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    nodeLinkWeight
+ * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkWeight
+  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr,
+   jint jiWeight)
+{
+  SNetLink * pLink1, * pLink2;
+
+  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
+  if (pLink1 == NULL)
+    return;
+
+  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
+  if (pLink2 == NULL)
+    return;
+
+  link_set_igp_weight(pLink1, jiWeight);
+}
+
+// -----[ netLinkUp ]------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    nodeLinkUp
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netLinkUp
+  (JNIEnv * env, jobject obj, jstring jsSrcAddr, jstring jsDstAddr,
+   jboolean bUp)
+{
+  SNetLink * pLink1, * pLink2;
+
+  pLink1= cbgp_jni_net_link_from_string(env, jsSrcAddr, jsDstAddr);
+  if (pLink1 == NULL)
+    return;
+
+  pLink2= cbgp_jni_net_link_from_string(env, jsDstAddr, jsSrcAddr);
+  if (pLink2 == NULL)
+    return;
+
+  link_set_state(pLink1, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
+  link_set_state(pLink2, NET_LINK_FLAG_UP, (bUp == JNI_TRUE)?1:0);
+}
+
+/////////////////////////////////////////////////////////////////////
+// BGP domains management
+/////////////////////////////////////////////////////////////////////
+
+// -----[ _bgpGetDomains ]-------------------------------------------
+static int _bgpGetDomains(SBGPDomain * pDomain, void * pContext)
+{
+  SJNIContext * pCtx= (SJNIContext *) pContext;
+  jobject joDomain;
+
+  // Create BGPDomain instance
+  joDomain= cbgp_jni_new_BGPDomain(pCtx->jEnv, pDomain);
+  if (joDomain == NULL)
+    return -1;
+
+  // Add to Vector
+  if (cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joDomain) != 0)
+    return -1;
+  
+  return 0;
+}
+
+// -----[ bgpGetDomains ]--------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpGetDomains
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpGetDomains
+  (JNIEnv * jEnv, jobject joCBGP)
+{
+  SJNIContext sCtx;
+  jobject joVector= NULL;
+
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return NULL;
+
+  sCtx.jEnv= jEnv;
+  sCtx.joVector= joVector;
+
+  if (bgp_domains_for_each(_bgpGetDomains, &sCtx) != 0) {
+    cbgp_jni_throw_CBGPException(jEnv, "could not get list of domains");
+    return NULL;
+  }
+
+  return joVector;
+}
+
+// -----[ _bgpDomainGetRouters ]-------------------------------------
+static int _bgpDomainGetRouters(uint32_t uKey, uint8_t uKeyLen,
+				void * pItem, void * pContext)
+{
+  SJNIContext * pCtx= (SJNIContext *) pContext;
+  SBGPRouter * pRouter= (SBGPRouter * ) pItem;
+  jobject joRouter;
+
+  if ((joRouter= cbgp_jni_new_BGPRouter(pCtx->jEnv, pRouter)) == NULL)
+    return -1;
+  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRouter);
+}
+
+// -----[ bgpDomainGetRouters ]--------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    bgpDomainGetRouters
+ * Signature: (I)Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpDomainGetRouters
+(JNIEnv * jEnv, jobject joCBGP, jint iNumber)
+{
+  jobject joVector= NULL;
+  SJNIContext sCtx;
+  SBGPDomain * pDomain= cbgp_jni_bgp_domain_from_int(jEnv, iNumber);
+
+  if (pDomain == NULL)
+    return NULL;
+
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return NULL;
+
+  sCtx.joVector= joVector;
+  sCtx.jEnv= jEnv;
+
+  if (bgp_domain_routers_for_each(pDomain, _bgpDomainGetRouters, &sCtx))
+    return NULL;
+
+  return joVector;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+// BGP router management
+/////////////////////////////////////////////////////////////////////
 
 // -----[ bgpAddRouter ]---------------------------------------------
 /**
@@ -437,14 +888,14 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
 {
   SNetNode * pNode;
   SBGPRouter * pRouter;
-  const jbyte * pcName;
+  //const char * pcName;
 
   /* Try to find related router. */
   if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
     return -1;
 
   /* Create BGP router, and register. */
-  pRouter= bgp_router_create(jiASNumber, pNode, 0);
+  pRouter= bgp_router_create(jiASNumber, pNode);
   if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
 			     (FNetNodeHandlerDestroy) bgp_router_destroy,
 			     bgp_router_handle_message)) {
@@ -454,11 +905,12 @@ JNIEXPORT jint JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   }
 
   /* Add the given name if non-NULL. */
+  /*
   if (jsName != NULL) {
     pcName = (*env)->GetStringUTFChars(env, jsName, NULL);
     bgp_router_set_name(pRouter, str_create((char *) pcName));
     (*env)->ReleaseStringUTFChars(env, jsName, pcName);
-  }
+    }*/
 
   return 0;
 }
@@ -524,7 +976,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerNextHopSelf
   if (pPeer == NULL)
     return;
 
-  peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
 }
 
 // -----[ bgpRouterPeerReflectorClient ]-----------------------------
@@ -542,7 +994,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerReflectorClien
   if (pPeer == NULL)
     return;
 
-  peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
 }
 
 
@@ -561,8 +1013,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerVirtual
   if (pPeer == NULL)
     return;
 
-  peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
-  peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
 }
 
 // -----[ bgpRouterPeerUp ]------------------------------------------
@@ -600,7 +1052,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
 {
   SBGPRouter * pRouter;
   SBGPPeer * pPeer;
-  const jbyte * cMesg;
+  const char * cMesg;
   SBGPMsg * pMsg;
 
   pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr);
@@ -614,7 +1066,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterPeerRecv
   /* Build a message from the MRT-record */
   cMesg= (*env)->GetStringUTFChars(env, jsMesg, NULL);
   if ((pMsg= mrtd_msg_from_line(pRouter, pPeer, (char *) cMesg)) != NULL) {
-    if (peer_handle_message(pPeer, pMsg) != 0)
+    if (bgp_peer_handle_message(pPeer, pMsg) != 0)
       cbgp_jni_throw_CBGPException(env, "could not handle message");
   } else {
     cbgp_jni_throw_CBGPException(env, "could not understand MRT message");
@@ -643,7 +1095,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
 // -----[ cbgp_jni_get_peer ]----------------------------------------
 int cbgp_jni_get_peer(void * pItem, void * pContext)
 {
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
   jobject joPeer;
 
   if ((joPeer= cbgp_jni_new_BGPPeer(pCtx->jEnv, *((SPeer **) pItem))) == NULL)
@@ -662,7 +1114,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetPeers
 {
   SBGPRouter * pRouter;
   jobject joVector;
-  SRouteDumpCtx sCtx;
+  SJNIContext sCtx;
 
   /* Get the router instance */
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
@@ -686,7 +1138,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetPeers
 int cbgp_jni_get_rib_route(uint32_t uKey, uint8_t uKeyLen,
 			   void * pItem, void * pContext)
 {
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
   jobject joRoute;
 
   if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, (SRoute *) pItem)) == NULL)
@@ -725,7 +1177,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetRib
 
     /* For each route in the RIB, create a new BGPRoute object and add
        it to the Vector object */
-    SRouteDumpCtx sCtx;
+    SJNIContext sCtx;
     sCtx.pRouter= pRouter;
     sCtx.joVector= joVector;
     sCtx.jEnv= env;
@@ -804,7 +1256,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
 	
 	/* For each route in the RIB, create a new BGPRoute object and add
 	   it to the Vector object */
-	SRouteDumpCtx sCtx;
+	SJNIContext sCtx;
 	sCtx.pRouter= pRouter;
 	sCtx.joVector= joVector;
 	sCtx.jEnv= env;
@@ -822,7 +1274,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterGetAdjRib
       
       /* For each route in the RIB, create a new BGPRoute object and add
 	 it to the Vector object */
-      SRouteDumpCtx sCtx;
+      SJNIContext sCtx;
       sCtx.pRouter= pRouter;
       sCtx.joVector= joVector;
       sCtx.jEnv= env;
@@ -913,7 +1365,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsFileName)
 {
   SBGPRouter * pRouter;
-  const jbyte * cFileName;
+  const char * cFileName;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
     return;
@@ -1107,6 +1559,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
 }
 */
 
+/////////////////////////////////////////////////////////////////////
+// Miscellaneous methods
+/////////////////////////////////////////////////////////////////////
+
 // -----[ simRun ]---------------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
@@ -1114,10 +1570,23 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
  * Signature: ()I
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
-  (JNIEnv * env, jobject obj)
+  (JNIEnv * jEnv, jobject joCBGP)
 {
   if (simulator_run() != 0)
-    cbgp_jni_throw_CBGPException(env, "simulation error");
+    cbgp_jni_throw_CBGPException(jEnv, "simulation error");
+}
+
+// -----[ simStep ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    simStep
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simStep
+  (JNIEnv * jEnv, jobject joCBGP, jint jiNumSteps)
+{
+  if (simulator_step(jiNumSteps) != 0)
+    cbgp_jni_throw_CBGPException(jEnv, "simulation error");
 }
 
 // -----[ runCmd ]---------------------------------------------------
@@ -1129,7 +1598,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv * env, jobject obj, jstring jsCommand)
 {
-  const jbyte * cCommand;
+  const char * cCommand;
 
   if (jsCommand == NULL)
     return;
@@ -1140,10 +1609,36 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (*env)->ReleaseStringUTFChars(env, jsCommand, cCommand);
 }
 
+// -----[ runScript ]------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    runScript
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
+  (JNIEnv * env, jobject obj, jstring jsFileName)
+{
+  const char * pcFileName;
+  FILE * pInCli;
+
+  pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
+
+  if ((pInCli= fopen(pcFileName, "r")) != NULL) {
+    if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
+      cbgp_jni_throw_CBGPException(env, "could not execute script");
+    }
+    fclose(pInCli);
+  } else {
+    cbgp_jni_throw_CBGPException(env, "could not open file");
+  }
+
+  (*env)->ReleaseStringUTFChars(env, jsFileName, pcFileName);
+}
+
 // -----[ cbgp_jni_routes_list_function ]----------------------------
 int cbgp_jni_routes_list_function(void * pItem, void * pContext)
 {
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
   jobject joRoute;
 
   if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, *(SRoute **) pItem)) == NULL)
@@ -1163,8 +1658,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 {
   jobject joArrayList= NULL;
   SRoutes * pRoutes;
-  const jbyte * pcFileName;
-  SRouteDumpCtx sCtx;
+  const char * pcFileName;
+  SJNIContext sCtx;
 
   pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
   if ((pRoutes= mrtd_load_routes(pcFileName, 0, NULL)) != NULL) {
