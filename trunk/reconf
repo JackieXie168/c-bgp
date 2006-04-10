@@ -42,6 +42,7 @@ for arg in $@; do
   ;;
   -force)
     RUN=1
+    echo "option: -force"
   ;;
   *)
     echo "Error: invalid argument [ $arg ]"
