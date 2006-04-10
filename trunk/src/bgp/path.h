@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __PATH_H__
@@ -12,32 +12,20 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
+#include <libgds/log.h>
 #include <libgds/types.h>
 
 #include <bgp/path_segment.h>
-
-// -----[ AS-Paths / AS-Trees ]--------------------------------------
-/** 
- * There are two types of AS-Paths supported so far. The first one is
- * the simplest and contains the list of segments composing the
- * path. The second type can be used to reduce the memory consumption
- * and is composed of a segment and a previous AS-Path (called the
- * "tail") of the path.
- */
-#ifndef __BGP_PATH_TYPE_TREE__
-typedef SPtrArray SBGPPath;
-#else
-struct TBGPPath {
-  SPathSegment * pSegment;
-  struct TBGPPath * pPrevious;
-};
-typedef struct TBGPPath SBGPPath;
-#endif
+#include <bgp/types.h>
 
 // ----- path_create ------------------------------------------------
 extern SBGPPath * path_create();
 // ----- path_destroy -----------------------------------------------
 extern void path_destroy(SBGPPath ** ppPath);
+// ----- path_addref ------------------------------------------------
+//extern void path_addref(SBGPPath ** ppPath);
+// ----- path_unref -------------------------------------------------
+//extern void path_unref(SBGPPath ** ppPath);
 // ----- path_copy --------------------------------------------------
 extern SBGPPath * path_copy(SBGPPath * pPath);
 // ----- path_num_segments ------------------------------------------
@@ -58,12 +46,14 @@ extern int path_to_string(SBGPPath * pPath, uint8_t uReverse,
 // ----- path_dump_string -------------------------------------------
 char * path_dump_string(SBGPPath * pPath, uint8_t uReverse);
 // ----- path_dump --------------------------------------------------
-extern void path_dump(FILE * pStream, SBGPPath * pPath,
+extern void path_dump(SLogStream * pStream, SBGPPath * pPath,
 		      uint8_t uReverse);
 // ----- path_hash --------------------------------------------------
 extern int path_hash(SBGPPath * pPath);
 // -----[ path_hash_zebra ]------------------------------------------
 extern uint32_t path_hash_zebra(void * pItem, uint32_t uHashSize);
+// -----[ path_hash_OAT ]--------------------------------------------
+extern uint32_t path_hash_OAT(void * pItem, uint32_t uHashSize);
 // ----- path_equals ------------------------------------------------
 extern int path_equals(SBGPPath * pPath1, SBGPPath * pPath2);
 // ----- path_aggregate ---------------------------------------------
