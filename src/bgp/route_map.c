@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -138,8 +138,8 @@ int route_map_add(char * pcRouteMapName, SFilter * pFilter)
     return hash_add(phRouteMap, phRouteMapEltSearched);
   } else {
     FREE(phRouteMapElt);
-    LOG_DEBUG("route_map_add>Route Map %s already exists.\n",
-					      pcRouteMapName);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "route_map_add>Route Map %s already exists.\n",
+	      pcRouteMapName);
   }
 
   return -1;
@@ -164,7 +164,8 @@ int route_map_replace(char * pcRouteMapName, SFilter * pFilter)
     return hash_add(phRouteMap, phRouteMapElt);
   } else {
     FREE(phRouteMapElt);
-    LOG_DEBUG("route_map_replace> Route Map %s wasn't existant before "
+    LOG_DEBUG(LOG_LEVEL_DEBUG,
+	      "route_map_replace> Route Map %s wasn't existant before "
 	      "the replacement.\n", pcRouteMapName);
   }
 
@@ -184,8 +185,8 @@ int route_map_del(char * pcRouteMapName)
   phRouteMapElt = MALLOC(sizeof(SRouteMapHashElt));
   phRouteMapElt->pcRouteMapName = pcRouteMapName;
   if (hash_del(phRouteMap, phRouteMapElt) == 0) {
-    LOG_DEBUG("route_map_del> No Route Map %s found.\n", 
-				      pcRouteMapName);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "route_map_del> No Route Map %s found.\n", 
+	      pcRouteMapName);
   }
 
   FREE(phRouteMapElt);
@@ -209,7 +210,8 @@ SFilter * route_map_get(char * pcRouteMapName)
 								!= NULL) 
     pFilter = phRouteMapEltSearched->pFilter;
    else
-    LOG_DEBUG("route_map_get> No Route Map %s found.\n", pcRouteMapName);
+     LOG_DEBUG(LOG_LEVEL_DEBUG, "route_map_get> No Route Map %s found.\n",
+	       pcRouteMapName);
 
   FREE(phRouteMapElt);
   return pFilter;
