@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 23/02/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __ROUTES_LIST_H__
@@ -28,7 +28,7 @@ SRoute * routes_list_get_at(SRoutes * pRoutes, const int iIndex);
 // ----- routes_list_get_num ----------------------------------------
 extern int routes_list_get_num(SRoutes * pRoutes);
 // ----- routes_list_dump -------------------------------------------
-extern void routes_list_dump(FILE * pStream, SRoutes * pRoutes);
+extern void routes_list_dump(SLogStream * pStream, SRoutes * pRoutes);
 // -----[ routes_list_for_each ]-------------------------------------
 extern int routes_list_for_each(SRoutes * pRoutes, FArrayForEach fForEach,
 				void * pContext);

@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 12/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <libgds/log.h>
 #include <bgp/route_reflector.h>
 
 #include <net/prefix.h>
@@ -25,13 +26,13 @@ void cluster_list_destroy(SClusterList ** ppClusterList)
  * This function dumps the cluster-IDs contained in the given list to
  * the given stream.
  */
-void cluster_list_dump(FILE * pStream, SClusterList * pClusterList)
+void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList); iIndex++) {
     if (iIndex > 0)
-      fprintf(pStream, " ");
+      log_printf(pStream, " ");
     ip_address_dump(pStream, pClusterList->data[iIndex]);
   }
 }

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 04/04/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -64,25 +64,26 @@ int cli_bgp_add_router(SCliContext * pContext, STokens * pTokens)
   pcNodeAddr= tokens_get_string_at(pTokens, 1);
   pNode= cli_net_node_by_addr(pcNodeAddr);
   if (pNode == NULL) {
-    LOG_SEVERE("Error: invalid node address \"%s\"\n",
-	       pcNodeAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid node address \"%s\"\n",
+	    pcNodeAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Check AS-Number
   if (tokens_get_uint_at(pTokens, 0, &uASNum) || (uASNum > MAX_AS)) {
-    LOG_SEVERE("Error: invalid AS_Number\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid AS_Number\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  pRouter= bgp_router_create(uASNum, pNode, 0);
+  pRouter= bgp_router_create(uASNum, pNode);
 
   // Register BGP protocol into the node
   if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter,
 			     (FNetNodeHandlerDestroy) bgp_router_destroy,
 			     bgp_router_handle_message)) {
-    LOG_SEVERE("Error: could not register BGP protocol on node \"%s\"\n",
-	       pcNodeAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: could not register BGP protocol on node \"%s\"\n",
+	    pcNodeAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -98,7 +99,7 @@ int cli_bgp_assert_peerings(SCliContext * pContext, STokens * pTokens)
 {
   // Test the validity of peerings in all BGP instances
   if (bgp_assert_peerings()) {
-    LOG_SEVERE("Error: peerings assertion failed.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: peerings assertion failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -118,7 +119,7 @@ int cli_bgp_assert_reachability(SCliContext * pContext, STokens * pTokens)
   // Test the reachability of all advertised networks from all BGP
   // instances
   if (bgp_assert_reachability()) {
-    LOG_SEVERE("Error: reachability assertion failed.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: reachability assertion failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -138,14 +139,15 @@ int cli_ctx_create_bgp_domain(SCliContext * pContext, void ** ppItem)
 
   /* Get BGP domain from the top of the context */
   if (tokens_get_uint_at(pContext->pTokens, 0, &uASNumber) != 0) {
-    LOG_SEVERE("Error: invalid AS number \"%s\"\n",
-	       tokens_get_string_at(pContext->pTokens, 0));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid AS number \"%s\"\n",
+	    tokens_get_string_at(pContext->pTokens, 0));
     return CLI_ERROR_CTX_CREATE;
   }
 
   /* Check that the BGP domain exists */
   if (!exists_bgp_domain((uint16_t) uASNumber)) {
-    LOG_SEVERE("Error: domain \"%u\" does not exist.\n", uASNumber);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: domain \"%u\" does not exist.\n",
+	    uASNumber);
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -220,18 +222,20 @@ int cli_bgp_domain_recordroutedeflection(SCliContext * pContext,
   // Get destination address
   pcDest= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n",
+	    pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType != NET_DEST_ADDRESS) &&
       (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: can not use this destination type with record-route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_domain_dump_recorded_route(stdout, pDomain, sDest,
+  bgp_domain_dump_recorded_route(pLogOut, pDomain, sDest,
 				 NET_RECORD_ROUTE_OPTION_DEFLECTION);
 
   return CLI_SUCCESS;
@@ -257,18 +261,20 @@ int cli_bgp_domain_recordroute(SCliContext * pContext,
   // Get destination address
   pcDest= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_dest(pcDest, &sDest)) {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n",
+	    pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that the destination type is adress/prefix */
   if ((sDest.tType != NET_DEST_ADDRESS) &&
       (sDest.tType != NET_DEST_PREFIX)) {
-    LOG_SEVERE("Error: can not use this destination type with record-route\n");
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: can not use this destination type with record-route\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_domain_dump_recorded_route(stdout, pDomain, sDest, 0);
+  bgp_domain_dump_recorded_route(pLogOut, pDomain, sDest, 0);
 
   return CLI_SUCCESS;
 }
@@ -307,17 +313,17 @@ int cli_bgp_topology_recordroute(SCliContext * pContext,
 {
   SPrefix sPrefix;
   char * pcEndPtr;
-  FILE * fOutput;
+  SLogStream * pOutput;
   int iResult= CLI_SUCCESS;
 
   if (ip_string_to_prefix(tokens_get_string_at(pTokens, 0), &pcEndPtr,
 			  &sPrefix) || (*pcEndPtr != '\0'))
     return CLI_ERROR_COMMAND_FAILED;
-  if ((fOutput= fopen(tokens_get_string_at(pTokens, 2), "w")) == NULL)
+  if ((pOutput= log_create_file(tokens_get_string_at(pTokens, 2))) == NULL)
     return CLI_ERROR_COMMAND_FAILED;
-  if (rexford_record_route(fOutput, tokens_get_string_at(pTokens, 1), sPrefix))
+  if (rexford_record_route(pOutput, tokens_get_string_at(pTokens, 1), sPrefix))
     iResult= CLI_ERROR_COMMAND_FAILED;
-  fclose(fOutput);
+  log_destroy(&pOutput);
   return iResult;
 }
 
@@ -333,7 +339,7 @@ int cli_bgp_topology_recordroute_bm(SCliContext * pContext,
   char * pcPrefix;
   SPrefix sPrefix;
   char * pcEndPtr;
-  FILE * fOutput;
+  SLogStream * pOutput;
   int iResult= CLI_SUCCESS;
   unsigned int uBound;
 
@@ -341,30 +347,30 @@ int cli_bgp_topology_recordroute_bm(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
       (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Get prefix bound
   if (tokens_get_uint_at(pTokens, 1, &uBound) || (uBound > 32)) {
-    LOG_SEVERE("Error: invalid prefix bound \"%s\"\n",
-	       tokens_get_string_at(pTokens, 1));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix bound \"%s\"\n",
+	    tokens_get_string_at(pTokens, 1));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Create output
-  if ((fOutput= fopen(tokens_get_string_at(pTokens, 3), "w")) == NULL) {
-    LOG_SEVERE("Error: unable to create \"%s\"\n",
-	       tokens_get_string_at(pTokens, 3));
+  if ((pOutput= log_create_file(tokens_get_string_at(pTokens, 3))) == NULL) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create \"%s\"\n",
+	    tokens_get_string_at(pTokens, 3));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Record route
-  if (rexford_record_route_bm(fOutput, tokens_get_string_at(pTokens, 2),
+  if (rexford_record_route_bm(pOutput, tokens_get_string_at(pTokens, 2),
 			      sPrefix, (uint8_t) uBound))
     iResult= CLI_ERROR_COMMAND_FAILED;
 
-  fclose(fOutput);
+  log_destroy(&pOutput);
 
   return iResult;
 }
@@ -432,7 +438,8 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
   
   if (pcRouteMapName != NULL) {
     if (route_map_get(pcRouteMapName) != NULL) {
-      LOG_SEVERE("Error: Route Map %s exists.\n", pcRouteMapName);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Route Map %s exists.\n",
+	      pcRouteMapName);
       return CLI_ERROR_CTX_CREATE;
     }
     ppFilter = MALLOC(sizeof(SFilter *));
@@ -442,7 +449,7 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
     route_map_add(pcRouteMapName, *ppFilter);
     *ppItem = ppFilter;
   } else {
-    LOG_SEVERE("Error: No Route Map name.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -480,16 +487,16 @@ int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
   pcNodeAddr= tokens_get_string_at(pContext->pTokens, 0);
   pNode= cli_net_node_by_addr(pcNodeAddr);
   if (pNode == NULL) {
-    LOG_SEVERE("Error: invalid node address \"%s\"\n",
-	       pcNodeAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid node address \"%s\"\n",
+	    pcNodeAddr);
     return CLI_ERROR_CTX_CREATE;
   }
 
   // Get BGP protocol instance
   pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
   if (pProtocol == NULL) {
-    LOG_SEVERE("Error: BGP is not supported on node \"%s\"\n",
-	       pcNodeAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: BGP is not supported on node \"%s\"\n",
+	    pcNodeAddr);
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -517,7 +524,7 @@ int cli_bgp_options_autocreate(SCliContext * pContext, STokens * pTokens)
   else if (!strcmp(pcParam, "off"))
     BGP_OPTIONS_AUTO_CREATE= 0;
   else {
-    LOG_SEVERE("Error: invalid value \"%s\"\n", pcParam);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -538,7 +545,7 @@ int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
   else if (!strcmp(pcParam, "mrt"))
     BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
   else {
-    LOG_SEVERE("Error: unknown show mode \"%s\"\n", pcParam);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown show mode \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -561,7 +568,7 @@ int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
   else if (!strcmp(pcParam, "high-isp"))
     BGP_OPTIONS_TIE_BREAK= tie_break_high_ISP;
   else {
-    LOG_SEVERE("Error: unknown tiebreak function \"%s\"\n", pcParam);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown tiebreak function \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -581,7 +588,7 @@ int cli_bgp_options_med(SCliContext * pContext, STokens * pTokens)
   } else if (!strcmp(pcMedType, "always-compare")) {
     BGP_OPTIONS_MED_TYPE= BGP_MED_TYPE_ALWAYS_COMPARE;
   } else {
-    LOG_SEVERE("Error: unknown med-type \"%s\"\n", pcMedType);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown med-type \"%s\"\n", pcMedType);
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -597,8 +604,8 @@ int cli_bgp_options_localpref(SCliContext * pContext, STokens * pTokens)
   unsigned long int ulLocalPref;
 
   if (tokens_get_ulong_at(pTokens, 0, &ulLocalPref)) {
-    LOG_SEVERE("Error: invalid default local-pref \"%s\"\n",
-	       tokens_get_string_at(pTokens, 0));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid default local-pref \"%s\"\n",
+	    tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
   BGP_OPTIONS_DEFAULT_LOCAL_PREF= ulLocalPref;
@@ -722,7 +729,7 @@ int cli_bgp_router_set_clusterid(SCliContext * pContext,
 
   // Get the cluster-id
   if (tokens_get_uint_at(pTokens, 1, &uClusterID)) {
-    LOG_SEVERE("Error: invalid cluster-id\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid cluster-id\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -750,11 +757,11 @@ int cli_bgp_router_debug_dp(SCliContext * pContext, STokens * pTokens)
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
       (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_debug_dp(stdout, pRouter, sPrefix);
+  bgp_debug_dp(pLogOut, pRouter, sPrefix);
 
   return CLI_SUCCESS;
 }
@@ -781,7 +788,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
 
   // Load the MRTD file 
   if (bgp_router_load_rib(pcFileName, pRouter)) {
-    LOG_SEVERE("Error: could not load \"%s\"\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not load \"%s\"\n", pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -814,7 +821,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
   else if (!strcmp(pcParam, "high-isp"))
     pRouter->fTieBreak= tie_break_high_ISP;
   else {
-    LOG_SEVERE("Error: invalid tie-breaking function \"%s\"\n", pcParam);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid tie-breaking function \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -843,7 +850,8 @@ int cli_bgp_router_save_rib(SCliContext * pContext,
 
   // Save the Loc-RIB
   if (bgp_router_save_rib(pcFileName, pRouter)) {
-    LOG_SEVERE("Error: unable to save into \"%s\"\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to save into \"%s\"\n",
+	    pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -861,7 +869,7 @@ int cli_bgp_router_save_rib(SCliContext * pContext,
 int cli_bgp_router_save_ribin(SCliContext * pContext,
 			      STokens * pTokens)
 {
-  LOG_SEVERE("Error: sorry, not implemented\n");
+  LOG_ERR(LOG_LEVEL_SEVERE, "Error: sorry, not implemented\n");
   return CLI_ERROR_COMMAND_FAILED;
 }
 
@@ -879,7 +887,7 @@ int cli_bgp_router_show_info(SCliContext * pContext,
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Show information
-  bgp_router_info(stdout, pRouter);
+  bgp_router_info(pLogOut, pRouter);
 
   return CLI_SUCCESS;
 }
@@ -900,7 +908,7 @@ int cli_bgp_router_show_networks(SCliContext * pContext,
   // Get the BGP instance from the context
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
-  bgp_router_dump_networks(stdout, pRouter);
+  bgp_router_dump_networks(pLogOut, pRouter);
 
   return CLI_SUCCESS;
 }
@@ -919,7 +927,7 @@ int cli_bgp_router_show_peers(SCliContext * pContext,
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Dump peers
-  bgp_router_dump_peers(stdout, pRouter);
+  bgp_router_dump_peers(pLogOut, pRouter);
 
   return CLI_SUCCESS;
 }
@@ -951,16 +959,17 @@ int cli_bgp_router_show_rib(SCliContext * pContext,
   // Get the prefix/address/*
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (!strcmp(pcPrefix, "*")) {
-    bgp_router_dump_rib(stdout, pRouter);
+    bgp_router_dump_rib(pLogOut, pRouter);
   } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
 	     (*pcEndChar == 0)) {
-    bgp_router_dump_rib_prefix(stdout, pRouter, sPrefix);
+    bgp_router_dump_rib_prefix(pLogOut, pRouter, sPrefix);
   } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
 				   &sPrefix.tNetwork) &&
 	     (*pcEndChar == 0)) {
-    bgp_router_dump_rib_address(stdout, pRouter, sPrefix.tNetwork);
+    bgp_router_dump_rib_address(pLogOut, pRouter, sPrefix.tNetwork);
   } else {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n",
+	    pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1007,11 +1016,11 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 	     && (*pcEndChar == 0)) {
     pPeer= bgp_router_find_peer(pRouter, tPeerAddr);
     if (pPeer == NULL) {
-      LOG_SEVERE("Error: unknown peer \"%s\"\n", pcPeerAddr);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown peer \"%s\"\n", pcPeerAddr);
       return CLI_ERROR_COMMAND_FAILED;
     }
   } else {
-    LOG_SEVERE("Error: invalid peer address \"%s\"\n", pcPeerAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid peer address \"%s\"\n", pcPeerAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1026,11 +1035,12 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 	     (*pcEndChar == 0)) {
     sPrefix.uMaskLen= 32;
   } else {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n",
+	    pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_adjrib(stdout, pRouter, pPeer, sPrefix, 1);
+  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, 1);
   
   return CLI_SUCCESS;
 }
@@ -1057,11 +1067,12 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
 	     && (*pcEndChar == 0)) {
     pPeer= bgp_router_find_peer(pRouter, tPeerAddr);
     if (pPeer == NULL) {
-      LOG_SEVERE("Error: unknown peer \"%s\"\n", pcPeerAddr);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown peer \"%s\"\n", pcPeerAddr);
       return CLI_ERROR_COMMAND_FAILED;
     }
   } else {
-    LOG_SEVERE("Error: invalid peer address \"%s\"\n", pcPeerAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid peer address \"%s\"\n",
+	    pcPeerAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1076,11 +1087,12 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
 	     (*pcEndChar == 0)) {
     sPrefix.uMaskLen= 32;
   } else {
-    LOG_SEVERE("Error: invalid prefix|address|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n",
+	    pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_adjrib(stdout, pRouter, pPeer, sPrefix, 0);
+  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, 0);
   
   return CLI_SUCCESS;
 }
@@ -1091,33 +1103,48 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
  * given prefix. Information includes communities, and so on...
  *
  * context: {router}
- * tokens: {addr, prefix}
+ * tokens: {addr, prefix|address|* [, output]}
  */
 int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 				  STokens * pTokens)
 {
   SBGPRouter * pRouter;
-  char * pcPrefix;
-  char * pcEndPtr;
-  SPrefix sPrefix;
+  char * pcDest;
+  SNetDest sDest;
+  char * pcOutput;
+  SLogStream * pStream= pLogOut;
 
   // Get the BGP instance from the context
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
-  // Get the prefix
-  pcPrefix= tokens_get_string_at(pTokens, 1);
-  if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
-			  &sPrefix) || (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+  // Get the destination
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid destination \"%s\"\n", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  // Get the optional parameter
+  if (tokens_get_num(pTokens) > 2) {
+    pcOutput= tokens_get_string_at(pTokens, 2);
+    pStream= log_create_file(pcOutput);
+    if (pStream == NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not create \"%d\"\n", pcOutput);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
   // Show the route information
-  if (bgp_router_show_route_info(stdout, pRouter, sPrefix) < 0) {
-    LOG_SEVERE("Error: failed to show info for route towards \"%s\"\n",
-	       pcPrefix);
+  if (bgp_router_show_routes_info(pStream, pRouter, sDest) < 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: failed to show info for route(s) towards \"%s\"\n",
+	    pcDest);
+    if (pStream != pLogOut)
+      log_destroy(&pStream);
     return CLI_ERROR_COMMAND_FAILED;
   }
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
 
   return CLI_SUCCESS;
 }
@@ -1130,7 +1157,7 @@ int cli_bgp_router_show_stats(SCliContext * pContext,
   SBGPRouter * pRouter=
     (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
-  bgp_router_show_stats(stdout, pRouter);
+  bgp_router_show_stats(pLogOut, pRouter);
 
   return CLI_SUCCESS;
 }
@@ -1158,7 +1185,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
 			  &sPrefix) || (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1166,7 +1193,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, 0);
 
   // Display recorded-route
-  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, pPath, iResult);
+  bgp_router_dump_recorded_route(pLogOut, pRouter, sPrefix, pPath, iResult);
 
   path_destroy(&pPath);
 
@@ -1197,15 +1224,15 @@ int cli_bgp_router_recordroute_bm(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr,
 			  &sPrefix) || (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Get bound
   if (tokens_get_uint_at(pTokens, 2, &uBound) ||
       (uBound > 32)) {
-    LOG_SEVERE("Error: invalid prefix bound \"%s\"\n",
-	       tokens_get_string_at(pTokens, 2));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix bound \"%s\"\n",
+	    tokens_get_string_at(pTokens, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1215,7 +1242,7 @@ int cli_bgp_router_recordroute_bm(SCliContext * pContext,
 						 &pPath, 0);
 
   // Display record-route results
-  bgp_router_dump_recorded_route(stdout, pRouter, sPrefix, pPath, iResult);
+  bgp_router_dump_recorded_route(pLogOut, pRouter, sPrefix, pPath, iResult);
 
   path_destroy(&pPath);
 
@@ -1235,7 +1262,7 @@ int cli_bgp_router_rescan(SCliContext * pContext, STokens * pTokens)
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   if (bgp_router_scan_rib(pRouter)) {
-    LOG_SEVERE("Error: RIB scan failed\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: RIB scan failed\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1264,13 +1291,13 @@ int cli_bgp_router_rerun(SCliContext * pContext, STokens * pTokens)
   } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
 	     (*pcEndChar == 0)) {
   } else {
-    LOG_SEVERE("Error: invalid prefix|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|* \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Rerun the decision process for all known prefixes
   if (bgp_router_rerun(pRouter, sPrefix)) {
-    LOG_SEVERE("Error: reset failed.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: reset failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1294,7 +1321,7 @@ int cli_bgp_router_reset(SCliContext * pContext, STokens * pTokens)
 
   // Reset the router
   if (bgp_router_reset(pRouter)) {
-    LOG_SEVERE("Error: reset failed.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: reset failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1317,7 +1344,7 @@ int cli_bgp_router_start(SCliContext * pContext, STokens * pTokens)
 
   // Start the router
   if (bgp_router_start(pRouter)) {
-    LOG_SEVERE("Error: could not start the router.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not start the router.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1340,7 +1367,7 @@ int cli_bgp_router_stop(SCliContext * pContext, STokens * pTokens)
 
   // Stop the router
   if (bgp_router_stop(pRouter)) {
-    LOG_SEVERE("Error: could not stop the router.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not stop the router.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1365,8 +1392,8 @@ int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
 
   // Get the new peer's AS number
   if (tokens_get_uint_at(pTokens, 1, &uASNum) || (uASNum > MAX_AS)) {
-    LOG_SEVERE("Error: invalid AS number \"%s\"\n",
-	       tokens_get_string_at(pTokens, 1));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid AS number \"%s\"\n",
+	    tokens_get_string_at(pTokens, 1));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1374,13 +1401,13 @@ int cli_bgp_router_add_peer(SCliContext * pContext, STokens * pTokens)
   pcAddr= tokens_get_string_at(pTokens, 2);
   if (ip_string_to_address(pcAddr, &pcEndPtr, &tAddr) ||
       (*pcEndPtr != 0)) {
-    LOG_SEVERE("Error: invalid address \"%s\"\n",
-	       pcAddr);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid address \"%s\"\n",
+	    pcAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if (bgp_router_add_peer(pRouter, uASNum, tAddr, 0) == NULL) {
-    LOG_SEVERE("Error: peer already exists\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: peer already exists\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1408,7 +1435,7 @@ int cli_bgp_router_add_network(SCliContext * pContext, STokens * pTokens)
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
       (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1441,7 +1468,7 @@ int cli_bgp_router_del_network(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
       (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1501,7 +1528,7 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
 				    tokens_get_num(pTokens)-1);
   pcTemp= pcPredicate;
   if (predicate_parse(&pcTemp, &pMatcher)) {
-    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcPredicate);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n", pcPredicate);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1515,7 +1542,7 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
   filter_matcher_destroy(&pMatcher);
 
   if (iMatches < 1) {
-    LOG_SEVERE("Error: no route matched \"%s\"\n", pcPredicate);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: no route matched \"%s\"\n", pcPredicate);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1532,7 +1559,7 @@ int cli_bgp_router_assert_routes_show(SCliContext * pContext,
 {
   SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
 
-  routes_list_dump(stdout, pRoutes);
+  routes_list_dump(pLogOut, pRoutes);
 
   return CLI_SUCCESS;
 }
@@ -1562,7 +1589,7 @@ int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
   pcPrefix= tokens_get_string_at(pContext->pTokens, 1);
   if (ip_string_to_prefix(pcPrefix, &pcEndPtr, &sPrefix) ||
       (*pcEndPtr != '\0')) {
-    LOG_SEVERE("Error: invalid prefix \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1579,13 +1606,13 @@ int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
     pRoutes= bgp_router_get_feasible_routes(pRouter, sPrefix);
 #endif
   } else {
-    LOG_SEVERE("Error: unsupported type of routes \"%s\"\n", pcType);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unsupported type of routes \"%s\"\n", pcType);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Check that there is at leat one route
   if (routes_list_get_num(pRoutes) < 1) {
-    LOG_SEVERE("Error: no feasible routes towards %s\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: no feasible routes towards %s\n", pcPrefix);
     routes_list_destroy(&pRoutes);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -1623,7 +1650,7 @@ int cli_ctx_create_bgp_router_peer(SCliContext * pContext,
   pcPeerAddr= tokens_get_string_at(pContext->pTokens, 1);
   if (ip_string_to_address(pcPeerAddr, &pcEndPtr, &tAddr) ||
       (*pcEndPtr != 0)) {
-    LOG_SEVERE("Error: invalid peer address \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid peer address \"%s\"\n",
 	       pcPeerAddr);
     return CLI_ERROR_CTX_CREATE;
   }
@@ -1631,7 +1658,7 @@ int cli_ctx_create_bgp_router_peer(SCliContext * pContext,
   // Get the peer
   pPeer= bgp_router_find_peer(pRouter, tAddr);
   if (pPeer == NULL) {
-    LOG_SEVERE("Error: unknown peer\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown peer\n");
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -1665,7 +1692,7 @@ int cli_ctx_create_bgp_router_peer_filter(SCliContext * pContext,
   else if (!strcmp("out", pcFilter))
     *ppItem= &(pPeer->pOutFilter);
   else {
-    LOG_SEVERE("Error: invalid filter type \"%s\"\n", pcFilter);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid filter type \"%s\"\n", pcFilter);
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -1696,7 +1723,7 @@ int cli_bgp_filter_rule_match(SCliContext * pContext,
   pcPredicate= tokens_get_string_at(pTokens,
 				    tokens_get_num(pTokens)-1);
   if (predicate_parse(&pcPredicate, &pMatcher)) {
-    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcPredicate);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n", pcPredicate);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1726,7 +1753,7 @@ int cli_bgp_filter_rule_action(SCliContext * pContext,
   pcAction= tokens_get_string_at(pTokens,
 				 tokens_get_num(pTokens)-1);
   if (filter_parser_action(pcAction, &pAction)) {
-    LOG_SEVERE("Error: invalid action \"%s\"\n", pcAction);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid action \"%s\"\n", pcAction);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1783,7 +1810,7 @@ int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
   if (tokens_get_uint_at(pContext->pTokens,
 			 tokens_get_num(pContext->pTokens)-1,
 			 &uIndex)) {
-    LOG_SEVERE("Error: invalid index\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid index\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1814,7 +1841,7 @@ int cli_bgp_filter_remove_rule(SCliContext * pContext,
   unsigned int uIndex;
 
   if (*ppFilter == NULL) {
-    LOG_SEVERE("Error: filter contains no rule\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: filter contains no rule\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -1822,13 +1849,13 @@ int cli_bgp_filter_remove_rule(SCliContext * pContext,
   if (tokens_get_uint_at(pTokens,
 			 tokens_get_num(pTokens)-1,
 			 &uIndex)) {
-    LOG_SEVERE("Error: invalid index\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid index\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Remove rule
   if (filter_remove_rule(*ppFilter, uIndex)) {
-    LOG_SEVERE("Error: could not remove rule %u\n", uIndex);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not remove rule %u\n", uIndex);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1843,7 +1870,7 @@ int cli_bgp_filter_remove_rule(SCliContext * pContext,
 int cli_ctx_create_bgp_filter_rule(SCliContext * pContext,
 				   void ** ppItem)
 {
-  LOG_SEVERE("Error: not yet implemented, sorry.\n");
+  LOG_ERR(LOG_LEVEL_SEVERE, "Error: not yet implemented, sorry.\n");
   return CLI_ERROR_CTX_CREATE;
 }
 
@@ -1865,7 +1892,7 @@ int cli_bgp_filter_show(SCliContext * pContext,
 {
   SFilter ** ppFilter= (SFilter **) cli_context_get_item_at_top(pContext);
 
-  filter_dump(stdout, *ppFilter);
+  filter_dump(pLogOut, *ppFilter);
 
   return CLI_SUCCESS;
 }
@@ -1890,7 +1917,7 @@ int cli_bgp_route_map_filter_add(SCliContext * pContext,
   if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
     pFilter = filter_create();
     if (route_map_add(pcRouteMapName, pFilter) < 0) {
-      LOG_SEVERE("Error: could not add the route-map filter.\n");
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add the route-map filter.\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -1913,7 +1940,7 @@ int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
   /*
   if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
       FILTER_PARSER_SUCCESS) {
-    LOG_SEVERE("Error: invalid filter\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid filter\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   */
@@ -2015,11 +2042,11 @@ int cli_bgp_router_peer_show_filter(SCliContext * pContext,
   // Create filter context
   pcFilter= tokens_get_string_at(pContext->pTokens, 2);
   if (!strcmp(pcFilter, "in"))
-    bgp_peer_dump_in_filters(stdout, pPeer);
+    bgp_peer_dump_in_filters(pLogOut, pPeer);
   else if (!strcmp(pcFilter, "out"))
-    bgp_peer_dump_out_filters(stdout, pPeer);
+    bgp_peer_dump_out_filters(pLogOut, pPeer);
   else {
-    LOG_SEVERE("Error: invalid filter type \"%s\"\n", pcFilter);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid filter type \"%s\"\n", pcFilter);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2063,14 +2090,14 @@ int cli_bgp_router_peer_nexthop(SCliContext * pContext,
   pcNextHop= tokens_get_string_at(pTokens, 2);
   if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
       (*pcEndChar != 0)) {
-    LOG_SEVERE("Error: invalid next-hop \"%s\".\n", pcNextHop);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\".\n", pcNextHop);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Set the next-hop to be used for routes advertised to this peer
   if (bgp_peer_set_nexthop(pPeer, tNextHop)) {
-    LOG_SEVERE("Error: could not change next-hop (");
-    LOG_SEVERE(").\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not change next-hop (");
+    LOG_ERR(LOG_LEVEL_SEVERE, ").\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2112,7 +2139,7 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
 
   /* Check that the peer is virtual */
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_SEVERE("Error: only virtual peers can do that\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: only virtual peers can do that\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2126,7 +2153,7 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
   pMsg= mrtd_msg_from_line(pRouter, pPeer, pcRecord);
 
   if (pMsg == NULL) {
-    LOG_SEVERE("Error: could not build message from input\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not build message from input\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2197,7 +2224,7 @@ int cli_bgp_router_peer_up(SCliContext * pContext, STokens * pTokens)
 
   // Try to open session
   if (bgp_peer_open_session(pPeer)) {
-    LOG_SEVERE("Error: could not open session\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not open session\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
     
@@ -2218,7 +2245,7 @@ int cli_bgp_router_peer_softrestart(SCliContext * pContext, STokens * pTokens)
 
   // Set the virtual flag of this peer
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_SEVERE("Error: soft-restart option only available to virtual peers\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: soft-restart option only available to virtual peers\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
@@ -2258,7 +2285,7 @@ int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
-    LOG_SEVERE("Error: could not close session\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not close session\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2289,13 +2316,13 @@ int cli_bgp_router_peer_readv(SCliContext * pContext, STokens * pTokens)
   } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
 	     (*pcEndChar == 0)) {
   } else {
-    LOG_SEVERE("Error: invalid prefix|* \"%s\"\n", pcPrefix);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|* \"%s\"\n", pcPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Re-advertise */
   if (bgp_router_peer_readv_prefix(pRouter, pPeer, sPrefix)) {
-    LOG_SEVERE("Error: could not re-advertise\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not re-advertise\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2316,13 +2343,13 @@ int cli_bgp_router_peer_reset(SCliContext * pContext, STokens * pTokens)
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
-    LOG_SEVERE("Error: could not close session\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not close session\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Try to open session
   if (bgp_peer_open_session(pPeer)) {
-    LOG_SEVERE("Error: could not close session\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not close session\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -2950,7 +2977,8 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
 					cli_bgp_router_show_rib,
 					NULL, pParams));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<prefix|address|*>", NULL);
+  cli_params_add_vararg(pParams, "<output>", 1, NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("route-info",
 					cli_bgp_router_show_routeinfo,
 					NULL, pParams));

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 23/02/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -89,13 +89,13 @@ int routes_list_get_num(SRoutes * pRoutes)
 /**
  *
  */
-void routes_list_dump(FILE * pStream, SRoutes * pRoutes)
+void routes_list_dump(SLogStream * pStream, SRoutes * pRoutes)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
     route_dump(pStream, (SRoute *) pRoutes->data[iIndex]);
-    fprintf(pStream, "\n");
+    log_printf(pStream, "\n");
   }
 }
 

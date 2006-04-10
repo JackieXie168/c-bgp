@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 12/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_REFLECTOR_H__
 #define __BGP_ROUTE_REFLECTOR_H__
 
 #include <libgds/array.h>
+#include <libgds/log.h>
 #include <libgds/types.h>
 
 #include <stdio.h>
@@ -37,7 +38,7 @@ typedef SUInt32Array SClusterList;
 // ----- cluster_list_destroy ---------------------------------------
 extern void cluster_list_destroy(SClusterList ** ppClusterList);
 // ----- cluster_list_dump ------------------------------------------
-extern void cluster_list_dump(FILE * pStream, SClusterList * pClusterList);
+extern void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList);
 // ----- cluster_list_cmp -------------------------------------------
 extern int cluster_list_cmp(SClusterList * pClusterList1,
 			    SClusterList * pClusterList2);

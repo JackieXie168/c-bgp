@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 10/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 
 #include <string.h>
 #include <libgds/cli_ctx.h>
+#include <libgds/log.h>
 #include <net/igp_domain.h>
 #include <assert.h>
 #include <net/ospf_deflection.h>
@@ -32,7 +33,7 @@ int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
   /* Check domain id */
   if (tokens_get_uint_at(pTokens, 0, &uId) ||
       (uId > 65535)) {
-    LOG_SEVERE("Error: invalid domain id %s\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id %s\n",
 	       tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -45,18 +46,18 @@ int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
 #ifdef OSPF_SUPPORT 
     tType= DOMAIN_OSPF;
 #else 
-    LOG_SEVERE("To use OSPF model you must compile cbgp with --enable-ospf option\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "To use OSPF model you must compile cbgp with --enable-ospf option\n");
     return CLI_ERROR_COMMAND_FAILED;
 #endif    
   } else {
-    LOG_SEVERE("Error: unknown domain type %s\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown domain type %s\n",
 	       pcType);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that a domain with the same Id does not exist */
   if (exists_igp_domain(uId)) {
-    LOG_SEVERE("Error: domain %d already exists\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: domain %d already exists\n",
 	       uId);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -85,7 +86,7 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
   // Get domain id
   if (tokens_get_uint_at(pTokens, 1, &uId) ||
       (uId > 65535)) {
-    LOG_SEVERE("Error: invalid domain id \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
 	       tokens_get_string_at(pTokens, 1));
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -94,7 +95,7 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
   pDomain= get_igp_domain(uId);
   
   if (igp_domain_contains_router(pDomain, pNode)) {
-    LOG_SEVERE("Error: could not add to domain \"%d\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add to domain \"%d\"\n",
 	       uId);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -116,14 +117,14 @@ int cli_ctx_create_net_domain(SCliContext * pContext, void ** ppItem)
   /* Get domain id */
   if (tokens_get_uint_at(pContext->pTokens, 0, &uId) ||
       (uId > 65535)) {
-    LOG_SEVERE("Error: invalid domain id \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
 	       tokens_get_string_at(pContext->pTokens, 0));
     return CLI_ERROR_CTX_CREATE;
   }
 
   pDomain= get_igp_domain(uId);
   if (pDomain == NULL) {
-    LOG_SEVERE("Error: unable to find domain \"%d\"\n", uId);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find domain \"%d\"\n", uId);
     return CLI_ERROR_CTX_CREATE;
   }
   *ppItem= pDomain;
@@ -154,14 +155,14 @@ int cli_net_domain_set_ecmp(SCliContext * pContext, STokens * pTokens)
   } else if (!strcmp(tokens_get_string_at(pTokens, 1), "no")) {
     iState= 0;
   } else {
-    LOG_SEVERE("Error: invalid value for 'ecmp': \"%s\"\n",
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value for 'ecmp': \"%s\"\n",
 	       tokens_get_string_at(pTokens, 1));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Set state
   if (igp_domain_set_ecmp(pDomain, iState)) {
-    LOG_SEVERE("Error: this model does not accept changes to 'ecmp'\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: this model does not accept changes to 'ecmp'\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -180,7 +181,7 @@ int cli_net_domain_show_info(SCliContext * pContext, STokens * pTokens)
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
 
-  igp_domain_info(stdout, pDomain);
+  igp_domain_info(pLogOut, pDomain);
   return CLI_SUCCESS;
 }
 
@@ -196,7 +197,7 @@ int cli_net_domain_show_nodes(SCliContext * pContext, STokens * pTokens)
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
 
-  igp_domain_dump(stdout, pDomain);
+  igp_domain_dump(pLogOut, pDomain);
   return CLI_SUCCESS;
 }
 
