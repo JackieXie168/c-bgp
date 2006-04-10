@@ -3,12 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 05/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __PREFIX_H__
 #define __PREFIX_H__
 
+#include <libgds/log.h>
 #include <libgds/types.h>
 
 #include <stdio.h>
@@ -49,7 +50,7 @@ extern net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
 // ----- ip_address_dump_string -------------------------------------
 char * ip_address_dump_string(net_addr_t tAddr);
 // ----- ip_address_dump --------------------------------------------
-extern void ip_address_dump(FILE * pStream, net_addr_t tAddr);
+extern void ip_address_dump(SLogStream * pStream, net_addr_t tAddr);
 // ----- ip_string_to_address ---------------------------------------
 extern int ip_string_to_address(char * pcString, char ** ppcEndPtr,
 				net_addr_t * ptAddr);
@@ -58,7 +59,7 @@ extern SPrefix uint32_to_prefix(net_addr_t tPrefix, uint8_t uMaskLen);
 // ----- ip_prefix_dump_string ---------------------------------------------
 char * ip_prefix_dump_string(SPrefix sPrefix);
 // ----- ip_prefix_dump ---------------------------------------------
-extern void ip_prefix_dump(FILE * pStream, SPrefix sPrefix);
+extern void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix);
 // ----- ip_prefix_to_strin -----------------------------------------
 void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix);
 // ----- ip_string_to_prefix ----------------------------------------
@@ -67,7 +68,7 @@ extern int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
 // ----- ip_string_to_dest ------------------------------------------
 extern int ip_string_to_dest(char * pcPrefix, SNetDest * psDest);
 // ----- ip_dest_dump -----------------------------------------------
-extern void ip_dest_dump(FILE * pStream, SNetDest sDest);
+extern void ip_dest_dump(SLogStream * pLogStream, SNetDest sDest);
 // ----- ip_prefix_equals -------------------------------------------
 extern int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
 // ----- ip_prefixes_destroy ----------------------------------------

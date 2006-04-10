@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 10/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,7 @@
 #include <net/link.h>
 #include <net/ospf.h>
 #include <net/node.h>
+#include <libgds/log.h>
 #include <libgds/memory.h>
 
 /////////////////////////////////////////////////////////////////////
@@ -359,15 +360,16 @@ int _link_forward(net_addr_t tNextHop, void * pContext,
  */
 void _link_drop(SNetLink * pLink, SNetMessage * pMsg)
 {
-  fprintf(stderr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
-  fprintf(stderr, "message: ");
-  message_dump(stderr, pMsg);
-  //if (pMessage->uProtocol == NET_PROTOCOL_BGP)
-  //  bgp_msg_dump(stderr, NULL, pMessage->pPayLoad);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "link   : ");
-  link_dst_dump(stderr, pLink);
-  fprintf(stderr, "\n");
+  LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+    log_printf(pLogErr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
+    log_printf(pLogErr, "message: ");
+    message_dump(pLogErr, pMsg);
+    //if (pMessage->uProtocol == NET_PROTOCOL_BGP)
+    //  bgp_msg_dump(pLogErr, NULL, pMessage->pPayLoad);
+    log_printf(pLogErr, "\nlink   : ");
+    link_dst_dump(pLogErr, pLink);
+    log_printf(pLogErr, "\n");
+  }
   message_destroy(&pMsg);
 }
 
@@ -384,7 +386,7 @@ void _link_drop(SNetLink * pLink, SNetMessage * pMsg)
  * the destination is an IP address. Otherwise, if it heads towards a
  * subnet (transit/stub), the destination is an IP prefix.
  */
-void link_dst_dump(FILE * pStream, SNetLink * pLink)
+void link_dst_dump(SLogStream * pStream, SNetLink * pLink)
 {
   SPrefix sPrefix;
 
@@ -413,7 +415,7 @@ void link_dst_dump(FILE * pStream, SNetLink * pLink)
  *   <igp-adv> is either YES or NO
  *   <ospf-area> is an integer
  */
-void link_dump(FILE * pStream, SNetLink * pLink)
+void link_dump(SLogStream * pStream, SNetLink * pLink)
 {
   SPrefix sPrefix;
 
@@ -423,35 +425,35 @@ void link_dump(FILE * pStream, SNetLink * pLink)
      - subnet: IP prefix
    */
   if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER) {
-    fprintf(pStream, "ROUTER\t");
+    log_printf(pStream, "ROUTER\t");
     ip_address_dump(pStream, link_get_address(pLink));
   } else {
     if (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) {
-      fprintf(pStream, "TRANSIT\t");
+      log_printf(pStream, "TRANSIT\t");
     } else {
-      fprintf(pStream, "SUBNET\t");
+      log_printf(pStream, "STUB\t");
     }
     link_get_prefix(pLink, &sPrefix);
     ip_prefix_dump(pStream, sPrefix);
   }
 
   /* Link weight & delay */
-  fprintf(pStream, "\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
+  log_printf(pStream, "\t%u\t%u", pLink->tDelay, pLink->uIGPweight);
 
   /* Link state (up/down) */
   if (link_get_state(pLink, NET_LINK_FLAG_UP))
-    fprintf(pStream, "\tUP");
+    log_printf(pStream, "\tUP");
   else
-    fprintf(pStream, "\tDOWN");
+    log_printf(pStream, "\tDOWN");
 
   /* Optional attributes */
   if (link_get_state(pLink, NET_LINK_FLAG_TUNNEL))
-    fprintf(pStream, "\ttunnel");
+    log_printf(pStream, "\ttunnel");
   if (link_get_state(pLink, NET_LINK_FLAG_IGP_ADV))
-    fprintf(pStream, "\tadv:yes");
+    log_printf(pStream, "\tadv:yes");
 
 #ifdef OSPF_SUPPORT
   if (pLink->tArea != OSPF_NO_AREA)
-    fprintf(pStream, "\tarea:%u", pLink->tArea);
+    log_printf(pStream, "\tarea:%u", pLink->tArea);
 #endif
 }

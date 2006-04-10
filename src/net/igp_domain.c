@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 5/07/2005
-// @lastdate 03/08/2005
+// @lastdate 17/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 #endif
 
 #include <assert.h>
+#include <libgds/log.h>
 #include <libgds/memory.h>
 #include <libgds/radix-tree.h>
 #include <net/igp.h>
@@ -125,6 +126,25 @@ SIGPDomain * get_igp_domain(uint16_t uNumber)
   return apIGPDomains[uNumber];
 }
 
+// -----[ igp_domain_for_each ]--------------------------------------
+/**
+ *
+ */
+int igp_domain_for_each(FIGPDomainsForEach fForEach, void * pContext)
+{
+  uint32_t uIndex;
+  int iResult;
+
+  for (uIndex= 0; uIndex < IGP_MAX_DOMAINS; uIndex++) {
+    if (apIGPDomains[uIndex] != NULL) {
+      iResult= fForEach(apIGPDomains[uIndex], pContext);
+      if (iResult != 0)
+	return iResult;
+    }
+  }
+  return 0;
+}
+
 // ----- register_igp_domain ----------------------------------------
 /**
  * Register a new domain.
@@ -133,53 +153,56 @@ SIGPDomain * get_igp_domain(uint16_t uNumber)
  * - the domain must be non NULL;
  * - the domain must not exist.
  */
-void register_igp_domain(SIGPDomain * pDomain)
+int register_igp_domain(SIGPDomain * pDomain)
 {
-  assert(apIGPDomains[pDomain->uNumber] == NULL);
+  if (apIGPDomains[pDomain->uNumber] != NULL) {
+    return -1;
+  }
   apIGPDomains[pDomain->uNumber]= pDomain;
+  return 0;
 }
 
-// ---- igp_domain_dump_for_each ----------------------------------------
+// ----- _igp_domain_dump_for_each ----------------------------------
 /**
  *  Helps igp_domain_dump to dump the ip address of each router 
  *  in the igp domain.
 */
-int igp_domain_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
-			     void * pItem, void * pContext)
+static int _igp_domain_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
+				     void * pItem, void * pContext)
 {
-  FILE * pStream = (FILE *) (pContext);
+  SLogStream * pStream= (SLogStream *) (pContext);
   
   ip_address_dump(pStream, ((SNetNode *) pItem)->tAddr);
-  fprintf(stdout, "\n");
+  log_printf(pStream, "\n");
   return 0;
 }
 
-//--- igp_domain_dump -----------------------------------------------
-int igp_domain_dump(FILE * pStream, SIGPDomain * pDomain)
+// ----- igp_domain_dump --------------------------------------------
+int igp_domain_dump(SLogStream * pStream, SIGPDomain * pDomain)
 {
   return radix_tree_for_each(pDomain->pRouters,
-			     igp_domain_dump_for_each,
+			     _igp_domain_dump_for_each,
 			     pStream);
 }
 
 // ----- igp_domain_info --------------------------------------------
-void igp_domain_info(FILE * pStream, SIGPDomain * pDomain)
+void igp_domain_info(SLogStream * pStream, SIGPDomain * pDomain)
 {
   // IGP model
-  fprintf(pStream, "model: ");
+  log_printf(pStream, "model: ");
   switch (pDomain->tType) {
-  case DOMAIN_IGP: fprintf(pStream, "igp"); break;
-  case DOMAIN_OSPF: fprintf(pStream, "ospf"); break;
+  case DOMAIN_IGP: log_printf(pStream, "igp"); break;
+  case DOMAIN_OSPF: log_printf(pStream, "ospf"); break;
   default:
-    fprintf(pStream, "???");
+    log_printf(pStream, "???");
   }
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 
   // Support for ECMP
   if (pDomain->uECMP)
-    fprintf(pStream, "ecmp : yes\n");
+    log_printf(pStream, "ecmp : yes\n");
   else
-    fprintf(pStream, "ecmp : no\n");
+    log_printf(pStream, "ecmp : no\n");
 }
 
 // ----- igp_domain_compute -----------------------------------------

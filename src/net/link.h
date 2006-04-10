@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 01/09/2005
+// @lastdate 03/03/2006
 // ===========================================================
 
 #ifndef __NET_LINK_H__
@@ -17,6 +17,7 @@
 #include <net/network_t.h>
 #include <libgds/types.h>
 #include <libgds/array.h>
+#include <libgds/log.h>
 #include <libgds/memory.h>
 
 #define NET_LINK_FLAG_UP      0x01
@@ -81,9 +82,9 @@ extern int _link_forward(net_addr_t tNextHop, void * pContext,
 // ----- _link_drop -------------------------------------------------
 extern void _link_drop(SNetLink * pLink, SNetMessage * pMsg);
 // ----- link_dst_dump ----------------------------------------------
-extern void link_dst_dump(FILE * pStream, SNetLink * pLink);
+extern void link_dst_dump(SLogStream * pStream, SNetLink * pLink);
 // ----- link_dump --------------------------------------------------
-extern void link_dump(FILE * pStream, SNetLink * pLink);
+extern void link_dump(SLogStream * pStream, SNetLink * pLink);
 
 // ----- link_ospf_set_area -----------------------------------------
 extern void link_ospf_set_area(SNetLink * pLink, ospf_area_t tArea);

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 05/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -40,7 +40,7 @@ void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
 	  (tAddr >> 8) & 255, tAddr & 255);
 }
 
-// ----- ip_address_dump --------------------------------------------
+// ----- ip_address_dump_string -------------------------------------
 /**
  *
  */
@@ -56,10 +56,11 @@ char * ip_address_dump_string(net_addr_t tAddr)
 /**
  *
  */
-void ip_address_dump(FILE * pStream, net_addr_t tAddr)
+void ip_address_dump(SLogStream * pStream, net_addr_t tAddr)
 {
-  fprintf(pStream, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255,
-	  (tAddr >> 8) & 255, tAddr & 255);
+  log_printf(pStream, "%u.%u.%u.%u",
+	     (tAddr >> 24), (tAddr >> 16) & 255,
+	     (tAddr >> 8) & 255, tAddr & 255);
 }
 
 // ----- ip_string_to_address ---------------------------------------
@@ -126,12 +127,12 @@ char * ip_prefix_dump_string(SPrefix sPrefix)
 /**
  *
  */
-void ip_prefix_dump(FILE * pStream, SPrefix sPrefix)
+void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix)
 {
-  fprintf(pStream, "%u.%u.%u.%u/%u",
-	  sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
-	  (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
-	  sPrefix.uMaskLen);
+  log_printf(pStream, "%u.%u.%u.%u/%u",
+	     sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
+	     (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
+	     sPrefix.uMaskLen);
 }
 
 // ----- ip_prefix_to_string ----------------------------------------
@@ -254,7 +255,7 @@ SNetDest ip_address_to_dest(net_addr_t tAddress)
 /**
  *
  */
-void ip_dest_dump(FILE * pStream, SNetDest sDest)
+void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
 {
   switch (sDest.tType) {
   case NET_DEST_ADDRESS:
@@ -264,10 +265,10 @@ void ip_dest_dump(FILE * pStream, SNetDest sDest)
     ip_prefix_dump(pStream, sDest.uDest.sPrefix);
     break;
   case NET_DEST_ANY:
-    fprintf(pStream, "*");
+    log_printf(pStream, "*");
     break;
   default:
-    fprintf(pStream, "???");
+    log_printf(pStream, "???");
   }
 }
 
@@ -390,15 +391,15 @@ void test_prefix()
 
   assert(!ip_string_to_address("192.168.0.1", &pcEndPtr, &tAddr));
   assert(*pcEndPtr == 0);
-  ip_address_dump(stdout, tAddr);
+  ip_address_dump(pLogDebug, tAddr);
   assert(!ip_string_to_prefix("192.168.0.0/24", &pcEndPtr, &sPrefix));
   assert(*pcEndPtr == 0);
-  ip_prefix_dump(stdout, sPrefix);
-  printf("\n");
+  ip_prefix_dump(pLogDebug, sPrefix);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
   assert(!ip_string_to_prefix("192.168.0/24", &pcEndPtr, &sPrefix));
   assert(*pcEndPtr == 0);
-  ip_prefix_dump(stdout, sPrefix);
-  printf("\n");
+  ip_prefix_dump(pLogDebug, sPrefix);
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
 
-  exit(0);
+  exit(EXIT_SUCCESS);
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,23 +23,23 @@
 /**
  *
  */
-void node_mgmt_perror(FILE * pStream, int iErrorCode)
+void node_mgmt_perror(SLogStream * pStream, int iErrorCode)
 {
   switch (iErrorCode) {
   case NET_SUCCESS:
-    fprintf(pStream, "success"); break;
+    log_printf(pStream, "success"); break;
   case NET_ERROR_MGMT_INVALID_NODE:
-    fprintf(pStream, "invalid node"); break;
+    log_printf(pStream, "invalid node"); break;
   case NET_ERROR_MGMT_INVALID_LINK:
-    fprintf(pStream, "invalid link"); break;
+    log_printf(pStream, "invalid link"); break;
   case NET_ERROR_MGMT_INVALID_SUBNET:
-    fprintf(pStream, "invalid subnet"); break;
+    log_printf(pStream, "invalid subnet"); break;
   case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
-    fprintf(pStream, "link already exists"); break;
+    log_printf(pStream, "link already exists"); break;
   case NET_ERROR_MGMT_INVALID_OPERATION:
-    fprintf(pStream, "invalid operation"); break;
+    log_printf(pStream, "invalid operation"); break;
   default:
-    fprintf(pStream, "unknown error (%i)", iErrorCode);
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
   }
 }
 
@@ -64,33 +64,33 @@ void node_set_name(SNetNode * pNode, const char * pcName)
 /**
  *
  */
-void node_dump(FILE * pStream, SNetNode * pNode)
+void node_dump(SLogStream * pStream, SNetNode * pNode)
 { 
   ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 }
 
 // ----- node_info --------------------------------------------------
 /**
  *
  */
-void node_info(FILE * pStream, SNetNode * pNode)
+void node_info(SLogStream * pStream, SNetNode * pNode)
 {
   unsigned int uIndex;
 
-  fprintf(pStream, "loopback : ");
+  log_printf(pStream, "loopback : ");
   ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\n");
-  fprintf(pStream, "domain   :");
+  log_printf(pStream, "\n");
+  log_printf(pStream, "domain   :");
   for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
-    fprintf(pStream, " %d", pNode->pIGPDomains->data[uIndex]);
+    log_printf(pStream, " %d", pNode->pIGPDomains->data[uIndex]);
   }
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
   if (pNode->pcName != NULL)
-    fprintf(pStream, "name     : %s\n", pNode->pcName);
-  fprintf(pStream, "addresses: ");
+    log_printf(pStream, "name     : %s\n", pNode->pcName);
+  log_printf(pStream, "addresses: ");
   node_addresses_dump(pStream, pNode);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 }
 
 

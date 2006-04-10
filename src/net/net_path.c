@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 27/01/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -97,13 +97,13 @@ char * net_path_dump_string(SNetPath * pPath)
 /**
  *
  */
-void net_path_dump(FILE * pStream, SNetPath * pPath)
+void net_path_dump(SLogStream * pStream, SNetPath * pPath)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
     if (iIndex > 0)
-      fprintf(pStream, " ");
+      log_printf(pStream, " ");
     ip_address_dump(pStream, pPath->data[iIndex]);
   }
 }

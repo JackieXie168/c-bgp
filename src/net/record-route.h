@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 08/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __NET_RECORD_ROUTE_H__
 #define __NET_RECORD_ROUTE_H__
 
 #include <stdio.h>
+#include <libgds/log.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/net_path.h>
@@ -48,7 +49,7 @@ extern SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
 					       SNetDest sDest,
 					       const uint8_t uOptions);
 // ----- node_dump_recorded_route -----------------------------------
-extern void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+extern void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
 				     SNetDest sDest,
 				     const uint8_t uOptions);
 // ----- net_record_route_info_destroy ------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 08/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -55,20 +55,20 @@ int icmp_event_handler(void * pHandler, SNetMessage * pMessage)
 
   switch ((int) pMessage->pPayLoad) {
   case ICMP_ECHO_REQUEST:
-    fprintf(stdout, "icmp-echo-request from ");
-    ip_address_dump(stdout, pMessage->tSrcAddr);
-    fprintf(stdout, " to ");
-    ip_address_dump(stdout, pNode->tAddr);
-    fprintf(stdout, " ttl=%d\n", pMessage->uTTL);
+    log_printf(pLogOut, "icmp-echo-request from ");
+    ip_address_dump(pLogOut, pMessage->tSrcAddr);
+    log_printf(pLogOut, " to ");
+    ip_address_dump(pLogOut, pNode->tAddr);
+    log_printf(pLogOut, " ttl=%d\n", pMessage->uTTL);
     icmp_echo_reply(pNode, pMessage->tSrcAddr, pMessage->tDstAddr);
     break;
   case ICMP_ECHO_REPLY:
-    fprintf(stdout, "icmp-echo-reply from ");
-    ip_address_dump(stdout, pMessage->tSrcAddr);
-    fprintf(stdout, " ttl=%d\n", pMessage->uTTL);
+    log_printf(pLogOut, "icmp-echo-reply from ");
+    ip_address_dump(pLogOut, pMessage->tSrcAddr);
+    log_printf(pLogOut, " ttl=%d\n", pMessage->uTTL);
     break;
   default:
-    LOG_SEVERE("Error: unsupported ICMP message\n");
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: unsupported ICMP message\n");
     abort();
   }
   return 0;

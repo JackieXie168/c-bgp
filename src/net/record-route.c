@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 08/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -11,6 +11,7 @@
 #endif
 
 #include <assert.h>
+#include <libgds/log.h>
 #include <libgds/memory.h>
 #include <net/network.h>
 #include <net/record-route.h>
@@ -282,7 +283,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
 }
 
 typedef struct {
-  FILE * pStream;
+  SLogStream * pStream;
   // 0 -> Node Addr
   // 1 -> NH Addr
   uint8_t uAddrType;
@@ -295,12 +296,12 @@ int print_deflected_path_for_each(void * pItem, void * pContext)
 
   if (pDump->uAddrType == 0) {
     ip_address_dump(pDump->pStream, tAddr);
-    fprintf(pDump->pStream, "->");
+    log_printf(pDump->pStream, "->");
     pDump->uAddrType = 1;
   } else {
-    fprintf(pDump->pStream, "NH:");
+    log_printf(pDump->pStream, "NH:");
     ip_address_dump(pDump->pStream, tAddr);
-    fprintf(pDump->pStream, " " );
+    log_printf(pDump->pStream, " " );
     pDump->uAddrType = 0;
   }
   return 0;
@@ -311,7 +312,7 @@ int print_deflected_path_for_each(void * pItem, void * pContext)
 /**
  *
  */
-void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
+void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
 			      SNetDest sDest, const uint8_t uOptions)
 {
   SDeflectedDump pDeflectedDump;
@@ -321,37 +322,37 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
   assert(pRRInfo != NULL);
 
   ip_address_dump(pStream, pNode->tAddr);
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   ip_dest_dump(pStream, sDest);
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   switch (pRRInfo->iResult) {
-  case NET_RECORD_ROUTE_SUCCESS: fprintf(pStream, "SUCCESS"); break;
-  case NET_RECORD_ROUTE_TOO_LONG: fprintf(pStream, "TOO_LONG"); break;
-  case NET_RECORD_ROUTE_UNREACH: fprintf(pStream, "UNREACH"); break;
-  case NET_RECORD_ROUTE_DOWN: fprintf(pStream, "DOWN"); break;
+  case NET_RECORD_ROUTE_SUCCESS: log_printf(pStream, "SUCCESS"); break;
+  case NET_RECORD_ROUTE_TOO_LONG: log_printf(pStream, "TOO_LONG"); break;
+  case NET_RECORD_ROUTE_UNREACH: log_printf(pStream, "UNREACH"); break;
+  case NET_RECORD_ROUTE_DOWN: log_printf(pStream, "DOWN"); break;
   case NET_RECORD_ROUTE_TUNNEL_UNREACH:
-    fprintf(pStream, "TUNNEL_UNREACH"); break;
+    log_printf(pStream, "TUNNEL_UNREACH"); break;
   case NET_RECORD_ROUTE_TUNNEL_BROKEN:
-    fprintf(pStream, "TUNNEL_BROKEN"); break;
+    log_printf(pStream, "TUNNEL_BROKEN"); break;
   case NET_RECORD_ROUTE_LOOP:
-    fprintf(pStream, "LOOP"); break;
+    log_printf(pStream, "LOOP"); break;
   default:
-    fprintf(pStream, "UNKNOWN_ERROR");
+    log_printf(pStream, "UNKNOWN_ERROR");
   }
-  fprintf(pStream, "\t");
+  log_printf(pStream, "\t");
   net_path_dump(pStream, pRRInfo->pPath);
 
   if (uOptions & NET_RECORD_ROUTE_OPTION_DELAY) {
-    fprintf(pStream, "\t%u", pRRInfo->tDelay);
+    log_printf(pStream, "\t%u", pRRInfo->tDelay);
   }
 
   if (uOptions & NET_RECORD_ROUTE_OPTION_WEIGHT) {
-    fprintf(pStream, "\t%u", pRRInfo->uWeight);
+    log_printf(pStream, "\t%u", pRRInfo->uWeight);
   }
 
   if ((uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION) &&
       (net_path_length(pRRInfo->pDeflectedPath) > 0)) {
-    fprintf(pStream, "\tDEFLECTION\t");
+    log_printf(pStream, "\tDEFLECTION\t");
     pDeflectedDump.pStream= pStream;
     pDeflectedDump.uAddrType= 0;
     net_path_for_each(pRRInfo->pDeflectedPath,
@@ -359,10 +360,10 @@ void node_dump_recorded_route(FILE * pStream, SNetNode * pNode,
 		      &pDeflectedDump);
   }
 
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
 
   net_record_route_info_destroy(&pRRInfo);
 
-  flushir(pStream);
+  log_flush(pStream);
 }
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/03/2005
-// @lastdate 08/08/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -51,7 +51,7 @@ int ntf_load(char * pcFileName)
       
       if (tokenizer_run(pTokenizer, acFileLine)) {
 	iError= NTF_ERROR_UNEXPECTED;
-	LOG_SEVERE("Error: unexpected parse error in NTF file, line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: unexpected parse error in NTF file, line %u\n",
 		   uLineNumber);
 	break;
       }
@@ -59,7 +59,7 @@ int ntf_load(char * pcFileName)
       pTokens= tokenizer_get_tokens(pTokenizer);
 
       if (tokens_get_num(pTokens) < 3) {
-	LOG_SEVERE("Error: not enouh parameters in NTF file, line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: not enouh parameters in NTF file, line %u\n",
 		   uLineNumber);
 	iError= NTF_ERROR_NUM_PARAMS;
 	break;	
@@ -69,7 +69,7 @@ int ntf_load(char * pcFileName)
       pcNode1= tokens_get_string_at(pTokens, 0);
       if ((ip_string_to_address(pcNode1, &pcEndPtr, &tNode1) != 0) ||
 	  (*pcEndPtr != '\0')) {
-	LOG_SEVERE("Error: invalid IP address for first node (%s), line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid IP address for first node (%s), line %u\n",
 		   pcNode1, uLineNumber);
 	iError= NTF_ERROR_INVALID_ADDRESS;
 	break;
@@ -79,7 +79,7 @@ int ntf_load(char * pcFileName)
       pcNode2= tokens_get_string_at(pTokens, 1);
       if ((ip_string_to_address(pcNode2, &pcEndPtr, &tNode2) != 0) ||
 	  (*pcEndPtr != '\0')) {
-	LOG_SEVERE("Error: invalid IP address for second node (%s), line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid IP address for second node (%s), line %u\n",
 		   pcNode1, uLineNumber);
 	iError= NTF_ERROR_INVALID_ADDRESS;
 	break;
@@ -87,7 +87,7 @@ int ntf_load(char * pcFileName)
 
       // Check IGP metric
       if (tokens_get_uint_at(pTokens, 2, &uWeight)) {
-	LOG_SEVERE("Error: invalid IGP metric (%s), line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid IGP metric (%s), line %u\n",
 		   tokens_get_string_at(pTokens, 2), uLineNumber);
 	iError= NTF_ERROR_INVALID_WEIGHT;
 	break;
@@ -97,7 +97,7 @@ int ntf_load(char * pcFileName)
       tDelay= uWeight;
       if (tokens_get_num(pTokens) > 3) {
 	if (tokens_get_uint_at(pTokens, 3, &tDelay)) {
-	  LOG_SEVERE("Error: invalid delay (%s), line %u\n",
+	  LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid delay (%s), line %u\n",
 		     tokens_get_string_at(pTokens, 3), uLineNumber);
 	  iError= NTF_ERROR_INVALID_DELAY;
 	  break;
@@ -125,7 +125,7 @@ int ntf_load(char * pcFileName)
     fclose(pFile);
 
   } else {
-    LOG_SEVERE("Error: could not open NTF file \"%s\"\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not open NTF file \"%s\"\n", pcFileName);
     iError= NTF_ERROR_OPEN;    
   }
 
