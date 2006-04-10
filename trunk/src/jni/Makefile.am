@@ -20,27 +20,41 @@ INCLUDES = -I..
 
 
 libjni_la_SOURCES = \
+	jni_base.c \
+	jni_base.h \
 	jni_interface.c \
+	jni_net_Link.c \
+	jni_net_Link.h \
+	jni_proxies.c \
+	jni_proxies.h \
 	jni_util.c \
 	jni_util.h \
 	be_ac_ucl_ingi_cbgp_CBGP.h
 
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
-#foo_DATA = $(JARFILE)
 
 JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/ASPath.java \
 	be/ac/ucl/ingi/cbgp/ASPathSegment.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/CBGPException.java \
+	be/ac/ucl/ingi/cbgp/Communities.java \
+	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
+	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
+	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
+	be/ac/ucl/ingi/cbgp/BGPDomain.java \
 	be/ac/ucl/ingi/cbgp/BGPPeer.java \
 	be/ac/ucl/ingi/cbgp/BGPRoute.java \
+	be/ac/ucl/ingi/cbgp/BGPRouter.java \
+	be/ac/ucl/ingi/cbgp/IGPDomain.java \
 	be/ac/ucl/ingi/cbgp/IPAddress.java \
 	be/ac/ucl/ingi/cbgp/IPPrefix.java \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
-	be/ac/ucl/ingi/cbgp/Link.java \
+	be/ac/ucl/ingi/cbgp/net/Link.java \
+	be/ac/ucl/ingi/cbgp/Node.java \
+	be/ac/ucl/ingi/cbgp/ProxyObject.java \
 	be/ac/ucl/ingi/cbgp/Route.java \
 	be/ac/ucl/ingi/cbgp/RouteInterface.java
 
@@ -57,9 +71,6 @@ SUFFIXES= .java .class
 $(JARFILE): $(CLASSFILES)
 	$(JAVAH) be.ac.ucl.ingi.cbgp.CBGP
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
-
-install-exec-local:
-	$(INSTALL) CBGP.jar $(libdir)/CBGP.jar
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)
 
