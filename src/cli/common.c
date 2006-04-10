@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 14/10/2005
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -103,16 +103,17 @@ int cli_require_version(SCliContext * pContext, STokens * pTokens)
   pcVersion= tokens_get_string_at(pTokens, 0);
 
   if (parse_version(pcVersion, &uRequiredVersion)) {
-    LOG_SEVERE("Error: invalid version \"\".\n", pcVersion);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid version \"\".\n", pcVersion);
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (parse_version(PACKAGE_VERSION, &uVersion)) {
-    LOG_SEVERE("Error: invalid version \"\".\n", PACKAGE_VERSION);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid version \"\".\n",
+	    PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (uRequiredVersion > uVersion) {
-    LOG_SEVERE("Error: version %s > version %s.\n",
-	       pcVersion, PACKAGE_VERSION);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: version %s > version %s.\n",
+	    pcVersion, PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -130,8 +131,9 @@ int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
   } else if (!strcmp(pcTemp, "off")) {
     iOptionAutoFlush= 0;
   } else {
-    LOG_FATAL("Error: invalid value \"%s\" for option \"autoflush\"\n",
-	      pcTemp);
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: invalid value \"%s\" for option \"autoflush\"\n",
+	    pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -145,14 +147,14 @@ int cli_set_comm_hash_size(SCliContext * pContext, STokens * pTokens)
 
   /* Get the hash size */
   if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
-    LOG_SEVERE("Error: invalid size \"%s\"\n",
-	       tokens_get_string_at(pTokens, 0));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
+	    tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Set the hash size */
   if (comm_hash_set_size(ulSize) != 0) {
-    LOG_SEVERE("Error: could not set comm-hash size\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not set comm-hash size\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -163,27 +165,28 @@ int cli_set_comm_hash_size(SCliContext * pContext, STokens * pTokens)
 int cli_show_comm_hash_content(SCliContext * pContext, STokens * pTokens)
 {
   char * pcFileName;
-  FILE * pStream= stdout;
+  SLogStream * pStream= pLogOut;
 
   pcFileName= tokens_get_string_at(pTokens, 0);
   if (strcmp("stdout", pcFileName)) {
-    pStream= fopen(pcFileName, "w");
+    pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
+	      pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
   comm_hash_content(pStream);
-  if (pStream != stdout)
-    fclose(pStream);
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_comm_hash_size ------------------------------------
 int cli_show_comm_hash_size(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, "%u\n", comm_hash_get_size());
+  log_printf(pLogOut, "%u\n", comm_hash_get_size());
   return CLI_SUCCESS;
 }
 
@@ -191,20 +194,28 @@ int cli_show_comm_hash_size(SCliContext * pContext, STokens * pTokens)
 int cli_show_comm_hash_stat(SCliContext * pContext, STokens * pTokens)
 {
   char * pcFileName;
-  FILE * pStream= stdout;
+  SLogStream * pStream= pLogOut;
 
   pcFileName= tokens_get_string_at(pTokens, 0);
   if (strcmp("stdout", pcFileName)) {
-    pStream= fopen(pcFileName, "w");
+    pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
+	      pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
   comm_hash_statistics(pStream);
-  if (pStream != stdout)
-    fclose(pStream);
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_show_commands ]----------------------------------------
+int cli_show_commands(SCliContext * pContext, STokens * pTokens)
+{
+  cli_cmd_dump(stdout, "  ", pTheCli->pBaseCommand);
   return CLI_SUCCESS;
 }
 
@@ -219,8 +230,9 @@ int cli_set_debug(SCliContext * pContext, STokens * pTokens)
   } else if (!strcmp(pcTemp, "off")) {
     iOptionDebug= 0;
   } else {
-    LOG_FATAL("Error: invalid value \"%s\" for option \"debug\"\n",
-	      pcTemp);
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: invalid value \"%s\" for option \"debug\"\n",
+	    pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -241,7 +253,8 @@ int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
   /* Parse predicate */
   pcPredicate= tokens_get_string_at(pTokens, 1);
   if (predicate_parse(&pcPredicate, &pMatcher)) {
-    LOG_SEVERE("Error: invalid predicate \"%s\"\n", pcPredicate);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n",
+	    pcPredicate);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -250,7 +263,7 @@ int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
 
   return CLI_SUCCESS;
 #else
-  LOG_SEVERE("Error: compiled without bgpdump.\n");
+  LOG_ERR(LOG_LEVEL_SEVERE, "Error: compiled without bgpdump.\n");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -262,28 +275,29 @@ int cli_show_mem_limit(SCliContext * pContext, STokens * pTokens)
   struct rlimit rlim;
 
   if (getrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    LOG_PERROR("Error: getrlimit, ");
+    log_perror(pLogErr, "Error: getrlimit, ");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  fprintf(stdout, "soft limit: ");
+  log_printf(pLogOut, "soft limit: ");
   if (rlim.rlim_cur == RLIM_INFINITY) {
-    fprintf(stdout, "unlimited\n");
+    log_printf(pLogOut, "unlimited\n");
   } else {
-    fprintf(stdout, "%u byte(s)\n", (unsigned int) rlim.rlim_cur);
+    log_printf(pLogOut, "%u byte(s)\n", (unsigned int) rlim.rlim_cur);
   }
-  fprintf(stdout, "hard limit: ");
+  log_printf(pLogOut, "hard limit: ");
   if (rlim.rlim_max == RLIM_INFINITY) {
-    fprintf(stdout, "unlimited\n");
+    log_printf(pLogOut, "unlimited\n");
   } else {
-    fprintf(stdout, "%u byte(s)\n", (unsigned int) rlim.rlim_max);
+    log_printf(pLogOut, "%u byte(s)\n", (unsigned int) rlim.rlim_max);
   }
 
-  flushir(stdout);
+  log_flush(pLogOut);
 
   return CLI_SUCCESS;
 #else
-  LOG_SEVERE("Error: getrlimit() is not supported by your system\n");
+  LOG_ERR(LOG_LEVEL_SEVERE,
+	  "Error: getrlimit() is not supported by your system\n");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -301,20 +315,21 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
     if (!strcmp(tokens_get_string_at(pTokens, 0), "unlimited")) {
       tLimit= RLIM_INFINITY;
     } else {
-      LOG_SEVERE("Error: invalid mem limit \"%s\"\n",
-		 tokens_get_string_at(pTokens, 0));
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid mem limit \"%s\"\n",
+	      tokens_get_string_at(pTokens, 0));
       return CLI_ERROR_COMMAND_FAILED;
     }
   } else {
     if (sizeof(tLimit) < sizeof(ulLimit)) {
-      LOG_WARNING("Warning: limit may be larger than supported by system.\n");
+      LOG_ERR(LOG_LEVEL_WARNING,
+	      "Warning: limit may be larger than supported by system.\n");
     }
     tLimit= (rlim_t) ulLimit;
   }
 
   /* Get the soft limit on the process's size of virtual memory */
   if (getrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    LOG_PERROR("Error: getrlimit, ");
+    log_perror(pLogErr, "Error: getrlimit, ");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -322,13 +337,14 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
 
   /* Set new soft limit on the process's size of virtual memory */
   if (setrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    LOG_PERROR("Error: setrlimit, ");
+    log_perror(pLogErr, "Error: setrlimit, ");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   return CLI_SUCCESS;
 #else
-  LOG_SEVERE("Error: setrlimit() is not supported by your system.\n");
+  LOG_ERR(LOG_LEVEL_SEVERE,
+	  "Error: setrlimit() is not supported by your system.\n");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -340,14 +356,14 @@ int cli_set_path_hash_size(SCliContext * pContext, STokens * pTokens)
 
   /* Get the hash size */
   if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
-    LOG_SEVERE("Error: invalid size \"%s\"\n",
-	       tokens_get_string_at(pTokens, 0));
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
+	    tokens_get_string_at(pTokens, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Set the hash size */
   if (path_hash_set_size(ulSize) != 0) {
-    LOG_SEVERE("Error: could not set path-hash size\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not set path-hash size\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -358,27 +374,28 @@ int cli_set_path_hash_size(SCliContext * pContext, STokens * pTokens)
 int cli_show_path_hash_content(SCliContext * pContext, STokens * pTokens)
 {
   char * pcFileName;
-  FILE * pStream= stdout;
+  SLogStream * pStream= pLogOut;
 
   pcFileName= tokens_get_string_at(pTokens, 0);
   if (strcmp("stdout", pcFileName)) {
-    pStream= fopen(pcFileName, "w");
+    pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
+	      pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
   path_hash_content(pStream);
-  if (pStream != stdout)
-    fclose(pStream);
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_path_hash_size ------------------------------------
 int cli_show_path_hash_size(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, "%u\n", path_hash_get_size());
+  log_printf(pLogOut, "%u\n", path_hash_get_size());
   return CLI_SUCCESS;
 }
 
@@ -386,45 +403,46 @@ int cli_show_path_hash_size(SCliContext * pContext, STokens * pTokens)
 int cli_show_path_hash_stat(SCliContext * pContext, STokens * pTokens)
 {
   char * pcFileName;
-  FILE * pStream= stdout;
+  SLogStream * pStream= pLogOut;
 
   pcFileName= tokens_get_string_at(pTokens, 0);
   if (strcmp("stdout", pcFileName)) {
-    pStream= fopen(pcFileName, "w");
+    pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_SEVERE("Error: unable to create file \"%s\"\n", pcFileName);
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
+	      pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
   path_hash_statistics(pStream);
-  if (pStream != stdout)
-    fclose(pStream);
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_version -------------------------------------------
 int cli_show_version(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, "version: %s %s", PACKAGE_NAME, PACKAGE_VERSION);
+  log_printf(pLogOut, "version: %s %s", PACKAGE_NAME, PACKAGE_VERSION);
 #ifdef __EXPERIMENTAL__ 
-  fprintf(stdout, " [experimental]");
+  log_printf(pLogOut, " [experimental]");
 #endif
 #ifdef HAVE_JNI
-  fprintf(stdout, " [jni]");
+  log_printf(pLogOut, " [jni]");
 #endif
 #ifdef HAVE_BGPDUMP
-  fprintf(stdout, " [bgpdump]");
+  log_printf(pLogOut, " [bgpdump]");
 #endif
 #ifdef __ROUTER_LIST_ENABLE__
-  fprintf(stdout, " [router-list]");
+  log_printf(pLogOut, " [router-list]");
 #endif
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  fprintf(stdout, " [external-best]");
+  log_printf(pLogOut, " [external-best]");
 #endif
-  fprintf(stdout, "\n");
+  log_printf(pLogOut, "\n");
 
-  flushir(stdout);
+  log_flush(pLogOut);
 
   return CLI_SUCCESS;
 }
@@ -441,17 +459,18 @@ int cli_include(SCliContext * pContext, STokens * pTokens)
     iResult= cli_execute_file(pTheCli, pFile);
     fclose(pFile);
   } else
-    LOG_SEVERE("Error: Unable to load file \"%s\".\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: Unable to load file \"%s\".\n",
+	    pcFileName);
   return iResult;
 }
 
 // ----- cli_pause --------------------------------------------------
 int cli_pause(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, "Paused: hit 'Enter' to continue...");
-  fflush(stdout);
+  log_printf(pLogOut, "Paused: hit 'Enter' to continue...");
+  log_flush(pLogOut);
   fgetc(stdin);
-  fprintf(stdout, "\n");
+  log_printf(pLogOut, "\n");
 
   return CLI_SUCCESS;
 }
@@ -459,9 +478,9 @@ int cli_pause(SCliContext * pContext, STokens * pTokens)
 // ----- cli_print --------------------------------------------------
 int cli_print(SCliContext * pContext, STokens * pTokens)
 {
-  fprintf(stdout, tokens_get_string_at(pTokens, 0));
+  log_printf(pLogOut, tokens_get_string_at(pTokens, 0));
   
-  flushir(stdout);
+  log_flush(pLogOut);
 
   return CLI_SUCCESS;
 }
@@ -482,7 +501,7 @@ int cli_time_diff(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  fprintf(stdout, "%f\n", difftime(tCurrentTime, tSavedTime));
+  log_printf(pLogOut, "%f\n", difftime(tCurrentTime, tSavedTime));
   return CLI_SUCCESS;
 }
 
@@ -549,6 +568,9 @@ void cli_register_show(SCli * pCli)
   cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-stat",
 					cli_show_comm_hash_stat,
 					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("commands",
+					cli_show_commands,
+					NULL, NULL));  
   pParams= cli_params_create();
 #ifdef _FILENAME_COMPLETION_FUNCTION
   cli_params_add2(pParams, "<filename>", NULL,
