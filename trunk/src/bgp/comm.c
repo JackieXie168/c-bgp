@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 14/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -129,22 +129,22 @@ int comm_from_string(char * pcComm, comm_t * pCommunity)
 /**
  *
  */
-void comm_dump2(FILE * pStream, comm_t tCommunity, int iText)
+void comm_dump2(SLogStream * pStream, comm_t tCommunity, int iText)
 {
   if (iText == COMM_DUMP_TEXT) {
     switch (tCommunity) {
     case COMM_NO_EXPORT:
-      fprintf(pStream, "no-export");
+      log_printf(pStream, "no-export");
       break;
     case COMM_NO_ADVERTISE:
-      fprintf(pStream, "no-advertise");
+      log_printf(pStream, "no-advertise");
       break;
     default:
-      fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
+      log_printf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
     }
   } else {
-    fprintf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
-    //fprintf(pStream, "%u", tCommunity);
+    log_printf(pStream, "%u:%u", (tCommunity >> 16), (tCommunity & 65535));
+    //log_printf(pStream, "%u", tCommunity);
   }
 }
 
@@ -152,7 +152,7 @@ void comm_dump2(FILE * pStream, comm_t tCommunity, int iText)
 /*
  *
  */
-void comm_dump(FILE * pStream, SCommunities * pCommunities,
+void comm_dump(SLogStream * pStream, SCommunities * pCommunities,
 	       int iText)
 {
   int iIndex;
@@ -160,7 +160,7 @@ void comm_dump(FILE * pStream, SCommunities * pCommunities,
 
   for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
     if (iIndex > 0)
-      fprintf(pStream, " ");
+      log_printf(pStream, " ");
     tCommunity= (comm_t) pCommunities->ppItems[iIndex];
     comm_dump2(pStream, tCommunity, iText);
   }

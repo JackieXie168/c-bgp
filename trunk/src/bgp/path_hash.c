@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 10/10/2005
-// @lastdate 17/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,6 +19,7 @@
 
 #include <libgds/hash.h>
 #include <libgds/hash_utils.h>
+#include <libgds/log.h>
 
 #include <bgp/path.h>
 #include <bgp/path_hash.h>
@@ -141,6 +142,9 @@ int path_hash_set_method(uint8_t uMethod)
   case PATH_HASH_METHOD_ZEBRA:
     fPathHashCompute= path_hash_zebra;
     break;
+  case PATH_HASH_METHOD_OAT:
+    fPathHashCompute= path_hash_OAT;
+    break;
   default:
     abort();
   }
@@ -153,15 +157,15 @@ int path_hash_set_method(uint8_t uMethod)
  */
 int _path_hash_content_for_each(void * pItem, void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   SBGPPath * pPath= (SBGPPath *) pItem;
   uint32_t uRefCnt= 0;
 
   uRefCnt= hash_info(pPathHash, pPath);
 
-  fprintf(pStream, "%u\t", uRefCnt);
+  log_printf(pStream, "%u\t", uRefCnt);
   path_dump(pStream, pPath, 1);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
   return 0;
 }
 
@@ -169,14 +173,14 @@ int _path_hash_content_for_each(void * pItem, void * pContext)
 /**
  *
  */
-void path_hash_content(FILE * pStream)
+void path_hash_content(SLogStream * pStream)
 {
   time_t tCurrentTime= time(NULL);
 
   _path_hash_init();
-  fprintf(pStream, "# C-BGP Global AS-Path repository content\n");
-  fprintf(pStream, "# generated on %s", ctime(&tCurrentTime));
-  fprintf(pStream, "# hash-size is %u\n", uPathHashSize);
+  log_printf(pStream, "# C-BGP Global AS-Path repository content\n");
+  log_printf(pStream, "# generated on %s", ctime(&tCurrentTime));
+  log_printf(pStream, "# hash-size is %u\n", uPathHashSize);
   assert(!hash_for_each(pPathHash,
 			_path_hash_content_for_each,
 			pStream));
@@ -188,13 +192,13 @@ void path_hash_content(FILE * pStream)
  */
 int _path_hash_statistics_for_each(void * pItem, void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   SPtrArray * pArray= (SPtrArray *) pItem;
   uint32_t uCntItems= 0;
 
   if (pArray != NULL)
     uCntItems= ptr_array_length(pArray);
-  fprintf(pStream, "%u\n", uCntItems);
+  log_printf(pStream, "%u\n", uCntItems);
   return 0;
 }
 
@@ -202,14 +206,14 @@ int _path_hash_statistics_for_each(void * pItem, void * pContext)
 /**
  *
  */
-void path_hash_statistics(FILE * pStream)
+void path_hash_statistics(SLogStream * pStream)
 {
   time_t tCurrentTime= time(NULL);
 
   _path_hash_init();
-  fprintf(pStream, "# C-BGP Global AS-Path repository statistics\n");
-  fprintf(pStream, "# generated on %s", ctime(&tCurrentTime));
-  fprintf(pStream, "# hash-size is %u\n", uPathHashSize);
+  log_printf(pStream, "# C-BGP Global AS-Path repository statistics\n");
+  log_printf(pStream, "# generated on %s", ctime(&tCurrentTime));
+  log_printf(pStream, "# hash-size is %u\n", uPathHashSize);
   assert(!hash_for_each_key(pPathHash,
 			    _path_hash_statistics_for_each,
 			    pStream));

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -82,11 +82,11 @@ int bgp_assert_reachability()
 	  // Check BGP reachability
 	  if (bgp_router_record_route(pRouterSrc, pRoute->sPrefix,
 				      &pPath, 0)) {
-	    fprintf(stdout, "Assert: ");
-	    ip_address_dump(stdout, pRouterSrc->pNode->tAddr);
-	    fprintf(stdout, " can not reach ");
-	    ip_prefix_dump(stdout, pRoute->sPrefix);
-	    fprintf(stdout, "\n");
+	    log_printf(pLogOut, "Assert: ");
+	    ip_address_dump(pLogOut, pRouterSrc->pNode->tAddr);
+	    log_printf(pLogOut, " can not reach ");
+	    ip_prefix_dump(pLogOut, pRoute->sPrefix);
+	    log_printf(pLogOut, "\n");
 	    iResult= -1;
 	  }
 	  path_destroy(&pPath);
@@ -124,18 +124,18 @@ int bgp_assert_peerings()
   for (iIndex= 0; iIndex < ptr_array_length(pRL); iIndex++) {
     pRouter= (SBGPRouter *) pRL->data[iIndex];
 
-    fprintf(stdout, "check router ");
-    bgp_router_dump_id(stdout, pRouter);
-    fprintf(stdout, "\n");
+    log_printf(pLogOut, "check router ");
+    bgp_router_dump_id(pLogOut, pRouter);
+    log_printf(pLogOut, "\n");
 
     // For all peerings...
     for (iPeerIndex= 0; iPeerIndex < ptr_array_length(pRouter->pPeers);
 	 iPeerIndex++) {
       pPeer= (SPeer *) pRouter->pPeers->data[iPeerIndex];
 
-      fprintf(stdout, "\tcheck peer ");
-      bgp_peer_dump_id(stdout, pPeer);
-      fprintf(stdout, "\n");
+      log_printf(pLogOut, "\tcheck peer ");
+      bgp_peer_dump_id(pLogOut, pPeer);
+      log_printf(pLogOut, "\n");
 
       // Check existence of BGP peer
       /*pNode= network_find_node(pPeer->tAddr);
@@ -147,11 +147,11 @@ int bgp_assert_peerings()
 	  
 	  // Check for reachability
 	  if (!bgp_peer_session_ok(pPeer)) {
-	    fprintf(stdout, "Assert: ");
-	    ip_address_dump(stdout, pRouter->pNode->tAddr);
-	    fprintf(stdout, "'s peer ");
-	    ip_address_dump(stdout, pPeer->tAddr);
-	    fprintf(stdout, " is not reachable\n");
+	    log_printf(pLogOut, "Assert: ");
+	    ip_address_dump(pLogOut, pRouter->pNode->tAddr);
+	    log_printf(pLogOut, "'s peer ");
+	    ip_address_dump(pLogOut, pPeer->tAddr);
+	    log_printf(pLogOut, " is not reachable\n");
 	    iResult= -1;
 	    iBadPeerings++;
 	  }
@@ -225,7 +225,7 @@ int bgp_router_assert_best(SBGPRouter * pRouter, SPrefix sPrefix,
     return -1;
 
   // Check the next-hop
-  if (route_nexthop_get(pRoute) != tNextHop)
+  if (route_get_nexthop(pRoute) != tNextHop)
     return -1;
 
   return 0;
@@ -257,7 +257,7 @@ int bgp_router_assert_feasible(SBGPRouter * pRouter, SPrefix sPrefix,
   for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
 
-    if (route_nexthop_get(pRoute) == tNextHop) {
+    if (route_get_nexthop(pRoute) == tNextHop) {
       iResult= 0;
       break;
     }

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 28/02/2006
+// @lastdate 10/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,7 @@
 #include <string.h>
 #include <time.h>
 
+#include <libgds/log.h>
 #include <libgds/memory.h>
 #include <libgds/log.h>
 
@@ -34,7 +35,7 @@ typedef struct {
   SBGPMsg * pMsg;
 } SBGPMsgSendContext;
 
-static SLog * pMonitor= NULL;
+static SLogStream * pMonitor= NULL;
 
 // ----- bgp_msg_update_create --------------------------------------
 /**
@@ -144,7 +145,7 @@ int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
 /**
  *
  */
-void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
+void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
 {
   int iIndex;
   uint32_t uCommunity;
@@ -154,102 +155,102 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
   switch (pMsg->uType) {
   case BGP_MSG_UPDATE:
     pRoute= ((SBGPMsgUpdate *) pMsg)->pRoute;
-    fprintf(pStream, "|A");
+    log_printf(pStream, "|A");
     // Peer IP
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);
     } else {
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     // Peer AS
-    fprintf(pStream, "|%d", pMsg->uPeerAS);
+    log_printf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
     ip_prefix_dump(pStream, pRoute->sPrefix);
     // AS-PATH
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
     if (pMsg->uType == BGP_MSG_UPDATE) {
-      path_dump(pStream, route_path_get(pRoute), 1);
+      path_dump(pStream, route_get_path(pRoute), 1);
     }
     // ORIGIN
-    fprintf(pStream, "|");
-    switch (pRoute->uOriginType) {
+    log_printf(pStream, "|");
+    switch (pRoute->pAttr->tOrigin) {
     case ROUTE_ORIGIN_IGP:
-      fprintf(pStream, "IGP"); break;
+      log_printf(pStream, "IGP"); break;
     case ROUTE_ORIGIN_EGP:
-      fprintf(pStream, "EGP"); break;
+      log_printf(pStream, "EGP"); break;
     case ROUTE_ORIGIN_INCOMPLETE:
-      fprintf(pStream, "INCOMPLETE"); break;
+      log_printf(pStream, "INCOMPLETE"); break;
     default:
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     // NEXT-HOP
-    fprintf(pStream, "|");
-    ip_address_dump(pStream, pRoute->tNextHop);
+    log_printf(pStream, "|");
+    ip_address_dump(pStream, pRoute->pAttr->tNextHop);
     // LOCAL-PREF
-    fprintf(pStream, "|%u", pRoute->uLocalPref);
+    log_printf(pStream, "|%u", pRoute->pAttr->uLocalPref);
     // MULTI-EXIT-DISCRIMINATOR
-    if (pRoute->uMED == ROUTE_MED_MISSING)
-      fprintf(pStream, "|");
+    if (pRoute->pAttr->uMED == ROUTE_MED_MISSING)
+      log_printf(pStream, "|");
     else
-      fprintf(pStream, "|%u", pRoute->uMED);
+      log_printf(pStream, "|%u", pRoute->pAttr->uMED);
     // COMMUNITY
-    fprintf(pStream, "|");
-    if (pRoute->pCommunities != NULL) {
-      for (iIndex= 0; iIndex < pRoute->pCommunities->iSize; iIndex++) {
-	uCommunity= (uint32_t) pRoute->pCommunities->ppItems[iIndex];
-	fprintf(pStream, "%u ", uCommunity);
+    log_printf(pStream, "|");
+    if (pRoute->pAttr->pCommunities != NULL) {
+      for (iIndex= 0; iIndex < pRoute->pAttr->pCommunities->iSize; iIndex++) {
+	uCommunity= (uint32_t) pRoute->pAttr->pCommunities->ppItems[iIndex];
+	log_printf(pStream, "%u ", uCommunity);
       }
     }
 
     // Route-reflectors: Originator
     if (pRoute->pOriginator != NULL) {
-      fprintf(pStream, "originator:");
+      log_printf(pStream, "originator:");
       ip_address_dump(pStream, *pRoute->pOriginator);
     }
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
 
     if (pRoute->pClusterList != NULL) {
-      fprintf(pStream, "cluster_id_list:");
+      log_printf(pStream, "cluster_id_list:");
       cluster_list_dump(pStream, pRoute->pClusterList);
     }
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
 
     break;
   case BGP_MSG_WITHDRAW:
-    fprintf(pStream, "|W");
+    log_printf(pStream, "|W");
     // Peer IP
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);
     } else {
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     // Peer AS
-    fprintf(pStream, "|%d", pMsg->uPeerAS);
+    log_printf(pStream, "|%d", pMsg->uPeerAS);
     // Prefix
-    fprintf(pStream, "|");
+    log_printf(pStream, "|");
     ip_prefix_dump(pStream, ((SBGPMsgWithdraw *) pMsg)->sPrefix);
     break;
   case BGP_MSG_OPEN:
-    fprintf(pStream, "|OPEN|");
+    log_printf(pStream, "|OPEN|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);
     } else {
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     break;
   case BGP_MSG_CLOSE:
-    fprintf(pStream, "|CLOSE|");
+    log_printf(pStream, "|CLOSE|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);
     } else {
-      fprintf(pStream, "?");
+      log_printf(pStream, "?");
     }
     break;
   default:
-    fprintf(pStream, "|?");
+    log_printf(pStream, "|?");
   } 
 }
 
@@ -264,19 +265,24 @@ void bgp_msg_dump(FILE * pStream, SNetNode * pNode, SBGPMsg * pMsg)
 /**
  *
  */
-void bgp_msg_monitor_open(char * pcFileName)
+int bgp_msg_monitor_open(char * pcFileName)
 {
   time_t tTime= time(NULL);
 
-  if (pMonitor == NULL)
-    pMonitor= log_create();
-  log_set_file(pMonitor, pcFileName);
+  if (pMonitor == NULL) {
+    pMonitor= log_create_file(pcFileName);
+    if (pMonitor == NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Unable to create monitor file\n");
+      return -1;
+    }
+  }
   log_set_level(pMonitor, LOG_LEVEL_EVERYTHING);
-  fprintf(pMonitor->pStream, "# BGP message trace\n");
-  fprintf(pMonitor->pStream, "# generated by C-BGP on %s",
+  log_printf(pMonitor, "# BGP message trace\n");
+  log_printf(pMonitor, "# generated by C-BGP on %s",
 	  ctime(&tTime));
-  fprintf(pMonitor->pStream, "# <dest-ip>|BGP4|<event-time>|<type>|"
+  log_printf(pMonitor, "# <dest-ip>|BGP4|<event-time>|<type>|"
 	  "<peer-ip>|<peer-as>|<prefix>|...\n");
+  return 0;
 }
 
 // ----- bgp_msg_monitor_write --------------------------------------
@@ -299,17 +305,17 @@ void bgp_msg_monitor_open(char * pcFileName)
 void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
 			   net_addr_t tAddr)
 {
-  if ((pMonitor != NULL) && (pMonitor->pStream != NULL)) {
+  if (pMonitor != NULL) {
 
     // Destination router (): this is not MRTD format but required to
     // identify the destination of the messages
-    ip_address_dump(pMonitor->pStream, tAddr);
+    ip_address_dump(pMonitor, tAddr);
     // Protocol and Time
-    fprintf(pMonitor->pStream, "|BGP4|%.2f", simulator_get_time());
+    log_printf(pMonitor, "|BGP4|%.2f", simulator_get_time());
 
-    bgp_msg_dump(pMonitor->pStream, pNode, pMsg);
+    bgp_msg_dump(pMonitor, pNode, pMsg);
 
-    fprintf(pMonitor->pStream, "\n");
+    log_printf(pMonitor, "\n");
   }
 }
 
@@ -317,9 +323,9 @@ void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
 /**
  *
  */
-void bgp_msg_monitor_destroy(SLog ** ppLog)
+void bgp_msg_monitor_destroy(SLogStream ** ppStream)
 {
-  log_destroy(ppLog);
+  log_destroy(ppStream);
 }
 
 /////////////////////////////////////////////////////////////////////

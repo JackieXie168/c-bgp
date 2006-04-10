@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/10/2005
-// @lastdate 14/10/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,6 +20,7 @@
 #include <libgds/array.h>
 #include <libgds/hash.h>
 #include <libgds/hash_utils.h>
+#include <libgds/log.h>
 
 #include <bgp/comm.h>
 #include <bgp/comm_hash.h>
@@ -180,15 +181,15 @@ int comm_hash_set_method(uint8_t uMethod)
  */
 int _comm_hash_content_for_each(void * pItem, void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   SCommunities * pCommunities= (SCommunities *) pItem;
   uint32_t uRefCnt= 0;
 
   uRefCnt= hash_info(pCommHash, pCommunities);
 
-  fprintf(pStream, "%u\t", uRefCnt);
+  log_printf(pStream, "%u\t", uRefCnt);
   comm_dump(pStream, pCommunities, 1);
-  fprintf(pStream, "\n");
+  log_printf(pStream, "\n");
   return 0;
 }
 
@@ -196,14 +197,14 @@ int _comm_hash_content_for_each(void * pItem, void * pContext)
 /**
  *
  */
-void comm_hash_content(FILE * pStream)
+void comm_hash_content(SLogStream * pStream)
 {
   time_t tCurrentTime= time(NULL);
 
   _comm_hash_init();
-  fprintf(pStream, "# C-BGP Global Communities repository content\n");
-  fprintf(pStream, "# generated on %s", ctime(&tCurrentTime));
-  fprintf(pStream, "# hash-size is %u\n", uCommHashSize);
+  log_printf(pStream, "# C-BGP Global Communities repository content\n");
+  log_printf(pStream, "# generated on %s", ctime(&tCurrentTime));
+  log_printf(pStream, "# hash-size is %u\n", uCommHashSize);
   assert(!hash_for_each(pCommHash,
 			_comm_hash_content_for_each,
 			pStream));
@@ -215,13 +216,13 @@ void comm_hash_content(FILE * pStream)
  */
 int _comm_hash_statistics_for_each(void * pItem, void * pContext)
 {
-  FILE * pStream= (FILE *) pContext;
+  SLogStream * pStream= (SLogStream *) pContext;
   SPtrArray * pArray= (SPtrArray *) pItem;
   uint32_t uCntItems= 0;
 
   if (pArray != NULL)
     uCntItems= ptr_array_length(pArray);
-  fprintf(pStream, "%u\n", uCntItems);
+  log_printf(pStream, "%u\n", uCntItems);
   return 0;
 }
 
@@ -229,14 +230,14 @@ int _comm_hash_statistics_for_each(void * pItem, void * pContext)
 /**
  *
  */
-void comm_hash_statistics(FILE * pStream)
+void comm_hash_statistics(SLogStream * pStream)
 {
   time_t tCurrentTime= time(NULL);
 
   _comm_hash_init();
-  fprintf(pStream, "# C-BGP Global Communities repository statistics\n");
-  fprintf(pStream, "# generated on %s", ctime(&tCurrentTime));
-  fprintf(pStream, "# hash-size is %u\n", uCommHashSize);
+  log_printf(pStream, "# C-BGP Global Communities repository statistics\n");
+  log_printf(pStream, "# generated on %s", ctime(&tCurrentTime));
+  log_printf(pStream, "# hash-size is %u\n", uCommHashSize);
   assert(!hash_for_each_key(pCommHash,
 			    _comm_hash_statistics_for_each,
 			    pStream));

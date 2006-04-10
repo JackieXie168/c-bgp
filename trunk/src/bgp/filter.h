@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 17/05/2005
+// @lastdate 03/03/2006
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -13,6 +13,7 @@
 
 #include <libgds/sequence.h>
 #include <libgds/hash.h>
+#include <libgds/log.h>
 #include <libgds/array.h>
 
 #include <bgp/as_t.h>
@@ -148,12 +149,12 @@ extern SFilterAction * filter_action_ecomm_append(SECommunity * pComm);
 // ----- filter_action_path_prepend ---------------------------------
 extern SFilterAction * filter_action_path_prepend(uint8_t uAmount);
 // ----- filter_dump ------------------------------------------------
-extern void filter_dump(FILE * pStream, SFilter * pFilter);
+extern void filter_dump(SLogStream * pStream, SFilter * pFilter);
 // ----- filter_matcher_dump ----------------------------------------
-extern void filter_matcher_dump(FILE * pStream,
+extern void filter_matcher_dump(SLogStream * pStream,
 				SFilterMatcher * pMatcher);
 // ----- filter_action_dump -----------------------------------------
-extern void filter_action_dump(FILE * pStream,
+extern void filter_action_dump(SLogStream * pStream,
 			       SFilterAction * pAction);
 
 // ----- filter_path_regex_init --------------------------------------
