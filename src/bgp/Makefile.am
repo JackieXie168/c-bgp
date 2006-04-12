@@ -80,6 +80,8 @@ libbgp_la_SOURCES = \
 	qos.c \
 	qos.h \
 	qos_t.h \
+	rcn.c \
+	rcn.h \
 	rexford.c \
 	rexford.h \
 	rib.c \
@@ -98,7 +100,7 @@ libbgp_la_SOURCES = \
 	stats.h \
 	tie_breaks.c \
 	tie_breaks.h \
-	types.h
+	types.h \
 	walton.c \
 	walton.h
 
