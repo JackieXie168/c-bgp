@@ -1,6 +1,6 @@
 README.developpers
 ==================
-(10/04/2006, bqu@info.ucl.ac.be)
+(13/04/2006, bqu@info.ucl.ac.be)
 
 This short document describes how to correctly (and painlessly) setup
 the C-BGP build process ?
@@ -89,3 +89,45 @@ Additional arguments may be given to ./configure if needed:
 
 Good luck!
 Bruno
+
+
+History file:
+=============
+
+Setup the environment variable CBGP_HISTFILE so that C-BGP will keep
+track of the history of commands. For instance, bash users would add
+the following command to their $HOME/.bashrc file:
+
+  export CBGP_HISTFILE=""
+
+The default history file is $HOME/.cbgp_history. If the CBGP_HISTFILE
+is a non-empty string, it will be used as the name of an alternate
+history file.
+
+
+Debugging:
+==========
+
+If the ./configure script has configured the build process so as to
+rely on libtool, you will need to run the debugger through
+libtool. Issue the following command to run C-BGP with the GNU
+debugger (gdb):
+
+  libtool --mode=execute gdb src/cbgp
+
+Note: under Mac OS X Tiger, use glibtool instead...
+
+
+JNI:
+====
+
+In order to enable the JNI interface, pass the argument --with-jni to
+the ./configure script. You need to define the JAVA_HOME environment
+variable so that it points to the Java SDK directory.
+
+The CBGP.jar and libcsim library will be installed in $libdir
+($prefix/lib).
+
+Under Mac OS X 10.4, Java extensions can be installed in
+/Library/Java/Extensions (system-wide) or in the local
+$HOME/Library/Java/Extensions (single-user).
