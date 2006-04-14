@@ -80,8 +80,6 @@ libbgp_la_SOURCES = \
 	qos.c \
 	qos.h \
 	qos_t.h \
-	rcn.c \
-	rcn.h \
 	rexford.c \
 	rexford.h \
 	rib.c \
