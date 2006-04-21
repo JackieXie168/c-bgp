@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/11/2003
-// @lastdate 10/04/2006
+// @lastdate 11/04/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
@@ -76,7 +76,7 @@
 #define ROUTE_SHOW_CISCO 0
 #define ROUTE_SHOW_MRT   1
 
-typedef struct TRoute {
+typedef struct /*TRoute*/ {
   SPrefix sPrefix; // Destination prefix
   SPeer * pPeer;   // Peer of the route
   uint16_t uFlags; // Flags (best, feasible, eligible, ...)
@@ -84,11 +84,18 @@ typedef struct TRoute {
   uint8_t tRank;   // How the route was selected
                    // (meaningful only if the route is currently best)
 #endif
+  //SBGPAttr * pAttr;  // Route attributes
   SBGPAttr * pAttr;  // Route attributes
 
   /* Route-Reflection attributes */
   net_addr_t * pOriginator;
   SClusterList * pClusterList;
+
+#ifdef __EXPERIMENTAL__
+  /* Origin router: used in combination with withdraw root cause.
+     Identifies the BGP router that originated this route. */
+  struct TBGPRouter * pOriginRouter;
+#endif
 
 } SRoute;
 

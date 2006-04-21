@@ -9,12 +9,13 @@
 #ifndef __BGP_TYPES_H__
 #define __BGP_TYPES_H__
 
-#include <libgds/array.h>
 #include <libgds/types.h>
+#include <libgds/array.h>
 
+//#include <bgp/as_t.h>
 #include <bgp/comm_t.h>
 #include <bgp/ecomm_t.h>
-#include <bgp/path.h>
+//#include <bgp/path.h>
 #include <bgp/qos_t.h>
 #include <bgp/route_reflector.h>
 #include <net/prefix.h>
@@ -30,6 +31,13 @@ typedef uint32_t bgp_attr_refcnt_t;
 #define ROUTE_ORIGIN_EGP 1        // route learned through BGP
 #define ROUTE_ORIGIN_INCOMPLETE 2 // route learned through redistribution
 typedef unsigned char bgp_origin_t;
+
+// -----[ AS-Path segment ]------------------------------------------
+typedef struct {
+  uint8_t uType;       /* Segment type */
+  uint8_t uLength;     /* Number of ASs in the value field */
+  uint16_t auValue[0]; /* One or more AS numbers */
+} SPathSegment;
 
 // -----[ AS-Paths / AS-Trees ]--------------------------------------
 /** 
@@ -80,5 +88,12 @@ typedef struct {
 #endif
 
 } SBGPAttr;
+
+// -----[ SBGPRootCause ]--------------------------------------------
+typedef uint8_t bgp_rcn_id_t;
+typedef struct {
+  bgp_rcn_id_t tID;
+  struct TBGPRouter * pRouter;
+} SBGPRootCause;
 
 #endif /* __BGP_TYPES_H__ */

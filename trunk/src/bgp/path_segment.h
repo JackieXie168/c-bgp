@@ -14,14 +14,10 @@
 
 #include <stdio.h>
 
+#include <bgp/types.h>
+
 #define AS_PATH_SEGMENT_SET 1
 #define AS_PATH_SEGMENT_SEQUENCE 2
-
-typedef struct {
-  uint8_t uType;       /* Segment type */
-  uint8_t uLength;     /* Number of ASs in the value field */
-  uint16_t auValue[0]; /* One or more AS numbers */
-} SPathSegment;
 
 // ----- path_segment_create ----------------------------------------
 /**

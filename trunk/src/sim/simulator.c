@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 03/03/2006
+// @lastdate 20/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -84,6 +84,16 @@ void simulator_done()
   //dynamic_scheduler_done();
 }
 
+// ----- simulator_clear --------------------------------------------
+/**
+ *
+ */
+void simulator_clear()
+{
+  simulator_done();
+  simulator_init();
+}
+
 // ----- simulator_run ----------------------------------------------
 /**
  *
@@ -100,6 +110,20 @@ int simulator_run()
 int simulator_step(int iNumSteps)
 {
   return pSimulator->fSchedulerRun(pSimulator, iNumSteps);
+}
+
+// ----- simulator_get_num_events -----------------------------------
+/**
+ *
+ */
+uint32_t simulator_get_num_events()
+{
+  switch (SIM_OPTIONS_SCHEDULER) {
+  case SCHEDULER_STATIC:
+    return static_scheduler_get_num_events();
+  default:
+    return 0;
+  }
 }
 
 // ----- simulator_post_event ---------------------------------------

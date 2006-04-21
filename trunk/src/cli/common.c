@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 10/04/2006
+// @lastdate 21/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -215,7 +215,7 @@ int cli_show_comm_hash_stat(SCliContext * pContext, STokens * pTokens)
 // -----[ cli_show_commands ]----------------------------------------
 int cli_show_commands(SCliContext * pContext, STokens * pTokens)
 {
-  cli_cmd_dump(stdout, "  ", pTheCli->pBaseCommand);
+  cli_cmd_dump(pLogOut, "  ", pTheCli->pBaseCommand);
   return CLI_SUCCESS;
 }
 

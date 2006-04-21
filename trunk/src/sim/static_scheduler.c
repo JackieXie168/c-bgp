@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 03/03/2006
+// @lastdate 20/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -71,12 +71,15 @@ void static_scheduler_event_fifo_destroy(void ** ppItem)
  */
 SStaticScheduler * static_scheduler_init()
 {
-  assert(pStaticScheduler == NULL);
-  pStaticScheduler=
-    (SStaticScheduler *) MALLOC(sizeof(SStaticScheduler));
-  pStaticScheduler->pEvents=
-    fifo_create(EVENT_QUEUE_DEPTH, static_scheduler_event_fifo_destroy);
-  fifo_set_option(pStaticScheduler->pEvents, FIFO_OPTION_GROW_EXPONENTIAL, 1);
+  if (pStaticScheduler == NULL) {
+    pStaticScheduler=
+      (SStaticScheduler *) MALLOC(sizeof(SStaticScheduler));
+    pStaticScheduler->pEvents=
+      fifo_create(EVENT_QUEUE_DEPTH,
+		  static_scheduler_event_fifo_destroy);
+    fifo_set_option(pStaticScheduler->pEvents,
+		    FIFO_OPTION_GROW_EXPONENTIAL, 1);
+  }
   return pStaticScheduler;
 }
 
@@ -164,6 +167,15 @@ int static_scheduler_post(FSimEventCallback fCallback,
   pEvent= static_scheduler_event_create(fCallback, fDump, fDestroy, pContext);
 
   return fifo_push(pStaticScheduler->pEvents, pEvent);
+}
+
+// ----- static_scheduler_get_num_events ----------------------------
+/**
+ * Return the number of queued events.
+ */
+uint32_t static_scheduler_get_num_events()
+{
+  return pStaticScheduler->pEvents->uCurrentDepth;
 }
 
 // ----- static_scheduler_dump_events -------------------------------

@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 10/04/2006
+// @lastdate 11/04/2006
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -15,11 +15,12 @@
 
 #include <net/network.h>
 #include <bgp/route.h>
+#include <bgp/types.h>
 
-#define BGP_MSG_UPDATE   1
-#define BGP_MSG_WITHDRAW 2
-#define BGP_MSG_CLOSE    3
-#define BGP_MSG_OPEN     4
+#define BGP_MSG_UPDATE   0x01
+#define BGP_MSG_WITHDRAW 0x02
+#define BGP_MSG_CLOSE    0x03
+#define BGP_MSG_OPEN     0x04
 
 extern unsigned long context_create_count;
 extern unsigned long context_destroy_count;
@@ -40,6 +41,9 @@ typedef struct {
   uint16_t uPeerAS;
   SPrefix sPrefix;
   net_addr_t * tNextHop;
+#ifdef __EXPERIMENTAL__
+  SBGPRootCause * pRootCause;
+#endif
 } SBGPMsgWithdraw;
 
 typedef struct {
@@ -64,6 +68,12 @@ extern SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 #else
 extern SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 					 SPrefix sPrefix);
+#endif
+#ifdef __EXPERIMENTAL__
+// ----- bgp_msg_withdraw_create_rcn --------------------------------
+extern SBGPMsg * bgp_msg_withdraw_create_rcn(uint16_t uPeerAS,
+					     SPrefix sPrefix,
+                                             SBGPRootCause * pRootCause);
 #endif
 // ----- bgp_msg_close_create ---------------------------------------
 extern SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS);

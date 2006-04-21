@@ -256,14 +256,22 @@ int bgp_router_add_network(SBGPRouter * pRouter, SPrefix sPrefix)
 
 // ----- bgp_router_del_network -------------------------------------
 /**
- *
+ * This function removes a locally originated network.
  */
 int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
 {
   SRoute * pRoute= NULL;
   int iIndex;
 
-  // Looks for the route and mark it as unfeasible
+  //LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "bgp_router_del_network(");
+    bgp_router_dump_id(pLogDebug, pRouter);
+    log_printf(pLogDebug, ", ");
+    ip_prefix_dump(pLogDebug, sPrefix);
+    log_printf(pLogDebug, ")\n");
+  //}
+
+  // Look for the route and mark it as unfeasible
   for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *)
 	pRouter->pLocalNetworks);
       iIndex++) {
@@ -287,6 +295,7 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
     /// *****
 
     // Remove the route from the Loc-RIB
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     rib_remove_route(pRouter->pLocRIB, sPrefix, NULL);
 #else
@@ -299,6 +308,8 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
 
     // Free route
     route_destroy(&pRoute);
+
+    log_printf(pLogDebug, "RUN DECISION PROCESS...\n");
 
     bgp_router_decision_process_disseminate(pRouter, sPrefix, NULL);
 
@@ -1268,12 +1279,35 @@ void bgp_router_decision_process_no_best_route(SBGPRouter * pRouter,
       route_flag_set(pOldEBGPRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
     }
 #endif
+
+/*
+  log_printf(pLogErr, "OLD-ROUTE[%p]: ", pOldRoute);
+  route_dump(pLogErr, pOldRoute);
+  log_printf(pLogErr, "; PEER[%p]: ", pOldRoute->pPeer);
+  bgp_peer_dump(pLogErr, pOldRoute->pPeer);
+  log_printf(pLogErr, "; ADJ-RIB-IN[%p]", pOldRoute->pPeer->pAdjRIBIn);
+  log_printf(pLogErr, "\n");
+*/
+
+    // THIS FUNCTION CALL MUST APPEAR BEFORE THE ROUTE IS REMOVED FROM
+    // THE LOC-RIB (AND DESTROYED) !!!
+    bgp_router_best_flag_off(pOldRoute);
+
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     rib_remove_route(pRouter->pLocRIB, sPrefix, NULL);
 #else
     rib_remove_route(pRouter->pLocRIB, sPrefix);
 #endif
-    bgp_router_best_flag_off(pOldRoute);
+
+/*
+  log_printf(pLogErr, "OLD-ROUTE[%p]: ", pOldRoute);
+  route_dump(pLogErr, pOldRoute);
+  log_printf(pLogErr, "; PEER[%p]: ", pOldRoute->pPeer);
+  bgp_peer_dump(pLogErr, pOldRoute->pPeer);
+  log_printf(pLogErr, "; ADJ-RIB-IN[%p]", pOldRoute->pPeer->pAdjRIBIn);
+  log_printf(pLogErr, "\n");
+*/
+
     bgp_router_rt_del_route(pRouter, sPrefix);
     bgp_router_decision_process_disseminate(pRouter, sPrefix, NULL);
   }
@@ -2187,6 +2221,13 @@ void bgp_router_dump_networks(SLogStream * pStream, SBGPRouter * pRouter)
     log_printf(pStream, "\n");
   }
   log_flush(pStream);
+}
+
+// ----- bgp_router_networks_for_each -------------------------------
+int bgp_router_networks_for_each(SBGPRouter * pRouter, FArrayForEach fForEach,
+				 void * pContext)
+{
+  return _array_for_each((SArray *) pRouter->pLocalNetworks, fForEach, pContext);
 }
 
 // ----- bgp_router_dump_peers --------------------------------------

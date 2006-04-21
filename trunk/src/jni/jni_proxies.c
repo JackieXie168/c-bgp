@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 31/03/2006
+// @lastdate 19/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,7 +15,13 @@
 #include <libgds/hash.h>
 #include <libgds/memory.h>
 
+#include <jni/jni_base.h>
+#include <jni/jni_util.h>
+
 #define JNI_PROXY_HASH_SIZE 1000
+
+#define CLASS_ProxyObject "be/ac/ucl/ingi/cbgp/ProxyObject"
+#define METHOD_ProxyObject_getCBGP "()Lbe/ac/ucl/ingi/cbgp/CBGP;"
 
 static SHash * pHashCode2Object= NULL;
 
@@ -84,14 +90,24 @@ void jni_proxy_remove(jint jiHashCode)
 /**
  *
  */
-void * jni_proxy_lookup(jint jiHashCode)
+void * jni_proxy_lookup(JNIEnv * jEnv, jint jiHashCode)
 {
   SHashCodeObject sObject;
   SHashCodeObject * pObject;
   sObject.jiHashCode= jiHashCode;
-  //fprintf(stderr, "JNI::proxy_lookup(%d)\n", jiHashCode);
   pObject= hash_search(pHashCode2Object, &sObject);
   if (pObject != NULL)
     return pObject->pObject;
+  cbgp_jni_throw_CBGPException(jEnv, "JNI proxy lookup error");
   return NULL;
+}
+
+// -----[ jni_proxy_get_CBGP ]---------------------------------------
+/**
+ *
+ */
+inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
+{
+  return cbgp_jni_call_Object(jEnv, joObject, "getCBGP",
+			       METHOD_ProxyObject_getCBGP);
 }
