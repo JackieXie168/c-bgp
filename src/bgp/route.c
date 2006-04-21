@@ -37,7 +37,7 @@ SRoute * route_create2(SPrefix sPrefix, SPeer * pPeer,
  * Create a new BGP route towards the given prefix. The 'peer' field
  * mentions the peer who announced the route to the local router. This
  * field can be NULL if the route was originated locally or if the
- * peer is unknown. The 'next-hop' field is the BGP nexth-op of the
+ * peer is unknown. The 'next-hop' field is the BGP next-hop of the
  * route. Finally, the 'origin-type' field tells how the route was
  * originated. This is usually set to IGP.
  */
@@ -81,7 +81,11 @@ SRoute * route_create2(SPrefix sPrefix, SPeer * pPeer,
   pRoute->pRouterList= NULL;
 #endif
 
-  return pRoute;  
+#ifdef __EXPERIMENTAL__
+  pRoute->pOriginRouter= NULL;
+#endif
+
+  return pRoute;
 }
 
 // ----- route_destroy ----------------------------------------------
@@ -150,6 +154,14 @@ inline SPeer * route_peer_get(SRoute * pRoute)
   assert(pRoute->pPeer != NULL);
   return pRoute->pPeer;
 }
+
+#ifdef __EXPERIMENTAL__
+// ----- route_set_origin_router ------------------------------------
+inline void route_set_origin_router(SRoute * pRoute, SBGPRouter * pRouter)
+{
+  pRoute->pOriginRouter= pRouter;
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////
 //

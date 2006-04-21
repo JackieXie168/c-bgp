@@ -11,11 +11,9 @@
 
 #include <stdio.h>
 
-#include <libgds/array.h>
 #include <libgds/log.h>
 #include <libgds/types.h>
 
-#include <bgp/path_segment.h>
 #include <bgp/types.h>
 
 // ----- path_create ------------------------------------------------

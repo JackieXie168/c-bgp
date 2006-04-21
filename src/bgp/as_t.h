@@ -22,14 +22,14 @@ typedef struct {
   SRadixTree * pRouters;
 } SBGPDomain;
 
-typedef struct {
+typedef struct TBGPRouter {
   uint16_t uNumber;            // AS-number of the router
   net_addr_t tRouterID;        // Router-ID of the router
   SPtrArray * pPeers;          // List of neighbor routers
   SRIB * pLocRIB;
   SPtrArray * pLocalNetworks;  // List of locally originated prefixes
-  FTieBreakFunction fTieBreak; // Cluster-ID
-  cluster_id_t tClusterID;
+  FTieBreakFunction fTieBreak;
+  cluster_id_t tClusterID;     // Cluster-ID
   int iRouteReflector;
   SNetNode * pNode;            // Reference to the node running this BGP router
   SBGPDomain * pDomain;        // Reference to the AS containing this router

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 03/03/2006
+// @lastdate 20/04/2006
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
@@ -31,6 +31,8 @@ extern int static_scheduler_post(FSimEventCallback fCallback,
 				 void * pContext,
 				 double uSchedulingTime,
 				 uint8_t uDeltaType);
+// ----- static_scheduler_get_num_events ----------------------------
+extern uint32_t static_scheduler_get_num_events();
 // ----- static_scheduler_dump_events -------------------------------
 extern void static_scheduler_dump_events(SLogStream * pStream);
 

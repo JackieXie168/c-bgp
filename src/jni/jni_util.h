@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 21/03/2006
+// @lastdate 19/04/2006
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -28,6 +28,7 @@ typedef struct {
     SBGPRouter * pRouter;
   };
   jobject joVector;
+  jobject joCBGP;
   JNIEnv * jEnv;
 } SJNIContext;
 
@@ -53,12 +54,6 @@ extern int cbgp_jni_ASPathSegment_append(JNIEnv * env, jobject joASPathSeg,
 extern jobject cbgp_jni_new_IPPrefix(JNIEnv * env, SPrefix sPrefix);
 // -----[ cbgp_jni_new_IPAddress ]-----------------------------------
 extern jobject cbgp_jni_new_IPAddress(JNIEnv * env, net_addr_t tAddr);
-// -----[ cbgp_jni_new_IGPDomain ]-----------------------------------
-extern jobject cbgp_jni_new_IGPDomain(JNIEnv * env, SIGPDomain * pDomain);
-// -----[ cbgp_jni_new_Node ]----------------------------------------
-extern jobject cbgp_jni_new_Node(JNIEnv * env, SNetNode * pNode);
-// -----[ cbgp_jni_new_Link ]----------------------------------------
-extern jobject cbgp_jni_new_Link(JNIEnv * env, SNetLink * pLink);
 // -----[ cbgp_jni_new_IPRoute ]-------------------------------------
 extern jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix,
 				    SNetRouteInfo * pRoute);
@@ -67,12 +62,6 @@ extern jobject cbgp_jni_new_IPTrace(JNIEnv * env, net_addr_t tSrc,
 				    net_addr_t tDst, SNetPath * pPath,
 				    int iStatus, net_link_delay_t tDelay,
 				    net_link_delay_t tWeight);
-// -----[ cbgp_jni_new_BGPDomain ]-----------------------------------
-extern jobject cbgp_jni_new_BGPDomain(JNIEnv * env, SBGPDomain * pDomain);
-// -----[ cbgp_jni_new_BGPRouter ]-----------------------------------
-extern jobject cbgp_jni_new_BGPRouter(JNIEnv * env, SBGPRouter * pRouter);
-// -----[ cbgp_jni_new_BGPPeer ]-------------------------------------
-extern jobject cbgp_jni_new_BGPPeer(JNIEnv * env, SPeer * pPeer);
 // -----[ cbgp_jni_new_BGPRoute ]------------------------------------
 extern jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute);
 // -----[ ip_jstring_to_address ]------------------------------------

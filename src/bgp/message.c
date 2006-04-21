@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 10/04/2006
+// @lastdate 11/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,6 +83,22 @@ SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 #endif
   return (SBGPMsg *) pMsg;
 }
+
+#ifdef __EXPERIMENTAL__
+// ----- bgp_msg_withdraw_create_rcn --------------------------------
+/**
+ * Create a BGP withdraw message with root cause notification (RCN).
+ */
+SBGPMsg * bgp_msg_withdraw_create_rcn(uint16_t uPeerAS,
+				      SPrefix sPrefix,
+                                      SBGPRootCause * pRootCause)
+{
+  SBGPMsgWithdraw * pMsg= (SBGPMsgWithdraw *)
+    bgp_msg_withdraw_create(uPeerAS, sPrefix);
+  pMsg->pRootCause= pRootCause;
+  return (SBGPMsg *) pMsg;
+}
+#endif
 
 // ----- bgp_msg_close_create ---------------------------------------
 SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS)

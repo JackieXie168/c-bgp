@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 02/08/2005
+// @lastdate 20/04/2006
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -49,10 +49,14 @@ typedef struct {
 extern void simulator_init();
 // ----- simulator_destroy ------------------------------------------
 extern void simulator_done();
-// ----- simulator_dun ----------------------------------------------
+// ----- simulator_clear --------------------------------------------
+extern void simulator_clear();
+// ----- simulator_run ----------------------------------------------
 extern int simulator_run();
 // ----- simulator_step ---------------------------------------------
 extern int simulator_step(int iNumSteps);
+// ----- simulator_get_num_events -----------------------------------
+extern uint32_t simulator_get_num_events();
 // ----- simulator_post_event ---------------------------------------
 extern int simulator_post_event(FSimEventCallback fCallback,
 				FSimEventDump fDump,

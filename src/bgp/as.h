@@ -168,6 +168,10 @@ int bgp_router_scan_rib(SBGPRouter * pRouter);
 // ----- bgp_router_dump_networks -----------------------------------
 extern void bgp_router_dump_networks(SLogStream * pStream,
 				     SBGPRouter * pRouter);
+// ----- bgp_router_networks_for_each -------------------------------
+extern int bgp_router_networks_for_each(SBGPRouter * pRouter,
+					FArrayForEach fForEach,
+					void * pContext);
 // ----- bgp_router_dump_peers --------------------------------------
 extern void bgp_router_dump_peers(SLogStream * pStream, SBGPRouter * pRouter);
 // ----- bgp_router_peers_for_each ----------------------------------

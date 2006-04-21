@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 03/03/2006
+// @lastdate 21/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -40,7 +40,7 @@ int ft_registry_predicate_parse(char * pcExpr,
 
   iResult= cli_execute_ctx(pFtPredicateCLI, pcExpr, (void *) ppMatcher);
   if (iResult != CLI_SUCCESS) {
-    cli_perror(stderr, iResult);
+    cli_perror(pLogErr, iResult);
     return FILTER_PARSER_ERROR_UNEXPECTED;
   }
   return FILTER_PARSER_SUCCESS;
@@ -60,7 +60,7 @@ int ft_registry_action_parse(char * pcExpr,
 
   iResult= cli_execute_ctx(pFtActionCLI, pcExpr, (void *) ppAction);
   if (iResult != CLI_SUCCESS) {
-    cli_perror(stderr, iResult);
+    cli_perror(pLogErr, iResult);
     return FILTER_PARSER_ERROR_UNEXPECTED;
   }
   return FILTER_PARSER_SUCCESS;
