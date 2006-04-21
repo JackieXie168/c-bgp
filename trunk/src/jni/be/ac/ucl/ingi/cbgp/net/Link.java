@@ -19,7 +19,6 @@ public class Link extends ProxyObject
 
     // -----[ protected attributes ]---------------------------------
     protected IPAddress nexthopIf;
-    protected long lWeight;
     protected long lDelay;
 
     // -----[ Proxy management native methods ]----------------------
@@ -29,13 +28,12 @@ public class Link extends ProxyObject
     /**
      * Link's constructor.
      */
-    private Link(IPAddress nexthopIf, long lDelay, long lWeight,
-		 boolean bStatus)
+    protected Link(CBGP cbgp, IPAddress nexthopIf, long lDelay)
     {
-	/* Attributes */
-	this.nexthopIf= nexthopIf;
-	this.lDelay= lDelay;
-	this.lWeight= lWeight;
+    	super(cbgp);
+    	/* Attributes */
+    	this.nexthopIf= nexthopIf;
+    	this.lDelay= lDelay;
     }
 
     // -----[ finalize ]---------------------------------------------
@@ -66,10 +64,15 @@ public class Link extends ProxyObject
     /**
      * Return the link's IGP weight.
      */
-    public long getWeight()
-    {
-	return lWeight;
-    }
+    public native synchronized long getWeight()
+    	throws CBGPException;
+    
+    // -----[ setWeight ]-------------------------------------------
+    /**
+     * Set the link's IGP weight.
+     */
+    public native synchronized	void setWeight(long lWeight)
+		throws CBGPException;
 
     // -----[ getState ]---------------------------------------------
     /**
@@ -98,7 +101,11 @@ public class Link extends ProxyObject
 	s+= "\t";
 	s+= lDelay;
 	s+= "\t";
-	s+= lWeight;
+	try {
+		s+= getWeight();
+	} catch (CBGPException e) {
+		s+= "???";
+	}
 	s+= "\t";
 
 	/* Flags */
