@@ -17,13 +17,15 @@ import java.lang.Exception;
 public class CBGPException extends Exception
 {
 
-    // -----[ CBGPException ]----------------------------------------
+    private static final long serialVersionUID = 1L;
+
+	// -----[ CBGPException ]----------------------------------------
     /**
      * CBGPException's constructor.
      */
     public CBGPException(String sMsg)
     {
-	super(sMsg);
+    	super(sMsg);
     }
 
 }

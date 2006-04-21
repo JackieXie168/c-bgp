@@ -8,7 +8,6 @@
 
 package be.ac.ucl.ingi.cbgp; 
 
-import java.lang.Exception;
 import java.util.Vector;
 
 // -----[ IPTrace ]--------------------------------------------------
@@ -55,7 +54,7 @@ public class IPTrace
      */
     public void append(IPAddress hop)
     {
-	hops.add(hop);
+    	hops.add(hop);
     }
 
     // -----[ getDelay ]---------------------------------------------
@@ -71,11 +70,18 @@ public class IPTrace
     /**
      * Returns the IP address at the given position in the trace.
      */
-    public IPAddress getHop(int iIndex) throws Exception
+    public IPAddress getHop(int iIndex)
     {
-	if ((iIndex < 0) || (iIndex >= hops.size()))
-	    throw new Exception("Invalid IP trace hop index "+iIndex);
-	return (IPAddress) hops.get(iIndex);
+    	return (IPAddress) hops.get(iIndex);
+    }
+    
+    // -----[ getHopCount ]-----------------------------------------
+    /**
+     * Returns the number of hops in the trace.
+     */
+    public int getHopCount()
+    {
+    	return hops.size();
     }
 
     // -----[ getStatus ]--------------------------------------------
@@ -132,7 +138,7 @@ public class IPTrace
 	    if (iIndex > 0) {
 		s+= " ";
 	    }
-	    s+= (IPAddress) hops.get(iIndex);
+	    s+= hops.get(iIndex);
 	}
 	s+= "\t";
 	s+= iDelay;

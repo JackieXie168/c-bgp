@@ -12,6 +12,9 @@ package be.ac.ucl.ingi.cbgp;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Vector;
+
+import be.ac.ucl.ingi.cbgp.bgp.Peer;
+import be.ac.ucl.ingi.cbgp.bgp.Router;
 import be.ac.ucl.ingi.cbgp.net.*;
 
 // -----[ CBGP ]-----------------------------------------------------
@@ -37,7 +40,8 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ init ]-------------------------------------------------
-    public native synchronized void init(String sFileLog);
+    public native synchronized void init(String sFileLog)
+    	throws CBGPException;
     // -----[ destroy ]----------------------------------------------
     public native synchronized void destroy();
     // -----[ consoleSetOutListener ]--------------------------------
@@ -53,16 +57,10 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ netAddDomains ]----------------------------------------
-    public native synchronized void netAddDomain(int iDomain)
+    public native synchronized IGPDomain netAddDomain(int iDomain)
 	throws CBGPException;
     // -----[ netGetDomains ]----------------------------------------
     public native synchronized Vector netGetDomains()
-	throws CBGPException;
-    // -----[ netDomainGetNodes ]------------------------------------
-    public native synchronized Vector netDomainGetNodes(int iNumber)
-	throws CBGPException;
-    // -----[ netDomainCompute ]-------------------------------------
-    public native synchronized void netDomainCompute(int iNumber)
 	throws CBGPException;
 
 
@@ -72,7 +70,7 @@ public class CBGP
 
     // -----[ netAddNode ]-------------------------------------------
     public native synchronized
-	void netAddNode(String sAddr, int iDomain)
+	Node netAddNode(String sAddr, int iDomain)
 	throws CBGPException;
     // -----[ netGetNodes ]------------------------------------------
     public native synchronized
@@ -83,20 +81,7 @@ public class CBGP
 	void netNodeRouteAdd(String sRouterAddr, String sPrefix,
 			     String sNexthop, 
 			     int iWeight)
-	throws CBGPException;
-    // -----[ netNodeGetLinks ]--------------------------------------
-    public native synchronized
-	Vector netNodeGetLinks(String sAddr)
-	throws CBGPException;
-    // -----[ netNodeGetRT ]-----------------------------------------
-    public native synchronized
-	Vector netNodeGetRT(String sNodeAddr, String sPrefix)
-	throws CBGPException;
-    // -----[ netNodeRecordRoute ]-----------------------------------
-    public native synchronized
-	IPTrace netNodeRecordRoute(String sNodeAddr,
-				   String sDstAddr)
-	throws CBGPException;
+		throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -105,18 +90,9 @@ public class CBGP
 
     // -----[ netAddLink ]-------------------------------------------
     public native synchronized
-	void netAddLink(String sSrcAddr, String sDstAddr, int iWeight) 
+	Link netAddLink(String sSrcAddr, String sDstAddr, int iWeight) 
 	throws CBGPException;
-    // -----[ netLinkWeight ]----------------------------------------
-    public native synchronized
-	void netLinkWeight(String sSrcAddr, String sDstAddr,
-			   int iWeight)
-	throws CBGPException;
-    // -----[ netLinkUp ]--------------------------------------------
-    public native synchronized
-	void netLinkUp(String sSrcAddr, String sDstAddr, boolean bUp)
-	throws CBGPException;
-
+    
     
     /////////////////////////////////////////////////////////////////
     // BGP domains management
@@ -126,10 +102,6 @@ public class CBGP
     public native synchronized
 	Vector bgpGetDomains()
 	throws CBGPException;
-    // -----[ bgpDomainGetRouters ]----------------------------------
-    public native synchronized
-	Vector bgpDomainGetRouters(int id)
-	throws CBGPException;
 
     /////////////////////////////////////////////////////////////////
     // BGP router management
@@ -137,21 +109,7 @@ public class CBGP
 
     // -----[ bgpAddRouter ]-----------------------------------------
     public native synchronized
-	int bgpAddRouter(String sName, String sAddr, int iASNumber)
-	throws CBGPException;
-    // -----[ bgpRouterAddNetwork ]----------------------------------
-    public native synchronized
-	void bgpRouterAddNetwork(String sRouterAddr, String sPrefix)
-	throws CBGPException;
-    // -----[ bgpRouterAddPeer ]-------------------------------------
-    public native synchronized
-	void bgpRouterAddPeer(String sRouterAddr, String sPeerAddr, 
-			      int iASNumber)
-	throws CBGPException;
-    // -----[ bgpRouterPeerNextHopSelf ]-----------------------------
-    public native synchronized
-	void bgpRouterPeerNextHopSelf(String sRouterAddr,
-				      String sPeerAddr)
+	Router bgpAddRouter(String sName, String sAddr, int iASNumber)
 	throws CBGPException;
     // -----[ bgpRouterPeerReflectorClient ]-------------------------
     public native synchronized
@@ -163,38 +121,8 @@ public class CBGP
 	void bgpRouterPeerVirtual(String sRouterAddr,
 				  String sPeerAddr)
 	throws CBGPException;
-    // -----[ bgpRouterPeerUp ]--------------------------------------
-    public native synchronized
-	void bgpRouterPeerUp(String sRouterAddr,
-			     String sRouterPeer,
-			     boolean bUp)
-	throws CBGPException;
-    // -----[ bgpRouterPeerRecv ]------------------------------------
-    public native synchronized
-	void bgpRouterPeerRecv(String sRouterAddr, 
-			       String sRouterPeer,
-			       String sMesg)
-	    throws CBGPException;
-    // -----[ bgpRouterRescan ]--------------------------------------
-    public native void bgpRouterRescan(String net_addr)
-	throws CBGPException;
-    // -----[ bgpRouterGetPeers ]------------------------------------
-    public native Vector bgpRouterGetPeers(String sRouterAddr)
-	throws CBGPException;
-    // -----[ bgpRouterGetRib ]--------------------------------------
-    public native Vector bgpRouterGetRib(String sRouterAddr, String sPrefix)
-	throws CBGPException;
-    // -----[ bgpRouterGetAdjRib ]-----------------------------------
-    public native Vector bgpRouterGetAdjRib(String sRouterAddr,
-					    String sNeighborAddr,
-					    String sPrefix,
-					    boolean bIn)
-	throws CBGPException;
     // -----[ bgpRouterLoadRib ]-------------------------------------
     public native void bgpRouterLoadRib(String sRouterAddr, String sFileName)
-	throws CBGPException;
-    // -----[ bgpDomainRescan ]--------------------------------------
-    public native void bgpDomainRescan(int iASNumber)
 	throws CBGPException;
 
 
@@ -203,14 +131,31 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ simRun ]-----------------------------------------------
-    public native void simRun() throws CBGPException;
-    // -----[ simStep ]-----------------------------------------------
-    public native void simStep(int iNUmSteps) throws CBGPException;
+    public native synchronized void simRun()
+    	throws CBGPException;
+    // -----[ simStep ]----------------------------------------------
+    public native synchronized void simStep(int iNUmSteps)
+    	throws CBGPException;
+    // -----[ simClear ]---------------------------------------------
+    public native synchronized void simClear()
+    	throws CBGPException;
+    // -----[ simGetCount ]------------------------------------------
+    public native synchronized long simGetEventCount()
+    	throws CBGPException;
     // -----[ runCmd ]-----------------------------------------------
-    public native void runCmd(String line) throws CBGPException;
+    public native synchronized void runCmd(String line)
+    	throws CBGPException;
     // -----[ runScript ]--------------------------------------------
-    public native void runScript(String sFileName)
-	throws CBGPException;
+    public native synchronized void runScript(String sFileName)
+		throws CBGPException;
+    // -----[ cliGetPrompt ]----------------------------------------
+    public native synchronized String cliGetPrompt()
+    	throws CBGPException;
+    // -----[ cliGetHelp ]------------------------------------------
+    // -----[ cliGetSyntax ]----------------------------------------
+    // -----[ getVersion ]------------------------------------------
+    public native synchronized String getVersion()
+    	throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -273,7 +218,7 @@ public class CBGP
     private static void showRoutes(Vector routes, boolean bBGP)
     {
 	System.out.println("========================================"+
-			   "=======================================");
+    	"=======================================");
 	if (bBGP) {
 	    System.out.println("   \033[1mPrefix\tNxt-hop\tLoc-prf\tMED\tPath\tOrigin\033[0m");
 	} else {
@@ -354,25 +299,26 @@ public class CBGP
 		
 		//Domain AS1
 		System.out.println("Create domain 1");
-		cbgp.netAddDomain(1);
+		IGPDomain domain1= cbgp.netAddDomain(1);
 		cbgp.netAddNode("0.1.0.1", 1);
-		showNodes(cbgp.netDomainGetNodes(1));
+		showNodes(domain1.getNodes());
 		
 		//Domain AS2
 		System.out.println("Create domain 2");
-		cbgp.netAddDomain(2);
+		IGPDomain domain2= cbgp.netAddDomain(2);
 		cbgp.netAddNode("0.2.0.1", 2);
 		cbgp.netAddNode("0.2.0.2", 2);
-		cbgp.netAddNode("0.2.0.3", 2);
+		Node node23= cbgp.netAddNode("0.2.0.3", 2);
 		cbgp.netAddNode("0.2.0.4", 2);
-		cbgp.netAddLink("0.2.0.1", "0.2.0.3", 20);
+		Link link21_23= cbgp.netAddLink("0.2.0.1", "0.2.0.3", 20);
 		cbgp.netAddLink("0.2.0.2", "0.2.0.3", 10);
-		cbgp.netAddLink("0.2.0.3", "0.2.0.4", 10);
-		showNodes(cbgp.netDomainGetNodes(2));
+		Link link23_24= cbgp.netAddLink("0.2.0.3", "0.2.0.4", 10);
+		showNodes(domain2.getNodes());
 
 		// Intradomain routes
 		System.out.println("Compute IGP routes...");
-		cbgp.netDomainCompute(2);
+		domain1.compute();
+		domain2.compute();
 
 		//Interdomain links and routes
 		cbgp.netAddLink("0.1.0.1", "0.2.0.1", 0);
@@ -385,55 +331,58 @@ public class CBGP
 		cbgp.netNodeRouteAdd("0.2.0.2", "0.1.0.1/32", "0.1.0.1", 0);
 		cbgp.netNodeRouteAdd("0.2.0.4", "0.1.0.1/32", "0.1.0.1", 0);
 
-		cbgp.bgpAddRouter("Router1_AS1", "0.1.0.1", 1);
-		cbgp.bgpRouterAddNetwork("0.1.0.1", "0.1/16");
-		cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.1", 2);
+		Router router= cbgp.bgpAddRouter("Router1_AS1", "0.1.0.1", 1);
+		router.addNetwork("0.1/16");
+		Peer peer= router.addPeer("0.2.0.1", 2);
 		/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.1", "out");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x05, "3");
 		  //	cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.2", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.2", 2);
 		/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.2", "out");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x05, "3");
 		  //cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterAddPeer("0.1.0.1", "0.2.0.4", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.4", 2);
 		/*cbgp.bgpFilterInit("0.1.0.1", "0.2.0.4", "out");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x05, "3");
 		  //cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.1", true);
-		cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.2", true);
-		cbgp.bgpRouterPeerUp("0.1.0.1", "0.2.0.4", true);
+		peer.openSession();
 								    
 		//BGP in AS2
-		cbgp.bgpAddRouter("Router1_AS2", "0.2.0.1", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.1", "0.1.0.1", 1);
-		cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.2", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.3", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.1", "0.2.0.4", 2);
-		cbgp.bgpRouterPeerNextHopSelf("0.2.0.1", "0.1.0.1");
-		cbgp.bgpRouterPeerUp("0.2.0.1", "0.1.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.2", true);
-		cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.3", true);
-		cbgp.bgpRouterPeerUp("0.2.0.1", "0.2.0.4", true);
+		router= cbgp.bgpAddRouter("Router1_AS2", "0.2.0.1", 2);
+		Router router21= router;
+		peer= router.addPeer("0.1.0.1", 1);
+		peer.setNextHopSelf(true);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.2", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.3", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.4", 2);
+		peer.openSession();
 
-		cbgp.bgpAddRouter("Router2_AS2", "0.2.0.2", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.2", "0.1.0.1", 1);
-		cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.1", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.3", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.2", "0.2.0.4", 2);
-		cbgp.bgpRouterPeerNextHopSelf("0.2.0.2", "0.1.0.1");
-		cbgp.bgpRouterPeerUp("0.2.0.2", "0.1.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.3", true);
-		cbgp.bgpRouterPeerUp("0.2.0.2", "0.2.0.4", true);
+		router= cbgp.bgpAddRouter("Router2_AS2", "0.2.0.2", 2);
+		Router router22= router;
+		peer= router.addPeer("0.1.0.1", 1);
+		peer.setNextHopSelf(true);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.1", 2);
+		peer.openSession();
+		peer=router.addPeer("0.2.0.3", 2);
+		peer.openSession();
+		peer=router.addPeer("0.2.0.4", 2);
+		peer.openSession();
 
-		cbgp.bgpAddRouter("Router3_AS2", "0.2.0.3", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.1", 2);
+		router= cbgp.bgpAddRouter("Router3_AS2", "0.2.0.3", 2);
+		Router router23= router;
+		peer= router.addPeer("0.2.0.1", 2);
 		/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.1", "in");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x03, "1000");
@@ -444,7 +393,8 @@ public class CBGP
 		  cbgp.bgpFilterAction(0x03, "1000");
 		  cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.2", 2);
+		peer.openSession();
+		peer=router.addPeer("0.2.0.2", 2);
 		/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.2", "in");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x03, "1000");
@@ -455,7 +405,8 @@ public class CBGP
 		  cbgp.bgpFilterAction(0x03, "1000");
 		  cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterAddPeer("0.2.0.3", "0.2.0.4", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.4", 2);
 		/*cbgp.bgpFilterInit("0.2.0.3", "0.2.0.4", "in");
 		  cbgp.bgpFilterMatchPrefixIn("0/0");
 		  cbgp.bgpFilterAction(0x03, "1000");
@@ -466,20 +417,18 @@ public class CBGP
 		  cbgp.bgpFilterAction(0x03, "1000");
 		  cbgp.bgpFilterAction(0x01, "");
 		  cbgp.bgpFilterFinalize();*/
-		cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.2", true);
-		cbgp.bgpRouterPeerUp("0.2.0.3", "0.2.0.4", true);
+		peer.openSession();
 
-		cbgp.bgpAddRouter("Router4_AS2", "0.2.0.4", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.4", "0.1.0.1", 1);
-		cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.1", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.2", 2);
-		cbgp.bgpRouterAddPeer("0.2.0.4", "0.2.0.3", 2);
-		cbgp.bgpRouterPeerNextHopSelf("0.2.0.4", "0.1.0.1");
-		cbgp.bgpRouterPeerUp("0.2.0.4", "0.1.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.1", true);
-		cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.2", true);
-		cbgp.bgpRouterPeerUp("0.2.0.4", "0.2.0.3", true);
+		router= cbgp.bgpAddRouter("Router4_AS2", "0.2.0.4", 2);
+		peer=router.addPeer("0.1.0.1", 1);
+		peer.setNextHopSelf(true);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.1", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.2", 2);
+		peer.openSession();
+		peer= router.addPeer("0.2.0.3", 2);
+		peer.openSession();
 
 		cbgp.simRun();
 
@@ -487,127 +436,127 @@ public class CBGP
 		//IGP weight
 		System.out.println("Links of 0.2.0.3 before weight change:");
 		//For the moment on stdout
-		showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+		showLinks(node23.getLinks());
 		System.out.println("RT of 0.2.0.3 before weight change:");
-		showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+		showRoutes(node23.getRT(null), false);
 		System.out.println("RIB of 0.2.0.3 before weight change;");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+		showRoutes(router23.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
-		IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
-		System.out.println(trace);
+		/*IPTrace trace= cbgp.netNodeRecordRoute("0.2.0.3", "0.1.0.1");
+		System.out.println(trace);*/
 
 		System.out.println("\n<Weight change : 0.2.0.3 <-> 0.2.0.1 from 20 to 5>\n");
-		cbgp.netLinkWeight("0.2.0.3", "0.2.0.1", 5);
+		link21_23.setWeight(5);
 
 		//Update intradomain routes (recompute MST)
-		cbgp.netDomainCompute(2);
+		domain2.compute();
 
 		//Scan BGP routes that could have changed
-		cbgp.bgpDomainRescan(2);
+//BQU		bgp_domain2.rescan();
 
 		cbgp.simRun();
 		//End of the added section 
  
 		System.out.println("Links of 0.2.0.3 before first link down:");
 		//For the moment on stdout
-		showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+		showLinks(node23.getLinks());
 		System.out.println("RT of 0.2.0.3 before first link down:");
-		showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+		showRoutes(node23.getRT(null), false);
 		System.out.println("RIB of 0.2.0.3 before first link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+		showRoutes(router23.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
 		System.out.println("\n\033[31;1m<<First link down: 0.2.0.1 <-> 0.2.0.3>>\033[0m\n");
 
-		cbgp.netLinkUp("0.2.0.1", "0.2.0.3", false);
+		link21_23.setState(false);
 
 		//Update intradomain routes (recompute MST)
-		cbgp.netDomainCompute(2);
+		domain2.compute();
 
 		//Scan BGP routes that could change
-		cbgp.bgpDomainRescan(2);
+//BQU		cbgp.bgpDomainRescan(2);
 
 		cbgp.simRun();
    
 
 		System.out.println("Links of 0.2.0.3 after first link down:");
 		//For the moment on stdout
-		showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+		showLinks(node23.getLinks());
 		System.out.println("RT of 0.2.0.3 after first link down:");
-		showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+		showRoutes(node23.getRT(null), false);
 		System.out.println("RIB of 0.2.0.3 after first link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+		showRoutes(router23.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
 		System.out.println("\n\033[31;1m<<Second link down: 0.2.0.2 <-> 0.2.0.3>>\033[0m\n");
 
-		cbgp.netLinkUp("0.2.0.2", "0.2.0.3", false);
+		link21_23.setState(false);
 
 		//Update intradomain routes (recompute MST)
-		cbgp.netDomainCompute(2);
+		domain2.compute();
 
 		//Scan BGP routes that could change
-		cbgp.bgpDomainRescan(2);
+//BQU		cbgp.bgpDomainRescan(2);
 
 		cbgp.simRun();
 
 		System.out.println("Links of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+		showLinks(node23.getLinks());
 		System.out.println("RT of 0.2.0.3 after second link down:");
-		showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+		showRoutes(node23.getRT(null), false);
 		System.out.println("RIB of 0.2.0.3 after second link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+		showRoutes(router23.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
 
 		System.out.println("\n\033[31;1m<<Third link down: 0.2.0.3 <-> 0.2.0.4>>\033[0m\n");
 
-		cbgp.netLinkUp("0.2.0.4", "0.2.0.3", false);
+		link23_24.setState(false);
 
 		//Update intradomain routes (recompute MST)
-		cbgp.netDomainCompute(2);
+		domain2.compute();
 
 		//Scan BGP routes that could change
-		cbgp.bgpDomainRescan(2);
+//BQU		cbgp.bgpDomainRescan(2);
 
 		cbgp.simRun();
 
 		System.out.println("Links of 0.2.0.3 after third link down:");
 		//For the moment on stdout
-		showLinks(cbgp.netNodeGetLinks("0.2.0.3"));
+		showLinks(node23.getLinks());
 		System.out.println("RT of 0.2.0.3 after third link down:");
-		showRoutes(cbgp.netNodeGetRT("0.2.0.3", null), false);
+		showRoutes(node23.getRT(null), false);
 		System.out.println("RIB of 0.2.0.3 after third link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.3", null), true);
+		showRoutes(router23.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.3 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.3", null, null, true), true);
     
 		System.out.println("RIB of 0.2.0.1 after third link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.1", null), true);
+		showRoutes(router21.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.1 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.1", null, null, true), true);
+// BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.1", null, null, true), true);
  
 		System.out.println("RIB of 0.2.0.2 after third link down:");
-		showRoutes(cbgp.bgpRouterGetRib("0.2.0.2", null), true);
+		showRoutes(router22.getRIB(null), true);
 		System.out.println("RIB In of 0.2.0.2 after second link down:");
 		//For the moment on stdout
-		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.2", null, null, true), true);
+//BQU		showRoutes(cbgp.bgpRouterGetAdjRib("0.2.0.2", null, null, true), true);
 
-		for (Enumeration enumPeers= cbgp.bgpRouterGetPeers("0.2.0.2").elements();
+		/*for (Enumeration enumPeers= cbgp.bgpRouterGetPeers("0.2.0.2").elements();
 		     enumPeers.hasMoreElements(); ) {
 		    System.out.println(enumPeers.nextElement());
-		}
+		}*/
  
 		System.out.println("\n\033[32;1mDone\033[0m.\n");
 
@@ -629,6 +578,7 @@ public class CBGP
 	    System.err.println("Could not load one of the libraries "+
 			       "required by CBGP (reason: "+
 			       e.getMessage()+")");
+	    e.printStackTrace();
 	    System.exit(-1);
 	}
     }
