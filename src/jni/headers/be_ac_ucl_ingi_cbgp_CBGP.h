@@ -72,14 +72,6 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    netAddNode
- * Signature: (Ljava/lang/String;I)Lbe/ac/ucl/ingi/cbgp/net/Node;
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
-  (JNIEnv *, jobject, jstring, jint);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    netGetNodes
  * Signature: ()Ljava/util/Vector;
  */

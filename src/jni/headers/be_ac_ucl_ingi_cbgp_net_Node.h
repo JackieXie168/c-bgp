@@ -17,6 +17,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getAddresses
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getAddresses
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
  * Method:    getLinks
  * Signature: ()Ljava/util/Vector;
  */
