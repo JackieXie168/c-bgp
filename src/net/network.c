@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 03/03/2006
+// @lastdate 24/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -294,12 +294,44 @@ int node_has_address(SNetNode * pNode, net_addr_t tAddress)
   return 0;
 }
 
+// ----- node_addresses_for_each ------------------------------------
+/**
+ * This function calls the given callback function for each address
+ * owned by the node. The first address is the node's loopback address
+ * (its identifier). The other addresses are the interface addresses
+ * (that are set on multi-point links, for instance).
+ */
+int node_addresses_for_each(SNetNode * pNode, FArrayForEach fForEach,
+			    void * pContext)
+{
+  int iResult;
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Loopback interface
+  if ((iResult= fForEach(&pNode->tAddr, pContext)) != 0)
+    return iResult;
+    
+
+  // Other interfaces
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+      if ((iResult= fForEach(&pLink->tIfaceAddr, pContext)) != 0)
+	return iResult;
+    }
+  }
+  
+  return 0;
+}
+
 // ----- node_addresses_dump ----------------------------------------
 /**
  * This function shows the list of addresses owned by the node. The
  * first address is the node's loopback address (its identifier). The
  * other addresses are the interface addresses (that are set on
- * multi-point links).
+ * multi-point links, for instance).
  */
 void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
 {
