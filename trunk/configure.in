@@ -2,7 +2,7 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 07/04/2006
+dnl @version 21/04/2006
 dnl =================================================================
 
 AC_INIT([cbgp], [1.1.21])
@@ -24,6 +24,7 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
 #AC_PROG_CXX
+AC_PROG_LN_S
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -56,7 +57,6 @@ changequote([, ])dnl
               AC_MSG_WARN([unable to include <jni.h>]))
    CPPFLAGS="$ac_save_CPPFLAGS"
 ])
-
 
 dnl *****************************************************************
 dnl JAVA/JNI CHECK: BEGIN
@@ -126,10 +126,6 @@ if test "$with_jni" != "no"; then
       exit -1;
    else
       AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
-      if test -z "$jnilibdir"; then
-        jnilibdir=$libdir
-      fi
-      AC_SUBST(jnilibdir)
    fi
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$with_jni" != no])
@@ -359,4 +355,4 @@ AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" = "yes"])
 
 TESTS="src/checks/basic"
 
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)
