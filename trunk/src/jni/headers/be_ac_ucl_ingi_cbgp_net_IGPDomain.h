@@ -13,6 +13,14 @@ extern "C" {
 #define be_ac_ucl_ingi_cbgp_net_IGPDomain_DOMAIN_OSPF 1L
 /*
  * Class:     be_ac_ucl_ingi_cbgp_net_IGPDomain
+ * Method:    addNode
+ * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/net/Node;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_IGPDomain
  * Method:    getNodes
  * Signature: ()Ljava/util/Vector;
  */
