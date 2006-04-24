@@ -85,20 +85,25 @@ if test "$with_jni" != "no"; then
 
    AC_PATH_PROG(JAVAH, javah)
 
-   AC_MSG_CHECKING([for jni.h])
    jni_paths="$JAVA_HOME/include"
    if test "$with_jni" != "yes"; then
      jni_paths="$with_jni $jni_paths"
    fi
    for jni_path in $jni_paths; do
+     AC_MSG_CHECKING([for jni.h in $jni_path])
      if test -e "$jni_path/jni.h"; then
+       AC_MSG_RESULT([ok])
+       AC_MSG_CHECKING([for jni_md.h in $jni_path])
        if test -e "$jni_path/jni_md.h"; then
-         AC_MSG_RESULT([$jni_path])
+         AC_MSG_RESULT([ok])
          jni_cflags="-I$jni_path"
          break
        else
          ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+         AC_MSG_RESULT([no])
+         AC_MSG_CHECKING([for jni_md.h in $jni_path])
          if test -e "$jni_path/$ac_machdep/jni_md.h"; then
+           AC_MSG_RESULT([ok])
            jni_cflags="-I$jni_path -I$jni_path/$machdep"
            break
          fi
