@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 03/03/2006
+// @lastdate 24/04/2006
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -52,6 +52,10 @@ extern void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix);
 extern int node_post_event(SNetNode * pNode);
 // ----- node_has_address -------------------------------------------
 extern int node_has_address(SNetNode * pNode, net_addr_t tAddress);
+// ----- node_addresses_for_each ------------------------------------
+extern int node_addresses_for_each(SNetNode * pNode,
+				   FArrayForEach fForEach,
+				   void * pContext);
 // ----- node_addresses_dump ----------------------------------------
 extern void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_links_dump --------------------------------------------
