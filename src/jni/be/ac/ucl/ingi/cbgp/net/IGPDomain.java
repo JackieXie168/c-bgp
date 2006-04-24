@@ -56,6 +56,10 @@ public class IGPDomain extends ProxyObject
 	return type;
     }
     
+    // -----[ addNode ]---------------------------------------------
+    public native synchronized Node addNode(String sAddr)
+    	throws CBGPException;
+    
     // -----[ getNodes ]--------------------------------------------
     public native synchronized Vector getNodes()
 		throws CBGPException;

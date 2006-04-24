@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 21/04/2006
+// @lastdate 24/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -120,6 +120,52 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   net_path_destroy(&RRInfo->pPath);
 
   return joIPTrace;
+}
+
+// -----[ _getAddresses ]--------------------------------------------
+/**
+ *
+ */
+static int _getAddresses(void * pItem, void * pContext)
+{
+  net_addr_t * pAddr= (net_addr_t *) pItem;
+  SJNIContext * pCtx= (SJNIContext *) pContext;
+  jobject joAddress;
+
+  if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, *pAddr)) == NULL)
+    return -1;
+  
+  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joAddress);
+}
+
+// -----[ getAddresses ]---------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getAddresses
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getAddresses
+  (JNIEnv * jEnv, jobject joNode)
+{
+  SNetNode * pNode;
+  jobject joVector= NULL;
+  SJNIContext sCtx;
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joNode));
+  if (pNode == NULL)
+    return  NULL; 
+
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return NULL;
+
+  sCtx.jEnv= jEnv;
+  sCtx.joVector= joVector;
+
+  if (node_addresses_for_each(pNode, _getAddresses, &sCtx) != 0)
+    return NULL;
+
+  return joVector;
 }
 
 // -----[ cbgp_jni_get_link ]----------------------------------------
