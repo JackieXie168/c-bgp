@@ -99,7 +99,9 @@ if test "$with_jni" != "no"; then
          jni_cflags="-I$jni_path"
          break
        else
+         AC_MSG_WARN([$build_os])
          ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+         AC_MSG_WARN([$ac_machdep])
          AC_MSG_RESULT([no])
          AC_MSG_CHECKING([for jni_md.h in $jni_path])
          if test -e "$jni_path/$ac_machdep/jni_md.h"; then
