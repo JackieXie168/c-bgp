@@ -2,7 +2,7 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 21/04/2006
+dnl @version 24/04/2006
 dnl =================================================================
 
 AC_INIT([cbgp], [1.1.21])
@@ -92,9 +92,17 @@ if test "$with_jni" != "no"; then
    fi
    for jni_path in $jni_paths; do
      if test -e "$jni_path/jni.h"; then
-       AC_MSG_RESULT([$jni_path])
-       jni_cflags="-I$jni_path"
-       break
+       if test -e "$jni_path/jni_md.h"; then
+         AC_MSG_RESULT([$jni_path])
+         jni_cflags="-I$jni_path"
+         break
+       else
+         ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+         if test -e "$jni_path/$ac_machdep/jni_md.h"; then
+           jni_cflags="-I$jni_path -I$jni_path/$machdep"
+           break
+         fi
+       fi
      fi
    done
 
