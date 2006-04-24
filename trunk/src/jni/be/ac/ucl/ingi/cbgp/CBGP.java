@@ -68,10 +68,6 @@ public class CBGP
     // Nodes management
     /////////////////////////////////////////////////////////////////
 
-    // -----[ netAddNode ]-------------------------------------------
-    public native synchronized
-	Node netAddNode(String sAddr, int iDomain)
-	throws CBGPException;
     // -----[ netGetNodes ]------------------------------------------
     public native synchronized
 	Vector netGetNodes()
@@ -300,16 +296,16 @@ public class CBGP
 		//Domain AS1
 		System.out.println("Create domain 1");
 		IGPDomain domain1= cbgp.netAddDomain(1);
-		cbgp.netAddNode("0.1.0.1", 1);
+		domain1.addNode("0.1.0.1");
 		showNodes(domain1.getNodes());
 		
 		//Domain AS2
 		System.out.println("Create domain 2");
 		IGPDomain domain2= cbgp.netAddDomain(2);
-		cbgp.netAddNode("0.2.0.1", 2);
-		cbgp.netAddNode("0.2.0.2", 2);
-		Node node23= cbgp.netAddNode("0.2.0.3", 2);
-		cbgp.netAddNode("0.2.0.4", 2);
+		domain2.addNode("0.2.0.1");
+		domain2.addNode("0.2.0.2");
+		Node node23= domain2.addNode("0.2.0.3");
+		domain2.addNode("0.2.0.4");
 		Link link21_23= cbgp.netAddLink("0.2.0.1", "0.2.0.3", 20);
 		cbgp.netAddLink("0.2.0.2", "0.2.0.3", 10);
 		Link link23_24= cbgp.netAddLink("0.2.0.3", "0.2.0.4", 10);
