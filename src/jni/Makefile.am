@@ -18,42 +18,42 @@ noinst_LTLIBRARIES = libjni.la
 
 INCLUDES = -I.. 
 
+SUBDIRS = impl
+DIST_SUBDIRS = $(SUBDIRS)
 
 libjni_la_SOURCES = \
 	jni_base.c \
 	jni_base.h \
 	jni_interface.c \
-	jni_net_Link.c \
-	jni_net_Link.h \
 	jni_proxies.c \
 	jni_proxies.h \
 	jni_util.c \
-	jni_util.h \
-	be_ac_ucl_ingi_cbgp_CBGP.h
+	jni_util.h
+libjni_la_LIBADD = impl/libjni_impl.la
 
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
 
 JAVAFILES= \
-	be/ac/ucl/ingi/cbgp/ASPath.java \
-	be/ac/ucl/ingi/cbgp/ASPathSegment.java \
+	be/ac/ucl/ingi/cbgp/bgp/ASPath.java \
+	be/ac/ucl/ingi/cbgp/bgp/ASPathSegment.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/CBGPException.java \
-	be/ac/ucl/ingi/cbgp/Communities.java \
+	be/ac/ucl/ingi/cbgp/bgp/Communities.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
 	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
-	be/ac/ucl/ingi/cbgp/BGPDomain.java \
-	be/ac/ucl/ingi/cbgp/BGPPeer.java \
-	be/ac/ucl/ingi/cbgp/BGPRoute.java \
-	be/ac/ucl/ingi/cbgp/BGPRouter.java \
-	be/ac/ucl/ingi/cbgp/IGPDomain.java \
+	be/ac/ucl/ingi/cbgp/bgp/Domain.java \
+	be/ac/ucl/ingi/cbgp/bgp/Route.java \
+	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
 	be/ac/ucl/ingi/cbgp/IPAddress.java \
 	be/ac/ucl/ingi/cbgp/IPPrefix.java \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
+	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
+	be/ac/ucl/ingi/cbgp/bgp/Router.java \
 	be/ac/ucl/ingi/cbgp/net/Link.java \
-	be/ac/ucl/ingi/cbgp/Node.java \
+	be/ac/ucl/ingi/cbgp/net/Node.java \
 	be/ac/ucl/ingi/cbgp/ProxyObject.java \
 	be/ac/ucl/ingi/cbgp/Route.java \
 	be/ac/ucl/ingi/cbgp/RouteInterface.java
@@ -68,8 +68,12 @@ EXTRA_DIST = $(JAVAFILES) $(METAFILE)
 
 SUFFIXES= .java .class
 
+# Invoke javah in order to build the native function headers
+# Build the jar file
 $(JARFILE): $(CLASSFILES)
-	$(JAVAH) be.ac.ucl.ingi.cbgp.CBGP
+	(CLASSNAMES=`echo $(CLASSFILES) | \
+         sed -e 's/\//./g' -e 's/.class//g'`; \
+	 $(JAVAH) -d headers $$CLASSNAMES)
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)

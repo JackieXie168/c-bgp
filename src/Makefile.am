@@ -63,22 +63,18 @@ cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 # Install hook (called after all install targets/hooks)
 # 1). Copy the CBPG.jar Java archive to the JNI install dir.
 # 2). Under Mac OS X (Darwin), create a symlink from libcsim.jnilib to
-# libcsim.dylib in the JNI install dir. This is required for correct
-# JNI operation.
-#
-# Note: the default JNI install dir is set to $(libdir). It can be
-#       overriden using the ./configure --jnilibdir=DIR
-#       argument. Potential install directories are
-#         /Library/Java/Extensions (system-wide)
-#         ~/Library/Java/Extensions (single-user)
+# libcsim.dylib in $libdir . This is required for correct JNI
+# operation.
 # -------------------------------------------------------------------
 if WITH_JNI
 install-exec-local: 
-	$(INSTALL) jni/CBGP.jar $(jnilibdir)/CBGP.jar
+	$(INSTALL) jni/CBGP.jar $(libdir)/CBGP.jar
 	(case @host_os@ in \
 	 darwin*) \
 	 rm -f $(libdir)/libcsim.jnilib; \
-	 @LN_S@ $(libdir)/libcsim.dylib $(jnilibdir)/libcsim.jnilib; \
+	 cd $(libdir); \
+	 @LN_S@ $(libdir)/libcsim.dylib libcsim.jnilib; \
+	 cd -; \
 	 ;; \
 	 esac)
 endif
