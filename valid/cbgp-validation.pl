@@ -2254,6 +2254,8 @@ sub cbgp_valid_igp_bgp()
 sub cbgp_valid_igp_bgp_reach_link($)
 {
     my ($cbgp)= @_;
+    my $topo= topo_from_ntf("valid-igp-bgp.ntf");
+    cbgp_topo($cbgp, $topo, 1);
     return TEST_SKIPPED;
 }
 
