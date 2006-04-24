@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 21/04/2006
+// @lastdate 24/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +51,41 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain__1proxy_1finalize
 {
   //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
   //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
+}
+
+// -----[ addNode ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_IGPDomain
+ * Method:    addNode
+ * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/net/Node;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
+  (JNIEnv * jEnv, jobject joDomain, jstring jsAddr)
+{
+  SIGPDomain * pDomain;
+  SNetNode * pNode; 
+  net_addr_t tNetAddr;
+
+  /* Get the domain */
+  pDomain= (SIGPDomain *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joDomain));
+  if (pDomain == NULL)
+    return NULL;
+
+  if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
+    return NULL;
+  if ((pNode= node_create(tNetAddr)) == NULL) {
+    cbgp_jni_throw_CBGPException(jEnv, "node could not be created");
+    return NULL;
+  }
+
+  if (network_add_node(pNode) != 0) {
+    cbgp_jni_throw_CBGPException(jEnv, "node already exists");
+    return NULL;
+  }
+
+  igp_domain_add_router(pDomain, pNode);
+
+  return cbgp_jni_new_net_Node(jEnv, jni_proxy_get_CBGP(jEnv, joDomain), pNode);
 }
 
 // -----[ _netDomainGetNodes ]---------------------------------------
