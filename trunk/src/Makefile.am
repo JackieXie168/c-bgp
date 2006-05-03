@@ -31,7 +31,7 @@ else
 endif
 
 SUBDIRS = bgp cli external net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = bgp cli external net sim ui util jni liballoc check 
 
 # Compile experimental features ?
 if WITH_EXPERIMENTAL
