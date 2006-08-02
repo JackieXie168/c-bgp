@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 10/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -223,9 +223,9 @@ int bgp_router_peer_set_filter(SBGPRouter * pRouter, net_addr_t tAddr,
 
   if ((pPeer= bgp_router_find_peer(pRouter, tAddr)) != NULL) {
     if (iIn == FILTER_IN) {
-      peer_set_in_filter(pPeer, pFilter);
+      bgp_peer_set_in_filter(pPeer, pFilter);
     } else {
-      peer_set_out_filter(pPeer, pFilter);
+      bgp_peer_set_out_filter(pPeer, pFilter);
     }
     return 0;
   }

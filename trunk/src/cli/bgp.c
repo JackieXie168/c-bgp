@@ -1945,7 +1945,7 @@ int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
   }
   */
 
-  peer_set_in_filter(pPeer, pFilter);
+  bgp_peer_set_in_filter(pPeer, pFilter);
 
   return CLI_SUCCESS;
 }
@@ -1970,10 +1970,10 @@ int cli_bgp_router_peer_infilter_add(SCliContext * pContext,
   if (filter_parser_rule(tokens_get_string_at(pTokens, 2), &pRule) !=
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
-  pFilter= peer_in_filter_get(pPeer);
+  pFilter= bgp_peer_in_filter_get(pPeer);
   if (pFilter == NULL) {
     pFilter= filter_create();
-    peer_set_in_filter(pPeer, pFilter);
+    bgp_peer_set_in_filter(pPeer, pFilter);
   }
   filter_add_rule2(pFilter, pRule);
   return CLI_SUCCESS;
@@ -1996,7 +1996,7 @@ int cli_bgp_router_peer_outfilter_set(SCliContext * pContext,
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
   */
-  peer_set_out_filter(pPeer, pFilter);
+  bgp_peer_set_out_filter(pPeer, pFilter);
   return CLI_SUCCESS;
 }
 
@@ -2016,10 +2016,10 @@ int cli_bgp_router_peer_outfilter_add(SCliContext * pContext,
   if (filter_parser_rule(tokens_get_string_at(pTokens, 2), &pRule) !=
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
-  pFilter= peer_out_filter_get(pPeer);
+  pFilter= bgp_peer_out_filter_get(pPeer);
   if (pFilter == NULL) {
     pFilter= filter_create();
-    peer_set_out_filter(pPeer, pFilter);
+    bgp_peer_set_out_filter(pPeer, pFilter);
   }
   filter_add_rule2(pFilter, pRule);
   return CLI_SUCCESS;

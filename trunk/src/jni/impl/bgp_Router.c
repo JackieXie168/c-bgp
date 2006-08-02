@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 21/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -57,7 +57,7 @@ jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jni_Object_hashCode(jEnv, joRouter), pRouter);
+  jni_proxy_add(jEnv, joRouter, pRouter);
 
   return joRouter;
 }
@@ -82,7 +82,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addNetwork
   SBGPRouter * pRouter;
   SPrefix sPrefix;
 
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return NULL;
 
@@ -109,7 +109,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_delNetwork
   SBGPRouter * pRouter;
   SPrefix sPrefix;
 
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return;
 
@@ -135,7 +135,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addPeer
   SBGPPeer * pPeer;
   net_addr_t tPeerAddr;
 
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return NULL;
 
@@ -179,7 +179,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getPeers
   jobject joVector;
   SJNIContext sCtx;
 
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return NULL;
 
@@ -228,7 +228,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
   jobject joRoute;
 
   /* Get the router instance */
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return NULL;
 
@@ -301,7 +301,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
   SJNIContext sCtx;
 
   /* Get the router instance */
-  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joRouter));
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return NULL;
 

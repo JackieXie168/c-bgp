@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 21/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -48,7 +48,7 @@ jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jni_Object_hashCode(jEnv, joLink), pLink);
+  jni_proxy_add(jEnv, joLink, pLink);
   return joLink;
 }
 
@@ -67,11 +67,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link__1proxy_1finalize
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getState
-  (JNIEnv * jEnv, jobject joObject)
+  (JNIEnv * jEnv, jobject joLink)
 {
   SNetLink * pLink;
   
-  pLink= (SNetLink *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joObject));
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
     return JNI_FALSE;
 
@@ -89,7 +89,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setState
 {
   SNetLink * pLink;
 
-  pLink= (SNetLink *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joLink));
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
     return;
     
@@ -107,7 +107,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getWeight
 {
   SNetLink * pLink;
 
-  pLink= (SNetLink *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joLink));
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
     return 0;
 
@@ -125,7 +125,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setWeight
 {
   SNetLink * pLink;
 
-  pLink= (SNetLink *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joLink));
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
     return;
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 21/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,7 @@ jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jni_Object_hashCode(jEnv, joDomain), pDomain);
+  jni_proxy_add(jEnv, joDomain, pDomain);
 
   return joDomain;
 }
@@ -83,7 +83,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
   SJNIContext sCtx;
   SBGPDomain * pDomain;
 
-  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joDomain));
+  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
     return NULL;
 
@@ -112,7 +112,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_rescan
 {
   SBGPDomain * pDomain;
 
-  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joDomain));
+  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
     return;
 

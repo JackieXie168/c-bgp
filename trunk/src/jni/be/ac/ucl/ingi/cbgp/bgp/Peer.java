@@ -160,6 +160,14 @@ public class Peer extends ProxyObject
     {
 	return (bFlags & PEER_FLAG_SOFT_RESTART) != 0;
     }
+    
+    // -----[ getInputFilter ]---------------------------------------
+    public native Filter getInputFilter()
+    	throws CBGPException;
+    
+    // -----[ getOutputFilter ]--------------------------------------
+    public native Filter getOutputFilter()
+    	throws CBGPException;
 
     // -----[ toString ]---------------------------------------------
     /**

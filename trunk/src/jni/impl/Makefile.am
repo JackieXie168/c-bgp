@@ -13,6 +13,8 @@ libjni_impl_la_SOURCES = \
 	net_IGPDomain.h \
 	bgp_Domain.c \
 	bgp_Domain.h \
+	bgp_Filter.c \
+	bgp_Filter.h \
 	bgp_Peer.c \
 	bgp_Peer.h \
 	bgp_Router.c \

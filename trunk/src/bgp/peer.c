@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 10/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -549,44 +549,44 @@ static void _bgp_peer_rescan_adjribin(SPeer * pPeer, int iClear)
 //
 /////////////////////////////////////////////////////////////////////
 
-// ----- peer_set_in_filter -----------------------------------------
+// ----- bgp_peer_set_in_filter -------------------------------------
 /**
  * Change the input filter of this peer. The previous input filter is
  * destroyed.
  */
-void peer_set_in_filter(SPeer * pPeer, SFilter * pFilter)
+void bgp_peer_set_in_filter(SBGPPeer * pPeer, SFilter * pFilter)
 {
   if (pPeer->pInFilter != NULL)
     filter_destroy(&pPeer->pInFilter);
   pPeer->pInFilter= pFilter;
 }
 
-// ----- peer_in_filter_get -----------------------------------------
+// ----- bgp_peer_in_filter_get -------------------------------------
 /**
  * Return the input filter of this peer.
  */
-SFilter * peer_in_filter_get(SPeer * pPeer)
+SFilter * bgp_peer_in_filter_get(SBGPPeer * pPeer)
 {
   return pPeer->pInFilter;
 }
 
-// ----- peer_set_out_filter ----------------------------------------
+// ----- bgp_peer_set_out_filter ------------------------------------
 /**
  * Change the output filter of this peer. The previous output filter
  * is destroyed.
  */
-void peer_set_out_filter(SPeer * pPeer, SFilter * pFilter)
+void bgp_peer_set_out_filter(SBGPPeer * pPeer, SFilter * pFilter)
 {
   if (pPeer->pOutFilter != NULL)
     filter_destroy(&pPeer->pOutFilter);
   pPeer->pOutFilter= pFilter;
 }
 
-// ----- peer_out_filter_get ----------------------------------------
+// ----- bgp_peer_out_filter_get ------------------------------------
 /**
  * Return the output filter of this peer.
  */
-SFilter * peer_out_filter_get(SPeer * pPeer)
+SFilter * bgp_peer_out_filter_get(SBGPPeer * pPeer)
 {
   return pPeer->pOutFilter;
 }

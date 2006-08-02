@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 19/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -60,13 +60,13 @@ static uint32_t _jni_proxy_compute(void * pElt, uint32_t uHashSize)
 /**
  * Add a mapping between a JNI proxy and a native object.
  */
-void jni_proxy_add(jint jiHashCode, void * pObject)
+void jni_proxy_add(JNIEnv * jEnv, jobject joObject, void * pObject)
 {
   SHashCodeObject * pHashObj=
     (SHashCodeObject *) MALLOC(sizeof(SHashCodeObject));
-  pHashObj->jiHashCode= jiHashCode;
+  pHashObj->jiHashCode= jni_Object_hashCode(jEnv, joObject);
   pHashObj->pObject= pObject;
-  //fprintf(stderr, "JNI::proxy_add(%d, %p)\n", jiHashCode, pObject);
+  //fprintf(stderr, "JNI::proxy_add(%d, %p)\n", pHashObj->jiHashCode, pObject);
   if (pHashCode2Object == NULL) {
     pHashCode2Object= hash_init(JNI_PROXY_HASH_SIZE,
 				0,
@@ -81,20 +81,22 @@ void jni_proxy_add(jint jiHashCode, void * pObject)
 /**
  *
  */
-void jni_proxy_remove(jint jiHashCode)
+void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
 {
-  //fprintf(stderr, "JNI::proxy_remove(%d)\n", jiHashCode);
+  jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
+  fprintf(stderr, "JNI::proxy_remove(%d)\n", (int32_t) jiHashCode);
+  fprintf(stderr, "\tNOT YET IMPLEMENTED\n");
 }
 
 // -----[ jni_proxy_lookup ]-----------------------------------------
 /**
  *
  */
-void * jni_proxy_lookup(JNIEnv * jEnv, jint jiHashCode)
+void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
 {
   SHashCodeObject sObject;
   SHashCodeObject * pObject;
-  sObject.jiHashCode= jiHashCode;
+  sObject.jiHashCode= jni_Object_hashCode(jEnv, joObject);
   pObject= hash_search(pHashCode2Object, &sObject);
   if (pObject != NULL)
     return pObject->pObject;
