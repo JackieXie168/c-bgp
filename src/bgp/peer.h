@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 24/11/2002
-// @lastdate 10/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -63,14 +63,14 @@ uint16_t peer_get_walton_limit(SPeer * pPeer);
 // BGP FILTERS
 /////////////////////////////////////////////////////////////////////
 
-// ----- peer_set_in_filter -----------------------------------------
-extern void peer_set_in_filter(SPeer * pPeer, SFilter * pFilter);
-// ----- peer_in_filter_get -----------------------------------------
-extern SFilter * peer_in_filter_get(SPeer * pPeer);
-// ----- peer_set_out_filter ----------------------------------------
-extern void peer_set_out_filter(SPeer * pPeer, SFilter * pFilter);
-// ----- peer_out_filter_get ----------------------------------------
-extern SFilter * peer_out_filter_get(SPeer * pPeer);
+// ----- bgp_peer_set_in_filter -------------------------------------
+extern void bgp_peer_set_in_filter(SBGPPeer * pPeer, SFilter * pFilter);
+// ----- bgp_peer_in_filter_get -------------------------------------
+extern SFilter * bgp_peer_in_filter_get(SBGPPeer * pPeer);
+// ----- bgp_peer_set_out_filter ------------------------------------
+extern void bgp_peer_set_out_filter(SBGPPeer * pPeer, SFilter * pFilter);
+// ----- bgp_peer_out_filter_get ------------------------------------
+extern SFilter * bgp_peer_out_filter_get(SBGPPeer * pPeer);
 
 /////////////////////////////////////////////////////////////////////
 // BGP SESSION MANAGEMENT FUNCTIONS

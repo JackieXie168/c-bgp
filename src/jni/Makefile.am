@@ -50,6 +50,8 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/IPPrefix.java \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
+	be/ac/ucl/ingi/cbgp/bgp/Filter.java \
+	be/ac/ucl/ingi/cbgp/bgp/FilterRule.java \
 	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
 	be/ac/ucl/ingi/cbgp/bgp/Router.java \
 	be/ac/ucl/ingi/cbgp/net/Link.java \

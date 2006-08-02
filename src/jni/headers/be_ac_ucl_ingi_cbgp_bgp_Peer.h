@@ -93,6 +93,22 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHopSelf
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
   (JNIEnv *, jobject, jboolean);
 
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    getInputFilter
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/bgp/Filter;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getInputFilter
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    getOutputFilter
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/bgp/Filter;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getOutputFilter
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

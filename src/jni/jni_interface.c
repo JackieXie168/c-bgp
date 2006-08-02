@@ -212,8 +212,6 @@ static void _console_listener(void * pContext, char * pcBuffer)
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
   (JNIEnv * jEnv, jobject joCBGP, jobject joListener)
 {
-  fprintf(stderr, "console_set_out_listener[%p]\n", jEnv);
-  
   log_destroy(&pLogOut);
   sConsoleOutCtx.joCBGP= joCBGP;
 
@@ -248,7 +246,6 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetErrListener
   (JNIEnv * jEnv, jobject joCBGP, jobject joListener)
 {
-  fprintf(stderr, "console_set_err_listener[%p]\n", jEnv);
   log_destroy(&pLogErr);
   sConsoleErrCtx.joCBGP= joCBGP;
 
@@ -290,9 +287,6 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetLevel
 
   //log_set_level(pMainLog, (uint8_t) iLevel);
 }
-
-
-
 
 
 /////////////////////////////////////////////////////////////////////

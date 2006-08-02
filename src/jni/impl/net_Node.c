@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 24/04/2006
+// @lastdate 25/04/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -70,7 +70,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jni_Object_hashCode(jEnv, joNode), pNode);
+  jni_proxy_add(jEnv, joNode, pNode);
 
   return joNode;
 }
@@ -98,7 +98,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   SNetRecordRouteInfo * RRInfo;
 
   /* Get the node */
-  pNode= (SNetNode*) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joNode));
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
   if (pNode == NULL)
     return  NULL;
 
@@ -152,7 +152,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getAddresses
   SJNIContext sCtx;
 
   /* Get the node */
-  pNode= (SNetNode*) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joNode));
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
   if (pNode == NULL)
     return  NULL; 
 
@@ -197,7 +197,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
   SJNIContext sCtx;
 
   /* Get the node */
-  pNode= (SNetNode*) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joNode));
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
   if (pNode == NULL)
     return  NULL; 
 
@@ -248,7 +248,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
   SNetRouteInfo * pRI;
 
   /* Get the node */
-  pNode= (SNetNode*) jni_proxy_lookup(jEnv, jni_Object_hashCode(jEnv, joNode));
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
   if (pNode == NULL)
     return  NULL; 
 
