@@ -41,6 +41,8 @@ typedef int (*FDPRouteCompare)(SBGPRouter * pRouter,
 			       SRoute * pRoute1,
 			       SRoute * pRoute2);
 
+int dp_rule_no_selection(SBGPRouter * pRouter, SRoutes * pRoutes);
+int dp_rule_lowest_nh(SBGPRouter * pRouter, SRoutes * pRoutes);
 // ----- bgp_dp_rule_local ------------------------------------------
 extern void bgp_dp_rule_local(SBGPRouter * pRouter, SRoutes * pRoutes);
 

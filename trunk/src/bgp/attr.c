@@ -278,7 +278,7 @@ int bgp_attr_cmp(SBGPAttr * pAttr1, SBGPAttr * pAttr2)
 
   // ORIGIN attributes must be equal
   if (pAttr1->tOrigin != pAttr2->tOrigin) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different LOCAL-PREFs\n");
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "different ORIGINs\n");
     return 0;
   }
 
