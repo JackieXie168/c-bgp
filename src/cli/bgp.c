@@ -679,7 +679,7 @@ int cli_bgp_options_walton_convergence(SCliContext * pContext,
   else if (!strcmp(pcParam, "all"))
     BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST = 0;
   else {
-    LOG_SEVERE("Error: invalid value \"%s\"\n", pcParam);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -2199,7 +2199,7 @@ int cli_bgp_router_peer_walton_limit(SCliContext * pContext,
   pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
 
   if (tokens_get_uint_at(pTokens, 2, &uWaltonLimit)) {
-    LOG_SEVERE("Error: invalid walton limitation\n");
+    LOG_ERR(LOG_LEVEL_SEVERE,"Error: invalid walton limitation\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   peer_set_walton_limit(pPeer, uWaltonLimit);
