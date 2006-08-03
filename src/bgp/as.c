@@ -59,6 +59,9 @@ char * DP_RULE_NAME[DP_NUM_RULES]= {
   "Lowest ROUTER-ID",
   "Shortest CLUSTER-ID-LIST",
   "Lowest neighbor address",
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  "Lowest Nexthop",
+#endif
 };
 FDPRule DP_RULES[DP_NUM_RULES]= {
   dp_rule_highest_pref,
@@ -70,6 +73,9 @@ FDPRule DP_RULES[DP_NUM_RULES]= {
   dp_rule_lowest_router_id,
   dp_rule_shortest_cluster_list,
   dp_rule_lowest_neighbor_address,
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  dp_rule_lowest_nh,
+#endif
 };
 
 // ----- options -----
@@ -769,17 +775,12 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
   int iRule;
 
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
-  uint16_t uIndex;
   int iNextHopCount;
-  net_addr_t tNextHop;
-  SIntArray * iaRoutes = int_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE);
 
-  for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
-    tNextHop = route_get_nexthop(routes_list_get_at(pRoutes, uIndex));
-    int_array_add(iaRoutes, &tNextHop);
-  }
+  iNextHopCount = dp_rule_no_selection(pRouter, pRoutes);
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) log_printf(pLogDebug, "different routes : %d\n", int_array_length(iaRoutes));
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) log_printf(pLogDebug, "different routes : %d\n", iNextHopCount);
+  bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, iNextHopCount);
 #endif
 
   // Apply the decision process rules in sequence until there is 1 or
@@ -1352,6 +1353,7 @@ void bgp_router_decision_process_unchanged_best_route(SBGPRouter * pRouter,
 
   /* Mark route in Adj-RIB-In as best (since it has probably been
      replaced). */
+  route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
   route_flag_set(routes_list_get_at(pRoutes, 0), ROUTE_FLAG_BEST, 1);
 
   /* Update ROUTE_FLAG_DP_IGP of old route */
@@ -1636,76 +1638,9 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
     // New/updated route: install in Loc-RIB & advertise to peers
     if ((pOldRoute == NULL) ||
 	!route_equals(pOldRoute, pRoute)) {
-
-//      /**************************************************************
-//       * In this case, the route is new or one of its BGP attributes
-//       * has changed. Thus, we must update the route into the routing
-//       * table and we must propagate the BGP route to the peers.
-//       **************************************************************/
-//
-//      if (pOldRoute != NULL) {
-//	LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** UPDATED BEST ROUTE ***\n");
-//      } else {
-//	LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** NEW BEST ROUTE ***\n");
-//      }
-//
-//     if (pOldRoute != NULL)
-//	bgp_router_best_flag_off(pOldRoute);
-//
-//      /* Mark route in Loc-RIB and Adj-RIB-In as best. This must be
-//	 done after the call to 'bgp_router_best_flag_off'. */
-//      route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
-//      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
-//
-//#ifdef __BGP_ROUTE_INFO_DP__
-//      pRoute->tRank= (uint8_t) iRank;
-//      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
-//#endif
-//
-//      /* Insert in Loc-RIB */
-//      assert(rib_add_route(pRouter->pLocRIB, pRoute) == 0);
-//
-//      /* Insert in the node's routing table */
-//      bgp_router_rt_add_route(pRouter, pRoute);
-//
-//      bgp_router_decision_process_disseminate(pRouter, sPrefix, pRoute);
-
       bgp_router_decision_process_update_best_route(pRouter, sPrefix, 
 				      pRoutes, pOldRoute, pRoute, iRank);
     } else {
-//      /**************************************************************
-//       * In this case, both routes (old and new) are equal from the
-//       * BGP point of view. There is thus no need to send BGP
-//       * messages.
-//       *
-//       * However, it is possible that the IGP next-hop of the route
-//       * has changed. If so, the route must be updated in the routing
-//       * table!
-//       **************************************************************/
-//
-//      LOG_DEBUG(LOG_LEVEL_DEBUG, "\t*** BEST ROUTE UNCHANGED ***\n");
-//
-//      /* Mark route in Adj-RIB-In as best (since it has probably been
-//	 replaced). */
-//      route_flag_set(pRoutes->data[0], ROUTE_FLAG_BEST, 1);
-//
-//      /* Update ROUTE_FLAG_DP_IGP of old route */
-//      route_flag_set(pOldRoute, ROUTE_FLAG_DP_IGP,
-//		     route_flag_get(pRoute, ROUTE_FLAG_DP_IGP));
-//
-//#ifdef __BGP_ROUTE_INFO_DP__
-//      pOldRoute->tRank= (uint8_t) iRank;
-//      ((SRoute *) pRoutes->data[0])->tRank= (uint8_t) iRank;
-//#endif
-//
-//      /* If the IGP next-hop has changed, we need to re-insert the
-//	 route into the routing table with the new next-hop. */
-//      bgp_router_rt_add_route(pRouter, pRoute);
-//
-//      /* Route has not changed. */
-//      route_destroy(&pRoute);
-//      pRoute= pOldRoute;
-
       bgp_router_decision_process_unchanged_best_route(pRouter, sPrefix, 
 				      pRoutes, pOldRoute, pRoute, iRank);
     }

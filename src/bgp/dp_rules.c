@@ -126,6 +126,58 @@ void dp_rule_nexthop_destroy(SIntArray ** ppiNextHop)
 {
   int_array_destroy(ppiNextHop);
 }
+
+int dp_rule_no_selection(SBGPRouter * pRouter, SRoutes * pRoutes)
+{
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iIndex;
+  int iNextHopCount;
+
+  for (iIndex = 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
+    dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(routes_list_get_at(pRoutes, iIndex)));
+  }
+    
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+
+}
+
+int dp_rule_lowest_nh(SBGPRouter * pRouter, SRoutes * pRoutes)
+{
+  net_addr_t tLowestNextHop= MAX_ADDR;
+  net_addr_t tNH;
+  SRoute * pRoute;
+  int iIndex;
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+
+  // Calculate lowest NextHop
+  for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
+    pRoute= (SRoute *) pRoutes->data[iIndex]; 
+    tNH= route_get_nexthop(pRoute); 
+    if (tNH < tLowestNextHop)
+      tLowestNextHop= tNH;
+  }
+
+  // Discard routes from neighbors with an higher NextHop
+  iIndex= 0;
+  while (iIndex < ptr_array_length(pRoutes)) {
+    pRoute= (SRoute *) pRoutes->data[iIndex];
+    tNH= route_get_nexthop(pRoute); 
+    if (tNH > tLowestNextHop)
+      ptr_array_remove_at(pRoutes, iIndex);
+    else
+    {
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop((routes_list_get_at(pRoutes, iIndex))));
+      iIndex++;
+    }
+  }
+
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+}
 #endif
 // ----- dp_rule_highest_pref ---------------------------------------
 /**
