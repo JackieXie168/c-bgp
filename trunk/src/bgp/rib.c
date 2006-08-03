@@ -197,7 +197,7 @@ SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix,
   //LOG_DEBUG("\n");
       for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
 	pRoute = routes_list_get_at(pRoutes, uIndex);
-	if (pRoute->tNextHop == *tNextHop)
+	if (route_get_nexthop(pRoute) == *tNextHop)
 	  return pRoute;
       }
     //the next hop is not known ... we must be sure there is only one route in
@@ -238,7 +238,7 @@ int _rib_replace_route(SRIB * pRIB, SRoutes * pRoutes, SRoute * pRoute)
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
     //It's the same route ... OK ... update it!
-    if (pRouteSeek->tNextHop == pRoute->tNextHop) {
+    if (route_get_nexthop(pRouteSeek)== route_get_nexthop(pRoute)) {
       routes_list_remove_at(pRoutes, uIndex);
       routes_list_append(pRoutes, pRoute);
       return 0;
@@ -260,7 +260,7 @@ int _rib_remove_route(SRoutes * pRoutes, net_addr_t tNextHop)
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
-    if (pRouteSeek->tNextHop == tNextHop) {
+    if (route_get_nexthop(pRouteSeek) == tNextHop) {
       //LOG_DEBUG("remove route ");
       //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), tNextHop);
       //LOG_DEBUG("\n");

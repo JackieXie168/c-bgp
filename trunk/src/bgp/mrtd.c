@@ -503,6 +503,9 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
   STokens * pTokens;
   SRoute * pRoute;
   SPrefix sPrefix;
+#if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
+  net_addr_t tNextHop;
+#endif
 
   if (pLineTokenizer == NULL)
     pLineTokenizer= tokenizer_create("|", 1, NULL, NULL);
@@ -526,7 +529,8 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
   case MRTD_TYPE_WITHDRAW:
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
     //TODO: Is it possible to change the MRT format to adapt to Walton ?
-    pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix, &pRoute->tNextHop);
+    tNextHop = route_get_nexthop(pRoute);
+    pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix, &tNextHop);
 #else
     pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix);
 #endif

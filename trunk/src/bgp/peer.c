@@ -825,6 +825,7 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SRoutes * pOldRoutes;
   uint16_t uIndexRoute;
+  net_addr_t tNextHop;
 #endif
 
   LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
@@ -881,9 +882,11 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     if (pOldRoutes != NULL) {
       for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes); uIndexRoute++) {
 	pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
-    LOG_DEBUG("\tupdate: ");
-    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
-    LOG_DEBUG("\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      log_printf(pLogDebug, "\tupdate: ");
+      route_dump(pLogDebug, pOldRoute);
+      log_printf(pLogDebug, "\n");
+    }
 #else
     pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
 #endif
@@ -912,7 +915,10 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     } else {
       if (pOldRoute != NULL)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix, &(pRoute->tNextHop)) == 0);
+      {
+	tNextHop = route_get_nexthop(pRoute);
+	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix, &tNextHop) == 0);
+      }
 #else
 	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix) == 0);
 #endif

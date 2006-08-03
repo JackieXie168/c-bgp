@@ -93,10 +93,11 @@ SBGPMsg * bgp_msg_withdraw_create_rcn(uint16_t uPeerAS,
 				      SPrefix sPrefix,
                                       SBGPRootCause * pRootCause)
 {
-  SBGPMsgWithdraw * pMsg= (SBGPMsgWithdraw *)
+  /*SBGPMsgWithdraw * pMsg= (SBGPMsgWithdraw *)
     bgp_msg_withdraw_create(uPeerAS, sPrefix);
   pMsg->pRootCause= pRootCause;
-  return (SBGPMsg *) pMsg;
+  return (SBGPMsg *) pMsg;*/
+  return NULL;
 }
 #endif
 

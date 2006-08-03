@@ -183,11 +183,17 @@ void bgp_router_walton_dump_peers(SPtrArray * pPeers)
   int iIndex;
 
   for (iIndex= 0; iIndex < ptr_array_length(pPeers); iIndex++) {
-    bgp_peer_dump(log_get_stream(pMainLog), (SPeer *) pPeers->data[iIndex]);
-    fprintf(log_get_stream(pMainLog), "\n");
+    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+      bgp_peer_dump(pLogDebug, (SPeer *) pPeers->data[iIndex]);
+      log_printf(pLogDebug, "\n");
+    }
   }
 
-  flushir(log_get_stream(pMainLog));
+//TODO
+/*  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    flushir(pLogDebug);
+  }
+*/
 }
 
 void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
@@ -212,7 +218,7 @@ void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
 	uNHFound = 0;
 	for (uIndexNewRoute = 0; uIndexNewRoute < routes_list_get_num(pRoutes); uIndexNewRoute++) {
 	  pNewRoute = routes_list_get_at(pRoutes, uIndexNewRoute);
-	  if (pRouteOut->tNextHop == pNewRoute->tNextHop) {
+	  if (route_get_nexthop(pRouteOut) == route_get_nexthop(pNewRoute)) {
 	    uNHFound = 1;
 	    break;
 	  }
@@ -220,14 +226,15 @@ void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
       }
       //There is no more path with the old path identifier ... then withdraw it!
       if (uNHFound == 0) {
-	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &(pRouteOut->tNextHop))) {
+	tNextHop = route_get_nexthop(pRouteOut);
+	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &tNextHop)) {
 	  //As it may be an eBGP session, the Next-Hop may have changed!
 	  //If the next-hop is changed the path identifier as well ... :)
 	  if (pPeer->uRemoteAS != pRouter->uNumber)
 	    tNextHop = pRouter->pNode->tAddr;
 	  else
-	    tNextHop = pRouteOut->tNextHop;
-	  LOG_DEBUG("\texplicit-withdraw\n");
+	    tNextHop = route_get_nexthop(pRouteOut);
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
 	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &tNextHop);
 	}
       }
@@ -269,9 +276,11 @@ void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter,
 
       for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) { 
 	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
-	LOG_DEBUG("propagates route : ");
-	LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pRoute);
-	LOG_DEBUG("\n");
+	LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+	  log_printf(pLogDebug, "propagates route : ");
+	  route_dump(pLogDebug, pRoute);
+	  log_printf(pLogDebug, "\n");
+	}
 	bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
 	    pRoute, pPeer);
       }

@@ -771,13 +771,15 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
   uint16_t uIndex;
   int iNextHopCount;
+  net_addr_t tNextHop;
   SIntArray * iaRoutes = int_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE);
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
-    int_array_add(iaRoutes, &(routes_list_get_at(pRoutes, uIndex))->tNextHop);
+    tNextHop = route_get_nexthop(routes_list_get_at(pRoutes, uIndex));
+    int_array_add(iaRoutes, &tNextHop);
   }
 
-  LOG_ENABLED_DEBUG() fprintf(log_get_stream(pMainLog), "different routes : %d\n", int_array_length(iaRoutes));
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) log_printf(pLogDebug, "different routes : %d\n", int_array_length(iaRoutes));
 #endif
 
   // Apply the decision process rules in sequence until there is 1 or
@@ -890,14 +892,15 @@ void bgp_router_decision_process_disseminate_to_peer(SBGPRouter * pRouter,
 	LOG_DEBUG(LOG_LEVEL_DEBUG, "\tfiltered\n");
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &(pRoute->tNextHop))) {
+	tNextHop= route_get_nexthop(pRoute);
+	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &tNextHop)) {
 	  LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
 	  //As it may be an eBGP session, the Next-Hop may have changed!
 	  //If the next-hop has changed the path identifier as well ... :)
 	  if (pPeer->uRemoteAS != pRouter->uNumber)
 	    tNextHop = pRouter->pNode->tAddr;
 	  else
-	    tNextHop = pRoute->tNextHop;
+	    tNextHop = route_get_nexthop(pRoute);
 	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &(tNextHop));
 #else
 	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix)) {
@@ -1032,6 +1035,9 @@ void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
 void bgp_router_best_flag_off(SRoute * pOldRoute)
 {
   SRoute * pAdjRoute;
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  net_addr_t tNextHop;
+#endif
 
   /* Remove BEST flag from old route in Loc-RIB. */
   route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
@@ -1040,8 +1046,9 @@ void bgp_router_best_flag_off(SRoute * pOldRoute)
      that announced it. */
   if (pOldRoute->pPeer != NULL) {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    tNextHop = route_get_nexthop(pOldRoute);
     pAdjRoute = rib_find_one_exact(pOldRoute->pPeer->pAdjRIBIn, 
-			    pOldRoute->sPrefix, &(pOldRoute->tNextHop));
+			    pOldRoute->sPrefix, &tNextHop);
 #else
     pAdjRoute= rib_find_exact(pOldRoute->pPeer->pAdjRIBIn,
 			      pOldRoute->sPrefix);
@@ -1564,7 +1571,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   } else {
     //TODO : do a loop on each iNextHopCount ...
     if (routes_list_get_num(pRoutes) != 0) {
-      LOG_DEBUG("only one route known ... disseminating to all : %d\n", routes_list_get_num(pRoutes));
+      LOG_DEBUG(LOG_LEVEL_DEBUG, "only one route known ... disseminating to all : %d\n", routes_list_get_num(pRoutes));
       bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, 1);
     }
   }
@@ -2479,16 +2486,19 @@ int bgp_router_show_routes_info(SLogStream * pStream, SBGPRouter * pRouter,
     return rib_for_each(pRouter->pLocRIB, _bgp_router_show_route_info, &sCtx);
     break;
   case NET_DEST_ADDRESS:
+//TODO : implements to support walton
+#if ! (defined __EXPERIMENTAL_WALTON__)
     pRoute= rib_find_best(pRouter->pLocRIB, sDest.uDest.sPrefix);
     if (pRoute == NULL)
       return -1;
     bgp_router_show_route_info(pStream, pRouter, pRoute);
+#endif
     return 0;
     break;
   case NET_DEST_PREFIX:
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
+  pRoute= rib_find_one_exact(pRouter->pLocRIB, sDest.uDest.sPrefix, NULL);
 #else
     pRoute= rib_find_exact(pRouter->pLocRIB, sDest.uDest.sPrefix);
 #endif
