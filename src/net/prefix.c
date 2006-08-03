@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 03/03/2006
+// @lastdate 03/08/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -323,15 +323,18 @@ int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
 
 // ----- ip_prefix_in_prefix ----------------------------------------
 /**
- *
+ * Test if P1 is more specific than P2.
  */
 int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
 {
-  if (sPrefix1.uMaskLen < sPrefix2.uMaskLen)
+  // P1.masklen must be >= P2.masklen
+  if (sPrefix1.uMaskLen < sPrefix2.uMaskLen) {
     return 0;
+  }
 
-  return ((sPrefix1.tNetwork & sPrefix1.uMaskLen) ==
-	  (sPrefix2.tNetwork & sPrefix1.uMaskLen));
+  // Compare bits masked with less specific (P2)
+  return ((sPrefix1.tNetwork >> (32-sPrefix2.uMaskLen)) ==
+          (sPrefix2.tNetwork >> (32-sPrefix2.uMaskLen)));
 }
 
 // ----- ip_prefix_copy ---------------------------------------------
