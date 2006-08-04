@@ -635,7 +635,6 @@ inline SClusterList * route_router_list_copy(SRoute * pRoute)
 int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 {
   if (pRoute1 == pRoute2) {
-    //LOG_DEBUG("route_equals == 1\n");
     return 1;
   }
 
@@ -643,7 +642,6 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 #ifdef BGP_QOS
   if (!qos_route_delay_equals(pRoute1, pRoute2) ||
       !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
-    //LOG_DEBUG("route_equals == 0\n");
     return 0;
   }
 #endif
@@ -653,10 +651,8 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
       (route_originator_equals(pRoute1, pRoute2)) &&
       (route_cluster_list_equals(pRoute1, pRoute2)) &&
       (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr))) {
-    //LOG_DEBUG("route_equals == 1\n");
     return 1;
   }
-  //LOG_DEBUG("route_equals == 0\n");
   return 0;
 }
 

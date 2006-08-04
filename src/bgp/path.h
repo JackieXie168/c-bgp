@@ -16,10 +16,13 @@
 
 #include <bgp/types.h>
 
+
 // ----- path_create ------------------------------------------------
 extern SBGPPath * path_create();
 // ----- path_destroy -----------------------------------------------
 extern void path_destroy(SBGPPath ** ppPath);
+// ----- path_max_value ---------------------------------------------
+SBGPPath * path_max_value();
 // ----- path_addref ------------------------------------------------
 //extern void path_addref(SBGPPath ** ppPath);
 // ----- path_unref -------------------------------------------------
@@ -52,6 +55,8 @@ extern int path_hash(SBGPPath * pPath);
 extern uint32_t path_hash_zebra(void * pItem, uint32_t uHashSize);
 // -----[ path_hash_OAT ]--------------------------------------------
 extern uint32_t path_hash_OAT(void * pItem, uint32_t uHashSize);
+// ----- path_comparison --------------------------------------------
+int path_comparison(SBGPPath * path1, SBGPPath * path2);
 // ----- path_equals ------------------------------------------------
 extern int path_equals(SBGPPath * pPath1, SBGPPath * pPath2);
 // ----- path_aggregate ---------------------------------------------
