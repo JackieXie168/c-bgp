@@ -65,6 +65,19 @@ void path_destroy(SBGPPath ** ppPath)
 #endif
 }
 
+// ----- path_max_value ---------------------------------------------
+/**
+  * Create a path and sets the first ASN value to the maximum
+  */
+SBGPPath * path_max_value()
+{
+  SBGPPath * path = path_create();
+
+  path_append(&path, 65535U);
+  
+  return path;
+} 
+
 // ----- path_addref ------------------------------------------------
 /**
  *
@@ -609,6 +622,39 @@ uint32_t path_hash_OAT(void * pItem, uint32_t uHashSize)
 #else
   abort();
 #endif
+}
+
+// ----- path_comparison --------------------------------------------
+/**
+  * Do a comparison ASN value by ASN value between two paths.
+  * It does *not* take into account the length of the as-path first.
+  * if you want to do so, then first use path_equals.
+  * But if you have two paths as the following:
+  * 1) 22 23 24 25
+  * 2) 22 23 24
+  *The first one will be considered as greater because of his length but ...
+  * 1) 25 24 23 22
+  * 2) 24 23 22
+  * in this case the first will be considered as greater because of the first ASN value.
+  */
+int path_comparison(SBGPPath * path1, SBGPPath * path2)
+{
+  uint16_t uLength;
+  uint16_t uIndex;
+
+  if (path_length(path1) < path_length(path2))
+    uLength = path_length(path1);
+  else
+    uLength = path_length(path2);
+
+  for (uIndex = 0; uIndex < uLength; uIndex++) {
+    if (path_at(path1, uIndex, 0) < path_at(path2, uIndex, 0))
+      return -1;
+    else
+      if (path_at(path1, uIndex, 0) > path_at(path2, uIndex, 0))
+        return 1;
+  }
+  return path_equals(path1, path2);
 }
 
 // ----- path_equals ------------------------------------------------

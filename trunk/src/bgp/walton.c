@@ -189,11 +189,7 @@ void bgp_router_walton_dump_peers(SPtrArray * pPeers)
     }
   }
 
-//TODO
-/*  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    flushir(pLogDebug);
-  }
-*/
+//  flushir(log_get_stream(pMainLog));
 }
 
 void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
@@ -244,16 +240,145 @@ void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
 
 }
 
-// ----- bgp_router_decision_process_disseminate --------------------
+typedef struct {
+  SPtrArray * pWaltonIDProcessed;
+  SPtrArray * pWaltonIDUpdate;
+}SRoutesUpdate;
+
+// ----- _bgp_router_walton_nh_compare ----------------------------
+/**
+ *
+ */
+int _bgp_router_walton_nh_compare(void *pItem1, void * pItem2,
+    unsigned int uEltSize)
+{
+  net_addr_t tNextHop1;
+  net_addr_t tNextHop2;
+
+  tNextHop1 = *(net_addr_t *)pItem1;
+  tNextHop2 = *(net_addr_t *)pItem2;
+
+  if (tNextHop1 < tNextHop2)
+    return -1;
+  else if (tNextHop1 > tNextHop2)
+    return 1;
+  else
+    return 0;
+}
+
+SRoutesUpdate * _bgp_router_walton_routes_update_create()
+{
+  SRoutesUpdate * pRoutesUpdate = (SRoutesUpdate *)MALLOC(sizeof(SRoutesUpdate));
+
+  pRoutesUpdate->pWaltonIDUpdate = NULL;
+  pRoutesUpdate->pWaltonIDProcessed = NULL;
+				
+
+  return pRoutesUpdate;
+}
+
+void _bgp_router_walton_routes_update_destroy(SRoutesUpdate ** pRoutesUpdate)
+{
+  if (*(pRoutesUpdate)) {
+    if ((*pRoutesUpdate)->pWaltonIDProcessed)
+      ptr_array_destroy(&((*pRoutesUpdate)->pWaltonIDProcessed));
+    if ((*pRoutesUpdate)->pWaltonIDUpdate)
+      ptr_array_destroy(&((*pRoutesUpdate)->pWaltonIDUpdate));
+    FREE(*pRoutesUpdate);
+    *pRoutesUpdate = NULL;
+  }
+}
+
+// ----- bgp_router_walton_build_updates -----------------------------
+/**
+ *
+ */
+SRoutesUpdate * bgp_router_walton_build_updates(SBGPRouter * pRouter,
+						SPeer * pPeer,
+						SPrefix sPrefix,
+						SRoutes * pRoutes)
+{
+  SRoutesUpdate * pRoutesUpdate = NULL;
+  uint8_t uNHFound = 0;
+  uint16_t uIndexRoute;
+  uint16_t uIndexOldRoute;
+  SRoutes * pOldRoutes;
+  SRoute * pOldRoute;
+  SRoute * pRoute= NULL;
+  net_addr_t tNextHop;
+  
+  
+  pOldRoutes = rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
+  if (pOldRoutes != NULL) {
+    for (uIndexOldRoute = 0; uIndexOldRoute < routes_list_get_num(pOldRoutes); uIndexOldRoute++) {
+      pOldRoute = routes_list_get_at(pOldRoutes, uIndexOldRoute);
+/*      LOG_DEBUG("try to find old NH : ");
+      LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
+      LOG_DEBUG("\n"); */
+      if (pRoutes != NULL) {
+	uNHFound = 0;
+	for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) {
+	  pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+/*	    LOG_DEBUG("\ttry to find old NH : ");
+	    LOG_ENABLED_DEBUG() route_dump(log_get_stream(pMainLog), pOldRoute);
+	    LOG_DEBUG("\n");*/
+
+
+	  //We do not check if it's an eBGP session as it restricts our
+	  //implementation to send only one path to an eBGP peer.
+	  if (route_get_nexthop(pRoute) == route_get_nexthop(pOldRoute)) {
+	    uNHFound = 1;
+	    break;
+	  }
+	}
+      }
+      if (uNHFound == 0) {
+	tNextHop = route_get_nexthop(pOldRoute);
+	if (bgp_router_peer_rib_out_remove(pRouter, pPeer, sPrefix, &tNextHop)) {
+	  //As it may be an eBGP session, the Next-Hop may have changed!
+	  //If the next-hop is changed the path identifier as well ... :)
+	  if (pPeer->uRemoteAS != pRouter->uNumber)
+	    tNextHop = pRouter->pNode->tAddr;
+	  else
+	    tNextHop = route_get_nexthop(pOldRoute);
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "\texplicit-withdraw\n");
+	  bgp_peer_withdraw_prefix(pPeer, sPrefix, &tNextHop);
+	}
+	//LOG_DEBUG(LOG_LEVEL_DEBUG, "route found but not old\n");
+      } else {
+	//LOG_DEBUG(LOG_LEVEL_DEBUG, "route found\n");
+	if (pRoutesUpdate == NULL) {
+	  pRoutesUpdate = _bgp_router_walton_routes_update_create();
+	  pRoutesUpdate->pWaltonIDProcessed = ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
+							    _bgp_router_walton_nh_compare, NULL);
+	}
+	//No update to send if old route and new route are the same!
+	tNextHop = route_get_nexthop(pRoute);
+	if (!route_equals(pOldRoute, pRoute)) {
+	  //LOG_DEBUG(LOG_LEVEL_DEBUG, "routes not equals\n");
+	  if (pRoutesUpdate->pWaltonIDUpdate == NULL) 
+	    pRoutesUpdate->pWaltonIDUpdate = ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
+							    _bgp_router_walton_nh_compare, NULL);
+	  
+	  ptr_array_add(pRoutesUpdate->pWaltonIDUpdate, &tNextHop);
+	} else {
+	  //LOG_DEBUG(LOG_LEVEL_DEBUG, "routes equals\n");
+	  ptr_array_add(pRoutesUpdate->pWaltonIDProcessed, &tNextHop);
+	}
+      }
+    }
+  } else {
+//    LOG_DEBUG(LOG_LEVEL_DEBUG, "no old routes\n");
+    pRoutesUpdate = _bgp_router_walton_routes_update_create();
+  }
+  
+  return pRoutesUpdate;
+}
+
+// ----- bgp_router_walton_dp_disseminate ----------------------------
 /**
  * Disseminate route to Adj-RIB-Outs.
  *
- * If there is no best route, then
- *   - if a route was previously announced, send an explicit withdraw
- *   - otherwize do nothing
- *
- * If there is one best route, then send an update. If a route was
- * previously announced, it will be implicitly withdrawn.
  */
 void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter, 
     SPtrArray * pPeers,
@@ -262,27 +387,73 @@ void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter,
 {
   unsigned int uIndexPeer;
   unsigned int uIndexRoute;
+  unsigned int uIndex;
   SPeer * pPeer;
   SRoute * pRoute;
+  SRoutesUpdate * pRoutesUpdate=NULL;
+  net_addr_t tNextHop;
 
+  
   for (uIndexPeer= 0; uIndexPeer < ptr_array_length(pPeers); uIndexPeer++) {
     pPeer= (SPeer *) pPeers->data[uIndexPeer];
-
     if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+      
       //Withdraw all the routes present in the RIB-OUT which are not part of the set of best routes!
       ///We must do this check because replacing a route in a RIB now adds it
       //as a RIB is no more restricted to a database of one route per prefix.
-      bgp_router_walton_withdraw_old_routes(pRouter, pPeer, sPrefix, pRoutes);
+      pRoutesUpdate = bgp_router_walton_build_updates(pRouter, pPeer, sPrefix, pRoutes);
 
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) { 
-	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
-	LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-	  log_printf(pLogDebug, "propagates route : ");
-	  route_dump(pLogDebug, pRoute);
+      //If pRoutesUpdate == NULL : all routes have been withdrawn
+      //else if pRoutesUpdate->pWaltonIDUpdate == NULL : routes have changed since the last advertisement
+      //if not found in pRoutesUpdate->pWaltonIDProcessed : new route
+      if (pRoutesUpdate) {
+	if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
+	  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+	  log_printf(pLogDebug, "DISSEMINATE (");
+	  ip_prefix_dump(pLogDebug, sPrefix);
+	  log_printf(pLogDebug, ") from ");
+	  bgp_router_dump_id(pLogDebug, pRouter);
+	  log_printf(pLogDebug, " to ");
+	  bgp_peer_dump_id(pLogDebug, pPeer);
 	  log_printf(pLogDebug, "\n");
+	  }
 	}
-	bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
-	    pRoute, pPeer);
+
+	//bgp_router_walton_withdraw_old_routes(pRouter, pPeer, sPrefix, pRoutes);
+	for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) { 
+	  pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+	  if (pRoutesUpdate->pWaltonIDProcessed == NULL) {
+	    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+	      log_printf(pLogDebug, "propagates changed route (I) : ");
+	      route_dump(pLogDebug,  pRoute);
+	      log_printf(pLogDebug, "\n");
+	    }
+	    bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
+	      pRoute, pPeer);
+	  } else {
+	    tNextHop = route_get_nexthop(pRoute);
+	    if (pRoutesUpdate->pWaltonIDUpdate && !ptr_array_sorted_find_index(pRoutesUpdate->pWaltonIDUpdate, &tNextHop, &uIndex)) {
+
+	      LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+		log_printf(pLogDebug, "propagates changed route (II) : ");
+		route_dump(pLogDebug,  pRoute);
+		log_printf(pLogDebug, "\n");
+	      }
+	    } else {
+	      if (ptr_array_sorted_find_index(pRoutesUpdate->pWaltonIDProcessed, &tNextHop, &uIndex)) {
+
+		LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+		  log_printf(pLogDebug, "propagates route : ");
+		  route_dump(pLogDebug,  pRoute);
+		  log_printf(pLogDebug, "\n");
+		}
+		bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
+		  pRoute, pPeer);
+	      }
+	    }
+	  }
+	}
+	_bgp_router_walton_routes_update_destroy(&pRoutesUpdate);
       }
     }
   }
@@ -307,6 +478,7 @@ int bgp_router_walton_for_each_peer_sync(void * pItem, void * pContext)
   SRoutes * pRoutes = NULL;
   SPtrArray * pPeers = NULL;
 
+  /*LOG_DEBUG("walton limit : %d\n", pWaltonPeers->uWaltonLimit);*/
   if (pWaltonPeers->uWaltonLimit >= pWaltonCtx->uWaltonLimit && pWaltonPeers->uSynchronized != 1) {
     pRoutes = pWaltonCtx->pRoutes;
     assert(routes_list_get_num(pRoutes) > 0);

@@ -61,6 +61,7 @@ char * DP_RULE_NAME[DP_NUM_RULES]= {
   "Lowest neighbor address",
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   "Lowest Nexthop",
+  "Lowest Path",
 #endif
 };
 FDPRule DP_RULES[DP_NUM_RULES]= {
@@ -75,6 +76,7 @@ FDPRule DP_RULES[DP_NUM_RULES]= {
   dp_rule_lowest_neighbor_address,
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   dp_rule_lowest_nh,
+  dp_rule_lowest_path,
 #endif
 };
 
@@ -1573,7 +1575,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
   } else {
     //TODO : do a loop on each iNextHopCount ...
     if (routes_list_get_num(pRoutes) != 0) {
-      LOG_DEBUG(LOG_LEVEL_DEBUG, "only one route known ... disseminating to all : %d\n", routes_list_get_num(pRoutes));
+//      LOG_DEBUG(LOG_LEVEL_DEBUG, "only one route known ... disseminating to all : %d\n", routes_list_get_num(pRoutes));
       bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, 1);
     }
   }

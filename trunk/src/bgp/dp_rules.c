@@ -178,6 +178,41 @@ int dp_rule_lowest_nh(SBGPRouter * pRouter, SRoutes * pRoutes)
   dp_rule_nexthop_destroy(&piNextHopCounter);
   return iNextHopCount;
 }
+
+int dp_rule_lowest_path(SBGPRouter * pRouter, SRoutes * pRoutes)
+{ 
+  int iIndex;
+  SRoute * pRoute;
+  SBGPPath * tPath;
+  SBGPPath * tLowestPath;
+  SBGPPath * tPathMax;
+  SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
+  int iNextHopCount;
+  SRoute * pSavedRoute= NULL;
+    
+  tPathMax = path_max_value();
+  tLowestPath = tPathMax;
+  
+  // Calculate lowest AS-PATH
+  for (iIndex = 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
+    pRoute = (SRoute *) routes_list_get_at(pRoutes, iIndex);
+    tPath = route_get_path(pRoute); 
+    if (path_comparison(tPath, tLowestPath) <= 0) {
+      tLowestPath = tPath;
+      pSavedRoute = pRoute;
+    }
+  } 
+
+  assert(pSavedRoute != NULL);
+    
+  dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(pSavedRoute));
+  path_destroy(&tPathMax);
+  
+  iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
+  dp_rule_nexthop_destroy(&piNextHopCounter);
+  return iNextHopCount;
+}
+
 #endif
 // ----- dp_rule_highest_pref ---------------------------------------
 /**

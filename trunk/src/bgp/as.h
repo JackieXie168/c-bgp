@@ -64,7 +64,7 @@ uint8_t BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST;
   LOG_DEBUG(M);
 
 // -----[ decision process ]-----------------------------------------
-#define DP_NUM_RULES 10
+#define DP_NUM_RULES 11
 extern char * DP_RULE_NAME[DP_NUM_RULES];
 extern FDPRule DP_RULES[DP_NUM_RULES];
 
