@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 25/04/2006
+// @lastdate 16/08/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -86,6 +86,7 @@ uint8_t BGP_OPTIONS_NLRI		    = BGP_NLRI_BE;
 uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF	    = 0;
 uint8_t BGP_OPTIONS_MED_TYPE		    = BGP_MED_TYPE_DETERMINISTIC;
 uint8_t BGP_OPTIONS_SHOW_MODE		    = ROUTE_SHOW_CISCO;
+char * BGP_OPTIONS_SHOW_FORMAT              = NULL;
 uint8_t BGP_OPTIONS_RIB_OUT		    = 1;
 uint8_t BGP_OPTIONS_AUTO_CREATE		    = 0;
 uint8_t BGP_OPTIONS_VIRTUAL_ADJ_RIB_OUT	    = 0;
