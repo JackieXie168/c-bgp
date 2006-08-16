@@ -166,10 +166,12 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	continue;
 
       // Warn if weight is 0
+      /*
       if (pLink->uIGPweight == 0) {
 	LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 !!!\n");
 	continue;
       }
+      */
 
       // Determine next-hop iface to be used (this is an interface of
       // the root node).
