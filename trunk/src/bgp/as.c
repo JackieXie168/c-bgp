@@ -29,6 +29,7 @@
 #include <libgds/list.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/str_util.h>
 #include <libgds/tokenizer.h>
 
 #include <bgp/as.h>
@@ -507,8 +508,9 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
       route_originator_set(pNewRoute, tOriginPeerAddr);
     }
     // Route-Reflection: append Cluster-ID to Cluster-ID-List field
-    if ((iExternalRoute || route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT)) &&
-	(!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))
+    /*if ((iExternalRoute || route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT))
+	 &&
+	 (!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))*/
       route_cluster_list_append(pNewRoute, pRouter->tClusterID);
   }
 
@@ -2926,6 +2928,18 @@ int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
   return iResult;
 }
 #endif
+
+/////////////////////////////////////////////////////////////////////
+//
+// INITIALIZATION AND FINALIZATION SECTION
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ _bgp_router_destroy ]--------------------------------------
+void _bgp_router_destroy()
+{
+  str_destroy(&BGP_OPTIONS_SHOW_FORMAT);
+}
 
 /////////////////////////////////////////////////////////////////////
 // TEST

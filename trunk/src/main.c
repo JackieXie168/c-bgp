@@ -625,6 +625,7 @@ void _main_done()
   _mrtd_destroy();
   _path_hash_destroy();
   _comm_hash_destroy();
+  _bgp_router_destroy();
 
   gds_destroy();
 }
