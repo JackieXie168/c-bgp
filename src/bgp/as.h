@@ -235,4 +235,7 @@ extern void bgp_router_dump_recorded_route(SLogStream * pStream,
 					   SBGPPath * pPath,
 					   int iResult);
 
+// -----[ _bgp_router_destroy ]--------------------------------------
+extern void _bgp_router_destroy();
+
 #endif
