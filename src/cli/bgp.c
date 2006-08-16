@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 10/04/2006
+// @lastdate 16/08/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +34,7 @@
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/str_util.h>
 #include <net/node.h>
 #include <net/prefix.h>
 #include <net/record-route.h>
@@ -533,7 +534,11 @@ int cli_bgp_options_autocreate(SCliContext * pContext, STokens * pTokens)
 // ----- cli_bgp_options_showmode ------------------------------------
 /**
  * context: {}
- * tokens: {mode}
+ * tokens: {mode, [format]}
+ *
+ * Where mode is one of "cisco", "mrt" and "custom". If mode is
+ * "custom", a format specifier must be provided as an additional
+ * argument.
  */
 int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
 {
@@ -544,7 +549,16 @@ int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
     BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CISCO;
   else if (!strcmp(pcParam, "mrt"))
     BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
-  else {
+  else if (!strcmp(pcParam, "custom")) {
+    if (tokens_get_num(pTokens) != 2) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: wrong number of arguments in show mode custom\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CUSTOM;
+    if (BGP_OPTIONS_SHOW_FORMAT != NULL)
+      str_destroy(&BGP_OPTIONS_SHOW_FORMAT);
+    BGP_OPTIONS_SHOW_FORMAT= str_create(tokens_get_string_at(pTokens, 1));
+  } else {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown show mode \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -2825,7 +2839,8 @@ int cli_register_bgp_options(SCliCmds * pCmds)
 					NULL, pParams));
 #endif
   pParams= cli_params_create();
-  cli_params_add(pParams, "<cisco|mrt>", NULL);
+  cli_params_add(pParams, "<cisco|mrt|custom>", NULL);
+  cli_params_add_vararg(pParams, "<format>", 1, NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("show-mode",
 					cli_bgp_options_showmode,
 					NULL, pParams));

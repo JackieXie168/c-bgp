@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 03/03/2006
+// @lastdate 16/08/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -121,6 +121,8 @@ extern void route_dump(SLogStream * pStream, SRoute * pRoute);
 extern void route_dump_cisco(SLogStream * pStream, SRoute * pRoute);
 // ----- route_dump_mrt ---------------------------------------------
 extern void route_dump_mrt(SLogStream * pStream, SRoute * pRoute);
+// ----- route_dump_custom ------------------------------------------
+extern void route_dump_custom(SLogStream * pStream, SRoute * pRoute);
 // ----- route_equals -----------------------------------------------
 extern int route_equals(SRoute * pRoute1, SRoute * pRoute2);
 

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 10/04/2006
+// @lastdate 16/08/2006
 // ==================================================================
 
 #ifndef __AS_H__
@@ -45,6 +45,7 @@ extern uint8_t BGP_OPTIONS_NLRI;
 extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
+extern char * BGP_OPTIONS_SHOW_FORMAT;
 extern uint8_t BGP_OPTIONS_AUTO_CREATE;
 
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__

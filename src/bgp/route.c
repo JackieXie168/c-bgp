@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 03/03/2006
+// @lastdate 16/08/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -713,6 +713,9 @@ void route_dump(SLogStream * pStream, SRoute * pRoute)
   case ROUTE_SHOW_MRT:
     route_dump_mrt(pStream, pRoute);
     break;
+  case ROUTE_SHOW_CUSTOM:
+    route_dump_custom(pStream, pRoute);
+    break;
   case ROUTE_SHOW_CISCO:
   default:
     route_dump_cisco(pStream, pRoute);
@@ -892,6 +895,113 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
 	    pRoute->tBandwidth.uMean, pRoute->tBandwidth.uWeight);
     */
 
+  }
+}
+
+// ----- route_dump_custom ------------------------------------------
+/**
+ * Dump a BGP route to the given stream. The route fields are written
+ * to the stream according to a customizable format specifier string.
+ *
+ * Specification  | Field
+ * ---------------+------------------------
+ * %i             | Peer-IP
+ * %a             | Peer-AS
+ * %p             | Prefix
+ * %l             | Local-Preference
+ * %P             | AS-Path
+ * %m             | MED
+ * %o             | Origin
+ * %n             | Next-Hop
+ * %c             | Communities
+ * %e             | Extended-Communities
+ * %O             | Originator-ID
+ * %C             | Cluster-ID-List
+ */
+void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
+{
+  char * pPos= BGP_OPTIONS_SHOW_FORMAT;
+  int iState= 0; /* 0: normal, 1: escaped */
+
+  while ((pPos != NULL) && (*pPos != 0)) {
+    if (iState == 0) {
+      if (*pPos == '%') {
+	iState= 1;
+      } else {
+	log_printf(pStream, "%c", *pPos);
+      }
+      pPos++;
+    } else {
+      switch (*pPos) {
+      case '%':
+	log_printf(pStream, "%");
+	break;
+      case 'i':
+	if (pRoute->pPeer != NULL)
+	  ip_address_dump(pStream, pRoute->pPeer->tAddr);
+	else
+	  log_printf(pStream, "LOCAL");
+	break;
+      case 'a':
+	if (pRoute->pPeer != NULL)
+	  log_printf(pStream, "%u", pRoute->pPeer->uRemoteAS);
+	else
+	  log_printf(pStream, "LOCAL");
+	break;
+      case 'p':
+	ip_prefix_dump(pStream, pRoute->sPrefix);
+	break;
+      case 'l':
+	log_printf(pStream, "|%u|", pRoute->pAttr->uLocalPref);
+	break;
+      case 'P':
+	path_dump(pStream, pRoute->pAttr->pASPathRef, 1);
+	break;
+      case 'o':
+	switch (pRoute->pAttr->tOrigin) {
+	case ROUTE_ORIGIN_IGP: log_printf(pStream, "IGP"); break;
+	case ROUTE_ORIGIN_EGP: log_printf(pStream, "EGP"); break;
+	case ROUTE_ORIGIN_INCOMPLETE: log_printf(pStream, "INCOMPLETE"); break;
+	default:
+	  log_printf(pStream, "???");
+	}
+	break;
+      case 'm':
+	log_printf(pStream, "%u", pRoute->pAttr->uMED);
+	break;
+      case 'n':
+	ip_address_dump(pStream, pRoute->pAttr->tNextHop);
+	break;
+      case 'c':
+	if (pRoute->pAttr->pCommunities != NULL)
+	  comm_dump(pStream, pRoute->pAttr->pCommunities, COMM_DUMP_RAW);
+	else
+	  log_printf(pStream, "null");
+	break;
+      case 'e':
+	if (pRoute->pAttr->pECommunities != NULL)
+	  ecomm_dump(pStream, pRoute->pAttr->pECommunities, ECOMM_DUMP_RAW);
+	else
+	  log_printf(pStream, "null");
+	break;
+      case 'O':
+	if (pRoute->pOriginator != NULL)
+	  ip_address_dump(pStream, *pRoute->pOriginator);
+	else
+	  log_printf(pStream, "null");
+	break;
+      case 'C':
+	if (pRoute->pClusterList != NULL)
+	  cluster_list_dump(pStream, pRoute->pClusterList);
+	else
+	  log_printf(pStream, "null");
+	break;
+      default:
+	log_printf(pStream, "?unknown?");
+      }
+      pPos++;
+      iState= 0;
+    }
   }
 }
 
