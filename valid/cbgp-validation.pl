@@ -2486,11 +2486,102 @@ sub cbgp_valid_bgp_dp_igp($)
 }
 
 # -----[ cbgp_valid_bgp_dp_cluster_id_list ]-------------------------
+# Test ability to break ties based on the cluster-id-list length.
+#
+# Setup:
+#   R1 (1.0.0.1, AS1), virtual peer of R2 and R3
+#   R2 (1.0.0.2, AS1)
+#   R3 (1.0.0.3, AS1)
+#   R4 (1.0.0.4, AS1) rr-client of R2
+#   R5 (1.0.0.5, AS1) rr-client of R3 and R4
+#
+#      *-- R2 ---- R4 --*
+#     /                  \
+#   R1                    R5
+#     \                  /
+#      *-- R3 ----------*
+#
+# Scenario:
+#   - Advertise 255/8 from R1 to R2 with community 255:1
+#     Advertise 255/8 from R1 to R3 with community 255:2
+#   - Check that R5 has received two routes towards 255/8
+#   - Check that R5's best route has community 255:2 (selected based
+#     on the smallest cluster-id-list)
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_cluster_id_list($)
 {
     my ($cbgp)= @_;
 
-    return TEST_NOT_TESTED;
+    die if $cbgp->send("net add domain 1 igp\n");
+    die if $cbgp->send("net add node 1.0.0.1\n");
+    die if $cbgp->send("net node 1.0.0.1 domain 1\n");
+    die if $cbgp->send("net add node 1.0.0.2\n");
+    die if $cbgp->send("net node 1.0.0.2 domain 1\n");
+    die if $cbgp->send("net add node 1.0.0.3\n");
+    die if $cbgp->send("net node 1.0.0.3 domain 1\n");
+    die if $cbgp->send("net add node 1.0.0.4\n");
+    die if $cbgp->send("net node 1.0.0.4 domain 1\n");
+    die if $cbgp->send("net add node 1.0.0.5\n");
+    die if $cbgp->send("net node 1.0.0.5 domain 1\n");
+    die if $cbgp->send("net add link 1.0.0.1 1.0.0.2 1\n");
+    die if $cbgp->send("net add link 1.0.0.1 1.0.0.3 1\n");
+    die if $cbgp->send("net add link 1.0.0.2 1.0.0.4 1\n");
+    die if $cbgp->send("net add link 1.0.0.3 1.0.0.5 1\n");
+    die if $cbgp->send("net add link 1.0.0.4 1.0.0.5 1\n");
+    die if $cbgp->send("net domain 1 compute\n");
+
+    die if $cbgp->send("bgp add router 1 1.0.0.2\n");
+    die if $cbgp->send("bgp router 1.0.0.2\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.1\n");
+    die if $cbgp->send("\tpeer 1.0.0.1 virtual\n");
+    die if $cbgp->send("\tpeer 1.0.0.1 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.4\n");
+    die if $cbgp->send("\tpeer 1.0.0.4 rr-client\n");
+    die if $cbgp->send("\tpeer 1.0.0.4 up\n");
+    die if $cbgp->send("\texit\n");
+
+    die if $cbgp->send("bgp add router 1 1.0.0.3\n");
+    die if $cbgp->send("bgp router 1.0.0.3\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.1\n");
+    die if $cbgp->send("\tpeer 1.0.0.1 virtual\n");
+    die if $cbgp->send("\tpeer 1.0.0.1 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.5\n");
+    die if $cbgp->send("\tpeer 1.0.0.5 rr-client\n");
+    die if $cbgp->send("\tpeer 1.0.0.5 up\n");
+    die if $cbgp->send("\texit\n");
+
+    die if $cbgp->send("bgp add router 1 1.0.0.4\n");
+    die if $cbgp->send("bgp router 1.0.0.4\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+    die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.5\n");
+    die if $cbgp->send("\tpeer 1.0.0.5 rr-client\n");
+    die if $cbgp->send("\tpeer 1.0.0.5 up\n");
+    die if $cbgp->send("\texit\n");
+
+    die if $cbgp->send("bgp add router 1 1.0.0.5\n");
+    die if $cbgp->send("bgp router 1.0.0.5\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.3\n");
+    die if $cbgp->send("\tpeer 1.0.0.3 up\n");
+    die if $cbgp->send("\tadd peer 1 1.0.0.4\n");
+    die if $cbgp->send("\tpeer 1.0.0.4 up\n");
+    die if $cbgp->send("\texit\n");
+
+    cbgp_recv_update($cbgp, "1.0.0.2", 1, "1.0.0.1",
+		    "255/8|2|IGP|1.0.0.1|0|0|255:1");
+    cbgp_recv_update($cbgp, "1.0.0.3", 1, "1.0.0.1",
+		    "255/8|2|IGP|1.0.0.1|0|0|255:2");
+
+    die if $cbgp->send("sim run\n");
+
+    my $rib= cbgp_show_rib_custom($cbgp, "1.0.0.5");
+    if (!exists($rib->{"255.0.0.0/8"}) ||
+       !community_equals($rib->{"255.0.0.0/8"}->[CBGP_RIB_COMMUNITY],
+			 ["255:2"])) {
+      return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_bgp_dp_router_id ]-------------------------------
@@ -3382,13 +3473,19 @@ sub cbgp_valid_bgp_deflection()
 #   R1 (1.0.0.1, AS1)
 #   R2 (1.0.0.2, AS1) route-reflector
 #   R3 (1.0.0.3, AS1) client of R3
-#   R4 (1.0.0.4, AS1) peer of R4
-#   R5 (1.0.0.5, AS1) non-client of R3
+#   R4 (1.0.0.4, AS1) peer of R4 (non-client)
+#   R5 (1.0.0.5, AS1) peer of R2 (non-client)
 #   R6 (2.0.0.1, AS2) virtual peer of R1
+#   R7 (3.0.0.1, AS3)
+#   R8 (4.0.0.1, AS4)
 #
+#                       *---- R7
+#                      /
 #   (R6) ---- R1 ---- R2 ---- R3 ---- R4
-#                      \
-#                       *---- R5
+#                      \       \
+#                       \        *---- R8
+#                        \
+#                         *---- R5
 #
 # Scenario:
 #   1). R6 advertise route towards 255/8
@@ -3397,6 +3494,7 @@ sub cbgp_valid_bgp_deflection()
 #   3). Check that R2 has set the originator-ID to the router-ID of R1
 #       Check that the route received by R3 has a cluster-ID-list
 #       containing the router-ID of R2 (i.e. 1.0.0.2)
+#       Check that R7 and R8 have received the route
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr($)
 {
@@ -3415,11 +3513,17 @@ sub cbgp_valid_bgp_rr($)
   die if $cbgp->send("net node 1.0.0.5 domain 1\n");
   die if $cbgp->send("net add node 2.0.0.1\n");
   die if $cbgp->send("net node 2.0.0.1 domain 1\n");
+  die if $cbgp->send("net add node 3.0.0.1\n");
+  die if $cbgp->send("net node 3.0.0.1 domain 1\n");
+  die if $cbgp->send("net add node 4.0.0.1\n");
+  die if $cbgp->send("net node 4.0.0.1 domain 1\n");
   die if $cbgp->send("net add link 1.0.0.1 1.0.0.2 1\n");
   die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 1\n");
   die if $cbgp->send("net add link 1.0.0.2 1.0.0.3 1\n");
   die if $cbgp->send("net add link 1.0.0.2 1.0.0.5 1\n");
+  die if $cbgp->send("net add link 1.0.0.2 3.0.0.1 1\n");
   die if $cbgp->send("net add link 1.0.0.3 1.0.0.4 1\n");
+  die if $cbgp->send("net add link 1.0.0.3 4.0.0.1 1\n");
   die if $cbgp->send("net domain 1 compute\n");
 
   die if $cbgp->send("bgp add router 1 1.0.0.1\n");
@@ -3440,6 +3544,8 @@ sub cbgp_valid_bgp_rr($)
   die if $cbgp->send("\tpeer 1.0.0.3 up\n");
   die if $cbgp->send("\tadd peer 1 1.0.0.5\n");
   die if $cbgp->send("\tpeer 1.0.0.5 up\n");
+  die if $cbgp->send("\tadd peer 3 3.0.0.1\n");
+  die if $cbgp->send("\tpeer 3.0.0.1 up\n");
   die if $cbgp->send("\texit\n");
 
   die if $cbgp->send("bgp add router 1 1.0.0.3\n");
@@ -3448,6 +3554,8 @@ sub cbgp_valid_bgp_rr($)
   die if $cbgp->send("\tpeer 1.0.0.2 up\n");
   die if $cbgp->send("\tadd peer 1 1.0.0.4\n");
   die if $cbgp->send("\tpeer 1.0.0.4 up\n");
+  die if $cbgp->send("\tadd peer 4 4.0.0.1\n");
+  die if $cbgp->send("\tpeer 4.0.0.1 up\n");
   die if $cbgp->send("\texit\n");
 
   die if $cbgp->send("bgp add router 1 1.0.0.4\n");
@@ -3462,6 +3570,18 @@ sub cbgp_valid_bgp_rr($)
   die if $cbgp->send("\tpeer 1.0.0.2 up\n");
   die if $cbgp->send("\texit\n");
 
+  die if $cbgp->send("bgp add router 3 3.0.0.1\n");
+  die if $cbgp->send("bgp router 3.0.0.1\n");
+  die if $cbgp->send("\tadd peer 1 1.0.0.2\n");
+  die if $cbgp->send("\tpeer 1.0.0.2 up\n");
+  die if $cbgp->send("\texit\n");
+
+  die if $cbgp->send("bgp add router 4 4.0.0.1\n");
+  die if $cbgp->send("bgp router 4.0.0.1\n");
+  die if $cbgp->send("\tadd peer 1 1.0.0.3\n");
+  die if $cbgp->send("\tpeer 1.0.0.3 up\n");
+  die if $cbgp->send("\texit\n");
+
   cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
 		   "255/8|2|IGP|2.0.0.1|0|0");
 
@@ -3469,23 +3589,29 @@ sub cbgp_valid_bgp_rr($)
 
   my $rib;
   $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.1");
-    (!exists($rib->{"255.0.0.0/8"})) and
-			 return TEST_FAILURE;
+  (!exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
   $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.2");
-    (!exists($rib->{"255.0.0.0/8"})) and
-			 return TEST_FAILURE;
+  (!exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
   $rib= cbgp_show_rib_custom($cbgp, "1.0.0.3");
-    (!exists($rib->{"255.0.0.0/8"}) ||
-    ($rib->{"255.0.0.0/8"}->[CBGP_RIB_ORIGINATOR] ne "1.0.0.1") ||
-    !clusterlist_equals($rib->{"255.0.0.0/8"}->[CBGP_RIB_CLUSTERLIST],
-			     ["1.0.0.2"])) and
+  (!exists($rib->{"255.0.0.0/8"}) ||
+   ($rib->{"255.0.0.0/8"}->[CBGP_RIB_ORIGINATOR] ne "1.0.0.1") ||
+   !clusterlist_equals($rib->{"255.0.0.0/8"}->[CBGP_RIB_CLUSTERLIST],
+		       ["1.0.0.2"])) and
 			 return TEST_FAILURE;
   $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.4");
-    (exists($rib->{"255.0.0.0/8"})) and
-			 return TEST_FAILURE;
+  (exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
   $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.5");
-    (exists($rib->{"255.0.0.0/8"})) and
-			 return TEST_FAILURE;
+  (exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
+  $rib= cbgp_show_rib_mrt($cbgp, "3.0.0.1");
+  (!exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
+  $rib= cbgp_show_rib_mrt($cbgp, "4.0.0.1");
+  (!exists($rib->{"255.0.0.0/8"})) and
+    return TEST_FAILURE;
 
   return TEST_SUCCESS;
 }
@@ -3829,7 +3955,7 @@ test_register("igp-bgp state change", \&cbgp_valid_igp_bgp_state_change);
 #test_register("igp-bgp reachability subnet",
 #	      \&cbgp_valid_igp_bgp_reach_subnet);
 test_register("igp-bgp update med", \&cbgp_valid_igp_bgp_med);
-test_register("bgp load rib", undef);#\&cbgp_valid_bgp_load_rib);
+test_register("bgp load rib", \&cbgp_valid_bgp_load_rib);
 test_register("bgp deflection", \&cbgp_valid_bgp_deflection);
 test_register("bgp route-reflection", \&cbgp_valid_bgp_rr);
 test_register("bgp route-reflection (originator-id)",
