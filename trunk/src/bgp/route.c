@@ -952,7 +952,7 @@ void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
 	ip_prefix_dump(pStream, pRoute->sPrefix);
 	break;
       case 'l':
-	log_printf(pStream, "|%u|", pRoute->pAttr->uLocalPref);
+	log_printf(pStream, "%u", pRoute->pAttr->uLocalPref);
 	break;
       case 'P':
 	path_dump(pStream, pRoute->pAttr->pASPathRef, 1);
@@ -975,26 +975,18 @@ void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
       case 'c':
 	if (pRoute->pAttr->pCommunities != NULL)
 	  comm_dump(pStream, pRoute->pAttr->pCommunities, COMM_DUMP_RAW);
-	else
-	  log_printf(pStream, "null");
 	break;
       case 'e':
 	if (pRoute->pAttr->pECommunities != NULL)
 	  ecomm_dump(pStream, pRoute->pAttr->pECommunities, ECOMM_DUMP_RAW);
-	else
-	  log_printf(pStream, "null");
 	break;
       case 'O':
 	if (pRoute->pOriginator != NULL)
 	  ip_address_dump(pStream, *pRoute->pOriginator);
-	else
-	  log_printf(pStream, "null");
 	break;
       case 'C':
 	if (pRoute->pClusterList != NULL)
 	  cluster_list_dump(pStream, pRoute->pClusterList);
-	else
-	  log_printf(pStream, "null");
 	break;
       default:
 	log_printf(pStream, "?unknown?");
