@@ -73,8 +73,9 @@
 #define ROUTE_MED_MISSING  MAX_UINT32_T
 #define ROUTE_MED_DEFAULT  0
 
-#define ROUTE_SHOW_CISCO 0
-#define ROUTE_SHOW_MRT   1
+#define ROUTE_SHOW_CISCO  0
+#define ROUTE_SHOW_MRT    1
+#define ROUTE_SHOW_CUSTOM 2
 
 typedef struct /*TRoute*/ {
   SPrefix sPrefix; // Destination prefix
@@ -84,7 +85,6 @@ typedef struct /*TRoute*/ {
   uint8_t tRank;   // How the route was selected
                    // (meaningful only if the route is currently best)
 #endif
-  //SBGPAttr * pAttr;  // Route attributes
   SBGPAttr * pAttr;  // Route attributes
 
   /* Route-Reflection attributes */
