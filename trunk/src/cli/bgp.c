@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 16/08/2006
+// @lastdate 17/08/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -533,35 +533,65 @@ int cli_bgp_options_autocreate(SCliContext * pContext, STokens * pTokens)
 
 // ----- cli_bgp_options_showmode ------------------------------------
 /**
+ * Change the BGP route "show" mode.
+ *
  * context: {}
  * tokens: {mode, [format]}
  *
  * Where mode is one of "cisco", "mrt" and "custom". If mode is
  * "custom", a format specifier must be provided as an additional
  * argument.
+ *
+ * See function bgp_route_dump_custom() [src/bgp/route.c] for more
+ * details on the format specifier string.
  */
 int cli_bgp_options_showmode(SCliContext * pContext, STokens * pTokens)
 {
   char * pcParam;
 
+  // Get mode
   pcParam= tokens_get_string_at(pTokens, 0);
-  if (!strcmp(pcParam, "cisco"))
-    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CISCO;
-  else if (!strcmp(pcParam, "mrt"))
-    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
-  else if (!strcmp(pcParam, "custom")) {
-    if (tokens_get_num(pTokens) != 2) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: wrong number of arguments in show mode custom\n");
+  if (!strcmp(pcParam, "cisco")) {
+    
+    // No additional argument allowed for this mode
+    if (tokens_get_num(pTokens) > 1) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: no additional argument allowed for mode \"cisco\"\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
-    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CUSTOM;
+
+    // Update global option
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CISCO;
+
+  } else if (!strcmp(pcParam, "mrt")) {
+
+    // No additional argument allowed for this mode
+    if (tokens_get_num(pTokens) > 1) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: no additional argument allowed for mode \"mrt\"\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+
+    // Update global option
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
+
+  } else if (!strcmp(pcParam, "custom")) {
+
+    // Check that an additional argument (format) is provided
+    if (tokens_get_num(pTokens) != 2) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: mode \"custom\" requires a format specifier\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+
+    // Get format specifier string and update global option
     if (BGP_OPTIONS_SHOW_FORMAT != NULL)
       str_destroy(&BGP_OPTIONS_SHOW_FORMAT);
     BGP_OPTIONS_SHOW_FORMAT= str_create(tokens_get_string_at(pTokens, 1));
+    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CUSTOM;
+
   } else {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown show mode \"%s\"\n", pcParam);
     return CLI_ERROR_COMMAND_FAILED;
   }
+
   return CLI_SUCCESS;
 }
 
@@ -2840,7 +2870,7 @@ int cli_register_bgp_options(SCliCmds * pCmds)
 #endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<cisco|mrt|custom>", NULL);
-  cli_params_add_vararg(pParams, "<format>", 1, NULL);
+  cli_params_add_vararg(pParams, "[format]", 1, NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("show-mode",
 					cli_bgp_options_showmode,
 					NULL, pParams));
