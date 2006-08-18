@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 16/08/2006
+# @lastdate 17/08/2006
 # ===================================================================
 
 use strict;
@@ -38,9 +38,11 @@ use constant CBGP_LINK_DELAY => 3;
 use constant CBGP_LINK_STATE => 4;
 
 # -----[ BGP peer fields ]-----
-use constant CBGP_PEER_AS => 0;
-use constant CBGP_PEER_STATE => 1;
-use constant CBGP_PEER_ROUTERID => 2;
+use constant CBGP_PEER_IP => 0;
+use constant CBGP_PEER_AS => 1;
+use constant CBGP_PEER_STATE => 2;
+use constant CBGP_PEER_ROUTERID => 3;
+use constant CBGP_PEER_OPTIONS => 4;
 
 # -----[ IP route fields ]-----
 use constant CBGP_RT_NEXTHOP => 0;
@@ -844,8 +846,8 @@ sub cbgp_topo_check_ibgp_sessions($$;$)
 	return 0;
       }
       if (defined($state) &&
-	  ($peers->{$node2}->[1] ne $state)) {
-	print "$state\t$peers->{$node2}->[1]\n";
+	  ($peers->{$node2}->[CBGP_PEER_STATE] ne $state)) {
+	print "$state\t$peers->{$node2}->[CBGP_PEER_STATE]\n";
 	return 0;
       }
     }
@@ -874,8 +876,8 @@ sub cbgp_topo_check_ebgp_sessions($$;$)
 	return 0;
       }
       if (defined($state) &&
-	  ($peers1->{$node2}->[1] ne $state)) {
-	print "$state\t$peers1->{$node2}->[1]\n";
+	  ($peers1->{$node2}->[CBGP_PEER_STATE] ne $state)) {
+	print "$state\t$peers1->{$node2}->[CBGP_PEER_STATE]\n";
 	return 0;
       }
 
@@ -884,13 +886,13 @@ sub cbgp_topo_check_ebgp_sessions($$;$)
 	return 0;
       }
       if (defined($state) &&
-	  ($peers2->{$node1}->[1] ne $state)) {
-	print "$state\t$peers2->{$node1}->[1]\n";
+	  ($peers2->{$node1}->[CBGP_PEER_STATE] ne $state)) {
+	print "$state\t$peers2->{$node1}->[CBGP_PEER_STATE]\n";
 	return 0;
       }
     }
   }
-    return 1;
+  return 1;
 }
 
 # -----[ cbgp_topo_check_record_route ]------------------------------
@@ -1154,20 +1156,110 @@ sub cbgp_show_rt($$;$)
 # -----[ cbgp_show_peers ]-------------------------------------------
 sub cbgp_show_peers($$)
 {
-    my ($cbgp, $node)= @_;
-    my %peers;
-    
-    die if $cbgp->send("bgp router $node show peers\n");
-    die if $cbgp->send("print \"done\\n\"\n");
-    while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~ m/^([0-9.]+)\s+AS([0-9]+)\s+([A-Z]+)\s+([0-9.]+)(\s+.+)?$/) {
-	    $peers{$1}= [$2, $3, $4, $5];
-	} else {
-	    show_error("incorrect format (show peers): \"$result\"");
-	    exit(-1);
-	}
+  my ($cbgp, $node)= @_;
+  my %peers;
+
+  die if $cbgp->send("bgp router $node show peers\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+    if ($result =~ m/^([0-9.]+)\s+AS([0-9]+)\s+([A-Z]+)\s+([0-9.]+)(\s+.+)?$/) {
+      my @peer;
+      $peer[CBGP_PEER_IP]= $1;
+      $peer[CBGP_PEER_AS]= $2;
+      $peer[CBGP_PEER_STATE]= $3;
+      $peer[CBGP_PEER_ROUTERID]= $4;
+      $peer[CBGP_PEER_OPTIONS]= $5;
+      $peers{$1}= \@peer;
+    } else {
+      show_error("incorrect format (show peers): \"$result\"");
+      exit(-1);
     }
-    return \%peers;
+  }
+  return \%peers;
+}
+
+# -----[ bgp_route_parse_cisco ]-------------------------------------
+# Parse a CISCO "show ip bgp" route.
+#
+# Return:
+#   - in case of success: an anonymous array containing the
+#                         route's  attributes.
+#   - in case of failure: undef
+# -------------------------------------------------------------------
+sub bgp_route_parse_cisco($)
+{
+  my ($string)= @_;
+
+  if ($string =~ m/^([i*>]+)\s+([0-9.\/]+)\s+([0-9.]+)\s+([0-9]+)\s+([0-9]+)\s+([^\t]+)\s+([ie\?])$/) {
+    my @route;
+    $route[CBGP_RIB_STATUS]= $1;
+    $route[CBGP_RIB_PREFIX]= $2;
+    $route[CBGP_RIB_NEXTHOP]= $3;
+    $route[CBGP_RIB_PREF]= $4;
+    $route[CBGP_RIB_MED]= $5;
+    my @path= ();
+    ($6 ne "null") and @path= split /\s+/, $6;
+    $route[CBGP_RIB_PATH]= \@path;
+    #$route[CBGP_RIB_]= $7;
+    return \@route;
+  }
+
+  return undef;
+}
+
+# -----[ bgp_route_parse_mrt ]---------------------------------------
+# Parse an MRT route.
+#
+# Return:
+#   - in case of success: an anonymous array containing the
+#                         route's  attributes.
+#   - in case of failure: undef
+# -------------------------------------------------------------------
+sub bgp_route_parse_mrt($)
+{
+  my ($string)= @_;
+
+  if ($string =~
+      m/^(.?)\|(LOCAL|[0-9.]+)\|(LOCAL|[0-9]+)\|([0-9.\/]+)\|([0-9 null]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|([0-9]*)\|.+$/) {
+    my @fields= split /\|/, $string;
+    my @route;
+    $route[CBGP_RIB_STATUS]= $fields[0];
+    $route[CBGP_RIB_PEER_IP]= $fields[1];
+    $route[CBGP_RIB_PEER_AS]= $fields[2];
+    $route[CBGP_RIB_PREFIX]= $fields[3];
+    $route[CBGP_RIB_NEXTHOP]= $fields[6];
+    my @path= ();
+    ($fields[4] ne "null") and @path= split /\s/, $fields[4];
+    $route[CBGP_RIB_PATH]= \@path;
+    $route[CBGP_RIB_PREF]= $fields[7];
+    $route[CBGP_RIB_MED]= $fields[8];
+    if (@fields > 9) {
+      my @communities= split /\s/, $fields[9];
+      $route[CBGP_RIB_COMMUNITY]= \@communities;
+    } else {
+      $route[CBGP_RIB_COMMUNITY]= undef;
+    }
+    if (@fields > 10) {
+      my @communities= split /\s/, $fields[10];
+      $route[CBGP_RIB_ECOMMUNITY]= \@communities;
+    } else {
+      $route[CBGP_RIB_ECOMMUNITY]= undef;
+    }
+    if (@fields > 11) {
+      $route[CBGP_RIB_ORIGINATOR]= $fields[11];
+    } else {
+      $route[CBGP_RIB_ORIGINATOR]= undef;
+    }
+    if (@fields > 12) {
+      my @clusterlist= split /\s/, $fields[12];
+      $route[CBGP_RIB_CLUSTERLIST]= \@clusterlist;
+    } else {
+      $route[CBGP_RIB_CLUSTERLIST]= undef;
+    }
+    return \@route;
+  }
+
+  return undef;
 }
 
 # -----[ cbgp_show_rib ]---------------------------------------------
@@ -1183,20 +1275,12 @@ sub cbgp_show_rib($$;$)
     die if $cbgp->send("bgp router $node show rib $destination\n");
     die if $cbgp->send("print \"done\\n\"\n");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~ m/^([i*>]+)\s+([0-9.\/]+)\s+([0-9.]+)\s+([0-9]+)\s+([0-9]+)\s+([^\t]+)\s+([ie\?])$/) {
-	    my @path= split /\s+/, $6;
-	    my @route;
-	    $route[CBGP_RIB_STATUS]= $1;
-	    $route[CBGP_RIB_NEXTHOP]= $3;
-	    $route[CBGP_RIB_PREF]= $4;
-	    $route[CBGP_RIB_MED]= $5;
-#	    $route[CBGP_RIB_]= $7;
-	    $route[CBGP_RIB_PATH]= \@path;
-	    $rib{$2}= \@route;;
-	} else {
-	    show_error("incorrect format (show rib): \"$result\"");
-	    exit(-1);
-	}
+      my $route= bgp_route_parse_cisco($result);
+      if (!defined($route)) {
+	show_error("incorrect format (show rib): \"$result\"");
+	exit(-1);
+      }
+      $rib{$route->[CBGP_RIB_PREFIX]}= $route;
     }
     return \%rib;
 }
@@ -1228,106 +1312,90 @@ sub cbgp_show_rib_in($$;$)
 # -----[ cbgp_show_rib_mrt ]-----------------------------------------
 sub cbgp_show_rib_mrt($$;$)
 {
-    my ($cbgp, $node, $destination)= @_;
-    my %rib;
+  my ($cbgp, $node, $destination)= @_;
+  my %rib;
 
-    if (!defined($destination)) {
-	$destination= "*";
-    }
+  if (!defined($destination)) {
+    $destination= "*";
+  }
 
-    die if $cbgp->send("bgp options show-mode mrt\n");
-    die if $cbgp->send("bgp router $node show rib $destination\n");
-    die if $cbgp->send("print \"done\\n\"\n");
-    die if $cbgp->send("bgp options show-mode cisco\n");
-    while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~
-    m/^(.?)\|(LOCAL|[0-9.]+)\|(LOCAL|[0-9]+)\|([0-9.\/]+)\|([0-9 null]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|([0-9]*)\|.+$/) {
-	    my @fields= split /\|/, $result;
-	    my @path= split /\s/, $fields[4];
-	    my @route;
-	    $route[CBGP_RIB_STATUS]= $fields[0];
-	    $route[CBGP_RIB_PEER_IP]= $fields[1];
-	    $route[CBGP_RIB_PEER_AS]= $fields[2];
-	    $route[CBGP_RIB_PREFIX]= $fields[3];
-	    $route[CBGP_RIB_NEXTHOP]= $fields[6];
-	    $route[CBGP_RIB_PATH]= \@path;
-	    $route[CBGP_RIB_PREF]= $fields[7];
-	    $route[CBGP_RIB_MED]= $fields[8];
-	    if (@fields > 9) {
-		my @communities= split /\s/, $fields[9];
-		$route[CBGP_RIB_COMMUNITY]= \@communities;
-	    }
-	    if (@fields > 10) {
-		my @communities= split /\s/, $fields[10];
-		$route[CBGP_RIB_ECOMMUNITY]= \@communities;
-	    }
-	    if (@fields > 11) {
-		$route[CBGP_RIB_ORIGINATOR]= $fields[11];
-	    }
-	    if (@fields > 12) {
-		$route[CBGP_RIB_CLUSTERLIST]= $fields[12];
-	    }
-	    $rib{$4}= \@route;
-	} else {
-	    show_error("incorrect format (show rib mrt): \"$result\"");
-	    exit(-1);
-	}
+  die if $cbgp->send("bgp options show-mode mrt\n");
+  die if $cbgp->send("bgp router $node show rib $destination\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+  die if $cbgp->send("bgp options show-mode cisco\n");
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+
+    my $route= bgp_route_parse_mrt($result);
+    if (!defined($route)) {
+      show_error("incorrect format (show rib mrt): \"$result\"");
+      exit(-1);
     }
-    return \%rib;
+    $rib{$route->[CBGP_RIB_PREFIX]}= $route;
+  }
+  return \%rib;
 }
 
 # -----[ cbgp_show_rib_custom ]--------------------------------------
 sub cbgp_show_rib_custom($$;$)
 {
-    my ($cbgp, $node, $destination)= @_;
-    my %rib;
+  my ($cbgp, $node, $destination)= @_;
+  my %rib;
+  
+  if (!defined($destination)) {
+    $destination= "*";
+  }
+  
+  die if $cbgp->send("bgp options show-mode custom \"?|%i|%a|%p|%P|%o|%n|%l|%m|%c|%e|%O|%C|\"\n");
+  die if $cbgp->send("bgp router $node show rib $destination\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+  die if $cbgp->send("bgp options show-mode cisco\n");
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+    if ($result =~
+	m/^(.?)\|(LOCAL|[0-9.]+)\|(LOCAL|[0-9]+)\|([0-9.\/]+)\|([0-9 null]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|([0-9]*)\|.+$/) {
+      my @fields= split /\|/, $result;
 
-    if (!defined($destination)) {
-	$destination= "*";
+      my @route;
+      $route[CBGP_RIB_STATUS]= 0; #$fields[0];
+      $route[CBGP_RIB_PEER_IP]= $fields[1];
+      $route[CBGP_RIB_PEER_AS]= $fields[2];
+      $route[CBGP_RIB_PREFIX]= $fields[3];
+      $route[CBGP_RIB_ORIGIN]= $fields[5];
+      $route[CBGP_RIB_NEXTHOP]= $fields[6];
+      my @path= ();
+      ($fields[4] ne "null") and @path= split /\s/, $fields[4];
+      $route[CBGP_RIB_PATH]= \@path;
+      $route[CBGP_RIB_PREF]= $fields[7];
+      $route[CBGP_RIB_MED]= $fields[8];
+      if (@fields > 9) {
+	my @communities= split /\s/, $fields[9];
+	$route[CBGP_RIB_COMMUNITY]= \@communities;
+      } else {
+	$route[CBGP_RIB_COMMUNITY]= undef;
+      }
+      if (@fields > 10) {
+	my @communities= split /\s/, $fields[10];
+	$route[CBGP_RIB_ECOMMUNITY]= \@communities;
+      } else {
+	$route[CBGP_RIB_ECOMMUNITY]= undef;
+      }
+      if (@fields > 11) {
+	$route[CBGP_RIB_ORIGINATOR]= $fields[11];
+      } else {
+	$route[CBGP_RIB_ORIGINATOR]= undef;
+      }
+      if (@fields > 12) {
+	my @clusterlist= split /\s/, $fields[12];
+	$route[CBGP_RIB_CLUSTERLIST]= \@clusterlist;
+      } else {
+	$route[CBGP_RIB_CLUSTERLIST]= undef;
+      }
+      $rib{$4}= \@route;
+    } else {
+      show_error("incorrect format (show rib mrt): \"$result\"");
+      exit(-1);
     }
-
-    die if $cbgp->send("bgp options show-mode custom \"?|%i|%a|%p|%P|%o|%n|%l|%m|%c|%e|%O|%C|\"\n");
-    die if $cbgp->send("bgp router $node show rib $destination\n");
-    die if $cbgp->send("print \"done\\n\"\n");
-    die if $cbgp->send("bgp options show-mode cisco\n");
-    while ((my $result= $cbgp->expect(1)) ne "done") {
-	if ($result =~
-    m/^(.?)\|(LOCAL|[0-9.]+)\|(LOCAL|[0-9]+)\|([0-9.\/]+)\|([0-9 null]+)\|(IGP|EGP|INCOMPLETE)\|([0-9.]+)\|([0-9]+)\|([0-9]*)\|.+$/) {
-	    my @fields= split /\|/, $result;
-
-	    my @path= split /\s/, $fields[4];
-	    my @route;
-	    $route[CBGP_RIB_STATUS]= 0; #$fields[0];
-	    $route[CBGP_RIB_PEER_IP]= $fields[1];
-	    $route[CBGP_RIB_PEER_AS]= $fields[2];
-	    $route[CBGP_RIB_PREFIX]= $fields[3];
-	    $route[CBGP_RIB_ORIGIN]= $fields[5];
-	    $route[CBGP_RIB_NEXTHOP]= $fields[6];
-	    $route[CBGP_RIB_PATH]= \@path;
-	    $route[CBGP_RIB_PREF]= $fields[7];
-	    $route[CBGP_RIB_MED]= $fields[8];
-	    if (@fields > 9) {
-		my @communities= split /\s/, $fields[9];
-		$route[CBGP_RIB_COMMUNITY]= \@communities;
-	    }
-	    if (@fields > 10) {
-		my @communities= split /\s/, $fields[10];
-		$route[CBGP_RIB_ECOMMUNITY]= \@communities;
-	    }
-	    if (@fields > 11) {
-		$route[CBGP_RIB_ORIGINATOR]= $fields[11];
-	    }
-	    if (@fields > 12) {
-	      my @clusterlist= split /\s/, $fields[12];
-		$route[CBGP_RIB_CLUSTERLIST]= \@clusterlist;
-	    }
-	    $rib{$4}= \@route;
-	} else {
-	    show_error("incorrect format (show rib mrt): \"$result\"");
-	    exit(-1);
-	}
-    }
-    return \%rib;
+  }
+  return \%rib;
 }
 
 # -----[ cbgp_record_route ]-----------------------------------------
@@ -1401,15 +1469,16 @@ sub cbgp_check_peering($$$;$)
 
     my $peers= cbgp_show_peers($cbgp, $router);
     if (!exists($peers->{$peer})) {
-	show_debug("ERROR peer does not exist");
+	show_debug("=> ERROR peer does not exist");
 	return 0;
     }
     if (defined($state) && ($peers->{$peer}->[CBGP_PEER_STATE] ne $state)) {
-	show_debug("ERROR incorrect state \"".
+	show_debug("=> ERROR incorrect state \"".
 		   $peers->{$peer}->[CBGP_PEER_STATE].
 		   "\" (expected=\"$state\")");
 	return 0;
     }
+    show_debug("=> OK");
     return 1;
 }
 
@@ -1437,6 +1506,11 @@ sub cbgp_check_bgp_route($$$)
 sub aspath_equals($$)
 {
     my ($path1, $path2)= @_;
+
+    (!defined($path1)) and $path1= [];
+    (!defined($path2)) and $path2= [];
+
+    show_debug("aspath_equals([".(join " ", @$path1)."], [".(join " ", @$path2)."])");
 
     (@$path1 != @$path2) and return 0;
     for (my $index= 0; $index < @$path1; $index++) {
@@ -1740,6 +1814,92 @@ sub cbgp_valid_net_protocol_priority($)
     return TEST_SUCCESS;
 }
 
+# -----[ cbgp_valid_bgp_options_showmode_cisco ]---------------------
+# Test ability to show routes in CISCO "show ip bgp" format.
+#
+# Setup:
+#   R1 (123.0.0.234, AS255)
+#
+# Scenario:
+#   R1 has local network prefix "192.168.0/24"
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_options_showmode_cisco($)
+{
+  my ($cbgp)= @_;
+
+  die if $cbgp->send("net add node 123.0.0.234\n");
+  die if $cbgp->send("bgp add router 255 123.0.0.234\n");
+  die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
+  die if $cbgp->send("bgp options show-mode cisco\n");
+  die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+    (!bgp_route_parse_cisco($result)) and
+      return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_options_showmode_mrt ]-----------------------
+# Test ability to show routes in MRT format.
+#
+# Setup:
+#   R1 (123.0.0.234, AS255)
+#
+# Scenario:
+#   R1 has local network prefix "192.168.0/24"
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_options_showmode_mrt($)
+{
+  my ($cbgp)= @_;
+
+  die if $cbgp->send("net add node 123.0.0.234\n");
+  die if $cbgp->send("bgp add router 255 123.0.0.234\n");
+  die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
+  die if $cbgp->send("bgp options show-mode mrt\n");
+  die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+    (!bgp_route_parse_mrt($result)) and
+      return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_options_showmode_custom ]--------------------
+# Test ability to show routes in custom format.
+#
+# Setup:
+#   R1 (123.0.0.234, AS255)
+#
+# Scenario:
+#   R1 has local network prefix "192.168.0/24"
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_options_showmode_custom($)
+{
+  my ($cbgp)= @_;
+
+  die if $cbgp->send("net add node 123.0.0.234\n");
+  die if $cbgp->send("bgp add router 255 123.0.0.234\n");
+  die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
+  die if $cbgp->send("bgp options show-mode custom \"ROUTE:%i;%a;%p;%P;%C;%O;%n\"\n");
+  die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
+  die if $cbgp->send("print \"done\\n\"\n");
+
+  while ((my $result= $cbgp->expect(1)) ne "done") {
+    (!($result =~ m/^ROUTE\:([0-9.]+|LOCAL)\;([0-9]+|LOCAL)\;([0-9.]+\/[0-9]+)\;([0-9 ]+|null)\;\;\;([0-9.]+)$/)) and
+      return TEST_FAILURE;
+    (($1 ne "LOCAL") || ($2 ne "LOCAL") || ($3 ne "192.168.0.0/24") ||
+     ($4 ne "null") || ($5 ne "123.0.0.234")) and
+       return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_bgp_topology_load ]------------------------------
 # Test ability to load a file in "Subramanian" format. See paper by
 # Subramanian et al (Berkeley) at INFOCOM'02 about "Characterizing the
@@ -1821,112 +1981,158 @@ sub cbgp_valid_bgp_topology_run($)
 }
 
 # -----[ cbgp_valid_bgp_session_ibgp ]-------------------------------
+# Test iBGP redistribution mechanisms.
 # - establishment
 # - propagation
 # - no iBGP reflection
 # - no AS-path update
 # - no next-hop update
+#
+# Setup:
+#   R1 (1.0.0.1, AS1)
+#   R2 (1.0.0.2, AS1)
+#   R3 (1.0.0.3, AS1
+#
+#   R1 ----- R2 ----- R3
+#
+# Scenario:
+#   - Originate 255.255/16 in R1
+#   - Check that R2 receives the route (with next-hop=R1 and empty
+#     AS-Path)
+#   - Check that R3 does not receive the route (no iBGP reflection)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_session_ibgp($)
 {
-    my ($cbgp)= @_;
-    my $topo= topo_3nodes_line();
-    cbgp_topo($cbgp, $topo, 1);
-    cbgp_topo_igp_compute($cbgp, $topo, 1);
-    cbgp_topo_bgp_routers($cbgp, $topo, 1);
-    cbgp_peering($cbgp, "1.0.0.1", "1.0.0.2", 1);
-    cbgp_peering($cbgp, "1.0.0.2", "1.0.0.1", 1);
-    cbgp_peering($cbgp, "1.0.0.2", "1.0.0.3", 1);
-    cbgp_peering($cbgp, "1.0.0.3", "1.0.0.2", 1);
-    if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "OPENWAIT") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "OPENWAIT") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.3", "OPENWAIT") ||
-	!cbgp_check_peering($cbgp, "1.0.0.3", "1.0.0.2", "OPENWAIT")) {
-	return TEST_FAILURE;
-    }
-    die if $cbgp->send("sim run\n");
-    if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "ESTABLISHED") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "ESTABLISHED") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.3", "ESTABLISHED") ||
-	!cbgp_check_peering($cbgp, "1.0.0.3", "1.0.0.2", "ESTABLISHED")) {
-	return TEST_FAILURE;
-    }
-    die if $cbgp->send("bgp router 1.0.0.1 add network 255.255.0.0/16\n");
-    die if $cbgp->send("sim run\n");
-    my $rib;
-    # Check that 1.0.0.2 has received the route, that the next-hop is
-    # 1.0.0.1 and the AS-path is empty. 
-    $rib= cbgp_show_rib($cbgp, "1.0.0.2");
-    if (!exists($rib->{"255.255.0.0/16"}) ||
-	($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1") ||
-	($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH]->[0] ne "null")) {
-	return TEST_FAILURE;
-    }
-    # Check that 1.0.0.3 has not received the route (1.0.0.2 did not
-    # send it since it was learned through an iBGP session).
-    $rib= cbgp_show_rib($cbgp, "1.0.0.3");
-    if (exists($rib->{"255.255.0.0/16"})) {
-	return TEST_FAILURE;
-    }
-    return TEST_SUCCESS;
+  my ($cbgp)= @_;
+  my $topo= topo_3nodes_line();
+  cbgp_topo($cbgp, $topo, 1);
+  cbgp_topo_igp_compute($cbgp, $topo, 1);
+  cbgp_topo_bgp_routers($cbgp, $topo, 1);
+  cbgp_peering($cbgp, "1.0.0.1", "1.0.0.2", 1);
+  cbgp_peering($cbgp, "1.0.0.2", "1.0.0.1", 1);
+  cbgp_peering($cbgp, "1.0.0.2", "1.0.0.3", 1);
+  cbgp_peering($cbgp, "1.0.0.3", "1.0.0.2", 1);
+  if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "OPENWAIT") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "OPENWAIT") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.3", "OPENWAIT") ||
+      !cbgp_check_peering($cbgp, "1.0.0.3", "1.0.0.2", "OPENWAIT")) {
+    return TEST_FAILURE;
+  }
+  die if $cbgp->send("sim run\n");
+  if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "ESTABLISHED") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "ESTABLISHED") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.3", "ESTABLISHED") ||
+      !cbgp_check_peering($cbgp, "1.0.0.3", "1.0.0.2", "ESTABLISHED")) {
+    return TEST_FAILURE;
+  }
+  die if $cbgp->send("bgp router 1.0.0.1 add network 255.255.0.0/16\n");
+  die if $cbgp->send("sim run\n");
+  my $rib;
+  # Check that 1.0.0.2 has received the route, that the next-hop is
+  # 1.0.0.1 and the AS-path is empty. 
+  $rib= cbgp_show_rib($cbgp, "1.0.0.2");
+  if (!exists($rib->{"255.255.0.0/16"}) ||
+      ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1") ||
+      !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], undef)) {
+    show_debug("=> ERROR route not propagated or wrong attribute");
+    return TEST_FAILURE;
+  }
+  # Check that 1.0.0.3 has not received the route (1.0.0.2 did not
+  # send it since it was learned through an iBGP session).
+  $rib= cbgp_show_rib($cbgp, "1.0.0.3");
+  if (exists($rib->{"255.255.0.0/16"})) {
+    show_debug("=> ERROR route reflected over iBGP session");
+    return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_bgp_session_ebgp ]-------------------------------
+# Test eBGP redistribution mechanisms.
 # - establishment
 # - propagation
 # - update AS-path on eBGP session
 # - update next-hop on eBGP session
 # - [TODO] local-pref is reset in routes received through eBGP
+#
+# Setup:
+#   R1 (1.0.0.1, AS1)
+#   R2 (1.0.0.2, AS2)
+#   R3 (1.0.0.3, AS3)
+#
+#   R1 ---<eBGP>--- R2 ---<iBGP>--- R3
+#
+# Scenario:
+#   - Originate 255.255/16 in R1, 255.254/16 in R3
+#   - Check that R1 has 255.254/16 with next-hop=R2 and AS-Path="2"
+#   - Check that R2 has 255.254/16 with next-hop=R3 and empty AS-Path
+#   - Check that R2 has 255.255/16 with next-hop=R1 and AS-Path="1"
+#   - Check that R3 has 255.255/16 with next-hop=R1 and AS-Path="1"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_session_ebgp($)
 {
-    my ($cbgp)= @_;
-    my $topo= topo_3nodes_line();
-    cbgp_topo($cbgp, $topo, 1);
-    cbgp_topo_igp_compute($cbgp, $topo, 1);
-    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
-    die if $cbgp->send("bgp add router 2 1.0.0.2\n");
-    die if $cbgp->send("bgp add router 2 1.0.0.3\n");
-    cbgp_peering($cbgp, "1.0.0.1", "1.0.0.2", 2);
-    cbgp_peering($cbgp, "1.0.0.2", "1.0.0.1", 1);
-    cbgp_peering($cbgp, "1.0.0.2", "1.0.0.3", 2);
-    cbgp_peering($cbgp, "1.0.0.3", "1.0.0.2", 2);
-    if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "OPENWAIT") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "OPENWAIT")) {
-	return TEST_FAILURE;
-    }
-    die if $cbgp->send("sim run\n");
-    if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "ESTABLISHED") ||
-	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "ESTABLISHED")) {
-	return TEST_FAILURE;
-    }
-    die if $cbgp->send("bgp router 1.0.0.1 add network 255.255.0.0/16\n");
-    die if $cbgp->send("bgp router 1.0.0.3 add network 255.254.0.0/16\n");
-    die if $cbgp->send("sim run\n");
-    my $rib;
-    # Check that AS-path contains remote ASN and that the next-hop is
-    # the last router in remote AS
-    $rib= cbgp_show_rib($cbgp, "1.0.0.1");
-    if (!exists($rib->{"255.254.0.0/16"}) ||
-	!aspath_equals($rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH],[2]) ||
-	($rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.2")) {
-	return TEST_FAILURE;
-    }
-    # Check that AS-path contains remote ASN
-    $rib= cbgp_show_rib($cbgp, "1.0.0.2");
-    if (!exists($rib->{"255.255.0.0/16"}) ||
-	!aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
-	($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
-	return TEST_FAILURE;
-    }
-    # Check that AS-path contains remote ASN
-    $rib= cbgp_show_rib($cbgp, "1.0.0.3");
-    if (!exists($rib->{"255.255.0.0/16"}) ||
-	!aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
-	($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
-	return TEST_FAILURE;
-    }
-    return TEST_SUCCESS;
+  my ($cbgp)= @_;
+  
+  my $topo= topo_3nodes_line();
+  cbgp_topo($cbgp, $topo, 1);
+  cbgp_topo_igp_compute($cbgp, $topo, 1);
+  die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+  die if $cbgp->send("bgp add router 2 1.0.0.2\n");
+  die if $cbgp->send("bgp add router 2 1.0.0.3\n");
+  cbgp_peering($cbgp, "1.0.0.1", "1.0.0.2", 2);
+  cbgp_peering($cbgp, "1.0.0.2", "1.0.0.1", 1);
+  cbgp_peering($cbgp, "1.0.0.2", "1.0.0.3", 2);
+  cbgp_peering($cbgp, "1.0.0.3", "1.0.0.2", 2);
+  if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "OPENWAIT") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "OPENWAIT")) {
+    return TEST_FAILURE;
+  }
+  die if $cbgp->send("sim run\n");
+  if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "ESTABLISHED") ||
+      !cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "ESTABLISHED")) {
+    return TEST_FAILURE;
+  }
+  die if $cbgp->send("bgp router 1.0.0.1 add network 255.255.0.0/16\n");
+  die if $cbgp->send("bgp router 1.0.0.3 add network 255.254.0.0/16\n");
+  die if $cbgp->send("sim run\n");
+
+  # Check that AS-path contains remote ASN and that the next-hop is
+  # the last router in remote AS
+  my $rib= cbgp_show_rib($cbgp, "1.0.0.1");
+  if (!exists($rib->{"255.254.0.0/16"}) ||
+      !aspath_equals($rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH],[2]) ||
+      ($rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.2")) {
+    show_debug("=> ERROR no route or wrong attribute in R1");
+    return TEST_FAILURE;
+  }
+
+  # Check that AS-path contains remote ASN
+  $rib= cbgp_show_rib($cbgp, "1.0.0.2");
+  if (!exists($rib->{"255.254.0.0/16"}) ||
+      !aspath_equals($rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH], undef) ||
+      ($rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.3")) {
+    show_debug("=> ERROR no route for 255.254/16 or wrong attribute in R2");
+    show_debug("   next-hop: ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP]);
+    show_debug("   as-path : ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH]);
+    return TEST_FAILURE;
+  }
+  if (!exists($rib->{"255.255.0.0/16"}) ||
+      !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
+      ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
+    show_debug("=> ERROR no route for 255.255/26 or wrong attribute in R2");
+    return TEST_FAILURE;
+  }
+
+  # Check that AS-path contains remote ASN
+  $rib= cbgp_show_rib($cbgp, "1.0.0.3");
+  if (!exists($rib->{"255.255.0.0/16"}) ||
+      !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
+      ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
+    show_debug("=> ERROR no route or wrong attribute in R3");
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_bgp_session_sm ]---------------------------------
@@ -1985,6 +2191,23 @@ sub cbgp_valid_bgp_peering_up_down($)
 	return TEST_FAILURE;
     }
     return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_router_up_down ]-----------------------------
+# Test ability to start and stop a router. Starting (stopping) a
+# router should be equivalent to establishing (shutting down) all its
+# BGP sessions.
+#
+# Setup:
+#
+# Scenario:
+# 
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_router_up_down($)
+{
+  my ($cbgp)= @_;
+
+  return TEST_NOT_TESTED;
 }
 
 # -----[ cbgp_valid_bgp_peerings_nexthopself ]-----------------------
@@ -3494,7 +3717,8 @@ sub cbgp_valid_bgp_deflection()
 #   3). Check that R2 has set the originator-ID to the router-ID of R1
 #       Check that the route received by R3 has a cluster-ID-list
 #       containing the router-ID of R2 (i.e. 1.0.0.2)
-#       Check that R7 and R8 have received the route
+#       Check that R7 and R8 have received the route and no
+#       RR-attributes (Originator-ID and Cluster-ID-List) are present
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr($)
 {
@@ -3606,11 +3830,15 @@ sub cbgp_valid_bgp_rr($)
   $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.5");
   (exists($rib->{"255.0.0.0/8"})) and
     return TEST_FAILURE;
-  $rib= cbgp_show_rib_mrt($cbgp, "3.0.0.1");
-  (!exists($rib->{"255.0.0.0/8"})) and
-    return TEST_FAILURE;
-  $rib= cbgp_show_rib_mrt($cbgp, "4.0.0.1");
-  (!exists($rib->{"255.0.0.0/8"})) and
+  $rib= cbgp_show_rib_custom($cbgp, "3.0.0.1");
+  (!exists($rib->{"255.0.0.0/8"}) ||
+   !clusterlist_equals($rib->{"255.0.0.0/8"}->[CBGP_RIB_CLUSTERLIST], undef) ||
+   defined($rib->{"255.0.0.0/8"}->[CBGP_RIB_ORIGINATOR])) and
+     return TEST_FAILURE;
+  $rib= cbgp_show_rib_custom($cbgp, "4.0.0.1");
+  (!exists($rib->{"255.0.0.0/8"}) ||
+   !clusterlist_equals($rib->{"255.0.0.0/8"}->[CBGP_RIB_CLUSTERLIST], undef) ||
+   defined($rib->{"255.0.0.0/8"}->[CBGP_RIB_ORIGINATOR])) and
     return TEST_FAILURE;
 
   return TEST_SUCCESS;
@@ -3894,6 +4122,12 @@ test_register("net record-route", \&cbgp_valid_net_record_route, $topo);
 test_register("net static routes", \&cbgp_valid_net_static_routes, $topo);
 test_register("net longest-matching", \&cbgp_valid_net_longest_matching);
 test_register("net protocol priority", \&cbgp_valid_net_protocol_priority);
+test_register("bgp options show-mode cisco",
+	      \&cbgp_valid_bgp_options_showmode_cisco);
+test_register("bgp options show-mode mrt",
+	      \&cbgp_valid_bgp_options_showmode_mrt);
+test_register("bgp options show-mode custom",
+	      \&cbgp_valid_bgp_options_showmode_custom);
 test_register("bgp topology load", \&cbgp_valid_bgp_topology_load);
 test_register("bgp topology policies", \&cbgp_valid_bgp_topology_policies);
 test_register("bgp topology run", \&cbgp_valid_bgp_topology_run);
@@ -3904,6 +4138,7 @@ test_register("bgp ssld", \&cbgp_valid_bgp_ssld);
 test_register("bgp session state-machine", \&cbgp_valid_bgp_session_sm);
 test_register("bgp domain full-mesh", \&cbgp_valid_bgp_domain_fullmesh, $topo);
 test_register("bgp peering up/down", \&cbgp_valid_bgp_peering_up_down);
+test_register("bgp router up/down", \&cbgp_valid_bgp_router_up_down);
 test_register("bgp peering next-hop-self",
 	      \&cbgp_valid_bgp_peerings_nexthopself);
 test_register("bgp virtual peer", \&cbgp_valid_bgp_virtual_peer);
