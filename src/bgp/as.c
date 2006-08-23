@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 16/08/2006
+// @lastdate 17/08/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -428,21 +428,34 @@ int bgp_router_ecomm_process(SPeer * pPeer, SRoute * pRoute)
  *   - update Next-Hop (next-hop-self/next-hop)
  *   - prepend AS-Path (if redistribution to an external peer)
  */
-int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
-    SRoute * pRoute)
+int bgp_router_advertise_to_peer(SBGPRouter * pRouter,
+				 SBGPPeer * pDstPeer,
+				 SRoute * pRoute)
 {
-  net_addr_t tOriginator;
+#define INTERNAL 0
+#define EXTERNAL 1
+#define LOCAL    2
+  char * acLocType[3]= { "INT", "EXT", "LOC" };
+
   SRoute * pNewRoute= NULL;
-  net_addr_t tOriginPeerAddr;
-  int iExternalSession= (pRouter->uNumber != pPeer->uRemoteAS);
-  int iLocalRoute= (pRoute->pAttr->tNextHop == pRouter->pNode->tAddr);
-  int iExternalRoute= ((!iLocalRoute) &&
-      (pRouter->uNumber != route_peer_get(pRoute)->uRemoteAS));
-  /* [route/session attributes]
-   * iExternalSession == the dst peer is external
-   * iExternalRoute   == the src peer is external
-   * iLocalRoute      == the route is locally originated
-   */
+  int iFrom= LOCAL;
+  int iTo;
+  SBGPPeer * pSrcPeer= NULL;
+
+  // Determine route origin type (internal/external/local)
+  if (pRoute->pAttr->tNextHop != pRouter->pNode->tAddr) {
+    pSrcPeer= route_peer_get(pRoute);
+    if (pRouter->uNumber == route_peer_get(pRoute)->uRemoteAS)
+      iFrom= INTERNAL;
+    else
+      iFrom= EXTERNAL;
+  }
+  
+  // Determine route destination type (internal/external)
+  if (pRouter->uNumber == pDstPeer->uRemoteAS)
+    iTo= INTERNAL;
+  else
+    iTo= EXTERNAL;
 
   LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
     log_printf(pLogDebug, "advertise_to_peer (");
@@ -450,9 +463,9 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     log_printf(pLogDebug, ") from ");
     bgp_router_dump_id(pLogDebug, pRouter);
     log_printf(pLogDebug, " to ");
-    bgp_peer_dump_id(pLogDebug, pPeer);
-    log_printf(pLogDebug, " (flags:%d,%d,%d)\n", iExternalSession,
-               iLocalRoute, iExternalRoute);
+    bgp_peer_dump_id(pLogDebug, pDstPeer);
+    log_printf(pLogDebug, " (%s --> %s)\n",
+	       acLocType[iFrom], acLocType[iTo]);
   }
   
 #ifdef __ROUTER_LIST_ENABLE__
@@ -460,8 +473,9 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
   route_router_list_append(pRoute, pRouter->pNode->tAddr);
 #endif
 
-  // Do not redistribute to the next-hop peer
-  if (pPeer->tAddr == pRoute->pAttr->tNextHop) {
+  // Do not redistribute to the originator neighbor peer
+  if ((iFrom != LOCAL) &&
+      (pDstPeer->tRouterID == pSrcPeer->tRouterID)) {
     LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(next-hop-peer)\n");
     return -1;
   }
@@ -472,126 +486,141 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter, SPeer * pPeer,
     return -1;
   }
 
-  // Do not redistribute outside confederation (here AS)
-  if ((iExternalSession) &&
-      (route_comm_contains(pRoute, COMM_NO_EXPORT))) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(comm_no_export)\n");
-    return -1;
-  }
-
-  // Avoid loop creation (SSLD, Sender-Side Loop Detection)
-  if ((iExternalSession) &&
-      (route_path_contains(pRoute, pPeer->uRemoteAS))) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(ssld)\n");
-    return -1;
-  }
-
-  // If this route was learned through an iBGP session, do not
-  // redistribute it to an internal peer
-  if ((!pRouter->iRouteReflector) && (!iLocalRoute) &&
-      (!iExternalRoute) && (!iExternalSession)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(iBGP-peer --> iBGP-peer)\n");
-    return -1;
-  }
-
   // Copy the route. This is required since subsequent filters may
   // alter the route's attribute !!
   pNewRoute= route_copy(pRoute);
 
-  if ((pRouter->iRouteReflector) && (!iExternalRoute)) {
-    // Route-Reflection: update Originator field
-    if (route_originator_get(pNewRoute, NULL) == -1) {
-      if (iLocalRoute)
-	tOriginPeerAddr= pRouter->tRouterID;
-      else
-	tOriginPeerAddr= route_peer_get(pRoute)->tRouterID;
-      route_originator_set(pNewRoute, tOriginPeerAddr);
+  // ******************** ROUTE-REDISTRIBUTION **********************
+  //
+  // +----------+----------+------+------------------------------+
+  // | FROM     | TO       | iBGP | ROUTE-REFLECTOR              |
+  // +----------+----------+------+------------------------------+
+  // | EXTERNAL | EXTERNAL |  OK  |   OK                         | (1)
+  // | INTERNAL | EXTERNAL |  OK  |   OK                         | (2)
+  // | LOCAL    | EXTERNAL |  OK  |   OK                         | (3)
+  // | EXTERNAL | INTERNAL |  OK  |   OK                         | (4)
+  // | INTERNAL | INTERNAL | ---- |                              | (5)
+  // | client   | client   |      |   OK (update Originator-ID,  | (5a)
+  // |          |          |      |       Cluster-ID-List)       |
+  // | n-client | client   |      |   OK (update Originator-ID,  | (5b)
+  // |          |          |      |       Cluster-ID-List)       |
+  // | n-client | n-client |      |  ----                        | (5c)
+  // | LOCAL    | INTERNAL |  OK  |   OK                         | (6)
+  // +----------+----------+------+------------------------------+
+  //
+  // ****************************************************************
+  switch (iTo) {
+  case EXTERNAL: // case (1), (2) and (3)
+    // Do not redistribute outside confederation (here AS)
+    if (route_comm_contains(pNewRoute, COMM_NO_EXPORT)) {
+      LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(comm_no_export)\n");
+      route_destroy(&pNewRoute);
+      return -1;
     }
-    // Route-Reflection: append Cluster-ID to Cluster-ID-List field
-    /*if ((iExternalRoute || route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT))
-	 &&
-	 (!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)))*/
-      route_cluster_list_append(pNewRoute, pRouter->tClusterID);
-  }
+    // Avoid loop creation (SSLD, Sender-Side Loop Detection)
+    if (route_path_contains(pNewRoute, pDstPeer->uRemoteAS)) {
+      LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(ssld)\n");
+      route_destroy(&pNewRoute);
+      return -1;
+    }
+    // Clear Originator and Cluster-ID-List fields
+    route_originator_clear(pNewRoute);
+    route_cluster_list_clear(pNewRoute);
+    break;
 
-  if ((pRouter->iRouteReflector) && (!iLocalRoute) &&
-      (!iExternalRoute) && (!iExternalSession)) {
-    // Route-reflectors: do not redistribute a route from a client peer
-    // to the originator client peer
-    if (route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT)) {
-      if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
-	assert(route_originator_get(pNewRoute, &tOriginator) == 0);
-	if (pPeer->tAddr == tOriginator) {
-	  LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (RR: client --> originator-client)\n");
+  case INTERNAL:
+    switch (iFrom) {
+    case EXTERNAL: // case (4)
+      break;
+    case INTERNAL: // case (5)
+      if (pRouter->iRouteReflector) {
+
+	// Do not redistribute from non-client to non-client (5c)
+	if (!route_flag_get(pNewRoute, ROUTE_FLAG_RR_CLIENT) &&
+	    !bgp_peer_flag_get(pDstPeer, PEER_FLAG_RR_CLIENT)) {
+	  LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (RR: non-client --> non-client)\n");
 	  route_destroy(&pNewRoute);
 	  return -1;
 	}
-      }
-    }
 
-    // Route-reflectors: do not redistribute a route from a non-client
-    // peer to non-client peers (becoz non-client peers MUST be fully
-    // meshed)
-    else {
-      if (!bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
-	LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (RR: non-client --> non-client)\n");
+	// Update Originator-ID if missing
+	if (route_originator_get(pNewRoute, NULL) == -1)
+	  route_originator_set(pNewRoute, pSrcPeer->tRouterID);
+
+	// Create or append Cluster-ID-List
+	route_cluster_list_append(pNewRoute, pRouter->tClusterID);
+
+      } else {
+	LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered(iBGP-peer --> iBGP-peer)\n");
 	route_destroy(&pNewRoute);
 	return -1;
       }
+      break;
+
+    case LOCAL: // case (6)
+      // Set Originator-ID
+      if (pRouter->iRouteReflector)
+	route_originator_set(pNewRoute, pRouter->tRouterID);
+      break;
     }
+    
+    break;
+    
+  }
+  
+  // Check output filter and extended communities
+  if (!bgp_router_ecomm_process(pDstPeer, pNewRoute)) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (ext-community)\n");
+    route_destroy(&pNewRoute);
+    return -1;
   }
 
-  // Check output filter and extended communities
-  if (bgp_router_ecomm_process(pPeer, pNewRoute)) {
+  // Remove non-transitive communities
+  route_ecomm_strip_non_transitive(pNewRoute);
 
-    route_ecomm_strip_non_transitive(pNewRoute);
+  // Discard MED if advertising to an external peer
+  // (must be done before applying policy filters)
+  if (iTo == EXTERNAL)
+    route_med_clear(pNewRoute);
+  
+  // Apply policy filters (output)
+  if (!filter_apply(pDstPeer->pOutFilter, pRouter, pNewRoute)) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (policy)\n");
+    route_destroy(&pNewRoute);
+    return -1;
+  }
 
-    // Discard MED if advertising to an external peer
-    if (iExternalSession)
-      route_med_clear(pNewRoute);
-
-    if (filter_apply(pPeer->pOutFilter, pRouter, pNewRoute)) {
-
-      // Change the route's next-hop to this router
-      // - if advertisement from an external peer
-      // - if the 'next-hop-self' option is set for this peer
-      // Note: in the case of route-reflectors, the next-hop will only
-      // be changed for eBGP learned routes
-      if (iExternalSession) {
-	if (pPeer->tNextHop != 0)
-	  route_set_nexthop(pNewRoute, pPeer->tNextHop);
-	else
-	  route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
-      } else if (!pRouter->iRouteReflector || iExternalRoute) {
-	if (!iLocalRoute &&  bgp_peer_flag_get(route_peer_get(pNewRoute),
-					       PEER_FLAG_NEXT_HOP_SELF)) {
-	  route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
-	} else if (pPeer->tNextHop != 0) {
-	  route_set_nexthop(pNewRoute, pPeer->tNextHop);
-	}
+  // Update attributes before redistribution (next-hop, AS-Path, RR)
+  if (iTo == EXTERNAL) {
+	
+    // Change the route's next-hop to this router
+    // (or optionally to a specified next-hop)
+    if (pDstPeer->tNextHop != 0)
+      route_set_nexthop(pNewRoute, pDstPeer->tNextHop);
+    else
+      route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
+    
+    // Prepend AS-Number
+    route_path_prepend(pNewRoute, pRouter->uNumber, 1);
+    
+  } else if (iTo == INTERNAL) {
+    
+    // Change the route's next-hop to this router (next-hop-self)
+    // or to an optionally specified next-hop. RESTRICTION: this
+    // is prohibited if the route is being reflected.
+    if (iFrom == EXTERNAL) {
+      if (bgp_peer_flag_get(route_peer_get(pNewRoute),
+			    PEER_FLAG_NEXT_HOP_SELF)) {
+	route_set_nexthop(pNewRoute, pRouter->pNode->tAddr);
+      } else if (pDstPeer->tNextHop != 0) {
+	route_set_nexthop(pNewRoute, pDstPeer->tNextHop);
       }
-
-      // Prepend AS-Number if external peer (eBGP session)
-      if (iExternalSession)
-	route_path_prepend(pNewRoute, pRouter->uNumber, 1);
-
-      // Route-Reflection: clear Originator and Cluster-ID-List fields
-      // if external peer (these fields are non-transitive)
-      if (iExternalSession) {
-	route_originator_clear(pNewRoute);
-	route_cluster_list_clear(pNewRoute);
-      }
-
-      bgp_peer_announce_route(pPeer, pNewRoute);
-      return 0;
-    } else
-      LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (policy)\n");
-
-  } else
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (ext-community)\n");
-
-  route_destroy(&pNewRoute);
-  return -1;
+    }
+    
+  }
+  
+  bgp_peer_announce_route(pDstPeer, pNewRoute);
+  return 0;
 }
 
 // ----- bgp_router_withdraw_to_peer --------------------------------
