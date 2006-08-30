@@ -961,10 +961,12 @@ int node_handle_event(void * pHandler, SNetMessage * pMessage)
 {
   SNetNode * pNode= (SNetNode *) pHandler;
 
-  printf("node_event[%d]: from %u, %d\n",
-	 pNode->tAddr,
-	 pMessage->tSrcAddr,
-	 (int) pMessage->pPayLoad);
+  printf("node_event[");
+  ip_address_dump(pLogOut, pNode->tAddr);
+  printf("]: from ");
+  ip_address_dump(pLogOut, pMessage->tSrcAddr);
+  printf(", %d", (int) pMessage->pPayLoad);
+
   return 0;
 }
 
