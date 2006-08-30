@@ -54,6 +54,7 @@ int rexford_load(char * pcFileName)
   SNetNode * pNode1, * pNode2;
   SBGPRouter * pRouter1, * pRouter2;
   net_addr_t tAddr1, tAddr2;
+  unsigned int uDelay;
   net_link_delay_t tDelay;
   int iIndex;
   STokenizer * pTokenizer;
@@ -116,13 +117,14 @@ int rexford_load(char * pcFileName)
       
       // Get optional parameters
       if (tokens_get_num(pTokens) > 3) {
-	if (tokens_get_uint_at(pTokens, 3, &tDelay) != 0) {
+	if (tokens_get_uint_at(pTokens, 3, &uDelay) != 0) {
 	  LOG_ERR(LOG_LEVEL_SEVERE,
 		  "Error: invalid delay in topology, line %u\n",
 		  uLineNumber);
 	  iError= REXFORD_ERROR_INVALID_DELAY;
 	  break;
 	}
+	tDelay= (net_link_delay_t) uDelay;
       }
 
       // Limit number of parameters
