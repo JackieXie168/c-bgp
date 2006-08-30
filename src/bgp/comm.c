@@ -190,7 +190,7 @@ int comm_to_string(SCommunities * pCommunities, char * pBuffer,
   
   for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
     tCommunity= (comm_t) pCommunities->ppItems[iIndex];
-    iWritten= snprintf(pBuffer, tBufferSize, "%ul", tCommunity);
+    iWritten= snprintf(pBuffer, tBufferSize, "%ul", (unsigned int) tCommunity);
     if (iWritten == tBufferSize)
       return tInitialSize;
     tBufferSize-= iWritten;
