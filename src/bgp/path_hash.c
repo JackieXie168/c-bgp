@@ -51,7 +51,7 @@ static uint32_t _path_hash_item_compute(void * pPath, uint32_t uHashSize)
 
 // -----[ path_hash_item_compare ]-----------------------------------
 int _path_hash_item_compare(void * pPath1, void * pPath2,
-			    uint32_t uEltSize)
+			    unsigned int uEltSize)
 {
   assert(path_to_string(pPath1, 1, acPathStr1, AS_PATH_STR_SIZE)
 	 < AS_PATH_STR_SIZE);
