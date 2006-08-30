@@ -1044,8 +1044,8 @@ char * route_dump_string(SRoute * pRoute)
 
     // Local-Pref & Multi-Exit-Distriminator
     icDumpPtr += sprintf(cDump+icDumpPtr, "\t%u\t%u\t",
-			 pRoute->pAttr->uLocalPref,
-			 pRoute->pAttr->uMED);
+			 (unsigned int) pRoute->pAttr->uLocalPref,
+			 (unsigned int) pRoute->pAttr->uMED);
 
     // AS-Path
     cCharTmp = path_dump_string(pRoute->pAttr->pASPathRef, 1);
