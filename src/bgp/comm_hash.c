@@ -78,7 +78,7 @@ static uint32_t _comm_hash_item_compute_zebra(void * pItem, uint32_t uHashSize)
 
 // -----[ comm_hash_item_compare ]-----------------------------------
 int _comm_hash_item_compare(void * pComm1, void * pComm2,
-			    uint32_t uEltSize)
+			    unsigned int uEltSize)
 {
   assert(comm_to_string(pComm1, acCommStr1, AS_COMM_STR_SIZE)
 	 < AS_COMM_STR_SIZE);
