@@ -34,7 +34,8 @@ int ntf_load(char * pcFileName)
   char * pcNode1, * pcNode2;
   char * pcEndPtr;
   net_addr_t tNode1, tNode2;
-  uint32_t uWeight;
+  unsigned int uWeight;
+  unsigned int uDelay;
   net_link_delay_t tDelay;
   SNetNode * pNode1, * pNode2;
   SNetLink * pLink;
@@ -94,14 +95,15 @@ int ntf_load(char * pcFileName)
       }
       
       // Check delay (if provided)
-      tDelay= uWeight;
+      tDelay= (net_link_delay_t) uWeight;
       if (tokens_get_num(pTokens) > 3) {
-	if (tokens_get_uint_at(pTokens, 3, &tDelay)) {
+	if (tokens_get_uint_at(pTokens, 3, &uDelay)) {
 	  LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid delay (%s), line %u\n",
 		     tokens_get_string_at(pTokens, 3), uLineNumber);
 	  iError= NTF_ERROR_INVALID_DELAY;
 	  break;
 	}
+        tDelay= (net_link_delay_t) uDelay;
       }
 
       pNode1= network_find_node(tNode1);
