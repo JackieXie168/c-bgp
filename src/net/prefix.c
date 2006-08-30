@@ -36,8 +36,11 @@ net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
  */
 void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
 {
-  sprintf(pcAddr, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255, 
-	  (tAddr >> 8) & 255, tAddr & 255);
+  sprintf(pcAddr, "%u.%u.%u.%u",
+	  (unsigned int) (tAddr >> 24),
+	  (unsigned int) (tAddr >> 16) & 255, 
+	  (unsigned int) (tAddr >> 8) & 255,
+	  (unsigned int) tAddr & 255);
 }
 
 // ----- ip_address_dump_string -------------------------------------
@@ -47,8 +50,11 @@ void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
 char * ip_address_dump_string(net_addr_t tAddr)
 {
   char * cAddress = MALLOC(16);
-  sprintf(cAddress, "%u.%u.%u.%u", (tAddr >> 24), (tAddr >> 16) & 255,
-	  (tAddr >> 8) & 255, tAddr & 255);
+  sprintf(cAddress, "%u.%u.%u.%u",
+          (unsigned int) (tAddr >> 24),
+	  (unsigned int) (tAddr >> 16) & 255,
+	  (unsigned int) (tAddr >> 8) & 255,
+          (unsigned int) tAddr & 255);
   return cAddress;
 }
 
@@ -118,8 +124,10 @@ char * ip_prefix_dump_string(SPrefix sPrefix)
   char * cPrefix = MALLOC(20);
   
   sprintf(cPrefix, "%u.%u.%u.%u/%u",
-	  sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
-	  (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
+	  (unsigned int) sPrefix.tNetwork >> 24,
+          (unsigned int) (sPrefix.tNetwork >> 16) & 255,
+	  (unsigned int) (sPrefix.tNetwork >> 8) & 255,
+          (unsigned int) (sPrefix.tNetwork & 255),
 	  sPrefix.uMaskLen);
   return cPrefix;
 }
@@ -143,8 +151,10 @@ void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix)
 void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix)
 {
   sprintf(pcPrefix, "%u.%u.%u.%u/%u", 
-      pPrefix->tNetwork >> 24, (pPrefix->tNetwork >> 16) & 255,
-      (pPrefix->tNetwork >> 8) & 255, pPrefix->tNetwork & 255,
+      (unsigned int) pPrefix->tNetwork >> 24,
+      (unsigned int) (pPrefix->tNetwork >> 16) & 255,
+      (unsigned int) (pPrefix->tNetwork >> 8) & 255,
+      (unsigned int) pPrefix->tNetwork & 255,
       pPrefix->uMaskLen);
 }
 
