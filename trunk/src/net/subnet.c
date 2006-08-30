@@ -82,7 +82,7 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
   
   ip_prefix_to_string(pcPrefix, &(pSubnet->sPrefix));
   fprintf(pStream, "SUBNET PREFIX <%s>\t", pcPrefix);
-  fprintf(pStream, "OSPF AREA  <%d>\t", pSubnet->uOSPFArea);
+  fprintf(pStream, "OSPF AREA  <%u>\t", (unsigned int) pSubnet->uOSPFArea);
   switch (pSubnet->uType) {
     case NET_SUBNET_TYPE_TRANSIT : 
            fprintf(pStream, "TRANSIT\t");
