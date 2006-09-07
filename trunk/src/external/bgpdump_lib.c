@@ -316,6 +316,8 @@ int process_mrtd_bgp(struct mstream *s,BGPDUMP_ENTRY *entry) {
 */
 
 int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry) {
+  uint32_t tmp_uptime; // Added in order to avoid type-punning
+                       // (which recent GC versions don't like)
     int afi = entry->subtype;
 
     mstream_getw(s,&entry->body.mrtd_table_dump.view);
@@ -335,7 +337,8 @@ int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry) {
     }
     mstream_getc(s,&entry->body.mrtd_table_dump.mask);
     mstream_getc(s,&entry->body.mrtd_table_dump.status);
-    mstream_getl(s,(uint32_t *)&entry->body.mrtd_table_dump.uptime);
+    mstream_getl(s,&tmp_uptime);
+    entry->body.mrtd_table_dump.uptime= (time_t) tmp_uptime;
     if(afi == AFI_IP)
 	mstream_get_ipv4(s, &entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
 #ifdef BGPDUMP_HAVE_IPV6
