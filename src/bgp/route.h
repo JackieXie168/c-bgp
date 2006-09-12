@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 16/08/2006
+// @lastdate 11/09/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_H__
@@ -18,7 +18,7 @@
 #include <bgp/route_t.h>
 
 // ----- route_create -----------------------------------------------
-extern SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
+extern SRoute * route_create(SPrefix sPrefix, SBGPPeer * pPeer,
 			     net_addr_t tNextHop,
 			     bgp_origin_t tOrigin);
 // ----- route_destroy ----------------------------------------------
@@ -36,9 +36,9 @@ extern void route_set_nexthop(SRoute * pRoute,
 extern net_addr_t route_get_nexthop(SRoute * pRoute);
 
 // ----- route_peer_set ---------------------------------------------
-extern void route_peer_set(SRoute * pRoute, SPeer * pPeer);
+extern void route_peer_set(SRoute * pRoute, SBGPPeer * pPeer);
 // ----- route_peer_get ---------------------------------------------
-extern SPeer * route_peer_get(SRoute * pRoute);
+extern SBGPPeer * route_peer_get(SRoute * pRoute);
 
 // ----- route_set_origin -------------------------------------------
 extern void route_set_origin(SRoute * pRoute,

@@ -225,7 +225,7 @@ int rexford_load(char * pcFileName)
 void rexford_setup_policies()
 {
   uint16_t uAS1;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   uint8_t uPeerType;
   int iIndex;
   SFilter * pFilter;
@@ -237,7 +237,7 @@ void rexford_setup_policies()
       uNumProviders= bgp_router_num_providers(AS[uAS1]);
       for (iIndex= 0; iIndex < ptr_array_length(AS[uAS1]->pPeers);
 	   iIndex++) {
-	pPeer= (SPeer *) AS[uAS1]->pPeers->data[iIndex];
+	pPeer= (SBGPPeer *) AS[uAS1]->pPeers->data[iIndex];
 	uPeerType= pPeer->uPeerType;
 
 	/* Setup business-policies:

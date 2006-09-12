@@ -46,7 +46,7 @@ extern SECommunity * ecomm_red_create_as(unsigned char uActionType,
 					 unsigned char uActionParam,
 					 uint16_t uAS);
 // ----- ecomm_red_match --------------------------------------------
-extern int ecomm_red_match(SECommunity * pComm, SPeer * pPeer);
+extern int ecomm_red_match(SECommunity * pComm, SBGPPeer * pPeer);
 // ----- ecomm_red_dump ---------------------------------------------
 extern void ecomm_red_dump(SLogStream * pStream, SECommunity * pComm);
 // ----- ecomm_val_dump ---------------------------------------------

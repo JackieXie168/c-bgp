@@ -9,7 +9,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// @lastdate 10/04/2006
+// @lastdate 11/09/2006
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -267,22 +267,49 @@ mrtd_input_t mrtd_check_header(STokens * pTokens)
  * function requires at least 11 tokens for a route that belongs to a
  * routing table dump or an update message (communities are
  * optional). The function requires 6 tokens for a withdraw message.
+ * The set of tokens must be composed of the following fields (see the
+ * MRT user's manual for more information):
  *
- * If a BGP router is given (pRouter), then the peer information
- * contained in the MRT record must correspond to the router
- * address/AS-number and the next-hops must correspond to peers of the
- * router.
+ * Token 0     -> Protocol
+ *       1     -> Time (currently ignored)
+ *       2     -> Type
+ *       3     -> PeerIP
+ *       4     -> PeerAS
+ *       5     -> Prefix
+ *       6     -> AS-Path
+ *       7     -> Origin
+ *       8     -> NextHop
+ *       9     -> Local_Pref
+ *       10    -> MED
+ *       11    -> Community
+ *       >= 12 -> currently ignored
+ *
+ * Parameters:
+ *   - the router which is supposed to receive this route (or NULL)
+ *   - the MRT record tokens
+ *   - the destination prefix
+ *   - a pointer to the resulting route
+ *
+ * Return values:
+ *    0 in case of success (and ppRoute points to a valid BGP route)
+ *   -1 in case of failure
+ *
+ * Note: the router field must be specified (i.e. be != NULL) when the
+ * MRT record contains a BGP message. In this case, the peer
+ * information (Peer IP and Peer AS) contained in the MRT record must
+ * correspond to the router address/AS-number and the next-hops must
+ * correspond to peers of the router.
  *
  * If no BGP router is specified, the route is considered as locally
  * originated.
  */
-int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
+int mrtd_create_route(SBGPRouter * pRouter, SBGPPeer * pPeer,
+		      STokens * pTokens,
 		      SPrefix * pPrefix, SRoute ** ppRoute)
 {
   mrtd_input_t tType;
   net_addr_t tPeerAddr;
   unsigned int uPeerAS;
-  SPeer * pPeer= NULL;
 
   SRoute * pRoute;
   bgp_origin_t tOrigin;
@@ -378,16 +405,16 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return -1;
   }
 
-  /* Find the peer corresponding to this next-hop. Currently, the
-   * next-hop must be the peer's loopback address. */
-  if (pRouter != NULL) {
-    
+  /* If a router is specified, but no peer, the next-hop field is the
+   * sole information we have. Thus, we must be able to find in the
+   * router a peer that corresponds to that next-hop. */
+  if ((pRouter != NULL) && (pPeer == NULL)) {
+
     // Look for the peer in the router...
     pPeer= bgp_router_find_peer(pRouter, tNextHop);
+    /* If the peer does not exist, auto-create it if required or
+       drop an error message. */
     if (pPeer == NULL) {
-
-      /* If the peer does not exist, auto-create it if required or
-	 drop an error message. */
       if (!BGP_OPTIONS_AUTO_CREATE) {
 	LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
 	  log_printf(pLogErr, "Error: peer not found \"");
@@ -397,12 +424,10 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 	path_destroy(&pPath);
 	return -1;
       } else {
-
-	bgp_auto_config_session(pRouter, tNextHop, path_last_as(pPath), &pPeer);
-	
+	bgp_auto_config_session(pRouter, tNextHop,
+				path_last_as(pPath), &pPeer);
       }
     }
-      
   }
 
   /* Check the LOCAL-PREF */
@@ -422,7 +447,7 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
     return -1;
   }
 
-  /* Check COMMUNITIES, if present */
+  /* Check the COMMUNITIES (if present) */
   if (tokens_get_num(pTokens) > 11) {
     pcTemp= tokens_get_string_at(pTokens, 11);
     pComm= mrtd_create_communities(pcTemp);
@@ -431,7 +456,6 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
       path_destroy(&pPath);
       return -1;
     }
-
   }
 
   /* Build route */
@@ -446,21 +470,19 @@ int mrtd_create_route(SBGPRouter * pRouter, STokens * pTokens,
 
   *ppRoute= pRoute;
 
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "ROUTE CREATED :-)\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "ROUTE CREATED FROM MRT RECORD :-)\n");
 
   return tType;
 }
 
 // ----- mrtd_route_from_line ---------------------------------------
 /**
- * This function converts the given line into a route. The line must
- * be in MRT format. The line must be composed of the following fields
- * (see the MRT user's manual for more information):
+ * This function parses a string that contains an MRT record. Based on
+ * the record's content, a BGP route is created. For more information
+ * on the MRT record format, see 'mrtd_create_route'.
  *
- * Protocol | Time | Type | PeerIP | PeerAS | Prefix | ASPATH |
- *   Origin | NextHop | Local_Pref | MED | Community
+ * Parameters:
  *
- * Note: additional fields are ignored.
  */
 SRoute * mrtd_route_from_line(SBGPRouter * pRouter, char * pcLine)
 {
@@ -479,7 +501,8 @@ SRoute * mrtd_route_from_line(SBGPRouter * pRouter, char * pcLine)
       
   pTokens= tokenizer_get_tokens(pLineTokenizer);
   
-  if (mrtd_create_route(pRouter, pTokens, &sPrefix, &pRoute) == MRTD_TYPE_RIB) {
+  if (mrtd_create_route(pRouter, NULL, pTokens, &sPrefix, &pRoute)
+      == MRTD_TYPE_RIB) {
     return pRoute;
   } else {
     LOG_ERR(LOG_LEVEL_SEVERE,
@@ -488,15 +511,25 @@ SRoute * mrtd_route_from_line(SBGPRouter * pRouter, char * pcLine)
 
   if (pRoute != NULL)
     route_destroy(&pRoute);
-
+  
   return NULL;
 }
 
 // ----- mrtd_msg_from_line -----------------------------------------
 /**
+ * This function parses a string that contains an MRT record. Based on
+ * the record's content, a BGP Update or Withdraw message is built.
  *
+ * Parameters:
+ *   - the router which is supposed to receive the message (or NULL)
+ *   - the peer which is supposed to send the message
+ *   - the strings that contains the MRT BGP message
+ *
+ * Note: in case a router has been specified (i.e. pRouter != NULL),
+ * the function checks that the message comes from a valid peer of the
+ * router.
  */
-SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
+SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SBGPPeer * pPeer,
 			     char * pcLine)
 {
   SBGPMsg * pMsg= NULL;
@@ -518,13 +551,9 @@ SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SPeer * pPeer,
       
   pTokens= tokenizer_get_tokens(pLineTokenizer);
   
-  switch (mrtd_create_route(pRouter, pTokens, &sPrefix, &pRoute)) {
+  switch (mrtd_create_route(pRouter, pPeer, pTokens, &sPrefix, &pRoute)) {
   case MRTD_TYPE_UPDATE:
-    /*
-    if (pRoute->pPeer != pPeer)
-      break;
-    */
-    pMsg= bgp_msg_update_create(pPeer->tAddr, pRoute);
+    pMsg= bgp_msg_update_create(pPeer->uRemoteAS, pRoute);
     break;
   case MRTD_TYPE_WITHDRAW:
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__

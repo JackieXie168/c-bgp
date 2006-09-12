@@ -29,7 +29,7 @@ void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
 {
   SRoute * pOldRoute;
   SRoutes * pRoutes;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SRoute * pRoute;
   int iIndex;
   int iNumRoutes, iOldNumRoutes;
@@ -75,7 +75,7 @@ void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   // Build list of eligible routes received from peers
   pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
+    pPeer= (SBGPPeer*) pRouter->pPeers->data[iIndex];
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     pRoutesRIBIn = rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
     if (pRoutesRIBIn != NULL) {

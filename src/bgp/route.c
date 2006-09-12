@@ -29,7 +29,7 @@
  * used inside this file only (private). These functions should be
  * static and should not appear in the .h file.
  */
-SRoute * route_create2(SPrefix sPrefix, SPeer * pPeer,
+SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
 		       SBGPAttr * pAttr);
 
 // ----- route_create -----------------------------------------------
@@ -41,7 +41,7 @@ SRoute * route_create2(SPrefix sPrefix, SPeer * pPeer,
  * route. Finally, the 'origin-type' field tells how the route was
  * originated. This is usually set to IGP.
  */
-SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
+SRoute * route_create(SPrefix sPrefix, SBGPPeer * pPeer,
 		      net_addr_t tNextHop,
 		      bgp_origin_t tOrigin)
 {
@@ -55,7 +55,7 @@ SRoute * route_create(SPrefix sPrefix, SPeer * pPeer,
 /**
  *
  */
-SRoute * route_create2(SPrefix sPrefix, SPeer * pPeer,
+SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
 		       SBGPAttr * pAttr)
 {
   SRoute * pRoute= (SRoute *) MALLOC(sizeof(SRoute));
@@ -140,7 +140,7 @@ inline int route_flag_get(SRoute * pRoute, uint16_t uFlag)
 /**
  *
  */
-inline void route_peer_set(SRoute * pRoute, SPeer * pPeer)
+inline void route_peer_set(SRoute * pRoute, SBGPPeer * pPeer)
 {
   pRoute->pPeer= pPeer;
 }
@@ -149,7 +149,7 @@ inline void route_peer_set(SRoute * pRoute, SPeer * pPeer)
 /**
  *
  */
-inline SPeer * route_peer_get(SRoute * pRoute)
+inline SBGPPeer * route_peer_get(SRoute * pRoute)
 {
   assert(pRoute->pPeer != NULL);
   return pRoute->pPeer;
@@ -479,7 +479,11 @@ inline void route_originator_set(SRoute * pRoute, net_addr_t tOriginator)
 
 // ----- route_originator_get ---------------------------------------
 /**
+ * Return the route's Originator-ID (if set).
  *
+ * Return values:
+ *    0 if Originator-ID exists
+ *   -1 otherwise
  */
 inline int route_originator_get(SRoute * pRoute, net_addr_t * pOriginator)
 {
