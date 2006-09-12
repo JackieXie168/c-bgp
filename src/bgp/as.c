@@ -546,6 +546,13 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter,
 	// Update Originator-ID if missing
 	if (route_originator_get(pNewRoute, NULL) == -1)
 	  route_originator_set(pNewRoute, pSrcPeer->tRouterID);
+	else {
+	  if (*(pNewRoute->pOriginator) == pDstPeer->tRouterID) {
+	    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (originator-id SSLD)\n");
+	    route_destroy(&pNewRoute);
+	    return -1;
+	  }
+	}
 
 	// Create or append Cluster-ID-List
 	route_cluster_list_append(pNewRoute, pRouter->tClusterID);
@@ -1584,12 +1591,15 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
        for more information. */
     route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 0);
 
+
     /* Log eligible route */
     LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
       log_printf(pLogDebug, "\teligible: ");
       route_dump(pLogDebug, pRoute);
       log_printf(pLogDebug, "\n");
     }
+
+    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
   }
 
   // If there is a single eligible & feasible route, it depends on the
@@ -1600,7 +1610,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   bgp_router_walton_unsynchronized_all(pRouter);
-  // Compare eligible routeS
+  // Compare eligible routes
   iRank= 0;
   if (ptr_array_length(pRoutes) > 1) {
     iRank= bgp_router_decision_process_run(pRouter, pRoutes);
@@ -1614,7 +1624,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
     }
   }
 #else
-  // Compare eligible routeS
+  // Compare eligible routes
   iRank= 0;
   if (ptr_array_length(pRoutes) > 1) 
     iRank= bgp_router_decision_process_run(pRouter, pRoutes);
