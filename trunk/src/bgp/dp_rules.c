@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 10/04/2006
+// @lastdate 11/09/2006
 // ==================================================================
 // to-do: these routines could be optimized
 
@@ -616,8 +616,6 @@ int dp_rule_nearest_next_hop(SBGPRouter * pRouter, SRoutes * pRoutes)
 /**
  * Remove routes that do not have the lowest ROUTER-ID (or
  * ORIGINATOR-ID if the route is reflected).
- *
- * TODO: support ORIGINATOR-ID comparison...
  */
 int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
@@ -633,7 +631,8 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
   // Calculate lowest ROUTER-ID (or ORIGINATOR-ID)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    tID= route_peer_get(pRoute)->tRouterID; 
+    if (!route_originator_get(pRoute, &tID) < 0)
+      tID= route_peer_get(pRoute)->tRouterID;
     if (tID < tLowestRouterID)
       tLowestRouterID= tID;
   }
@@ -642,7 +641,8 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    tID= route_peer_get(pRoute)->tRouterID; 
+    if (route_originator_get(pRoute, &tID) < 0)
+      tID= route_peer_get(pRoute)->tRouterID; 
     if (tID > tLowestRouterID)
       ptr_array_remove_at(pRoutes, iIndex);
     else

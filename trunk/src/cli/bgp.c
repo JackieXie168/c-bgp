@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 17/08/2006
+// @lastdate 08/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1045,7 +1045,7 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -1096,7 +1096,7 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -1682,7 +1682,7 @@ int cli_ctx_create_bgp_router_peer(SCliContext * pContext,
 				   void ** ppItem)
 {
   SBGPRouter * pRouter;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcPeerAddr;
   char * pcEndPtr;
   net_addr_t tAddr;
@@ -1723,11 +1723,11 @@ void cli_ctx_destroy_bgp_router_peer(void ** ppItem)
 int cli_ctx_create_bgp_router_peer_filter(SCliContext * pContext,
 					  void ** ppItem)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcFilter;
 
   // Get Peer instance
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Create filter context
   pcFilter= tokens_get_string_at(pContext->pTokens, 2);
@@ -1977,10 +1977,10 @@ int cli_bgp_route_map_filter_add(SCliContext * pContext,
 int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
 				     STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SFilter * pFilter= NULL;
 
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
   /*
   if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
       FILTER_PARSER_SUCCESS) {
@@ -2002,7 +2002,7 @@ int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
 int cli_bgp_router_peer_infilter_add(SCliContext * pContext,
 				     STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SFilterRule * pRule;
   SFilter * pFilter;
 
@@ -2010,7 +2010,7 @@ int cli_bgp_router_peer_infilter_add(SCliContext * pContext,
 	    tokens_get_string_at(pTokens, 0),
 	    tokens_get_string_at(pTokens, 1),
 	    tokens_get_string_at(pTokens, 2));*/
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
   if (filter_parser_rule(tokens_get_string_at(pTokens, 2), &pRule) !=
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
@@ -2031,10 +2031,10 @@ int cli_bgp_router_peer_infilter_add(SCliContext * pContext,
 int cli_bgp_router_peer_outfilter_set(SCliContext * pContext,
 				      STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SFilter * pFilter= NULL;
 
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
   /*
   if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
       FILTER_PARSER_SUCCESS)
@@ -2052,11 +2052,11 @@ int cli_bgp_router_peer_outfilter_set(SCliContext * pContext,
 int cli_bgp_router_peer_outfilter_add(SCliContext * pContext,
 				      STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SFilterRule * pRule;
   SFilter * pFilter;
 
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
   if (filter_parser_rule(tokens_get_string_at(pTokens, 2), &pRule) !=
       FILTER_PARSER_SUCCESS)
     return CLI_ERROR_COMMAND_FAILED;
@@ -2077,11 +2077,11 @@ int cli_bgp_router_peer_outfilter_add(SCliContext * pContext,
 int cli_bgp_router_peer_show_filter(SCliContext * pContext,
 				    STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcFilter;
 
   // Get BGP peer
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Create filter context
   pcFilter= tokens_get_string_at(pContext->pTokens, 2);
@@ -2105,11 +2105,11 @@ int cli_bgp_router_peer_show_filter(SCliContext * pContext,
 int cli_bgp_router_peer_rrclient(SCliContext * pContext, STokens * pTokens)
 {
   SBGPRouter * pRouter;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
   pRouter->iRouteReflector= 1;
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
   bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
   return CLI_SUCCESS;
 }
@@ -2128,7 +2128,7 @@ int cli_bgp_router_peer_nexthop(SCliContext * pContext,
   char * pcEndChar;
 
   // Get peer from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Get next-hop address
   pcNextHop= tokens_get_string_at(pTokens, 2);
@@ -2159,9 +2159,46 @@ int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
   SBGPPeer * pPeer;
 
   // Get peer from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_bgp_router_peer_record ]-------------------------------
+/**
+ * context: {router, peer}
+ * tokens: {addr, addr, file|-}
+ */
+int cli_bgp_router_peer_record(SCliContext * pContext,
+			       STokens * pTokens)
+{
+  SBGPPeer * pPeer;
+  char * pcFileName;
+  SLogStream * pStream;
+  
+  /* Get the peer instance from context */
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
+
+  /* Get filename */
+  pcFileName= tokens_get_string_at(pTokens, 2);
+  if (strcmp(pcFileName, "-") == 0) {
+    bgp_peer_set_record_stream(pPeer, NULL);
+  } else {
+    pStream= log_create_file(pcFileName);
+    if (pStream == NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE,
+	      "Error: could not open \"%s\" for writing\n", pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    if (bgp_peer_set_record_stream(pPeer, pStream) < 0) {
+      log_destroy(&pStream);
+      LOG_ERR(LOG_LEVEL_SEVERE,
+	      "Error: could not set the peer record stream\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
   return CLI_SUCCESS;
 }
 
@@ -2173,13 +2210,13 @@ int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
 int cli_bgp_router_peer_recv(SCliContext * pContext,
 			     STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SBGPRouter * pRouter;
   char * pcRecord;
   SBGPMsg * pMsg;
 
   /* Get the peer instance from context */
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   /* Check that the peer is virtual */
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -2237,10 +2274,10 @@ int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 int cli_bgp_router_peer_walton_limit(SCliContext * pContext, 
 						  STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   unsigned int uWaltonLimit;
 
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   if (tokens_get_uint_at(pTokens, 2, &uWaltonLimit)) {
     LOG_ERR(LOG_LEVEL_SEVERE,"Error: invalid walton limitation\n");
@@ -2261,10 +2298,10 @@ int cli_bgp_router_peer_walton_limit(SCliContext * pContext,
  */
 int cli_bgp_router_peer_up(SCliContext * pContext, STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   // Get peer instance from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Try to open session
   if (bgp_peer_open_session(pPeer)) {
@@ -2282,10 +2319,10 @@ int cli_bgp_router_peer_up(SCliContext * pContext, STokens * pTokens)
  */
 int cli_bgp_router_peer_softrestart(SCliContext * pContext, STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   // Get peer instance from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Set the virtual flag of this peer
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -2304,10 +2341,10 @@ int cli_bgp_router_peer_softrestart(SCliContext * pContext, STokens * pTokens)
  */
 int cli_bgp_router_peer_virtual(SCliContext * pContext, STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   // Get peer instance from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Set the virtual flag of this peer
   bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
@@ -2322,10 +2359,10 @@ int cli_bgp_router_peer_virtual(SCliContext * pContext, STokens * pTokens)
  */
 int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   // Get peer from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
@@ -2344,14 +2381,14 @@ int cli_bgp_router_peer_down(SCliContext * pContext, STokens * pTokens)
 int cli_bgp_router_peer_readv(SCliContext * pContext, STokens * pTokens)
 {
   SBGPRouter * pRouter;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
 
   /* Get router and peer from context */
   pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
-  pPeer= (SPeer *) cli_context_get_item_at(pContext, 1);
+  pPeer= (SBGPPeer *) cli_context_get_item_at(pContext, 1);
 
   /* Get prefix */
   pcPrefix= tokens_get_string_at(pTokens, 2);
@@ -2380,10 +2417,10 @@ int cli_bgp_router_peer_readv(SCliContext * pContext, STokens * pTokens)
  */
 int cli_bgp_router_peer_reset(SCliContext * pContext, STokens * pTokens)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   // Get peer from context
-  pPeer= (SPeer *) cli_context_get_item_at_top(pContext);
+  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
@@ -2802,6 +2839,11 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
 					cli_bgp_router_peer_readv,
 					NULL, pParams));
 #endif
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record",
+					cli_bgp_router_peer_record,
+					NULL, pParams));
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   pParams = cli_params_create();
   cli_params_add(pParams, "<announce-limit>", NULL);

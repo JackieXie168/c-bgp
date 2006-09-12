@@ -44,8 +44,7 @@ extern char * SESSION_STATES[4];
    restarted. This option is only available to virtual peers. */
 #define PEER_FLAG_SOFT_RESTART  0x08 
 
-struct TPeer;
-typedef struct TPeer SPeer;
-typedef SPeer SBGPPeer;
+struct TBGPPeer;
+typedef struct TBGPPeer SBGPPeer;
 
 #endif

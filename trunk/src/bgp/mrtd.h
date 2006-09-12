@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 17/05/2005
+// @lastdate 11/09/2006
 // ==================================================================
 
 #ifndef __MRTD_H__
@@ -32,7 +32,7 @@ extern SRoute * mrtd_route_from_line(SBGPRouter * pRouter,
 				     char * pcLine);
 // ----- mrtd_msg_from_line -----------------------------------------
 extern SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter,
-				    SPeer * pPeer,
+				    SBGPPeer * pPeer,
 				    char * pcLine);
 // ----- mrtd_ascii_load_routes -------------------------------------
 extern SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter,

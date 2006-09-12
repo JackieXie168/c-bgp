@@ -103,8 +103,8 @@ uint8_t BGP_OPTIONS_WALTON_CONVERGENCE_ON_BEST = 0;
 int _bgp_router_peers_compare(void * pItem1, void * pItem2,
     unsigned int uEltSize)
 {
-  SPeer * pPeer1= *((SPeer **) pItem1);
-  SPeer * pPeer2= *((SPeer **) pItem2);
+  SBGPPeer * pPeer1= *((SBGPPeer **) pItem1);
+  SBGPPeer * pPeer2= *((SBGPPeer **) pItem2);
 
   if (pPeer1->tAddr < pPeer2->tAddr)
     return -1;
@@ -194,14 +194,14 @@ void bgp_router_destroy(SBGPRouter ** ppRouter)
 /**
  *
  */
-SPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr)
+SBGPPeer * bgp_router_find_peer(SBGPRouter * pRouter, net_addr_t tAddr)
 {
   unsigned int uIndex;
   net_addr_t * pAddr= &tAddr;
-  SPeer * pPeer= NULL;
+  SBGPPeer * pPeer= NULL;
 
   if (ptr_array_sorted_find_index(pRouter->pPeers, &pAddr, &uIndex) != -1)
-    pPeer= (SPeer *) pRouter->pPeers->data[uIndex];
+    pPeer= (SBGPPeer *) pRouter->pPeers->data[uIndex];
   return pPeer;
 }
 
@@ -229,7 +229,7 @@ SBGPPeer * bgp_router_add_peer(SBGPRouter * pRouter, uint16_t uRemoteAS,
 int bgp_router_peer_set_filter(SBGPRouter * pRouter, net_addr_t tAddr,
     SFilter * pFilter, int iIn)
 {
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   if ((pPeer= bgp_router_find_peer(pRouter, tAddr)) != NULL) {
     if (iIn == FILTER_IN) {
@@ -374,7 +374,7 @@ int as_add_qos_network(SAS * pAS, SPrefix sPrefix,
  *   0 => Ignore route (destroy)
  *   1 => Redistribute
  */
-int bgp_router_ecomm_process(SPeer * pPeer, SRoute * pRoute)
+int bgp_router_ecomm_process(SBGPPeer * pPeer, SRoute * pRoute)
 {
   int iIndex;
   uint8_t uActionParam;
@@ -653,7 +653,7 @@ int bgp_router_start(SBGPRouter * pRouter)
 
   // Open all BGP sessions
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++)
-    if (bgp_peer_open_session((SPeer *) pRouter->pPeers->data[iIndex]) != 0)
+    if (bgp_peer_open_session((SBGPPeer *) pRouter->pPeers->data[iIndex]) != 0)
       return -1;
 
   return 0;
@@ -670,7 +670,7 @@ int bgp_router_stop(SBGPRouter * pRouter)
 
   // Close all BGP sessions
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++)
-    if (bgp_peer_close_session((SPeer *) pRouter->pPeers->data[iIndex]) != 0)
+    if (bgp_peer_close_session((SBGPPeer *) pRouter->pPeers->data[iIndex]) != 0)
       return -1;
 
   return 0;
@@ -966,14 +966,15 @@ void bgp_router_decision_process_disseminate(SBGPRouter * pRouter,
 					     SRoute * pRoute)
 {
   int iIndex;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+    pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
 
-    if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL))
+    if (bgp_peer_send_enabled(pPeer)) {
       bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
 						      pRoute, pPeer);
+    }
   }
 }
 
@@ -983,10 +984,10 @@ void bgp_router_decision_process_disseminate_external_best(SBGPRouter * pRouter,
 							  SRoute * pRoute)
 {
   int iIndex;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+    pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
 
     if (pRouter->uNumber == pPeer->uRemoteAS)
       bgp_router_decision_process_disseminate_to_peer(pRouter, sPrefix,
@@ -1176,7 +1177,7 @@ SRoutes * bgp_router_get_best_routes(SBGPRouter * pRouter, SPrefix sPrefix)
   // Get from the Adj-RIB-ins the list of available routes.
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
 
-    pPeer= (SPeer*) pRouter->pPeers->data[iIndex];
+    pPeer= (SBGPPeer*) pRouter->pPeers->data[iIndex];
 
     /* Check that the peering session is in ESTABLISHED state */
     if (pPeer->uSessionState == SESSION_STATE_ESTABLISHED) {
@@ -1515,7 +1516,8 @@ void bgp_router_decision_process_update_best_route(SBGPRouter * pRouter,
  * - an update has been received. The complete decision process has to
  * be run.
  */
-int bgp_router_decision_process(SBGPRouter * pRouter, SPeer * pOriginPeer,
+int bgp_router_decision_process(SBGPRouter * pRouter,
+				SBGPPeer * pOriginPeer,
 	 			SPrefix sPrefix)
 {
   SRoutes * pRoutes;
@@ -1714,7 +1716,7 @@ int bgp_router_handle_message(void * pHandler, SNetMessage * pMessage)
 {
   SBGPRouter * pRouter= (SBGPRouter *) pHandler;
   SBGPMsg * pMsg= (SBGPMsg *) pMessage->pPayLoad;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
 
   if ((pPeer= bgp_router_find_peer(pRouter, pMessage->tSrcAddr)) != NULL) {
     bgp_peer_handle_message(pPeer, pMsg);
@@ -1742,7 +1744,7 @@ uint16_t bgp_router_num_providers(SBGPRouter * pRouter) {
   uint16_t uNumProviders= 0;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++)
-    if (((SPeer *) pRouter->pPeers->data[iIndex])->uPeerType ==
+    if (((SBGPPeer *) pRouter->pPeers->data[iIndex])->uPeerType ==
 	PEER_TYPE_PROVIDER)
       uNumProviders++;
   return uNumProviders;
@@ -1790,7 +1792,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
   SPrefix sPrefix;
   SRoute * pRoute;
   int iIndex;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   unsigned int uBestWeight;
   SNetRouteInfo * pRouteInfo;
   SNetRouteInfo * pCurRouteInfo;
@@ -1878,7 +1880,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
       for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers);
 	   iIndex++) {
 
-	pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+	pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
 	
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 	pRoutes= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
@@ -1978,7 +1980,7 @@ static void _bgp_router_free_prefixes(SRadixTree ** ppPrefixes)
  * at most one time (uniqueness).
  */
 static int _bgp_router_get_peer_prefixes(SBGPRouter * pRouter,
-					 SPeer * pPeer,
+					 SBGPPeer * pPeer,
 					 SRadixTree ** ppPrefixes)
 {
   int iIndex;
@@ -1991,7 +1993,7 @@ static int _bgp_router_get_peer_prefixes(SBGPRouter * pRouter,
 			  *ppPrefixes);
   } else {
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-      pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+      pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
       iResult= rib_for_each(pPeer->pAdjRIBIn, bgp_router_prefixes_for_each,
 			    *ppPrefixes);
       if (iResult != 0)
@@ -2156,7 +2158,7 @@ int bgp_router_rerun(SBGPRouter * pRouter, SPrefix sPrefix)
 /**
  *
  */
-int bgp_router_peer_readv_prefix(SBGPRouter * pRouter, SPeer * pPeer,
+int bgp_router_peer_readv_prefix(SBGPRouter * pRouter, SBGPPeer * pPeer,
 				 SPrefix sPrefix)
 {
   SRoute * pRoute;
@@ -2215,7 +2217,7 @@ void bgp_router_dump_peers(SLogStream * pStream, SBGPRouter * pRouter)
   int iIndex;
 
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    bgp_peer_dump(pStream, (SPeer *) pRouter->pPeers->data[iIndex]);
+    bgp_peer_dump(pStream, (SBGPPeer *) pRouter->pPeers->data[iIndex]);
     log_printf(pStream, "\n");
   }
   log_flush(pStream);
@@ -2352,14 +2354,14 @@ void bgp_router_dump_rib_prefix(SLogStream * pStream, SBGPRouter * pRouter,
  *
  */
 void bgp_router_dump_adjrib(SLogStream * pStream, SBGPRouter * pRouter,
-			    SPeer * pPeer, SPrefix sPrefix,
+			    SBGPPeer * pPeer, SPrefix sPrefix,
 			    int iInOut)
 {
   int iIndex;
 
   if (pPeer == NULL) {
     for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-      bgp_peer_dump_adjrib(pStream, (SPeer *)
+      bgp_peer_dump_adjrib(pStream, (SBGPPeer *)
 			   pRouter->pPeers->data[iIndex], sPrefix, iInOut);
     }
   } else {
@@ -2523,7 +2525,7 @@ int bgp_router_load_rib(char * pcFileName, SBGPRouter * pRouter)
 int bgp_router_load_ribs_in(char * pcFileName, SBGPRouter * pRouter)
 {
   SRoute * pRoute;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   //SNetNode * pNode;
   FILE * phFiRib;
   char acFileLine[1024];
@@ -2670,7 +2672,7 @@ void bgp_router_show_stats(SLogStream * pStream, SBGPRouter * pRouter)
   // Number of best/non-best routes per peer
   log_printf(pStream, "num-prefixes/peer:\n");
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SPeer *) pRouter->pPeers->data[iIndex];
+    pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
     iNumPrefixes= 0;
     iNumBest= 0;
     pEnum= trie_get_enum(pPeer->pAdjRIBIn);

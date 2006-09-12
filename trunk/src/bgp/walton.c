@@ -105,13 +105,13 @@ void bgp_router_walton_unsynchronized_all(SBGPRouter * pRouter)
 /**
  *
  */
-void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SPeer * pPeer)
+void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SBGPPeer * pPeer)
 {
   unsigned int uIndexWaltonLimit;
   unsigned int uIndexPeers;
   SPtrArray * pWaltonLimitPeers = pRouter->pWaltonLimitPeers;
   SPtrArray * pPeers = NULL;
-  SPeer * pPeerFound;
+  SBGPPeer * pPeerFound;
 
   for (uIndexWaltonLimit = 0; uIndexWaltonLimit < ptr_array_length(pWaltonLimitPeers);
       uIndexWaltonLimit++) {
@@ -130,7 +130,7 @@ void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SPeer * pPeer)
 /**
  *
  */
-int bgp_router_walton_peer_set(SPeer * pPeer, unsigned int uWaltonLimit)
+int bgp_router_walton_peer_set(SBGPPeer * pPeer, unsigned int uWaltonLimit)
 {
   unsigned int uIndex;
   SBGPRouter * pRouter = pPeer->pLocalRouter;
@@ -169,7 +169,7 @@ int bgp_router_walton_peer_set(SPeer * pPeer, unsigned int uWaltonLimit)
 /**
  *
  */
-SPtrArray * bgp_router_walton_get_peers(SPeer * pPeer, unsigned int uWaltonLimit)
+SPtrArray * bgp_router_walton_get_peers(SBGPPeer * pPeer, unsigned int uWaltonLimit)
 {
   return NULL;
 }
@@ -184,7 +184,7 @@ void bgp_router_walton_dump_peers(SPtrArray * pPeers)
 
   for (iIndex= 0; iIndex < ptr_array_length(pPeers); iIndex++) {
     LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      bgp_peer_dump(pLogDebug, (SPeer *) pPeers->data[iIndex]);
+      bgp_peer_dump(pLogDebug, (SBGPPeer *) pPeers->data[iIndex]);
       log_printf(pLogDebug, "\n");
     }
   }
@@ -193,7 +193,7 @@ void bgp_router_walton_dump_peers(SPtrArray * pPeers)
 }
 
 void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
-    SPeer * pPeer,
+    SBGPPeer * pPeer,
     SPrefix sPrefix,
     SRoutes * pRoutes)
 {
@@ -294,7 +294,7 @@ void _bgp_router_walton_routes_update_destroy(SRoutesUpdate ** pRoutesUpdate)
  *
  */
 SRoutesUpdate * bgp_router_walton_build_updates(SBGPRouter * pRouter,
-						SPeer * pPeer,
+						SBGPPeer * pPeer,
 						SPrefix sPrefix,
 						SRoutes * pRoutes)
 {
@@ -388,14 +388,14 @@ void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter,
   unsigned int uIndexPeer;
   unsigned int uIndexRoute;
   unsigned int uIndex;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   SRoute * pRoute;
   SRoutesUpdate * pRoutesUpdate=NULL;
   net_addr_t tNextHop;
 
   
   for (uIndexPeer= 0; uIndexPeer < ptr_array_length(pPeers); uIndexPeer++) {
-    pPeer= (SPeer *) pPeers->data[uIndexPeer];
+    pPeer= (SBGPPeer *) pPeers->data[uIndexPeer];
     if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
       
       //Withdraw all the routes present in the RIB-OUT which are not part of the set of best routes!

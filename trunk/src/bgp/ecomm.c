@@ -294,7 +294,7 @@ SECommunity * ecomm_red_create_as(unsigned char uActionType,
  * 1 => Matches
  * 0 => Does not match
  */
-int ecomm_red_match(SECommunity * pComm, SPeer * pPeer)
+int ecomm_red_match(SECommunity * pComm, SBGPPeer * pPeer)
 {
   LOG_DEBUG(LOG_LEVEL_DEBUG, "ecomm_red_match(AS%u <=> AS%u)\n",
 	    *((uint16_t *) &pComm->auValue[4]),

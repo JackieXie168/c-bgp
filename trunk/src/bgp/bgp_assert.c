@@ -115,7 +115,7 @@ int bgp_assert_peerings()
   int iResult= 0;
   //SNetNode * pNode;
   //SNetProtocol * pProtocol;
-  SPeer * pPeer;
+  SBGPPeer * pPeer;
   int iBadPeerings= 0;
 
   pRL= build_router_list();
@@ -131,7 +131,7 @@ int bgp_assert_peerings()
     // For all peerings...
     for (iPeerIndex= 0; iPeerIndex < ptr_array_length(pRouter->pPeers);
 	 iPeerIndex++) {
-      pPeer= (SPeer *) pRouter->pPeers->data[iPeerIndex];
+      pPeer= (SBGPPeer *) pRouter->pPeers->data[iPeerIndex];
 
       log_printf(pLogOut, "\tcheck peer ");
       bgp_peer_dump_id(pLogOut, pPeer);

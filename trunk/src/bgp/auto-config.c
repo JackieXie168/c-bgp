@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/11/2005
-// @lastdate 03/03/2006
+// @lastdate 11/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -112,9 +112,19 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   }
   
   // Add a new BGP session.
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION\n");
+  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION ");
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+     ip_address_dump(pLogDebug, pRouter->pNode->tAddr);
+    log_printf(pLogDebug, " --> ");
+    ip_address_dump(pLogDebug, tRemoteAddr);
+    log_printf(pLogDebug, "\n");
+  }
   pPeer= bgp_router_add_peer(pRouter, uRemoteAS,
 			     tRemoteAddr, 0);
+  if (pPeer == NULL) {
+    LOG_ERR(LOG_LEVEL_FATAL, "ERROR: could not create peer\n");
+    abort();
+  }
   
   // If peer does not support BGP, create it virtual. Otherwise, also
   // create the session in the remote BGP router.
