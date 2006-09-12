@@ -583,8 +583,11 @@ void _main_done() __attribute((destructor));
 
 void _main_init()
 {
+#ifdef __MEMORY_DEBUG__
+  gds_init(GDS_OPTION_MEMORY_DEBUG);
+#else
   gds_init(0);
-  //gds_init(GDS_OPTION_MEMORY_DEBUG);
+#endif
 
   // Hash init code commented in order to allow parameter setup
   // through he command-line/script
@@ -648,7 +651,7 @@ int main(int argc, char ** argv) {
   log_set_level(pLogErr, LOG_LEVEL_WARNING);
 
   /* Process command-line options */
-  while ((iResult= getopt(argc, argv, "c:e:hil:got:")) != -1) {
+  while ((iResult= getopt(argc, argv, "mc:e:hil:got:")) != -1) {
     switch (iResult) {
     case 'c':
       simulation_set_mode(CBGP_MODE_SCRIPT, option_string(optarg));
