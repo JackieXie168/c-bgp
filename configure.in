@@ -361,6 +361,11 @@ AC_ARG_ENABLE(debug,
    cbgp_debugging="$enableval")
 AM_CONDITIONAL([WITH_DEBUGGING], [test "$cbgp_debugging" = "yes"])
 
+AC_ARG_ENABLE(memory-debug,
+    AC_HELP_STRING([--enable-memory-debug], [enable memory leaks tracking. LibGDS must be compiled with this flag too.]),
+    cbgp_memory_debug="$enableval")
+AM_CONDITIONAL([WITH_MEMORY_DEBUG], [test "$cbgp_memory_debug" = "yes"])
+
 dnl Compile with Electric Fence ?
 AC_ARG_WITH(efence,
    AC_HELP_STRING([--with-efence],
