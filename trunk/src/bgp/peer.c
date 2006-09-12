@@ -885,6 +885,7 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     // - the new route is eligible
     iNeedDecisionProcess= 0;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
     pOldRoutes = rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
     if (pOldRoutes != NULL) {
       for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes); uIndexRoute++) {
@@ -900,6 +901,7 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 	if ((pOldRoute != NULL) &&
 	    route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) {
+	  route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
 	  iNeedDecisionProcess= 1;
 	  break;
 	}
