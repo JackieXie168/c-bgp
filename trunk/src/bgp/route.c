@@ -651,7 +651,6 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 #endif
 
   if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
-      (pRoute1->pPeer == pRoute2->pPeer) &&
       (route_originator_equals(pRoute1, pRoute2)) &&
       (route_cluster_list_equals(pRoute1, pRoute2)) &&
       (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr))) {
