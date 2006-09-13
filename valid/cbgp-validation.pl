@@ -6,29 +6,61 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 11/09/2006
+# @lastdate 13/09/2006
+# ===================================================================
+# Syntax:
+#
+#   ./cbgp-validation.pl [OPTIONS]
+#
+# where possible options are
+#
+#   --cbgp-path=PATH
+#                   Specifies the path of the C-BGP binary. The
+#                   default path is "../src/valid"
+#
+#   --no-cache
+#                   The default behaviour of the validation script is
+#                   to store (cache) the test results. When a test
+#                   was succesfull, it is not executed again, unless
+#                   the --no-cache argument is passed.
+#
+#  --include=TEST
+#                   Specifies a TEST to include in the validation.
+#                   This argument can be mentionned multiple times in
+#                   order to include multiple tests. Note that a test
+#                   is executed only once, regardless of the number
+#                   of times it appears with --include. The default
+#                   behaviour is to execute all the tests. If at
+#                   least one --include argument is passed, the
+#                   script will only execute the explicitly specified
+#                   tests.
+#
+# --report=FORMAT
+#                   Generates a report summarizing the tests results.
+#                   The script currently only support HTML format, so
+#                   use --report=html. The report is composed of two
+#                   pages. The first one shows a table with all tests
+#                   results. The second one contains the description
+#                   of each test. The description is automatically
+#                   extracted from the test Perl functions.
+#
+# --report-prefix=PREFIX
+#                   Changes the prefix of the report file names. The
+#                   result page will be called "PREFIX.html" while
+#                   the documentation page will be called
+#                   "PREFIX-doc.html".
+#
 # ===================================================================
 
 use strict;
 
 use Getopt::Long;
 use CBGP;
+use CBGPValid::HTMLReport;
+use CBGPValid::TestConstants;
+use CBGPValid::Tests;
+use CBGPValid::UI;
 use POSIX;
-
-use constant VERSION => '1.5';
-use constant CACHE_FILE => ".cbgp-validation.cache";
-
-use constant TEST_FAILURE => 0;
-use constant TEST_SUCCESS => 1;
-use constant TEST_NOT_TESTED => 2;
-use constant TEST_DISABLED => 3;
-
-use constant TEST_RESULT_MSG => {
-				 TEST_FAILURE() => "FAILURE",
-				 TEST_SUCCESS() => "SUCCESS",
-				 TEST_NOT_TESTED() => "NOT-TESTED",
-				 TEST_DISABLED() => "DISABLED",
-				};
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -77,127 +109,70 @@ use constant CBGP_RIB_CLUSTERLIST => 12;
 use constant MRT_PREFIX => 5;
 use constant MRT_NEXTHOP => 8;
 
-my $num_failures= 0;
-my $num_warnings= 0;
+# -----[ Expected C-BGP version ]-----
+# These are the expected major/minor versions of the C-BGP instance
+# we are going to test.If these versions are lower than reported by
+# the C-BGP instance, a warning will be issued.
+use constant CBGP_MAJOR_MIN => 1;
+use constant CBGP_MINOR_MIN => 2;
 
+# -----[ Command-line options ]-----
 my $max_failures= 0;
 my $max_warnings= 0;
+my $report_prefix= "cbgp-validation";
 
-my $cbgp_path= "../src/cbgp";
-my $cbgp_version;
+my $validation= {
+		 'cbgp_version' => undef,
+		 'program_args' => (join " ", @ARGV),
+		 'program_name' => $0,
+		 'program_version' => '1.6',
+		};
 
-my %cache;
-my $use_cache= 1;
-my $debug= 0;
+show_info("c-bgp validation v".$validation->{'program_version'});
+show_info("(c) 2006, Bruno Quoitin (bqu\@info.ucl.ac.be)");
 
-my @tests;
-my $tests_id= 0;
-my %tests_results;
-my %tests_durations;
-my $tests_include;
-
-# -----[ show_error ]------------------------------------------------
-sub show_error($)
-{
-    my ($msg)= @_;
-
-    print STDERR "Error: \033[1;31m$msg\033[0m\n";
+my %opts;
+if (!GetOptions(\%opts,
+		"cbgp-path:s",
+		"cache!",
+		"debug!",
+		"max-failures:i",
+		"max-warnings:i",
+		"include:s@",
+		"report:s",
+	        "report-prefix:s")) {
+  show_error("Invalid command-line options");
+  exit(-1);
+}
+if ($opts{'cache'}) {
+  $opts{'cache'}= undef;
+} else {
+  $opts{'cache'}= ".$0.cache";
 }
 
-# -----[ show_warning ]----------------------------------------------
-sub show_warning($)
-{
-    my ($msg)= @_;
-
-    print STDERR "Warning: \033[1;33m$msg\033[0m\n";
-    $num_warnings++;
+(!exists($opts{'cbgp-path'})) and
+    $opts{'cbgp-path'}= "../src/cbgp";
+#(exists($opts{"max-failures"})) and
+#  $max_failures= $opts{"max-failures"};
+#(exists($opts{"max-warnings"})) and
+#  $max_failures= $opts{"max-warnings"};
+if (exists($opts{'include'})) {
+  my %include_index= ();
+  foreach my $test (@{$opts{'include'}}) {
+    $include_index{$test}= 1;
+  }
+  $opts{'include'}= \%include_index;
+} else {
+  $opts{'include'}= undef;
 }
+(exists($opts{"report-prefix"})) and
+  $report_prefix= $opts{"report-prefix"};
 
-# -----[ show_info ]-------------------------------------------------
-sub show_info($)
-{
-    my ($msg)= @_;
-
-    print STDERR "Info: \033[37;1m$msg\033[0m\n";
-}
-
-# -----[ show_testing ]----------------------------------------------
-sub show_testing($)
-{
-    my ($msg)= @_;
-
-    print STDERR "Testing: \033[37;1m$msg\033[0m";
-}
-
-# -----[ show_success ]----------------------------------------------
-sub show_success()
-{
-    print STDERR "\033[70G\033[32;1mSUCCESS\033[0m\n";
-}
-
-# -----[ show_cache ]------------------------------------------------
-sub show_cache()
-{
-    print STDERR "\033[70G\033[32;1m(CACHE)\033[0m\n";
-}
-
-# -----[ show_failure ]----------------------------------------------
-sub show_failure()
-{
-    print STDERR "\033[70G\033[31;1mFAILURE\033[0m\n";
-    $num_failures++;
-}
-
-# -----[ show_not_tested ]-------------------------------------------
-sub show_not_tested()
-{
-    print STDERR "\033[70G\033[31;1mNOT-TESTED\033[0m\n";
-}
-
-# -----[ show_disabled ]----------------------------------------------
-sub show_disabled()
-{
-    print STDERR "\033[70G\033[33;1mDISABLED\033[0m\n";
-}
-
-# -----[ show_debug ]------------------------------------------------
-sub show_debug($)
-{
-  my ($msg)= @_;
-
-  ($debug) and
-    print STDERR "debug: $msg\n";
-}
-
-# -----[ test_cache_read ]-------------------------------------------
-sub test_cache_read()
-{
-    if (open(CACHE, "<".CACHE_FILE)) {
-	while (<CACHE>) {
-	    chomp;
-	    my ($test_result, $test_name)= split /\t/;
-	    (exists($cache{$test_name})) and
-		die "duplicate test in cache file";
-	    $cache{$test_name}= $test_result;
-	}
-	close(CACHE);
-    }
-}
-
-# -----[ test_cache_write ]------------------------------------------
-sub test_cache_write()
-{
-    if (open(CACHE, ">".CACHE_FILE)) {
-	foreach my $test (keys %cache)
-	{
-	  my $test_result= -1;
-	  (exists($cache{$test})) and
-	    $test_result= $cache{$test};
-	  print CACHE "$test_result\t$test\n";
-	}
-	close(CACHE);
-    }
-}
+# -----[ Validation setup parameters ]-----
+my $tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
+				 -cache=>$opts{'cache'},
+				 -cbgppath=>$opts{'cbgp-path'},
+				 -include=>$opts{'include'});
 
 # -----[ canonic_prefix ]--------------------------------------------
 #
@@ -377,6 +352,8 @@ sub topo_included($$)
 }
 
 # -----[ cbgp_send ]-------------------------------------------------
+# Send a CLI command to C-BGP
+# -------------------------------------------------------------------
 sub cbgp_send($$)
 {
   my ($cbgp, $cmd)= @_;
@@ -384,13 +361,34 @@ sub cbgp_send($$)
 }
 
 # -----[ cbgp_checkpoint ]-------------------------------------------
+# Wait until C-BGP has finished previous treatment...
+# -------------------------------------------------------------------
 sub cbgp_checkpoint($)
 {
   my ($cbgp)= @_;
   cbgp_send($cbgp, "print \"CHECKPOINT\\n\"");
+  while ((my $result= $cbgp->expect(1)) ne "CHECKPOINT") { sleep(1); }
+}
+
+# -----[ cbgp_check_error ]------------------------------------------
+# Check if C-BGP has returned an error message.
+#
+# Return values:
+#   undef      -> no error message was issued
+#   <message>  -> error message returned by C-BGP
+# -------------------------------------------------------------------
+sub cbgp_check_error($)
+{
+  my ($cbgp)= @_;
+
+  cbgp_send($cbgp, "print \"CHECKPOINT\\n\"");
   while ((my $result= $cbgp->expect(1)) ne "CHECKPOINT") {
-    print "cbgp-waiting...[$result]\n";
-  };
+    if ($result =~ m/^Error\:(.*)$/) {
+      return $1;
+    }
+  }
+
+  return undef;
 }
 
 # -----[ cbgp_topo ]-------------------------------------------------
@@ -446,8 +444,8 @@ sub cbgp_topo_domain($$$$)
 # Create a simple topology suitable for testing filters.
 #
 # Setup:
-#   R1 (1.0.0.1) in AS1
-#   R2 (1.0.0.2) in AS2 virtual peer
+#   - R1 (1.0.0.1) in AS1
+#   - R2 (1.0.0.2) in AS2 virtual peer
 # -------------------------------------------------------------------
 sub cbgp_topo_filter($)
 {
@@ -466,10 +464,10 @@ sub cbgp_topo_filter($)
 # process. All peers are in different ASs.
 #
 # Setup:
-#   R1 (1.0.0.1) in AS1
-#   R2 (2.0.0.1) in AS2 virtual peer
-#   ...
-#   R[n+1] ([n+1].0.0.1) in AS[n+1] virtual peer
+#   - R1 (1.0.0.1) in AS1
+#   - R2 (2.0.0.1) in AS2 virtual peer
+#   - ...
+#   - R[n+1] ([n+1].0.0.1) in AS[n+1] virtual peer
 # -------------------------------------------------------------------
 sub cbgp_topo_dp($$)
 {
@@ -784,37 +782,37 @@ sub cbgp_check_link($$$%)
     foreach (keys %args) {
 	$args_str.= ", $_=".$args{$_};
     }
-    show_debug("check_link($src, $dest$args_str)");
+    $tests->debug("check_link($src, $dest$args_str)");
 
     my $links;
     $links= cbgp_show_links($cbgp, $src);
     if (keys(%$links) == 0) {
-	show_debug("ERROR no link from \"$src\"");
+	$tests->debug("ERROR no link from \"$src\"");
 	return TEST_FAILURE;
     }
 
     if (!exists($links->{$dest})) {
-	show_debug("ERROR no link towards \"$dest\"");
+	$tests->debug("ERROR no link towards \"$dest\"");
 	return 0;
     }
     my $link= $links->{$dest};
     if (exists($args{-type})) {
 	if ($link->[CBGP_LINK_TYPE] ne $args{-type}) {
-	    show_debug("ERROR incorrect type \"".$link->[CBGP_LINK_TYPE].
+	    $tests->debug("ERROR incorrect type \"".$link->[CBGP_LINK_TYPE].
 		       "\" (expected=\"".$args{-type}."\")");
 	    return 0;
 	}
     }
     if (exists($args{-weight})) {
 	if ($link->[CBGP_LINK_WEIGHT] != $args{-weight}) {
-	    show_debug("ERROR incorrect weight \"".$link->[CBGP_LINK_WEIGHT].
+	    $tests->debug("ERROR incorrect weight \"".$link->[CBGP_LINK_WEIGHT].
 		       "\" (expected=\"".$args{-weight}."\")");
 	    return 0;
 	}
     }
     if (exists($args{-delay})) {
 	if ($link->[CBGP_LINK_DELAY] != $args{-delay}) {
-	    show_debug("ERROR incorrect delay \"".$link->[CBGP_LINK_DELAY].
+	    $tests->debug("ERROR incorrect delay \"".$link->[CBGP_LINK_DELAY].
 		       "\" (expected=\"".$args{-delay}."\")");
 	    return 0;
 	}
@@ -918,7 +916,7 @@ sub cbgp_topo_check_record_route($$$)
     my ($cbgp, $topo, $status)= @_;
     my $nodes= topo_get_nodes($topo);
 
-    show_debug("topo_check_record_route()");
+    $tests->debug("topo_check_record_route()");
 
     foreach my $node1 (keys %$nodes) {
 	foreach my $node2 (keys %$nodes) {
@@ -927,7 +925,7 @@ sub cbgp_topo_check_record_route($$$)
 
 	    # Result should be equal to the given status
 	    if ($trace->[CBGP_TR_STATUS] ne $status) {
-		show_debug("ERROR incorrect status \"".
+		$tests->debug("ERROR incorrect status \"".
 			   $trace->[CBGP_TR_STATUS].
 			   "\" (expected=\"$status\")");
 		return 0;
@@ -936,9 +934,9 @@ sub cbgp_topo_check_record_route($$$)
 	    if ($trace->[CBGP_TR_STATUS] eq "SUCCESS") {
 		# Last hop should be destination
 		my @path= @{$trace->[CBGP_TR_PATH]};
-		show_debug(join ", ", @path);
+		$tests->debug(join ", ", @path);
 		if ($path[$#path] ne $node2) {
-		    show_debug("ERROR final node != destination ".
+		    $tests->debug("ERROR final node != destination ".
 			       "(\"".$path[$#path]."\" != \"$node2\")");
 		    return 0;
 		}
@@ -1482,20 +1480,20 @@ sub cbgp_check_peering($$$;$)
 {
     my ($cbgp, $router, $peer, $state)= @_;
 
-    show_debug("check_peering($router, $peer, $state)");
+    $tests->debug("check_peering($router, $peer, $state)");
 
     my $peers= cbgp_show_peers($cbgp, $router);
     if (!exists($peers->{$peer})) {
-	show_debug("=> ERROR peer does not exist");
+	$tests->debug("=> ERROR peer does not exist");
 	return 0;
     }
     if (defined($state) && ($peers->{$peer}->[CBGP_PEER_STATE] ne $state)) {
-	show_debug("=> ERROR incorrect state \"".
+	$tests->debug("=> ERROR incorrect state \"".
 		   $peers->{$peer}->[CBGP_PEER_STATE].
 		   "\" (expected=\"$state\")");
 	return 0;
     }
-    show_debug("=> OK");
+    $tests->debug("=> OK");
     return 1;
 }
 
@@ -1527,7 +1525,7 @@ sub aspath_equals($$)
     (!defined($path1)) and $path1= [];
     (!defined($path2)) and $path2= [];
 
-    show_debug("aspath_equals([".(join " ", @$path1)."], [".(join " ", @$path2)."])");
+    $tests->debug("aspath_equals([".(join " ", @$path1)."], [".(join " ", @$path2)."])");
 
     (@$path1 != @$path2) and return 0;
     for (my $index= 0; $index < @$path1; $index++) {
@@ -1623,18 +1621,78 @@ sub clusterlist_equals($$)
 # -------------------------------------------------------------------
 sub cbgp_valid_version($)
 {
-    my ($cbgp)= @_;
-    cbgp_send($cbgp, "show version");
-    my $result= $cbgp->expect(1);
-    if ($result =~ m/^version:\s+cbgp\s+([0-9.]+)(\-(.+))?(\s+.+)$/) {
-	$cbgp_version= $1;
-	if (defined($2)) {
-	    $cbgp_version= "$cbgp_version ($2)";
-	}
-	return TEST_SUCCESS;
-    } else {
-	return TEST_FAILURE;
+  my ($cbgp)= @_;
+  cbgp_send($cbgp, "show version");
+  my $result= $cbgp->expect(1);
+  if ($result =~ m/^version:\s+cbgp\s+([0-9]+)\.([0-9]+)\.([0-9]+)(\-(.+))?(\s+.+)$/) {
+    my $version= "$1.$2.$3";
+    if (defined($4)) {
+      $version.= " ($4)";
     }
+    if (($1 < CBGP_MAJOR_MIN()) ||
+	(($1 == CBGP_MAJOR_MIN()) && ($2 < CBGP_MINOR_MIN))) {
+      show_warning("this validation script was designed for version ".
+		   CBGP_MAJOR_MIN().".".CBGP_MINOR_MIN().".x");
+    }
+    $validation->{'cbgp_version'}= $version;
+    return TEST_SUCCESS;
+  } else {
+    return TEST_FAILURE;
+  }
+}
+
+# -----[ cbgp_valid_net_node ]---------------------------------------
+# Test ability to create new nodes.
+#
+# Scenario:
+#   * Create node 1.0.0.1
+#   * Check that no error is issued
+#   * Create node 123.45.67.89
+#   * Check that no error is issued
+#
+#   TO-DO: read node info...
+# -------------------------------------------------------------------
+sub cbgp_valid_net_node($)
+{
+  my ($cbgp)= @_;
+
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+  my $error_msg= cbgp_check_error($cbgp);
+  if (defined($error_msg)) {
+    return TEST_FAILURE;
+  }
+
+  cbgp_send($cbgp, "net add node 123.45.67.89");
+  $error_msg= cbgp_check_error($cbgp);
+  if (defined($error_msg)) {
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_node_duplicate ]-----------------------------
+# Test ability to detect creation of duplicated nodes.
+#
+# Scenario:
+#   * Create a node 1.0.0.1
+#   * Try to add node 1.0.0.1
+#   * Check that an error is returned (and check error message)
+# -------------------------------------------------------------------
+sub cbgp_valid_net_node_duplicate($)
+{
+  my ($cbgp)= @_;
+  my $ERROR_MSG= "node already exists";
+
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg) ||
+      !($error_msg =~ m/$ERROR_MSG/)) {
+    return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_net_link ]---------------------------------------
@@ -1664,10 +1722,74 @@ sub cbgp_valid_net_link($$)
     return TEST_SUCCESS;
 }
 
+# -----[ cbgp_valid_net_link_loop ]----------------------------------
+# Test that C-BGP will return an error message if one tries to create
+# a link with equal source and destination.
+#
+# Scenario:
+#   * Create a node 1.0.0.1
+#   * Try to create link 1.0.0.1 <--> 1.0.0.1
+#   * Check that an error is returned (and check error message)
+# -------------------------------------------------------------------
+sub cbgp_valid_net_link_loop($)
+{
+  my ($cbgp)= @_;
+  my $ERROR_MSG= "link endpoints are equal";
+
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+  cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.1 10");
+
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg) ||
+     !($error_msg =~ m/$ERROR_MSG/)) {
+    return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_link_duplicate ]-----------------------------
+# Test that C-BGP will return an error message if one tries to create
+# a link with equal source and destination.
+#
+# Scenario:
+#   * Create a node 1.0.0.1
+#   * Try to create link 1.0.0.1 <--> 1.0.0.1
+#   * Check that an error is returned (and check error message)
+# -------------------------------------------------------------------
+sub cbgp_valid_net_link_duplicate($)
+{
+  my ($cbgp)= @_;
+  my $ERROR_MSG= "link already exists";
+
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+  cbgp_send($cbgp, "net add node 1.0.0.2");
+  cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+  cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg) ||
+     !($error_msg =~ m/$ERROR_MSG/)) {
+    return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_net_subnet ]-------------------------------------
 # Create a topology composed of 2 nodes and 2 subnets (1 transit and
 # one stub). Check that the links are correcly setup. Check the link
 # attributes.
+#
+# Setup:
+#   - R1 (1.0.0.1)
+#   - R2 (1.0.0.2)
+#
+# Topology:
+#
+#   R1 ----(192.168.0/24)---- R2 ----(192.168.1/24)
+#      .1                  .2    .2
+#
+# Scenario:
+#   * Check link attributes
 # -------------------------------------------------------------------
 sub cbgp_valid_net_subnet($$)
 {
@@ -1747,6 +1869,12 @@ sub cbgp_valid_net_record_route($$)
 }
 
 # -----[ cbgp_valid_net_static_routes ]------------------------------
+# Check ability to setup static routes.
+#
+# Setup:
+#
+# Scenario:
+#
 # -------------------------------------------------------------------
 sub cbgp_valid_net_static_routes($$)
 {
@@ -1760,6 +1888,24 @@ sub cbgp_valid_net_static_routes($$)
 }
 
 # -----[ cbgp_valid_net_longest_matching ]---------------------------
+# Check ability to forward along route with longest-matching prefix.
+#
+# Setup:
+#   - R1 (1.0.0.1)
+#   - R2 (1.0.0.2)
+#   - R3 (1.0.0.3)
+#
+# Topology:
+#
+#   R1 ----- R2 ----- R3
+#
+# Scenario:
+#   * Add route towards 1/8 with next-hop R1 in R2
+#     Add route towards 1.1/16 with next-hop R3 in R2
+#   * Perform a record-route from R2 to 1.0.0.0,
+#     checks that first hop is R1
+#   * Perform a record-route from R2 to 1.1.0.0,
+#     checks that first hop is R3
 # -------------------------------------------------------------------
 sub cbgp_valid_net_longest_matching($)
 {
@@ -1835,10 +1981,10 @@ sub cbgp_valid_net_protocol_priority($)
 # Test ability to show routes in CISCO "show ip bgp" format.
 #
 # Setup:
-#   R1 (123.0.0.234, AS255)
+#   - R1 (123.0.0.234, AS255)
 #
 # Scenario:
-#   R1 has local network prefix "192.168.0/24"
+#   * R1 has local network prefix "192.168.0/24"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_options_showmode_cisco($)
 {
@@ -1863,10 +2009,10 @@ sub cbgp_valid_bgp_options_showmode_cisco($)
 # Test ability to show routes in MRT format.
 #
 # Setup:
-#   R1 (123.0.0.234, AS255)
+#   - R1 (123.0.0.234, AS255)
 #
 # Scenario:
-#   R1 has local network prefix "192.168.0/24"
+#   * R1 has local network prefix "192.168.0/24"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_options_showmode_mrt($)
 {
@@ -1891,10 +2037,10 @@ sub cbgp_valid_bgp_options_showmode_mrt($)
 # Test ability to show routes in custom format.
 #
 # Setup:
-#   R1 (123.0.0.234, AS255)
+#   - R1 (123.0.0.234, AS255)
 #
 # Scenario:
-#   R1 has local network prefix "192.168.0/24"
+#   * R1 has local network prefix "192.168.0/24"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_options_showmode_custom($)
 {
@@ -1923,20 +2069,20 @@ sub cbgp_valid_bgp_options_showmode_custom($)
 # Internet hierarchy".
 #
 # Setup: (see valid-bgp-topology.subramanian)
-#   AS1 <--> AS2
-#   AS1 ---> AS3
-#   AS1 ---> AS4
-#   AS2 ---> AS5
-#   AS3 ---> AS6
-#   AS4 ---> AS6
-#   AS4 ---> AS7
-#   AS5 ---> AS7
+#   - AS1 <--> AS2
+#   - AS1 ---> AS3
+#   - AS1 ---> AS4
+#   - AS2 ---> AS5
+#   - AS3 ---> AS6
+#   - AS4 ---> AS6
+#   - AS4 ---> AS7
+#   - AS5 ---> AS7
 #
 # Scenario:
-#   1). One router per AS must have been created with an IP address
-#       that corresponds to "ASx.ASy.0.0".
-#   2). Links must have been created where a business relationship
-#       exists.
+#   * One router per AS must have been created with an IP address
+#     that corresponds to "ASx.ASy.0.0".
+#   * Links must have been created where a business relationship
+#     exists.
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load($)
 {
@@ -1959,7 +2105,7 @@ sub cbgp_valid_bgp_topology_load($)
 #   see 'valid bgp topology load'
 #
 # Scenario:
-#   
+#
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_policies($)
 {
@@ -2006,17 +2152,18 @@ sub cbgp_valid_bgp_topology_run($)
 # - no next-hop update
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1)
-#   R3 (1.0.0.3, AS1
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1
 #
+# Topology:
 #   R1 ----- R2 ----- R3
 #
 # Scenario:
-#   - Originate 255.255/16 in R1
-#   - Check that R2 receives the route (with next-hop=R1 and empty
+#   * Originate 255.255/16 in R1
+#   * Check that R2 receives the route (with next-hop=R1 and empty
 #     AS-Path)
-#   - Check that R3 does not receive the route (no iBGP reflection)
+#   * Check that R3 does not receive the route (no iBGP reflection)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_session_ibgp($)
 {
@@ -2051,14 +2198,14 @@ sub cbgp_valid_bgp_session_ibgp($)
   if (!exists($rib->{"255.255.0.0/16"}) ||
       ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1") ||
       !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], undef)) {
-    show_debug("=> ERROR route not propagated or wrong attribute");
+    $tests->debug("=> ERROR route not propagated or wrong attribute");
     return TEST_FAILURE;
   }
   # Check that 1.0.0.3 has not received the route (1.0.0.2 did not
   # send it since it was learned through an iBGP session).
   $rib= cbgp_show_rib($cbgp, "1.0.0.3");
   if (exists($rib->{"255.255.0.0/16"})) {
-    show_debug("=> ERROR route reflected over iBGP session");
+    $tests->debug("=> ERROR route reflected over iBGP session");
     return TEST_FAILURE;
   }
   return TEST_SUCCESS;
@@ -2073,18 +2220,19 @@ sub cbgp_valid_bgp_session_ibgp($)
 # - [TODO] local-pref is reset in routes received through eBGP
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS2)
-#   R3 (1.0.0.3, AS3)
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS2)
+#   - R3 (1.0.0.3, AS3)
 #
+# Topology:
 #   R1 ---<eBGP>--- R2 ---<iBGP>--- R3
 #
 # Scenario:
-#   - Originate 255.255/16 in R1, 255.254/16 in R3
-#   - Check that R1 has 255.254/16 with next-hop=R2 and AS-Path="2"
-#   - Check that R2 has 255.254/16 with next-hop=R3 and empty AS-Path
-#   - Check that R2 has 255.255/16 with next-hop=R1 and AS-Path="1"
-#   - Check that R3 has 255.255/16 with next-hop=R1 and AS-Path="1"
+#   * Originate 255.255/16 in R1, 255.254/16 in R3
+#   * Check that R1 has 255.254/16 with next-hop=R2 and AS-Path="2"
+#   * Check that R2 has 255.254/16 with next-hop=R3 and empty AS-Path
+#   * Check that R2 has 255.255/16 with next-hop=R1 and AS-Path="1"
+#   * Check that R3 has 255.255/16 with next-hop=R1 and AS-Path="1"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_session_ebgp($)
 {
@@ -2119,7 +2267,7 @@ sub cbgp_valid_bgp_session_ebgp($)
   if (!exists($rib->{"255.254.0.0/16"}) ||
       !aspath_equals($rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH],[2]) ||
       ($rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.2")) {
-    show_debug("=> ERROR no route or wrong attribute in R1");
+    $tests->debug("=> ERROR no route or wrong attribute in R1");
     return TEST_FAILURE;
   }
 
@@ -2128,15 +2276,15 @@ sub cbgp_valid_bgp_session_ebgp($)
   if (!exists($rib->{"255.254.0.0/16"}) ||
       !aspath_equals($rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH], undef) ||
       ($rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.3")) {
-    show_debug("=> ERROR no route for 255.254/16 or wrong attribute in R2");
-    show_debug("   next-hop: ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP]);
-    show_debug("   as-path : ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH]);
+    $tests->debug("=> ERROR no route for 255.254/16 or wrong attribute in R2");
+    $tests->debug("   next-hop: ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_NEXTHOP]);
+    $tests->debug("   as-path : ".$rib->{"255.254.0.0/16"}->[CBGP_RIB_PATH]);
     return TEST_FAILURE;
   }
   if (!exists($rib->{"255.255.0.0/16"}) ||
       !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
       ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
-    show_debug("=> ERROR no route for 255.255/26 or wrong attribute in R2");
+    $tests->debug("=> ERROR no route for 255.255/26 or wrong attribute in R2");
     return TEST_FAILURE;
   }
 
@@ -2145,7 +2293,7 @@ sub cbgp_valid_bgp_session_ebgp($)
   if (!exists($rib->{"255.255.0.0/16"}) ||
       !aspath_equals($rib->{"255.255.0.0/16"}->[CBGP_RIB_PATH], [1]) ||
       ($rib->{"255.255.0.0/16"}->[CBGP_RIB_NEXTHOP] ne "1.0.0.1")) {
-    show_debug("=> ERROR no route or wrong attribute in R3");
+    $tests->debug("=> ERROR no route or wrong attribute in R3");
     return TEST_FAILURE;
   }
 
@@ -2159,6 +2307,23 @@ sub cbgp_valid_bgp_session_sm()
 }
 
 # -----[ cbgp_valid_bgp_domain_fullmesh ]----------------------------
+# Test ability to create a full-mesh of iBGP sessions between all the
+# routers of a domain.
+#
+# Topology:
+#
+#   R1 ---- R2
+#     \    /
+#      \  /
+#       R3
+#
+# Scenario:
+#   * Create a topology composed of nodes R1, R2 and R3
+#   * Create BGP routers with R1, R2 and R3 in domain 1
+#   * Run 'bgp domain 1 full-mesh'
+#   * Check setup of sessions
+#   * Check establishment of sessions
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_domain_fullmesh($$)
 {
     my ($cbgp, $topo)= @_;
@@ -2180,6 +2345,25 @@ sub cbgp_valid_bgp_domain_fullmesh($$)
 }
 
 # -----[ cbgp_valid_bgp_peering_up_down ]----------------------------
+# Test ability to shutdown and re-open BGP sessions from the CLI.
+#
+# Setup:
+#   - R1 (1.0.0.1)
+#   - R2 (1.0.0.2)
+#
+# Topology:
+#
+#   R1 ----- R2
+#
+# Scenario:
+#   * Originate prefix 255.255/16 in R1
+#   * Originate prefix 255.254/16 in R2
+#   * Check routes in R1 and R2
+#   * Shutdown session between R1 and R2
+#   * Check routes in R1 and R2
+#   * Re-open session between R1 and R2
+#   * Check routes in R1 and R2
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_peering_up_down($)
 {
     my ($cbgp)= @_;
@@ -2227,8 +2411,32 @@ sub cbgp_valid_bgp_router_up_down($)
   return TEST_NOT_TESTED;
 }
 
-# -----[ cbgp_valid_bgp_peerings_nexthopself ]-----------------------
-sub cbgp_valid_bgp_peerings_nexthopself($)
+# -----[ cbgp_valid_bgp_peering_nexthopself ]-----------------------
+# Test ability for a BGP router to set the BGP next-hop of a route to
+# its own address before propagating it to a given neighbor. This test
+# uses the 'next-hop-self' peer option.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1, IGP domain 1)
+#   - R2 (1.0.0.2, AS1, IGP domain 1)
+#   - R3 (2.0.0.1, AS2, IGP domain 2)
+#   - static routes between R1 and R2
+#
+# Topology:
+#
+#   AS2 \    / AS1
+#        |  |
+#   R3 --]--[-- R1 ----- R2
+#        |  | nhs
+#       /    \
+#
+# Scenario:
+#   * R3 originates prefix 2/8
+#   * R1 propagates 2/8 to R2
+#   * Check that R2 has received the route towards 2/8 with
+#     next-hop=R1
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_peering_nexthopself($)
 {
     my ($cbgp)= @_;
     my $topo= topo_2nodes();
@@ -2242,7 +2450,7 @@ sub cbgp_valid_bgp_peerings_nexthopself($)
     die if $cbgp->send("net node 2.0.0.1 route add 1.0.0.1/32 * 1.0.0.1 0\n");
     die if $cbgp->send("bgp add router 2 2.0.0.1\n");
     die if $cbgp->send("bgp router 2.0.0.1 add network 2.0.0.0/8\n");
-    cbgp_peering($cbgp, "2.0.0.1", "1.0.0.1", 1, "next-hop-self");
+    cbgp_peering($cbgp, "2.0.0.1", "1.0.0.1", 1);
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self");
     die if $cbgp->send("sim run\n");
     # Next-hop must be unchanged in 1.0.0.1
@@ -2261,6 +2469,24 @@ sub cbgp_valid_bgp_peerings_nexthopself($)
 }
 
 # -----[ cbgp_valid_bgp_virtual_peer ]-------------------------------
+# Test ability to define virtual peers, i.e. BGP neighbors that do not
+# really exist. These virtual peers are usually defined for the
+# purpose of injecting routes into the model or to collect routes
+# generated by the model.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (2.0.0.1, AS2), virtual
+#
+# Topology:
+#
+#   R2 ----- R1 ----- (R3)
+#
+# Scenario:
+#   * Create a virtual peer R3 in R1
+#   * Check that the session can be "established"
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_virtual_peer($)
 {
     my ($cbgp)= @_;
@@ -2281,6 +2507,24 @@ sub cbgp_valid_bgp_virtual_peer($)
 }
 
 # -----[ cbgp_valid_bgp_recv_mrt ]-----------------------------------
+# Test ability to inject BGP routes in the model through virtual
+# peers. BGP routes are specified in the MRT format.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (2.0.0.1, AS2), virtual
+#
+# Topology:
+#
+#   R2 ----- R1 ----- (R3)
+#
+# Scenario:
+#   * Inject route towards 255.255/16 from R3 to R1
+#   * Check that R1 has received the route with correct attributes
+#   * Send a withdraw for the same prefix from R3 to R1
+#   * Check that R1 has not the route anymore
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_recv_mrt($)
 {
     my ($cbgp)= @_;
@@ -2288,15 +2532,16 @@ sub cbgp_valid_bgp_recv_mrt($)
     cbgp_topo($cbgp, $topo, 1);
     cbgp_topo_igp_compute($cbgp, $topo, 1);
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
-    die if $cbgp->send("bgp domain 1 full-mesh\n");
-    die if $cbgp->send("net add node 2.0.0.1\n");
-    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
-    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0\n");
+    cbgp_send($cbgp, "bgp domain 1 full-mesh");
+    cbgp_send($cbgp, "net add node 2.0.0.1");
+    cbgp_send($cbgp, "net add link 1.0.0.1 2.0.0.1 0");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 2.0.0.1/32 * 2.0.0.1 0");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
-    die if $cbgp->send("sim run\n");
-    die if $cbgp->send("bgp router 1.0.0.1 peer 2.0.0.1 recv ".
-		       "\"BGP4|0|A|1.0.0.1|1|255.255.0.0/16|2|IGP|2.0.0.1|12|34|\"\n");
-    die if $cbgp->send("sim run\n");
+    cbgp_send($cbgp, "sim run");
+    cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
+		     "255.255/16|2|IGP|2.0.0.1|12|34");
+    cbgp_send($cbgp, "sim run");
+
     my $rib;
     # Check attributes of received route (note: local-pref has been
     # reset since the route is received over an eBGP session).
@@ -2355,6 +2600,9 @@ sub cbgp_valid_bgp_aspath_as_set($)
 }
 
 # -----[ cbgp_valid_bgp_soft_restart ]-------------------------------
+# Test ability to maintain the content of the Adj-RIB-in of a virtual
+# peer when the session is down (or broken).
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_soft_restart($)
 {
     my ($cbgp)= @_;
@@ -2401,17 +2649,30 @@ sub cbgp_valid_bgp_soft_restart($)
 # -----[ cbgp_valid_bgp_aspath_loop ]--------------------------------
 # Test that a route with an AS-path that already contains the local AS
 # will be filtered on input.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2)
+#
+# Topology:
+#
+#   R2 ----- R1
+#
+# Scenario:
+#   * R2 advertises a route towards 255/8 to R1, with an AS-Path that
+#     already contains AS1
+#   * Check that R1 has filtered the route
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_aspath_loop($)
 {
     my ($cbgp)= @_;
     cbgp_topo_dp3($cbgp, ["2.0.0.1", 2, 0]);
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
-		     "255/16|2 1|IGP|2.0.0.1|0|0");
+		     "255/8|2 1|IGP|2.0.0.1|0|0");
     die if $cbgp->send("sim run\n");
     my $rib;
     $rib= cbgp_show_rib($cbgp, "1.0.0.1");
-    if (exists($rib->{"255.0.0.0/16"})) {
+    if (exists($rib->{"255.0.0.0/8"})) {
 	return TEST_FAILURE;
     }
     return TEST_SUCCESS;
@@ -2422,16 +2683,18 @@ sub cbgp_valid_bgp_aspath_loop($)
 # Test sender-side loop detection.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2)
-#   R3 (3.0.0.1, AS3)
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2)
+#   - R3 (3.0.0.1, AS3)
+#
+# Topology:
 #
 #   R3 ----- R1 ----- R2
 #
 # Scenario:
-#   1). R3 announces to R1 a route towards 255/8 with an
+#   * R3 announces to R1 a route towards 255/8 with an
 #       AS-Path [AS3 AS2 AS1].
-#   2). Check that R1 do not advertise the route to R2.
+#   * Check that R1 do not advertise the route to R2.
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_ssld($)
 {
@@ -2479,16 +2742,43 @@ sub cbgp_valid_bgp_ssld($)
 }
 
 # -----[ cbgp_valid_bgp_implicit_withdraw ]--------------------------
+# Test the replacement of a previously advertised route by a new one,
+# without explicit withdraw.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (2.0.0.1, AS2)
+#   - R4 (2.0.0.2, AS2)
+#
+# Topology:
+#
+#   (R3) --*
+#           \
+#            R1 ----- R2
+#           /
+#   (R4) --*
+#
+# Scenario:
+#   * R3 announces to R1 a route towards 255/8, with AS-Path=2 3 4
+#   * R4 announces to R1 a route towards 255/8, with AS-Path=2 4
+#   * Check that R1 has selected R4's route
+#   * R3 announces to R1 a route towards 255/8, with AS-Path=2 4
+#   * Check that R1 has selected R3's route
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_implicit_withdraw($)
 {
     my ($cbgp)= @_;
-    cbgp_topo_dp3($cbgp, ["1.0.0.2", 1, 10], ["2.0.0.1", 2, 0],
+    cbgp_topo_dp3($cbgp,
+		  ["1.0.0.2", 1, 10],
+		  ["2.0.0.1", 2, 0],
 		  ["2.0.0.2", 2, 0]);
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
 		     "255/8|2 3 4|IGP|2.0.0.1|0|0");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.2",
 		     "255/8|2 4|IGP|2.0.0.2|0|0");
     die if $cbgp->send("sim run\n");
+
     my $rib;
     $rib= cbgp_show_rib($cbgp, "1.0.0.1");
     if (!exists($rib->{"255.0.0.0/8"}) ||
@@ -2507,6 +2797,14 @@ sub cbgp_valid_bgp_implicit_withdraw($)
 }
 
 # -----[ cbgp_valid_bgp_dp_localpref ]-------------------------------
+# Test ability of decision-process to select route with the highest
+# value of the local-pref attribute.
+#
+# Setup:
+#
+# Scenario:
+#
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_localpref($)
 {
     my ($cbgp)= @_;
@@ -2555,6 +2853,14 @@ sub cbgp_valid_bgp_dp_localpref($)
 }
 
 # -----[ cbgp_valid_bgp_dp_aspath ]----------------------------------
+# Test ability of decision process to select route with the shortest
+# AS-Path.
+#
+# Setup:
+#
+# Scenario:
+#
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_aspath($)
 {
     my ($cbgp)= @_;
@@ -2581,9 +2887,11 @@ sub cbgp_valid_bgp_dp_aspath($)
 # Test ability to break ties based on the ORIGIN attribute.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) virtual peer of R1
-#   R3 (1.0.0.3, AS3) virtual peer of R2
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) virtual peer of R1
+#   - R3 (1.0.0.3, AS3) virtual peer of R2
+#
+# Topology:
 #
 #   R2 --*
 #         \
@@ -2592,10 +2900,10 @@ sub cbgp_valid_bgp_dp_aspath($)
 #   R3 --*
 #
 # Scenario:
-#   - Advertise 255/8 to R1 from R2 with ORIGIN=EGP and R3 with
+#   * Advertise 255/8 to R1 from R2 with ORIGIN=EGP and R3 with
 #     ORIGIN=IGP
-#   - Check that R1 has received two routes
-#   - Check that best route is through R3 (ORIGIN=IGP)
+#   * Check that R1 has received two routes
+#   * Check that best route is through R3 (ORIGIN=IGP)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_origin($)
 {
@@ -2621,6 +2929,14 @@ sub cbgp_valid_bgp_dp_origin($)
 }
 
 # -----[ cbgp_valid_bgp_dp_ebgp_ibgp ]-------------------------------
+# Test ability of the decision process to prefer routes received
+# through eBGP sessions over routes received through iBGP sessions.
+#
+# Setup:
+#
+# Scenario:
+#
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_ebgp_ibgp($)
 {
     my ($cbgp)= @_;
@@ -2644,6 +2960,9 @@ sub cbgp_valid_bgp_dp_ebgp_ibgp($)
 }
 
 # -----[ cbgp_valid_bgp_dp_med ]-------------------------------------
+# Test ability of the decision process to prefer routes with the
+# highest MED value.
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_med($)
 {
     my ($cbgp)= @_;
@@ -2735,11 +3054,13 @@ sub cbgp_valid_bgp_dp_igp($)
 # Test ability to break ties based on the cluster-id-list length.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1), virtual peer of R2 and R3
-#   R2 (1.0.0.2, AS1)
-#   R3 (1.0.0.3, AS1)
-#   R4 (1.0.0.4, AS1) rr-client of R2
-#   R5 (1.0.0.5, AS1) rr-client of R3 and R4
+#   - R1 (1.0.0.1, AS1), virtual peer of R2 and R3
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1)
+#   - R4 (1.0.0.4, AS1) rr-client of R2
+#   - R5 (1.0.0.5, AS1) rr-client of R3 and R4
+#
+# Topology:
 #
 #      *-- R2 ---- R4 --*
 #     /                  \
@@ -2748,10 +3069,10 @@ sub cbgp_valid_bgp_dp_igp($)
 #      *-- R3 ----------*
 #
 # Scenario:
-#   - Advertise 255/8 from R1 to R2 with community 255:1
-#     Advertise 255/8 from R1 to R3 with community 255:2
-#   - Check that R5 has received two routes towards 255/8
-#   - Check that R5's best route has community 255:2 (selected based
+#   * Advertise 255/8 from R1 to R2 with community 255:1
+#   * Advertise 255/8 from R1 to R3 with community 255:2
+#   * Check that R5 has received two routes towards 255/8
+#   * Check that R5's best route has community 255:2 (selected based
 #     on the smallest cluster-id-list)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr_dp_cluster_id_list($)
@@ -2854,12 +3175,17 @@ sub cbgp_valid_bgp_dp_router_id($)
 }
 
 # -----[ cbgp_valid_bgp_rr_dp_originator_id ]------------------------
+# Check that a BGP router that receives two equal routes will break
+# the ties based on their Originator-ID.
+#
 # Setup:
-#   R1 (1.0.0.1, AS1), virtual
-#   R2 (1.0.0.2, AS1), virtual
-#   R3 (1.0.0.3, AS1, RR)
-#   R4 (1.0.0.4, AS1, RR)
-#   R5 (1.0.0.5, AS1, RR)
+#   - R1 (1.0.0.1, AS1), virtual
+#   - R2 (1.0.0.2, AS1), virtual
+#   - R3 (1.0.0.3, AS1, RR)
+#   - R4 (1.0.0.4, AS1, RR)
+#   - R5 (1.0.0.5, AS1, RR)
+#
+# Topology:
 #
 #    R1 ----- R4
 #               \
@@ -2868,9 +3194,9 @@ sub cbgp_valid_bgp_dp_router_id($)
 #    R2 ----- R3
 #
 # Scenario:
-#   1). Inject 255/8 to R4, from R1
-#       inject 255/8 to R3, from R2
-#   2). Check that 
+#   * Inject 255/8 to R4, from R1
+#   * Inject 255/8 to R3, from R2
+#   * Check that XXX
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr_dp_originator_id($)
 {
@@ -2939,9 +3265,11 @@ sub cbgp_valid_bgp_rr_dp_originator_id($)
 # two BGP sessions between two routers.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS2)
-#   R3 (2.0.0.1, AS2) virtual peer of R1
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS2)
+#   - R3 (2.0.0.1, AS2) virtual peer of R1
+#
+# Topology:
 #
 #               *--(192.168.0.0/31)--*
 #              /                      \
@@ -2950,10 +3278,10 @@ sub cbgp_valid_bgp_rr_dp_originator_id($)
 #               *--(192.168.0.2/31)--*
 #
 # Scenario:
-#   - Advertise 255/8 from 2.0.0.1 to 1.0.0.1
-#   - Check that 1.0.0.2 has two routes, one with next-hop
+#   * Advertise 255/8 from 2.0.0.1 to 1.0.0.1
+#   * Check that 1.0.0.2 has two routes, one with next-hop
 #     192.168.0.0 and the other one with next-hop 192.168.0.2
-#   - Check that best route is through 192.168.0.0 (lowest neighbor
+#   * Check that best route is through 192.168.0.0 (lowest neighbor
 #     address)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_neighbor_address($)
@@ -3004,8 +3332,6 @@ sub cbgp_valid_bgp_dp_neighbor_address($)
 
   my $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.2");
 
-  
-
   if (!exists($rib->{"255.0.0.0/8"}) ||
       ($rib->{"255.0.0.0/8"}->[CBGP_RIB_NEXTHOP] ne "192.168.0.0")) {
     return TEST_FAILURE;
@@ -3018,10 +3344,12 @@ sub cbgp_valid_bgp_dp_neighbor_address($)
 # Test that BGP router avoids to propagate updates when not necessary.
 #
 # Setup:
-#  R1 (1.0.0.1, AS1)
-#  R2 (1.0.0.2, AS1)
-#  R3 (1.0.0.3, AS1)
-#  R4 (2.0.0.1, AS2)
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1)
+#   - R4 (2.0.0.1, AS2)
+#
+# Topology:
 #
 #  R2
 #    \
@@ -3030,12 +3358,12 @@ sub cbgp_valid_bgp_dp_neighbor_address($)
 #  R3
 #
 # Scenario:
-#   1). R3 advertises route R to R1
-#   2). R1 propagates to R4
-#   3). R2 advertises same route R to R1
-#   4). R1 prefers R2's route (lowest router-ID).
-#       However, it does not propagate the route to R4 since the
-#       route attributes are equal.
+#   * R3 advertises route R to R1
+#   * R1 propagates to R4
+#   * R2 advertises same route R to R1
+#   * R1 prefers R2's route (lowest router-ID).
+#     However, it does not propagate the route to R4 since the
+#     route attributes are equal.
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_stateful($)
 {
@@ -3102,22 +3430,31 @@ sub cbgp_valid_bgp_filter_action_community_add()
 # Test ability of a filter to remove a single community in a route.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2) virtual peer
-#   R3 (3.0.0.1, AS3) virtual peer
-#   R4 (4.0.0.1, AS4) virtual peer
-#   filter [from R2] "any" -> "community remove 2:2"
-#   filter [from R3] "any" -> "community remove 3:1"
-#   filter [from R3] "any" -> "community remove 4:1, community remove 4:2"
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2) virtual peer
+#   - R3 (3.0.0.1, AS3) virtual peer
+#   - R4 (4.0.0.1, AS4) virtual peer
+#   - filter [from R2] "any" -> "community remove 2:2"
+#   - filter [from R3] "any" -> "community remove 3:1"
+#   - filter [from R3] "any" -> "community remove 4:1, community remove 4:2"
+#
+# Topology:
+#
+#   (R2) --*
+#           \
+#            \
+#   (R3) ---- R1
+#            /
+#           /
+#   (R4) --*
 #
 # Scenario:
-#   Advertised prefixes: 253/8 [2:1, 2:2, 2:3] from R2,
-#                        254/8 [3:5] from R3,
-#                        255/8 [4:0, 4:1, 4:2] from R4
-#   Check that
-#     253/8 has [2:1, 2:3]
-#     254/8 has [3:5]
-#     255/8 has [4:0]
+#   * Advertised prefixes: 253/8 [2:1, 2:2, 2:3] from R2,
+#                          254/8 [3:5] from R3,
+#                          255/8 [4:0, 4:1, 4:2] from R4
+#   * Check that 253/8 has [2:1, 2:3]
+#   * Check that 254/8 has [3:5]
+#   * Check that 255/8 has [4:0]
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_action_community_remove($)
 {
@@ -3162,13 +3499,17 @@ sub cbgp_valid_bgp_filter_action_community_remove($)
 # Test ability of a filter to remove all communities from a route.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2) virtual peer
-#   filter [from R2] "any" -> "community strip"
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2) virtual peer
+#   - filter [from R2] "any" -> "community strip"
+#
+# Topology:
+#
+#   (R2) ----- R1
 #
 # Scenario:
-#   Advertised prefix 255/8 [2:1 2:255] from R2
-#   Check that 255/8 does not contain communities
+#   * Advertised prefix 255/8 [2:1 2:255] from R2
+#   * Check that 255/8 does not contain communities
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_action_community_strip($)
 {
@@ -3246,13 +3587,17 @@ sub cbgp_valid_bgp_filter_action_localpref($)
 # Test ability to attach a specific MED value to routes.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2)
-#   filter [from R2] "any" -> "metric 57"
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2)
+#   - filter [from R2] "any" -> "metric 57"
+#
+# Topology:
+#
+#   (R2) ----- R1
 #
 # Scenario:
-#   Advertised route 255/16 [metric:0]
-#   Check that route has MED value set to 57
+#   * Advertised route 255/16 [metric:0]
+#   * Check that route has MED value set to 57
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_action_med()
 {
@@ -3279,15 +3624,23 @@ sub cbgp_valid_bgp_filter_action_med()
 # cost.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
-#   R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
-#   R4 (2.0.0.1, AS2) peer of R1
-#   filter [to R2] "any" -> "metric internal"
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
+#   - R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
+#   - R4 (2.0.0.1, AS2) peer of R1
+#   - filter [to R2] "any" -> "metric internal"
+#
+# Topology:
+#
+#   (R2) ---*
+#            \
+#             R1 ---- R4
+#            /
+#   (R3) ---*
 #
 # Scenario:
-#   Advertise 254/8 from R2, 255/8 from R3
-#   Check that R4 has 254/8 with MED:5 and 255/8 with MED:10
+#   * Advertise 254/8 from R2, 255/8 from R3
+#   * Check that R4 has 254/8 with MED:5 and 255/8 with MED:10
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_action_med_internal()
 {
@@ -3317,6 +3670,7 @@ sub cbgp_valid_bgp_filter_action_med_internal()
 }
 
 # -----[ cbgp_valid_bgp_filter_action_aspath ]-----------------------
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_action_aspath()
 {
     my ($cbgp)= @_;
@@ -3337,6 +3691,7 @@ sub cbgp_valid_bgp_filter_action_aspath()
 }
 
 # -----[ cbgp_valid_bgp_filter_match_nexthop ]-----------------------
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_match_nexthop($)
 {
     my ($cbgp)= @_;
@@ -3373,16 +3728,20 @@ sub cbgp_valid_bgp_filter_match_nexthop($)
 # Test ability of a filter to match route on a prefix basis.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2) virtual peer
-#   filter "prefix is 123.234/16" -> community 1:1
-#   filter "prefix is 123.235/16" -> community 1:2
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2) virtual peer
+#   - filter "prefix is 123.234/16" -> community 1:1
+#   - filter "prefix is 123.235/16" -> community 1:2
+#
+# Topology:
+#
+#   R1 ----- R2
 #
 # Scenario:
-#   1). advertise 123.234/16, 123.235/16 and 123.236/16
-#   2). check that 123.234/16 has community 1:1
-#       check that 123.235/16 has community 1:2
-#       check that 123.236/16 has no community
+#   * Advertise 123.234/16, 123.235/16 and 123.236/16
+#   * Check that 123.234/16 has community 1:1
+#   * Check that 123.235/16 has community 1:2
+#   * Check that 123.236/16 has no community
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_match_prefix_is($)
 {
@@ -3423,16 +3782,20 @@ sub cbgp_valid_bgp_filter_match_prefix_is($)
 # Test ability of a filter to match route on a prefix basis.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2) virtual peer
-#   filter "prefix in 123.234/16" -> community 1:1
-#   filter "prefix in 123.235/16" -> community 1:2
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2) virtual peer
+#   - filter "prefix in 123.234/16" -> community 1:1
+#   - filter "prefix in 123.235/16" -> community 1:2
+#
+# Topology:
+#
+#   R1 ----- R2
 #
 # Scenario:
-#   1). advertise 123.234/16, 123.235/16 and 123.236/16
-#   2). check that 123.234.1/24 has community 1:1
-#       check that 123.235.1/24 has community 1:2
-#       check that 123.236.1/24 has no community
+#   * Advertise 123.234/16, 123.235/16 and 123.236/16
+#   * Check that 123.234.1/24 has community 1:1
+#   * Check that 123.235.1/24 has community 1:2
+#   * Check that 123.236.1/24 has no community
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_match_prefix_in($)
 {
@@ -3479,17 +3842,17 @@ sub cbgp_valid_bgp_filter_match_prefix_in_length($)
 # Test ability of a filter to match route on a prefix basis.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (2.0.0.1, AS2) virtual peer
-#   filter "path [^2 .*]" -> community 1:1
-#   filter "path [.* 254$]" -> community 1:2
-#   filter "path [.* 255$]" -> community 1:3
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2) virtual peer
+#   - filter "path [^2 .*]" -> community 1:1
+#   - filter "path [.* 254$]" -> community 1:2
+#   - filter "path [.* 255$]" -> community 1:3
 #
 # Scenario:
-#   1). advertise 253/8 [2 253], 254/8 [2 254] and 255/8 [2 255]
-#   2). check that 253/8 has community 1:1
-#       check that 254/8 has community 1:2
-#       check that 255/8 has no community
+#   * Advertise 253/8 [2 253], 254/8 [2 254] and 255/8 [2 255]
+#   * Check that 253/8 has community 1:1
+#   * Check that 254/8 has community 1:2
+#   * Check that 255/8 has no community
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_match_aspath_regex($)
 {
@@ -3593,18 +3956,26 @@ sub cbgp_valid_bgp_filter_match_community()
 # accordingly.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
-#   R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
-#   R4 (2.0.0.1, AS2) peer of R1
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
+#   - R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
+#   - R4 (2.0.0.1, AS2) peer of R1
+#
+# Topology:
+#
+#   (R2) --*
+#           \
+#            R1 ----- R4
+#           /
+#   (R3) --*
 #
 # Scenario:
-#   1). Advertised 255/8 [255:1] from R2, 255/8 [255:2] from R3
-#   2). Check default route selection: 255/8 [255:1]
-#   3). Increase IGP cost between R1 and R2, re-compute IGP, rescan
-#       Check that route is now 255/8 [255:2]
-#   4). Decrease IGP cost between R1 and R2, re-compute IGP, rescan
-#       Check that default route is selected
+#   * Advertised 255/8 [255:1] from R2, 255/8 [255:2] from R3
+#   * Check default route selection: 255/8 [255:1]
+#   * Increase IGP cost between R1 and R2, re-compute IGP, rescan.
+#   * Check that route is now 255/8 [255:2]
+#   * Decrease IGP cost between R1 and R2, re-compute IGP, rescan
+#   * Check that default route is selected
 # -------------------------------------------------------------------
 sub cbgp_valid_igp_bgp_metric_change()
 {
@@ -3659,18 +4030,26 @@ sub cbgp_valid_igp_bgp_metric_change()
 # accordingly.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
-#   R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
-#   R4 (2.0.0.1, AS2) peer of R1
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
+#   - R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
+#   - R4 (2.0.0.1, AS2) peer of R1
+#
+# Topology:
+#
+#   (R2) --*
+#           \
+#            R1 ----- R4
+#           /
+#   (R3) --*
 #
 # Scenario:
-#   1). Advertised 255/8 [255:1] from R2, 255/8 [255:2] from R3
-#   2). Check default route selection: 255/8 [255:1]
-#   3). Shut down link R1-R2, re-compute IGP, rescan
-#       Check that route is now 255/8 [255:2]
-#   4). Restore link R1-R2, re-compute IGP, rescan
-#       Check that default route is selected
+#   * Advertised 255/8 [255:1] from R2, 255/8 [255:2] from R3
+#   * Check default route selection: 255/8 [255:1]
+#   * Shut down link R1-R2, re-compute IGP, rescan
+#   * Check that route is now 255/8 [255:2]
+#   * Restore link R1-R2, re-compute IGP, rescan
+#   * Check that default route is selected
 # -------------------------------------------------------------------
 sub cbgp_valid_igp_bgp_state_change()
 {
@@ -3737,19 +4116,27 @@ sub cbgp_valid_igp_bgp_reach_subnet($)
 # update MED accordingly.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
-#   R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
-#   R4 (2.0.0.1, AS2) peer of R1 with "internal" MED advertisement
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) virtual peer of R1 (IGP cost:5)
+#   - R3 (1.0.0.3, AS1) virtual peer of R1 (IGP cost:10)
+#   - R4 (2.0.0.1, AS2) peer of R1 with "internal" MED advertisement
+#
+# Topology:
+#
+#   (R2) --*
+#           \
+#            R1 ----- R4
+#           /
+#   (R3) --*
 #
 # Scenario:
-#   1). Advertised 255/8 from R2 and R3
-#   2). Check default route selection: 255/8
-#       Check that MED value equals 5 (IGP weight)
-#   3). Increase IGP cost between R1 and R2, re-compute IGP, rescan
-#       Check that MED value equals 10 (IGP weight)
-#   4). Decrease IGP cost between R1 and R2, re-compute IGP, rescan
-#       Check that MED value equals 5 (IGP weight)
+#   * Advertised 255/8 from R2 and R3
+#   * Check default route selection: 255/8
+#   * Check that MED value equals 5 (IGP weight)
+#   * Increase IGP cost between R1 and R2, re-compute IGP, rescan
+#   * Check that MED value equals 10 (IGP weight)
+#   * Decrease IGP cost between R1 and R2, re-compute IGP, rescan
+#   * Check that MED value equals 5 (IGP weight)
 # -------------------------------------------------------------------
 sub cbgp_valid_igp_bgp_med($)
 {
@@ -3805,18 +4192,29 @@ sub cbgp_valid_igp_bgp_med($)
 }
 
 # -----[ cbgp_valid_bgp_load_rib ]-----------------------------------
+# Test ability to load a BGP dump into a router. The content of the
+# BGP dump must be specified in MRT format.
+#
+# Setup:
+#   - R1 (198.32.12.9, AS11537)
+#
+# Scenario:
+#   * Load BGP dump collected in Abilene into router
+#   * Check that all routes are loaded in the router with the right
+#     attributes
+# -------------------------------------------------------------------
 sub cbgp_valid_bgp_load_rib($)
 {
     my ($cbgp)= @_;
     my $rib_file= "abilene-rib.ascii";
-    die if $cbgp->send("bgp options auto-create on\n");
-    die if $cbgp->send("net add node 198.32.12.9\n");
-    die if $cbgp->send("bgp add router 11537 198.32.12.9\n");
-    die if $cbgp->send("bgp router 198.32.12.9 load rib $rib_file\n");
+    cbgp_send($cbgp, "bgp options auto-create on");
+    cbgp_send($cbgp, "net add node 198.32.12.9");
+    cbgp_send($cbgp, "bgp add router 11537 198.32.12.9");
+    cbgp_send($cbgp, "bgp router 198.32.12.9 load rib $rib_file");
     my $rib;
     $rib= cbgp_show_rib($cbgp, "198.32.12.9");
     if (scalar(keys %$rib) != `cat $rib_file | wc -l`) {
-	show_debug("number of prefixes mismatch");
+	$tests->debug("number of prefixes mismatch");
 	return TEST_FAILURE;
     }
     open(RIB, "<$rib_file") or die;
@@ -3852,14 +4250,16 @@ sub cbgp_valid_bgp_deflection()
 # Test basic route-reflection mechanisms.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1)
-#   R2 (1.0.0.2, AS1) route-reflector
-#   R3 (1.0.0.3, AS1) client of R3
-#   R4 (1.0.0.4, AS1) peer of R4 (non-client)
-#   R5 (1.0.0.5, AS1) peer of R2 (non-client)
-#   R6 (2.0.0.1, AS2) virtual peer of R1
-#   R7 (3.0.0.1, AS3)
-#   R8 (4.0.0.1, AS4)
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1) route-reflector
+#   - R3 (1.0.0.3, AS1) client of R3
+#   - R4 (1.0.0.4, AS1) peer of R4 (non-client)
+#   - R5 (1.0.0.5, AS1) peer of R2 (non-client)
+#   - R6 (2.0.0.1, AS2) virtual peer of R1
+#   - R7 (3.0.0.1, AS3)
+#   - R8 (4.0.0.1, AS4)
+#
+# Topology:
 #
 #                       *---- R7
 #                      /
@@ -3870,14 +4270,14 @@ sub cbgp_valid_bgp_deflection()
 #                         *---- R5
 #
 # Scenario:
-#   1). R6 advertise route towards 255/8
-#   2). Check that R1, R2 and R3 have the route
-#       Check that R4 ad R5 do not have the route
-#   3). Check that R2 has set the originator-ID to the router-ID of R1
-#       Check that the route received by R3 has a cluster-ID-list
-#       containing the router-ID of R2 (i.e. 1.0.0.2)
-#       Check that R7 and R8 have received the route and no
-#       RR-attributes (Originator-ID and Cluster-ID-List) are present
+#   * R6 advertise route towards 255/8
+#   * Check that R1, R2 and R3 have the route
+#   * Check that R4 ad R5 do not have the route
+#   * Check that R2 has set the originator-ID to the router-ID of R1
+#   * Check that the route received by R3 has a cluster-ID-list
+#     containing the router-ID of R2 (i.e. 1.0.0.2)
+#   * Check that R7 and R8 have received the route and no
+#     RR-attributes (Originator-ID and Cluster-ID-List) are present
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr($)
 {
@@ -4012,11 +4412,13 @@ sub cbgp_valid_bgp_rr($)
 # second route is received since the attributes have not changed.
 #
 # Setup:
-#   R1 (1.0.0.1, AS1), virtual, rr-client
-#   R2 (1.0.0.2, AS1), RR, cluster-id 1
-#   R3 (1.0.0.3, AS1), RR, cluster-id 1
-#   R4 (1.0.0.4, AS1), RR, cluster 1.0.0.4
-#   R5 (1.0.0.5, AS1), rr-client, virtual
+#   - R1 (1.0.0.1, AS1), virtual, rr-client
+#   - R2 (1.0.0.2, AS1), RR, cluster-id 1
+#   - R3 (1.0.0.3, AS1), RR, cluster-id 1
+#   - R4 (1.0.0.4, AS1), RR, cluster 1.0.0.4
+#   - R5 (1.0.0.5, AS1), rr-client, virtual
+#
+# Topology:
 #
 #      *-- R2 --*
 #     /          \
@@ -4025,14 +4427,14 @@ sub cbgp_valid_bgp_rr($)
 #      *-- R3 --*     tap
 #
 # Scenario:
-#   1). R1 sends to R3 a route towards 255/8
-#   2). R3 propagates the route to R4 which selects this route as best
-#   3). R1 sends to R2 a route towards 255/8 (with same attributes as
+#   * R1 sends to R3 a route towards 255/8
+#   * R3 propagates the route to R4 which selects this route as best
+#   * R1 sends to R2 a route towards 255/8 (with same attributes as
 #       in [1])
-#   4). R4 propagates an update to R5
-#   5). R2 propagates the route to R4 which selects this route as best
+#   * R4 propagates an update to R5
+#   * R2 propagates the route to R4 which selects this route as best
 #       since the address of R2 is lower than that of R3 (final tie-break)
-#   6). Check that R4 does not propagate an update to R5
+#   * Check that R4 does not propagate an update to R5
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_rr_stateful($)
 {
@@ -4095,7 +4497,7 @@ sub cbgp_valid_bgp_rr_stateful($)
   cbgp_send($cbgp, "\texit");
 
   cbgp_recv_update($cbgp, "1.0.0.3", 1, "1.0.0.1",
-		  "255/8||IGP|1.0.0.1|0|0");
+		   "255/8||IGP|1.0.0.1|0|0");
   cbgp_send($cbgp, "sim run");
   cbgp_recv_update($cbgp, "1.0.0.2", 1, "1.0.0.1",
 		   "255/8||IGP|1.0.0.1|0|0");
@@ -4117,7 +4519,94 @@ sub cbgp_valid_bgp_rr_stateful($)
   return TEST_SUCCESS;
 }
 
-# -----[ cbgp_valid_bgp_rr_ssld ]------------------------------------
+# -----[ cbgp_valid_bgp_rr_ossld ]------------------------------------
+# Test route-reflector ability to avoid redistribution to originator.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1), rr-client, virtual
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1)
+#
+#   Note: R2 and R3 are in different clusters (default)
+#
+# Topology:
+#
+#   R2 ------ R3
+#     \      /
+#      \    /
+#       (R1)
+#
+# Scenario:
+#   * R1 announces 255/8 to R2
+#   * R2 propagates to R3
+#   * Check that R3 has received the route and that it does not
+#     it send back to R1
+# --------------------------------------------------------------------
+sub cbgp_valid_bgp_rr_ossld($)
+{
+  my ($cbgp)= @_;
+  my $mrt_record_file= "/tmp/cbgp-mrt-record-1.0.0.1";
+
+  unlink $mrt_record_file;
+
+  cbgp_send($cbgp, "net add domain 1 igp");
+  cbgp_send($cbgp, "net add node 1.0.0.1");
+  cbgp_send($cbgp, "net add node 1.0.0.2");
+  cbgp_send($cbgp, "net add node 1.0.0.3");
+  cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+  cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+  cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+  cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 1");
+  cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.3 1");
+  cbgp_send($cbgp, "net add link 1.0.0.2 1.0.0.3 1");
+  cbgp_send($cbgp, "net domain 1 compute");
+
+  cbgp_send($cbgp, "bgp add router 1 1.0.0.2");
+  cbgp_send($cbgp, "bgp router 1.0.0.2");
+  cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 rr-client");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 virtual");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+  cbgp_send($cbgp, "\tadd peer 1 1.0.0.3");
+  cbgp_send($cbgp, "\tpeer 1.0.0.3 up");
+  cbgp_send($cbgp, "\texit");
+
+  cbgp_send($cbgp, "bgp add router 1 1.0.0.3");
+  cbgp_send($cbgp, "bgp router 1.0.0.3");
+  cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 rr-client");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 virtual");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 record $mrt_record_file");
+  cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+  cbgp_send($cbgp, "\tadd peer 1 1.0.0.2");
+  cbgp_send($cbgp, "\tpeer 1.0.0.2 up");
+  cbgp_send($cbgp, "\texit");
+
+  cbgp_recv_update($cbgp, "1.0.0.2", 1, "1.0.0.1",
+		  "255/8||IGP|1.0.0.1|0|0");
+  cbgp_send($cbgp, "sim run");
+
+  my $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.3");
+  if (!exists($rib->{"255.0.0.0/8"})) {
+    return TEST_FAILURE;
+  }
+
+  open(MRT_RECORD, "<$mrt_record_file") or
+    die "unable to open \"$mrt_record_file\"";
+  my $line_count= 0;
+  while (<MRT_RECORD>) { $line_count++; }
+  close(MRT_RECORD);
+
+  unlink $mrt_record_file;
+
+  if ($line_count != 0) {
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_rr_clssld ]-----------------------------------
 # Test route-reflector ability to avoid cluster-id-list loop creation
 # from the sender side. In this case, SSLD means "Sender-Side
 # cluster-id-list Loop Detection".
@@ -4127,7 +4616,7 @@ sub cbgp_valid_bgp_rr_stateful($)
 # Scenario:
 #
 # -------------------------------------------------------------------
-sub cbgp_valid_bgp_rr_ssld($)
+sub cbgp_valid_bgp_rr_clssld($)
 {
   my ($cbgp)= @_;
 
@@ -4226,339 +4715,150 @@ sub cbgp_valid_bgp_rr_example($)
     return TEST_SUCCESS;
 }
 
-# -----[ test_report_html ]------------------------------------------
-# Build an HTML report containing the test results.
-# -------------------------------------------------------------------
-sub test_report_html($$$$$$$$$)
-{
-  my ($report_file,
-      $num_failures, $max_failures,
-      $num_warnings, $max_warnings,
-      $use_cache,
-      $test_duration, $test_finished,
-      $args)= @_;
-
-  open(REPORT, ">$report_file") or
-    die "could not create HTML report in \"$report_file\": $!";
-  print REPORT "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\">\n";
-  print REPORT "<html>\n";
-  print REPORT "<head>\n";
-  print REPORT "<title>C-BGP validation test report (v".VERSION().")</title>\n";
-  print REPORT "</head>\n";
-  print REPORT "<body>\n";
-  print REPORT "<h2>C-BGP validation test report (v".VERSION().")</h2>\n";
-  print REPORT "<h3>Configuration</h3>\n";
-  print REPORT "<ul>\n";
-  print REPORT "<li>Arguments: ".(join " ", @$args)."</li>\n";
-  print REPORT "<li>C-BGP version: ".(defined($cbgp_version)?$cbgp_version:"undef")."</li>\n";
-  print REPORT "<li>C-BGP path: $cbgp_path</li>\n";
-  print REPORT "<li>Number of failures: $num_failures";
-  ($max_failures > 0) and
-    print REPORT " (max: $max_failures)";
-  print REPORT "</li>\n";
-  print REPORT "<li>Number of warnings: $num_warnings";
-  ($max_warnings > 0) and
-    print REPORT " (max: $max_warnings)";
-  print REPORT "</li>\n";
-  print REPORT "<li>From cache: ".($use_cache?"yes":"no")."</li>\n";
-  print REPORT "<li>Test duration: $test_duration secs.</li>\n";
-  my $time= POSIX::strftime("%Y/%m/%d %H:%M", localtime($test_finished));
-  print REPORT "<li>Finished: $time</li>\n";
-  print REPORT "<li>System: ".`uname -m -p -s -r`."</li>\n";
-  print REPORT "</ul>\n";
-  print REPORT "<h3>Results</h3>\n";
-  if ($num_failures == 0) {
-    print REPORT "&nbsp;&nbsp;<font color=\"green\">ALL TESTS PASSED :-)</font>\n";
-  } else {
-    print REPORT "&nbsp;&nbsp;<font color=\"red\">SOME TESTS FAILED :-(</font>\n";
-  }
-  print REPORT "<br><br>\n";
-  print REPORT "<table border=\"1\">\n";
-  print REPORT "<tr>\n";
-  print REPORT "<th>Test ID</th>\n";
-  print REPORT "<th>Test description</th>\n";
-  print REPORT "<th>Result</th>\n";
-  print REPORT "<th>Duration (s.)</th>\n";
-  print REPORT "</tr>\n";
-  foreach my $test_record (@tests) {
-    my $test_id= $test_record->[0];
-    my $test_name= $test_record->[1];
-    my $test_result= "---";
-    my $test_duration= "---";
-
-    my $color= "black";
-
-    if (exists($tests_results{$test_id})) {
-      $test_result= $tests_results{$test_id};
-
-      if ($test_result == TEST_DISABLED) {
-	$color= "gray";
-      } elsif (($test_result == TEST_FAILURE) ||
-	      ($test_result == TEST_NOT_TESTED)) {
-	$color= "red";
-      } elsif ($test_result == TEST_SUCCESS) {
-	$color= "green";
-      }
-      $test_result= TEST_RESULT_MSG->{$test_result};
-    }
-
-    if (exists($tests_durations{$test_id})) {
-      $test_duration= $tests_durations{$test_id};
-    }
-
-    print REPORT "<tr>\n";
-    print REPORT "<td align=\"center\">$test_id</td>\n";
-    print REPORT "<td>$test_name</td>\n";
-    print REPORT "<td align=\"center\"><font color=\"$color\">$test_result</font></td>\n";
-    print REPORT "<td align=\"center\">$test_duration</td>\n";
-    print REPORT "</tr>\n";
-  }
-  print REPORT "</table>\n";
-  print REPORT "</body>\n";
-  print REPORT "</html>\n";
-  close(REPORT);
-}
-
-# -----[ test_init ]-------------------------------------------------
-sub test_init()
-{
-  @tests= ();
-  $tests_id= 0;
-  %tests_results= ();
-  %tests_durations= ();
-  $tests_include= undef;
-}
-
-# -----[ test_register ]---------------------------------------------
-sub test_register($$;@)
-{
-  my $name= shift(@_);
-  my $func= shift(@_);
-
-  my $test_record= [$tests_id++, $name, $func];
-  while (@_) {
-    push @$test_record, (shift(@_));
-  }
-
-  push @tests, ($test_record);
-}
-
 # -----[ test_set_result ]-------------------------------------------
 sub test_set_result($$;$)
 {
   my ($test_id, $result, $duration)= @_;
-  $tests_results{$test_id}= $result;
+
+  my $test= $validation->{'tests_list'}->[$test_id];
+  $test->[TEST_FIELD_RESULT]= $result;
   (defined($duration)) and
-    $tests_durations{$test_id}= $duration;
+    $test->[TEST_FIELD_DURATION]= $duration;
 }
 
-# -----[ main ]------------------------------------------------------
-show_info("c-bgp validation ".VERSION);
-show_info("(c) 2006, Bruno Quoitin (bqu\@info.ucl.ac.be)");
 
-test_init();
-
-my @test_args= @ARGV;
-
-my %opts;
-if (!GetOptions(\%opts,
-		"cbgp-path:s",
-		"cache!",
-		"debug!",
-		"max-failures:i",
-		"max-warnings:i",
-		"include:s@")) {
-  show_error("Invalid command-line options");
-  exit(-1);
-}
-(exists($opts{"cbgp-path"})) and
-    $cbgp_path= $opts{"cbgp-path"};
-(exists($opts{"cache"})) and
-    $use_cache= $opts{"cache"};
-(exists($opts{"debug"})) and
-    $debug= $opts{"debug"};
-(exists($opts{"max-failures"})) and
-  $max_failures= $opts{"max-failures"};
-(exists($opts{"max-warnings"})) and
-  $max_failures= $opts{"max-warnings"};
-if (exists($opts{"include"})) {
-  $tests_include= {};
-  foreach my $test_name (@{$opts{"include"}}) {
-    $tests_include->{$test_name}= 1;
-  }
-}
-
+#####################################################################
+#
+# MAIN
+#
+#####################################################################
 my $topo= topo_3nodes_triangle();
 
-test_register("show version", \&cbgp_valid_version);
-test_register("net link", \&cbgp_valid_net_link, $topo);
-test_register("net subnet", \&cbgp_valid_net_subnet, $topo);
-test_register("net create", \&cbgp_valid_net_create, $topo);
-test_register("net igp", \&cbgp_valid_net_igp, $topo);
-test_register("net ntf load", \&cbgp_valid_net_ntf_load,
+# -----[ LIST OF TESTS ]---------------------------------------------
+# All the C-BGP tests have to be registered here. The syntax is as
+# follows:
+#
+#   $tests->register(<name>, \&<function> [, <args>]);
+#
+# -----------------------------------------------------------------
+$tests->register("show version", "cbgp_valid_version");
+$tests->register("net node", "cbgp_valid_net_node");
+$tests->register("net node duplicate", "cbgp_valid_net_node_duplicate");
+$tests->register("net link", "cbgp_valid_net_link", $topo);
+$tests->register("net link loop", "cbgp_valid_net_link_loop");
+$tests->register("net link duplicate", "cbgp_valid_net_link_duplicate");
+$tests->register("net subnet", "cbgp_valid_net_subnet", $topo);
+$tests->register("net create", "cbgp_valid_net_create", $topo);
+$tests->register("net igp", "cbgp_valid_net_igp", $topo);
+$tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 	      "valid-record-route.ntf");
-test_register("net record-route", \&cbgp_valid_net_record_route, $topo);
-test_register("net static routes", \&cbgp_valid_net_static_routes, $topo);
-test_register("net longest-matching", \&cbgp_valid_net_longest_matching);
-test_register("net protocol priority", \&cbgp_valid_net_protocol_priority);
-test_register("bgp options show-mode cisco",
-	      \&cbgp_valid_bgp_options_showmode_cisco);
-test_register("bgp options show-mode mrt",
-	      \&cbgp_valid_bgp_options_showmode_mrt);
-test_register("bgp options show-mode custom",
-	      \&cbgp_valid_bgp_options_showmode_custom);
-test_register("bgp topology load", \&cbgp_valid_bgp_topology_load);
-test_register("bgp topology policies", \&cbgp_valid_bgp_topology_policies);
-test_register("bgp topology run", \&cbgp_valid_bgp_topology_run);
-test_register("bgp session ibgp", \&cbgp_valid_bgp_session_ibgp);
-test_register("bgp session ebgp", \&cbgp_valid_bgp_session_ebgp);
-test_register("bgp as-path loop", \&cbgp_valid_bgp_aspath_loop);
-test_register("bgp ssld", \&cbgp_valid_bgp_ssld);
-test_register("bgp session state-machine", \&cbgp_valid_bgp_session_sm);
-test_register("bgp domain full-mesh", \&cbgp_valid_bgp_domain_fullmesh, $topo);
-test_register("bgp peering up/down", \&cbgp_valid_bgp_peering_up_down);
-test_register("bgp router up/down", \&cbgp_valid_bgp_router_up_down);
-test_register("bgp peering next-hop-self",
-	      \&cbgp_valid_bgp_peerings_nexthopself);
-test_register("bgp virtual peer", \&cbgp_valid_bgp_virtual_peer);
-test_register("bgp recv mrt", \&cbgp_valid_bgp_recv_mrt);
-test_register("bgp as-path as_set", \&cbgp_valid_bgp_aspath_as_set);
-test_register("bgp soft-restart", \&cbgp_valid_bgp_soft_restart);
-test_register("bgp decision-process local-pref",
-	      \&cbgp_valid_bgp_dp_localpref);
-test_register("bgp decision process as-path", \&cbgp_valid_bgp_dp_aspath);
-test_register("bgp decision process origin", \&cbgp_valid_bgp_dp_origin);
-test_register("bgp decision process med", \&cbgp_valid_bgp_dp_med);
-test_register("bgp decision process ebgp vs ibgp",
-	      \&cbgp_valid_bgp_dp_ebgp_ibgp);
-test_register("bgp decision process igp", \&cbgp_valid_bgp_dp_igp);
-test_register("bgp decision process router-id",
-	      \&cbgp_valid_bgp_dp_router_id);
-test_register("bgp decision process neighbor address",
-	      \&cbgp_valid_bgp_dp_neighbor_address);
-test_register("bgp stateful", \&cbgp_valid_bgp_stateful);
-test_register("bgp filter action deny", \&cbgp_valid_bgp_filter_action_deny);
-test_register("bgp filter action community add",
-	      \&cbgp_valid_bgp_filter_action_community_add);
-test_register("bgp filter action community remove",
-	      \&cbgp_valid_bgp_filter_action_community_remove);
-test_register("bgp filter action community strip",
-	      \&cbgp_valid_bgp_filter_action_community_strip);
-test_register("bgp filter action local-pref",
-	      \&cbgp_valid_bgp_filter_action_localpref);
-test_register("bgp filter action med", \&cbgp_valid_bgp_filter_action_med);
-test_register("bgp filter action med internal",
-	      \&cbgp_valid_bgp_filter_action_med_internal);
-test_register("bgp filter action as-path",
-	      \&cbgp_valid_bgp_filter_action_aspath);
-test_register("bgp filter match community",
-	      \&cbgp_valid_bgp_filter_match_community);
-test_register("bgp filter match as-path regex",
-	      \&cbgp_valid_bgp_filter_match_aspath_regex);
-test_register("bgp filter match next-hop",
-	      \&cbgp_valid_bgp_filter_match_nexthop);
-test_register("bgp filter match prefix is",
-	      \&cbgp_valid_bgp_filter_match_prefix_is);
-test_register("bgp filter match prefix in",
-	      \&cbgp_valid_bgp_filter_match_prefix_in);
-#test_register("bgp filter match prefix in-length",
-#	      \&cbgp_valid_bgp_filter_match_prefix_in_length);
-test_register("igp-bgp metric change", \&cbgp_valid_igp_bgp_metric_change);
-test_register("igp-bgp state change", \&cbgp_valid_igp_bgp_state_change);
-#test_register("igp-bgp reachability link", \&cbgp_valid_igp_bgp_reach_link);
-#test_register("igp-bgp reachability subnet",
-#	      \&cbgp_valid_igp_bgp_reach_subnet);
-test_register("igp-bgp update med", \&cbgp_valid_igp_bgp_med);
-test_register("bgp load rib", \&cbgp_valid_bgp_load_rib);
-test_register("bgp deflection", \&cbgp_valid_bgp_deflection);
-test_register("bgp RR", \&cbgp_valid_bgp_rr);
-test_register("bgp RR decision process (originator-id)",
-	      \&cbgp_valid_bgp_rr_dp_originator_id);
-test_register("bgp RR decision process (cluster-id-list)",
-	      \&cbgp_valid_bgp_rr_dp_cluster_id_list);
-test_register("bgp RR stateful",
-	      \&cbgp_valid_bgp_rr_stateful);
-test_register("bgp RR ssld",
-	      \&cbgp_valid_bgp_rr_ssld);
-test_register("bgp implicit-withdraw",
-	      \&cbgp_valid_bgp_implicit_withdraw);
-#test_register(<name>, \&<function> [, <args>]);
+$tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
+$tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
+$tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
+$tests->register("net protocol priority", "cbgp_valid_net_protocol_priority");
+$tests->register("bgp options show-mode cisco",
+	      "cbgp_valid_bgp_options_showmode_cisco");
+$tests->register("bgp options show-mode mrt",
+	      "cbgp_valid_bgp_options_showmode_mrt");
+$tests->register("bgp options show-mode custom",
+	      "cbgp_valid_bgp_options_showmode_custom");
+$tests->register("bgp topology load", "cbgp_valid_bgp_topology_load");
+$tests->register("bgp topology policies", "cbgp_valid_bgp_topology_policies");
+$tests->register("bgp topology run", "cbgp_valid_bgp_topology_run");
+$tests->register("bgp session ibgp", "cbgp_valid_bgp_session_ibgp");
+$tests->register("bgp session ebgp", "cbgp_valid_bgp_session_ebgp");
+$tests->register("bgp as-path loop", "cbgp_valid_bgp_aspath_loop");
+$tests->register("bgp ssld", "cbgp_valid_bgp_ssld");
+$tests->register("bgp session state-machine", "cbgp_valid_bgp_session_sm");
+$tests->register("bgp domain full-mesh",
+	      "cbgp_valid_bgp_domain_fullmesh", $topo);
+$tests->register("bgp peering up/down", "cbgp_valid_bgp_peering_up_down");
+$tests->register("bgp router up/down", "cbgp_valid_bgp_router_up_down");
+$tests->register("bgp peering next-hop-self",
+	      "cbgp_valid_bgp_peering_nexthopself");
+$tests->register("bgp virtual peer", "cbgp_valid_bgp_virtual_peer");
+$tests->register("bgp recv mrt", "cbgp_valid_bgp_recv_mrt");
+$tests->register("bgp as-path as_set", "cbgp_valid_bgp_aspath_as_set");
+$tests->register("bgp soft-restart", "cbgp_valid_bgp_soft_restart");
+$tests->register("bgp decision-process local-pref",
+	      "cbgp_valid_bgp_dp_localpref");
+$tests->register("bgp decision process as-path", "cbgp_valid_bgp_dp_aspath");
+$tests->register("bgp decision process origin", "cbgp_valid_bgp_dp_origin");
+$tests->register("bgp decision process med", "cbgp_valid_bgp_dp_med");
+$tests->register("bgp decision process ebgp vs ibgp",
+	      "cbgp_valid_bgp_dp_ebgp_ibgp");
+$tests->register("bgp decision process igp", "cbgp_valid_bgp_dp_igp");
+$tests->register("bgp decision process router-id",
+	      "cbgp_valid_bgp_dp_router_id");
+$tests->register("bgp decision process neighbor address",
+	      "cbgp_valid_bgp_dp_neighbor_address");
+$tests->register("bgp stateful", "cbgp_valid_bgp_stateful");
+$tests->register("bgp filter action deny", "cbgp_valid_bgp_filter_action_deny");
+$tests->register("bgp filter action community add",
+	      "cbgp_valid_bgp_filter_action_community_add");
+$tests->register("bgp filter action community remove",
+	      "cbgp_valid_bgp_filter_action_community_remove");
+$tests->register("bgp filter action community strip",
+	      "cbgp_valid_bgp_filter_action_community_strip");
+$tests->register("bgp filter action local-pref",
+	      "cbgp_valid_bgp_filter_action_localpref");
+$tests->register("bgp filter action med",
+	      "cbgp_valid_bgp_filter_action_med");
+$tests->register("bgp filter action med internal",
+	      "cbgp_valid_bgp_filter_action_med_internal");
+$tests->register("bgp filter action as-path",
+	      "cbgp_valid_bgp_filter_action_aspath");
+$tests->register("bgp filter match community",
+	      "cbgp_valid_bgp_filter_match_community");
+$tests->register("bgp filter match as-path regex",
+	      "cbgp_valid_bgp_filter_match_aspath_regex");
+$tests->register("bgp filter match next-hop",
+	      "cbgp_valid_bgp_filter_match_nexthop");
+$tests->register("bgp filter match prefix is",
+	      "cbgp_valid_bgp_filter_match_prefix_is");
+$tests->register("bgp filter match prefix in",
+	      "cbgp_valid_bgp_filter_match_prefix_in");
+$tests->register("bgp filter match prefix in-length",
+	      "cbgp_valid_bgp_filter_match_prefix_in_length");
+$tests->register("igp-bgp metric change", "cbgp_valid_igp_bgp_metric_change");
+$tests->register("igp-bgp state change", "cbgp_valid_igp_bgp_state_change");
+#$tests->register("igp-bgp reachability link",
+#              "cbgp_valid_igp_bgp_reach_link");
+#$tests->register("igp-bgp reachability subnet",
+#	       "cbgp_valid_igp_bgp_reach_subnet");
+$tests->register("igp-bgp update med", "cbgp_valid_igp_bgp_med");
+$tests->register("bgp load rib", "cbgp_valid_bgp_load_rib");
+$tests->register("bgp deflection", "cbgp_valid_bgp_deflection");
+$tests->register("bgp RR", "cbgp_valid_bgp_rr");
+$tests->register("bgp RR decision process (originator-id)",
+	      "cbgp_valid_bgp_rr_dp_originator_id");
+$tests->register("bgp RR decision process (cluster-id-list)",
+	      "cbgp_valid_bgp_rr_dp_cluster_id_list");
+$tests->register("bgp RR stateful",
+	      "cbgp_valid_bgp_rr_stateful");
+$tests->register("bgp RR originator ssld",
+	      "cbgp_valid_bgp_rr_ossld");
+$tests->register("bgp RR cluster-id-list ssld",
+	      "cbgp_valid_bgp_rr_clssld");
+$tests->register("bgp implicit-withdraw",
+	      "cbgp_valid_bgp_implicit_withdraw");
 
-($use_cache) and test_cache_read();
-
-my $test_all_time_start= time();
-foreach my $test_record (@tests) {
-  my $test_id= $test_record->[0];
-  my $test_name= $test_record->[1];
-  my $test_func= $test_record->[2];
-  my $test_args= $test_record->[3];
-
-  if (!defined($test_func) ||
-     (defined($tests_include) && !exists($tests_include->{$test_name}))) {
-    test_set_result($test_id, TEST_DISABLED);
-    show_testing($test_name);
-    show_disabled();
-    $cache{$test_name}= TEST_DISABLED;
-  } else {
-    if (!exists($cache{$test_name}) ||
-	($cache{$test_name} != TEST_SUCCESS)) {
-      my $result;
-      my $cbgp= CBGP->new($cbgp_path);
-      my $log_file= ".$test_name.log";
-      ($log_file =~ tr[\ -][___]);
-      unlink $log_file;
-      $cbgp->{log_file}= $log_file;
-      $cbgp->{log}= 1;
-      $cbgp->spawn();
-      die if $cbgp->send("set autoflush on\n");
-      show_debug("testing $test_name");
-      my $test_time_start= time();
-      $result= &$test_func($cbgp, $test_args);
-      my $test_time_end= time();
-      my $test_time_duration= $test_time_end-$test_time_start;
-      $cbgp->finalize();
-      test_set_result($test_id, $result, $test_time_duration);
-      show_testing($test_name);
-      if ($result == TEST_SUCCESS) {
-	show_success();
-      } elsif ($result == TEST_NOT_TESTED) {
-	show_not_tested();
-      } else {
-	show_failure();
-      }
-      $cache{$test_name}= $result;
-    } else {
-      test_set_result($test_id, $cache{$test_name});
-      show_testing($test_name);
-      show_cache();
-    }
-  }
-  if (($max_failures > 0) && ($num_failures >= $max_failures)) {
-    show_error("Error: too many failures.");
-    last;
-  }
-}
-my $test_all_time_end= time();
-my $test_all_time_duration= $test_all_time_end-$test_all_time_start;
-
-if ($num_failures > 0) {
-    show_error("$num_failures test(s) failed.");
+my $return_value= 0;
+if ($tests->run() > 0) {
+  show_error("".$tests->{'num-failures'}." test(s) failed.");
+  $return_value= -1;
 } else {
-    show_info("all tests passed.");
+  show_info("all tests passed.");
 }
 
-test_cache_write();
-test_report_html("cbgp-validation.html",
-		 $num_failures, $max_failures,
-		 $num_warnings, $max_warnings,
-		 $use_cache,
-		 $test_all_time_duration,
-		 $test_all_time_end,
-		 \@test_args);
+if (exists($opts{report})) {
+  if ($opts{report} eq "html") {
+    CBGPValid::HTMLReport::report_write("$report_prefix",
+					$validation,
+					$tests);
+  }
+}
 
 show_info("done.");
-if ($num_failures > 1) {
-    exit(-1);
-} else {
-    exit(0);
-}
+exit($return_value);
+
