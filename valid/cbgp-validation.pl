@@ -2110,7 +2110,7 @@ sub cbgp_valid_bgp_topology_load($)
   my $topo_file= $resources_path."valid-bgp-topology.subramanian";
   my $topo= topo_from_subramanian($topo_file);
 
-  cbgp_send($cbgp, "bgp topology load \"valid-bgp-topology.subramanian\"\n");
+  cbgp_send($cbgp, "bgp topology load \"$topo_file\"\n");
   (!cbgp_topo_check_links($cbgp, $topo)) and
     return TEST_FAILURE;
 
