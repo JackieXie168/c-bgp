@@ -2,7 +2,17 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/09/2006
+# lastdate 14/09/2006
+# ===================================================================
+#
+# Usage:
+#
+#   my $tests= CBGPValid::Tests->new(-cbgppath=>"/usr/local/bin/cbgp");
+#   $tests->register("my smart test", "smart_test_function");
+#   $tests->register("another smart test", "smart_test_function2");
+#   ...
+#   $tests->run();
+#
 # ===================================================================
 
 package CBGPValid::Tests;
@@ -21,9 +31,6 @@ use strict;
 use CBGP;
 use CBGPValid::TestConstants;
 use CBGPValid::UI;
-
-my $tests_id;
-1;
 
 # -----[ show_testing ]----------------------------------------------
 sub show_testing($)
@@ -76,13 +83,21 @@ sub debug($$)
 
 
 # -----[ new ]-------------------------------------------------------
+# Parameters:
+#   -cache   : filename of the cache file (if not provided, the cache
+#              is disabled)
+#   -cbgppath: complete path to C-BGP binary (including C-BGP filename)
+#   -debug   : boolean (true => debug information is allowed)
+#   -include : array of test names (if provided, only these tests are
+#              performed)
+# -------------------------------------------------------------------
 sub new($%)
 {
   my ($class, %args)= @_;
   my $self= {
 	     'cache' => {},
 	     'cache-file' => undef,
-	     'cbgp-path' => undef,
+	     'cbgp-path' => "cbgp",
 	     'debug' => 0,
 	     'duration' => 0,
 	     'list' => [],
@@ -116,7 +131,7 @@ sub register($$$;@)
   my $name= shift(@_);
   my $func= shift(@_);
 
-  my $test_record= [$tests_id++, $name, $func, TEST_NOT_TESTED, undef];
+  my $test_record= [$self->{id}++, $name, $func, TEST_NOT_TESTED, undef];
   while (@_) {
     push @$test_record, (shift(@_));
   }

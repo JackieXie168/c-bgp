@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 13/09/2006
+# @lastdate 14/09/2006
 # ===================================================================
 # Syntax:
 #
@@ -56,6 +56,7 @@ use strict;
 
 use Getopt::Long;
 use CBGP;
+use CBGPValid::BaseReport;
 use CBGPValid::HTMLReport;
 use CBGPValid::TestConstants;
 use CBGPValid::Tests;
@@ -1840,6 +1841,9 @@ sub cbgp_valid_net_igp($$)
 # -----[ cbgp_valid_net_ntf_load ]-----------------------------------
 # Load a topology from an NTF file into C-BGP (using C-BGP 's "net
 # ntf load" command). Check that the links are correctly setup.
+#
+# Resources:
+#   [valid-record-route.ntf]
 # -------------------------------------------------------------------
 sub cbgp_valid_net_ntf_load($$)
 {
@@ -2068,7 +2072,7 @@ sub cbgp_valid_bgp_options_showmode_custom($)
 # Subramanian et al (Berkeley) at INFOCOM'02 about "Characterizing the
 # Internet hierarchy".
 #
-# Setup: (see valid-bgp-topology.subramanian)
+# Setup:
 #   - AS1 <--> AS2
 #   - AS1 ---> AS3
 #   - AS1 ---> AS4
@@ -2083,6 +2087,9 @@ sub cbgp_valid_bgp_options_showmode_custom($)
 #     that corresponds to "ASx.ASy.0.0".
 #   * Links must have been created where a business relationship
 #     exists.
+#
+# Resources:
+#   [valid-bgp-topology.subramanian]
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load($)
 {
@@ -2106,6 +2113,8 @@ sub cbgp_valid_bgp_topology_load($)
 #
 # Scenario:
 #
+# Resources:
+#   [valid-bgp-topology.subramanian]
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_policies($)
 {
@@ -2122,6 +2131,9 @@ sub cbgp_valid_bgp_topology_policies($)
 #   see 'valid bgp topology load'
 #
 # Scenario:
+#
+# Resources:
+#   [valid-bgp-topology.subramanian]
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_run($)
 {
@@ -4202,6 +4214,9 @@ sub cbgp_valid_igp_bgp_med($)
 #   * Load BGP dump collected in Abilene into router
 #   * Check that all routes are loaded in the router with the right
 #     attributes
+#
+# Resources:
+#   [abilene-rib.ascii]
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_load_rib($)
 {
@@ -4751,17 +4766,17 @@ $tests->register("net subnet", "cbgp_valid_net_subnet", $topo);
 $tests->register("net create", "cbgp_valid_net_create", $topo);
 $tests->register("net igp", "cbgp_valid_net_igp", $topo);
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
-	      "valid-record-route.ntf");
+		 "valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
 $tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
 $tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
 $tests->register("net protocol priority", "cbgp_valid_net_protocol_priority");
 $tests->register("bgp options show-mode cisco",
-	      "cbgp_valid_bgp_options_showmode_cisco");
+		 "cbgp_valid_bgp_options_showmode_cisco");
 $tests->register("bgp options show-mode mrt",
-	      "cbgp_valid_bgp_options_showmode_mrt");
+		 "cbgp_valid_bgp_options_showmode_mrt");
 $tests->register("bgp options show-mode custom",
-	      "cbgp_valid_bgp_options_showmode_custom");
+		 "cbgp_valid_bgp_options_showmode_custom");
 $tests->register("bgp topology load", "cbgp_valid_bgp_topology_load");
 $tests->register("bgp topology policies", "cbgp_valid_bgp_topology_policies");
 $tests->register("bgp topology run", "cbgp_valid_bgp_topology_run");
@@ -4856,6 +4871,7 @@ if (exists($opts{report})) {
     CBGPValid::HTMLReport::report_write("$report_prefix",
 					$validation,
 					$tests);
+    CBGPValid::BaseReport::save_resources("$report_prefix.resources");
   }
 }
 
