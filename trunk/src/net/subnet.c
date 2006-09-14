@@ -105,14 +105,24 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
 }
 
 // ----- subnet_get_links -------------------------------------------
+/**
+ * Notes from bqu:
+ *  - what is the purpose of this function ?
+ *  - it should be based on a links_list_copy function (from link-list.h)
+ */
 links_list_t * subnet_get_links(SNetSubnet * pSubnet) 
 {
-  links_list_t * pList = net_links_create();
+  links_list_t * pList= net_links_create();
   SNetLink * pLinkCopy, * pCurrentLink;
   int iIndex;
+
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++){
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pCurrentLink);
-    pLinkCopy = create_link_toRouter_byAddr(pCurrentLink->pSrcNode, pCurrentLink->pSrcNode->tAddr);
+
+    if (create_link_toRouter_byAddr(pCurrentLink->pSrcNode,
+				    pCurrentLink->pSrcNode->tAddr,
+				    &pLinkCopy) < 0)
+      return NULL;
     pLinkCopy->uIGPweight = 0;
     pLinkCopy->tIfaceAddr = pCurrentLink->tIfaceAddr;
     pLinkCopy->uFlags = pCurrentLink->uFlags;
@@ -128,8 +138,9 @@ links_list_t * subnet_get_links(SNetSubnet * pSubnet)
 int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
 		    net_addr_t tIfaceAddr)
 {
-  if (ptr_array_add(pSubnet->pLinks, &pLink) < 0){
-    return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;}
+  if (ptr_array_add(pSubnet->pLinks, &pLink) < 0) {
+    return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
+  }
 
   return NET_SUCCESS;
 }

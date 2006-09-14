@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 03/03/2006
+// @lastdate 12/09/2006
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -15,8 +15,10 @@
 #define NET_ERROR_MGMT_INVALID_NODE        -100
 #define NET_ERROR_MGMT_INVALID_LINK        -101
 #define NET_ERROR_MGMT_INVALID_SUBNET      -102
-#define NET_ERROR_MGMT_LINK_ALREADY_EXISTS -110
-#define NET_ERROR_MGMT_INVALID_OPERATION   -120
+#define NET_ERROR_MGMT_NODE_ALREADY_EXISTS -110
+#define NET_ERROR_MGMT_LINK_ALREADY_EXISTS -120
+#define NET_ERROR_MGMT_LINK_LOOP           -121
+#define NET_ERROR_MGMT_INVALID_OPERATION   -130
 
 // ----- node_mgmt_perror -------------------------------------------
 extern void node_mgmt_perror(SLogStream * pStream, int iErrorCode);

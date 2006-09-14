@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 03/03/2006
+// @lastdate 12/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,8 +34,12 @@ void node_mgmt_perror(SLogStream * pStream, int iErrorCode)
     log_printf(pStream, "invalid link"); break;
   case NET_ERROR_MGMT_INVALID_SUBNET:
     log_printf(pStream, "invalid subnet"); break;
+  case NET_ERROR_MGMT_NODE_ALREADY_EXISTS:
+    log_printf(pStream, "node already exists"); break;
   case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
     log_printf(pStream, "link already exists"); break;
+  case NET_ERROR_MGMT_LINK_LOOP:
+    log_printf(pStream, "link endpoints are equal"); break;
   case NET_ERROR_MGMT_INVALID_OPERATION:
     log_printf(pStream, "invalid operation"); break;
   default:
@@ -107,8 +111,12 @@ void node_info(SLogStream * pStream, SNetNode * pNode)
 int node_add_link_to_router(SNetNode * pNodeA, SNetNode * pNodeB, 
 			    net_link_delay_t tDelay, int iMutual)
 {
-  SNetLink * pLink= create_link_toRouter(pNodeA, pNodeB);
+  SNetLink * pLink;
   int iResult;
+
+  iResult= create_link_toRouter(pNodeA, pNodeB, &pLink);
+  if (iResult < 0)
+    return iResult;
 
   if (iMutual) {
     iResult= node_add_link_to_router(pNodeB, pNodeA, tDelay, 0);
@@ -189,7 +197,8 @@ SNetLink * node_find_link_to_router(SNetNode * pNode,
   unsigned int uIndex;
   SNetLink * pLink= NULL, * pWrapLink;
 
-  pWrapLink = create_link_toRouter_byAddr(pNode, tAddr);
+  if (create_link_toRouter_byAddr(pNode, tAddr, &pWrapLink) < 0)
+    return NULL;
   
   if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
     pLink = (SNetLink *) pNode->pLinks->data[uIndex];

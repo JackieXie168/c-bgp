@@ -37,12 +37,14 @@
 #define link_belongs_to_area(L, A)   ((L)->tArea == A)
 
 
+// ----- create_link_toRouter ---------------------------------------
+extern int create_link_toRouter(SNetNode * pSrcNode,
+				SNetNode * pDstNode,
+				SNetLink ** ppLink);
 // ----- create_link_Router -----------------------------------------
-extern SNetLink * create_link_toRouter(SNetNode * pSrcNode,
-				       SNetNode * pDstNode);
-// ----- create_link_Router -----------------------------------------
-extern SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
-					      net_addr_t tDstAddr);
+extern int create_link_toRouter_byAddr(SNetNode * pSrcNode,
+				       net_addr_t tDstAddr,
+				       SNetLink ** ppLink);
 // ----- create_link_Subnet -----------------------------------------
 extern SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 				       SNetSubnet * pSubnet,
