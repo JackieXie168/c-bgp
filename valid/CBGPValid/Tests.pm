@@ -7,7 +7,7 @@
 #
 # Usage:
 #
-#   my $tests= CBGPValid::Tests->new(-cbgppath=>"/usr/local/bin/cbgp");
+#   my $tests= CBGPValid::Tests->new(-cbgppath=>"/usr/local/bin/");
 #   $tests->register("my smart test", "smart_test_function");
 #   $tests->register("another smart test", "smart_test_function2");
 #   ...
@@ -86,7 +86,7 @@ sub debug($$)
 # Parameters:
 #   -cache   : filename of the cache file (if not provided, the cache
 #              is disabled)
-#   -cbgppath: complete path to C-BGP binary (including C-BGP filename)
+#   -cbgppath: complete path to C-BGP binary
 #   -debug   : boolean (true => debug information is allowed)
 #   -include : array of test names (if provided, only these tests are
 #              performed)
