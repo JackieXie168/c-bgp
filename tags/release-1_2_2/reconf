@@ -1,0 +1,136 @@
+#!/bin/sh
+# ===================================================================
+# Rebuild configure scripts
+#
+# @author Bruno Quoitin (bqu@info.ucl.ac.be)
+# @lastdate 07/04/2006
+# ===================================================================
+# Usage:
+#   ./reconf [ -I=DIR ] [ -force ]
+#
+# The optional directory DIR will be passed to aclocal and
+# autoconf. For instance, if you have installed the autoconf-archive
+# m4 snippets into /usr/local/share/aclocal, call reconf with
+# -I=/usr/local/share/aclocal
+#
+# The autoconf-archive is located at http://autoconf-archive.cryp.to
+#
+# The -force flag forces the script to be run even if configure is
+# more recent than configure.in
+# ===================================================================
+
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
+EXIT_CODE=$EXIT_SUCCESS
+INCLUDE_DIRS=
+
+# *** Initialization ***
+echo "CREATE AUTO-BUILD PROCESS"
+
+# *** Parse arguments ***
+for arg in $@; do
+  case $arg in
+  -I=*)
+    INCLUDE_DIR=${arg:3}
+    if test ! -d $INCLUDE_DIR; then
+      echo "Warning: $INCLUDE_DIR is not a directory (ignored)"
+      EXIT_CODE=$EXIT_FAILURE
+    else
+      echo "option: -I $INCLUDE_DIR"
+      INCLUDE_DIRS="$INCLUDE_DIRS -I $INCLUDE_DIR"
+    fi
+  ;;
+  -force)
+    RUN=1
+    echo "option: -force"
+  ;;
+  *)
+    echo "Error: invalid argument [ $arg ]"
+    exit $EXIT_FAILURE
+  ;;
+  esac
+done
+
+# *** Test ./configure timestamp ***
+# Test if configure is up-to-date. If so, abort, unless -force flag
+# has been passed as argument.
+if test -z "$RUN" && test configure -nt configure.in; then
+  echo "configure is up to date."
+  echo "DONE."
+  exit $EXIT_SUCCESS
+fi
+
+# *** Remove configure cache ***
+echo "(*) Cleaning config cache"
+rm -f config.cache
+
+# Specify that libtool/automake files are copied rather than symlinked.
+#COPY="--copy"
+COPY=""
+
+# *** Look for libtoolize ***
+# On some system, GNU glibtoolize is installed instead.
+for XLIBTOOLIZE in libtoolize glibtoolize; do
+  WHICH=`which $XLIBTOOLIZE`
+  if test $? -eq 0; then
+    #echo "$XLIBTOOLIZE is available"
+    LIBTOOLIZE="$XLIBTOOLIZE"  
+    break
+  fi
+done
+
+if test -z "$LIBTOOLIZE"; then
+  echo "Error: no (g)libtoolize was found"
+  exit $EXIT_FAILURE
+fi
+
+# *** Run (g)libtoolize ***
+# --automake: is required when libtool support is required by automake
+# --copy: copy files from the libtool data directory rather than
+#         creating symlinks. The other option (i.e. without --copy)
+#         might be better since if the links are broken, errors will
+#         be generated...
+# --force: replace existing libtool files in the current directory.
+echo "(*) Running $LIBTOOLIZE"
+$LIBTOOLIZE --automake --force $COPY
+if test $? != 0; then
+  echo "Warning: $LIBTOOLIZE returned with exit code $?"
+  EXIT_CODE=$EXIT_FAILURE
+fi
+
+# *** Run aclocal ***
+echo "(*) Running aclocal"
+aclocal $INCLUDE_DIRS
+if test $? != 0; then
+  echo "Warning: aclocal returned with exit code $?"
+  EXIT_CODE=$EXIT_FAILURE
+fi
+
+# *** Run autoheader ***
+echo "(*) Running autoheader"
+autoheader
+if test $? != 0; then
+  echo "Warning: autoheader returned with exit code $?"
+  EXIT_CODE=$EXIT_FAILURE
+fi
+
+# *** Run automake ***
+echo "(*) Running automake"
+automake --add-missing $COPY --gnu
+if test $? != 0; then
+  echo "Warning: automake returned with exit code $?"
+  EXIT_CODE=$EXIT_FAILURE
+fi
+
+# *** Run autoconf ***
+echo "(*) Running autoconf"
+autoconf $INCLUDE_DIRS
+if test $? != 0; then
+  echo -e "Warning: autoconf returned with exit code $?"
+  EXIT_CODE=$EXIT_FAILURE
+fi
+
+# *** Finished ***
+echo "DONE."
+exit $EXIT_CODE
+
