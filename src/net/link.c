@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 03/03/2006
+// @lastdate 12/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,13 +28,25 @@
 //////////////////////////////////////////////////////////////
 
 // ----- create_link_toRouter ---------------------------------------
-SNetLink * create_link_toRouter(SNetNode * pSrcNode,
-				SNetNode * pDstNode)
+/**
+ * Note from bqu:
+ *  - function name does not follow CODING CONVENTIONS !
+ */
+int create_link_toRouter(SNetNode * pSrcNode,
+			SNetNode * pDstNode,
+			SNetLink ** ppLink)
 {
-  return create_link_toRouter_byAddr(pSrcNode, pDstNode->tAddr);
+  if (pSrcNode == pDstNode)
+    return NET_ERROR_MGMT_LINK_LOOP;
+
+  return create_link_toRouter_byAddr(pSrcNode, pDstNode->tAddr, ppLink);
 }
 
 // ----- create_link_toSubnet ---------------------------------
+/**
+ * Note from bqu:
+ *  - function name does not follow CODING CONVENTIONS !
+ */
 SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 				SNetSubnet * pSubnet,
 				net_addr_t tIfaceAddr)
@@ -61,6 +73,10 @@ SNetLink * create_link_toSubnet(SNetNode * pSrcNode,
 }
 
 // ----- create_link_toAny -----------------------------------
+/**
+ * Note from bqu:
+ *  - function name does not follow CODING CONVENTIONS !
+ */
 SNetLink * create_link_toAny(SPrefix * pPrefix)
 {
   SNetLink * pLink = (SNetLink *) MALLOC(sizeof(SNetLink));
@@ -72,10 +88,21 @@ SNetLink * create_link_toAny(SPrefix * pPrefix)
 }
 
 //  ----- create_link_toRouter_byAddr ------------------------
-SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
-				       net_addr_t tAddr)
+/**
+ * Note from bqu:
+ *  - function name does not follow CODING CONVENTIONS !
+ */
+int create_link_toRouter_byAddr(SNetNode * pSrcNode,
+				net_addr_t tAddr,
+				SNetLink ** ppLink)
 {
-  SNetLink * pLink= (SNetLink *) MALLOC(sizeof(SNetLink));
+  SNetLink * pLink;
+
+  // Check that endpoints addresses are different
+  if (pSrcNode->tAddr == tAddr)
+    return NET_ERROR_MGMT_LINK_LOOP;
+
+  pLink= (SNetLink *) MALLOC(sizeof(SNetLink));
   pLink->uDestinationType = NET_LINK_TYPE_ROUTER;
   pLink->UDestId.tAddr= tAddr;
   pLink->pSrcNode= pSrcNode;
@@ -93,8 +120,7 @@ SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
   // detected this with BGP message sending. The destination peer
   // detected that the BGP message was received from an unknown peer
   // (itself).
-  // See validation script ".bgp_session_ibgp.log"
-  //pLink->tIfaceAddr= tAddr;
+  // See validation scr
 
   pLink->pContext= pLink;
   pLink->fForward= _link_forward;
@@ -106,7 +132,8 @@ SNetLink * create_link_toRouter_byAddr(SNetNode * pSrcNode,
   pLink->tArea = OSPF_NO_AREA;
 #endif
 
-  return pLink;
+  *ppLink= pLink;
+  return NET_SUCCESS;
 }
 
 // ----- link_get_address ------------------------------------

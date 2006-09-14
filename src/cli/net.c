@@ -82,7 +82,9 @@ int cli_net_add_node(SCliContext * pContext, STokens * pTokens)
       (*pcEndPtr != 0))
     return CLI_ERROR_COMMAND_FAILED;
   if (network_find_node(tAddr) != NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (already exists)\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (");
+    node_mgmt_perror(pLogErr, NET_ERROR_MGMT_NODE_ALREADY_EXISTS);
+    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (network_add_node(node_create(tAddr))) {
