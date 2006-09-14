@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 25/04/2006
+// @lastdate 14/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -160,7 +160,7 @@ static int _cbgp_jni_get_peer(void * pItem, void * pContext)
 
   if ((joPeer= cbgp_jni_new_bgp_Peer(pCtx->jEnv,
 				     pCtx->joCBGP,
-				     *((SPeer **) pItem))) == NULL)
+				     *((SBGPPeer **) pItem))) == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joPeer);
