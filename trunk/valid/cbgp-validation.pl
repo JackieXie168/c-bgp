@@ -50,6 +50,13 @@
 #                   the documentation page will be called
 #                   "PREFIX-doc.html".
 #
+# --resources-path=PATH
+#                   Set the path to the resources needed by the
+#                   validation script. The needed resources are the
+#                   topology files, the BGP RIB dumps, and so on.
+#                   Usually, this path must be set to the installation
+#                   directory of the validation script.
+#
 # ===================================================================
 
 use strict;
@@ -121,6 +128,7 @@ use constant CBGP_MINOR_MIN => 2;
 my $max_failures= 0;
 my $max_warnings= 0;
 my $report_prefix= "cbgp-validation";
+my $resources_path= "./";
 
 my $validation= {
 		 'cbgp_version' => undef,
@@ -141,7 +149,8 @@ if (!GetOptions(\%opts,
 		"max-warnings:i",
 		"include:s@",
 		"report:s",
-	        "report-prefix:s")) {
+	        "report-prefix:s",
+		"resources-path:s")) {
   show_error("Invalid command-line options");
   exit(-1);
 }
@@ -4221,7 +4230,7 @@ sub cbgp_valid_igp_bgp_med($)
 sub cbgp_valid_bgp_load_rib($)
 {
     my ($cbgp)= @_;
-    my $rib_file= "abilene-rib.ascii";
+    my $rib_file= "$resources_path/abilene-rib.ascii";
     cbgp_send($cbgp, "bgp options auto-create on");
     cbgp_send($cbgp, "net add node 198.32.12.9");
     cbgp_send($cbgp, "bgp add router 11537 198.32.12.9");
@@ -4766,7 +4775,7 @@ $tests->register("net subnet", "cbgp_valid_net_subnet", $topo);
 $tests->register("net create", "cbgp_valid_net_create", $topo);
 $tests->register("net igp", "cbgp_valid_net_igp", $topo);
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
-		 "valid-record-route.ntf");
+		 "$resources_path/valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
 $tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
 $tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
