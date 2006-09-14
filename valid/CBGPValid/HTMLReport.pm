@@ -2,7 +2,7 @@
 # CBGPValid::HTMLReport.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/09/2006
+# lastdate 14/09/2006
 # ===================================================================
 
 package CBGPValid::HTMLReport;
@@ -12,6 +12,7 @@ require Exporter;
 
 use strict;
 use Symbol;
+use CBGPValid::BaseReport;
 use CBGPValid::TestConstants;
 
 # -----[ doc_write_section_title ]-----------------------------------
@@ -69,6 +70,19 @@ sub doc_write_section($$)
   }
 }
 
+# -----[ doc_write_resources ]---------------------------------------
+#
+# -------------------------------------------------------------------
+sub doc_write_resources($$)
+{
+  my ($stream, $resources)= @_;
+
+  foreach my $res (@$resources) {
+    my ($ref, $name)= @$res;
+    print $stream "<a href=\"$ref\">$name</a><br>\n";
+  }
+}
+
 # -----[ doc_write_preformated ]-------------------------------------
 #
 # -------------------------------------------------------------------
@@ -83,12 +97,45 @@ sub doc_write_preformated($$)
   print $stream "<br>\n";
 }
 
+# -----[ doc_write_status ]------------------------------------------
+#
+# -------------------------------------------------------------------
+sub doc_write_status($$)
+{
+  my ($stream, $status)= @_;
+
+  my $color= "black";
+
+  if ($status == TEST_DISABLED) {
+    $color= "gray";
+  } elsif (($status == TEST_FAILURE) ||
+	   ($status == TEST_NOT_TESTED)) {
+    $color= "red";
+  } elsif ($status == TEST_SUCCESS) {
+    $color= "green";
+  }
+  $status= TEST_RESULT_MSG->{$status};
+
+  print $stream "<b><font color=\"$color\">$status</font></b>";
+}
+
+# -----[ doc_write_copyright ]---------------------------------------
+#
+# -------------------------------------------------------------------
+sub doc_write_copyright($)
+{
+  my ($stream)= @_;
+
+  print $stream "<i>(C) 2006, B. Quoitin<br>\n";
+  print $stream "Generated on ".localtime(time())."</i>\n";
+}
+
 # -----[ doc_write ]-------------------------------------------------
 # Generates the documentation file.
 # -------------------------------------------------------------------
-sub doc_write($$)
+sub doc_write($$$)
 {
-  my ($filename, $doc)= @_;
+  my ($filename, $doc, $tests_index)= @_;
 
   my $stream= gensym();
   open($stream, ">$filename") or
@@ -103,6 +150,9 @@ sub doc_write($$)
   foreach my $item (sort keys %$doc) {
     print $stream "<hr>\n";
     print $stream "<a name=\"$item\"><h2>$doc->{$item}->{Name}</h2></a>\n";
+    print $stream "Status: ";
+    doc_write_status($stream, $tests_index->{$item}->[TEST_FIELD_RESULT]);
+    print $stream "\n";
     # -- Description --
     doc_write_section_title($stream, "Description:");
     if (exists($doc->{$item}->{Description})) {
@@ -122,81 +172,17 @@ sub doc_write($$)
     if (exists($doc->{$item}->{Scenario})) {
       doc_write_section($stream, $doc->{$item}->{Scenario});
     }
+    # -- Resources --
+    if (exists($doc->{$item}->{'Resources'})) {
+      doc_write_section_title($stream, "Resources:");
+      doc_write_resources($stream, $doc->{$item}->{'Resources'});
+    }
   }
   print $stream "<hr>\n";
-  print $stream "(C) 2006, B. Quoitin\n";
+  doc_write_copyright($stream);
   print $stream "</body>\n";
   print $stream "<html>\n";
   close($stream);
-}
-
-# -----[ doc_from_script ]-------------------------------------------
-# Parses the given Perl script in order to document the validation
-# tests.
-#
-# The function looks for the following sections:
-#   - Description: general description of the test
-#   - Setup: how C-BGP is configured for the test (topology and config)
-#   - Topology: 
-#   - Scenario: what is announced and what is tested
-# -------------------------------------------------------------------
-sub doc_from_script($$)
-{
-  my ($script_name, $tests_list)= @_;
-
-  my %doc= ();
-
-  # Build index of tests function names
-  my %tests_index= ();
-  foreach my $test_record (@$tests_list) {
-    $tests_index{$test_record->[TEST_FIELD_FUNC]}= 1;
-  }
-
-  open(MYSELF, "<$script_name") or
-    die "unable to open \"$script_name\"";
-  my $state= 0;
-  my $section= undef;
-  my $name= undef;
-  my $record;
-  while (<MYSELF>) {
-    if ($state == 0) {
-      if (m/^# -----\[\s*cbgp_valid_([^ ]*)\s*\]/) {
-	my $func_name= "cbgp_valid_$1";
-	if (exists($tests_index{$func_name})) {
-	  $state= 1;
-	  $section= 'Description';
-	  $name= $func_name;
-	  $record= { 'Name' => $1 };
-	}
-      }
-    } elsif ($state >= 1) {
-      if ((!m/^#/) || (m/^# ----------.*/)) {
-	$state= 0;
-	$doc{$name}= $record;
-      } elsif (m/^# Description\:/) {
-	$section= 'Description';
-	$record->{$section}= [];
-      } elsif (m/^# Setup\:/) {
-	$section= 'Setup';
-	$record->{$section}= [];
-      } elsif (m/^# Scenario\:/) {
-	$section= 'Scenario';
-	$record->{$section}= [];
-      } elsif (m/^# Topology\:/) {
-	$section= 'Topology';
-	$record->{$section}= [];
-      } else {
-	if (m/^#(.*$)/) {
-	  push @{$record->{$section}}, ($1);
-	} else {
-	  print "warning: i don't know how to handle \"$_\"\n";
-	}
-      }
-    }
-  }
-  close(MYSELF);
-
-  return \%doc;
 }
 
 # -----[ report_write ]----------------------------------------------
@@ -216,9 +202,24 @@ sub report_write($$$)
   my $num_failures= $tests->{'num-failures'};
   my $num_warnings= $tests->{'num-warnings'};
 
-  my $doc= doc_from_script($program_name, $tests->{'list'});
+  my $report_intro= "This is a report automatically generated by the C-BGP validation script. The tests performed by the validation script try to cover as much as possible the C-BGP features. These tests are documented <a href=\"$report_prefix-doc.html\">here</a>. Your suggestions for improving this validation are highly welcome ! The main result for this validation is: ";
+
+  if ($num_failures == 0) {
+    $report_intro.= "<b><font color=\"green\">ALL TESTS PASSED :-)</font></b>\n";
+  } else {
+    $report_intro.= "<b><font color=\"red\">SOME TESTS FAILED :-(</font></b>\n";
+  }
+
+  # Build index of tests function names
+  my %tests_index= ();
+  foreach my $test_record (@{$tests->{'list'}}) {
+    $tests_index{$test_record->[TEST_FIELD_FUNC]}= $test_record;
+  }
+
+  my $doc= CBGPValid::BaseReport::doc_from_script($program_name,
+						  \%tests_index);
   if (defined($doc)) {
-    doc_write("$report_prefix-doc.html", $doc);
+    doc_write("$report_prefix-doc.html", $doc, \%tests_index);
   }
 
   my $report_file_name= "$report_prefix.html";
@@ -231,6 +232,7 @@ sub report_write($$$)
   print REPORT "</head>\n";
   print REPORT "<body>\n";
   print REPORT "<h2>C-BGP validation test report (v$program_version)</h2>\n";
+  print REPORT "$report_intro\n";
   print REPORT "<h3>Configuration</h3>\n";
   print REPORT "<ul>\n";
   print REPORT "<li>Arguments: $program_args</li>\n";
@@ -253,12 +255,6 @@ sub report_write($$$)
   print REPORT "<li>System: ".`uname -m -p -s -r`."</li>\n";
   print REPORT "</ul>\n";
   print REPORT "<h3>Results</h3>\n";
-  if ($num_failures == 0) {
-    print REPORT "&nbsp;&nbsp;<font color=\"green\">ALL TESTS PASSED :-)</font>\n";
-  } else {
-    print REPORT "&nbsp;&nbsp;<font color=\"red\">SOME TESTS FAILED :-(</font>\n";
-  }
-  print REPORT "<br><br>\n";
   print REPORT "<table border=\"1\">\n";
   print REPORT "<tr>\n";
   print REPORT "<th>Test ID</th>\n";
@@ -272,18 +268,6 @@ sub report_write($$$)
     my $test_func= $test_record->[TEST_FIELD_FUNC];
     my $test_result= $test_record->[TEST_FIELD_RESULT];
     my $test_duration= $test_record->[TEST_FIELD_DURATION];
-
-    my $color= "black";
-
-    if ($test_result == TEST_DISABLED) {
-      $color= "gray";
-    } elsif (($test_result == TEST_FAILURE) ||
-	     ($test_result == TEST_NOT_TESTED)) {
-      $color= "red";
-    } elsif ($test_result == TEST_SUCCESS) {
-      $color= "green";
-    }
-    $test_result= TEST_RESULT_MSG->{$test_result};
 
     my $doc_ref= undef;
     if (defined($doc) && exists($doc->{$test_func})) {
@@ -304,13 +288,15 @@ sub report_write($$$)
     (defined($doc_ref)) and
       print REPORT "</a>\n";
     print REPORT "</td>\n";
-    print REPORT "<td align=\"center\"><font color=\"$color\">$test_result</font></td>\n";
+    print REPORT "<td align=\"center\">";
+    doc_write_status(*REPORT, $test_result);
+    print REPORT "</td>\n";
     print REPORT "<td align=\"center\">$test_duration</td>\n";
     print REPORT "</tr>\n";
   }
   print REPORT "</table>\n";
   print REPORT "<hr>\n";
-  print REPORT "(C) 2006, B. Quoitin\n";
+  doc_write_copyright(*REPORT);
   print REPORT "</body>\n";
   print REPORT "</html>\n";
   close(REPORT);
