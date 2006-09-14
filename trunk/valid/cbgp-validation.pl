@@ -128,7 +128,7 @@ use constant CBGP_MINOR_MIN => 2;
 my $max_failures= 0;
 my $max_warnings= 0;
 my $report_prefix= "cbgp-validation";
-my $resources_path= "./";
+my $resources_path= "";
 
 my $validation= {
 		 'cbgp_version' => undef,
@@ -154,7 +154,7 @@ if (!GetOptions(\%opts,
   show_error("Invalid command-line options");
   exit(-1);
 }
-if ($opts{'cache'}) {
+if (exists($opts{'cache'}) && !$opts{'cache'}) {
   $opts{'cache'}= undef;
 } else {
   $opts{'cache'}= ".$0.cache";
@@ -162,6 +162,9 @@ if ($opts{'cache'}) {
 
 (!exists($opts{'cbgp-path'})) and
     $opts{'cbgp-path'}= "../src/cbgp";
+(exists($opts{'resources-path'})) and
+    $resources_path= $opts{'resources-path'};
+($resources_path =~ s/^(.*[^\/])$/$1\//);
 #(exists($opts{"max-failures"})) and
 #  $max_failures= $opts{"max-failures"};
 #(exists($opts{"max-warnings"})) and
@@ -2104,9 +2107,10 @@ sub cbgp_valid_bgp_topology_load($)
 {
   my ($cbgp)= @_;
 
-  my $topo= topo_from_subramanian("valid-bgp-topology.subramanian");
+  my $topo_file= $resources_path."valid-bgp-topology.subramanian";
+  my $topo= topo_from_subramanian($topo_file);
 
-  die if $cbgp->send("bgp topology load \"valid-bgp-topology.subramanian\"\n");
+  cbgp_send($cbgp, "bgp topology load \"valid-bgp-topology.subramanian\"\n");
   (!cbgp_topo_check_links($cbgp, $topo)) and
     return TEST_FAILURE;
 
@@ -2129,8 +2133,9 @@ sub cbgp_valid_bgp_topology_policies($)
 {
   my ($cbgp)= @_;
 
-  die if $cbgp->send("bgp topology load \"valid-bgp-topology.subramanian\"\n");
-  die if $cbgp->send("bgp topology policies\n");
+  my $topo_file= $resources_path."valid-bgp-topology.subramanian";
+  cbgp_send($cbgp, "bgp topology load \"$topo_file\"\n");
+  cbgp_send($cbgp, "bgp topology policies\n");
 
   return TEST_SUCCESS;
 }
@@ -2148,9 +2153,10 @@ sub cbgp_valid_bgp_topology_run($)
 {
   my ($cbgp)= @_;
 
-  my $topo= topo_from_subramanian("valid-bgp-topology.subramanian");
+  my $topo_file= $resources_path."valid-bgp-topology.subramanian";
+  my $topo= topo_from_subramanian($topo_file);
 
-  die if $cbgp->send("bgp topology load \"valid-bgp-topology.subramanian\"\n");
+  cbgp_send($cbgp, "bgp topology load \"$topo_file\"\n");
   die if $cbgp->send("bgp topology policies\n");
   die if $cbgp->send("bgp topology run\n");
   if (!cbgp_topo_check_ebgp_sessions($cbgp, $topo, "OPENWAIT")) {
@@ -4230,7 +4236,7 @@ sub cbgp_valid_igp_bgp_med($)
 sub cbgp_valid_bgp_load_rib($)
 {
     my ($cbgp)= @_;
-    my $rib_file= "$resources_path/abilene-rib.ascii";
+    my $rib_file= $resources_path."abilene-rib.ascii";
     cbgp_send($cbgp, "bgp options auto-create on");
     cbgp_send($cbgp, "net add node 198.32.12.9");
     cbgp_send($cbgp, "bgp add router 11537 198.32.12.9");
@@ -4775,7 +4781,7 @@ $tests->register("net subnet", "cbgp_valid_net_subnet", $topo);
 $tests->register("net create", "cbgp_valid_net_create", $topo);
 $tests->register("net igp", "cbgp_valid_net_igp", $topo);
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
-		 "$resources_path/valid-record-route.ntf");
+		 $resources_path."valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
 $tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
 $tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
