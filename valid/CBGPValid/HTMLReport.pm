@@ -133,9 +133,12 @@ sub doc_write_copyright($)
 # -----[ doc_write ]-------------------------------------------------
 # Generates the documentation file.
 # -------------------------------------------------------------------
-sub doc_write($$$)
+sub doc_write($$$$)
 {
-  my ($filename, $doc, $tests_index)= @_;
+  my ($filename,
+      $script_version,
+      $doc,
+      $tests_index)= @_;
 
   my $stream= gensym();
   open($stream, ">$filename") or
@@ -143,10 +146,10 @@ sub doc_write($$$)
   print $stream "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\">\n";
   print $stream "<html>\n";
   print $stream "<head>\n";
-  print $stream "<title>C-BGP validation documentation</title>\n";
+  print $stream "<title>C-BGP validation documentation (v$script_version)</title>\n";
   print $stream "</head>\n";
   print $stream "<body>\n";
-  print $stream "<h1>C-BGP validation: tests documentation</h1>\n";
+  print $stream "<h1>C-BGP validation (v$script_version): tests documentation</h1>\n";
   foreach my $item (sort keys %$doc) {
     print $stream "<hr>\n";
     print $stream "<a name=\"$item\"><h2>$doc->{$item}->{Name}</h2></a>\n";
@@ -219,7 +222,8 @@ sub report_write($$$)
   my $doc= CBGPValid::BaseReport::doc_from_script($program_name,
 						  \%tests_index);
   if (defined($doc)) {
-    doc_write("$report_prefix-doc.html", $doc, \%tests_index);
+    doc_write("$report_prefix-doc.html", $program_version,
+	      $doc, \%tests_index);
   }
 
   my $report_file_name= "$report_prefix.html";
