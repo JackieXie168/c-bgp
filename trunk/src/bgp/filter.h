@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifndef __FILTER_H__
@@ -11,10 +11,9 @@
 
 #include <stdio.h>
 
-#include <libgds/sequence.h>
+#include <libgds/array.h>
 #include <libgds/hash.h>
 #include <libgds/log.h>
-#include <libgds/array.h>
 
 #include <bgp/as_t.h>
 #include <bgp/comm_t.h>

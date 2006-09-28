@@ -3,11 +3,13 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 13/02/2005
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifndef __FILTER_T_H__
 #define __FILTER_T_H__
+
+#include <libgds/sequence.h>
 
 #define FILTER_OUT 0
 #define FILTER_IN  1

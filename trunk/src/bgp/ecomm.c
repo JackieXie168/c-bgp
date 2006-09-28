@@ -19,8 +19,6 @@
 #include <bgp/ecomm.h>
 #include <bgp/peer.h>
 
-#define MAX_COMM 255
-
 // ----- ecomm_val_create -------------------------------------------
 /**
  *
@@ -118,17 +116,17 @@ SECommunities * ecomm_copy(SECommunities * pComms)
  */
 int ecomm_add(SECommunities ** ppComms, SECommunity * pComm)
 {
-  if ((*ppComms)->uNum < MAX_COMM) {
-    (*ppComms)->uNum++;
-    (*ppComms)=
-      (SECommunities *) REALLOC(*ppComms, sizeof(SECommunities)+
-				sizeof(SECommunity)*(*ppComms)->uNum);
-    memcpy(&(*ppComms)->asComms[(*ppComms)->uNum-1], pComm,
-	   sizeof(SECommunity));
-    ecomm_val_destroy(&pComm);
-    return 0;
-  } else
+  SECommunities * pComms=
+    (SECommunities *) REALLOC(*ppComms, sizeof(SECommunities)+
+			      sizeof(SECommunity)*((*ppComms)->uNum+1));
+  if (pComms == NULL)
     return -1;
+  *ppComms= pComms;
+  (*ppComms)->uNum++;
+  memcpy(&(*ppComms)->asComms[(*ppComms)->uNum-1], pComm,
+	 sizeof(SECommunity));
+  ecomm_val_destroy(&pComm);
+  return 0;
 }
 
 // ----- ecomm_strip_non_transitive ---------------------------------

@@ -205,7 +205,7 @@ inline void bgp_attr_comm_remove(SBGPAttr ** ppAttr, comm_t tCommunity)
   if ((*ppAttr)->pCommunities == NULL)
     return;
   pCommunities= comm_copy((*ppAttr)->pCommunities);
-  comm_remove(pCommunities, tCommunity);
+  comm_remove(&pCommunities, tCommunity);
   bgp_attr_set_comm(ppAttr, pCommunities);
 }
 

@@ -215,8 +215,8 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     // COMMUNITY
     log_printf(pStream, "|");
     if (pRoute->pAttr->pCommunities != NULL) {
-      for (iIndex= 0; iIndex < pRoute->pAttr->pCommunities->iSize; iIndex++) {
-	uCommunity= (uint32_t) pRoute->pAttr->pCommunities->ppItems[iIndex];
+      for (iIndex= 0; iIndex < pRoute->pAttr->pCommunities->uNum; iIndex++) {
+	uCommunity= (uint32_t) pRoute->pAttr->pCommunities->asComms[iIndex];
 	log_printf(pStream, "%u ", uCommunity);
       }
     }
