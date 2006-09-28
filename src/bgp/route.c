@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 16/08/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -337,7 +337,7 @@ inline int route_comm_append(SRoute * pRoute, comm_t tCommunity)
     pCommunities= comm_create();
   else
     pCommunities= comm_copy(pRoute->pAttr->pCommunities);
-  if (comm_add(pCommunities, tCommunity)) {
+  if (comm_add(&pCommunities, tCommunity)) {
     comm_destroy(&pCommunities);
     return -1;
   }

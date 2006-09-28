@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/10/2005
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -63,8 +63,8 @@ static uint32_t _comm_hash_item_compute_zebra(void * pItem, uint32_t uHashSize)
   int iIndex;
   comm_t tCommunity;
 
-  for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
-    tCommunity= (comm_t) pCommunities->ppItems[iIndex];
+  for (iIndex= 0; iIndex < pCommunities->uNum; iIndex++) {
+    tCommunity= (comm_t) pCommunities->asComms[iIndex];
     uKey+= tCommunity & 255;
     tCommunity= tCommunity >> 8;
     uKey+= tCommunity & 255;

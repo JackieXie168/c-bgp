@@ -9,7 +9,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// @lastdate 11/09/2006
+// @lastdate 28/09/2006
 // ==================================================================
 // Future changes:
 // - move attribute parsers in corresponding sections
@@ -155,7 +155,7 @@ SCommunities * mrtd_create_communities(char * pcCommunities)
       comm_destroy(&pComm);
       return NULL;
     }
-    comm_add(pComm, uComm);
+    comm_add(&pComm, uComm);
   }
   
   return pComm;
@@ -649,7 +649,7 @@ SCommunities * mrtd_process_community(struct community * com)
       pCommunities= comm_create();
     
     memcpy(&comval, com_nthval(com, iIndex), sizeof (uint32_t));
-    comm_add(pCommunities, ntohl(comval));
+    comm_add(&pCommunities, ntohl(comval));
     
   }
 

@@ -3,12 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <libgds/memory.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -21,25 +23,35 @@
  */
 SCommunities * comm_create()
 {
-  return (SCommunities *) sequence_create(NULL, NULL);
+  SCommunities * pComms= (SCommunities*) MALLOC(sizeof(SCommunities));
+  pComms->uNum= 0;
+  return pComms;
 }
 
 // ----- comm_destroy -----------------------------------------------
 /**
  *
  */
-void comm_destroy(SCommunities ** ppCommunities)
+void comm_destroy(SCommunities ** ppComms)
 {
-  sequence_destroy((SSequence **) ppCommunities);
+  if (*ppComms != NULL) {
+    FREE(*ppComms);
+    *ppComms= NULL;
+  }
 }
 
 // ----[ comm_copy ]-------------------------------------------------
 /**
  *
  */
-SCommunities * comm_copy(SCommunities * pCommunities)
+SCommunities * comm_copy(SCommunities * pComms)
 {
-  return sequence_copy(pCommunities, NULL);
+  SCommunities * pNewComms=
+    (SCommunities *) MALLOC(sizeof(SCommunities)+
+			     sizeof(comm_t)*pComms->uNum);
+  memcpy(pNewComms, pComms, sizeof(SCommunities)+
+	 sizeof(comm_t)*pComms->uNum);
+  return pNewComms;
 }
 
 // ----- comm_add ---------------------------------------------------
@@ -47,47 +59,90 @@ SCommunities * comm_copy(SCommunities * pCommunities)
  * Add a community value to the given Communities attribute.
  *
  * Return value:
- *   0    in case of success
+ *    0   in case of success
  *   -1   in case of failure
  */
-int comm_add(SCommunities * pCommunity, comm_t uCommunity)
+int comm_add(SCommunities ** ppComms, comm_t tComm)
 {
-  return sequence_add((SSequence *) pCommunity, (void *) uCommunity);
+  SCommunities * pComms=
+    (SCommunities *) REALLOC(*ppComms, sizeof(SCommunities)+
+			     sizeof(comm_t)*((*ppComms)->uNum+1));
+  if (pComms == NULL)
+    return -1;
+  (*ppComms)= pComms;
+  (*ppComms)->uNum++;
+  (*ppComms)->asComms[(*ppComms)->uNum-1]= tComm;
+  return 0;
 }
 
 // ----- comm_remove ------------------------------------------------
 /**
- *
+ * Remove a given community value from the set.
  */
-void comm_remove(SCommunities * pCommunities, comm_t uCommunity)
+void comm_remove(SCommunities ** ppComms, comm_t tComm)
 {
-  sequence_remove(pCommunities, (void *) uCommunity);
+  int iIndex;
+  int iLastIndex= 0;
+
+  if (*ppComms != NULL) {
+    /* Remove the given community value. */
+    for (iIndex= 0; iIndex < (*ppComms)->uNum; iIndex++) {
+      if ((*ppComms)->asComms[iIndex] != tComm) {
+	if (iIndex != iLastIndex)
+	  memcpy(&(*ppComms)->asComms[iLastIndex],
+		 &(*ppComms)->asComms[iIndex], sizeof(comm_t));
+	iLastIndex++;
+      }
+    }
+    /* destroy or resize the set of communities, if needed. */
+    if ((*ppComms)->uNum != iLastIndex) {
+      (*ppComms)->uNum= iLastIndex;
+      if ((*ppComms)->uNum == 0) {
+	FREE(*ppComms);
+	*ppComms= NULL;
+      } else
+	*ppComms=
+	  (SCommunities *) REALLOC(*ppComms,
+				   (*ppComms)->uNum*sizeof(comm_t));
+    }
+  }
 }
 
 // ----- comm_contains ----------------------------------------------
 /**
+ * Check if a given community value belongs to the communities
+ * attribute.
  *
+ * Return value:
+ *   >= 0   the community was found and return value is the index.
+ *   -1     the given community could not be found.
  */
-int comm_contains(SCommunities * pCommunities, comm_t uCommunity)
+int comm_contains(SCommunities * pComms, comm_t tComm)
 {
-  return sequence_find_index(pCommunities, (void *) uCommunity);
+  int iIndex= 0;
+
+  while (iIndex < pComms->uNum) {
+    if (pComms->asComms[iIndex] == tComm)
+      return iIndex;
+    iIndex++;
+  }
+  return -1;
 }
 
 // ----- comm_equals ------------------------------------------------
 /**
  *
  */
-int comm_equals(SCommunities * pCommunities1, SCommunities * pCommunities2)
+int comm_equals(SCommunities * pComms1, SCommunities * pComms2)
 {
-  if (pCommunities1 == pCommunities2)
+  if (pComms1 == pComms2)
     return 1;
-  if ((pCommunities1 == NULL) || (pCommunities2 == NULL))
+  if ((pComms1 == NULL) || (pComms2 == NULL))
     return 0;
-  if (pCommunities1->iSize != pCommunities2->iSize)
+  if (pComms1->uNum != pComms2->uNum)
     return 0;
-  return (memcmp(pCommunities1->ppItems,
-		 pCommunities2->ppItems,
-		 pCommunities1->iSize*sizeof(comm_t)) == 0);
+  return (memcmp(pComms1->asComms, pComms2->asComms,
+		 pComms1->uNum*sizeof(comm_t)) == 0);
 }
 
 // ----- comm_from_string -------------------------------------------
@@ -152,16 +207,16 @@ void comm_dump2(SLogStream * pStream, comm_t tCommunity, int iText)
 /*
  *
  */
-void comm_dump(SLogStream * pStream, SCommunities * pCommunities,
+void comm_dump(SLogStream * pStream, SCommunities * pComms,
 	       int iText)
 {
   int iIndex;
   comm_t tCommunity;
 
-  for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
+  for (iIndex= 0; iIndex < pComms->uNum; iIndex++) {
     if (iIndex > 0)
       log_printf(pStream, " ");
-    tCommunity= (comm_t) pCommunities->ppItems[iIndex];
+    tCommunity= (comm_t) pComms->asComms[iIndex];
     comm_dump2(pStream, tCommunity, iText);
   }
 }
@@ -180,7 +235,7 @@ void comm_dump(SLogStream * pStream, SCommunities * pCommunities,
  *   space in the buffer to write the Communities, then NULL is
  *   returned.
  */
-int comm_to_string(SCommunities * pCommunities, char * pBuffer,
+int comm_to_string(SCommunities * pComms, char * pBuffer,
 		   size_t tBufferSize)
 {
   size_t tInitialSize= tBufferSize;
@@ -188,8 +243,8 @@ int comm_to_string(SCommunities * pCommunities, char * pBuffer,
   int iIndex;
   comm_t tCommunity;
   
-  for (iIndex= 0; iIndex < pCommunities->iSize; iIndex++) {
-    tCommunity= (comm_t) pCommunities->ppItems[iIndex];
+  for (iIndex= 0; iIndex < pComms->uNum; iIndex++) {
+    tCommunity= (comm_t) pComms->asComms[iIndex];
     iWritten= snprintf(pBuffer, tBufferSize, "%ul", (unsigned int) tCommunity);
     if (iWritten == tBufferSize)
       return tInitialSize;
