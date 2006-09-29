@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 19/04/2006
+// @lastdate 29/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -97,9 +97,9 @@ jobject cbgp_jni_new_Communities(JNIEnv * env, SCommunities * pComm)
     return NULL;
 
   /* Append all communities */
-  for (iIndex= 0; iIndex < pComm->iSize; iIndex++) {
+  for (iIndex= 0; iIndex < pComm->uNum; iIndex++) {
     if (cbgp_jni_Communities_append(env, joCommunities,
-				    (comm_t) pComm->ppItems[iIndex]) != 0)
+				    (comm_t) pComm->asComms[iIndex]) != 0)
       return NULL;
   }
 
