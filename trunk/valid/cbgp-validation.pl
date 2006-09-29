@@ -2989,6 +2989,33 @@ sub cbgp_valid_bgp_dp_ebgp_ibgp($)
 # -----[ cbgp_valid_bgp_dp_med ]-------------------------------------
 # Test ability of the decision process to prefer routes with the
 # highest MED value.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2)
+#   - R3 (2.0.0.2, AS2)
+#   - R4 (3.0.0.1, AS3)
+#   - R5 (3.0.0.2, AS3)
+#
+# Topology:
+#
+#   (R2)---*
+#           \
+#   (R3)---* \
+#           \ \
+#             R1
+#           / /
+#   (R4)---* /
+#           /
+#   (R5)---*
+#
+# Scenario:
+#   * R2 announces 255.0/16 with MED=80
+#     R3 announces 255.0/16 with MED=60
+#     R4 announces 255.0/16 with MED=40
+#     R5 announces 255.0/16 with MED=20
+#   * Check that best route selected by R1 is the route announced
+#     by R3 (2.0.0.2)
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_dp_med($)
 {

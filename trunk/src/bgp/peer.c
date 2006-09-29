@@ -763,15 +763,15 @@ int bgp_peer_route_eligible(SBGPPeer * pPeer, SRoute * pRoute)
 
   // Route-Reflection: deny routes with an originator-ID equal to local
   // router-ID [RFC2796, section7].
-  if ((pRoute->pOriginator != NULL) &&
-      (*pRoute->pOriginator == pPeer->pLocalRouter->tRouterID)) {
+  if ((pRoute->pAttr->pOriginator != NULL) &&
+      (*pRoute->pAttr->pOriginator == pPeer->pLocalRouter->tRouterID)) {
     LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(RR: originator-id)\n");
     return 0;
   }
 
   // Route-Reflection: Avoid cluster-loop creation (MUST be done
   // before local cluster-ID is appended) [RFC2796, section7].
-  if ((pRoute->pClusterList != NULL) &&
+  if ((pRoute->pAttr->pClusterList != NULL) &&
       (route_cluster_list_contains(pRoute, pPeer->pLocalRouter->tClusterID))) {
     LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(RR: cluster-loop)\n");
     return 0;

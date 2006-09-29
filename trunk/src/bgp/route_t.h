@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/11/2003
-// @lastdate 11/09/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_T_H__
@@ -86,10 +86,6 @@ typedef struct /*TRoute*/ {
                    // (meaningful only if the route is currently best)
 #endif
   SBGPAttr * pAttr;  // Route attributes
-
-  /* Route-Reflection attributes */
-  net_addr_t * pOriginator;
-  SClusterList * pClusterList;
 
 #ifdef __EXPERIMENTAL__
   /* Origin router: used in combination with withdraw root cause.

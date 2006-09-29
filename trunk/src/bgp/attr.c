@@ -46,6 +46,11 @@ SBGPAttr * bgp_attr_create(net_addr_t tNextHop,
   pAttr->pASPathRef= NULL;
   pAttr->pCommunities= NULL;
   pAttr->pECommunities= NULL;
+
+  /* Route-reflection related fields */
+  pAttr->pOriginator= NULL;
+  pAttr->pClusterList= NULL;
+
   return pAttr;
 }
 
@@ -60,6 +65,9 @@ void bgp_attr_destroy(SBGPAttr ** ppAttr)
     bgp_attr_comm_destroy(ppAttr);
     _bgp_attr_ecomm_destroy(*ppAttr);
     FREE(*ppAttr);
+    /* Route-reflection */
+    bgp_attr_originator_destroy(*ppAttr);
+    bgp_attr_cluster_list_destroy(*ppAttr);
   }
 }
 
@@ -227,6 +235,55 @@ static void _bgp_attr_ecomm_destroy(SBGPAttr * pAttr)
   ecomm_destroy(&pAttr->pECommunities);
 }
 
+// -----[ _bgp_attr_originator_copy ]--------------------------------
+/**
+ *
+ */
+static inline void _bgp_attr_originator_copy(SBGPAttr * pAttr,
+					     net_addr_t * pOriginator)
+{
+  if (pOriginator == NULL)
+    pAttr->pOriginator= NULL;
+  else {
+    pAttr->pOriginator= (net_addr_t *) MALLOC(sizeof(net_addr_t));
+    *pAttr->pOriginator= *pOriginator;
+  }
+}
+
+// -----[ bgp_attr_originator_destroy ]------------------------------
+/**
+ *
+ */
+inline void bgp_attr_originator_destroy(SBGPAttr * pAttr)
+{
+  if (pAttr->pOriginator != NULL) {
+    FREE(pAttr->pOriginator);
+    pAttr->pOriginator= NULL;
+  }
+}
+
+// -----[ _bgp_attr_cluster_list_copy ]-------------------------------
+/**
+ *
+ */
+static inline void _bgp_attr_cluster_list_copy(SBGPAttr * pAttr,
+					       SClusterList * pClusterList)
+{
+  if (pClusterList == NULL)
+    pAttr->pClusterList= NULL;
+  else
+    pAttr->pClusterList= cluster_list_copy(pClusterList);
+}
+
+// -----[ bgp_attr_cluster_list_destroy ]----------------------------
+/**
+ *
+ */
+inline void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr)
+{
+  cluster_list_destroy(&pAttr->pClusterList);
+}
+
 // -----[ bgp_attr_copy ]--------------------------------------------
 /**
  *
@@ -240,6 +297,9 @@ SBGPAttr * bgp_attr_copy(SBGPAttr * pAttr)
   _bgp_attr_path_copy(pAttrCopy, pAttr->pASPathRef);
   _bgp_attr_comm_copy(pAttrCopy, pAttr->pCommunities);
   _bgp_attr_ecomm_copy(pAttrCopy, pAttr->pECommunities);
+  /* Route-Reflection attributes */
+  _bgp_attr_originator_copy(pAttrCopy, pAttr->pOriginator);
+  _bgp_attr_cluster_list_copy(pAttrCopy, pAttr->pClusterList);
   return pAttrCopy;
 }
 
@@ -297,6 +357,18 @@ int bgp_attr_cmp(SBGPAttr * pAttr1, SBGPAttr * pAttr2)
   // EXTENDED-COMMUNITIES attributes must be equal
   if (!ecomm_equals(pAttr1->pECommunities, pAttr2->pECommunities)) {
     LOG_DEBUG(LOG_LEVEL_DEBUG, "different EXTENDED-COMMUNITIES\n");
+    return 0;
+  }
+
+  // ORIGINATOR-ID attributes must be equal
+  if (!originator_equals(pAttr1->pOriginator, pAttr2->pOriginator)) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "different ORIGINATOR-ID\n");
+    return 0;
+  }
+ 
+  // CLUSTER-ID-LIST attributes must be equal
+  if (!cluster_list_equals(pAttr1->pClusterList, pAttr2->pClusterList)) {
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "different CLUSTER-ID-LIST\n");
     return 0;
   }
   

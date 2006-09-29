@@ -543,11 +543,12 @@ int bgp_router_advertise_to_peer(SBGPRouter * pRouter,
 	  return -1;
 	}
 
-	// Update Originator-ID if missing
-	if (route_originator_get(pNewRoute, NULL) == -1)
+	// Update Originator-ID if missing (< 0 => missing)
+	if (route_originator_get(pNewRoute, NULL) < 0)
 	  route_originator_set(pNewRoute, pSrcPeer->tRouterID);
 	else {
-	  if (*(pNewRoute->pOriginator) == pDstPeer->tRouterID) {
+	  if (originator_equals(pNewRoute->pAttr->pOriginator,
+				&pDstPeer->tRouterID)) {
 	    LOG_DEBUG(LOG_LEVEL_DEBUG, "out-filtered (originator-id SSLD)\n");
 	    route_destroy(&pNewRoute);
 	    return -1;
@@ -832,7 +833,7 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 
 #endif
-
+    
     if (routes_list_get_num(pRoutes) <= 1)
       break;
 

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/11/2002
-// @lastdate 11/09/2006
+// @lastdate 28/09/2006
 // ==================================================================
 // to-do: these routines could be optimized
 
@@ -431,21 +431,38 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
 	  
 	  if (pRoute2 != NULL) {
 	  
-	    /*printf("route : ");
-	      route_dump(stdout, pRoute);
-	      printf("\nroute2: ");
-	      route_dump(stdout, pRoute2);
-	      printf("\n");*/
+	    /* DEBUG-BEGIN */
+	    /*
+	    printf("route1: ");
+	    route_dump(pLogOut, pRoute);
+	    printf("\nroute2: ");
+	    route_dump(pLogOut, pRoute2);
+	    printf("\n");
+	    printf("last-AS: %u\n", iLastAS);
+	    */
+	    /* DEBUG-END */
 	    
 	    if (iLastAS == route_path_last_as(pRoute2)) {
 	      
-	      //printf("compare...[%u <-> %u]\n", pRoute->pAttr->uMED, pRoute2->pAttr->uMED);
+	      /* DEBUG-BEGIN */
+	      /*
+	      printf("compare...[%u <-> %u]\n", pRoute->pAttr->uMED, pRoute2->pAttr->uMED);
+	      */
+	      /* DEBUG-END */
 	      
 	      if (pRoute->pAttr->uMED < pRoute2->pAttr->uMED) {
-		//printf("route < route2\n");
+		/* DEBUG-BEGIN */
+		/*
+		printf("route1 < route2 => remove route2\n");
+		*/
+		/* DEBUG-END */
 		pRoutes->data[iIndex2]= NULL;
 	      } else if (pRoute->pAttr->uMED > pRoute2->pAttr->uMED) {
-		//printf("route2 < route\n");
+		/* DEBUG-BEGIN */
+		/*
+		printf("(route2 < route1) => remove route1\n");
+		*/
+		/* DEBUG-END */
 		pRoutes->data[iIndex]= NULL;
 		break;
 	      }
@@ -472,7 +489,7 @@ int dp_rule_lowest_med(SBGPRouter * pRouter, SRoutes * pRoutes)
 	iIndex++;
 #endif
     }
-    
+
   }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
@@ -621,6 +638,7 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
 {
   net_addr_t tLowestRouterID= MAX_ADDR;
   net_addr_t tID;
+  /*net_addr_t tOriginatorID;*/
   SRoute * pRoute;
   int iIndex;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -631,16 +649,41 @@ int dp_rule_lowest_router_id(SBGPRouter * pRouter, SRoutes * pRoutes)
   // Calculate lowest ROUTER-ID (or ORIGINATOR-ID)
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    if (!route_originator_get(pRoute, &tID) < 0)
+
+    /* DEBUG-BEGIN */
+    /*
+    printf("router-ID: ");
+    ip_address_dump(pLogOut, route_peer_get(pRoute)->tRouterID);
+    printf("\noriginator-ID-ptr: %p\n", pRoute->pAttr->pOriginator);
+    if (route_originator_get(pRoute, &tOriginatorID) == 0) {
+      printf("originator-ID: ");
+      ip_address_dump(pLogOut, tOriginatorID);
+      printf("\n");
+      }
+    */
+    /* DEBUG-END */
+
+    /* Originator-ID or Router-ID ? (< 0 => use router-ID) */
+    if (route_originator_get(pRoute, &tID) < 0)
       tID= route_peer_get(pRoute)->tRouterID;
     if (tID < tLowestRouterID)
       tLowestRouterID= tID;
   }
+
+  /* DEBUG-BEGIN */
+  /*
+  printf("max-addr: ");
+  ip_address_dump(pLogOut, tLowestRouterID);
+  printf("\n");
+  */
+  /* DEBUG-END */
+
   // Discard routes from neighbors with an higher ROUTER-ID (or
   // ORIGINATOR-ID)
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
+    /* Originator-ID or Router-ID ? (< 0 => use router-ID) */
     if (route_originator_get(pRoute, &tID) < 0)
       tID= route_peer_get(pRoute)->tRouterID; 
     if (tID > tLowestRouterID)
@@ -681,17 +724,17 @@ int dp_rule_shortest_cluster_list(SBGPRouter * pRouter, SRoutes * pRoutes)
   // Calculate shortest cluster-ID-list
   for (iIndex= 0; iIndex < ptr_array_length(pRoutes); iIndex++) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    if (pRoute->pClusterList == NULL)
+    if (pRoute->pAttr->pClusterList == NULL)
       uMinLen= 0;
     else
-      uMinLen= cluster_list_length(pRoute->pClusterList);    
+      uMinLen= cluster_list_length(pRoute->pAttr->pClusterList);    
   }
   // Discard routes with a longer cluster-ID-list
   iIndex= 0;
   while (iIndex < ptr_array_length(pRoutes)) {
     pRoute= (SRoute *) pRoutes->data[iIndex];
-    if ((pRoute->pClusterList != NULL) &&
-	(cluster_list_length(pRoute->pClusterList) > uMinLen))
+    if ((pRoute->pAttr->pClusterList != NULL) &&
+	(cluster_list_length(pRoute->pAttr->pClusterList) > uMinLen))
       ptr_array_remove_at(pRoutes, iIndex);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__

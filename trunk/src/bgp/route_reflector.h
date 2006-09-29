@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifndef __BGP_ROUTE_REFLECTOR_H__
@@ -39,11 +39,14 @@ typedef SUInt32Array SClusterList;
 extern void cluster_list_destroy(SClusterList ** ppClusterList);
 // ----- cluster_list_dump ------------------------------------------
 extern void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList);
-// ----- cluster_list_cmp -------------------------------------------
-extern int cluster_list_cmp(SClusterList * pClusterList1,
-			    SClusterList * pClusterList2);
+// ----- cluster_list_equals -------------------------------------------
+extern int cluster_list_equals(SClusterList * pClusterList1,
+			       SClusterList * pClusterList2);
 // ----- cluster_list_contains --------------------------------------
 extern int cluster_list_contains(SClusterList * pClusterList,
 				 cluster_id_t tClusterID);
+
+// -----[ originator_equals ]----------------------------------------
+extern int originator_equals(net_addr_t * pOrig1, net_addr_t * pOrig2);
 
 #endif

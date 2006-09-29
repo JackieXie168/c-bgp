@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 11/04/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -222,15 +222,15 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     }
 
     // Route-reflectors: Originator
-    if (pRoute->pOriginator != NULL) {
+    if (pRoute->pAttr->pOriginator != NULL) {
       log_printf(pStream, "originator:");
-      ip_address_dump(pStream, *pRoute->pOriginator);
+      ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
     }
     log_printf(pStream, "|");
 
-    if (pRoute->pClusterList != NULL) {
+    if (pRoute->pAttr->pClusterList != NULL) {
       log_printf(pStream, "cluster_id_list:");
-      cluster_list_dump(pStream, pRoute->pClusterList);
+      cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
     }
     log_printf(pStream, "|");
 

@@ -471,7 +471,7 @@ int mrtd_create_route(SBGPRouter * pRouter, SBGPPeer * pPeer,
   *ppRoute= pRoute;
 
   LOG_DEBUG(LOG_LEVEL_DEBUG, "ROUTE CREATED FROM MRT RECORD :-)\n");
-
+  
   return tType;
 }
 
