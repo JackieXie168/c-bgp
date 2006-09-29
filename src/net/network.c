@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 24/04/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -960,12 +960,13 @@ void _network_destroy()
 int node_handle_event(void * pHandler, SNetMessage * pMessage)
 {
   SNetNode * pNode= (SNetNode *) pHandler;
+  int iPayLoad= (int) (long) pMessage->pPayLoad;
 
   printf("node_event[");
   ip_address_dump(pLogOut, pNode->tAddr);
   printf("]: from ");
   ip_address_dump(pLogOut, pMessage->tSrcAddr);
-  printf(", %d", (int) pMessage->pPayLoad);
+  printf(", %d", iPayLoad);
 
   return 0;
 }

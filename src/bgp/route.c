@@ -73,10 +73,6 @@ SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
   pRoute->pEBGPRoute= NULL;
 #endif
 
-  /* Route-reflection related fields */
-  pRoute->pOriginator= NULL;
-  pRoute->pClusterList= NULL;
-
 #ifdef __ROUTER_LIST_ENABLE__
   pRoute->pRouterList= NULL;
 #endif
@@ -99,10 +95,6 @@ void route_destroy(SRoute ** ppRoute)
 #ifdef BGP_QOS
     ptr_array_destroy(&(*ppRoute)->pAggrRoutes);
 #endif
-
-    /* Route-reflection */
-    route_originator_clear(*ppRoute);
-    route_cluster_list_clear(*ppRoute);
 
 #ifdef __ROUTER_LIST_ENABLE__
     route_router_list_clear(*ppRoute);
@@ -472,9 +464,9 @@ inline uint32_t route_med_get(SRoute * pRoute)
  */
 inline void route_originator_set(SRoute * pRoute, net_addr_t tOriginator)
 {
-  assert(pRoute->pOriginator == NULL);
-  pRoute->pOriginator= (net_addr_t *) MALLOC(sizeof(net_addr_t));
-  memcpy(pRoute->pOriginator, &tOriginator, sizeof(net_addr_t));
+  assert(pRoute->pAttr->pOriginator == NULL);
+  pRoute->pAttr->pOriginator= (net_addr_t *) MALLOC(sizeof(net_addr_t));
+  memcpy(pRoute->pAttr->pOriginator, &tOriginator, sizeof(net_addr_t));
 }
 
 // ----- route_originator_get ---------------------------------------
@@ -487,9 +479,9 @@ inline void route_originator_set(SRoute * pRoute, net_addr_t tOriginator)
  */
 inline int route_originator_get(SRoute * pRoute, net_addr_t * pOriginator)
 {
-  if (pRoute->pOriginator != NULL) {
+  if (pRoute->pAttr->pOriginator != NULL) {
     if (pOriginator != NULL)
-      memcpy(pOriginator, pRoute->pOriginator, sizeof(net_addr_t));
+      memcpy(pOriginator, pRoute->pAttr->pOriginator, sizeof(net_addr_t));
     return 0;
   } else
     return -1;
@@ -501,24 +493,21 @@ inline int route_originator_get(SRoute * pRoute, net_addr_t * pOriginator)
  */
 void route_originator_clear(SRoute * pRoute)
 {
-  if (pRoute->pOriginator != NULL) {
-    FREE(pRoute->pOriginator);
-    pRoute->pOriginator= NULL;
-  }
+  bgp_attr_originator_destroy(pRoute->pAttr);
 }
 
 // ----- route_originator_equals ------------------------------------
 /**
+ * Compare the Originator-ID of two routes.
  *
+ * Return value:
+ *   1  if both originator-IDs are equal
+ *   0  otherwise
  */
 inline int route_originator_equals(SRoute * pRoute1, SRoute * pRoute2)
 {
-  if (pRoute1->pOriginator == pRoute2->pOriginator)
-    return 1;
-  if ((pRoute1->pOriginator == NULL) || (pRoute2->pOriginator == NULL) ||
-      (*pRoute1->pOriginator != *pRoute2->pOriginator))
-      return 0;
-  return 1;
+  return originator_equals(pRoute1->pAttr->pOriginator,
+			   pRoute2->pAttr->pOriginator);
 }
 
 
@@ -534,8 +523,8 @@ inline int route_originator_equals(SRoute * pRoute1, SRoute * pRoute2)
  */
 inline void route_cluster_list_set(SRoute * pRoute)
 {
-  assert(pRoute->pClusterList == NULL);
-  pRoute->pClusterList= cluster_list_create();
+  assert(pRoute->pAttr->pClusterList == NULL);
+  pRoute->pAttr->pClusterList= cluster_list_create();
 }
 
 // ----- route_cluster_list_append ----------------------------------
@@ -544,9 +533,9 @@ inline void route_cluster_list_set(SRoute * pRoute)
  */
 inline void route_cluster_list_append(SRoute * pRoute, cluster_id_t tClusterID)
 {
-  if (pRoute->pClusterList == NULL)
+  if (pRoute->pAttr->pClusterList == NULL)
     route_cluster_list_set(pRoute);
-  cluster_list_append(pRoute->pClusterList, tClusterID);
+  cluster_list_append(pRoute->pAttr->pClusterList, tClusterID);
 }
 
 // ----- route_cluster_list_clear -----------------------------------
@@ -555,21 +544,21 @@ inline void route_cluster_list_append(SRoute * pRoute, cluster_id_t tClusterID)
  */
 void route_cluster_list_clear(SRoute * pRoute)
 {
-  cluster_list_destroy(&pRoute->pClusterList);
+  bgp_attr_cluster_list_destroy(pRoute->pAttr);
 }
 
 // ----- route_cluster_list_equals ----------------------------------
 /**
+ * Compare the Cluster-ID-List of two routes.
  *
+ * Return value:
+ *   1  if both Cluster-ID-Lists are equal
+ *   0  otherwise
  */
 inline int route_cluster_list_equals(SRoute * pRoute1, SRoute * pRoute2)
 {
-  if (pRoute1->pClusterList == pRoute2->pClusterList)
-    return 1;
-  if ((pRoute1->pClusterList == NULL) || (pRoute2->pClusterList == NULL)
-      || (cluster_list_cmp(pRoute1->pClusterList, pRoute2->pClusterList) != 0))
-    return 0;
-  return 1;
+  return cluster_list_equals(pRoute1->pAttr->pClusterList,
+			     pRoute2->pAttr->pClusterList);
 }
 
 // ----- route_cluster_list_contains --------------------------------
@@ -578,20 +567,9 @@ inline int route_cluster_list_equals(SRoute * pRoute1, SRoute * pRoute2)
  */
 inline int route_cluster_list_contains(SRoute * pRoute, cluster_id_t tClusterID)
 {
-  if (pRoute->pClusterList != NULL)
-    return cluster_list_contains(pRoute->pClusterList, tClusterID);
+  if (pRoute->pAttr->pClusterList != NULL)
+    return cluster_list_contains(pRoute->pAttr->pClusterList, tClusterID);
   return 0;
-}
-
-// ----- route_cluster_list_copy ------------------------------------
-/**
- *
- */
-inline SClusterList * route_cluster_list_copy(SRoute * pRoute)
-{
-  if (pRoute->pClusterList == NULL)
-    return NULL;
-  return cluster_list_copy(pRoute->pClusterList);
 }
 
 
@@ -651,8 +629,6 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 #endif
 
   if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
-      (route_originator_equals(pRoute1, pRoute2)) &&
-      (route_cluster_list_equals(pRoute1, pRoute2)) &&
       (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr))) {
     return 1;
   }
@@ -665,18 +641,12 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
  */
 SRoute * route_copy(SRoute * pRoute)
 {
-  net_addr_t tOriginator;
   SRoute * pNewRoute= route_create2(pRoute->sPrefix,
 				    pRoute->pPeer,
 				    bgp_attr_copy(pRoute->pAttr));
 
   /* Route info */
   pNewRoute->uFlags= pRoute->uFlags;
-
-  /* Route-Reflection attributes */
-  if (route_originator_get(pRoute, &tOriginator) == 0)
-    route_originator_set(pNewRoute, tOriginator);
-  pNewRoute->pClusterList= route_cluster_list_copy(pRoute);
 
   /* QoS attributes (experimental) */
 #ifdef BGP_QOS
@@ -797,7 +767,7 @@ void route_dump_cisco(SLogStream * pStream, SRoute * pRoute)
  *   <next-hop>|<local-pref>|<med>|<comm>|<ext-comm>|
  *
  * where <best> is "B" if the route is marked as best and "?"
- * otherwize. Note that the <ext-comm> and <delay> fields are not
+ * otherwise. Note that the <ext-comm> and <delay> fields are not
  * standard MRTD fields.
  *
  * Additional fields are dumped which are not standard:
@@ -873,13 +843,13 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
     log_printf(pStream, "|");
 
     // Route-reflectors: Originator-ID
-    if (pRoute->pOriginator != NULL)
-      ip_address_dump(pStream, *pRoute->pOriginator);
+    if (pRoute->pAttr->pOriginator != NULL)
+      ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
     log_printf(pStream, "|");
 
     // Route-reflectors: Cluster-ID-List
-    if (pRoute->pClusterList != NULL)
-      cluster_list_dump(pStream, pRoute->pClusterList);
+    if (pRoute->pAttr->pClusterList != NULL)
+      cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
     log_printf(pStream, "|");
     
 #ifdef __ROUTER_LIST_ENABLE__
@@ -984,12 +954,12 @@ void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
 	  ecomm_dump(pStream, pRoute->pAttr->pECommunities, ECOMM_DUMP_RAW);
 	break;
       case 'O':
-	if (pRoute->pOriginator != NULL)
-	  ip_address_dump(pStream, *pRoute->pOriginator);
+	if (pRoute->pAttr->pOriginator != NULL)
+	  ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
 	break;
       case 'C':
-	if (pRoute->pClusterList != NULL)
-	  cluster_list_dump(pStream, pRoute->pClusterList);
+	if (pRoute->pAttr->pClusterList != NULL)
+	  cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
 	break;
       default:
 	log_printf(pStream, "?unknown?");

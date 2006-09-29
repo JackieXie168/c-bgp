@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/12/2003
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -37,25 +37,30 @@ void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList)
   }
 }
 
-// ----- cluster_list_cmp -------------------------------------------
+// ----- cluster_list_equals -------------------------------------------
 /**
  * This function compares 2 cluster-ID-lists.
  *
- * If they differ, the function returns -1, otherwise, the function
- * returns 0.
+ * Return value:
+ *    1  if they are equal
+ *    0  otherwise
  */
-int cluster_list_cmp(SClusterList * pClusterList1,
-		     SClusterList * pClusterList2)
+int cluster_list_equals(SClusterList * pClusterList1,
+			SClusterList * pClusterList2)
 {
   int iIndex;
 
+  if (pClusterList1 == pClusterList2)
+    return 1;
+  if ((pClusterList1 == NULL) || (pClusterList2 == NULL))
+    return 0;
   if (_array_length((SArray *) pClusterList1) !=
       _array_length((SArray *) pClusterList2))
-    return -1;
+    return 0;
   for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList1); iIndex++)
     if (pClusterList1->data[iIndex] != pClusterList2->data[iIndex])
-      return -1;
-  return 0;
+      return 0;
+  return 1;
 }
 
 // ----- cluster_list_contains --------------------------------------
@@ -81,4 +86,23 @@ int cluster_list_contains(SClusterList * pClusterList,
       return 1;
   }
   return 0;
+}
+
+// -----[ originator_equals ]----------------------------------------
+/**
+ * Test if two Originator-IDs are equal.
+ *
+ * Return value:
+ *   1  if they are equal
+ *   0  otherwise
+ */
+int originator_equals(net_addr_t * pOrig1, net_addr_t * pOrig2)
+{  
+  if (pOrig1 == pOrig2)
+    return 1;
+  if ((pOrig1 == NULL) ||
+      (pOrig2 == NULL) ||
+      (*pOrig1 != *pOrig2))
+      return 0;
+  return 1;
 }

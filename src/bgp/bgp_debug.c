@@ -107,8 +107,25 @@ void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
       if (iNumRoutes <= 1)
 	break;
       iOldNumRoutes= iNumRoutes;
-      log_printf(pStream, "[ %s ]\n", DP_RULE_NAME[iRule]);
+      log_printf(pStream, "[ %s ] remaining: %d\n",
+		 DP_RULE_NAME[iRule], iNumRoutes);
+
+      /* DEBUG-BEGIN */
+      printf("---------------------------------\n");
+      printf("AVAILABLE ROUTES BEFORE RULE:\n");
+      routes_list_dump(pLogOut, pRoutes);
+      printf("---------------------------------\n");
+      /* DEBUG-END */
+
       DP_RULES[iRule](pRouter, pRoutes);
+
+      /* DEBUG-BEGIN */
+      printf("---------------------------------\n");
+      printf("AVAILABLE ROUTES AFTER RULE:\n");
+      routes_list_dump(pLogOut, pRoutes);
+      printf("---------------------------------\n");
+      /* DEBUG-END */
+
       iNumRoutes= ptr_array_length(pRoutes);
       if (iNumRoutes < iOldNumRoutes)
 	routes_list_dump(pStream, pRoutes);

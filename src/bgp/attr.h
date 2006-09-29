@@ -40,6 +40,11 @@ extern inline void bgp_attr_set_comm(SBGPAttr ** ppAttr,
 extern inline void bgp_attr_comm_destroy(SBGPAttr ** ppAttr);
 // -----[ bgp_attr_comm_remove ]-------------------------------------
 extern inline void bgp_attr_comm_remove(SBGPAttr ** ppAttr, comm_t tCommunity);
+// -----[ bgp_attr_originator_destroy ]------------------------------
+extern inline void bgp_attr_originator_destroy(SBGPAttr * pAttr);
+// -----[ bgp_attr_cluster_list_destroy ]----------------------------
+extern inline void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr);
+
 // -----[ bgp_attr_cmp ]---------------------------------------------
 extern int bgp_attr_cmp(SBGPAttr * pAttr1, SBGPAttr * pAttr2);
 // -----[ bgp_attr_copy ]--------------------------------------------

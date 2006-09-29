@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 03/03/2006
+// @lastdate 28/09/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -52,8 +52,9 @@ int icmp_echo_reply(SNetNode * pNode, net_addr_t tDstAddr,
 int icmp_event_handler(void * pHandler, SNetMessage * pMessage)
 {
   SNetNode * pNode= (SNetNode *) pHandler;
+  int iPayLoad= (int) (long) pMessage->pPayLoad;
 
-  switch ((int) pMessage->pPayLoad) {
+  switch (iPayLoad) {
   case ICMP_ECHO_REQUEST:
     log_printf(pLogOut, "icmp-echo-request from ");
     ip_address_dump(pLogOut, pMessage->tSrcAddr);
