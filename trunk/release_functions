@@ -241,7 +241,7 @@ check_cvs_status()
     if [ $? != 0 ]; then
 	error "could not get CVS status"
     fi
-    CVS_STATUS_MODIFIED=`echo -e "$CVS_STATUS" | grep -v -i 'Up-to-date'`
+    CVS_STATUS_MODIFIED=`echo -e "$CVS_STATUS" | grep -v 'release.sh' | grep -v -i 'Up-to-date'`
     if [ ! -z "$CVS_STATUS_MODIFIED" ]; then
 	echo -e "$CVS_STATUS_MODIFIED"
 	error "commit/update is needed before release"
@@ -287,7 +287,7 @@ check_svn_status()
     if [ $? != 0 ]; then
 	error "could not get SVN status"
     fi
-    SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -E '^[^ ]'`
+    SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -E '^[^ ]'`
     if [ ! -z "$SVN_STATUS_MODIFIED" ]; then
 	echo -e "$SVN_STATUS_MODIFIED"
 	error "commit/update is needed before release"
@@ -330,8 +330,10 @@ svn_tag()
 # -----[ parse_arguments ]-------------------------------------------
 parse_arguments()
 {
+    ARGS=$@
+
     info "Parsing arguments..."
-    for arg in $@; do
+    for arg in $ARGS; do
 	case $arg in
 	-doit)
             TEST_ONLY=0;
@@ -364,6 +366,8 @@ parse_arguments()
 
 make_release()
 {
+    ARGS=$@
+
     declare REDIRECT='>/dev/null 2>&1'
     declare -i BUILD=1
     declare -i PUBLISH=0
@@ -371,7 +375,10 @@ make_release()
     declare -i TEST_ONLY=1
     declare -i VERBOSE=0
 
-    parse_arguments
+    parse_arguments $ARGS
+
+	echo "TEST_ONLY: $TEST_ONLY"
+
     check_parameters
 
     # ===================================================================
