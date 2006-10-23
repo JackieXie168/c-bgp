@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/03/2006
-// @lastdate 13/04/2006
+// @lastdate 06/10/2006
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
@@ -41,7 +41,7 @@ public class Router extends ProxyObject
     	this.routerID= routerID;
     	this.name= name;
     }
-
+    
     // -----[ getAddress ]-------------------------------------------
     /**
      * Returns the router's IP address.

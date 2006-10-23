@@ -815,6 +815,24 @@ int cli_net_node_route_del(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_node_show_ifaces -----------------------------------
+/**
+ * context: {node}
+ * tokens: {addr}
+ */
+int cli_net_node_show_ifaces(SCliContext * pContext, STokens * pTokens)
+{
+  SNetNode * pNode;
+
+  // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  node_ifaces_dump(pLogOut, pNode);
+  return CLI_SUCCESS;
+}
+
 // ----- cli_net_node_show_info -------------------------------------
 /**
  * context: {node}
@@ -1064,6 +1082,9 @@ int cli_register_net_node_show(SCliCmds * pCmds)
   SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
+  cli_cmds_add(pSubCmds, cli_cmd_create("ifaces",
+					cli_net_node_show_ifaces,
+					NULL, NULL));
   cli_cmds_add(pSubCmds, cli_cmd_create("info",
 					cli_net_node_show_info,
 					NULL, NULL));
