@@ -7,6 +7,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_ProxyObject
+ * Method:    _jni_unregister
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_ProxyObject__1jni_1unregister
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

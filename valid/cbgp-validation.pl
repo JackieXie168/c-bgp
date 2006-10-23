@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 14/09/2006
+# @lastdate 11/10/2006
 # ===================================================================
 # Syntax:
 #
@@ -69,6 +69,8 @@ use CBGPValid::TestConstants;
 use CBGPValid::Tests;
 use CBGPValid::UI;
 use POSIX;
+
+use constant CBGP_VALIDATION_VERSION => '1.6';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -134,7 +136,7 @@ my $validation= {
 		 'cbgp_version' => undef,
 		 'program_args' => (join " ", @ARGV),
 		 'program_name' => $0,
-		 'program_version' => '1.6',
+		 'program_version' => CBGP_VALIDATION_VERSION,
 		};
 
 show_info("c-bgp validation v".$validation->{'program_version'});

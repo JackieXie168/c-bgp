@@ -58,6 +58,8 @@ extern int node_addresses_for_each(SNetNode * pNode,
 				   void * pContext);
 // ----- node_addresses_dump ----------------------------------------
 extern void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
+// -----[ node_ifaces_dump ]-----------------------------------------
+extern void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_links_dump --------------------------------------------
 extern void node_links_dump(SLogStream * pStream, SNetNode * pNode);
 // ----- node_links_destroy -----------------------------------------

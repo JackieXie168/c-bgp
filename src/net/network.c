@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 28/09/2006
+// @lastdate 12/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -84,7 +84,8 @@ void network_perror(SLogStream * pStream, int iErrorCode)
     }*/
 
 // ----- node_get_prefix---------------------------------------------
-void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix){
+void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix)
+{
   pPrefix->tNetwork = pNode->tAddr;
   pPrefix->uMaskLen = 32;
 }
@@ -178,9 +179,13 @@ int node_igp_domain_add(SNetNode * pNode, uint16_t uDomainNumber)
   return _array_add((SArray*)(pNode->pIGPDomains), &uDomainNumber);
 }
 
-// ----- node_igp_domain_add -------------------------------------------
-/** Return TRUE (1) if node belongs to igp domain tDomainNumber
- * FALSE (0) otherwise.
+// ----- node_belongs_to_igp_domain ---------------------------------
+/**
+ * Test if a node belongs to a given IGP domain.
+ *
+ * Return value:
+ *   TRUE (1) if node belongs to the given IGP domain
+ *   FALSE (0) otherwise.
  */
 int node_belongs_to_igp_domain(SNetNode * pNode, uint16_t uDomainNumber)
 {
@@ -349,6 +354,36 @@ void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
       log_printf(pStream, " ");
       ip_address_dump(pStream, pLink->tIfaceAddr);
     }
+  }
+}
+
+// -----[ node_ifaces_dump ]-----------------------------------------
+/**
+ * This function shows the list of interfaces of a given node's, along
+ * with their type.
+ */
+void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Show loobpack interface
+  log_printf(pStream, "lo\t");
+  ip_address_dump(pStream, pNode->tAddr);
+  log_printf(pStream, "\n");
+
+  // Show link interfaces
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+      log_printf(pStream, "ptmp\t");
+      ip_address_dump(pStream, pLink->tIfaceAddr);
+    } else {
+      log_printf(pStream, "ptp\t");
+      ip_address_dump(pStream, pLink->UDestId.tAddr);
+    }
+    log_printf(pStream, "\n");
   }
 }
 

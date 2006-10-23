@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 03/03/2006
+// @lastdate 23/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,7 +83,7 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
   // Get node from context
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
   
-  // Get domain id
+  // Get domain ID
   if (tokens_get_uint_at(pTokens, 1, &uId) ||
       (uId > 65535)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
@@ -91,9 +91,15 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-
+  /* Get domain from ID. Check if domain exists... */
   pDomain= get_igp_domain(uId);
+  if (pDomain == NULL) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown domain \"%d\"\n",
+	    uId);
+    return CLI_ERROR_COMMAND_FAILED;    
+  }
   
+  /* Check if domain already contains this node */
   if (igp_domain_contains_router(pDomain, pNode)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add to domain \"%d\"\n",
 	       uId);

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ===================================================================
 # Release script for c-bgp
-# Last modified: 14/09/2006 (bqu)
+# Last modified: 29/09/2006 (bqu)
 # ===================================================================
 
 . release_functions
@@ -39,7 +39,7 @@ RELEASE_VERSION=2
 # BUILD_VERSION (mandatory)
 #   is the build number
 #
-BUILD_VERSION=2
+BUILD_VERSION=3
 #
 # VERSION
 #   
@@ -49,7 +49,7 @@ VERSION="$MAIN_VERSION.$RELEASE_VERSION.$BUILD_VERSION"
 #   is an array of configure options. The project is built once
 #   for each element of the array.
 #
-CONF_OPTIONS[0]=""
+CONF_OPTIONS[0]=" "
 CONF_OPTIONS[1]="--enable-experimental"
 CONF_OPTIONS[2]="--with-jni"
 #
@@ -85,4 +85,4 @@ PUBLISH_FILES="$MODULE-$VERSION.tar.gz \
 # ----->>>> YOU SHOULDN'T CHANGE THE SCRIPT PAST THIS LINE <<<<------
 #####################################################################
 
-make_release
+make_release $@

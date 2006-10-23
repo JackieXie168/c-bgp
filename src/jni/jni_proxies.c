@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 25/04/2006
+// @lastdate 06/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -66,7 +66,6 @@ void jni_proxy_add(JNIEnv * jEnv, jobject joObject, void * pObject)
     (SHashCodeObject *) MALLOC(sizeof(SHashCodeObject));
   pHashObj->jiHashCode= jni_Object_hashCode(jEnv, joObject);
   pHashObj->pObject= pObject;
-  //fprintf(stderr, "JNI::proxy_add(%d, %p)\n", pHashObj->jiHashCode, pObject);
   if (pHashCode2Object == NULL) {
     pHashCode2Object= hash_init(JNI_PROXY_HASH_SIZE,
 				0,
@@ -83,9 +82,9 @@ void jni_proxy_add(JNIEnv * jEnv, jobject joObject, void * pObject)
  */
 void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
 {
-  jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  fprintf(stderr, "JNI::proxy_remove(%d)\n", (int32_t) jiHashCode);
-  fprintf(stderr, "\tNOT YET IMPLEMENTED\n");
+  SHashCodeObject sObject;
+  sObject.jiHashCode= jni_Object_hashCode(jEnv, joObject);
+  hash_del(pHashCode2Object, &sObject);
 }
 
 // -----[ jni_proxy_lookup ]-----------------------------------------
@@ -112,4 +111,14 @@ inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
 {
   return cbgp_jni_call_Object(jEnv, joObject, "getCBGP",
 			       METHOD_ProxyObject_getCBGP);
+}
+
+// -----[ ]-----
+/**
+ *
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_ProxyObject__1jni_1unregister
+  (JNIEnv * jEnv, jobject joObject)
+{
+  jni_proxy_remove(jEnv, joObject);
 }
