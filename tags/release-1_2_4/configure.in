@@ -1,0 +1,378 @@
+dnl =================================================================
+dnl configure.in for cbgp
+dnl
+dnl @author Bruno Quoitin
+dnl @version 29/09/2006
+dnl =================================================================
+
+AC_INIT([cbgp], [1.2.4])
+AC_CONFIG_SRCDIR(src/main.c)
+AC_PREREQ(2.57)
+AC_PREFIX_DEFAULT(/usr/local)
+
+dnl Obsolete ?
+dnl but avoid warning about AC_CANONICAL_TARGET being called multiple
+dnl times :(
+AC_CANONICAL_SYSTEM
+
+dnl Version setting up for Automake
+AM_INIT_AUTOMAKE([no-define])
+AM_CONFIG_HEADER(src/config.h)
+#AM_MAINTAINER_MODE
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+#AC_PROG_CXX
+AC_PROG_LN_S
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADER(limits.h)
+dnl Test for get/setrlimit availability
+AC_CHECK_FUNCS(getrlimit setrlimit)
+AC_CHECK_HEADER(sys/resource.h)
+AC_CHECK_FUNCS(syslog)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+
+dnl Now arrange the build libtool
+AC_PROG_LIBTOOL
+
+
+AC_DEFUN([AC_PROG_JAVAH],[
+AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
+AC_REQUIRE([AC_PROG_CPP])dnl
+AC_PATH_PROG(JAVAH,javah)
+   ac_save_CPPFLAGS="$CPPFLAGS"
+changequote(, )dnl
+   ac_dir=`echo $ac_cv_path_JAVAH | sed 's,\(.*\)/[^/]*/[^/]*$,\1/include,'`
+   ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+changequote([, ])dnl
+   CPPFLAGS="$ac_save_CPPFLAGS -I$ac_dir -I$ac_dir/$ac_machdep"
+   AC_TRY_CPP([#include <jni.h>],
+              ac_save_CPPFLAGS="$CPPFLAGS",
+              AC_MSG_WARN([unable to include <jni.h>]))
+   CPPFLAGS="$ac_save_CPPFLAGS"
+])
+
+dnl *****************************************************************
+dnl JAVA/JNI CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(jni,dnl
+[  --with-jni              build with the Java Native Interface
+  --without-jni           do not use the builtin readline function
+  --with-jni=DIR          specify the location of jni.h ],,
+[test -z "$with_jni" && with_jni=no])
+
+if test "$with_jni" != "no"; then
+
+   AC_MSG_CHECKING([for JAVA_HOME])
+   if test -z "$JAVA_HOME"; then
+     AC_MSG_ERROR([undefined])
+     echo "Error: environment variable JAVA_HOME is not set."
+     echo "       This variable should point to your Java SDK."
+     exit -1
+   fi
+   AC_MSG_RESULT([$JAVA_HOME])
+
+   JAVA=java
+   JAVAC=javac
+   AC_PROG_JAVAC
+   AC_PROG_JAVA
+
+   AC_PATH_PROG(JAVAH, javah)
+
+   jni_paths="$JAVA_HOME/include"
+   if test "$with_jni" != "yes"; then
+     jni_paths="$with_jni $jni_paths"
+   fi
+   for jni_path in $jni_paths; do
+     AC_MSG_CHECKING([for jni.h in $jni_path])
+     if test -e "$jni_path/jni.h"; then
+       AC_MSG_RESULT([ok])
+       AC_MSG_CHECKING([for jni_md.h in $jni_path])
+       if test -e "$jni_path/jni_md.h"; then
+         AC_MSG_RESULT([ok])
+         jni_cflags="-I$jni_path"
+         break
+       else
+         AC_MSG_WARN([$build_os])
+         ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,' | sed 's,linux-gnu,linux,'`
+         AC_MSG_WARN([$ac_machdep])
+         AC_MSG_RESULT([no])
+         AC_MSG_CHECKING([for jni_md.h in $jni_path/$ac_machdep])
+         if test -e "$jni_path/$ac_machdep/jni_md.h"; then
+           AC_MSG_RESULT([ok])
+           jni_cflags="-I$jni_path -I$jni_path/$ac_machdep"
+           break
+         fi
+       fi
+     fi
+   done
+
+   if test -z "$jni_cflags"; then
+     AC_MSG_RESULT([no])
+     echo "Error: no jni.h could be found at the given location(s).";
+     echo "       Specified path: $jni_paths";
+     exit -1;
+   else
+     CFLAGS="$CFLAGS $jni_cflags"
+     CPPFLAGS="$CPPFLAGS $jni_cflags"
+   fi
+
+   dnl Check that jni_md.h header can be compiled
+   AC_CHECK_HEADERS(jni_md.h, [jni_md_header_ok=yes], [jni_md_header_ok=no])
+   if test "$jni_md_header_ok" != "yes"; then
+     AC_MSG_WARN([could not find jni_md.h (machine dependent part of jni.h)])
+     dnl TODO: add machine dependent sub-directory
+     dnl (where jni_md.h might be located)
+   fi
+
+   dnl Check that jni.h header can be compiled
+   AC_CHECK_HEADERS(jni.h, [jni_header_ok=yes], [jni_header_ok=no])
+   if test "$jni_header_ok" != yes; then
+      with_jni="no"
+      echo "Error: could not find java native interface header (jni.h)";
+      echo "       You have requested the JNI of C-BGP.";
+      echo "       Use --with-jni=DIR to mention the path to jni.h";
+      exit -1;
+   else
+      AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
+   fi
+fi
+AM_CONDITIONAL([WITH_JNI], [test "$with_jni" != no])
+dnl *****************************************************************
+dnl JAVA/JNI CHECK: END
+dnl *****************************************************************
+
+
+dnl Conditional compilation with memory debugger
+AM_CONDITIONAL([WITH_LIBALLOC], [test "yes" = "no"])
+
+
+dnl *****************************************************************
+dnl PCRE CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(pcre,
+        [  --with-pcre=DIR         use pcre in <DIR>],
+           PATH=$withval/bin:$PATH)
+
+AC_CHECK_PROG(LIBPCRE_CONFIG, pcre-config, pcre-config, false)
+
+if test "$LIBPCRE_CONFIG" = "false"; then
+   echo "ERROR: Could not find pcre-config in your path.";
+   echo "       You need PCRE to compile C-BGP.";
+   echo "       Source: http://www.pcre.org";
+   echo "       Use --with-pcre=DIR to mention another search path";
+   exit -1;
+fi
+
+AC_MSG_CHECKING([for pcre libs])
+pcre_libs=`pcre-config --libs`
+AC_MSG_RESULT($pcre_libs)
+AC_MSG_CHECKING([for pcre cflags])
+pcre_cflags=`pcre-config --cflags`
+AC_MSG_RESULT($pcre_cflags)
+AC_SUBST(pcre_libs)
+AC_SUBST(pcre_cflags)
+AC_DEFINE([HAVE_LIBPCRE], 1, [Define to 1 if PCRE library was found ])
+dnl *****************************************************************
+dnl PCRE CHECK: END
+dnl *****************************************************************
+
+
+dnl Test for XML availability
+AC_ARG_ENABLE(xml,
+   AC_HELP_STRING([--enable-xml],
+      [enable XML support]),
+   cbgp_config_xml="$enableval",
+)
+if test "x$cbgp_config_xml" = "xyes"; then
+   AC_DEFINE([HAVE_XML], 1, [Define to 1 if XML support is compiled])
+fi
+
+
+dnl Enable/disable libbgpdump ?
+AC_ARG_ENABLE(bgpdump,
+   AC_HELP_STRING([--disable-bgpdump],
+      [disable bgpdump]),
+   cbgp_config_bgpdump="$enableval",
+)
+if test "x$cbgp_config_bgpdump" != "xno"; then
+   AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
+fi
+
+
+dnl *****************************************************************
+dnl READLINE CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(readline,dnl
+[  --with-readline         use the builtin minimal readline function (default)
+  --without-readline      do not use the builtin readline function
+  --with-readline=DIR     Specify the location of GNU readline],,
+  [test -z "$with_readline" && with_readline=yes])
+
+dnl GNU readline and the required terminal library
+if test "$with_readline" != "no"; then
+  dnl check for terminal library
+  dnl this is a very cool solution from octave's configure.in
+  gp_tcap=""
+  for termlib in ncurses curses termcap terminfo termlib; do
+    AC_CHECK_LIB(${termlib}, tputs, [gp_tcap="$gp_tcap -l$termlib"])
+    case "$gp_tcap" in
+      *-l${termlib}*)
+        break
+      ;;
+    esac
+  done
+
+  dnl Default readline (should be found in current paths)
+  if test "$with_readline" = "yes"; then
+    AC_CHECK_LIB(readline, readline,
+      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],, [${gp_tcap}])
+   else
+     dnl Specific readline (path specified as an option)
+     if test -d "$with_readline/include"; then
+       readline_cflags="-I$with_readline/include"
+       CFLAGS="$CFLAGS $readline_cflags"
+       AC_SUBST(CFLAGS)
+     fi
+     if test -d "$with_readline/lib"; then
+       readline_libs="-L$with_readline/lib"
+       LDFLAGS="$LDFLAGS $readline_libs"
+       AC_SUBST(LDFLAGS)
+     fi
+    AC_CHECK_LIB(readline,readline,
+      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],,[${gp_tcap}])
+  fi
+
+  if test "$ac_cv_lib_readline_readline" = no; then
+    AC_MSG_ERROR([GNU readline not found])
+  else
+    AC_DEFINE(HAVE_LIBREADLINE,1,
+              [ Define if you are using the GNU readline library. ])
+    readline_libs="$TERMLIBS"
+    AC_SUBST(readline_libs)
+    AC_CHECK_HEADERS(readline/readline.h,,
+      AC_MSG_WARN([found GNU readline library but not readline.h
+ease add path to readline.h to CPPFLAGS in Makefile]))
+    readline_too_old=no
+    AC_CHECK_LIB(readline,rl_completion_matches,[],[])
+    if test "$ac_cv_lib_readline_rl_completion_matches" = yes; then
+      AC_DEFINE(HAVE_RL_COMPLETION_MATCHES, 1,
+                [ Define if rl_completion_matches is available. ])
+    else
+      readline_too_old=yes
+    fi
+    AC_CHECK_LIB(readline,rl_filename_completion_function,[], [])
+    if test "$ac_cv_lib_readline_rl_filename_completion_function" = yes; then
+      AC_DEFINE(HAVE_RL_FILENAME_COMPLETION_FUNCTION, 1,
+                [ Define if rl_filename_completion_function is available. ])
+    else
+      readline_too_old=yes
+    fi
+    AC_CHECK_LIB(readline,rl_on_new_line,[],[])
+    if test "$ac_cv_lib_readline_rl_on_new_line" = yes; then
+      AC_DEFINE(HAVE_RL_ON_NEW_LINE, 1,
+                [ Define if rl_on_new_line is available. ])
+    else
+      readline_too_old=yes
+    fi
+    if test "$readline_too_old" = yes; then
+      AC_MSG_WARN([Some readline functions were not found.
+                   Your readline library might be too old.
+                   Although C-BGP will still compile, some features
+    		   will not be available.])
+    fi
+    AC_CHECK_HEADERS(readline/history.h,,
+      AC_MSG_WARN([found GNU readline library but not history.h
+ease add path to history.h to CPPFLAGS in Makefile]))
+    
+  fi
+fi
+dnl *****************************************************************
+dnl READLINE CHECK: END
+dnl *****************************************************************
+
+
+dnl *****************************************************************
+dnl LIBGDS CHECK: BEGIN
+dnl *****************************************************************
+AC_ARG_WITH(libgds-dir,
+    AC_HELP_STRING([--with-libgds-dir],
+        [specify prefix for libgds library]),
+    cbgp_config_libgds_dir="$withval"
+)
+if test "x$cbgp_config_libgds_dir" != "x"; then
+   CPPFLAGS="$CPPFLAGS -I$cbgp_config_libgds_dir/include"
+   LDFLAGS="$LDFLAGS -L$cbgp_config_libgds_dir/lib"
+fi
+AC_CHECK_LIB(gds, list_create, [gds_ok=yes; LIBS="$LIBS -lgds"], gds_ok=no)
+if test "x$gds_ok" != "xyes"; then
+   AC_MSG_ERROR([libgds is needed to compile cbgp])
+else
+   dnl Check for headers
+   AC_CHECK_HEADERS(libgds/fifo.h, gds_header_ok=yes, gds_header_ok=no)
+   if test "x$gds_header_ok" != "xyes"; then
+      AC_MSG_ERROR([libgds headers are needed to compile cbgp])
+   fi
+   dnl Check 'mem_flag_set' function
+   AC_CHECK_FUNCS(mem_flag_set)
+fi
+dnl *****************************************************************
+dnl LIBGDS CHECK: END
+dnl *****************************************************************
+
+
+dnl Compile experimental features ?
+AC_ARG_ENABLE(experimental,
+   AC_HELP_STRING([--enable-experimental],
+       [enable compilation of experimental features]),
+   cbgp_experimental="$enableval")
+AM_CONDITIONAL([WITH_EXPERIMENTAL], [test "$cbgp_experimental" = "yes"])
+
+dnl Compile with the advertisement of the second best external to internal peers?
+AC_ARG_ENABLE(external-best,
+    AC_HELP_STRING([--enable-external-best],
+      [enable the advertisement of the external best to internal routers (experimental)]),
+    cbgp_external_best="$enableval")
+AM_CONDITIONAL([WITH_EXTERNAL_BEST], [test "$cbgp_external_best" = "yes"])
+
+AC_ARG_ENABLE(walton,
+    AC_HELP_STRING([--enable-walton],
+      [enables the advertisement of more than one path to a BGP speaker (experimental)]),
+    cbgp_walton="$enableval")
+AM_CONDITIONAL([WITH_WALTON], [test "$cbgp_walton" = "yes"])
+
+dnl Compile with OSPF support ?
+AC_ARG_ENABLE(ospf,
+   AC_HELP_STRING([--enable-ospf],
+       [enable compilation of ospf support]),
+   cbgp_ospf="$enableval")
+AM_CONDITIONAL([WITH_OSPF], [test "$cbgp_ospf" = "yes"])
+
+dnl Compile with debugging symbols ?
+AC_ARG_ENABLE(debug,
+   AC_HELP_STRING([--enable-debug],
+       [enable debugging symbols]),
+   cbgp_debugging="$enableval")
+AM_CONDITIONAL([WITH_DEBUGGING], [test "$cbgp_debugging" = "yes"])
+
+AC_ARG_ENABLE(memory-debug,
+    AC_HELP_STRING([--enable-memory-debug], [enable memory leaks tracking. LibGDS must be compiled with this flag too.]),
+    cbgp_memory_debug="$enableval")
+AM_CONDITIONAL([WITH_MEMORY_DEBUG], [test "$cbgp_memory_debug" = "yes"])
+
+dnl Compile with Electric Fence ?
+AC_ARG_WITH(efence,
+   AC_HELP_STRING([--with-efence],
+       [link with Electrical Fence]),
+   cbgp_efence="$withval")
+AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" = "yes"])
+
+TESTS="src/checks/basic"
+
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)
