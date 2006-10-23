@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 11/10/2006
+# @lastdate 23/10/2006
 # ===================================================================
 # Syntax:
 #
@@ -70,7 +70,7 @@ use CBGPValid::Tests;
 use CBGPValid::UI;
 use POSIX;
 
-use constant CBGP_VALIDATION_VERSION => '1.6';
+use constant CBGP_VALIDATION_VERSION => '1.6.1';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -1850,6 +1850,30 @@ sub cbgp_valid_net_igp($$)
     cbgp_topo($cbgp, $topo, 1);
     cbgp_topo_igp_compute($cbgp, $topo, 1);
     return cbgp_topo_check_igp_reachability($cbgp, $topo);
+}
+
+# -----[ cbgp_valid_net_igp_unknown_domain ]-------------------------
+# Check that adding a node to an unexisting domain fails.
+#
+# Scenario:
+#   * Create a node 0.1.0.0
+#   * Try to add the node to a domain 1 (not created)
+#   * Check the error message
+# -------------------------------------------------------------------
+sub cbgp_valid_net_igp_unknown_domain($$)
+{
+  my ($cbgp, $topo)= @_;
+  my $ERROR_MSG= "unknown domain";
+
+  cbgp_send($cbgp, "net add node 0.1.0.0");
+  cbgp_send($cbgp, "net node 0.1.0.0 domain 1");
+
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg) ||
+     !($error_msg =~ m/$ERROR_MSG/)) {
+    return TEST_FAILURE;
+  }
+    return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_net_ntf_load ]-----------------------------------
@@ -4809,6 +4833,7 @@ $tests->register("net link duplicate", "cbgp_valid_net_link_duplicate");
 $tests->register("net subnet", "cbgp_valid_net_subnet", $topo);
 $tests->register("net create", "cbgp_valid_net_create", $topo);
 $tests->register("net igp", "cbgp_valid_net_igp", $topo);
+$tests->register("net igp unknown domain", "cbgp_valid_net_igp_unknown_domain");
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 		 $resources_path."valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
