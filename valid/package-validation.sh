@@ -87,7 +87,7 @@ if [ -z "$VALID_VERSION" ]; then
     error "could not get script version (empty)"
 fi
 echo "  version: $VALID_VERSION"
-PKG_NAME="cbgp-validation-$VALID_VERSION.0"
+PKG_NAME="cbgp-validation-$VALID_VERSION"
 PKG_FILE="$PKG_NAME.tar.gz"
 PKG_DIR="$PKG_NAME"
 
