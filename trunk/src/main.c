@@ -4,9 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 04/04/2006
-// 
-// @LICENSE@
+// @lastdate 25/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,7 +13,6 @@
 
 #include <assert.h>
 #include <libgds/cli_ctx.h>
-#include <libgds/gds.h>
 #include <limits.h>
 #include <libgds/log.h>
 #include <stdio.h>
@@ -23,30 +20,19 @@
 #include <string.h>
 #include <unistd.h>
 
-// STA-TO-FIX: src/main_test.h is not in CVS
-//#include <main_test.h>
+#include "init.h"
 
-#include <bgp/as.h>
-#include <bgp/comm_hash.h>
-#include <bgp/domain.h>
-#include <bgp/filter_registry.h>
-#include <bgp/mrtd.h>
-#include <bgp/path_hash.h>
-#include <bgp/peer_t.h>
-#include <bgp/predicate_parser.h>
-#include <bgp/qos.h>
-#include <bgp/rexford.h>
-#include <bgp/route_map.h>
-#include <cli/common.h>
-#include <libgds/fifo.h>
 #include <libgds/memory.h>
-#include <net/igp_domain.h>
-#include <net/network.h>
-#include <net/net_path.h>
+//#include <net/network.h>
+//#include <net/net_path.h>
 #include <sim/simulator.h>
 #include <libgds/str_util.h>
 
-#include <net/ospf.h>
+#include <bgp/mrtd.h>
+#include <bgp/routes_list.h>
+#include <cli/common.h>
+
+//#include <net/ospf.h>
 
 #define INTERACTIVE_MODE_OK
 #ifdef HAVE_LIBREADLINE
@@ -125,13 +111,12 @@ void simulation_set_mode(uint8_t uNewMode, char * pcNewArg)
 
 // -----[ simulation_init ]------------------------------------------
 /**
- * initilize the simulation.
+ * initialize the simulation.
  */
 void simulation_init()
 {
   if (uMode == CBGP_MODE_INTERACTIVE)
     fprintf(stdout, "cbgp> init.\n");
-  simulator_init();
 }
 
 // ----- simulation_done --------------------------------------------
@@ -142,7 +127,6 @@ void simulation_done()
 {
   if (uMode == CBGP_MODE_INTERACTIVE)
     fprintf(stdout, "cbgp> done.\n");
-  simulator_done();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -583,24 +567,7 @@ void _main_done() __attribute((destructor));
 
 void _main_init()
 {
-#ifdef __MEMORY_DEBUG__
-  gds_init(GDS_OPTION_MEMORY_DEBUG);
-#else
-  gds_init(0);
-#endif
-
-  // Hash init code commented in order to allow parameter setup
-  // through he command-line/script
-  //_comm_hash_init();
-  //_path_hash_init();
-
-  _network_create();
-  _bgp_domain_init();
-  _igp_domain_init();
-  _ft_registry_init();
-  _filter_path_regex_init();
-  _route_map_init();
-  _rexford_init();
+  libcsim_init();
 #ifdef HAVE_LIBREADLINE
   _rl_init();
 #endif
@@ -613,24 +580,7 @@ void _main_done()
   if (pComplCmds != NULL)
     cli_cmds_destroy(&pComplCmds);
 
-  _cli_common_destroy();
-#ifdef HAVE_LIBREADLINE
-  _rl_destroy();
-#endif
-  _message_destroy();
-  _rexford_destroy();
-  _route_map_destroy();
-  _filter_path_regex_destroy();
-  _ft_registry_destroy();
-  _bgp_domain_destroy();
-  _igp_domain_destroy();
-  _network_destroy();
-  _mrtd_destroy();
-  _path_hash_destroy();
-  _comm_hash_destroy();
-  _bgp_router_destroy();
-
-  gds_destroy();
+  libcsim_done();
 }
 
 /////////////////////////////////////////////////////////////////////
