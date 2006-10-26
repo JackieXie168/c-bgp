@@ -56,9 +56,11 @@ endif
 AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OSPF) $(OPT_MEMORY_DEBUG)
 
 lib_LTLIBRARIES = libcsim.la
-libcsim_la_SOURCES =
+libcsim_la_SOURCES = init.c
 libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
 libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
+libcsiminclude_HEADERS = init.h cli/common.h
+libcsimincludedir = $(includedir)/cbgp
 
 bin_PROGRAMS = cbgp
 cbgp_SOURCES = \
