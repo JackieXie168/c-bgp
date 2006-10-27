@@ -33,7 +33,7 @@
 #include <bgp/route_map.h>
 #include <cli/common.h>
 #include <net/igp_domain.h>
-
+#include <sim/simulator.h>
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -95,6 +95,25 @@ void libcbgp_done()
   gds_destroy();
 }
 
+// -----[ libcbgp_set_debug_callback ]-------------------------------
+/**
+ *
+ */
+void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
+				void * pContext)
+{
+  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+  
+  if (pLogTmp == NULL) {
+    fprintf(stderr, "Warning: couln't direct debug log to callback %p.\n",
+	    fCallback);
+    return;
+  }
+
+  log_destroy(&pLogDebug);
+  pLogDebug= pLogTmp;
+}
+
 // -----[ libcbgp_set_err_callback ]---------------------------------
 /**
  *
@@ -102,8 +121,16 @@ void libcbgp_done()
 void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
+  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+  
+  if (pLogTmp == NULL) {
+    fprintf(stderr, "Warning: couln't direct error log to callback %p.\n",
+	    fCallback);
+    return;
+  }
+
   log_destroy(&pLogErr);
-  pLogErr= log_create_callback(fCallback, pContext);
+  pLogErr= pLogTmp;
 }
 
 // -----[ libcbgp_set_out_callback ]---------------------------------
@@ -113,8 +140,52 @@ void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
+  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+
+  if (pLogTmp == NULL) {
+    fprintf(stderr, "Warning: couln't direct output to callback %p.\n",
+	    fCallback);
+    return;
+  }
+
   log_destroy(&pLogOut);
-  pLogOut= log_create_callback(fCallback, pContext);
+  pLogOut= pLogTmp;
+}
+
+// -----[ libcbgp_set_debug_level ]----------------------------------
+/**
+ *
+ */
+void libcbgp_set_debug_level(ELogLevel eLevel)
+{
+  log_set_level(pLogDebug, eLevel);
+}
+
+// -----[ libcbgp_set_err_level ]------------------------------------
+/**
+ *
+ */
+void libcbgp_set_err_level(ELogLevel eLevel)
+{
+  log_set_level(pLogErr, eLevel);
+}
+
+// -----[ libcbgp_set_debug_file ]-----------------------------------
+/**
+ *
+ */
+void libcbgp_set_debug_file(char * pcFileName)
+{
+  SLogStream * pLogTmp= log_create_file(pcFileName);
+
+  if (pLogTmp == NULL) {
+    fprintf(stderr, "Warning: couln't direct debug log to \"%s\".\n",
+	    pcFileName);
+    return;
+  }
+
+  log_destroy(&pLogDebug);
+  pLogDebug= pLogTmp;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -146,7 +217,7 @@ int libcbgp_exec_file(const char * pcFileName)
     return -1;
   }
   
-  if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
+  if (libcbgp_exec_stream(pInCli) != CLI_SUCCESS) {
     fclose(pInCli);
     return -1;
   }
@@ -155,3 +226,11 @@ int libcbgp_exec_file(const char * pcFileName)
   return 0;
 }
 
+// -----[ libcbgp_exec_stream ]--------------------------------------
+/**
+ *
+ */
+int libcbgp_exec_stream(FILE * pStream)
+{
+  return cli_execute_file(cli_get(), pStream);
+}

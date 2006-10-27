@@ -14,7 +14,6 @@
 #include <assert.h>
 #include <libgds/cli_ctx.h>
 #include <limits.h>
-#include <libgds/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,9 +22,6 @@
 #include "api.h"
 
 #include <libgds/memory.h>
-//#include <net/network.h>
-//#include <net/net_path.h>
-#include <sim/simulator.h>
 #include <libgds/str_util.h>
 
 #include <bgp/mrtd.h>
@@ -56,7 +52,6 @@
 #define CBGP_MODE_OSPF        4
 
 // -----[ global options ]-----
-char * pcOptLog = NULL;
 uint8_t uMode   = CBGP_MODE_DEFAULT;
 char * pcArgMode= NULL;
 
@@ -482,7 +477,7 @@ int simulation_interactive()
     }
 
     /* Execute command */
-    iResult= cli_execute_line(cli_get(), pcLine);
+    iResult= libcbgp_exec_cmd(pcLine);
 
     if (iResult == CLI_SUCCESS_TERMINATE)
       break;
@@ -576,7 +571,6 @@ void _main_init()
 void _main_done()
 {
   option_free(pcArgMode);
-  option_free(pcOptLog);
   if (pComplCmds != NULL)
     cli_cmds_destroy(&pComplCmds);
 
@@ -584,7 +578,9 @@ void _main_done()
 }
 
 /////////////////////////////////////////////////////////////////////
+//
 // MAIN PROGRAM
+//
 /////////////////////////////////////////////////////////////////////
 
 // ----- main -------------------------------------------------------
@@ -594,10 +590,9 @@ void _main_done()
 int main(int argc, char ** argv) {
   int iResult;
   int iExitCode= EXIT_SUCCESS;
-  SLogStream * pLogTmp;
 
   /* Initialize log */
-  log_set_level(pLogErr, LOG_LEVEL_WARNING);
+  libcbgp_set_err_level(LOG_LEVEL_WARNING);
 
   /* Process command-line options */
   while ((iResult= getopt(argc, argv, "mc:e:hil:got:")) != -1) {
@@ -624,7 +619,7 @@ int main(int argc, char ** argv) {
       simulation_set_mode(CBGP_MODE_INTERACTIVE, NULL);
       break;
     case 'l':
-      pcOptLog= option_string(optarg);
+      libcbgp_set_debug_file(optarg);
       break;
 #ifdef OSPF_SUPPORT
     case 'o':  //only to test ospf function
@@ -637,24 +632,12 @@ int main(int argc, char ** argv) {
     }
   }
 
-  /* Setup log stream */
-  if (pcOptLog) {
-    pLogTmp= log_create_file(pcOptLog);
-    if (pLogTmp != NULL) {
-      log_destroy(&pLogDebug);
-      pLogDebug= pLogTmp;
-    } else {
-      LOG_ERR(LOG_LEVEL_WARNING, "Warning: couln't create \"%s\"."
-	      "Debug is directed to stderr.", pcOptLog);
-    }
-  }
-
   simulation_init();
 
   /* Run simulation in selected mode... */
   switch (uMode) {
   case CBGP_MODE_DEFAULT:
-    if (cli_execute_file(cli_get(), stdin) != CLI_SUCCESS)
+    if (libcbgp_exec_stream(stdin) != CLI_SUCCESS)
       iExitCode= EXIT_FAILURE;
     break;
   case CBGP_MODE_INTERACTIVE:
