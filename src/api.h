@@ -14,6 +14,9 @@
 #include <libgds/libgds-config.h>
 #include <libgds/log.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -22,15 +25,24 @@
 /////////////////////////////////////////////////////////////////////
 
 // -----[ libcbgp_init ]---------------------------------------------
-extern void libcbgp_init();
+void libcbgp_init();
 // -----[ libcbgp_done ]---------------------------------------------
-extern void libcbgp_done();
+void libcbgp_done();
+// -----[ libcbgp_set_debug_callback ]-------------------------------
+void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
+				void * pContext);
 // -----[ libcbgp_set_err_callback ]---------------------------------
-extern void libcbgp_set_err_callback(FLogStreamCallback fCallback,
-				     void * pContext);
+void libcbgp_set_err_callback(FLogStreamCallback fCallback,
+			      void * pContext);
 // -----[ libcbgp_set_out_callback ]---------------------------------
-extern void libcbgp_set_out_callback(FLogStreamCallback fCallback,
-				     void * pContext);
+void libcbgp_set_out_callback(FLogStreamCallback fCallback,
+			      void * pContext);
+// -----[ libcbgp_set_debug_file ]-----------------------------------
+void libcbgp_set_debug_file(char * pcFileName);
+// -----[ libcbgp_set_debug_level ]----------------------------------
+void libcbgp_set_debug_level(ELogLevel eLevel);
+// -----[ libcbgp_set_err_level ]------------------------------------
+void libcbgp_set_err_level(ELogLevel eLevel);
 
 
 /////////////////////////////////////////////////////////////////////
@@ -40,9 +52,15 @@ extern void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 /////////////////////////////////////////////////////////////////////
 
 // -----[ libcbgp_exec_cmd ]-----------------------------------------
-extern int libcbgp_exec_cmd(const char * pcCmd);
+int libcbgp_exec_cmd(const char * pcCmd);
 // -----[ libcbgp_exec_file ]----------------------------------------
-extern int libcbgp_exec_file(const char * pcFileName);
+int libcbgp_exec_file(const char * pcFileName);
+// -----[ libcbgp_exec_stream ]--------------------------------------
+int libcbgp_exec_stream(FILE * pStream);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __CBGP_API_H__ */
