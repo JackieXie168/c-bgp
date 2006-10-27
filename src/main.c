@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 25/10/2006
+// @lastdate 27/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,7 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "init.h"
+#include "api.h"
 
 #include <libgds/memory.h>
 //#include <net/network.h>
@@ -567,7 +567,7 @@ void _main_done() __attribute((destructor));
 
 void _main_init()
 {
-  libcsim_init();
+  libcbgp_init();
 #ifdef HAVE_LIBREADLINE
   _rl_init();
 #endif
@@ -580,7 +580,7 @@ void _main_done()
   if (pComplCmds != NULL)
     cli_cmds_destroy(&pComplCmds);
 
-  libcsim_done();
+  libcbgp_done();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -593,7 +593,6 @@ void _main_done()
  */
 int main(int argc, char ** argv) {
   int iResult;
-  FILE * pInCli;
   int iExitCode= EXIT_SUCCESS;
   SLogStream * pLogTmp;
 
@@ -632,12 +631,6 @@ int main(int argc, char ** argv) {
       simulation_set_mode(CBGP_MODE_OSPF, NULL);
       break;
 #endif
-#ifdef __EXPERIMENTAL__
-// STA-TO-FIX: declared in src/main_test.h,.c not included in CVS
-//    case 't':
-//      exit((main_test_paths(optarg) < 0)?EXIT_FAILURE:EXIT_SUCCESS);
-//      break;
-#endif
     default:
       simulation_cli_help();
       exit(EXIT_FAILURE);
@@ -669,20 +662,11 @@ int main(int argc, char ** argv) {
       iExitCode= EXIT_FAILURE;
     break;
   case CBGP_MODE_SCRIPT:
-    pInCli= fopen(pcArgMode, "r");
-    if (pInCli != NULL) {
-      if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
-	iExitCode= EXIT_FAILURE;
-      }
-      fclose(pInCli);
-    } else {
-      LOG_ERR(LOG_LEVEL_SEVERE,
-	      "Error: Unable to open script file \"%s\"\n", pcArgMode);
-      iExitCode= EXIT_FAILURE;
-    }
+    iExitCode= (libcbgp_exec_file(pcArgMode) == 0)?
+      EXIT_SUCCESS:EXIT_FAILURE;
     break;
   case CBGP_MODE_EXECUTE:
-    iExitCode= (cli_execute_line(cli_get(), pcArgMode) == 0)?
+    iExitCode= (libcbgp_exec_cmd(pcArgMode) == 0)?
       EXIT_SUCCESS:EXIT_FAILURE;
     break;
 

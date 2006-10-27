@@ -1,11 +1,11 @@
 // ==================================================================
-// @(#)init.c
+// @(#)api.c
 //
-// Initialize the C-BGP library.
+// Application Programming Interface for the C-BGP library (libcsim).
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 25/10/2006
+// @lastdate 27/10/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,8 @@
 #ifdef HAVE_LIBREADLINE
 //# include <readline/readline.h>
 #endif
+
+#include <api.h>
 
 #include <libgds/gds.h>
 
@@ -32,11 +34,18 @@
 #include <cli/common.h>
 #include <net/igp_domain.h>
 
-// -----[ libcsim_init ]---------------------------------------------
+
+/////////////////////////////////////////////////////////////////////
+//
+// Initialization and configuration of the library.
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ libcbgp_init ]---------------------------------------------
 /**
  * Initialize the C-BGP library.
  */
-void libcsim_init()
+void libcbgp_init()
 {
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
@@ -59,11 +68,11 @@ void libcsim_init()
   simulator_init();
 }
 
-// -----[ libcsim_done ]---------------------------------------------
+// -----[ libcbgp_done ]---------------------------------------------
 /**
  * Free the resources allocated by the C-BGP library.
  */
-void libcsim_done()
+void libcbgp_done()
 {
   simulator_done();
   _cli_common_destroy();
@@ -86,20 +95,48 @@ void libcsim_done()
   gds_destroy();
 }
 
-// -----[ libcsim_send ]---------------------------------------------
+// -----[ libcbgp_set_err_callback ]---------------------------------
 /**
  *
  */
-int libcsim_send(const char * pcLine)
+void libcbgp_set_err_callback(FLogStreamCallback fCallback,
+			      void * pContext)
 {
-  return cli_execute_line(cli_get(), pcLine);
+  log_destroy(&pLogErr);
+  pLogErr= log_create_callback(fCallback, pContext);
 }
 
-// -----[ libcsim_exec ]---------------------------------------------
+// -----[ libcbgp_set_out_callback ]---------------------------------
 /**
  *
  */
-int libcsim_exec(const char * pcFileName)
+void libcbgp_set_out_callback(FLogStreamCallback fCallback,
+			      void * pContext)
+{
+  log_destroy(&pLogOut);
+  pLogOut= log_create_callback(fCallback, pContext);
+}
+
+/////////////////////////////////////////////////////////////////////
+//
+// API
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ libcbgp_exec_cmd ]-----------------------------------------
+/**
+ *
+ */
+int libcbgp_exec_cmd(const char * pcCmd)
+{
+  return cli_execute_line(cli_get(), pcCmd);
+}
+
+// -----[ libcbgp_exec_file ]----------------------------------------
+/**
+ *
+ */
+int libcbgp_exec_file(const char * pcFileName)
 {
   FILE * pInCli= fopen(pcFileName, "r");
 
@@ -118,24 +155,3 @@ int libcsim_exec(const char * pcFileName)
   return 0;
 }
 
-// -----[ libcsim_set_err_callback ]---------------------------------
-/**
- *
- */
-void libcsim_set_err_callback(FLogStreamCallback fCallback,
-			      void * pContext)
-{
-  log_destroy(&pLogErr);
-  pLogErr= log_create_callback(fCallback, pContext);
-}
-
-// -----[ libcsim_set_out_callback ]---------------------------------
-/**
- *
- */
-void libcsim_set_out_callback(FLogStreamCallback fCallback,
-			      void * pContext)
-{
-  log_destroy(&pLogOut);
-  pLogOut= log_create_callback(fCallback, pContext);
-}
