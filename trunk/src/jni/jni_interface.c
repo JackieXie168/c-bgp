@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 21/04/2006
+// @lastdate 29/10/2006
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -63,6 +63,7 @@
 #include <sim/simulator.h>
 
 #include <cli/common.h>
+#include <api.h>
 
 // -----[ SConsoleCtx ]----------------------------------------------
 /**
@@ -98,17 +99,11 @@ static jobject joGlobalCBGP= NULL;
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   (JNIEnv * jEnv, jobject joCBGP, jstring file_log)
 {
-  //const char * cFileLog;
-
   if (joGlobalCBGP != NULL) {
     cbgp_jni_throw_CBGPException(jEnv, "CBGP class already initialized");
     return;
   }
   joGlobalCBGP= joCBGP;
-
-  // Initialize GDS library
-  gds_init(0);
-  //gds_init(GDS_OPTION_MEMORY_DEBUG);
 
   // Initialize console listeners contexts
   sConsoleOutCtx.jVM= NULL;
@@ -116,32 +111,9 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   sConsoleOutCtx.joListener= NULL;
   sConsoleErrCtx.joListener= NULL;
 
-  log_set_level(pLogDebug, LOG_LEVEL_WARNING);
-
-  /*
-  cFileLog = (*env)->GetStringUTFChars(env, file_log, JNI_FALSE);
-  //log_set_level(pMainLog, LOG_LEVEL_WARNING);
-  log_set_level(pMainLog, LOG_LEVEL_EVERYTHING);
-  if (strcmp(cFileLog, ""))
-    log_set_file(pMainLog, (char *)cFileLog);
-  else
-    log_set_stream(pMainLog, stderr);
-  (*env)->ReleaseStringUTFChars(env, file_log, cFileLog);
-  */
-
-  // Hash init code commented in order to allow parameter setup
-  // through he command-line/script
-  //_comm_hash_init();
-  //_path_hash_init();
-
-  _network_create();
-  _bgp_domain_init();
-  _igp_domain_init();
-  _ft_registry_init();
-  _filter_path_regex_init();
-  _route_map_init();
-  _rexford_init();
-  simulator_init(); 
+  // Initialize C-BGP library
+  libcbgp_init();
+  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
 
   fprintf(stdout, "C-BGP library started.\n");
 }
@@ -166,7 +138,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   }
 
   // Free simulator data structures...
-  simulator_done();
+  libcbgp_done();
 
   joGlobalCBGP= NULL;
 
@@ -1133,7 +1105,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
     return;
 
   cCommand= (*env)->GetStringUTFChars(env, jsCommand, NULL);
-  if (cli_execute_line(cli_get(), (char *) cCommand) != 0)
+  if (libcbgp_exec_cmd(cCommand) != CLI_SUCCESS)
     cbgp_jni_throw_CBGPException(env, "could not execute command");
   (*env)->ReleaseStringUTFChars(env, jsCommand, cCommand);
 }
@@ -1148,19 +1120,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
   (JNIEnv * env, jobject obj, jstring jsFileName)
 {
   const char * pcFileName;
-  FILE * pInCli;
 
   pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
-
-  if ((pInCli= fopen(pcFileName, "r")) != NULL) {
-    if (cli_execute_file(cli_get(), pInCli) != CLI_SUCCESS) {
-      cbgp_jni_throw_CBGPException(env, "could not execute script");
-    }
-    fclose(pInCli);
-  } else {
-    cbgp_jni_throw_CBGPException(env, "could not open file");
-  }
-
+  if (libcbgp_exec_file(pcFileName) != CLI_SUCCESS)
+    cbgp_jni_throw_CBGPException(env, "could not execute script");
   (*env)->ReleaseStringUTFChars(env, jsFileName, pcFileName);
 }
 
