@@ -1,6 +1,6 @@
 # ===================================================================
 # Release script for libgds/cbgp: release functions
-# Last modified: 15/09/2006 (bqu)
+# Last modified: 31/10/2006 (bqu)
 # ===================================================================
 
 declare -a CONF_OPTIONS
@@ -217,9 +217,7 @@ check_validation()
 {
     if [ ! -z "$VALID_EXEC" ]; then
 	info "+ Checking validation..."
-	export PERLLIB=/Users/bqu/Documents/code/cbgp/valid:$PERLLIB
-	VALID_EXEC="/Users/bqu/Documents/code/cbgp/valid/cbgp-validation.pl"
-	eval "$VALID_EXEC --no-cache --cbgp-path=src/cbgp --resources-path=valid $REDIRECT --report=html --report-prefix=$MODULE-$VERSION-valid"
+	eval "$VALID_EXEC $REDIRECT"
 	if [ $? != 0 ]; then
 	    error "validation failed."
 	fi
