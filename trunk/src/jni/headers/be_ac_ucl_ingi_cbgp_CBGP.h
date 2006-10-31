@@ -7,13 +7,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* Inaccessible static: LOG_LEVEL_EVERYTHING */
-/* Inaccessible static: LOG_LEVEL_DEBUG */
-/* Inaccessible static: LOG_LEVEL_INFO */
-/* Inaccessible static: LOG_LEVEL_WARNING */
-/* Inaccessible static: LOG_LEVEL_SEVERE */
-/* Inaccessible static: LOG_LEVEL_FATAL */
-/* Inaccessible static: LOG_LEVEL_MAX */
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    init
