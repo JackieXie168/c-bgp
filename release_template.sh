@@ -48,8 +48,9 @@ VERSION="$MAIN_VERSION.$RELEASE_VERSION.$BUILD_VERSION"
 # CONF_OPTIONS[] (mandatory)
 #   is an array of configure options. The project is built once
 #   for each element of the array.
+#   Use single quote for no option (otherwise, bash keeps the previous option)
 #
-CONF_OPTIONS[0]=" "
+CONF_OPTIONS[0]=' '
 CONF_OPTIONS[1]="--enable-experimental"
 CONF_OPTIONS[2]="--with-jni"
 #
