@@ -10,14 +10,14 @@ declare -r LINE="--------------------------------\
 # -----[ info ]------------------------------------------------------
 info()
 {
-    MSG=$1
+    local MSG=$1
     echo -e "\033[1m$MSG\033[0m"
 }
 
 # -----[ info_part ]-------------------------------------------------
 info_part()
 {
-    MSG=$1
+    local MSG=$1
     echo $LINE
     echo -e "*** \033[33;1m$MSG\033[0m ***"
     echo $LINE
@@ -26,7 +26,7 @@ info_part()
 # -----[ error ]-----------------------------------------------------
 error()
 {
-    MSG=$1
+    local MSG=$1
     echo -e "ERROR: \033[1;31m$MSG\033[0m"
     echo "Aborting..."
     exit -1
@@ -35,7 +35,7 @@ error()
 # -----[ error_skip ]------------------------------------------------
 error_skip()
 {
-    MSG=$1
+    local MSG=$1
     echo "ERROR: $MSG"
     echo "Skipping..."
 }
@@ -126,7 +126,7 @@ check_release_info()
 check_project_version()
 {
     info "Checking release/project versions..."
-    PROJECT_VERSION=`grep "AC_INIT" configure.in | sed 's:^AC_INIT(.*\[\(.*\)\],.*\[\(.*\)\])$:\2:'`
+    local PROJECT_VERSION=`grep "AC_INIT" configure.in | sed 's:^AC_INIT(.*\[\(.*\)\],.*\[\(.*\)\])$:\2:'`
     echo "  project: $PROJECT_VERSION (from configure.in)"
     if [ "$VERSION" != "$PROJECT_VERSION" ]; then
 	error "release/project versions mismatch."
@@ -136,7 +136,7 @@ check_project_version()
     if [ ! -z "$LIBRARY_VERSION" ]; then
 	info "Checking project/library versions..."
 	echo "  library: $LIBRARY_VERSION"
-	PROJECT_VERSION_SHORT=`echo "$PROJECT_VERSION" | sed 's:^\([0-9]*\.[0-9]*\).*$:\1:'`
+	local PROJECT_VERSION_SHORT=`echo "$PROJECT_VERSION" | sed 's:^\([0-9]*\.[0-9]*\).*$:\1:'`
 	echo "  project: $PROJECT_VERSION_SHORT"
 	if [ "$PROJECT_VERSION_SHORT" != "$LIBRARY_VERSION" ]; then
 	    error "project/library versions mismatch."
@@ -154,19 +154,20 @@ check_project_version()
 # -----[ check_build ]-----------------------------------------------
 check_build()
 {
+    local OPTIONS
     info "Checking build..."
     for (( i= ${#CONF_OPTIONS[*]}-1 ; $i >= 0 ; i-- )) do
-		OPTIONS="${CONF_OPTIONS[$i]}"
-		check_configure "$OPTIONS"
-		check_compilation
-		check_validation
+	OPTIONS="${CONF_OPTIONS[$i]}"
+	check_configure "$OPTIONS"
+	check_compilation
+	check_validation
     done
 }
 
 # -----[ check_configure ]-------------------------------------------
 check_configure()
 {
-    CONF_OPTIONS=$1
+    local CONF_OPTIONS=$1
     info "+ Checking configure $CONF_OPTIONS..."
     if [ $BUILD -eq 1 ]; then
 	eval "./configure $CONF_OPTIONS_COMMON $CONF_OPTIONS $REDIRECT"
@@ -235,11 +236,11 @@ check_validation()
 check_cvs_status()
 {
     info "Checking CVS status..."
-    CVS_STATUS=`cvs status 2>/dev/null | grep -i 'Status\:'`
+    local CVS_STATUS=`cvs status 2>/dev/null | grep -i 'Status\:'`
     if [ $? != 0 ]; then
 	error "could not get CVS status"
     fi
-    CVS_STATUS_MODIFIED=`echo -e "$CVS_STATUS" | grep -v 'release.sh' | grep -v -i 'Up-to-date'`
+    local CVS_STATUS_MODIFIED=`echo -e "$CVS_STATUS" | grep -v 'release.sh' | grep -v -i 'Up-to-date'`
     if [ ! -z "$CVS_STATUS_MODIFIED" ]; then
 	echo -e "$CVS_STATUS_MODIFIED"
 	error "commit/update is needed before release"
@@ -249,7 +250,7 @@ check_cvs_status()
 # -----[ cvs_branch ]------------------------------------------------
 cvs_branch()
 {
-    BRANCH_NAME=`echo $1 | tr "$,.:;@" "______"`
+    local BRANCH_NAME=`echo $1 | tr "$,.:;@" "______"`
     info "Creating a CVS branch..."
     echo "  branch: \"$BRANCH_NAME\""
     eval "cvs tag -b $BRANCH_NAME $REDIRECT"
@@ -261,7 +262,7 @@ cvs_branch()
 # -----[ cvs_tag ]---------------------------------------------------
 cvs_tag()
 {
-    TAG_NAME=`echo $1 | tr "$,.:;@" "______"`
+    local TAG_NAME=`echo $1 | tr "$,.:;@" "______"`
     info "Creating a CVS tag..."
     echo "  tag: \"$TAG_NAME\""
     eval "cvs tag $TAG_NAME $REDIRECT"
@@ -281,11 +282,11 @@ cvs_tag()
 check_svn_status()
 {
     info "Checking SVN status..."
-    SVN_STATUS=`svn status -vq`
+    local SVN_STATUS=`svn status -vq`
     if [ $? != 0 ]; then
 	error "could not get SVN status"
     fi
-    SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -E '^[^ ]'`
+    local SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -E '^[^ ]'`
     if [ ! -z "$SVN_STATUS_MODIFIED" ]; then
 	echo -e "$SVN_STATUS_MODIFIED"
 	error "commit/update is needed before release"
@@ -295,7 +296,7 @@ check_svn_status()
 # -----[ svn_branch ]------------------------------------------------
 svn_branch()
 {
-    BRANCH_NAME=$1
+    local BRANCH_NAME=$1
     info "Creating a SVN branch"
     echo "  branch: $BRANCH_NAME"
     svn copy $SVN_URL/trunk $SVN_URL/branches/$VERSION \
@@ -308,7 +309,7 @@ svn_branch()
 # -----[ svn_tag ]---------------------------------------------------
 svn_tag()
 {
-    TAG_NAME=$1
+    local TAG_NAME=$1
     info "Creating a SVN tag"
     echo "  tag: $TAG_NAME"
     svn copy $SVN_URL/trunk $SVN_URL/tags/release-$VERSION \
@@ -328,7 +329,7 @@ svn_tag()
 # -----[ parse_arguments ]-------------------------------------------
 parse_arguments()
 {
-    ARGS=$@
+    local ARGS=$@
 
     info "Parsing arguments..."
     for arg in $ARGS; do
@@ -364,7 +365,7 @@ parse_arguments()
 
 make_release()
 {
-    ARGS=$@
+    local ARGS=$@
 
     declare REDIRECT='>/dev/null 2>&1'
     declare -i BUILD=1
