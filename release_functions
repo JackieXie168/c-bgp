@@ -40,14 +40,63 @@ error_skip()
     echo "Skipping..."
 }
 
-# -----[ check_test_only ]-------------------------------------------
-check_test_only()
+# -----[ read_yes_no ]-----------------------------------------------
+# Params:
+#   $1 -> Prompt message
+#   $2 -> Default value (must be one of "y", "Y", "n" or "N")
+#
+# Return value:
+#   in variable READ_YES_NO_RESULT (will be one of "y" or "n")
+# -------------------------------------------------------------------
+read_yes_no()
 {
-    if [ $TEST_ONLY -eq 1 ]; then
-	echo "WARNING: script was run in test-only mode."
-	echo "Stop"
-	exit 0
+    local MSG=$1
+    local DEFAULT=$2
+    local PROMPT
+
+    # Check that default value is either "Y" or "N"
+    if [ ! -z "$DEFAULT" ]; then
+	DEFAULT=`echo $DEFAULT | tr "A-Z" "a-z"`
+	if [ $DEFAULT = "y" ]; then
+	    PROMPT="$MSG [Y/n] "
+	else
+	    if [ "$DEFAULT" = "n" ]; then
+		PROMPT="$MSG [y/N] "
+	    else
+		echo "ERROR: read_yes_no(), invalid DEFAULT value"
+		exit -1
+	    fi
+	fi
+    else
+	PROMPT="$MSG "
     fi
+
+    declare -i ERROR
+    ERROR=1
+    while [ $ERROR -eq 1 ]; do
+	ERROR=0
+	read -e -p "$PROMPT" ANSWER
+	if [ $? != 0 ]; then
+	    ERROR=1
+	    echo ""
+	    continue
+	fi
+	if [ -z "$ANSWER" ]; then
+	    if [ ! -z "$DEFAULT" ]; then
+		ANSWER="$DEFAULT"
+	    else
+		ERROR=1
+		continue
+	    fi
+	else
+	    ANSWER=`echo "$ANSWER" | tr "A-Z" "a-z"`
+	    if [ "$ANSWER" != "y" ] && [ "$ANSWER" != "n" ]; then
+		echo "invalid input: \"$ANSWER\""
+		ERROR=1
+	    fi
+	fi
+    done
+    READ_YES_NO_RESULT="$ANSWER"
 }
 
 
@@ -392,7 +441,16 @@ make_release()
     fi
     check_project_version
     check_build;
-    check_test_only
+    if [ $TEST_ONLY -eq 1 ]; then
+	read_yes_no "Build release ?" "N"
+	if [ "$READ_YES_NO_RESULT" = "y" ]; then
+	    TEST_ONLY=0
+	else
+	    echo "WARNING: script was run in test-only mode."
+	    echo "Stop"
+	    exit 0
+	fi
+    fi
 
 
     # ===================================================================
@@ -440,6 +498,12 @@ make_release()
     # ===================================================================
     # Part III. Publish distribution
     # ===================================================================
+    if [ ! $PUBLISH -eq 1 ]; then
+	read_yes_no "Publish package ?" "Y"
+	if [ "$READ_YES_NO_RESULT" = "y" ]; then
+	    PUBLISH=1
+	fi
+    fi
     if [ $PUBLISH -eq 1 ]; then
 	info_part "III. Publishing release"
 	echo "Publishing distribution"
