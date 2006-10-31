@@ -56,23 +56,23 @@ CONF_OPTIONS[2]="--with-jni"
 # CONF_OPTIONS_COMMON (optional)
 #   is a set of common configure options
 #                            
-CONF_OPTIONS_COMMON="--with-libgds-dir=/Users/bqu/local"
+CONF_OPTIONS_COMMON="--with-libgds-dir=$HOME/local --with-readline=/sw"
 #
 # VALID_EXEC (optional)
 #   is the name of a command used to validate the project.
 #
-VALID_EXEC="PERLLIB=/Users/bqu/Documents/code/cbgp/valid:$PERLLIB \
-    /Users/bqu/Documents/code/cbgp/valid/cbgp-validation.pl \
+VALID_EXEC="PERLLIB=/Users/vvandens/Documents/Boulot/svn/CBGP/cbgp-validation-1.6.1:$PERLLIB \
+    /Users/vvandens/Documents/Boulot/svn/CBGP/cbgp-validation-1.6.1/cbgp-validation.pl \
     --no-cache \
     --cbgp-path=src/cbgp \
-    --resources-path=valid $REDIRECT \
+    --resources-path=valid \
     --report=html \
     --report-prefix=$MODULE-$VERSION-valid"
 #
 # PUBLISH_URL (optional)
 #   is the SCP URL where the distribution will be published
 #
-PUBLISH_URL="bqu@midway.info.ucl.ac.be:/home/httpd/cbgp/downloads"
+PUBLISH_URL="vvandens@midway.info.ucl.ac.be:/home/httpd/cbgp/downloads"
 #
 # PUBLISH_FILES (optional)
 #   is the list of files that needs to be published
