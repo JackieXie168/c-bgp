@@ -525,7 +525,7 @@ make_release()
     # ===============================================================
     echo "***** Last recommendations *****"
     echo "Do not forget"
-    echo "- to build the packages (.rpm, .deb, ...)
+    echo "- to build the packages (.rpm, .deb, ...)"
     echo "- to send an e-mail to the mailing-list"
     echo "- do not forget to announce the new release on the web site"
     echo "********************************"
