@@ -156,7 +156,7 @@ check_build()
 {
     info "Checking build..."
     for (( i= ${#CONF_OPTIONS[*]}-1 ; $i >= 0 ; i-- )) do
-		OPTIONS=${CONF_OPTIONS[$i]}
+		OPTIONS="${CONF_OPTIONS[$i]}"
 		check_configure "$OPTIONS"
 		check_compilation
 		check_validation
