@@ -65,18 +65,22 @@ METAFILE= META-INF/MANIFEST.MF
 CLASSFILES = $(JAVAFILES:.java=.class)
 EXTRA_DIST = $(JAVAFILES) $(METAFILE)
 
+# Invoke javac in order to build Java classes. In addition, invoke
+# javah in order to build the native function headers.
 %.class: %.java
 	$(JAVAC) $<
+	(CLASSNAME=`echo $@ | sed -e 's/\//./g' -e 's/.class//g'`; \
+	  $(JAVAH) -d headers $$CLASSNAME)
 
 SUFFIXES= .java .class
 
-# Invoke javah in order to build the native function headers
 # Build the jar file
 $(JARFILE): $(CLASSFILES)
-	(CLASSNAMES=`echo $(CLASSFILES) | \
-         sed -e 's/\//./g' -e 's/.class//g'`; \
-	 $(JAVAH) -d headers $$CLASSNAMES)
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
+
+#	(CLASSNAMES=`echo $(CLASSFILES) | \
+#         sed -e 's/\//./g' -e 's/.class//g'`; \
+#	 $(JAVAH) -d headers $$CLASSNAMES)
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)
 
