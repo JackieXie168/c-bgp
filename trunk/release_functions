@@ -411,12 +411,20 @@ parse_arguments()
     done
 }
 
-
+# -----[ Perform a source release ]----------------------------------
+# This function should be called by the release.sh script. The syntax
+# should be as follows:
+#
+#   make_release $@
+#
+# -------------------------------------------------------------------
 make_release()
 {
     local ARGS=$@
 
-    declare REDIRECT='>/dev/null 2>&1'
+    local RELEASE_TIME=`date +'%d%m%Y-%H%M%S'`
+
+    declare REDIRECT=">/tmp/release-$TIME.log 2>&1"
     declare -i BUILD=1
     declare -i PUBLISH=0
     declare -i RELEASE=1
