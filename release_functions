@@ -106,51 +106,6 @@ read_yes_no()
 #
 #####################################################################
 
-# -----[ check_parameters ]------------------------------------------
-check_parameters()
-{
-    info "Checking parameters..."
-    if [ -z "$MODULE" ]; then
-	error "MODULE variable not defined."
-    fi
-    if [ -z "$MAIN_VERSION" ]; then
-	error "MAIN_VERSION variable not defined."
-    fi
-    if [ -z "$RELEASE_VERSION" ]; then
-	error "RELEASE_VERSION variable not defined."
-    fi
-    if [ -z "$BUILD_VERSION" ]; then
-	error "BUILD_VERSION variable not defined."
-    fi
-    if [ -z "$VERSION" ]; then
-	error "VERSION variable not defined."
-    fi
-    if [ -z "$VC" ]; then
-	error "VC variable not defined."
-    fi
-    if [ "$VC" != "cvs" ] && [ "$VC" != "svn" ]; then
-	error "VC variable must contain \"cvs\" or \"svn\"."
-    fi
-    if [ "$VC" = "svn" ]; then
-	if [ -z "$SVN_URL" ]; then
-	    error "no SVN URL specified."
-	fi
-    fi
-    if [ $PUBLISH -eq 1 ]; then
-	if [ -z "$PUBLISH_URL" ]; then
-	    error "publication URL not specified."
-	fi
-	if [ -z "$PUBLISH_FILES" ]; then
-	    error "no list of files to be published."
-	fi
-    fi
-    if [ $RELEASE_VERSION -eq 0 ]; then
-	RELEASE_MODE=1 # Major
-    else
-	RELEASE_MODE=0 # Minor
-    fi
-}
-
 # -----[ check_release_info ]----------------------------------------
 check_release_info()
 {
@@ -371,12 +326,57 @@ svn_tag()
 
 #####################################################################
 #
-# Command-line arguments parsing
+# SOURCE RELEASE SPECIFIC FUNCTIONS
 #
 #####################################################################
 
-# -----[ parse_arguments ]-------------------------------------------
-parse_arguments()
+# -----[ src_release_check_parameters ]------------------------------
+src_release_check_parameters()
+{
+    info "Checking parameters..."
+    if [ -z "$MODULE" ]; then
+	error "MODULE variable not defined."
+    fi
+    if [ -z "$MAIN_VERSION" ]; then
+	error "MAIN_VERSION variable not defined."
+    fi
+    if [ -z "$RELEASE_VERSION" ]; then
+	error "RELEASE_VERSION variable not defined."
+    fi
+    if [ -z "$BUILD_VERSION" ]; then
+	error "BUILD_VERSION variable not defined."
+    fi
+    if [ -z "$VERSION" ]; then
+	error "VERSION variable not defined."
+    fi
+    if [ -z "$VC" ]; then
+	error "VC variable not defined."
+    fi
+    if [ "$VC" != "cvs" ] && [ "$VC" != "svn" ]; then
+	error "VC variable must contain \"cvs\" or \"svn\"."
+    fi
+    if [ "$VC" = "svn" ]; then
+	if [ -z "$SVN_URL" ]; then
+	    error "no SVN URL specified."
+	fi
+    fi
+    if [ $PUBLISH -eq 1 ]; then
+	if [ -z "$PUBLISH_URL" ]; then
+	    error "publication URL not specified."
+	fi
+	if [ -z "$PUBLISH_FILES" ]; then
+	    error "no list of files to be published."
+	fi
+    fi
+    if [ $RELEASE_VERSION -eq 0 ]; then
+	RELEASE_MODE=1 # Major
+    else
+	RELEASE_MODE=0 # Minor
+    fi
+}
+
+# -----[ src_release_parse_arguments ]-------------------------------
+src_release_parse_arguments()
 {
     local ARGS=$@
 
@@ -424,18 +424,15 @@ make_release()
 
     local RELEASE_TIME=`date +'%d%m%Y-%H%M%S'`
 
-    declare REDIRECT=">/tmp/release-$TIME.log 2>&1"
+    declare REDIRECT=">/tmp/src-release-$TIME.log 2>&1"
     declare -i BUILD=1
     declare -i PUBLISH=0
     declare -i RELEASE=1
     declare -i TEST_ONLY=1
     declare -i VERBOSE=0
 
-    parse_arguments $ARGS
-
-	echo "TEST_ONLY: $TEST_ONLY"
-
-    check_parameters
+    src_release_parse_arguments $ARGS
+    src_release_check_parameters
 
     # ===================================================================
     # Part I. Checking status
@@ -522,4 +519,14 @@ make_release()
 	    error "could not publish distribution"
 	fi
     fi
+
+    # ===============================================================
+    # Part IV. Display last recommendations
+    # ===============================================================
+    echo "***** Last recommendations *****"
+    echo "Do not forget"
+    echo "- to build the packages (.rpm, .deb, ...)
+    echo "- to send an e-mail to the mailing-list"
+    echo "- do not forget to announce the new release on the web site"
+    echo "********************************"
 }
