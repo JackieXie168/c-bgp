@@ -445,6 +445,7 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
     }
     ppFilter = MALLOC(sizeof(SFilter *));
     *ppFilter = filter_create();
+
     pcRouteMapName = MALLOC(strlen(pcToken)+1);
     strcpy(pcRouteMapName, pcToken);
     route_map_add(pcRouteMapName, *ppFilter);

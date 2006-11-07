@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 03/03/2006
+// @lastdate 07/11/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -77,7 +77,7 @@ uint32_t route_map_hash_compute(void * pElt, uint32_t uHashSize)
   SRouteMapHashElt * phRouteMapElt= (SRouteMapHashElt *)pElt;
 
   return hash_utils_key_compute_string(phRouteMapElt->pcRouteMapName, 
-				       uHashSize);
+				       uHashSize)%uHashSize;
 }
 
 
