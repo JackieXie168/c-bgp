@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 08/09/2006
+// @lastdate 07/11/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -432,26 +432,28 @@ int cli_bgp_topology_run(SCliContext * pContext, STokens * pTokens)
  */
 int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
 {
-  char * pcRouteMapName, * pcToken;
+  char * pcToken;
+  char * pcRouteMapName;
   SFilter ** ppFilter;
 
-  pcRouteMapName = pcToken = tokens_get_string_at(pContext->pTokens, 0);
+  pcToken= tokens_get_string_at(pContext->pTokens, 0);
   
-  if (pcRouteMapName != NULL) {
-    if (route_map_get(pcRouteMapName) != NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Route Map %s exists.\n",
-	      pcRouteMapName);
+  if (pcToken != NULL) {
+    if (route_map_get(pcToken) != NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: route-map already exists.\n",
+	      pcToken);
       return CLI_ERROR_CTX_CREATE;
     }
-    ppFilter = MALLOC(sizeof(SFilter *));
-    *ppFilter = filter_create();
 
-    pcRouteMapName = MALLOC(strlen(pcToken)+1);
+    ppFilter= MALLOC(sizeof(SFilter *));
+    *ppFilter= filter_create();
+
+    pcRouteMapName= MALLOC(strlen(pcToken)+1);
     strcpy(pcRouteMapName, pcToken);
     route_map_add(pcRouteMapName, *ppFilter);
     *ppItem = ppFilter;
   } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: missing route-map name.\n");
     return CLI_ERROR_CTX_CREATE;
   }
 
