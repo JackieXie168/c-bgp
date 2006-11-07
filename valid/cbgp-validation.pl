@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 23/10/2006
+# @lastdate 07/11/2006
 # ===================================================================
 # Syntax:
 #
@@ -70,7 +70,7 @@ use CBGPValid::Tests;
 use CBGPValid::UI;
 use POSIX;
 
-use constant CBGP_VALIDATION_VERSION => '1.6.1';
+use constant CBGP_VALIDATION_VERSION => '1.7.0';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -4031,6 +4031,93 @@ sub cbgp_valid_bgp_filter_match_community()
     return TEST_SUCCESS;
 }
 
+# -----[ cbgp_valid_bgp_route_map ]----------------------------------
+# Test the ability to define route-maps (i.e. filters that can be
+# shared by multiple BGP sessions.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (2.0.0.1, AS2, virtual)
+#
+# Topology:
+#
+#   R1 ----- (R2)
+#
+# Scenario:
+#   * Define a route-map named RM_LP_100 that changes the local-pref
+#     of routes matching prefix 128/8
+#   * Define a route-map named RM_LP_200 that changes the local-pref
+#     of routes matching prefix 0/8
+#   * Assign both route-maps as input filter of R1 for routes
+#     received from R2
+#   * Inject a route towards 128/8 in R1 from R2
+#   * Inject a route towards 0/8 in R1 from R2
+#   * Check that the local-pref is as follows
+#       128/8 -> LP=100
+#       0/8   -> LP=200
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_route_map($)
+{
+  my ($cbgp)= @_;
+
+  # Define two route-maps
+  cbgp_send($cbgp, "bgp route-map RM_LP_100");
+  cbgp_send($cbgp, "  add-rule");
+  cbgp_send($cbgp, "    match \"prefix in 128/8\"");
+  cbgp_send($cbgp, "    action \"local-pref 100\"");
+  cbgp_send($cbgp, "    exit");
+  cbgp_send($cbgp, "  exit");
+  cbgp_send($cbgp, "bgp route-map RM_LP_200");
+  cbgp_send($cbgp, "  add-rule");
+  cbgp_send($cbgp, "    match \"prefix in 0/8\"");
+  cbgp_send($cbgp, "    action \"local-pref 200\"");
+  cbgp_send($cbgp, "    exit");
+  cbgp_send($cbgp, "  exit");
+
+  # Create one BGP router and injects
+  cbgp_topo_dp3($cbgp, ["2.0.0.1", 2, 0]);
+  cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in",
+		"any",
+		"call RM_LP_100");
+  cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in",
+		"any",
+		"call RM_LP_200");
+  cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
+		   "128/8|2|IGP|2.0.0.1|0|0|");
+  cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
+		   "0/8|2|IGP|2.0.0.1|0|0|");
+  my $rib;
+  $rib= cbgp_show_rib_mrt($cbgp, "1.0.0.1");
+  (cbgp_rib_check($rib, "128/8", [CBGP_RIB_PREF, 100])) or
+    return TEST_FAILURE;
+  (cbgp_rib_check($rib, "0/8", [CBGP_RIB_PREF, 200])) or
+    return TEST_FAILURE;
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_route_map_duplicate ]------------------------
+# Check that an error message is issued if an attempt is made to
+# define two route-maps with the same name.
+#
+# Setup:
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_route_map_duplicate($)
+{
+  my ($cbgp)= @_;
+  my $ERROR_MSG= "PLOP";
+
+  cbgp_send($cbgp, "bgp route-map RM_LP_100");
+  cbgp_send($cbgp, "  exit");
+  cbgp_send($cbgp, "bgp route-map RM_LP_100");
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg)) {
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_igp_bgp_metric_change ]--------------------------
 # Test the ability to recompute IGP paths and reselect BGP routes
 # accordingly.
@@ -4904,6 +4991,9 @@ $tests->register("bgp filter match prefix in",
 	      "cbgp_valid_bgp_filter_match_prefix_in");
 $tests->register("bgp filter match prefix in-length",
 	      "cbgp_valid_bgp_filter_match_prefix_in_length");
+$tests->register("bgp route-map", "cbgp_valid_bgp_route_map");
+$tests->register("bgp route-map duplicate",
+		 "cbgp_valid_bgp_route_map_duplicate");
 $tests->register("igp-bgp metric change", "cbgp_valid_igp_bgp_metric_change");
 $tests->register("igp-bgp state change", "cbgp_valid_igp_bgp_state_change");
 #$tests->register("igp-bgp reachability link",
