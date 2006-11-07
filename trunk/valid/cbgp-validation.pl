@@ -4105,13 +4105,14 @@ sub cbgp_valid_bgp_route_map($)
 sub cbgp_valid_bgp_route_map_duplicate($)
 {
   my ($cbgp)= @_;
-  my $ERROR_MSG= "PLOP";
+  my $ERROR_MSG= "route-map already exists";
 
   cbgp_send($cbgp, "bgp route-map RM_LP_100");
   cbgp_send($cbgp, "  exit");
   cbgp_send($cbgp, "bgp route-map RM_LP_100");
   my $error_msg= cbgp_check_error($cbgp);
-  if (!defined($error_msg)) {
+  if (!defined($error_msg) ||
+     !($error_msg =~ /$ERROR_MSG/)) {
     return TEST_FAILURE;
   }
 
