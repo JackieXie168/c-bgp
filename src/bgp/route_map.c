@@ -209,9 +209,6 @@ SFilter * route_map_get(char * pcRouteMapName)
   if ( (phRouteMapEltSearched = hash_search(phRouteMap, phRouteMapElt)) 
 								!= NULL) 
     pFilter = phRouteMapEltSearched->pFilter;
-   else
-     LOG_DEBUG(LOG_LEVEL_DEBUG, "route_map_get> No Route Map %s found.\n",
-	       pcRouteMapName);
 
   FREE(phRouteMapElt);
   return pFilter;
