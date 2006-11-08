@@ -1,6 +1,6 @@
 # ===================================================================
 # Release script for libgds/cbgp: release functions
-# Last modified: 31/10/2006 (bqu)
+# Last modified: 08/11/2006 (bqu)
 # ===================================================================
 
 declare -a CONF_OPTIONS
@@ -286,11 +286,11 @@ cvs_tag()
 check_svn_status()
 {
     info "Checking SVN status..."
-    local SVN_STATUS=`svn status -vq`
+    local SVN_STATUS=`svn status -uvq`
     if [ $? != 0 ]; then
 	error "could not get SVN status"
     fi
-    local SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -E '^[^ ]'`
+    local SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -v -E '^Status against revision' | grep -E '^[^ ]'`
     if [ ! -z "$SVN_STATUS_MODIFIED" ]; then
 	echo -e "$SVN_STATUS_MODIFIED"
 	error "commit/update is needed before release"
