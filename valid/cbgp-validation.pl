@@ -4574,6 +4574,41 @@ sub cbgp_valid_bgp_rr($)
   return TEST_SUCCESS;
 }
 
+# ----[ cbgp_valid_bgp_rr_set_cluster_id ]---------------------------
+# Check that the cluster-ID can be defined correctly (including
+# large cluster-ids).
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_rr_set_cluster_id($)
+{
+  my ($cbgp)= @_;
+  my $ERROR_MSG= "invalid cluster-id";
+
+  cbgp_send($cbgp, "net add node 0.1.0.0");
+  cbgp_send($cbgp, "bgp add router 1 0.1.0.0");
+  cbgp_send($cbgp, "bgp router 0.1.0.0 set cluster-id 1");
+  my $error_msg= cbgp_check_error($cbgp);
+  if (defined($error_msg)) {
+    return TEST_FAILURE;
+  }
+
+  # Maximum value (2^32)-1
+  cbgp_send($cbgp, "bgp router 0.1.0.0 set cluster-id 4294967295");
+  my $error_msg= cbgp_check_error($cbgp);
+  if (defined($error_msg)) {
+    return TEST_FAILURE;
+  }
+
+  # Larger than (2^32)-1
+  cbgp_send($cbgp, "bgp router 0.1.0.0 set cluster-id 4294967296");
+  my $error_msg= cbgp_check_error($cbgp);
+  if (!defined($error_msg) ||
+     !($error_msg =~ /$ERROR_MSG/)) {
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_bgp_rr_stateful ]--------------------------------
 # Test ability to not propagate a route if its attributes have not
 # changed. In the case of route-reflectors, this could occur if two
@@ -5005,6 +5040,8 @@ $tests->register("igp-bgp update med", "cbgp_valid_igp_bgp_med");
 $tests->register("bgp load rib", "cbgp_valid_bgp_load_rib");
 $tests->register("bgp deflection", "cbgp_valid_bgp_deflection");
 $tests->register("bgp RR", "cbgp_valid_bgp_rr");
+$tests->register("bgp RR set cluster-id",
+		 "cbgp_valid_bgp_rr_set_cluster_id");
 $tests->register("bgp RR decision process (originator-id)",
 	      "cbgp_valid_bgp_rr_dp_originator_id");
 $tests->register("bgp RR decision process (cluster-id-list)",
