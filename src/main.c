@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 27/10/2006
+// @lastdate 08/11/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -593,6 +593,7 @@ int main(int argc, char ** argv) {
 
   /* Initialize log */
   libcbgp_set_err_level(LOG_LEVEL_WARNING);
+  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
 
   /* Process command-line options */
   while ((iResult= getopt(argc, argv, "mc:e:hil:got:")) != -1) {
