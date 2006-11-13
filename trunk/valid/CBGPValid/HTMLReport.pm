@@ -2,7 +2,7 @@
 # CBGPValid::HTMLReport.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 14/09/2006
+# lastdate 13/11/2006
 # ===================================================================
 
 package CBGPValid::HTMLReport;
@@ -14,6 +14,7 @@ use strict;
 use Symbol;
 use CBGPValid::BaseReport;
 use CBGPValid::TestConstants;
+use CBGPValid::UI;
 
 # -----[ doc_write_section_title ]-----------------------------------
 sub doc_write_section_title($$)

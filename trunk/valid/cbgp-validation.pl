@@ -4646,7 +4646,7 @@ sub cbgp_valid_bgp_rr($)
   return TEST_SUCCESS;
 }
 
-# ----[ cbgp_valid_bgp_rr_set_cluster_id ]---------------------------
+# -----[ cbgp_valid_bgp_rr_set_cluster_id ]--------------------------
 # Check that the cluster-ID can be defined correctly (including
 # large cluster-ids).
 # -------------------------------------------------------------------
