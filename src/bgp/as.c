@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 17/08/2006
+// @lastdate 12/11/2006
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -2744,7 +2744,7 @@ int bgp_router_record_route(SBGPRouter * pRouter,
       if ((pPreviousRouter == NULL) ||
 	  (iPreserveDups ||
 	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
-	if (path_append(&pPath, pCurrentRouter->uNumber)) {
+	if (path_append(&pPath, pCurrentRouter->uNumber) < 0) {
 	  iResult= AS_RECORD_ROUTE_TOO_LONG;
 	  break;
 	}
@@ -2927,7 +2927,7 @@ int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
 	  (iPreserveDups ||
 	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
 	if ((path_length(pPath) >= 30) ||
-	    path_append(&pPath, pCurrentRouter->uNumber)) {
+	    (path_append(&pPath, pCurrentRouter->uNumber) < 0)) {
 	  iResult= AS_RECORD_ROUTE_TOO_LONG;
 	  break;
 	}
