@@ -215,6 +215,10 @@ int path_add_segment(SBGPPath * pPath, SPathSegment *pSegment)
  * this segment. If the last segment is an AS-SET, a new segment of
  * type AS-SEQUENCE which contains only the new AS is added at the end
  * of the AS-Path.
+ *
+ * Return value:
+ *   length(new AS-Path)   in case of success
+ *   -1                    in case of error
  */
 int path_append(SBGPPath ** ppPath, uint16_t uAS)
 {

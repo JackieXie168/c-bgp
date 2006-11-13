@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 07/11/2006
+# @lastdate 12/11/2006
 # ===================================================================
 # Syntax:
 #
@@ -70,7 +70,7 @@ use CBGPValid::Tests;
 use CBGPValid::UI;
 use POSIX;
 
-use constant CBGP_VALIDATION_VERSION => '1.7.0';
+use constant CBGP_VALIDATION_VERSION => '1.7.1';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -936,7 +936,7 @@ sub cbgp_topo_check_record_route($$$)
     foreach my $node1 (keys %$nodes) {
 	foreach my $node2 (keys %$nodes) {
 	    ($node1 eq $node2) and next;
-	    my $trace= cbgp_record_route($cbgp, $node1, $node2);
+	    my $trace= cbgp_net_record_route($cbgp, $node1, $node2);
 
 	    # Result should be equal to the given status
 	    if ($trace->[CBGP_TR_STATUS] ne $status) {
@@ -996,8 +996,8 @@ sub cbgp_topo_check_static_routes($$)
 	
 	# Test static routes (forward)
 	foreach my $link (values %$links) {
-	    my $trace= cbgp_record_route($cbgp, $node1,
-					 $link->[CBGP_LINK_DST]);
+	    my $trace= cbgp_net_record_route($cbgp, $node1,
+					     $link->[CBGP_LINK_DST]);
 	    # Destination was reached
 	    ($trace->[CBGP_TR_STATUS] ne "SUCCESS") and return 0;
 	    # Path is 2 hops long
@@ -1428,8 +1428,8 @@ sub cbgp_show_rib_custom($$;$)
   return \%rib;
 }
 
-# -----[ cbgp_record_route ]-----------------------------------------
-sub cbgp_record_route($$$)
+# -----[ cbgp_net_record_route ]-------------------------------------
+sub cbgp_net_record_route($$$)
 {
     my ($cbgp, $src, $dst)= @_;
 
@@ -1445,9 +1445,30 @@ sub cbgp_record_route($$$)
 	$trace[CBGP_TR_PATH]= \@fields;
 	return \@trace;
     } else {
-	show_error("incorrect format (record-route): \"$result\"");
+	show_error("incorrect format (net record-route): \"$result\"");
 	exit(-1);
     }
+}
+
+# -----[ cbgp_bgp_record_route ]-------------------------------------
+sub cbgp_bgp_record_route($$$)
+{
+  my ($cbgp, $src, $dst)= @_;
+
+  cbgp_send($cbgp, "bgp router $src record-route $dst\n");
+  my $result= $cbgp->expect(1);
+  if ($result =~ m/^([0-9.]+)\s+([0-9.\/]+)\s+([A-Z_]+)\s+([0-9\s]*)$/) {
+    my @fields= split /\s+/, $result;
+    my @trace;
+    $trace[CBGP_TR_SRC]= shift @fields;
+    $trace[CBGP_TR_DST]= shift @fields;
+    $trace[CBGP_TR_STATUS]= shift @fields;
+    $trace[CBGP_TR_PATH]= \@fields;
+    return \@trace;
+  } else {
+    show_error("incorrect format (bgp record-route): \"$result\"");
+    exit(-1);
+  }
 }
 
 # -----[ cbgp_topo_check_links ]-------------------------------------
@@ -1970,11 +1991,11 @@ sub cbgp_valid_net_longest_matching($)
     }
     # Test longest-matching in record-route
     my $trace;
-    $trace= cbgp_record_route($cbgp, "1.0.0.2", "1.0.0.0");
+    $trace= cbgp_net_record_route($cbgp, "1.0.0.2", "1.0.0.0");
     if ($trace->[CBGP_TR_PATH]->[1] ne "1.0.0.1") {
 	return TEST_FAILURE;
     }
-    $trace= cbgp_record_route($cbgp, "1.0.0.2", "1.1.0.0");
+    $trace= cbgp_net_record_route($cbgp, "1.0.0.2", "1.1.0.0");
     if ($trace->[CBGP_TR_PATH]->[1] ne "1.0.0.3") {
 	return TEST_FAILURE;
     }
@@ -2008,11 +2029,11 @@ sub cbgp_valid_net_protocol_priority($)
     }
     # Test protocol-priority in record-route
     my $trace;
-    $trace= cbgp_record_route($cbgp, "1.0.0.2", "1.0.0.1");
+    $trace= cbgp_net_record_route($cbgp, "1.0.0.2", "1.0.0.1");
     if ($trace->[CBGP_TR_PATH]->[1] ne "1.0.0.3") {
 	return TEST_FAILURE;
     }
-    $trace= cbgp_record_route($cbgp, "1.0.0.2", "1.0.0.3");
+    $trace= cbgp_net_record_route($cbgp, "1.0.0.2", "1.0.0.3");
     if ($trace->[CBGP_TR_PATH]->[1] ne "1.0.0.3") {
 	return TEST_FAILURE;
     }    
@@ -2617,6 +2638,57 @@ sub cbgp_valid_bgp_recv_mrt($)
 	return TEST_FAILURE;
     }
     return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_bgp_record_route ]-------------------------------
+# Create the given topology in C-BGP. Check that bgp record-route
+# fails. Then, propagate the IGP routes. Check that record-route are
+# successfull.
+#
+# TODO: check loop detection.
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_record_route($)
+{
+  my ($cbgp)= @_;
+
+  my $topo= topo_3nodes_line();
+  cbgp_topo($cbgp, $topo, 1);
+  cbgp_topo_igp_compute($cbgp, $topo, 1);
+  cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
+  cbgp_send($cbgp, "bgp router 1.0.0.1");
+  cbgp_send($cbgp, "  add network 255/8");
+  cbgp_send($cbgp, "  add peer 2 1.0.0.2");
+  cbgp_send($cbgp, "  peer 1.0.0.2 up");
+  cbgp_send($cbgp, "  exit");
+  cbgp_send($cbgp, "bgp add router 2 1.0.0.2");
+  cbgp_send($cbgp, "bgp router 1.0.0.2");
+  cbgp_send($cbgp, "  add peer 1 1.0.0.1");
+  cbgp_send($cbgp, "  peer 1.0.0.1 up");
+  cbgp_send($cbgp, "  add peer 3 1.0.0.3");
+  cbgp_send($cbgp, "  peer 1.0.0.3 up");
+  cbgp_send($cbgp, "  exit");
+  cbgp_send($cbgp, "bgp add router 3 1.0.0.3");
+  cbgp_send($cbgp, "bgp router 1.0.0.3");
+  cbgp_send($cbgp, "  add peer 2 1.0.0.2");
+  cbgp_send($cbgp, "  peer 1.0.0.2 up");
+  cbgp_send($cbgp, "  exit");
+
+  my $trace= cbgp_bgp_record_route($cbgp, "1.0.0.3", "255/8");
+  if (!defined($trace) ||
+      ($trace->[CBGP_TR_STATUS] ne "UNREACHABLE")) {
+    return TEST_FAILURE;
+  }
+
+  cbgp_send($cbgp, "sim run");
+
+  $trace= cbgp_bgp_record_route($cbgp, "1.0.0.3", "255/8");
+  if (!defined($trace) ||
+     ($trace->[CBGP_TR_STATUS] ne "SUCCESS") ||
+     !aspath_equals($trace->[CBGP_TR_PATH], [3, 2, 1])) {
+    return TEST_FAILURE;
+  }
+
+  return TEST_SUCCESS;
 }
 
 # -----[ cbgp_valid_bgp_aspath_as_set ]------------------------------
@@ -4593,14 +4665,14 @@ sub cbgp_valid_bgp_rr_set_cluster_id($)
 
   # Maximum value (2^32)-1
   cbgp_send($cbgp, "bgp router 0.1.0.0 set cluster-id 4294967295");
-  my $error_msg= cbgp_check_error($cbgp);
+  $error_msg= cbgp_check_error($cbgp);
   if (defined($error_msg)) {
     return TEST_FAILURE;
   }
 
   # Larger than (2^32)-1
   cbgp_send($cbgp, "bgp router 0.1.0.0 set cluster-id 4294967296");
-  my $error_msg= cbgp_check_error($cbgp);
+  $error_msg= cbgp_check_error($cbgp);
   if (!defined($error_msg) ||
      !($error_msg =~ /$ERROR_MSG/)) {
     return TEST_FAILURE;
@@ -4985,6 +5057,7 @@ $tests->register("bgp peering next-hop-self",
 	      "cbgp_valid_bgp_peering_nexthopself");
 $tests->register("bgp virtual peer", "cbgp_valid_bgp_virtual_peer");
 $tests->register("bgp recv mrt", "cbgp_valid_bgp_recv_mrt");
+$tests->register("bgp record-route", "cbgp_valid_bgp_record_route");
 $tests->register("bgp as-path as_set", "cbgp_valid_bgp_aspath_as_set");
 $tests->register("bgp soft-restart", "cbgp_valid_bgp_soft_restart");
 $tests->register("bgp decision-process local-pref",
