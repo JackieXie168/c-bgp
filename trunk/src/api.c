@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 27/10/2006
+// @lastdate 17/11/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -52,6 +52,10 @@ void libcbgp_init()
 #else
   gds_init(0);
 #endif
+
+  /* Initialize log */
+  libcbgp_set_err_level(LOG_LEVEL_WARNING);
+  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
 
   // Hash init code commented in order to allow parameter setup
   // through he command-line/script
