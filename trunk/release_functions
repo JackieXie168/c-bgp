@@ -1,6 +1,6 @@
 # ===================================================================
 # Release script for libgds/cbgp: release functions
-# Last modified: 08/11/2006 (bqu)
+# Last modified: 17/11/2006 (bqu)
 # ===================================================================
 
 declare -a CONF_OPTIONS
@@ -160,6 +160,12 @@ check_build()
 {
     local OPTIONS
     info "Checking build..."
+    if [ ! -z "$PREBUILD" ]; then
+	eval "$PREBUILD $REDIRECT"
+	if [ $? != 0 ]; then
+	    error "prebuild command failed."
+	fi
+    fi
     for (( i= ${#CONF_OPTIONS[*]}-1 ; $i >= 0 ; i-- )) do
 	OPTIONS="${CONF_OPTIONS[$i]}"
 	check_configure "$OPTIONS"
