@@ -30,7 +30,16 @@ else
   OPT_EFENCE =
 endif
 
-SUBDIRS = bgp cli external net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) check
+# Compile with libgpdump ?
+if WITH_BGPDUMP
+  OPT_BGPDUMP_LIBADD = external/libexternal.la
+  OPT_BGPDUMP_DIR = external
+else
+  OPT_BGPDUMP_LIBADD =
+  OPT_BGPDUMP_DIR
+endif
+
+SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) $(OPT_BGPDUMP_DIR) check
 DIST_SUBDIRS = bgp cli external net sim ui util jni liballoc check 
 
 # Compile experimental features ?
@@ -57,7 +66,7 @@ AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OS
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES = api.c
-libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la external/libexternal.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE)
+libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE) $(OPT_BGPDUMP_LIBADD)
 libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
