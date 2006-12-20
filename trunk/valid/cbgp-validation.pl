@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 12/11/2006
+# @lastdate 20/12/2006
 # ===================================================================
 # Syntax:
 #
@@ -70,7 +70,7 @@ use CBGPValid::Tests;
 use CBGPValid::UI;
 use POSIX;
 
-use constant CBGP_VALIDATION_VERSION => '1.7.1';
+use constant CBGP_VALIDATION_VERSION => '1.8.0';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -311,7 +311,7 @@ sub topo_star($)
 {
     my ($num_nodes)= @_;
     my %topo;
-    
+
     for (my $index= 0; $index < $num_nodes-1; $index++) {
 	$topo{'1.0.0.1'}{'1.0.0.'.($index+2)}= [10, 10];
     }
@@ -926,9 +926,24 @@ sub cbgp_topo_check_ebgp_sessions($$;$)
 }
 
 # -----[ cbgp_topo_check_record_route ]------------------------------
-sub cbgp_topo_check_record_route($$$)
+# Check that record-routes performed on the given topology correctly
+# record the forwarding path. The function can optionaly check that
+# the IGP weight and delay of the path are correctly recorded.
+#
+# Arguments:
+#   $cbgp  : CBGP instance
+#   $topo  : topology to test
+#   $status: expected result (SUCCESS, UNREACH, ...)
+#   $delay : true => check that IGP weight and delay are correcly
+#            recorded (optional)
+#
+# Return value:
+#   1 success
+#   0 failure
+# -------------------------------------------------------------------
+sub cbgp_topo_check_record_route($$$;$)
 {
-    my ($cbgp, $topo, $status)= @_;
+    my ($cbgp, $topo, $status, $delay)= @_;
     my $nodes= topo_get_nodes($topo);
 
     $tests->debug("topo_check_record_route()");
@@ -936,7 +951,7 @@ sub cbgp_topo_check_record_route($$$)
     foreach my $node1 (keys %$nodes) {
 	foreach my $node2 (keys %$nodes) {
 	    ($node1 eq $node2) and next;
-	    my $trace= cbgp_net_record_route($cbgp, $node1, $node2);
+	    my $trace= cbgp_net_record_route($cbgp, $node1, $node2, $delay);
 
 	    # Result should be equal to the given status
 	    if ($trace->[CBGP_TR_STATUS] ne $status) {
@@ -946,15 +961,43 @@ sub cbgp_topo_check_record_route($$$)
 		return 0;
 	    }
 
+	    # Check that destination matches in case of success
+	    my @path= @{$trace->[CBGP_TR_PATH]};
 	    if ($trace->[CBGP_TR_STATUS] eq "SUCCESS") {
 		# Last hop should be destination
-		my @path= @{$trace->[CBGP_TR_PATH]};
 		$tests->debug(join ", ", @path);
 		if ($path[$#path] ne $node2) {
 		    $tests->debug("ERROR final node != destination ".
 			       "(\"".$path[$#path]."\" != \"$node2\")");
 		    return 0;
 		}
+	    }
+
+	    # Optionaly record/check IGP weight and delay
+	    if (defined($delay) && $delay) {
+	      my $delay= 0;
+	      my $weight= 0;
+	      my $prev_hop= undef;
+	      foreach my $hop (@path) {
+		if (defined($prev_hop)) {
+		  if (exists($topo->{$prev_hop}{$hop})) {
+		    $delay+= $topo->{$prev_hop}{$hop}->[1];
+		    $weight+= $topo->{$prev_hop}{$hop}->[0];
+		  } elsif (exists($topo->{$hop}{$prev_hop})) {
+		    $delay+= $topo->{$hop}{$prev_hop}->[1];
+		    $weight+= $topo->{$hop}{$prev_hop}->[0];
+		  } else {
+		    return 0;
+		  }
+		}
+		$prev_hop= $hop;
+	      }
+	      if ($delay != $trace->[CBGP_TR_DELAY]) {
+		return 0;
+	      }
+	      if ($weight != $trace->[CBGP_TR_WEIGHT]) {
+		return 0;
+	      }
 	    }
 	}
     }
@@ -1429,25 +1472,50 @@ sub cbgp_show_rib_custom($$;$)
 }
 
 # -----[ cbgp_net_record_route ]-------------------------------------
-sub cbgp_net_record_route($$$)
+# Record the route from a source node to a destination node or
+# prefix. The function can optionaly request that the route's IGP
+# weight and delay be recorded.
+#
+# Arguments:
+#   $cbgp : CBGP instance
+#   $src  : IP address of source node
+#   $dst  : IP address of IP prefix
+#   $delay: true => record IGP weight and delay (optional)
+# -------------------------------------------------------------------
+sub cbgp_net_record_route($$$;$)
 {
-    my ($cbgp, $src, $dst)= @_;
+  my ($cbgp, $src, $dst, $delay)= @_;
 
+  if (defined($delay) && $delay) {
+    die if $cbgp->send("net node $src record-route-delay $dst\n");
+  } else {
+    $delay= 0;
     die if $cbgp->send("net node $src record-route $dst\n");
-    my $result= $cbgp->expect(1);
-    if ($result =~ m/^([0-9.]+)\s+([0-9.\/]+)\s+([A-Z_]+)\s+([0-9.\s]+)$/) {
-	my @fields= split /\s+/, $result;
+  }
 
-	my @trace;
-	$trace[CBGP_TR_SRC]= shift @fields;
-	$trace[CBGP_TR_DST]= shift @fields;
-	$trace[CBGP_TR_STATUS]= shift @fields;
-	$trace[CBGP_TR_PATH]= \@fields;
-	return \@trace;
-    } else {
-	show_error("incorrect format (net record-route): \"$result\"");
-	exit(-1);
+  my $result= $cbgp->expect(1);
+  if (
+      ((!$delay) &&
+       ($result =~ m/^([0-9.]+)\s+([0-9.\/]+)\s+([A-Z_]+)\s+([0-9.\s]+)$/))
+      ||
+      (($delay) &&
+       ($result =~ m/^([0-9.]+)\s+([0-9.\/]+)\s+([A-Z_]+)\s+([0-9.\s]+)\s+([0-9]+)\s+([0-9]+)$/))
+     ) {
+    my @trace;
+    $trace[CBGP_TR_SRC]= $1;
+    $trace[CBGP_TR_DST]= $2;
+    $trace[CBGP_TR_STATUS]= $3;
+    my @path= split /\s+/, $4;
+    $trace[CBGP_TR_PATH]= \@path;
+    if ($delay) {
+      $trace[CBGP_TR_WEIGHT]= $5;
+      $trace[CBGP_TR_DELAY]= $6;
     }
+    return \@trace;
+  } else {
+    show_error("incorrect format (net record-route): \"$result\"");
+    exit(-1);
+  }
 }
 
 # -----[ cbgp_bgp_record_route ]-------------------------------------
@@ -1926,6 +1994,21 @@ sub cbgp_valid_net_record_route($$)
     }
     cbgp_topo_igp_compute($cbgp, $topo, 1);
     if (!cbgp_topo_check_record_route($cbgp, $topo, "SUCCESS")) {
+	return TEST_FAILURE;
+    }
+    return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_record_route_delay ]-------------------------
+# Create the given topology in C-BGP. Check that record-route
+# correctly records the path's IGP weight and delay.
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_delay($$)
+{
+    my ($cbgp, $topo)= @_;
+    cbgp_topo($cbgp, $topo, 1);
+    cbgp_topo_igp_compute($cbgp, $topo, 1);
+    if (!cbgp_topo_check_record_route($cbgp, $topo, "SUCCESS", 1)) {
 	return TEST_FAILURE;
     }
     return TEST_SUCCESS;
@@ -5032,6 +5115,7 @@ $tests->register("net igp unknown domain", "cbgp_valid_net_igp_unknown_domain");
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 		 $resources_path."valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
+$tests->register("net record-route-delay", "cbgp_valid_net_record_route_delay", $topo);
 $tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
 $tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
 $tests->register("net protocol priority", "cbgp_valid_net_protocol_priority");
