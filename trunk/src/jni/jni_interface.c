@@ -841,13 +841,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterRescan
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
   (JNIEnv * env, jobject obj, jstring jsRouterAddr, jstring jsFileName)
 {
+  char * cFileName;
   SBGPRouter * pRouter;
-  const char * cFileName;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
     return;
 
-  cFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
+  cFileName = (char *) (*env)->GetStringUTFChars(env, jsFileName, NULL);
   if (bgp_router_load_rib((char *) cFileName, pRouter) != 0)
     cbgp_jni_throw_CBGPException(env, "could not load RIB");
   (*env)->ReleaseStringUTFChars(env, jsFileName, cFileName);
@@ -1099,12 +1099,12 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv * env, jobject obj, jstring jsCommand)
 {
-  const char * cCommand;
+  char * cCommand;
 
   if (jsCommand == NULL)
     return;
 
-  cCommand= (*env)->GetStringUTFChars(env, jsCommand, NULL);
+  cCommand= (char *) (*env)->GetStringUTFChars(env, jsCommand, NULL);
   if (libcbgp_exec_cmd(cCommand) != CLI_SUCCESS)
     cbgp_jni_throw_CBGPException(env, "could not execute command");
   (*env)->ReleaseStringUTFChars(env, jsCommand, cCommand);
@@ -1119,9 +1119,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
   (JNIEnv * env, jobject obj, jstring jsFileName)
 {
-  const char * pcFileName;
+  char * pcFileName;
 
-  pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
+  pcFileName= (char *) (*env)->GetStringUTFChars(env, jsFileName, NULL);
+
   if (libcbgp_exec_file(pcFileName) != CLI_SUCCESS)
     cbgp_jni_throw_CBGPException(env, "could not execute script");
   (*env)->ReleaseStringUTFChars(env, jsFileName, pcFileName);
@@ -1179,7 +1180,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   const char * pcFileName;
   SJNIContext sCtx;
 
-  pcFileName= (*env)->GetStringUTFChars(env, jsFileName, NULL);
+  pcFileName= (char *) (*env)->GetStringUTFChars(env, jsFileName, NULL);
   if ((pRoutes= mrtd_load_routes(pcFileName, 0, NULL)) != NULL) {
     joArrayList= cbgp_jni_new_ArrayList(env);
     sCtx.jEnv= env;
