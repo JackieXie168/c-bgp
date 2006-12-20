@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 03/03/2006
+// @lastdate 20/12/2006
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -50,7 +50,9 @@ void net_record_route_info_destroy(SNetRecordRouteInfo ** ppRRInfo)
 // ----- node_record_route_nexthop ----------------------------------
 int node_record_route_nexthop(SNetNode * pCurrentNode,
 			      SNetDest sDest,
-			      SNetNode ** ppNextHopNode)
+			      SNetNode ** ppNextHopNode,
+			      net_link_delay_t * ptLinkDelay,
+			      uint32_t * puLinkWeight)
 {
   net_addr_t tNextHop;
   SNetRouteInfo * pRouteInfo;
@@ -124,8 +126,8 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
       }
       */
 
-  //tLinkDelay= pNextHop->pIface->tDelay;
-  //uLinkWeight= pNextHop->pIface->uIGPweight;
+  *ptLinkDelay= pNextHop->pIface->tDelay;
+  *puLinkWeight= pNextHop->pIface->uIGPweight;
 
       // Handle tunnel encapsulation
       /*
@@ -258,7 +260,9 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
 
       iResult= node_record_route_nexthop(pCurrentNode,
 					 sDest,
-					 &pCurrentNode);
+					 &pCurrentNode,
+					 &tLinkDelay,
+					 &uLinkWeight);
       if (iResult != 0) {
 	pRRInfo->iResult= iResult;
 	break;
@@ -275,9 +279,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
 
   }
 
-  /*
-  stack_destroy(&pDstStack);
-  */
+  //stack_destroy(&pDstStack);
 
   return pRRInfo;
 }
