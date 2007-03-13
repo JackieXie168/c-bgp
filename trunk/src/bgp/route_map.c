@@ -72,7 +72,7 @@ void route_map_element_destroy(void * pElt)
 /**
  *
  */
-uint32_t route_map_hash_compute(void * pElt, uint32_t uHashSize)
+uint32_t route_map_hash_compute(const void * pElt, const uint32_t uHashSize)
 {
   SRouteMapHashElt * phRouteMapElt= (SRouteMapHashElt *)pElt;
 
