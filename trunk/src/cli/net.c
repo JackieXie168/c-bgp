@@ -633,6 +633,45 @@ int cli_net_node_recordroutedelay(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_node_recordrouteloop ------------------------------
+/**
+ * context: {node}
+ * tokens: {addr, addr}
+ */
+int cli_net_node_recordrouteloop(SCliContext * pContext,
+				  STokens * pTokens)
+{
+  SNetNode * pNode;
+  char * pcDest;
+  SNetDest sDest;
+
+ // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  // Get destination address
+  pcDest= tokens_get_string_at(pTokens, 1);
+  if (ip_string_to_dest(pcDest, &sDest)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix|address|* \"%s\"\n", pcDest);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  /* Check that the destination type is adress/prefix */
+  if ((sDest.tType != NET_DEST_ADDRESS) &&
+      (sDest.tType != NET_DEST_PREFIX)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: can not use this destination type with record-route\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  node_dump_recorded_route(pLogOut, pNode, sDest,
+			   NET_RECORD_ROUTE_OPTION_QUICK_LOOP);
+
+  return CLI_SUCCESS;
+
+}
+
+
 // ----- cli_net_node_recordroutedeflection ------------------------------
 /**
  * context: {node}
@@ -1195,7 +1234,12 @@ int cli_register_net_node(SCliCmds * pCmds)
 					cli_net_node_recordroutedelay,
 					NULL, pParams));
 
-//sta : Cli command to check deflection in a network.
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<address@prefix>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("record-route-loop",
+					cli_net_node_recordrouteloop,
+					NULL, pParams));
+
   pParams= cli_params_create();
   cli_params_add(pParams, "<address|prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("record-route-deflection",

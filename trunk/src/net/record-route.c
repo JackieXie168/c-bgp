@@ -64,8 +64,7 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
     pNextHop= node_rt_lookup(pCurrentNode, sDest.uDest.tAddr);
     /*
       if (uDeflection) 
-      pRoute = rib_find_best(pRouter->pLocRIB,
-      uint32_to_prefix(sDest.uDest.tAddr, 32));
+	pRoute = rib_find_best(pRouter->pLocRIB, uint32_to_prefix(sDest.uDest.tAddr, 32));
     */
     break;
   case NET_DEST_PREFIX:
@@ -73,8 +72,7 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
 			      NET_ROUTE_ANY);
     /*
       if (uDeflection)
-      pRoute = rib_find_exact(pRouter->pLocRIB,
-      sDest.uDest.sPrefix);
+	pRoute = rib_find_exact(pRouter->pLocRIB, sDest.uDest.sPrefix);
     */
     if (pRouteInfo != NULL)
       pNextHop= &pRouteInfo->sNextHop;
@@ -186,34 +184,34 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
 
   pRRInfo= net_record_route_info_create(uOptions);
   
-  /*
-  net_addr_t tInitialBGPNextHopAddr = 0, tCurrentBGPNextHopAddr = 0;
+  
+  /* DEFLECTION CHECK */
+/*  net_addr_t tInitialBGPNextHopAddr = 0, tCurrentBGPNextHopAddr = 0;
   SNetProtocol * pProtocol = NULL;
   SBGPRouter * pRouter = NULL;
   SRoute * pRoute = NULL;
-  uint8_t uDeflectionOccurs = 0;
-  */
+  uint8_t uDeflectionOccurs = 0;*/
+  
 
   assert((sDest.tType == NET_DEST_PREFIX) ||
 	 (sDest.tType == NET_DEST_ADDRESS));
 
   while (pCurrentNode != NULL) {
 
-    /*      
-    if (uDeflection) {
+          
+/*    if (uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION) {
       pProtocol = protocols_get(pCurrentNode->pProtocols, NET_PROTOCOL_BGP);
       if (pProtocol != NULL)
         pRouter = (SBGPRouter *)pProtocol->pHandler;
+    }*/
+
+    /* Check for a loop */
+    if (uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP && net_path_search(pRRInfo->pPath, pCurrentNode->tAddr)) {
+      pRRInfo->iResult = NET_RECORD_ROUTE_LOOP;
+      net_path_append(pRRInfo->pPath, pCurrentNode->tAddr);
+      break;
     }
     
-    // check for a loop
-    if (uDeflection && net_path_search(pPath, pCurrentNode->tAddr)) {
-    iResult = NET_RECORD_ROUTE_LOOP;
-    net_path_append(pPath, pCurrentNode->tAddr);
-    break;
-    }
-    */
-
     net_path_append(pRRInfo->pPath, pCurrentNode->tAddr);
 
     pRRInfo->tDelay+= tLinkDelay;

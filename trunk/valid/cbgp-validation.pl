@@ -1052,6 +1052,44 @@ sub cbgp_topo_check_static_routes($$)
     return 1;
 }
 
+# -----[ cbgp_valid_bgp_quick_loop_detection ]-----------------------
+# Basic test on quick loop detection
+#
+# Setup:
+#
+#    Two nodes X, Y. Each of these has a forwarding decision for 
+#     Z towards the other.
+#
+#  - Feed two nodes with contradictory routes for the forwarding 
+#    towards a specific destination
+#  - perform a record-route towards this destination
+#  - Must appear LOOP keyword in the result
+#
+#
+sub cbgp_valid_bgp_quick_loop_detection($)
+{
+  my $cbgp= shift @_;
+
+  die if $cbgp->send("net add domain 1 igp\n");
+  die if $cbgp->send("net add node 1.0.0.1\n");
+  die if $cbgp->send("net add node 1.0.0.2\n");
+  die if $cbgp->send("net node 1.0.0.1 domain 1\n");
+  die if $cbgp->send("net node 1.0.0.2 domain 1\n");
+
+  die if $cbgp->send("net add link 1.0.0.1 1.0.0.2 1\n");
+
+  die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 * 1.0.0.2 1\n");
+  die if $cbgp->send("net node 1.0.0.2 route add 2.0.0.1/32 * 1.0.0.1 1\n");
+
+  die if $cbgp->send("net domain 1 compute\n");
+
+  my $loop_trace= cbgp_net_record_route_loop($cbgp, "1.0.0.1", "2.0.0.1");
+  if ($loop_trace->[CBGP_TR_STATUS] ne "LOOP") {
+    return TEST_FAILURE;
+  }
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_peering ]----------------------------------------------
 # Setup a BGP peering between a 'router' and a 'peer' in AS 'asn'.
 # Possible options are supported:
@@ -1469,6 +1507,29 @@ sub cbgp_show_rib_custom($$;$)
     }
   }
   return \%rib;
+}
+
+# -----[ cbgp_net_record_route_loop ]--------------------------------
+sub cbgp_net_record_route_loop($$$;)
+{
+  my ($cbgp, $src, $dst)= @_;
+
+  my @loop_trace;
+  die if $cbgp->send("net node $src record-route-loop $dst\n");
+
+  my $result= $cbgp->expect(1);
+  if ( $result =~ m/^([0-9.]+)\s+([0-9.\/]+)\s+([A-Z_]+)\s+([0-9.\s]+)$/ ) {
+    $loop_trace[CBGP_TR_SRC]= $1;
+    $loop_trace[CBGP_TR_DST]= $2;
+    $loop_trace[CBGP_TR_STATUS]= $3;
+    my @path= split /\s+/, $4;
+    $loop_trace[CBGP_TR_PATH]= \@path;
+    return \@loop_trace;
+  } else {
+    show_error("incorrect format (net record-route): \"$result\"");
+    exit(-1);
+  }
+
 }
 
 # -----[ cbgp_net_record_route ]-------------------------------------
@@ -2012,6 +2073,28 @@ sub cbgp_valid_net_record_route_delay($$)
 	return TEST_FAILURE;
     }
     return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_record_route_loop ]--------------------------
+# Test on the quick loop detection. A normal record-route does not 
+# detect loop, instead it waits until TTL expiration. 
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1), NH for 2.0.0.1 = 1.0.0.2
+#   - R2 (1.0.0.2, AS1), NH for 2.0.0.1 = 1.0.0.1
+#
+# Topology:
+#
+#   R1 -- R2
+#
+# Scenario:
+#   * Record route from node 1.0.0.1 towards 2.0.0.1
+# Success if the result contains LOOP and not TOO_LONG
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_loop($$)
+{
+  my ($cbgp, $topo)= @_;
+  return cbgp_valid_bgp_quick_loop_detection($cbgp);
 }
 
 # -----[ cbgp_valid_net_static_routes ]------------------------------
@@ -4566,6 +4649,7 @@ sub cbgp_valid_bgp_load_rib($)
     return TEST_SUCCESS;
 }
 
+
 # -----[ cbgp_valid_bgp_deflection ]---------------------------------
 sub cbgp_valid_bgp_deflection()
 {
@@ -5116,6 +5200,7 @@ $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 		 $resources_path."valid-record-route.ntf");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
 $tests->register("net record-route-delay", "cbgp_valid_net_record_route_delay", $topo);
+$tests->register("net record-route-loop", "cbgp_valid_net_record_route_loop");
 $tests->register("net static routes", "cbgp_valid_net_static_routes", $topo);
 $tests->register("net longest-matching", "cbgp_valid_net_longest_matching");
 $tests->register("net protocol priority", "cbgp_valid_net_protocol_priority");
