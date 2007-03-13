@@ -25,6 +25,7 @@
 
 #define NET_RECORD_ROUTE_OPTION_DELAY      0x01
 #define NET_RECORD_ROUTE_OPTION_WEIGHT     0x02
+#define NET_RECORD_ROUTE_OPTION_QUICK_LOOP 0x03
 #define NET_RECORD_ROUTE_OPTION_DEFLECTION 0x04
 
 // ----- SNetRecordRouteInfo ----------------------------------------
