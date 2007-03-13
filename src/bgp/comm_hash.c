@@ -26,7 +26,7 @@
 #include <bgp/comm_hash.h>
 
 // ---| Function prototypes |---
-static uint32_t _comm_hash_item_compute(void * pItem, uint32_t uHashSize);
+static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize);
 
 // ---| Private parameters |---
 static SHash * pCommHash= NULL;
@@ -43,7 +43,7 @@ static FHashCompute fCommHashCompute= _comm_hash_item_compute;
 #define AS_COMM_STR_SIZE 1024
 static char acCommStr1[AS_COMM_STR_SIZE];
 static char acCommStr2[AS_COMM_STR_SIZE];
-static uint32_t _comm_hash_item_compute(void * pItem, uint32_t uHashSize)
+static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize)
 {
   assert(comm_to_string((SCommunities *) pItem, acCommStr1,
 			AS_COMM_STR_SIZE) < AS_COMM_STR_SIZE);
@@ -56,7 +56,7 @@ static uint32_t _comm_hash_item_compute(void * pItem, uint32_t uHashSize)
  * Communities attribute. The function is based on Zebra's Communities
  * attribute hashing function.
  */
-static uint32_t _comm_hash_item_compute_zebra(void * pItem, uint32_t uHashSize)
+static uint32_t _comm_hash_item_compute_zebra(const void * pItem, const uint32_t uHashSize)
 {
   SCommunities * pCommunities= (SCommunities *) pItem;
   unsigned int uKey= 0;

@@ -25,7 +25,7 @@
 #include <bgp/path_hash.h>
 
 // ---| Function prototypes |---
-static uint32_t _path_hash_item_compute(void * pPath, uint32_t uHashSize);
+static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize);
 
 // ---| Private parameters |---
 static SHash * pPathHash= NULL;
@@ -42,7 +42,7 @@ static FHashCompute fPathHashCompute= _path_hash_item_compute;
 #define AS_PATH_STR_SIZE 1024
 static char acPathStr1[AS_PATH_STR_SIZE];
 static char acPathStr2[AS_PATH_STR_SIZE];
-static uint32_t _path_hash_item_compute(void * pPath, uint32_t uHashSize)
+static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize)
 {
   assert(path_to_string((SBGPPath *) pPath, 1, acPathStr1, AS_PATH_STR_SIZE)
 	 < AS_PATH_STR_SIZE);

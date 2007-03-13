@@ -68,7 +68,7 @@ void filter_path_regex_destroy(void * pItem)
  * Universal hash function for string keys (discussed in Sedgewick's
  * "Algorithms in C, 3rd edition") and adapted.
  */
-uint32_t filter_path_regex_hash(void * pItem, uint32_t uHashSize)
+uint32_t filter_path_regex_hash(const void * pItem, const uint32_t uHashSize)
 {
   SPathMatch * pRegEx = (SPathMatch *)pItem;
   

@@ -52,9 +52,9 @@ extern void path_dump(SLogStream * pStream, SBGPPath * pPath,
 // ----- path_hash --------------------------------------------------
 extern int path_hash(SBGPPath * pPath);
 // -----[ path_hash_zebra ]------------------------------------------
-extern uint32_t path_hash_zebra(void * pItem, uint32_t uHashSize);
+extern uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize);
 // -----[ path_hash_OAT ]--------------------------------------------
-extern uint32_t path_hash_OAT(void * pItem, uint32_t uHashSize);
+extern uint32_t path_hash_OAT(const void * pItem, const uint32_t uHashSize);
 // ----- path_comparison --------------------------------------------
 int path_comparison(SBGPPath * path1, SBGPPath * path2);
 // ----- path_equals ------------------------------------------------
