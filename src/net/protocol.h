@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 03/01/2005
+// @lastdate 22/01/2007
 // ==================================================================
 // Note: the number of supported protocols will often be low, so that
 // the list of protocols is implemented by a fixed-size array at this
@@ -17,10 +17,7 @@
 #define __NET_PROTOCOL_H__
 
 #include <libgds/array.h>
-#include <net/message.h>
-
-// Maximum number of supported protocols
-#define NET_PROTOCOL_MAX  3
+#include <net/net_types.h>
 
 // Protocol numbers
 #define NET_PROTOCOL_ICMP 0
@@ -29,24 +26,6 @@
 
 // Protocol names
 extern const char * PROTOCOL_NAMES[];
-
-// ----- FNetNodeHandleEvent -----
-typedef int (*FNetNodeHandleEvent)(void * pHandler,
-				   SNetMessage * pMessage);
-// ----- FNetNodeHandlerDestroy -----
-typedef void (*FNetNodeHandlerDestroy)(void ** ppHandler);
-
-// ----- SNetProtocol -----
-typedef struct {
-  void * pHandler;
-  FNetNodeHandleEvent fHandleEvent;
-  FNetNodeHandlerDestroy fDestroy;
-} SNetProtocol;
-
-// ----- SNetProtocols -----
-typedef struct {
-  SNetProtocol * data[NET_PROTOCOL_MAX];
-} SNetProtocols;
 
 // ----- protocols_create -------------------------------------------
 extern SNetProtocols * protocols_create();
