@@ -7,7 +7,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 01/08/2005
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifndef __NET_IGP_H__
@@ -17,8 +17,16 @@
 #include <net/network.h>
 #include <net/prefix.h>
 
-// ----- igp_compute_domain -----------------------------------------
-extern int igp_compute_domain(SIGPDomain * pDomain);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // ----- igp_compute_domain ---------------------------------------
+  int igp_compute_domain(SIGPDomain * pDomain);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __NET_IGP_H__ */
 
