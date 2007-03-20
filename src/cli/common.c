@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 21/04/2006
+// @lastdate 09/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <libgds/gds.h>
 #include <libgds/log.h>
 #include <libgds/tokenizer.h>
 
@@ -46,6 +47,19 @@
 #endif
 
 static SCli * pTheCli= NULL;
+
+// ----- str2boolean ------------------------------------------------
+int str2boolean(const char * pcValue, int * piOptionValue)
+{
+  if (!strcmp(pcValue, "on")) {
+    *piOptionValue= 1;
+    return 0;
+  } else if (!strcmp(pcValue, "off")) {
+    *piOptionValue= 0;
+    return 0;
+  }
+  return -1;
+}
 
 // ----- parse_version ----------------------------------------------
 int parse_version(char * pcVersion, unsigned int * puVersion)
@@ -93,14 +107,14 @@ int parse_version(char * pcVersion, unsigned int * puVersion)
 }
 
 // ----- cli_require_version ----------------------------------------
-int cli_require_version(SCliContext * pContext, STokens * pTokens)
+int cli_require_version(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcVersion;
   unsigned int uRequiredVersion;
   unsigned int uVersion;
   
   // Get required version
-  pcVersion= tokens_get_string_at(pTokens, 0);
+  pcVersion= tokens_get_string_at(pCmd->pParamValues, 0);
 
   if (parse_version(pcVersion, &uRequiredVersion)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid version \"\".\n", pcVersion);
@@ -121,16 +135,12 @@ int cli_require_version(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_set_autoflush ------------------------------------------
-int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
+int cli_set_autoflush(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcTemp;
 
-  pcTemp= tokens_get_string_at(pTokens, 0);
-  if (!strcmp(pcTemp, "on")) {
-    iOptionAutoFlush= 1;
-  } else if (!strcmp(pcTemp, "off")) {
-    iOptionAutoFlush= 0;
-  } else {
+  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2boolean(pcTemp, &iOptionAutoFlush) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE,
 	    "Error: invalid value \"%s\" for option \"autoflush\"\n",
 	    pcTemp);
@@ -140,15 +150,31 @@ int cli_set_autoflush(SCliContext * pContext, STokens * pTokens)
   return CLI_SUCCESS;
 }
 
+// ----- cli_set_exitonerror ----------------------------------------
+int cli_set_exitonerror(SCliContext * pContext, SCliCmd * pCmd)
+{
+  char * pcTemp;
+
+  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2boolean(pcTemp, &iOptionExitOnError) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE,
+	    "Error: invalid value \"%s\" for option \"exit-on-error\"\n",
+	    pcTemp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_set_comm_hash_size -------------------------------------
-int cli_set_comm_hash_size(SCliContext * pContext, STokens * pTokens)
+int cli_set_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 {
   unsigned long ulSize;
 
   /* Get the hash size */
-  if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
+  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
-	    tokens_get_string_at(pTokens, 0));
+	    tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -162,12 +188,12 @@ int cli_set_comm_hash_size(SCliContext * pContext, STokens * pTokens)
 }
 
 // -----[ cli_show_comm_hash_content ]-------------------------------
-int cli_show_comm_hash_content(SCliContext * pContext, STokens * pTokens)
+int cli_show_comm_hash_content(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcFileName;
   SLogStream * pStream= pLogOut;
 
-  pcFileName= tokens_get_string_at(pTokens, 0);
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
@@ -184,19 +210,19 @@ int cli_show_comm_hash_content(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_show_comm_hash_size ------------------------------------
-int cli_show_comm_hash_size(SCliContext * pContext, STokens * pTokens)
+int cli_show_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 {
   log_printf(pLogOut, "%u\n", comm_hash_get_size());
   return CLI_SUCCESS;
 }
 
 // -----[ cli_show_comm_hash_stat ]----------------------------------
-int cli_show_comm_hash_stat(SCliContext * pContext, STokens * pTokens)
+int cli_show_comm_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcFileName;
   SLogStream * pStream= pLogOut;
 
-  pcFileName= tokens_get_string_at(pTokens, 0);
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
@@ -213,23 +239,19 @@ int cli_show_comm_hash_stat(SCliContext * pContext, STokens * pTokens)
 }
 
 // -----[ cli_show_commands ]----------------------------------------
-int cli_show_commands(SCliContext * pContext, STokens * pTokens)
+int cli_show_commands(SCliContext * pContext, SCliCmd * pCmd)
 {
   cli_cmd_dump(pLogOut, "  ", pTheCli->pBaseCommand);
   return CLI_SUCCESS;
 }
 
 // ----- cli_set_debug ----------------------------------------------
-int cli_set_debug(SCliContext * pContext, STokens * pTokens)
+int cli_set_debug(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcTemp;
 
-  pcTemp= tokens_get_string_at(pTokens, 0);
-  if (!strcmp(pcTemp, "on")) {
-    iOptionDebug= 1;
-  } else if (!strcmp(pcTemp, "off")) {
-    iOptionDebug= 0;
-  } else {
+  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2boolean(pcTemp, &iOptionDebug) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE,
 	    "Error: invalid value \"%s\" for option \"debug\"\n",
 	    pcTemp);
@@ -244,14 +266,14 @@ int cli_set_debug(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {filename, predicate}
  */
-int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
+int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
 {
 #ifdef HAVE_BGPDUMP
   char * pcPredicate;
   SFilterMatcher * pMatcher;
 
   /* Parse predicate */
-  pcPredicate= tokens_get_string_at(pTokens, 1);
+  pcPredicate= tokens_get_string_at(pCmd->pParamValues, 1);
   if (predicate_parse(&pcPredicate, &pMatcher)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n",
 	    pcPredicate);
@@ -259,7 +281,7 @@ int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
   }
 
   /* Dump routes that match the given predicate */
-  mrtd_load_routes(tokens_get_string_at(pTokens, 0), 1, pMatcher);
+  mrtd_load_routes(tokens_get_string_at(pCmd->pParamValues, 0), 1, pMatcher);
 
   return CLI_SUCCESS;
 #else
@@ -269,7 +291,7 @@ int cli_show_mrt(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_show_mem_limit -----------------------------------------
-int cli_show_mem_limit(SCliContext * pContext, STokens * pTokens)
+int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 {
 #ifdef HAVE_GETRLIMIT
   struct rlimit rlim;
@@ -303,7 +325,7 @@ int cli_show_mem_limit(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_set_mem_limit ------------------------------------------
-int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
+int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 {
 #if defined(HAVE_SETRLIMIT) && defined(HAVE_GETRLIMIT)
   unsigned long ulLimit;
@@ -311,12 +333,12 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
   struct rlimit rlim;
 
   /* Get the value of the memory-limit */
-  if (tokens_get_ulong_at(pTokens, 0, &ulLimit) < 0) {
-    if (!strcmp(tokens_get_string_at(pTokens, 0), "unlimited")) {
+  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulLimit) < 0) {
+    if (!strcmp(tokens_get_string_at(pCmd->pParamValues, 0), "unlimited")) {
       tLimit= RLIM_INFINITY;
     } else {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid mem limit \"%s\"\n",
-	      tokens_get_string_at(pTokens, 0));
+	      tokens_get_string_at(pCmd->pParamValues, 0));
       return CLI_ERROR_COMMAND_FAILED;
     }
   } else {
@@ -350,14 +372,14 @@ int cli_set_mem_limit(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_set_path_hash_size -------------------------------------
-int cli_set_path_hash_size(SCliContext * pContext, STokens * pTokens)
+int cli_set_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 {
   unsigned long ulSize;
 
   /* Get the hash size */
-  if (tokens_get_ulong_at(pTokens, 0, &ulSize) < 0) {
+  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
-	    tokens_get_string_at(pTokens, 0));
+	    tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -371,12 +393,12 @@ int cli_set_path_hash_size(SCliContext * pContext, STokens * pTokens)
 }
 
 // -----[ cli_show_path_hash_content ]-------------------------------
-int cli_show_path_hash_content(SCliContext * pContext, STokens * pTokens)
+int cli_show_path_hash_content(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcFileName;
   SLogStream * pStream= pLogOut;
 
-  pcFileName= tokens_get_string_at(pTokens, 0);
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
@@ -393,19 +415,19 @@ int cli_show_path_hash_content(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_show_path_hash_size ------------------------------------
-int cli_show_path_hash_size(SCliContext * pContext, STokens * pTokens)
+int cli_show_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 {
   log_printf(pLogOut, "%u\n", path_hash_get_size());
   return CLI_SUCCESS;
 }
 
 // -----[ cli_show_path_hash_stat ]----------------------------------
-int cli_show_path_hash_stat(SCliContext * pContext, STokens * pTokens)
+int cli_show_path_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcFileName;
   SLogStream * pStream= pLogOut;
 
-  pcFileName= tokens_get_string_at(pTokens, 0);
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
@@ -422,9 +444,9 @@ int cli_show_path_hash_stat(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_show_version -------------------------------------------
-int cli_show_version(SCliContext * pContext, STokens * pTokens)
+int cli_show_version(SCliContext * pContext, SCliCmd * pCmd)
 {
-  log_printf(pLogOut, "version: %s %s", PACKAGE_NAME, PACKAGE_VERSION);
+  log_printf(pLogOut, "%s version: %s", PACKAGE_NAME, PACKAGE_VERSION);
 #ifdef __EXPERIMENTAL__ 
   log_printf(pLogOut, " [experimental]");
 #endif
@@ -442,17 +464,19 @@ int cli_show_version(SCliContext * pContext, STokens * pTokens)
 #endif
   log_printf(pLogOut, "\n");
 
+  log_printf(pLogOut, "libgds version: %s\n", gds_version());
+
   log_flush(pLogOut);
 
   return CLI_SUCCESS;
 }
 
 // ----- cli_include ------------------------------------------------
-int cli_include(SCliContext * pContext, STokens * pTokens)
+int cli_include(SCliContext * pContext, SCliCmd * pCmd)
 {
   FILE * pFile;
   int iResult= CLI_ERROR_COMMAND_FAILED;
-  char * pcFileName= tokens_get_string_at(pTokens, 0);
+  char * pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
 
   pFile= fopen(pcFileName, "r");
   if (pFile != NULL) {
@@ -465,7 +489,7 @@ int cli_include(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_pause --------------------------------------------------
-int cli_pause(SCliContext * pContext, STokens * pTokens)
+int cli_pause(SCliContext * pContext, SCliCmd * pCmd)
 {
   log_printf(pLogOut, "Paused: hit 'Enter' to continue...");
   log_flush(pLogOut);
@@ -476,9 +500,9 @@ int cli_pause(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_print --------------------------------------------------
-int cli_print(SCliContext * pContext, STokens * pTokens)
+int cli_print(SCliContext * pContext, SCliCmd * pCmd)
 {
-  log_printf(pLogOut, tokens_get_string_at(pTokens, 0));
+  log_printf(pLogOut, tokens_get_string_at(pCmd->pParamValues, 0));
   
   log_flush(pLogOut);
 
@@ -486,14 +510,14 @@ int cli_print(SCliContext * pContext, STokens * pTokens)
 }
 
 // ----- cli_quit ---------------------------------------------------
-int cli_quit(SCliContext * pContext, STokens * pTokens)
+int cli_quit(SCliContext * pContext, SCliCmd * pCmd)
 {
   return CLI_SUCCESS_TERMINATE;
 }
 
 // -----[ cli_time_diff ]--------------------------------------------
 static time_t tSavedTime= 0;
-int cli_time_diff(SCliContext * pContext, STokens * pTokens)
+int cli_time_diff(SCliContext * pContext, SCliCmd * pCmd)
 {
   time_t tCurrentTime= time(NULL);
 
@@ -506,7 +530,7 @@ int cli_time_diff(SCliContext * pContext, STokens * pTokens)
 }
 
 // -----[ cli_time_save ]--------------------------------------------
-int cli_time_save(SCliContext * pContext, STokens * pTokens)
+int cli_time_save(SCliContext * pContext, SCliCmd * pCmd)
 {
   tSavedTime= time(NULL);
   return CLI_SUCCESS;
@@ -531,6 +555,10 @@ void cli_register_set(SCli * pCli)
   pParams= cli_params_create();
   cli_params_add(pParams, "<on|off>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("debug", cli_set_debug,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<on|off>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("exit-on-error", cli_set_exitonerror,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<value>", NULL);
@@ -673,6 +701,15 @@ void cli_register_time(SCli * pCli)
 					pSubCmds, NULL));
 }
 
+// ----- cli_exit_on_error ------------------------------------------
+/**
+ *
+ */
+static int _cli_exit_on_error(int iResult)
+{
+  return (iOptionExitOnError?iResult:CLI_SUCCESS);
+}
+
 // ----- cli_get ----------------------------------------------------
 /**
  *
@@ -681,6 +718,7 @@ SCli * cli_get()
 {
   if (pTheCli == NULL) {
     pTheCli= cli_create();
+    cli_set_exit_callback(pTheCli, _cli_exit_on_error);
 
     /* Command classes */
     cli_register_bgp(pTheCli);
@@ -712,7 +750,7 @@ int cli_common_check_addr(char * pcValue)
   if (!ip_string_to_address(pcValue, &pcEndPtr, &tAddr) && (*pcEndPtr == 0))
     return CLI_SUCCESS;
   else
-    return CLI_ERROR_BAD_PARAMETER;
+    return CLI_ERROR_BAD_PARAM;
 }
 
 // ----- cli_common_check_prefix ------------------------------------
@@ -727,7 +765,7 @@ int cli_common_check_prefix(char * pcValue)
   if (!ip_string_to_prefix(pcValue, &pcEndPtr, &sPrefix) && (*pcEndPtr == 0))
     return CLI_SUCCESS;
   else
-    return CLI_ERROR_BAD_PARAMETER;
+    return CLI_ERROR_BAD_PARAM;
 }
 
 // ----- cli_common_check_uint --------------------------------------
