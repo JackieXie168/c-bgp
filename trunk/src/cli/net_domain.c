@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 23/10/2006
+// @lastdate 19/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,7 +23,7 @@
  * context: {}
  * tokens: {id, type}
  */
-int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
+int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
 {
   unsigned int uId;
   char * pcType;
@@ -31,15 +31,15 @@ int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
   SIGPDomain * pDomain;
 
   /* Check domain id */
-  if (tokens_get_uint_at(pTokens, 0, &uId) ||
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id %s\n",
-	       tokens_get_string_at(pTokens, 0));
+	       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   /* Check domain type */
-  pcType= tokens_get_string_at(pTokens, 1);
+  pcType= tokens_get_string_at(pCmd->pParamValues, 1);
   if (!strcmp(pcType, "igp")) {
     tType= DOMAIN_IGP;
   } else if (!strcmp(pcType, "ospf")) {
@@ -72,9 +72,9 @@ int cli_net_add_domain(SCliContext * pContext, STokens * pTokens)
 // ----- cli_net_node_domain ----------------------------------------
 /**
  * context: {node}
- * tokens: {addr, id}
+ * tokens: {id}
  */
-int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
+int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd)
 {
   SNetNode * pNode;
   unsigned int uId;
@@ -84,10 +84,10 @@ int cli_net_node_domain(SCliContext * pContext, STokens * pTokens)
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
   
   // Get domain ID
-  if (tokens_get_uint_at(pTokens, 1, &uId) ||
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
-	       tokens_get_string_at(pTokens, 1));
+	       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -121,10 +121,10 @@ int cli_ctx_create_net_domain(SCliContext * pContext, void ** ppItem)
   SIGPDomain * pDomain;
 
   /* Get domain id */
-  if (tokens_get_uint_at(pContext->pTokens, 0, &uId) ||
+  if (tokens_get_uint_at(pContext->pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
-	       tokens_get_string_at(pContext->pTokens, 0));
+	       tokens_get_string_at(pContext->pCmd->pParamValues, 0));
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -145,24 +145,26 @@ void cli_ctx_destroy_net_domain(void ** ppItem)
 // ----- cli_net_domain_set_ecmp ------------------------------------
 /**
  * context: {domain}
- * tokens: {id, state}
+ * tokens: {ecmp-state}
  */
-int cli_net_domain_set_ecmp(SCliContext * pContext, STokens * pTokens)
+int cli_net_domain_set_ecmp(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
+  char * pcState;
   int iState;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
 
   // Get the option's state ("yes"/"no")
-  if (!strcmp(tokens_get_string_at(pTokens, 1), "yes")) {
+  pcState= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (!strcmp(pcState, "yes")) {
     iState= 1;
-  } else if (!strcmp(tokens_get_string_at(pTokens, 1), "no")) {
+  } else if (!strcmp(pcState, "no")) {
     iState= 0;
   } else {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value for 'ecmp': \"%s\"\n",
-	       tokens_get_string_at(pTokens, 1));
+	    pcState);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -180,7 +182,7 @@ int cli_net_domain_set_ecmp(SCliContext * pContext, STokens * pTokens)
  * context: {domain}
  * tokens: {}
  */
-int cli_net_domain_show_info(SCliContext * pContext, STokens * pTokens)
+int cli_net_domain_show_info(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
 
@@ -196,7 +198,7 @@ int cli_net_domain_show_info(SCliContext * pContext, STokens * pTokens)
  * context: {domain}
  * tokens: {}
  */
-int cli_net_domain_show_nodes(SCliContext * pContext, STokens * pTokens)
+int cli_net_domain_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
 
@@ -212,7 +214,7 @@ int cli_net_domain_show_nodes(SCliContext * pContext, STokens * pTokens)
  * context: {domain}
  * tokens: {}
  */
-/*int cli_net_domain_show_subnets(SCliContext * pContext, STokens * pTokens)
+/*int cli_net_domain_show_subnets(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
 
@@ -228,14 +230,19 @@ int cli_net_domain_show_nodes(SCliContext * pContext, STokens * pTokens)
  * context: {domain}
  * tokens: {}
  */
-int cli_net_domain_compute(SCliContext * pContext, STokens * pTokens)
+int cli_net_domain_compute(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
+  if (pDomain  == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
 
-  igp_domain_compute(pDomain);
+  if (igp_domain_compute(pDomain) != CLI_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: IGP routes computation failed.\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
   return CLI_SUCCESS;
 }
 
@@ -245,7 +252,7 @@ int cli_net_domain_compute(SCliContext * pContext, STokens * pTokens)
  * context: {domain}
  * tokens: {}
  */
-int cli_net_domain_check_deflection(SCliContext * pContext, STokens * pTokens)
+int cli_net_domain_check_deflection(SCliContext * pContext, SCliCmd * pCmd)
 {
   SIGPDomain * pDomain;
 
