@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/06/2005
-// @lastdate 21/11/2005
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -12,29 +12,79 @@
 
 #include <libgds/array.h>
 #include <libgds/radix-tree.h>
+#include <net/link_attr.h>
 #include <net/prefix.h>
-#include <net/message.h>
-#include <net/network_t.h>
 #include <net/routing_t.h>
 
-
+typedef uint8_t net_tos_t;
 typedef uint8_t   ospf_dest_type_t;
 typedef uint32_t  ospf_area_t;
 typedef uint8_t   ospf_path_type_t;
 typedef SPtrArray next_hops_list_t;
 typedef SPtrArray SOSPFRouteInfoList;
 
-typedef SPtrArray links_list_t; // to be removed
 typedef SPtrArray SNetLinks;
+typedef SPtrArray SNetSubnets;
 
-#define NET_LINK_DELAY_INT
-
-#ifdef NET_LINK_DELAY_INT
 typedef uint32_t net_link_delay_t;
-#define NET_LINK_DELAY_INFINITE MAX_UINT32_T
-#else
-typedef double net_link_delay_t;
-#endif
+#define NET_LINK_DELAY_INFINITE UINT32_MAX
+typedef uint32_t net_link_load_t;
+#define NET_LINK_MAX_CAPACITY UINT32_MAX
+#define NET_LINK_MAX_LOAD UINT32_MAX
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// MESSAGE STRUCTURE
+//
+//////////////////////////////////////////////////////////////////////
+
+// ----- FPayLoadDestroy -----
+typedef void (*FPayLoadDestroy)(void ** pPayLoad);
+
+// ----- SNetMessage -----
+typedef struct {
+  net_addr_t tSrcAddr;
+  net_addr_t tDstAddr;
+  uint8_t uProtocol;
+  uint8_t uTTL;
+  net_tos_t tTOS;
+  void * pPayLoad;
+  FPayLoadDestroy fDestroy;
+} SNetMessage;
+
+// ----- FNetNodeHandleEvent -----
+typedef int (*FNetNodeHandleEvent)(void * pHandler,
+				   SNetMessage * pMessage);
+// ----- FNetNodeHandlerDestroy -----
+typedef void (*FNetNodeHandlerDestroy)(void ** ppHandler);
+
+// ----- SNetProtocol -----
+typedef struct {
+  void * pHandler;
+  FNetNodeHandleEvent fHandleEvent;
+  FNetNodeHandlerDestroy fDestroy;
+} SNetProtocol;
+
+// Maximum number of supported protocols
+#define NET_PROTOCOL_MAX  3
+
+// ----- SNetProtocols -----
+typedef struct {
+  SNetProtocol * data[NET_PROTOCOL_MAX];
+} SNetProtocols;
+
+//////////////////////////////////////////////////////////////////////
+//
+// MAIN NETWORK STRUCTURE
+//
+//////////////////////////////////////////////////////////////////////
+
+typedef struct {
+  STrie * pNodes;
+  SNetSubnets  * pSubnets;
+} SNetwork;
+
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -157,27 +207,45 @@ typedef int (*FNetLinkForward)(net_addr_t tNextHop, void * pContext,
 typedef union {
   net_addr_t tAddr;
   SNetSubnet * pSubnet;
-} UDestinationId;
+} net_link_dst_t;
 
-#define link_is_to_router(L) (L->uDestinationType == NET_LINK_TYPE_ROUTER)
+//#define link_is_to_router(L) (L->uDestinationType == NET_LINK_TYPE_ROUTER)
+
+
 // ----- SNetLink --------------------------------------------
 /**
- * This type defines a link object.
+ * This type defines a link object. A link is attached to a
+ * source node. On this node, the link is identified by the
+ * interface IP address (tIfaceAddr) and by the length of the
+ * mask.
  */
 typedef struct {
-  uint8_t          uDestinationType;    /* ROUTER / TRANSIT / STUB */
-  UDestinationId   UDestId;      /* depends on uDestinationType*/
-  SNetNode       * pSrcNode;
-  net_addr_t       tIfaceAddr;
-  //uint8_t          uMaskLen;//used with tIfaceAddr give IP subnet prefix on link
-  net_link_delay_t tDelay;
-  uint8_t          uFlags;
-  uint32_t         uIGPweight;      // Store IGP weight here
+  uint8_t            uType;      // Type of link: ROUTER/TRANSIT/STUB
+
+  // Identification of source
+  SNetNode         * pSrcNode;   // Node to which the link is attached
+  net_addr_t         tIfaceAddr; // Local interface address
+                                 //   ptp: remote destination
+                                 //   mtp: local interface
+  net_mask_t         tIfaceMask; // Local interface mask
+
+  // Identification of destination
+  net_link_dst_t     tDest;      // Depends on uType
+
+  // Attributes
+  net_link_delay_t   tDelay;     // Propagation delay
+  net_link_load_t    tCapacity;  // Link capacity
+  net_link_load_t    tLoad;      // Link load
+  uint8_t            uFlags;     // Flags: state (up/down), IGP_ADV
+  SNetIGPWeights   * pWeights;   // List of IGP weights (1/topo)
+
+  // Context and methods
+  void             * pContext;
+  FNetLinkForward    fForward;
+
 #ifdef OSPF_SUPPORT
   ospf_area_t      tArea;  
 #endif
-  void           * pContext;
-  FNetLinkForward  fForward;
 } SNetLink;
 
 
