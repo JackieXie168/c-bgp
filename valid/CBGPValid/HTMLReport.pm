@@ -2,7 +2,7 @@
 # CBGPValid::HTMLReport.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/11/2006
+# lastdate 19/01/2007
 # ===================================================================
 
 package CBGPValid::HTMLReport;
@@ -110,7 +110,8 @@ sub doc_write_status($$)
   if ($status == TEST_DISABLED) {
     $color= "gray";
   } elsif (($status == TEST_FAILURE) ||
-	   ($status == TEST_NOT_TESTED)) {
+	   ($status == TEST_NOT_TESTED) ||
+	   ($status == TEST_CRASHED)) {
     $color= "red";
   } elsif ($status == TEST_SUCCESS) {
     $color= "green";
@@ -200,6 +201,7 @@ sub report_write($$$)
 
   my $cbgp_path= $tests->{'cbgp-path'};
   my $cbgp_version= $validation->{'cbgp_version'};
+  my $libgds_version= $validation->{'libgds_version'};
   my $program_args= $validation->{'program_args'};
   my $program_name= $validation->{'program_name'};
   my $program_version= $validation->{'program_version'};
@@ -243,6 +245,7 @@ sub report_write($$$)
   print REPORT "<li>Arguments: $program_args</li>\n";
   print REPORT "<li>C-BGP version: ".(defined($cbgp_version)?$cbgp_version:"undef")."</li>\n";
   print REPORT "<li>C-BGP path: $cbgp_path</li>\n";
+  print REPORT "<li>libGDS version: ".(defined($libgds_version)?$libgds_version:"undef")."</li>\n";
   print REPORT "<li>Number of failures: $num_failures";
   ($tests->{'max-failures'} > 0) and
     print REPORT " (max: ".$tests->{'max-failures'}.")";

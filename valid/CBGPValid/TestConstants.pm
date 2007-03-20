@@ -2,7 +2,7 @@
 # CBGPValid::TestConstants.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/09/2006
+# lastdate 18/01/2007
 # ===================================================================
 
 package CBGPValid::TestConstants;
@@ -19,6 +19,7 @@ require Exporter;
 	    TEST_SUCCESS
 	    TEST_NOT_TESTED
 	    TEST_DISABLED
+	    TEST_CRASHED
 	    TEST_RESULT_MSG
 	   );
 
@@ -35,10 +36,12 @@ use constant TEST_FAILURE => 0;
 use constant TEST_SUCCESS => 1;
 use constant TEST_NOT_TESTED => 2;
 use constant TEST_DISABLED => 3;
+use constant TEST_CRASHED => 4;
 
 use constant TEST_RESULT_MSG => {
 				 TEST_FAILURE() => "FAILURE",
 				 TEST_SUCCESS() => "SUCCESS",
 				 TEST_NOT_TESTED() => "NOT-TESTED",
 				 TEST_DISABLED() => "DISABLED",
+				 TEST_CRASHED() => "CRASHED",
 				};
