@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 14/09/2006
+# lastdate 19/01/2007
 # ===================================================================
 #
 # Usage:
@@ -41,15 +41,21 @@ sub show_testing($)
 }
 
 # -----[ show_testing_success ]--------------------------------------
-sub show_testing_success()
+sub show_testing_success(;$)
 {
-  print STDERR "\033[70G\033[32;1mSUCCESS\033[0m\n";
+  my ($time)= @_;
+
+  if (defined($time)) {
+    printf STDERR "\033[65G\033[32;1mSUCCESS\033[0m (%ds)\n", $time;
+  } else {
+    print STDERR "\033[65G\033[32;1mSUCCESS\033[0m\n";
+  }
 }
 
 # -----[ show_testing_cache ]----------------------------------------
 sub show_testing_cache()
 {
-  print STDERR "\033[70G\033[32;1m(CACHE)\033[0m\n";
+  print STDERR "\033[65G\033[32;1m(CACHE)\033[0m\n";
 }
 
 # -----[ show_testing_failure ]--------------------------------------
@@ -57,19 +63,35 @@ sub show_testing_failure()
 {
   my ($self)= @_;
 
-  print STDERR "\033[70G\033[31;1mFAILURE\033[0m\n";
+  print STDERR "\033[65G\033[31;1mFAILURE\033[0m\n";
+}
+
+# -----[ show_testing_waiting ]--------------------------------------
+sub show_testing_waiting()
+{
+  my ($self)= @_;
+
+  print STDERR "\033[65G\033[33;1m-WAIT-\033[0m";
+}
+
+# -----[ show_testing_crashed ]--------------------------------------
+sub show_testing_crashed()
+{
+  my ($self)= @_;
+
+  print STDERR "\033[65G\033[31;1mCRASHED\033[0m\n";
 }
 
 # -----[ show_testing_skipped ]--------------------------------------
 sub show_testing_skipped()
 {
-  print STDERR "\033[70G\033[31;1mNOT-TESTED\033[0m\n";
+  print STDERR "\033[65G\033[31;1mNOT-TESTED\033[0m\n";
 }
 
 # -----[ show_testing_skipped ]--------------------------------------
 sub show_testing_disabled()
 {
-  print STDERR "\033[70G\033[33;1mDISABLED\033[0m\n";
+  print STDERR "\033[65G\033[33;1mDISABLED\033[0m\n";
 }
 
 # -----[ debug ]-----------------------------------------------------
@@ -167,8 +189,8 @@ sub run($)
 	(defined($self->{'include'}) &&
 	 !exists($self->{'include'}->{$test_name}))) {
       $self->set_result($test_record, TEST_DISABLED);
-      show_testing("$test_name");
-      show_testing_disabled();
+      #show_testing("$test_name");
+      #show_testing_disabled();
       $cache->{$test_name}= TEST_DISABLED;
     } else {
       if (!exists($cache->{$test_name}) ||
@@ -181,6 +203,7 @@ sub run($)
 	$cbgp->{log_file}= $log_file;
 	$cbgp->{log}= 1;
 	$cbgp->spawn();
+	die if $cbgp->send("# *** $test_name ***\n");
 	die if $cbgp->send("set autoflush on\n");
 	$self->debug("testing $test_name");
 	my $test_time_start= time();
@@ -190,19 +213,40 @@ sub run($)
 	no strict 'refs';
 	$result= &$test_func($cbgp, $test_args);
 	use strict 'refs';
-
 	my $test_time_end= time();
 	my $test_time_duration= $test_time_end-$test_time_start;
+
+	show_testing("$test_name");
+
+	# Check that the process is still running
+	show_testing_waiting();
+	$cbgp->send("\n");
+	$cbgp->send("print \"STILL_ALIVE\\n\"\n");
+	my $time_alive= time();
+	my $crashed= 1;
+	while (time()-$time_alive < 5) {
+	  my $result= $cbgp->expect(0);
+	  if (defined($result) &&
+	      ($result =~ m/STILL_ALIVE/)) {
+	    $crashed= 0;
+	    last;
+	  }
+	  sleep(0);
+	}
+	($crashed == 1) and $result= TEST_CRASHED;
+
 	$cbgp->finalize();
 	$self->set_result($test_record, $result, $test_time_duration);
-	show_testing("$test_name");
 	if ($result == TEST_SUCCESS) {
-	  show_testing_success();
+	  show_testing_success($test_time_duration);
 	} elsif ($result == TEST_NOT_TESTED) {
 	  show_testing_skipped();
-	} else {
+	} elsif ($result == TEST_FAILURE) {
 	  $self->{'num-failures'}++;
 	  show_testing_failure();
+	} else {
+	  $self->{'num-failures'}++;
+	  show_testing_crashed();
 	}
 	$cache->{$test_name}= $result;
       } else {
