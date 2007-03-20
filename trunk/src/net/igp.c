@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 03/03/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -32,7 +32,7 @@
 typedef struct {
   SNetLink * pIface;
   net_addr_t tNextHop;
-  uint32_t   uWeight;
+  net_igp_weight_t   tWeight;
 } SSPTInfo;
 
 // ----- SPTContext -------------------------------------------------
@@ -48,35 +48,35 @@ typedef struct {
   net_addr_t tAddr;
   SNetLink * pIface;
   net_addr_t tNextHop;
-  uint32_t uWeight;
+  net_igp_weight_t tWeight;
 } SSPTContext;
 
-// ----- spt_info_create --------------------------------------------
-SSPTInfo * spt_info_create(net_link_delay_t uWeight)
+// ----- _spt_info_create -------------------------------------------
+static SSPTInfo * _spt_info_create(net_igp_weight_t tWeight)
 {
   SSPTInfo * pInfo=
     (SSPTInfo *) MALLOC(sizeof(SSPTInfo));
-  pInfo->uWeight= uWeight;
+  pInfo->tWeight= tWeight;
   pInfo->pIface= NULL;
   pInfo->tNextHop= 0;
   return pInfo;
 }
 
-// ----- spt_info_destroy -------------------------------------------
-void spt_info_destroy(void ** pItem)
+// ----- _spt_info_destroy ------------------------------------------
+static void _spt_info_destroy(void ** pItem)
 {
   SSPTInfo * pInfo= *((SSPTInfo **) pItem);
 
   FREE(pInfo);
 }
 
-// ----- spt_info_prefix --------------------------------------------
+// ----- _spt_info_update -------------------------------------------
 /**
  * Create/update SPT info for visited node
  */
-int spt_info_update(SRadixTree * pVisited, SPrefix sPrefix,
-		    SNetLink * pIface, net_addr_t tNextHop,
-		    unsigned int uNewWeight)
+static int _spt_info_update(SRadixTree * pVisited, SPrefix sPrefix,
+			    SNetLink * pIface, net_addr_t tNextHop,
+			    net_igp_weight_t tNewWeight)
 {
   int iPushNode= 1;
   SSPTInfo * pInfo= (SSPTInfo *) radix_tree_get_exact(pVisited,
@@ -84,16 +84,16 @@ int spt_info_update(SRadixTree * pVisited, SPrefix sPrefix,
 						      sPrefix.uMaskLen);
   if (pInfo == NULL) {
     // Not yet visited: create SPT info
-    pInfo= spt_info_create(uNewWeight);
+    pInfo= _spt_info_create(tNewWeight);
     pInfo->pIface= pIface;
     pInfo->tNextHop= tNextHop;
     radix_tree_add(pVisited, sPrefix.tNetwork, sPrefix.uMaskLen, pInfo);
-  } else if (pInfo->uWeight > uNewWeight) {
+  } else if (pInfo->tWeight > tNewWeight) {
     // Update with new weight, interface & next-hop
-    pInfo->uWeight= uNewWeight;
+    pInfo->tWeight= tNewWeight;
     pInfo->pIface= pIface;
     pInfo->tNextHop= tNextHop;
-  } else if (pInfo->uWeight == uNewWeight) {
+  } else if (pInfo->tWeight == tNewWeight) {
     // Add equal-cost path (ECMP)
     /*	fprintf(stdout, "*** \033[32;1mECMP\033[0m: not yet supported ***\n");
       fprintf(stdout, "node: ");
@@ -127,23 +127,25 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
   SPrefix sInfoPrefix;
   int iIndex;
   unsigned int uIndex;
-  uint32_t uNewWeight;
   SNetLink * pIface;
   net_addr_t tNextHop;
   SPtrArray * pLinks;
+  net_igp_weight_t tWeight;
+  net_igp_weight_t tNewWeight;
 
-  pVisited= radix_tree_create(32, spt_info_destroy);
+  pVisited= radix_tree_create(32, _spt_info_destroy);
   pFIFO= fifo_create(100000, NULL);
   pContext= (SSPTContext *) MALLOC(sizeof(SSPTContext));
   pContext->tAddr= tSrcAddr;
   pContext->pIface= NULL;
   pContext->tNextHop= 0;
-  pContext->uWeight= 0;
+  pContext->tWeight= 0;
   fifo_push(pFIFO, pContext);
-  radix_tree_add(pVisited, tSrcAddr, 32, spt_info_create(0));
+  radix_tree_add(pVisited, tSrcAddr, 32, _spt_info_create(0));
 
   // -----| Breadth-first search |-----
   while (1) {
+
     pContext= (SSPTContext *) fifo_pop(pFIFO);
     if (pContext == NULL)
       break;
@@ -161,17 +163,16 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
       // the following properties:
       // - NET_LINK_FLAG_IGP_ADV (adjacency can be used)
       // - NET_LINK_FLAG_UP (the link must be UP)
-      if (!link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) ||
-	  !link_get_state(pLink, NET_LINK_FLAG_UP))
+      if (!net_link_get_state(pLink, NET_LINK_FLAG_IGP_ADV) ||
+	  !net_link_get_state(pLink, NET_LINK_FLAG_UP))
 	continue;
 
       // Warn if weight is 0
-      /*
-      if (pLink->uIGPweight == 0) {
-	LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 !!!\n");
+      tWeight= net_link_get_weight(pLink, 0);
+      if (tWeight == 0) {
+	//LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 !!!\n");
 	continue;
       }
-      */
 
       // Determine next-hop iface to be used (this is an interface of
       // the root node).
@@ -184,15 +185,16 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
       }
 
       // Compute weight to reach destination through this link
-      uNewWeight= pOldContext->uWeight+pLink->uIGPweight;
+      tNewWeight= net_igp_add_weights(pOldContext->tWeight, tWeight);
 
       // Retrieve SPT info for destination depending on link type...
-      link_get_prefix(pLink, &sInfoPrefix);
-      if (!spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, uNewWeight))
+      sInfoPrefix= net_link_get_prefix(pLink);
+      if (!_spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, tNewWeight))
 	continue;
 
-      // Push current destination onto stack if required
-      switch (pLink->uDestinationType) {
+      // Push current destination onto stack if further exploration
+      // is required from here.
+      switch (pLink->uType) {
       case NET_LINK_TYPE_ROUTER:
 	if (igp_domain_contains_router_by_addr(pDomain,
 					       link_get_address(pLink))) {
@@ -200,14 +202,15 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	  pContext->tAddr= link_get_address(pLink);
 	  pContext->pIface= pIface;
 	  pContext->tNextHop= tNextHop;
-	  pContext->uWeight= uNewWeight;
+	  pContext->tWeight= tNewWeight;
 	  assert(fifo_push(pFIFO, pContext) == 0);
 	}
-	  break;
+	break;
       case NET_LINK_TYPE_STUB:
 	break;
       case NET_LINK_TYPE_TRANSIT:
-	pLinks= pLink->UDestId.pSubnet->pLinks;
+
+	pLinks= pLink->tDest.pSubnet->pLinks;
 	for (uIndex= 0; uIndex < ptr_array_length(pLinks); uIndex++) {
 	  SNetLink * pSubLink= (SNetLink *) pLinks->data[uIndex];
 
@@ -216,25 +219,26 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	    continue;
 
 	  // Skip if sub-link is not UP
-	  if (!link_get_state(pSubLink, NET_LINK_FLAG_UP))
+	  if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))
 	    continue;
 
-	  link_get_prefix(pSubLink, &sInfoPrefix);
-	  if (igp_domain_contains_router_by_addr(pDomain, sInfoPrefix.tNetwork)) {
+	  sInfoPrefix.tNetwork= pSubLink->pSrcNode->tAddr;
+	  sInfoPrefix.uMaskLen= 32;
+	  if (igp_domain_contains_router(pDomain, pSubLink->pSrcNode)) {
 
 	    // Update the next-hop if the subnet is a direct link from
 	    // the root node. Otherwise, use previously computed
 	    // next-hop (from context).
 	    if (pIface == pLink) {
-	      tNextHop= sInfoPrefix.tNetwork;
+	      tNextHop= pSubLink->tIfaceAddr;
 	    }
 
-	    if (spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, uNewWeight)) {
+	    if (_spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, tNewWeight)) {
 	      pContext= (SSPTContext *) MALLOC(sizeof(SSPTContext));
 	      pContext->tAddr= sInfoPrefix.tNetwork;
 	      pContext->pIface= pIface;
 	      pContext->tNextHop= tNextHop;
-	      pContext->uWeight= uNewWeight;
+	      pContext->tWeight= tNewWeight;
 	      assert(fifo_push(pFIFO, pContext) == 0);
 	    }
 	  }
@@ -258,22 +262,21 @@ int igp_compute_prefix_for_each(uint32_t uKey, uint8_t uKeyLen,
   SNetNode * pNode= (SNetNode *) pContext;
   SSPTInfo * pInfo= (SSPTInfo *) pItem;
   SPrefix sPrefix;
+  int iResult;
 
   // Skip route to itself
   if ((pNode->tAddr == (net_addr_t) uKey) || (pInfo->pIface == NULL))
     return 0;
 
-  /*
-  fprintf(stderr, "node: ");
-  ip_address_dump(stderr, pNode->tAddr);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "prefix: ");
-  ip_address_dump(stderr, (net_addr_t) uKey);
-  fprintf(stderr, "/%u\n", uKeyLen);
-  fprintf(stderr, "next-hop: ");
-  link_dump(stderr, pInfo->pNextHopIf);
-  fprintf(stderr, "\n");
-  */
+  //log_printf(pLogErr, "*** node: ");
+  //ip_address_dump(pLogErr, pNode->tAddr);
+  //log_printf(pLogErr, ", prefix: ");
+  //ip_address_dump(pLogErr, (net_addr_t) uKey);
+  //log_printf(pLogErr, "/%u, iface: ", uKeyLen);
+  //link_dump(pLogErr, pInfo->pIface);
+  //log_printf(pLogErr, " (next-hop: ");
+  //ip_address_dump(pLogErr, pInfo->tNextHop);
+  //log_printf(pLogErr, ")\n");
 
   // Add IGP route
   sPrefix.tNetwork= uKey;
@@ -283,9 +286,12 @@ int igp_compute_prefix_for_each(uint32_t uKey, uint8_t uKeyLen,
      exists */
   node_rt_del_route(pNode, &sPrefix, NULL, NULL, NET_ROUTE_IGP);
 
-  return node_rt_add_route_link(pNode, sPrefix,
-				pInfo->pIface, pInfo->tNextHop,
-				pInfo->uWeight, NET_ROUTE_IGP);
+  iResult= node_rt_add_route_link(pNode, sPrefix,
+				  pInfo->pIface, pInfo->tNextHop,
+				  pInfo->tWeight, NET_ROUTE_IGP);
+  /*if (iResult != 0)
+    rt_perror(pLogErr, iResult);*/
+  return iResult;
 }
 
 // ----- igp_compute_rt_for_each --------------------------------
