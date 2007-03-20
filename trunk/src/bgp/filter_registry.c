@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 21/04/2006
+// @lastdate 09/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -90,14 +90,14 @@ static SCli * ft_cli_action_get()
 
 // ----- ft_cli_predicate_any ---------------------------------------
 static int ft_cli_predicate_any(SCliContext * pContext,
-				STokens * pTokens)
+				SCliCmd * pCmd)
 {
   return CLI_SUCCESS;
 }
 
 // ----- ft_cli_predicate_community_is ------------------------------
 static int ft_cli_predicate_community_is(SCliContext * pContext,
-					 STokens * pTokens)
+					 SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -105,7 +105,7 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
   comm_t tCommunity;
 
   // Get community
-  pcCommunity= tokens_get_string_at(pTokens, 0);
+  pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
@@ -118,7 +118,7 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
 
 // ----- ft_cli_predicate_nexthop_in --------------------------------
 static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
-				       STokens * pTokens)
+				       SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -127,7 +127,7 @@ static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
   SPrefix sPrefix;
   
   // Get prefix
-  pcPrefix= tokens_get_string_at(pTokens, 0);
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
@@ -141,7 +141,7 @@ static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
 
 // ----- ft_cli_predicate_nexthop_is --------------------------------
 static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
-				       STokens * pTokens)
+				       SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -150,7 +150,7 @@ static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
   net_addr_t tNextHop;
 
   // Get IP address
-  pcNextHop= tokens_get_string_at(pTokens, 0);
+  pcNextHop= tokens_get_string_at(pCmd->pParamValues, 0);
   if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
       (*pcEndChar != 0)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n", pcNextHop);
@@ -164,7 +164,7 @@ static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
 
 // ----- ft_cli_predicate_prefix_is ---------------------------------
 static int ft_cli_predicate_prefix_is(SCliContext * pContext,
-				      STokens * pTokens)
+				      SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -173,7 +173,7 @@ static int ft_cli_predicate_prefix_is(SCliContext * pContext,
   SPrefix sPrefix;
   
   // Get prefix
-  pcPrefix= tokens_get_string_at(pTokens, 0);
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
@@ -187,7 +187,7 @@ static int ft_cli_predicate_prefix_is(SCliContext * pContext,
 
 // ----- ft_cli_predicate_prefix_in ---------------------------------
 static int ft_cli_predicate_prefix_in(SCliContext * pContext,
-				      STokens * pTokens)
+				      SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -196,7 +196,7 @@ static int ft_cli_predicate_prefix_in(SCliContext * pContext,
   SPrefix sPrefix;
   
   // Get prefix
-  pcPrefix= tokens_get_string_at(pTokens, 0);
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
   if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
       (*pcEndChar != 0)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
@@ -216,7 +216,7 @@ extern SPtrArray * paPathExpr;
  *
  */
 static int ft_cli_predicate_path (SCliContext * pContext, 
-				    STokens * pTokens)
+				  SCliCmd * pCmd)
 {
   SFilterMatcher ** ppMatcher=
     (SFilterMatcher **) cli_context_get(pContext);
@@ -224,7 +224,7 @@ static int ft_cli_predicate_path (SCliContext * pContext,
   char * pcPattern;
   SPathMatch * pFilterRegEx, * pHashFilterRegEx;
 
-  pcPattern= tokens_get_string_at(pTokens, 0);
+  pcPattern= tokens_get_string_at(pCmd->pParamValues, 0);
   if (pcPattern == NULL) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Regular Expression.\n");
     return CLI_ERROR_COMMAND_FAILED;
@@ -355,7 +355,7 @@ static void ft_cli_register_predicate_path()
 
 // ----- ft_cli_action_accept ---------------------------------------
 int ft_cli_action_accept(SCliContext * pContext,
-			 STokens * pTokens)
+			 SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
@@ -367,7 +367,7 @@ int ft_cli_action_accept(SCliContext * pContext,
 
 // ----- ft_cli_action_deny -----------------------------------------
 int ft_cli_action_deny(SCliContext * pContext,
-		       STokens * pTokens)
+		       SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
@@ -382,25 +382,24 @@ int ft_cli_action_deny(SCliContext * pContext,
  *
  */
 int ft_cli_action_jump(SCliContext * pContext,
-			STokens * pTokens)
+		       SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   char * pcRouteMapName;
   SFilter * pFilter;
 
-  if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
+  if ((pcRouteMapName= tokens_get_string_at(pCmd->pParamValues, 0)) == NULL) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
+  if ((pFilter= route_map_get(pcRouteMapName)) == NULL) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map %s defined.\n", pcRouteMapName);
     return CLI_ERROR_COMMAND_FAILED;
   }
-
 
   *ppAction= filter_action_jump(pFilter);
 
@@ -413,20 +412,20 @@ int ft_cli_action_jump(SCliContext * pContext,
  *
  */
 int ft_cli_action_call(SCliContext * pContext,
-			STokens * pTokens)
+		       SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   char * pcRouteMapName;
   SFilter * pFilter;
 
-  if ( (pcRouteMapName = tokens_get_string_at(pTokens, 0)) == NULL) {
+  if ((pcRouteMapName= tokens_get_string_at(pCmd->pParamValues, 0)) == NULL) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: No Route Map name.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if ( (pFilter = route_map_get(pcRouteMapName)) == NULL) {
+  if ((pFilter= route_map_get(pcRouteMapName)) == NULL) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE,
 	    "Error: No Route Map %s defined.\n", pcRouteMapName);
@@ -440,13 +439,13 @@ int ft_cli_action_call(SCliContext * pContext,
 
 // ----- ft_cli_action_local_pref -----------------------------------
 int ft_cli_action_local_pref(SCliContext * pContext,
-			     STokens * pTokens)
+			     SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned long int ulPref;
 
-  if (tokens_get_ulong_at(pTokens, 0, &ulPref)) {
+  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulPref)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid local-pref\n");
     return CLI_ERROR_COMMAND_FAILED;
@@ -459,16 +458,16 @@ int ft_cli_action_local_pref(SCliContext * pContext,
 
 // ----- ft_cli_action_metric ---------------------------------------
 int ft_cli_action_metric(SCliContext * pContext,
-			 STokens * pTokens)
+			 SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned long int ulMetric;
 
-  if (!strcmp(tokens_get_string_at(pTokens, 0), "internal")) {
+  if (!strcmp(tokens_get_string_at(pCmd->pParamValues, 0), "internal")) {
     *ppAction= filter_action_metric_internal();
   } else {
-    if (tokens_get_ulong_at(pTokens, 0, &ulMetric)) {
+    if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulMetric)) {
       *ppAction= NULL;
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid metric\n");
       return CLI_ERROR_COMMAND_FAILED;
@@ -483,13 +482,13 @@ int ft_cli_action_metric(SCliContext * pContext,
 
 // ----- ft_cli_action_as_path_prepend ------------------------------
 int ft_cli_action_as_path_prepend(SCliContext * pContext,
-				  STokens * pTokens)
+				  SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned long int ulAmount;
 
-  if (tokens_get_ulong_at(pTokens, 0, &ulAmount)) {
+  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulAmount)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prepending amount\n");
     return CLI_ERROR_COMMAND_FAILED;
@@ -502,14 +501,14 @@ int ft_cli_action_as_path_prepend(SCliContext * pContext,
 
 // ----- ft_cli_action_community_add --------------------------------
 int ft_cli_action_community_add(SCliContext * pContext,
-				STokens * pTokens)
+				SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   char * pcCommunity;
   comm_t tCommunity;
 
-  pcCommunity= tokens_get_string_at(pTokens, 0);
+  pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
@@ -523,14 +522,14 @@ int ft_cli_action_community_add(SCliContext * pContext,
 
 // ----- ft_cli_action_community_remove -----------------------------
 int ft_cli_action_community_remove(SCliContext * pContext,
-				   STokens * pTokens)
+				   SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   char * pcCommunity;
   comm_t tCommunity;
 
-  pcCommunity= tokens_get_string_at(pTokens, 0);
+  pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
   if (comm_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
@@ -544,7 +543,7 @@ int ft_cli_action_community_remove(SCliContext * pContext,
 
 // ----- ft_cli_action_community_strip ------------------------------
 int ft_cli_action_community_strip(SCliContext * pContext,
-				  STokens * pTokens)
+				  SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
@@ -556,13 +555,13 @@ int ft_cli_action_community_strip(SCliContext * pContext,
 
 // ----- ft_cli_action_red_comm_ignore ------------------------------
 int ft_cli_action_red_comm_ignore(SCliContext * pContext,
-				  STokens * pTokens)
+				  SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned int uTarget;
 
-  if (tokens_get_uint_at(pTokens, 0, &uTarget)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uTarget)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid target\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -575,19 +574,19 @@ int ft_cli_action_red_comm_ignore(SCliContext * pContext,
 
 // ----- ft_cli_action_red_comm_prepend -----------------------------
 int ft_cli_action_red_comm_prepend(SCliContext * pContext,
-				   STokens * pTokens)
+				   SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned int uAmount;
   unsigned int uTarget;
   
-  if (tokens_get_uint_at(pTokens, 0, &uAmount)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uAmount)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prepending amount\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if (tokens_get_uint_at(pTokens, 1, &uTarget)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 1, &uTarget)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid target\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -601,13 +600,13 @@ int ft_cli_action_red_comm_prepend(SCliContext * pContext,
 #ifdef __EXPERIMENTAL__
 // ----- ft_cli_action_pref_comm ------------------------------------
 int ft_cli_action_pref_comm(SCliContext * pContext,
-			    STokens * pTokens)
+			    SCliCmd * pCmd)
 {
   SFilterAction ** ppAction=
     (SFilterAction **) cli_context_get(pContext);
   unsigned int uPref;
   
-  if (tokens_get_uint_at(pTokens, 0, &uPref)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uPref)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid preference value\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
