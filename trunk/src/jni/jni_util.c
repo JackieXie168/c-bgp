@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 29/09/2006
+// @lastdate 09/02/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -507,7 +507,7 @@ SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
   if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
     return NULL;
   
-  if ((pLink= node_find_link_to_router(pNode1, pNode2->tAddr)) == NULL) {
+  if ((pLink= node_find_link_ptp(pNode1, pNode2->tAddr)) == NULL) {
     cbgp_jni_throw_CBGPException(env, "could not find link");
     return NULL;
   }

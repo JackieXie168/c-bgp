@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 29/10/2006
+// @lastdate 09/02/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -498,7 +498,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   if ((pNodeDst= cbgp_jni_net_node_from_string(jEnv, jsDstAddr)) == NULL)
     return NULL;
 
-  if (node_add_link_to_router(pNodeSrc, pNodeDst, jiWeight, 1) < 0) {
+  if (node_add_link_ptp(pNodeSrc, pNodeDst, jiWeight, 0, 1, 1) < 0) {
     cbgp_jni_throw_CBGPException(jEnv, "link already exists");
     return NULL;
   }
@@ -1137,7 +1137,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
 JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_cliGetPrompt
   (JNIEnv *jEnv, jobject joCBGP)
 {
-  char * pcPrompt= cli_context_to_string(cli_get()->pExecContext, "cbgp");
+  char * pcPrompt= cli_context_to_string(cli_get()->pCtx, "cbgp");
 
   return cbgp_jni_new_String(jEnv, pcPrompt);
 }
