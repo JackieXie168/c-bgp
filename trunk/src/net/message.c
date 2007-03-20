@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 03/03/2006
+// @lastdate 19/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,6 +30,7 @@ SNetMessage * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
   pMessage->tDstAddr= tDstAddr;
   pMessage->uProtocol= uProtocol;
   pMessage->uTTL= uTTL;
+  pMessage->tTOS= 0;
   pMessage->pPayLoad= pPayLoad;
   pMessage->fDestroy= fDestroy;
   return pMessage;
