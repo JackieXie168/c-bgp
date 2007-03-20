@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/03/2005
-// @lastdate 03/03/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <libgds/log.h>
@@ -18,10 +19,11 @@
 #include <net/network.h>
 #include <net/node.h>
 #include <net/ntf.h>
+#include <net/util.h>
 
 // -----[ ntf_load ]-------------------------------------------------
 /**
- * Load the given NTF file into the the topology.
+ * Load the given NTF file into the topology.
  */
 int ntf_load(char * pcFileName)
 {
@@ -31,8 +33,7 @@ int ntf_load(char * pcFileName)
   STokenizer * pTokenizer;
   STokens * pTokens;
   uint32_t uLineNumber= 0;
-  char * pcNode1, * pcNode2;
-  char * pcEndPtr;
+  char * pcValue;
   net_addr_t tNode1, tNode2;
   unsigned int uWeight;
   unsigned int uDelay;
@@ -67,21 +68,19 @@ int ntf_load(char * pcFileName)
       }
 
       // Check IP address of first node
-      pcNode1= tokens_get_string_at(pTokens, 0);
-      if ((ip_string_to_address(pcNode1, &pcEndPtr, &tNode1) != 0) ||
-	  (*pcEndPtr != '\0')) {
+      pcValue= tokens_get_string_at(pTokens, 0);
+      if (str2address(pcValue, &tNode1) < 0) {
 	LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid IP address for first node (%s), line %u\n",
-		   pcNode1, uLineNumber);
+		   pcValue, uLineNumber);
 	iError= NTF_ERROR_INVALID_ADDRESS;
 	break;
       }
 
       // Check IP address of second node
-      pcNode2= tokens_get_string_at(pTokens, 1);
-      if ((ip_string_to_address(pcNode2, &pcEndPtr, &tNode2) != 0) ||
-	  (*pcEndPtr != '\0')) {
+      pcValue= tokens_get_string_at(pTokens, 1);
+      if (str2address(pcValue, &tNode2) < 0) {
 	LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid IP address for second node (%s), line %u\n",
-		   pcNode1, uLineNumber);
+		   pcValue, uLineNumber);
 	iError= NTF_ERROR_INVALID_ADDRESS;
 	break;
       }
@@ -118,9 +117,13 @@ int ntf_load(char * pcFileName)
 	network_add_node(pNode2);
       }
 
-      node_add_link_to_router(pNode1, pNode2, tDelay, 1);
-      pLink= node_find_link_to_router(pNode1, tNode2);
-      pLink->uIGPweight= uWeight;
+      node_add_link_ptp(pNode1, pNode2, tDelay, 0,
+			NET_LINK_DEFAULT_DEPTH,
+			NET_LINK_BIDIR);
+      assert((pLink= node_find_link_ptp(pNode1, tNode2)) != NULL);
+      net_link_set_weight(pLink, 0, uWeight);
+      assert((pLink= node_find_link_ptp(pNode2, tNode1)) != NULL);
+      net_link_set_weight(pLink, 0, uWeight);
 
     }
 

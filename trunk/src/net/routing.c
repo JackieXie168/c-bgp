@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 03/03/2006
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,11 +19,12 @@
 #include <assert.h>
 #include <string.h>
 
-// ----- route_nexthop_compare -------------------------------------------
+// ----- route_nexthop_compare --------------------------------------
 /**
  *
  */
-int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2)
+int route_nexthop_compare(SNetRouteNextHop sNH1,
+			  SNetRouteNextHop sNH2)
 {
   if (sNH1.tAddr > sNH2.tAddr)
     return 1;
@@ -77,6 +78,7 @@ SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
   pRouteInfo->sPrefix= sPrefix;
   pRouteInfo->sNextHop.tAddr= tNextHop;
   pRouteInfo->sNextHop.pIface= pIface;
+  pRouteInfo->pNextHops= NULL;
   pRouteInfo->uWeight= uWeight;
   pRouteInfo->tType= tType;
   return pRouteInfo;
@@ -100,14 +102,15 @@ void rt_route_info_destroy(void ** ppItem)
   net_route_info_destroy((SNetRouteInfo **) ppItem);
 }
 
-// ----- rt_info_list_cmp -------------------------------------------
+// ----- _rt_info_list_cmp ------------------------------------------
 /**
  * Compare two routes towards the same destination
  * - prefer the route with the lowest type (STATIC > IGP > BGP)
  * - prefer the route with the lowest metric
  * - prefer the route with the lowest next-hop address
  */
-int rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
+static int _rt_info_list_cmp(void * pItem1, void * pItem2,
+			     unsigned int uEltSize)
 {
   SNetRouteInfo * pRI1= *((SNetRouteInfo **) pItem1);
   SNetRouteInfo * pRI2= *((SNetRouteInfo **) pItem2);
@@ -128,8 +131,8 @@ int rt_info_list_cmp(void * pItem1, void * pItem2, unsigned int uEltSize)
   return route_nexthop_compare(pRI1->sNextHop, pRI2->sNextHop);
 }
 
-// ----- rt_info_list_dst -------------------------------------------
-void rt_info_list_dst(void * pItem)
+// ----- _rt_info_list_dst ------------------------------------------
+static void _rt_info_list_dst(void * pItem)
 {
   SNetRouteInfo * pRI= *((SNetRouteInfo **) pItem);
 
@@ -141,8 +144,8 @@ SNetRouteInfoList * rt_info_list_create()
 {
   return (SNetRouteInfoList *) ptr_array_create(ARRAY_OPTION_SORTED|
 						ARRAY_OPTION_UNIQUE,
-						rt_info_list_cmp,
-						rt_info_list_dst);
+						_rt_info_list_cmp,
+						_rt_info_list_dst);
 }
 
 // ----- rt_info_list_destroy ---------------------------------------
@@ -399,6 +402,11 @@ SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
   SNetRouteInfoList * pRIList;
   int iIndex;
   SNetRouteInfo * pRouteInfo;
+  /*SNetDest sDest;*/
+
+  /*log_printf(pLogOut, "[%p].rt_find_best(", pRT);
+  ip_address_dump(pLogOut, tAddr);
+  log_printf(pLogOut, ")\n");*/
 
   if (iOptionDebug) {
     LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
@@ -411,6 +419,15 @@ SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
   /* First, retrieve the list of routes that best match the given
      prefix */
   pRIList= (SNetRouteInfoList *) trie_find_best((STrie *) pRT, tAddr, 32);
+
+  /*log_printf(pLogOut, "ri-list: %p\n", pRIList);
+  if (pRIList == NULL) {
+    sDest.tType= NET_DEST_ANY;
+    rt_dump(pLogOut, pRT, sDest);
+
+    pRIList= (SNetRouteInfoList *) trie_find_exact((STrie *) pRT, tAddr, 32);
+    exit(-1);
+    }*/
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -671,7 +688,7 @@ void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo)
   route_nexthop_dump(pStream, pRouteInfo->sNextHop);
   log_printf(pStream, "\t%u\t", pRouteInfo->uWeight);
   net_route_type_dump(pStream, pRouteInfo->tType);
-  if (!link_get_state(pRouteInfo->sNextHop.pIface, NET_LINK_FLAG_UP)) {
+  if (!net_link_get_state(pRouteInfo->sNextHop.pIface, NET_LINK_FLAG_UP)) {
     log_printf(pStream, "\t[DOWN]");
   }
 }

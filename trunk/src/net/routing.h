@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 03/03/2006
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -42,56 +42,68 @@ typedef struct {
   SNetLink * pIface;
 } SNetRouteNextHop;
 
+typedef SPtrArray SNetRouteNextHops;
+
 // ----- SNetRouteInfo ----------------------------------------------
 typedef struct {
   SPrefix sPrefix;
   uint32_t uWeight;
   SNetRouteNextHop sNextHop;
+  SNetRouteNextHops * pNextHops;
   net_route_type_t tType;
 } SNetRouteInfo;
 
-// ----- route_nexthop_compare --------------------------------------
-extern int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2);
-// ----- rt_perror --------------------------------------------------
-extern void rt_perror(SLogStream * pStream, int iErrorCode);
-// ----- net_route_info_create --------------------------------------
-extern SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
-					     SNetLink * pIface,
-					     net_addr_t tNextHop,
-					     uint32_t uWeight,
-					     net_route_type_t tType);
-// ----- net_route_info_destroy -------------------------------------
-extern void net_route_info_destroy(SNetRouteInfo ** ppRouteInfo);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// ----- rt_create --------------------------------------------------
-extern SNetRT * rt_create();
-// ----- rt_destroy -------------------------------------------------
-extern void rt_destroy(SNetRT ** ppRT);
-// ----- rt_find_best -----------------------------------------------
-extern SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
-				    net_route_type_t tType);
-// ----- rt_find_exact ----------------------------------------------
-extern SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
-				     net_route_type_t tType);
-// ----- rt_add_route -----------------------------------------------
-extern int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
-			SNetRouteInfo * pRouteInfo);
-// ----- rt_del_route -----------------------------------------------
-extern int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-			SNetLink * pIface, net_addr_t * ptNextHop,
-			net_route_type_t tType);
-// ----- net_route_type_dump ----------------------------------------
-extern void net_route_type_dump(SLogStream * pStream, net_route_type_t tType);
-// ----- net_route_info_dump ----------------------------------------
-extern void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo);
-// ----- rt_info_list_dump ------------------------------------------
-extern void rt_info_list_dump(SLogStream * pStream, SPrefix sPrefix,
-			      SNetRouteInfoList * pRouteInfoList);
-// ----- rt_dump ----------------------------------------------------
-extern void rt_dump(SLogStream * pStream, SNetRT * pRT, SNetDest sDest);
-
-// ----- rt_for_each ------------------------------------------------
-extern int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
-		       void * pContext);
+  // ----- route_nexthop_compare ------------------------------------
+  int route_nexthop_compare(SNetRouteNextHop sNH1,
+			    SNetRouteNextHop sNH2);
+  // ----- rt_perror ------------------------------------------------
+  void rt_perror(SLogStream * pStream, int iErrorCode);
+  // ----- net_route_info_create --------------------------------------
+  SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
+					SNetLink * pIface,
+					net_addr_t tNextHop,
+					uint32_t uWeight,
+					net_route_type_t tType);
+  // ----- net_route_info_destroy -------------------------------------
+  void net_route_info_destroy(SNetRouteInfo ** ppRouteInfo);
+  
+  // ----- rt_create --------------------------------------------------
+  SNetRT * rt_create();
+  // ----- rt_destroy -------------------------------------------------
+  void rt_destroy(SNetRT ** ppRT);
+  // ----- rt_find_best -----------------------------------------------
+  SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
+			       net_route_type_t tType);
+  // ----- rt_find_exact ----------------------------------------------
+  SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
+				net_route_type_t tType);
+  // ----- rt_add_route -----------------------------------------------
+  int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
+		   SNetRouteInfo * pRouteInfo);
+  // ----- rt_del_route -----------------------------------------------
+  int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
+		   SNetLink * pIface, net_addr_t * ptNextHop,
+		   net_route_type_t tType);
+  // ----- net_route_type_dump ----------------------------------------
+  void net_route_type_dump(SLogStream * pStream, net_route_type_t tType);
+  // ----- net_route_info_dump ----------------------------------------
+  void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo);
+  // ----- rt_info_list_dump ------------------------------------------
+  void rt_info_list_dump(SLogStream * pStream, SPrefix sPrefix,
+			 SNetRouteInfoList * pRouteInfoList);
+  // ----- rt_dump ----------------------------------------------------
+  void rt_dump(SLogStream * pStream, SNetRT * pRT, SNetDest sDest);
+  
+  // ----- rt_for_each ------------------------------------------------
+  int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
+		  void * pContext);
+  
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __NET_ROUTING_H__ */
