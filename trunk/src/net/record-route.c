@@ -2,8 +2,9 @@
 // @(#)record-route.c
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 20/12/2006
+// @lastdate 20/03/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,7 +27,8 @@ SNetRecordRouteInfo * net_record_route_info_create(const uint8_t uOptions)
   pRRInfo->iResult= NET_RECORD_ROUTE_UNREACH;
   pRRInfo->pPath= net_path_create();
   pRRInfo->tDelay= 0;
-  pRRInfo->uWeight= 0;
+  pRRInfo->tWeight= 0;
+  pRRInfo->tCapacity= NET_LINK_MAX_CAPACITY;
 
   if (uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION)
     pRRInfo->pDeflectedPath= net_path_create();
@@ -47,12 +49,16 @@ void net_record_route_info_destroy(SNetRecordRouteInfo ** ppRRInfo)
   }
 }
 
-// ----- node_record_route_nexthop ----------------------------------
-int node_record_route_nexthop(SNetNode * pCurrentNode,
-			      SNetDest sDest,
-			      SNetNode ** ppNextHopNode,
-			      net_link_delay_t * ptLinkDelay,
-			      uint32_t * puLinkWeight)
+// ----- _node_record_route_nexthop ----------------------------------
+static int _node_record_route_nexthop(SNetNode * pCurrentNode,
+				      SNetDest sDest,
+				      net_tos_t tTOS,
+				      SNetNode ** ppNextHopNode,
+				      net_link_delay_t * ptLinkDelay,
+				      net_igp_weight_t * ptLinkWeight,
+				      net_link_load_t * ptLinkCapacity,
+				      net_link_load_t tLoad,
+				      uint8_t uOptions)
 {
   net_addr_t tNextHop;
   SNetRouteInfo * pRouteInfo;
@@ -82,13 +88,13 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
   default:
     abort();
   }
-  
+
   // No route: return UNREACH
   if (pNextHop == NULL)
     return NET_RECORD_ROUTE_UNREACH;
   
   // Link down: return DOWN
-  if (!link_get_state(pNextHop->pIface, NET_LINK_FLAG_UP))
+  if (!net_link_get_state(pNextHop->pIface, NET_LINK_FLAG_UP))
     return NET_RECORD_ROUTE_DOWN;
   
   /*
@@ -124,8 +130,20 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
       }
       */
 
-  *ptLinkDelay= pNextHop->pIface->tDelay;
-  *puLinkWeight= pNextHop->pIface->uIGPweight;
+
+  // Keep total propagation delay
+  *ptLinkDelay= net_link_get_delay(pNextHop->pIface);
+
+  // Keep total IGP weight (for the given topology, i;e. TOS)
+  *ptLinkWeight= net_link_get_weight(pNextHop->pIface, tTOS);
+
+  // Keep maximum possible capacity (=> keep minimum along the path)
+  *ptLinkCapacity= net_link_get_capacity(pNextHop->pIface);
+
+  // Load the outgoing link, if requested.
+  if (uOptions & NET_RECORD_ROUTE_OPTION_LOAD)
+    net_link_add_load(pNextHop->pIface, tLoad);
+
 
       // Handle tunnel encapsulation
       /*
@@ -167,16 +185,21 @@ int node_record_route_nexthop(SNetNode * pCurrentNode,
 /**
  *
  */
-SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
-					const uint8_t uOptions)
+SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
+					SNetDest sDest,
+					net_tos_t tTOS,
+					const uint8_t uOptions,
+					net_link_load_t tLoad)
 {
   SNetRecordRouteInfo * pRRInfo;
   SNetNode * pCurrentNode= pNode;
   unsigned int uHopCount= 0;
-  net_link_delay_t tLinkDelay= 0;
-  uint32_t uLinkWeight= 0;
   int iReached;
   int iResult;
+  // Keep path performance metrics
+  net_link_delay_t tLinkDelay= 0;
+  net_igp_weight_t tLinkWeight= 0;
+  net_link_load_t tLinkCapacity= NET_LINK_MAX_CAPACITY;
   /*
   SStack * pDstStack= stack_create(10);
   SNetDest * pDestCopy;
@@ -206,7 +229,8 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
     }*/
 
     /* Check for a loop */
-    if (uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP && net_path_search(pRRInfo->pPath, pCurrentNode->tAddr)) {
+    if ((uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP) &&
+	net_path_search(pRRInfo->pPath, pCurrentNode->tAddr)) {
       pRRInfo->iResult = NET_RECORD_ROUTE_LOOP;
       net_path_append(pRRInfo->pPath, pCurrentNode->tAddr);
       break;
@@ -214,8 +238,11 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
     
     net_path_append(pRRInfo->pPath, pCurrentNode->tAddr);
 
+    // Update path performance metrics
     pRRInfo->tDelay+= tLinkDelay;
-    pRRInfo->uWeight+= uLinkWeight;
+    pRRInfo->tWeight+= tLinkWeight;
+    if (tLinkCapacity < pRRInfo->tCapacity)
+      pRRInfo->tCapacity= tLinkCapacity;
 
     // Final destination reached ?
     iReached= 0;
@@ -256,11 +283,15 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode, SNetDest sDest,
 
     } else {
 
-      iResult= node_record_route_nexthop(pCurrentNode,
-					 sDest,
-					 &pCurrentNode,
-					 &tLinkDelay,
-					 &uLinkWeight);
+      iResult= _node_record_route_nexthop(pCurrentNode,
+					  sDest,
+					  tTOS,
+					  &pCurrentNode,
+					  &tLinkDelay,
+					  &tLinkWeight,
+					  &tLinkCapacity,
+					  tLoad,
+					  uOptions);
       if (iResult != 0) {
 	pRRInfo->iResult= iResult;
 	break;
@@ -310,15 +341,20 @@ int print_deflected_path_for_each(void * pItem, void * pContext)
 
 // ----- node_dump_recorded_route -----------------------------------
 /**
+ * Dump the recorded route.
  *
+ * Format:
+ *   <src> <dst> <status> <num-hops> <hop-1>...<hop-N> [delay:<delay> ...]
  */
 void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
-			      SNetDest sDest, const uint8_t uOptions)
+			      SNetDest sDest, net_tos_t tTOS,
+			      const uint8_t uOptions,
+			      net_link_load_t tLoad)
 {
   SDeflectedDump pDeflectedDump;
   SNetRecordRouteInfo * pRRInfo;
 
-  pRRInfo= node_record_route(pNode, sDest, uOptions);
+  pRRInfo= node_record_route(pNode, sDest, tTOS, uOptions, tLoad);
   assert(pRRInfo != NULL);
 
   ip_address_dump(pStream, pNode->tAddr);
@@ -339,16 +375,20 @@ void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
   default:
     log_printf(pStream, "UNKNOWN_ERROR");
   }
-  log_printf(pStream, "\t");
+  log_printf(pStream, "\t%u\t", net_path_length(pRRInfo->pPath));
   net_path_dump(pStream, pRRInfo->pPath);
 
-  if (uOptions & NET_RECORD_ROUTE_OPTION_DELAY) {
-    log_printf(pStream, "\t%u", pRRInfo->tDelay);
-  }
+  // Total propagation delay requested ?
+  if (uOptions & NET_RECORD_ROUTE_OPTION_DELAY)
+    log_printf(pStream, "\tdelay:%u", pRRInfo->tDelay);
 
-  if (uOptions & NET_RECORD_ROUTE_OPTION_WEIGHT) {
-    log_printf(pStream, "\t%u", pRRInfo->uWeight);
-  }
+  // Total IGP weight requested ?
+  if (uOptions & NET_RECORD_ROUTE_OPTION_WEIGHT)
+    log_printf(pStream, "\tweight:%u", pRRInfo->tWeight);
+
+  // Maximum capacity requested ?
+  if (uOptions & NET_RECORD_ROUTE_OPTION_CAPACITY)
+    log_printf(pStream, "\tcapacity:%u", pRRInfo->tCapacity);
 
   if ((uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION) &&
       (net_path_length(pRRInfo->pDeflectedPath) > 0)) {
