@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/08/2003
-// @lastdate 27/01/2005
+// @lastdate 09/01/2007
 // ==================================================================
 // Syntax:
 //   Script     ::= Rules
@@ -38,7 +38,7 @@ SCli * pActionCli= NULL;
  * tokens: {community}
  */
 int filter_parser_matcher_comm_contains(SCliContext * pContext,
-					STokens * pTokens)
+					SCliCmd * pCmd)
 {
   return CLI_ERROR_COMMAND_FAILED;
 }
