@@ -3,7 +3,7 @@
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/02/2006
-// @lastdate 28/02/2006
+// @lastdate 22/01/2007
 // ==================================================================
 
 #ifndef __WALTON_H__
@@ -38,6 +38,10 @@ void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter,
 void bgp_router_walton_disseminate_select_peers(SBGPRouter * pRouter, 
 					    SRoutes * pRoutes, 
 					    uint16_t iNextHopCount);
+// ----- bgp_router_walton_decision_process_run ---------------------
+int bgp_router_walton_decision_process_run(SBGPRouter * pRouter,
+					   SRoutes * pRoutes);
+
 #endif // EXPERIMENTAL_WALTON
 
 #endif //__WALTON_H__
