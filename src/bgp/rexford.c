@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 03/03/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -62,6 +62,7 @@ int rexford_load(char * pcFileName)
   uint32_t uLineNumber= 0;
   SNetProtocol * pProtocol;
   SPrefix sPrefix;
+  SNetLink * pLink;
 
   for (iIndex= 0; iIndex < MAX_AS; iIndex++)
     AS[iIndex]= NULL;
@@ -173,13 +174,21 @@ int rexford_load(char * pcFileName)
       }
 
       // Add the link and check that this link did not already exist
-      if (node_add_link_to_router(pNode1, pNode2, tDelay, 1) < 0) {
+      if (node_add_link_ptp(pNode1, pNode2, tDelay, 0, 1, 1) < 0) {
 	LOG_ERR(LOG_LEVEL_SEVERE,
 		"Error: duplicate link (%u, %u) in topology, line %u\n",
 		uAS1, uAS2, uLineNumber);
 	iError= REXFORD_ERROR_DUPLICATE_LINK;
 	break;
       } else {
+	pLink= node_find_link_ptp(pNode1, pNode2->tAddr);
+	assert(pLink != NULL);
+	net_link_set_weight(pLink, 0, tDelay);
+
+	pLink= node_find_link_ptp(pNode2, pNode1->tAddr);
+	assert(pLink != NULL);
+	net_link_set_weight(pLink, 0, tDelay);
+
 	// Add static routes
 	sPrefix.tNetwork= tAddr2;
 	sPrefix.uMaskLen= 32;
@@ -396,81 +405,6 @@ int rexford_record_route(SLogStream * pStream, char * pcFileName,
     return -1;
   return 0;
 }
-
-// ----- rexford_record_route_bm ------------------------------------
-/**
- *
- */
-#ifdef __EXPERIMENTAL__
-int rexford_record_route_bm(SLogStream * pStream, char * pcFileName,
-			    SPrefix sPrefix, uint8_t uBound)
-{
-  FILE * pFileInput;
-  char acFileLine[80];
-  int iError= 0;
-  uint16_t uAS;
-  int iResult;
-  SBGPPath * pPath= NULL;
-
-  if ((pFileInput= fopen(pcFileName, "r")) != NULL) {
-    while ((!feof(pFileInput)) && (!iError)) {
-      if (fgets(acFileLine, sizeof(acFileLine), pFileInput) == NULL)
-	break;
-      
-      if ((strlen(acFileLine) > 0) && (acFileLine[0] == '*')) {
-	
-	if (sscanf(acFileLine, "*") != 0) {
-	  iError= 1;
-	  break;
-	}
-	
-	uAS= 0;
-	while (1) {
-	  if (AS[uAS] != NULL) {
-	    iResult= bgp_router_record_route_bounded_match(AS[uAS], sPrefix,
-							   uBound,
-							   &pPath, 0);
-	    bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
-					   pPath, iResult);
-	    path_destroy(&pPath);
-	  }
-	  if (uAS == MAX_AS-1)
-	    break;
-	  else
-	    uAS++;
-	}
-	
-      } else {
-	if (sscanf(acFileLine, "%hu", &uAS) != 1) {
-	  iError= 1;
-	  break;
-	}
-
-	// Check that source AS exists and that the mask length is valid
-	if (AS[uAS] == NULL) {
-	  iError= 1;
-	  break;
-	}
-	
-	// Record route
-	iResult= bgp_router_record_route_bounded_match(AS[uAS], sPrefix,
-						       uBound,
-						       &pPath, 0);
-	bgp_router_dump_recorded_route(pStream, AS[uAS], sPrefix,
-				       pPath, iResult);
-	path_destroy(&pPath);
-	
-      }
-      
-    }
-    fclose(pFileInput);
-  } else
-    iError= 1;
-  if (iError)
-    return -1;
-  return 0;
-}
-#endif
 
 // ----- rexford_route_dp_rule --------------------------------------
 /**

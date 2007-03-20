@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 03/03/2006
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__
@@ -38,29 +38,32 @@
 #define PREF_PEER 80
 #define PREF_CUST 100
 
-// ----- rexford_get_as ---------------------------------------------
-extern SBGPRouter * rexford_get_as(uint16_t uASNum);
-// ----- rexford_load -----------------------------------------------
-extern int rexford_load(char * pcFileName);
-// ----- rexford_setup_policies -------------------------------------
-extern void rexford_setup_policies();
-// ----- rexford_run ------------------------------------------------
-extern int rexford_run();
-// ----- rexford_record_route ---------------------------------------
-extern int rexford_record_route(SLogStream * pStream, char * pcFileName,
-				SPrefix sPrefix);
-// ----- rexford_record_route_bm ------------------------------------
-extern int rexford_record_route_bm(SLogStream * pStream, char * pcFileName,
-				   SPrefix sPrefix, uint8_t uBound);
-// ----- rexford_route_dp_rule --------------------------------------
-/*
-extern int rexford_route_dp_rule(FILE * pStream, SPrefix sPrefix);
-*/
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// ----- _rexford_init ----------------------------------------------
-extern void _rexford_init();
-// ----- _rexford_destroy -------------------------------------------
-extern void _rexford_destroy();
+  // ----- rexford_get_as -------------------------------------------
+  SBGPRouter * rexford_get_as(uint16_t uASNum);
+  // ----- rexford_load ---------------------------------------------
+  int rexford_load(char * pcFileName);
+  // ----- rexford_setup_policies -----------------------------------
+  void rexford_setup_policies();
+  // ----- rexford_run ----------------------------------------------
+  int rexford_run();
+  // ----- rexford_record_route -------------------------------------
+  int rexford_record_route(SLogStream * pStream, char * pcFileName,
+				  SPrefix sPrefix);
+  // ----- rexford_record_route_bm ----------------------------------
+  int rexford_record_route_bm(SLogStream * pStream, char * pcFileName,
+				     SPrefix sPrefix, uint8_t uBound);
+  // ----- _rexford_init --------------------------------------------
+  void _rexford_init();
+  // ----- _rexford_destroy -----------------------------------------
+  void _rexford_destroy();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

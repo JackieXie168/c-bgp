@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/11/2005
-// @lastdate 11/09/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,17 +83,17 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   // RIB dump and the neighbors are supposed to be connected over
   // single-hop eBGP sessions.
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (2) CHECK LINK EXISTENCE\n");
-  pLink= node_find_link_to_router(pRouter->pNode, tRemoteAddr);
+  pLink= node_find_link_ptp(pRouter->pNode, tRemoteAddr);
   if (pLink == NULL) {
     
     // Create the link in one direction only. IGP weight is set
     // to AUTO_CONFIG_LINK_WEIGHT. The IGP_ADV flag is also removed
     // from the new link.
-    assert(node_add_link_to_router(pRouter->pNode, pNode,
-				   AUTO_CONFIG_LINK_WEIGHT, 0) >= 0);
-    pLink= node_find_link_to_router(pRouter->pNode, tRemoteAddr);
+    assert(node_add_link_ptp(pRouter->pNode, pNode, 0, 0, 1, 1) >= 0);
+    pLink= node_find_link_ptp(pRouter->pNode, tRemoteAddr);
     assert(pLink != NULL);
-    link_set_state(pLink, NET_LINK_FLAG_IGP_ADV, 0);
+    net_link_set_weight(pLink, 0, AUTO_CONFIG_LINK_WEIGHT);
+    net_link_set_state(pLink, NET_LINK_FLAG_IGP_ADV, 0);
   }    
 
   // (3). Check if there is a route towards the remote node.
