@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 12/09/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,6 +47,55 @@ void node_mgmt_perror(SLogStream * pStream, int iErrorCode)
   }
 }
 
+// ----- node_create ------------------------------------------------
+/**
+ *
+ */
+SNetNode * node_create(net_addr_t tAddr)
+{
+  SNetNode * pNode= (SNetNode *) MALLOC(sizeof(SNetNode));
+  pNode->tAddr= tAddr;
+  pNode->pcName= NULL;
+  
+  pNode->pLinks= net_links_create();
+  pNode->pRT= rt_create();
+
+#ifdef OSPF_SUPPORT
+  pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  pNode->pOspfRT     = OSPF_rt_create();
+#endif
+
+  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
+  pNode->pProtocols= protocols_create();
+  node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
+			 NULL, icmp_event_handler);
+  return pNode;
+}
+
+// ----- node_destroy -----------------------------------------------
+/**
+ *
+ */
+void node_destroy(SNetNode ** ppNode)
+{
+  if (*ppNode != NULL) {
+    rt_destroy(&(*ppNode)->pRT);
+    protocols_destroy(&(*ppNode)->pProtocols);
+    net_links_destroy(&(*ppNode)->pLinks);
+
+#ifdef OSPF_SUPPORT
+    _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
+    OSPF_rt_destroy(&(*ppNode)->pOspfRT);
+#endif
+
+    uint16_array_destroy(&(*ppNode)->pIGPDomains);
+    if ((*ppNode)->pcName)
+      str_destroy(&(*ppNode)->pcName);
+    FREE(*ppNode);
+    *ppNode= NULL;
+  }
+}
+
 // ----- node_get_name ----------------------------------------------
 char * node_get_name(SNetNode * pNode)
 {
@@ -71,7 +120,6 @@ void node_set_name(SNetNode * pNode, const char * pcName)
 void node_dump(SLogStream * pStream, SNetNode * pNode)
 { 
   ip_address_dump(pStream, pNode->tAddr);
-  log_printf(pStream, "\n");
 }
 
 // ----- node_info --------------------------------------------------
@@ -104,50 +152,57 @@ void node_info(SLogStream * pStream, SNetNode * pNode)
 //
 /////////////////////////////////////////////////////////////////////
 
-// ----- node_add_link_to_router ------------------------------------
+// ----- node_add_link_ptp ------------------------------------------
 /**
- *
+ * Helper function to add a point-to-point link to a node.
  */
-int node_add_link_to_router(SNetNode * pNodeA, SNetNode * pNodeB, 
-			    net_link_delay_t tDelay, int iMutual)
+int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB, 
+		      net_link_delay_t tDelay,
+		      net_link_load_t tCapacity,
+		      uint8_t tDepth,
+		      int iMutual)
 {
   SNetLink * pLink;
   int iResult;
 
-  iResult= create_link_toRouter(pNodeA, pNodeB, &pLink);
+  iResult= net_link_create_ptp(pNodeA, pNodeB, tDelay, tCapacity,
+			       tDepth, &pLink);
   if (iResult < 0)
     return iResult;
 
   if (iMutual) {
-    iResult= node_add_link_to_router(pNodeB, pNodeA, tDelay, 0);
+    // If link has to be created in both directions, perform
+    // recursive call with reverse source and destination.
+    iResult= node_add_link_ptp(pNodeB, pNodeA, tDelay, tCapacity,
+			       tDepth, 0);
     if (iResult)
       return iResult;
   }
 
-  pLink->tDelay= tDelay;
-  pLink->uIGPweight= tDelay;
   if (net_links_add(pNodeA->pLinks, pLink) < 0)
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
 
   return NET_SUCCESS;
 }
 
-// ----- node_add_link_to_subnet ------------------------------------
+// ----- node_add_link_mtp ------------------------------------------
 /**
  *
  */
-int node_add_link_to_subnet(SNetNode * pNode, SNetSubnet * pSubnet,
-			    net_addr_t tIfaceAddr,
-			    net_link_delay_t tDelay, int iMutual)
+static inline int node_add_link_mtp(SNetNode * pNode,
+				    SNetSubnet * pSubnet,
+				    net_addr_t tIfaceAddr,
+				    net_link_delay_t tDelay,
+				    net_link_load_t tCapacity,
+				    uint8_t tDepth,
+				    int iMutual)
 {
-  SNetLink * pLink= create_link_toSubnet(pNode, pSubnet, tIfaceAddr);
-  pLink->tDelay= tDelay;
-  pLink->uIGPweight= tDelay;
+  SNetLink * pLink= net_link_create_mtp(pNode, pSubnet, tIfaceAddr,
+					tDelay, tCapacity, tDepth);
 
-  if (net_links_add(pNode->pLinks, pLink) < 0) {
-fprintf(stdout, "fallisce net_links_add in node_add_link_to_subnet\n");
+  if (net_links_add(pNode->pLinks, pLink) < 0)
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
-  }
+
   else if (iMutual)
     return subnet_add_link(pSubnet, pLink, tIfaceAddr);
   else 
@@ -161,7 +216,8 @@ fprintf(stdout, "fallisce net_links_add in node_add_link_to_subnet\n");
  * a link to a subnet is created.
  */
 int node_add_link(SNetNode * pNode, SNetDest sDest,
-		  net_link_delay_t tDelay)
+		  net_link_delay_t tDelay, net_link_load_t tCapacity,
+		  uint8_t tDepth)
 {
   SNetNode * pDestNode;
   SNetSubnet * pDestSubnet;
@@ -173,16 +229,16 @@ int node_add_link(SNetNode * pNode, SNetDest sDest,
     pDestNode= network_find_node(sDest.uDest.tAddr);
     if (pDestNode == NULL)
       return NET_ERROR_MGMT_INVALID_NODE;
-    return node_add_link_to_router(pNode, pDestNode, tDelay, 1);
+    return node_add_link_ptp(pNode, pDestNode, tDelay, tCapacity, tDepth, 1);
 
   case NET_DEST_PREFIX:
     // Find destination subnet
     pDestSubnet= network_find_subnet(sDest.uDest.sPrefix);
     if (pDestSubnet == NULL)
       return NET_ERROR_MGMT_INVALID_SUBNET;
-    return node_add_link_to_subnet(pNode, pDestSubnet,
-				   sDest.uDest.sPrefix.tNetwork,
-				   tDelay, 1);
+    return node_add_link_mtp(pNode, pDestSubnet,
+			     sDest.uDest.sPrefix.tNetwork, tDelay, tCapacity,
+			     tDepth, 1);
 
   default:
     return NET_ERROR_MGMT_INVALID_OPERATION;
@@ -190,36 +246,19 @@ int node_add_link(SNetNode * pNode, SNetDest sDest,
   return 0;
 }
 
-// ----- node_find_link_to_router -----------------------------------
-SNetLink * node_find_link_to_router(SNetNode * pNode,
+// ----- node_find_link_ptp -----------------------------------------
+SNetLink * node_find_link_ptp(SNetNode * pNode,
 				    net_addr_t tAddr)
 {
-  unsigned int uIndex;
-  SNetLink * pLink= NULL, * pWrapLink;
-
-  if (create_link_toRouter_byAddr(pNode, tAddr, &pWrapLink) < 0)
-    return NULL;
-  
-  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
-    pLink = (SNetLink *) pNode->pLinks->data[uIndex];
-
-  link_destroy(&pWrapLink);
-  return pLink;
+  return net_links_find_ptp(pNode->pLinks, tAddr);
 }
 
-// ----- node_find_link_to_subnet -----------------------------------
-SNetLink * node_find_link_to_subnet(SNetNode * pNode,
-				    SNetSubnet * pSubnet, net_addr_t tIfaceAddr)
+// ----- _node_find_link_mtp ----------------------------------------
+static SNetLink * _node_find_link_mtp(SNetNode * pNode,
+				      net_addr_t tIfaceAddr,
+				      uint8_t uMaskLen)
 {
-  unsigned int uIndex;
-  SNetLink * pLink= NULL, * pWrapLink;
-  
-  pWrapLink= create_link_toSubnet(pNode, pSubnet, tIfaceAddr);
-  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-  link_destroy(&pWrapLink);
-  
-  return pLink;
+  return net_links_find_mtp(pNode->pLinks, tIfaceAddr, uMaskLen);
 }
 
 // ----- node_find_link ---------------------------------------------
@@ -228,42 +267,46 @@ SNetLink * node_find_link_to_subnet(SNetNode * pNode,
  */
 SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest)
 {
-  SNetLink * pLink = NULL;
-  SNetLink * pWrapLink = NULL;
- 
-
-  /*switch (sDest.tType) {
+  switch (sDest.tType) {
   case NET_DEST_ADDRESS:
-    pLink= node_find_link_to_router(pNode, sDest.uDest.tAddr);
-    break;
+    return node_find_link_ptp(pNode, sDest.uDest.tAddr);
   case NET_DEST_PREFIX:
-    pWrapSubnet= subnet_create(sDest.uDest.sPrefix.tNetwork,
-					    sDest.uDest.sPrefix.uMaskLen, 0);
-    pLink= node_find_link_to_subnet(pNode, pWrapSubnet, tIfaceAddr);
-    subnet_destroy(&pWrapSubnet);
-    break;
+    return _node_find_link_mtp(pNode,
+			       sDest.uDest.sPrefix.tNetwork,
+			       sDest.uDest.sPrefix.uMaskLen);
   default:
     return NULL;
-  }*/
-  unsigned int uIndex;
-  pWrapLink= (SNetLink *) MALLOC(sizeof(SNetLink));
-  pWrapLink->uDestinationType = NET_LINK_TYPE_TRANSIT;
-  if (sDest.tType == NET_DEST_ADDRESS) {
-    pWrapLink->tIfaceAddr = sDest.uDest.tAddr;
-  } else if (sDest.tType == NET_DEST_PREFIX) {
-    pWrapLink->tIfaceAddr = sDest.uDest.sPrefix.tNetwork;
   }
- 
-  //create_link(pNode, pSubnet, tIfaceAddr);
-  if (ptr_array_sorted_find_index(pNode->pLinks, &pWrapLink, &uIndex) == 0)
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-  link_destroy(&pWrapLink);
-  
-  return pLink;
-
-//  return pLink;
 }
 
+// ----- node_links_enum --------------------------------------------
+SNetLink * node_links_enum(SNetNode * pNode, int state)
+{
+  static SEnumerator * pEnum;
+  SNetLink * pLink;
+
+  if (state == 0)
+    pEnum= net_links_get_enum(pNode->pLinks);
+  if (enum_has_next(pEnum)) {
+    pLink= *((SNetLink **) enum_get_next(pEnum));
+    return pLink;
+  }
+  enum_destroy(&pEnum);
+  return NULL;
+}
+
+// ----- node_links_clear -------------------------------------------
+void node_links_clear(SNetNode * pNode)
+{
+  SEnumerator * pEnum= net_links_get_enum(pNode->pLinks);
+  SNetLink * pLink;
+
+  while (enum_has_next(pEnum)) {
+    pLink= *((SNetLink **) enum_get_next(pEnum));
+    net_link_set_load(pLink, 0);
+  }
+  enum_destroy(&pEnum);
+}
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -286,7 +329,7 @@ int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
 
   // Lookup the next-hop's interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  pIface= node_links_lookup(pNode, tNextHopIface);
+  pIface= node_find_link_ptp(pNode, tNextHopIface);
   if (pIface == NULL)
     return NET_RT_ERROR_IF_UNKNOWN;
 
@@ -310,7 +353,6 @@ int node_rt_add_route_dest(SNetNode * pNode, SPrefix sPrefix,
   // Lookup the outgoing interface (no recursive lookup is allowed,
   // it must be a direct link !)
   pIface= node_find_link(pNode, sIfaceDest);
-
   if (pIface == NULL)
     return NET_RT_ERROR_IF_UNKNOWN;
 
@@ -331,15 +373,19 @@ int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
 			   uint32_t uWeight, uint8_t uType)
 {
   SNetRouteInfo * pRouteInfo;
+  SNetLink * pSubLink;
 
   // If a next-hop has been specified, check that it is reachable
   // through the given interface.
   if (tNextHop != 0) {
-    //fprintf(stdout, "node-rt-debug: next-hop [");
-    //ip_address_dump(stdout, tNextHop);
-    //fprintf(stdout, ";");
-    //link_dst_dump(stdout, pIface);
-    //fprintf(stdout, "] must be checked...\n");
+    if (pIface->uType == NET_LINK_TYPE_ROUTER) {
+      if (pIface->tDest.tAddr != tNextHop)
+	return NET_RT_ERROR_NH_UNREACH;
+    } else {
+      pSubLink= subnet_find_link(pIface->tDest.pSubnet, tNextHop);
+      if ((pSubLink == NULL) || (pSubLink->tIfaceAddr == pIface->tIfaceAddr))
+	return NET_RT_ERROR_NH_UNREACH;
+    }
   }
 
   // Build route info

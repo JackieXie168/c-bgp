@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 21/11/2005
+// @lastdate 17/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,8 @@
 #endif
 
 #include <assert.h>
+#include <string.h>
+
 #include <libgds/memory.h>
 #include <net/link-list.h>
 #include <net/node.h>
@@ -27,8 +29,8 @@
 /////////////////////////////////////////////////////////////////////
 
 // ----- _net_subnet_link_compare -----------------------------------
-int _net_subnet_link_compare(void * pItem1, void * pItem2,
-			     unsigned int uEltSize)
+static int _net_subnet_link_compare(void * pItem1, void * pItem2,
+				    unsigned int uEltSize)
 {
   SNetLink * pLink1= *((SNetLink **) pItem1);
   SNetLink * pLink2= *((SNetLink **) pItem2);
@@ -46,14 +48,16 @@ SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen,
 			   uint8_t uType)
 {
   SNetSubnet * pSubnet= (SNetSubnet *) MALLOC(sizeof(SNetSubnet));
+  assert(uMaskLen < 32); // subnets with a mask of /32 are not allowed
   pSubnet->sPrefix.tNetwork= tNetwork;
   pSubnet->sPrefix.uMaskLen= uMaskLen;
   ip_prefix_mask(&pSubnet->sPrefix);
+  pSubnet->uType = uType;
+  
 #ifdef OSPF_SUPPORT
   pSubnet->uOSPFArea = OSPF_NO_AREA;
 #endif
-  pSubnet->uType = uType;
-  
+
   // Create an array of references to links
   pSubnet->pLinks= ptr_array_create(ARRAY_OPTION_SORTED |
 				    ARRAY_OPTION_UNIQUE,
@@ -73,7 +77,7 @@ void subnet_destroy(SNetSubnet ** ppSubnet)
 }
 
 // ----- subnet_dump ------------------------------------------------
-void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
+void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet)
 {
   char pcAddr[16];
   SNetLink * pLink = NULL;
@@ -81,27 +85,28 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
   int iIndex;
   
   ip_prefix_to_string(pcPrefix, &(pSubnet->sPrefix));
-  fprintf(pStream, "SUBNET PREFIX <%s>\t", pcPrefix);
-  fprintf(pStream, "OSPF AREA  <%u>\t", (unsigned int) pSubnet->uOSPFArea);
+  log_printf(pStream, "SUBNET PREFIX <%s>\t", pcPrefix);
+  log_printf(pStream, "OSPF AREA  <%u>\t", (unsigned int) pSubnet->uOSPFArea);
   switch (pSubnet->uType) {
-    case NET_SUBNET_TYPE_TRANSIT : 
-           fprintf(pStream, "TRANSIT\t");
-         break;
-    case NET_SUBNET_TYPE_STUB : 
-           fprintf(pStream, "STUB\t");
-         break;
-    default : fprintf(pStream, "???\t");
+  case NET_SUBNET_TYPE_TRANSIT : 
+    log_printf(pStream, "TRANSIT\t");
+    break;
+  case NET_SUBNET_TYPE_STUB : 
+    log_printf(pStream, "STUB\t");
+    break;
+  default:
+    log_printf(pStream, "???\t");
   }
-  fprintf(pStream, "LINKED TO: \t");
+  log_printf(pStream, "LINKED TO: \t");
   //dump links 
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++) {
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pLink);
     assert(pLink != NULL);
     ip_address_to_string(pcAddr, link_get_iface(pLink));
-    fprintf(pStream, "%s\n", pcAddr);
-    fprintf(pStream, "---\t\t\t\t\t\t");
+    log_printf(pStream, "%s\n", pcAddr);
+    log_printf(pStream, "---\t\t\t\t\t\t");
   }
-  fprintf(pStream,"\n");
+  log_printf(pStream,"\n");
 }
 
 // ----- subnet_get_links -------------------------------------------
@@ -109,7 +114,10 @@ void subnet_dump(FILE * pStream, SNetSubnet * pSubnet)
  * Notes from bqu:
  *  - what is the purpose of this function ?
  *  - it should be based on a links_list_copy function (from link-list.h)
+ *
+ * COMMENT ON 15/01/2007 => TRY TO GET RID OF THIS FUNCTION !!!
  */
+/*
 links_list_t * subnet_get_links(SNetSubnet * pSubnet) 
 {
   links_list_t * pList= net_links_create();
@@ -132,7 +140,7 @@ links_list_t * subnet_get_links(SNetSubnet * pSubnet)
     net_links_add(pList, pLinkCopy);
   }
   return pList;
-}
+  }*/
 
 // ----- subnet_link_to_node ----------------------------------------
 int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
@@ -160,18 +168,6 @@ int subnet_is_stub(SNetSubnet * pSubnet) {
   return (pSubnet->uType == NET_SUBNET_TYPE_STUB);
 }
 
-// ----- subnets_compare --------------------------------------------
-int subnets_compare(void * pItem1, void * pItem2,
-		       unsigned int uEltSize){
-  SNetSubnet * pSub1= *((SNetSubnet **) pItem1);
-  SNetSubnet * pSub2= *((SNetSubnet **) pItem2);
-
-  SPrefix * pPfx1 = &(pSub1->sPrefix);
-  SPrefix * pPfx2 = &(pSub2->sPrefix);
-  
-  return ip_prefixes_compare(&pPfx1, &pPfx2, 0);   
-}
-
 // ----- subnet_find_link -------------------------------------------
 SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
 {
@@ -196,10 +192,10 @@ int _subnet_forward(net_addr_t tNextHop, void * pContext,
   SNetSubnet * pSubnet;
   SNetLink * pSubLink;
 
-  assert((pLink->uDestinationType == NET_LINK_TYPE_STUB) ||
-	 (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT));
+  assert((pLink->uType == NET_LINK_TYPE_STUB) ||
+	 (pLink->uType == NET_LINK_TYPE_TRANSIT));
 
-  pSubnet= pLink->UDestId.pSubnet;
+  pSubnet= pLink->tDest.pSubnet;
 
   // Find destination node
   pSubLink= subnet_find_link(pSubnet, tNextHop);
@@ -207,7 +203,7 @@ int _subnet_forward(net_addr_t tNextHop, void * pContext,
     return NET_ERROR_DST_UNREACHABLE;
 
   // Forward along this link...
-  if (!link_get_state(pSubLink, NET_LINK_FLAG_UP))
+  if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))
     return NET_ERROR_LINK_DOWN;
 
   *ppNextHop= pSubLink->pSrcNode;
@@ -397,3 +393,65 @@ int _subnet_test(){
   return 1;
 }
 
+
+/////////////////////////////////////////////////////////////////////
+//
+// SUBNETS LIST FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
+// ----- _subnets_compare -------------------------------------------
+/**
+ *
+ */
+static int _subnets_compare(void * pItem1, void * pItem2,
+			    unsigned int uEltSize){
+  SNetSubnet * pSub1= *((SNetSubnet **) pItem1);
+  SNetSubnet * pSub2= *((SNetSubnet **) pItem2);
+
+  SPrefix * pPfx1 = &(pSub1->sPrefix);
+  SPrefix * pPfx2 = &(pSub2->sPrefix);
+  
+  return ip_prefixes_compare(&pPfx1, &pPfx2, 0);
+}
+
+// ----- _subnets_destroy -------------------------------------------
+static void _subnets_destroy(void * pItem)
+{
+  subnet_destroy(((SNetSubnet **) pItem));
+}
+
+// ----- subnets_create ---------------------------------------------
+SNetSubnets * subnets_create()
+{
+  return ptr_array_create(ARRAY_OPTION_SORTED|
+			  ARRAY_OPTION_UNIQUE,
+			  _subnets_compare,
+			  _subnets_destroy);
+}
+
+// ----- subnets_destroy --------------------------------------------
+void subnets_destroy(SNetSubnets ** ppSubnets)
+{
+  ptr_array_destroy((SPtrArray **) ppSubnets);
+}
+
+// ----- subnets_add ------------------------------------------------
+int subnets_add(SNetSubnets * pSubnets, SNetSubnet * pSubnet)
+{
+  return ptr_array_add((SPtrArray *) pSubnets, &pSubnet);
+}
+
+// ----- subnets_find -----------------------------------------------
+SNetSubnet * subnets_find(SNetSubnets * pSubnets, SPrefix sPrefix)
+{
+  unsigned int uIndex;
+  SNetSubnet sWrapSubnet, * pWrapSubnet= &sWrapSubnet;
+
+  memcpy(&sWrapSubnet.sPrefix, &sPrefix, sizeof(sPrefix));
+
+  if (ptr_array_sorted_find_index(pSubnets, &pWrapSubnet, &uIndex) == 0)
+    return (SNetSubnet *) pSubnets->data[uIndex];
+  
+  return NULL;
+}
