@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 12/10/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,13 +34,20 @@
 #include <bgp/as_t.h>
 #include <bgp/rib.h>
 
-const net_addr_t MAX_ADDR= MAX_UINT32_T;
-
 SNetwork * pTheNetwork= NULL;
 
 // ----- options -----
 uint8_t NET_OPTIONS_MAX_HOPS= 30;
 uint8_t NET_OPTIONS_IGP_INTER= 0;
+
+// ----- Forward declarations ---------------------------------------
+static SNetSendContext * _network_send_context_create(SNetNode * pNode,
+						      SNetMessage * pMessage);
+static void _network_send_context_destroy(void * pContext);
+static int _network_send_callback(void * pContext);
+static void _network_send_dump(SLogStream * pStream, void * pContext);
+static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
+			    net_addr_t tNextHop, SNetMessage * pMessage);
 
 // ----- network_perror ---------------------------------------------
 /**
@@ -68,75 +75,11 @@ void network_perror(SLogStream * pStream, int iErrorCode)
   }
 }
 
-// ----- _network_node_compare --------------------------------------
-/*static int _network_node_compare(void * pItem1, void * pItem2,
-				 unsigned int uEltSize)
-{
-  SNetNode * pNode1= *((SNetNode **) pItem1);
-  SNetNode * pNode2= *((SNetNode **) pItem2);
-
-  if (pNode1->tAddr < pNode2->tAddr)
-    return -1;
-  else if (pNode1->tAddr > pNode2->tAddr)
-    return 1;
-  else
-    return 0;
-    }*/
-
 // ----- node_get_prefix---------------------------------------------
 void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix)
 {
   pPrefix->tNetwork = pNode->tAddr;
   pPrefix->uMaskLen = 32;
-}
-
-// ----- node_create ------------------------------------------------
-/**
- *
- */
-SNetNode * node_create(net_addr_t tAddr)
-{
-  SNetNode * pNode= (SNetNode *) MALLOC(sizeof(SNetNode));
-  pNode->tAddr= tAddr;
-  pNode->pcName= NULL;
-  
-  pNode->pLinks= net_links_create();
-  pNode->pRT= rt_create();
-
-#ifdef OSPF_SUPPORT
-  pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
-  pNode->pOspfRT     = OSPF_rt_create();
-#endif
-
-  pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
-  pNode->pProtocols= protocols_create();
-  node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
-			 NULL, icmp_event_handler);
-  return pNode;
-}
-
-// ----- node_destroy -----------------------------------------------
-/**
- *
- */
-void node_destroy(SNetNode ** ppNode)
-{
-  if (*ppNode != NULL) {
-    rt_destroy(&(*ppNode)->pRT);
-    protocols_destroy(&(*ppNode)->pProtocols);
-    net_links_destroy(&(*ppNode)->pLinks);
-
-#ifdef OSPF_SUPPORT
-    _array_destroy((SArray **)(&(*ppNode)->pOSPFAreas));
-    OSPF_rt_destroy(&(*ppNode)->pOspfRT);
-#endif
-
-    uint16_array_destroy(&(*ppNode)->pIGPDomains);
-    if ((*ppNode)->pcName)
-      str_destroy(&(*ppNode)->pcName);
-    FREE(*ppNode);
-    *ppNode= NULL;
-  }
 }
 
 // ----- node_add_tunnel --------------------------------------------
@@ -207,30 +150,10 @@ void node_links_dump(SLogStream * pStream, SNetNode * pNode)
 }
 
 // ----- node_links_for_each ----------------------------------------
-int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach, void * pContext)
+int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
+			void * pContext)
 {
   return _array_for_each((SArray *) pNode->pLinks, fForEach, pContext);
-}
-
-// ----- node_links_lookup ------------------------------------------
-/**
- * This function looks for a direct link towards a node. This is
- * similar to looking for a node's outgoing interface to a directly
- * connected node.
- *
- * Note: this function is used before forwarding...
- */
-SNetLink * node_links_lookup(SNetNode * pNode,
-			     net_addr_t tDstAddr)
-{
-  SNetLink * pLink;
-
-  // Link lookup: O(log(n))
-  pLink= node_find_link_to_router(pNode, tDstAddr);
-  if (pLink == NULL)
-    return NULL; // No link available towards this node
-
-  return pLink;
 }
 
 // ----- node_rt_dump -----------------------------------------------
@@ -289,8 +212,8 @@ int node_has_address(SNetNode * pNode, net_addr_t tAddress)
   // Check interface addresses
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uType == NET_LINK_TYPE_STUB)) {
       if (pLink->tIfaceAddr == tAddress)
 	return 1;
     }
@@ -321,8 +244,8 @@ int node_addresses_for_each(SNetNode * pNode, FArrayForEach fForEach,
   // Other interfaces
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uType == NET_LINK_TYPE_STUB)) {
       if ((iResult= fForEach(&pLink->tIfaceAddr, pContext)) != 0)
 	return iResult;
     }
@@ -349,8 +272,8 @@ void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
   // Show interface addresses
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uType == NET_LINK_TYPE_STUB)) {
       log_printf(pStream, " ");
       ip_address_dump(pStream, pLink->tIfaceAddr);
     }
@@ -375,13 +298,17 @@ void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
   // Show link interfaces
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uDestinationType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uDestinationType == NET_LINK_TYPE_STUB)) {
+    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uType == NET_LINK_TYPE_STUB)) {
       log_printf(pStream, "ptmp\t");
       ip_address_dump(pStream, pLink->tIfaceAddr);
+      log_printf(pStream, "\t");
+      ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
     } else {
       log_printf(pStream, "ptp\t");
-      ip_address_dump(pStream, pLink->UDestId.tAddr);
+      ip_address_dump(pStream, pLink->tIfaceAddr);
+      log_printf(pStream, "\t");
+      ip_address_dump(pStream, pLink->tDest.tAddr);
     }
     log_printf(pStream, "\n");
   }
@@ -474,10 +401,10 @@ int node_recv(SNetNode * pNode, SNetMessage * pMessage)
   }
 
   // Forward...
-  return network_forward(pNode->pNetwork,
-			 pNextHop->pIface,
-			 pNextHop->tAddr,
-			 pMessage);
+  return _network_forward(pNode->pNetwork,
+			  pNextHop->pIface,
+			  pNextHop->tAddr,
+			  pMessage);
 }
 
 // ----- node_send --------------------------------------------------
@@ -521,10 +448,10 @@ int node_send(SNetNode * pNode, net_addr_t tSrcAddr, net_addr_t tDstAddr,
   //fprintf(stdout, "\n");
 
   // Forward
-  return network_forward(pNode->pNetwork,
-			 pNextHop->pIface,
-			 pNextHop->tAddr,
-			 pMessage);
+  return _network_forward(pNode->pNetwork,
+			  pNextHop->pIface,
+			  pNextHop->tAddr,
+			  pMessage);
 }
 
 
@@ -540,12 +467,6 @@ void network_nodes_destroy(void ** ppItem)
   node_destroy((SNetNode **) ppItem);
 }
 
-// ----- network_subnets_destroy ------------------------------------
-void network_subnets_destroy(void * pItem)
-{
-  subnet_destroy(((SNetSubnet **) pItem));
-}
-
 // ----- network_create ---------------------------------------------
 /**
  *
@@ -555,10 +476,7 @@ SNetwork * network_create()
   SNetwork * pNetwork= (SNetwork *) MALLOC(sizeof(SNetwork));
   
   pNetwork->pNodes= trie_create(network_nodes_destroy);
-  pNetwork->pSubnets= ptr_array_create(ARRAY_OPTION_SORTED|
-				       ARRAY_OPTION_UNIQUE,
-				       subnets_compare,
-				       network_subnets_destroy);
+  pNetwork->pSubnets= subnets_create();
   return pNetwork;
 }
 
@@ -570,7 +488,7 @@ void network_destroy(SNetwork ** ppNetwork)
 {
   if (*ppNetwork != NULL) {
     trie_destroy(&(*ppNetwork)->pNodes);
-    ptr_array_destroy(&(*ppNetwork)->pSubnets);
+    subnets_destroy(&(*ppNetwork)->pSubnets);
     FREE(*ppNetwork);
     *ppNetwork= NULL;
   }
@@ -604,7 +522,7 @@ int network_add_node(SNetNode * pNode)
  */
 int network_add_subnet(SNetSubnet * pSubnet)
 {
-  return ptr_array_add(pTheNetwork->pSubnets, &pSubnet);
+  return subnets_add(pTheNetwork->pSubnets, pSubnet);
 }
 
 // ----- network_find_node ------------------------------------------
@@ -622,26 +540,31 @@ SNetNode * network_find_node(net_addr_t tAddr)
  */
 SNetSubnet * network_find_subnet(SPrefix sPrefix)
 { 
-  unsigned int uIndex;
-  SNetSubnet * pSubnet = NULL;
-  SNetSubnet * pWrapSubnet;
-
-  pWrapSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
-  if (ptr_array_sorted_find_index(pTheNetwork->pSubnets,
-				  &pWrapSubnet, &uIndex) == 0) 
-    ptr_array_get_at(pTheNetwork->pSubnets, uIndex, &pSubnet);
-  
-  subnet_destroy(&pWrapSubnet);
-  return pSubnet;
+  return subnets_find(pTheNetwork->pSubnets, sPrefix);
 }
 
-// ----- network_forward --------------------------------------------
+// ----- _network_drop ----------------------------------------------
+/**
+ * Drop a message with an error message on STDERR.
+ */
+static void _network_drop(SNetMessage * pMsg)
+{
+  LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+    log_printf(pLogErr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
+    log_printf(pLogErr, "message: ");
+    message_dump(pLogErr, pMsg);
+    log_printf(pLogErr, "\n");
+  }
+  message_destroy(&pMsg);
+}
+
+// ----- _network_forward -------------------------------------------
 /**
  * This function forwards a message through the given link. The
  * function first checks if the link is up.
  */
-int network_forward(SNetwork * pNetwork, SNetLink * pLink,
-		    net_addr_t tNextHop, SNetMessage * pMsg)
+static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
+			    net_addr_t tNextHop, SNetMessage * pMsg)
 {
   SNetNode * pNextHop= NULL;
   int iResult;
@@ -654,9 +577,10 @@ int network_forward(SNetwork * pNetwork, SNetLink * pLink,
   iResult= pLink->fForward(tNextHop, pLink->pContext, &pNextHop);
 
   // If one link was DOWN, drop the message.
-  if (iResult == NET_ERROR_LINK_DOWN) {
+  if ((iResult == NET_ERROR_LINK_DOWN) ||
+      (iResult == NET_ERROR_DST_UNREACHABLE)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Info: link is down, message dropped\n");
-    _link_drop(pLink, pMsg);
+    _network_drop(pMsg);
     return iResult;
   }
 
@@ -724,96 +648,11 @@ int network_to_file(SLogStream * pStream, SNetwork * pNetwork)
   return 0;
 }
 
-// ----- network_from_file ------------------------------------------
-/**
- *
- */
-SNetwork * network_from_file(FILE * pStream)
-{
-  return NULL;
-}
-
 typedef struct {
   net_addr_t tAddr;
   SNetPath * pPath;
   net_link_delay_t tDelay;
 } SContext;
-
-// ----- _network_shortest_path_destroy -----------------------------
-static void _network_shortest_path_destroy(void ** pItem)
-{
-  net_path_destroy((SNetPath **) pItem);
-}
-
-// ----- _network_shortest_for_each ---------------------------------
-static int _network_shortest_for_each(uint32_t uKey, uint8_t uKeyLen,
-				      void * pItem, void * pContext)
-{
-  SNetPath * pPath= (SNetPath *) pItem;
-  SLogStream * pStream= (SLogStream *) pContext;
-  
-  log_printf(pStream, "--> %u\t[", uKey);
-  net_path_dump(pStream, pPath);
-  log_printf(pStream, "]\n");
-  return 0;
-}
-  
-// ----- network_shortest_path --------------------------------------
-/**
- * Calculate shortest path from the given source AS towards all the
- * other ASes.
- */
-int network_shortest_path(SNetwork * pNetwork, SLogStream * pStream,
-			  net_addr_t tSrcAddr)
-{
-  SNetLink * pLink;
-  SNetNode * pNode;
-  SFIFO * pFIFO;
-  SRadixTree * pVisited;
-  SContext * pContext, * pOldContext;
-  int iIndex;
-
-  pVisited= radix_tree_create(32, _network_shortest_path_destroy);
-  
-  pFIFO= fifo_create(100000, NULL);
-  pContext= (SContext *) MALLOC(sizeof(SContext));
-  pContext->tAddr= tSrcAddr;
-  pContext->pPath= net_path_create();
-  fifo_push(pFIFO, pContext);
-  radix_tree_add(pVisited, tSrcAddr, 32, net_path_copy(pContext->pPath));
-
-  // Breadth-first search
-  while (1) {
-    pContext= (SContext *) fifo_pop(pFIFO);
-    if (pContext == NULL)
-      break;
-    pNode= network_find_node(pContext->tAddr);
-
-    pOldContext= pContext;
-
-    for (iIndex= 0; iIndex < ptr_array_length(pNode->pLinks);
-	 iIndex++) {
-      pLink= (SNetLink *) pNode->pLinks->data[iIndex];
-      if (radix_tree_get_exact(pVisited, link_get_address(pLink), 32) == NULL) {
-	pContext= (SContext *) MALLOC(sizeof(SContext));
-	pContext->tAddr= link_get_address(pLink);
-	pContext->pPath= net_path_copy(pOldContext->pPath);
-	net_path_append(pContext->pPath, link_get_address(pLink));
-	radix_tree_add(pVisited, link_get_address(pLink), 32,
-		       net_path_copy(pContext->pPath));
-	assert(fifo_push(pFIFO, pContext) == 0);
-      }
-    }
-    net_path_destroy(&pOldContext->pPath);
-    FREE(pOldContext);
-  }
-  fifo_destroy(&pFIFO);
-
-  radix_tree_for_each(pVisited, _network_shortest_for_each, pStream);
-
-  radix_tree_destroy(&pVisited);
-  return 0;
-}
 
 //---- network_dump_subnets ---------------------------------------------
 void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork)
@@ -886,6 +725,24 @@ char * network_enum_bgp_nodes(const char * pcText, int state)
   return NULL;
 }
 
+// ----- network_links_clear ----------------------------------------
+/**
+ * Clear the load of all links in the topology.
+ */
+void network_links_clear()
+{
+  SEnumerator * pEnum= NULL;
+  SNetNode * pNode;
+  
+  pEnum= trie_get_enum(pTheNetwork->pNodes);
+  while (enum_has_next(pEnum)) {
+    pNode= *((SNetNode **) enum_get_next(pEnum));
+    node_links_clear(pNode);
+  }
+  enum_destroy(&pEnum);
+}
+
+
 /////////////////////////////////////////////////////////////////////
 //
 // NETWORK MESSAGE PROPAGATION FUNCTIONS
@@ -896,7 +753,7 @@ char * network_enum_bgp_nodes(const char * pcText, int state)
 /**
  * This function handles a message event from the simulator.
  */
-int _network_send_callback(void * pContext)
+static int _network_send_callback(void * pContext)
 {
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
   int iResult;
@@ -917,7 +774,7 @@ int _network_send_callback(void * pContext)
  * Callback function used to dump the content of a message event. See
  * also 'simulator_dump_events' (sim/simulator.c).
  */
-void _network_send_dump(SLogStream * pStream, void * pContext)
+static void _network_send_dump(SLogStream * pStream, void * pContext)
 {
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
@@ -937,8 +794,8 @@ void _network_send_dump(SLogStream * pStream, void * pContext)
  * simulator's events queue. The context contains the message and the
  * destination node.
  */
-SNetSendContext * _network_send_context_create(SNetNode * pNode,
-					       SNetMessage * pMessage)
+static SNetSendContext * _network_send_context_create(SNetNode * pNode,
+						      SNetMessage * pMessage)
 {
   SNetSendContext * pSendContext=
     (SNetSendContext *) MALLOC(sizeof(SNetSendContext));
@@ -953,7 +810,7 @@ SNetSendContext * _network_send_context_create(SNetNode * pNode,
  * This function is used by the simulator to free events which will
  * not be processed.
  */
-void _network_send_context_destroy(void * pContext)
+static void _network_send_context_destroy(void * pContext)
 {
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
@@ -1036,11 +893,11 @@ void _network_test()
 
   LOG_DEBUG(LOG_LEVEL_DEBUG, "nodes attached.\n");
 
-  assert(node_add_link_to_router(pNodeA0, pNodeA1, 100, 1) >= 0);
-  assert(node_add_link_to_router(pNodeA1, pNodeB0, 1000, 1) >= 0);
-  assert(node_add_link_to_router(pNodeB0, pNodeB1, 100, 1) >= 0);
-  assert(node_add_link_to_router(pNodeA1, pNodeC0, 400, 1) >= 0);
-  assert(node_add_link_to_router(pNodeC0, pNodeB0, 400, 1) >= 0);
+  assert(node_add_link_ptp(pNodeA0, pNodeA1, 100, 0, 1, 1) >= 0);
+  assert(node_add_link_ptp(pNodeA1, pNodeB0, 1000, 0, 1, 1) >= 0);
+  assert(node_add_link_ptp(pNodeB0, pNodeB1, 100, 0, 1, 1) >= 0);
+  assert(node_add_link_ptp(pNodeA1, pNodeC0, 400, 0, 1, 1) >= 0);
+  assert(node_add_link_ptp(pNodeC0, pNodeB0, 400, 0, 1, 1) >= 0);
 
   LOG_DEBUG(LOG_LEVEL_DEBUG, "links attached.\n");
 
@@ -1055,14 +912,6 @@ void _network_test()
   simulator_run();
 
   LOG_DEBUG(LOG_LEVEL_DEBUG, "message sent.\n");
-
-  network_shortest_path(pNetwork, pLogErr, pNodeA0->tAddr);
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "shortest-path computed.\n");
-
-  //network_dijkstra(pNetwork, stderr, pNodeA0->tAddr);
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "dijkstra computed.\n");
 
   network_destroy(&pNetwork);
 

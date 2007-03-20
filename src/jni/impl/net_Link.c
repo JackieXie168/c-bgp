@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 25/04/2006
+// @lastdate 09/02/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -75,7 +75,7 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getState
   if (pLink == NULL)
     return JNI_FALSE;
 
-  return link_get_state(pLink, NET_LINK_FLAG_UP)?JNI_TRUE:JNI_FALSE;
+  return net_link_get_state(pLink, NET_LINK_FLAG_UP)?JNI_TRUE:JNI_FALSE;
 }
 
 // -----[ setState ]-------------------------------------------------
@@ -93,7 +93,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setState
   if (pLink == NULL)
     return;
     
-  link_set_state(pLink, NET_LINK_FLAG_UP, (bState == JNI_TRUE)?1:0);
+  net_link_set_state(pLink, NET_LINK_FLAG_UP, (bState == JNI_TRUE)?1:0);
 }
 
 // -----[ getWeight ]--------------------------------------------
@@ -111,7 +111,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getWeight
   if (pLink == NULL)
     return 0;
 
-  return (jlong) pLink->uIGPweight;
+  return (jlong) net_link_get_weight(pLink, 0);
 }
 
 // -----[ setWeight ]--------------------------------------------
@@ -129,6 +129,6 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setWeight
   if (pLink == NULL)
     return;
 
-  link_set_igp_weight(pLink, (uint32_t) jlWeight);
+  net_link_set_weight(pLink, 0, (uint32_t) jlWeight);
 }
 
