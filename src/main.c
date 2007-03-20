@@ -220,7 +220,7 @@ char * rl_compl_param_generator(const char * pcText, int iState)
 {
   static int iIndex;
   char * pcMatch= NULL;
-  SCliCmdParam * pParam;
+  SCliParam * pParam;
 
   /* Check that a command and a valid parameter are to be completed */
   if ((pComplCmd == NULL) || (pComplCmd->pParams == NULL) ||
@@ -229,19 +229,21 @@ char * rl_compl_param_generator(const char * pcText, int iState)
 
   /* Complete if possible */
 
-  pParam= (SCliCmdParam *) pComplCmd->pParams->data[iComplParamIndex];
+  pParam= (SCliParam *) pComplCmd->pParams->data[iComplParamIndex];
 
   /* If the parameter supports a completion function */
-  if (pParam->fEnumParam != NULL) {
+  if (pParam->fEnum != NULL) {
     if (iState == 0) {
       iIndex= 0;
     }
-    pcMatch= pParam->fEnumParam(pcText, iIndex);
+    pcMatch= pParam->fEnum(pcText, iIndex);
+    if (pcMatch == NULL)
+      rl_attempted_completion_over= 1;
     iIndex++;
   } else {
     if (iState == 0) {
-      if ((pParam->fCheckParam != NULL) &&
-	  (pParam->fCheckParam(pcText))) {
+      if ((pParam->fCheck != NULL) &&
+	  (pParam->fCheck(pcText))) {
 
 	/* If there is a parameter checker and the parameter value is
 	   accepted, perform the completion */
@@ -279,8 +281,8 @@ char ** rl_compl (const char * pcText, int iStart, int iEnd)
 
   /* Find context command */
   pComplCtxCmd= NULL;
-  if (pCli->pExecContext != NULL) {
-    pCtxItem= cli_context_top(pCli->pExecContext);
+  if (pCli->pCtx != NULL) {
+    pCtxItem= cli_context_top(pCli->pCtx);
     if (pCtxItem != NULL)
       pComplCtxCmd= pCtxItem->pCmd;
   }
@@ -334,7 +336,7 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
 {
   int iIndex, iIndex2;
   SCliCmd * pCmd;
-  SCliCmdParam * pParam;
+  SCliParam * pParam;
 
   if (cli_cmd_get_num_subcmds(pCtxCmd) > 0) {
     fprintf(stdout, "AVAILABLE COMMANDS:\n");
@@ -343,7 +345,7 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
       pCmd= (SCliCmd *) pCtxCmd->pSubCmds->data[iIndex];
       fprintf(stdout, "\t%s", pCmd->pcName);
       for (iIndex2= 0; iIndex2 < cli_cmd_get_num_params(pCmd); iIndex2++) {
-	pParam= (SCliCmdParam *) pCmd->pParams->data[iIndex2];
+	pParam= (SCliParam *) pCmd->pParams->data[iIndex2];
 	fprintf(stdout, " %s", pParam->pcName);
       }
       fprintf(stdout, "\n");
@@ -368,17 +370,9 @@ void simulation_help_ctx(SCliCmd * pCtxCmd)
 #ifdef INTERACTIVE_MODE_OK
 void simulation_help_cmd(SCliCmd * pCmd, int iParamIndex)
 {
-  int iIndex;
-  SCliCmdParam * pParam;
-
   fprintf(stdout, "SYNTAX:\n");
 
-  fprintf(stdout, "\t%s", pCmd->pcName);
-
-  for (iIndex= 0; iIndex < cli_cmd_get_num_params(pCmd); iIndex++) {
-    pParam= (SCliCmdParam *) pCmd->pParams->data[iIndex];
-    fprintf(stdout, " %s", pParam->pcName);
-  }
+  cli_cmd_dump(pLogOut, "\t", pCmd);
   fprintf(stdout, "\n");
 
   if (pCmd->pcHelp != NULL) {
@@ -407,8 +401,8 @@ void simulation_help(const char * pcLine)
 
   /* Find context command */
   pCtxCmd= NULL;
-  if (pCli->pExecContext != NULL) {
-    pCtxItem= cli_context_top(pCli->pExecContext);
+  if (pCli->pCtx != NULL) {
+    pCtxItem= cli_context_top(pCli->pCtx);
     if (pCtxItem != NULL) {
       pCtxCmd= pCtxItem->pCmd;
     }
@@ -459,6 +453,7 @@ int simulation_interactive()
   char * pcLine;
 
 #ifdef HAVE_RL_COMPLETION_MATCHES
+
   /* Setup alternate completion function */
   rl_attempted_completion_function= rl_compl;
 
@@ -468,7 +463,7 @@ int simulation_interactive()
 
   while (1) {
     /* Get user-input */
-    pcLine= rl_gets(cli_context_to_string(cli_get()->pExecContext,
+    pcLine= rl_gets(cli_context_to_string(cli_get()->pCtx,
 					  "cbgp"));
     /* EOF has been catched (Ctrl-D), exit */
     if (pcLine == NULL) {
@@ -602,7 +597,7 @@ int main(int argc, char ** argv) {
       break;
     case 'g':
 #if defined(HAVE_MEM_FLAG_SET) && (HAVE_MEM_FLAG_SET == 1)
-      mem_flag_set(MEM_FLAG_WARN_LEAK, 1);
+      //mem_flag_set(MEM_FLAG_WARN_LEAK, 1);
 #else
       fprintf(stderr, "Error: option -g not supported (check your libgds version).\n");
       exit(EXIT_FAILURE);
