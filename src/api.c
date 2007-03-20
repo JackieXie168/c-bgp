@@ -47,6 +47,7 @@
  */
 void libcbgp_init()
 {
+  //#define __MEMORY_DEBUG__
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
 #else
