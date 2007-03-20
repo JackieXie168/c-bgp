@@ -3,7 +3,7 @@
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/02/2006
-// @lastdate 28/02/2006
+// @lastdate 22/01/2007
 // ==================================================================
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -519,6 +519,64 @@ void bgp_router_walton_disseminate_select_peers(SBGPRouter * pRouter,
     _array_for_each((SArray *)pRouter->pWaltonLimitPeers, bgp_router_walton_for_each_peer_sync, pWaltonCtx);
     FREE(pWaltonCtx);
   }
+}
+
+// ----- bgp_router_walton_decision_process_run ---------------------
+/**
+ * Select one route with the following rules (see the actual
+ * definition of the decision process in the global array DP_RULES[]):
+ *
+ *   1. prefer highest LOCAL-PREF
+ *   2. prefer shortest AS-PATH
+ *   3. prefer lowest ORIGIN (IGP < EGP < INCOMPLETE)
+ *   4. prefer lowest MED
+ *   5. prefer eBGP over iBGP
+ *   6. prefer nearest next-hop (IGP)
+ *   7. prefer shortest CLUSTER-ID-LIST
+ *   8. prefer lowest neighbor router-ID
+ *   9. final tie-break (prefer lowest neighbor IP address)
+ *
+ * Note: Originator-ID should be substituted to router-ID in rule (8)
+ * if route has been reflected (i.e. if Originator-ID is present in
+ * the route)
+ *
+ * The function returns the index of the rule that broke the ties
+ * incremented by 1. If the returned value is 0, that means that there
+ * was a single rule (no choice). Otherwise, if 1 is returned, that
+ * means that the Local-Pref rule broke the ties, and so on...
+ */
+int bgp_router_walton_decision_process_run(SBGPRouter * pRouter,
+					   SRoutes * pRoutes)
+{
+  int iRule;
+  int iNextHopCount;
+  iNextHopCount = dp_rule_no_selection(pRouter, pRoutes);
+
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) log_printf(pLogDebug, "different routes : %d\n", iNextHopCount);
+  bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, iNextHopCount);
+
+  // Apply the decision process rules in sequence until there is 1 or
+  // 0 route remaining or until all the rules were applied.
+  for (iRule= 0; iRule < DP_NUM_RULES; iRule++) {
+
+    if (routes_list_get_num(pRoutes) <= 1)
+      break;
+
+    iNextHopCount=DP_RULES[iRule](pRouter, pRoutes);
+    LOG_DEBUG(LOG_LEVEL_DEBUG, "rule: [ %s ] remains : %d\n",
+              DP_RULE_NAME[iRule], iNextHopCount);
+    bgp_router_walton_disseminate_select_peers(pRouter, pRoutes,
+                                               iNextHopCount);
+    
+  }
+  
+  // Check that at most a single best route will be returned.
+  if (routes_list_get_num(pRoutes) > 1) {
+    LOG_ERR(LOG_LEVEL_FATAL, "Error: decision process did not return a single best route\n");
+    abort();
+  }
+  
+  return iRule;
 }
 #endif
 
