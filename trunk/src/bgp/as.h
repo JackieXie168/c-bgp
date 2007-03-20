@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 11/09/2006
+// @lastdate 22/01/2007
 // ==================================================================
 
 #ifndef __AS_H__
@@ -222,12 +222,6 @@ extern int bgp_router_show_routes_info(SLogStream * pStream,
 extern int bgp_router_record_route(SBGPRouter * pRouter,
 				   SPrefix sPrefix, SBGPPath ** ppPath,
 				   int iPreserveDups);
-// ----- bgp_router_record_route_bounded_match ----------------------
-extern int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
-						 SPrefix sPrefix,
-						 uint8_t uBound,
-						 SBGPPath ** ppPath,
-						 int iPreserveDups);
 // ----- bgp_router_dump_recorded_route -----------------------------
 extern void bgp_router_dump_recorded_route(SLogStream * pStream,
 					   SBGPRouter * pRouter,

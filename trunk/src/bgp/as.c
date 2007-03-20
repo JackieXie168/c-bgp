@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 12/11/2006
+// @lastdate 22/01/2007
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -35,6 +35,7 @@
 #include <bgp/as.h>
 #include <bgp/comm.h>
 #include <bgp/domain.h>
+#include <bgp/dp_rt.h>
 #include <bgp/dp_rules.h>
 #include <bgp/ecomm.h>
 #include <bgp/mrtd.h>
@@ -154,7 +155,7 @@ SBGPRouter * bgp_router_create(uint16_t uNumber, SNetNode * pNode)
   pRouter->tClusterID= pNode->tAddr;
   pRouter->iRouteReflector= 0;
 
-  // Reference to the router running this BGP router
+  // Reference to the node running this BGP router
   pRouter->pNode= pNode;
   // Register the router into its AS
   bgp_domain_add_router(get_bgp_domain(uNumber), pRouter);
@@ -816,38 +817,13 @@ int bgp_router_decision_process_run(SBGPRouter * pRouter,
 {
   int iRule;
 
-#if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
-  int iNextHopCount;
-
-  iNextHopCount = dp_rule_no_selection(pRouter, pRoutes);
-
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) log_printf(pLogDebug, "different routes : %d\n", iNextHopCount);
-  bgp_router_walton_disseminate_select_peers(pRouter, pRoutes, iNextHopCount);
-#endif
-
   // Apply the decision process rules in sequence until there is 1 or
   // 0 route remaining or until all the rules were applied.
   for (iRule= 0; iRule < DP_NUM_RULES; iRule++) {
-
-// BQU: question to STA: can I remove this ? :-P
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-
-#endif
-    
     if (routes_list_get_num(pRoutes) <= 1)
       break;
-
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    iNextHopCount=DP_RULES[iRule](pRouter, pRoutes);
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "rule: [ %s ] remains : %d\n",
-              DP_RULE_NAME[iRule], iNextHopCount);
-    bgp_router_walton_disseminate_select_peers(pRouter, pRoutes,
-                                               iNextHopCount);
-#else
     LOG_DEBUG(LOG_LEVEL_DEBUG, "rule: [ %s ]\n", DP_RULE_NAME[iRule]);
     DP_RULES[iRule](pRouter, pRoutes);
-#endif
-
   }
 
   // Check that at most a single best route will be returned.
@@ -1004,69 +980,6 @@ void bgp_router_decision_process_disseminate_external_best(SBGPRouter * pRouter,
 
 }
 #endif
-
-// ----- bgp_router_rt_add_route ------------------------------------
-/**
- * This function inserts a BGP route into the node's routing
- * table. The route's next-hop is resolved before insertion.
- */
-void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
-{
-  SNetRouteInfo * pOldRouteInfo;
-  SNetRouteNextHop * pNextHop= node_rt_lookup(pRouter->pNode,
-					      pRoute->pAttr->tNextHop);
-  int iResult;
-
-  /* Check that the next-hop is reachable. It MUST be reachable at
-     this point (checked upon route reception). */
-  assert(pNextHop != NULL);
-
-  /* Get the previous route if it exists */
-  pOldRouteInfo= rt_find_exact(pRouter->pNode->pRT, pRoute->sPrefix,
-			       NET_ROUTE_BGP);
-  if (pOldRouteInfo != NULL) {
-    if (!route_nexthop_compare(pOldRouteInfo->sNextHop, *pNextHop))
-      return;
-    // Remove the previous route (if it exists)
-    node_rt_del_route(pRouter->pNode, &pRoute->sPrefix,
-		      NULL, NULL, NET_ROUTE_BGP);
-  }
-
-  // Insert the route
-  iResult= node_rt_add_route_link(pRouter->pNode, pRoute->sPrefix,
-				  pNextHop->pIface, pRoute->pAttr->tNextHop,
-				  0, NET_ROUTE_BGP);
-  if (iResult) {
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: could not add route (");
-    rt_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_FATAL, ")\n");
-    abort();
-  }
-}
-
-// ----- bgp_router_rt_del_route ------------------------------------
-/**
- * This function removes from the node's routing table the BGP route
- * towards the given prefix.
- */
-void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix)
-{
-  /*SNetRouteInfo * pRouteInfo;
-
-  fprintf(stderr, "DEL ROUTE towards ");
-  ip_prefix_dump(stderr, sPrefix);
-  fprintf(stderr, " ");
-  pRouteInfo= rt_find_exact(pRouter->pNode->pRT, sPrefix, NET_ROUTE_ANY);
-  if (pRouteInfo != NULL) {
-    net_route_info_dump(stderr, pRouteInfo);
-    fprintf(stderr, "\n");
-  } else {
-    fprintf(stderr, "*** NONE ***\n");
-    }*/
-
-  assert(!node_rt_del_route(pRouter->pNode, &sPrefix,
-			    NULL, NULL, NET_ROUTE_BGP));
-}
 
 // ----- bgp_router_best_flag_off -----------------------------------
 /**
@@ -1614,7 +1527,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
   // Compare eligible routes
   iRank= 0;
   if (ptr_array_length(pRoutes) > 1) {
-    iRank= bgp_router_decision_process_run(pRouter, pRoutes);
+    iRank= bgp_router_walton_decision_process_run(pRouter, pRoutes);
   assert((routes_list_get_num(pRoutes) == 0) ||
 	 (routes_list_get_num(pRoutes) == 1));
   } else {
@@ -1655,7 +1568,7 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
 	  LOG_DEBUG("\n");
       }
 	if (routes_list_get_num(pEBGPRoutes) > 1) {
-	  iRankEBGP = bgp_router_decision_process_run(pRouter, pEBGPRoutes);
+	  iRankEBGP = bgp_router_walton_decision_process_run(pRouter, pEBGPRoutes);
 	}
 	assert((ptr_array_length(pEBGPRoutes) == 0) ||
 	   (ptr_array_length(pEBGPRoutes) == 1));
@@ -2273,6 +2186,7 @@ static int _bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
+/* COMMENT ON 22/01/2007
 int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
 				 void * pItem, void * pContext)
 {
@@ -2296,6 +2210,7 @@ int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
 
   return 0;
 }
+*/
 
 
 // ----- bgp_router_dump_rib ----------------------------------------
@@ -2807,169 +2722,6 @@ void bgp_router_dump_recorded_route(SLogStream * pStream,
   log_flush(pStream);
 }
 
-// ----- bgp_router_bm_route ----------------------------------------
-/**
- * *** EXPERIMENTAL ***
- *
- * Returns the best route among the routes in the Loc-RIB that match
- * the given prefix with a bound on the prefix length.
- */
-#ifdef __EXPERIMENTAL__
-SRoute * bgp_router_bm_route(SBGPRouter * pRouter, SPrefix sPrefix,
-			     uint8_t uBound)
-{
-  SRoutes * pRoutes;
-  SPrefix sBoundedPrefix;
-  SRoute * pRoute= NULL;
-  int iLocalExists= 0;
-
-  sBoundedPrefix.tNetwork= sPrefix.tNetwork;
-
-  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
-
-  /* Select routes that match the prefix with a bound on the prefix
-     length */
-  while (uBound <= sPrefix.uMaskLen) {
-    sBoundedPrefix.uMaskLen= uBound;
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoute= rib_find_one_exact(pRouter->pLocRIB, sBoundedPrefix, NULL);
-#else
-    pRoute= rib_find_exact(pRouter->pLocRIB, sBoundedPrefix);
-#endif
-
-    if (pRoute != NULL) {
-      /*
-	fprintf(stdout, "AVAIL: ");
-	route_dump(stdout, pRoute);
-	fprintf(stdout, "\n");
-      */
-      routes_list_append(pRoutes, pRoute);
-      
-      /* If the route towards the more specific prefix is local, this
-	 is the best */
-      if (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL)/* &&
-							(pRoute->sPrefix.uMaskLen == sPrefix.uMaskLen)*/) {
-	iLocalExists= 1;
-	break;
-      }
-    }
-
-    uBound++;
-  }
-
-  /* BGP-DP: prefer local routes towards the more specific prefix */
-  if (iLocalExists) {
-    
-
-  } else {
-
-    /* BGP-DP: other rules */
-    if (routes_list_get_num(pRoutes) > 0)
-      bgp_router_decision_process_run(pRouter, pRoutes);
-
-    /* Is there a single route chosen ? */
-    if (routes_list_get_num(pRoutes) >= 1) {
-      pRoute= (SRoute *) pRoutes->data[0];
-
-      /*
-	fprintf(stdout, "BEST: ");
-	route_dump(stdout, pRoute);
-	fprintf(stdout, "\n");
-      */
-      
-    } else
-      pRoute= NULL;
-
-  }
-
-  routes_list_destroy(&pRoutes);
-
-  return pRoute;
-}
-#endif
-
-// ----- bgp_router_record_route_bounded_match ----------------------
-/**
- * *** EXPERIMENTAL ***
- *
- * This function records the AS-path from one BGP router towards a
- * given prefix. The function has two modes:
- * - records all ASes
- * - records ASes once (do not record iBGP session crossing)
- */
-#ifdef __EXPERIMENTAL__
-int bgp_router_record_route_bounded_match(SBGPRouter * pRouter,
-					  SPrefix sPrefix,
-					  uint8_t uBound,
-					  SBGPPath ** ppPath,
-					  int iPreserveDups)
-{
-  SBGPRouter * pCurrentRouter= pRouter;
-  SBGPRouter * pPreviousRouter= NULL;
-  SRoute * pRoute;
-  SBGPPath * pPath= path_create();
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
-  int iResult= AS_RECORD_ROUTE_UNREACH;
-
-  *ppPath= NULL;
-
-  while (pCurrentRouter != NULL) {
-    
-    /* Is there, in the current node, a BGP route towards the given
-       prefix ? */
-    pRoute= bgp_router_bm_route(pCurrentRouter, sPrefix, uBound);
-
-    if (pRoute != NULL) {
-      
-      // Record current node's AS-Num ??
-      if ((pPreviousRouter == NULL) ||
-	  (iPreserveDups ||
-	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
-	if ((path_length(pPath) >= 30) ||
-	    (path_append(&pPath, pCurrentRouter->uNumber) < 0)) {
-	  iResult= AS_RECORD_ROUTE_TOO_LONG;
-	  break;
-	}
-      }
-      
-      // If the route's next-hop is this router, then the function
-      // terminates.
-
-      /*
-	fprintf(stdout, "NH: ");
-	ip_address_dump(stdout, pRoute->pAttr->tNextHop);
-	fprintf(stdout, "\t\tRT: ");
-	ip_address_dump(stdout, pCurrentRouter->pNode->tAddr);
-	fprintf(stdout, "\n");
-      */
-
-      if ((pRoute->pAttr->tNextHop == pCurrentRouter->pNode->tAddr) ||
-	  (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL))) {
-	iResult= AS_RECORD_ROUTE_SUCCESS;
-	break;
-      }
-      
-      // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRoute->pAttr->tNextHop);
-      if (pNode == NULL)
-	break;
-      
-      // Get the current node's BGP instance
-      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
-      if (pProtocol == NULL)
-	break;
-      pPreviousRouter= pCurrentRouter;
-      pCurrentRouter= (SBGPRouter *) pProtocol->pHandler;
-      
-    } else
-      break;
-  }
-  *ppPath= pPath;
-
-  return iResult;
-}
-#endif
 
 /////////////////////////////////////////////////////////////////////
 //
