@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 4 July 2005
-// @lastdate 4 July 2005
+// @lastdate 22/01/2007
 // ==================================================================
 
 #ifndef __NET_SPT_VERTEX_H__
@@ -13,7 +13,6 @@
 #include <libgds/array.h>
 #include <libgds/memory.h>
 #include <net/net_types.h>
-#include <net/network_t.h>
 #include <net/link.h>
 #include <net/ospf_rt.h>
 #include <net/network.h>
