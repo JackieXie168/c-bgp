@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 25/04/2006
+// @lastdate 09/02/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -108,14 +108,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   sDest.tType= NET_DEST_ADDRESS;
 
   /* Trace the IP-level route */
-  RRInfo= node_record_route(pNode, sDest,
+  RRInfo= node_record_route(pNode, sDest, 0,
 			    NET_RECORD_ROUTE_OPTION_DELAY |
-			    NET_RECORD_ROUTE_OPTION_WEIGHT);
+			    NET_RECORD_ROUTE_OPTION_WEIGHT,
+			    0);
 
   /* Convert to an IPTrace object */
   joIPTrace= cbgp_jni_new_IPTrace(jEnv, pNode->tAddr, sDest.uDest.tAddr,
 				  RRInfo->pPath, RRInfo->iResult,
-				  RRInfo->tDelay, RRInfo->uWeight);
+				  RRInfo->tDelay, RRInfo->tWeight);
 
   net_path_destroy(&RRInfo->pPath);
 
