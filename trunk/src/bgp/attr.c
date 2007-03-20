@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/11/2005
-// @lastdate 03/03/2006
+// @lastdate 13/03/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -64,10 +64,11 @@ void bgp_attr_destroy(SBGPAttr ** ppAttr)
     _bgp_attr_path_destroy(*ppAttr);
     bgp_attr_comm_destroy(ppAttr);
     _bgp_attr_ecomm_destroy(*ppAttr);
-    FREE(*ppAttr);
+
     /* Route-reflection */
     bgp_attr_originator_destroy(*ppAttr);
     bgp_attr_cluster_list_destroy(*ppAttr);
+    FREE(*ppAttr);
   }
 }
 
