@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 20/03/2006
+// @lastdate 23/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -169,7 +169,7 @@ static int bgp_domain_routers_record_route_for_each(uint32_t uKey,
   SRecordRoute * pCont = (SRecordRoute *)pContext;
   
   node_dump_recorded_route(pCont->pStream, pNode,
-			   pCont->sDest, pCont->uOptions);
+			   pCont->sDest, 0, pCont->uOptions, 0);
   return 0;
 }
 
