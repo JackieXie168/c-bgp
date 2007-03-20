@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/03/2005
-// @lastdate 24/03/2005
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifndef __NTF_H__
@@ -18,9 +18,17 @@
 #define NTF_ERROR_INVALID_WEIGHT  -5
 #define NTF_ERROR_INVALID_DELAY   -6
 
-// -----[ ntf_load ]-------------------------------------------------
-extern int ntf_load(char * pcFileName);
-// -----[ ntf_save ]-------------------------------------------------
-extern int ntf_save(char * pcFileName);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  // -----[ ntf_load ]-----------------------------------------------
+  int ntf_load(char * pcFileName);
+  // -----[ ntf_save ]-----------------------------------------------
+  int ntf_save(char * pcFileName);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __NTF_H__ */
