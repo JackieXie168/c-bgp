@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 03/03/2006
+// @lastdate 09/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -24,7 +24,7 @@ SCli * pTheCli= NULL;
  * context: {}
  * tokens: {}
  */
-int cli_sim_debug_queue(SCliContext * pContext, STokens * pTokens)
+int cli_sim_debug_queue(SCliContext * pContext, SCliCmd * pCmd)
 {
   simulator_dump_events(pLogErr);
   return CLI_SUCCESS;
@@ -62,16 +62,16 @@ static void _cli_sim_event_dump(SLogStream * pStream, void * pContext)
  * context: {}
  * tokens: {time, command}
  */
-int cli_sim_event(SCliContext * pContext, STokens * pTokens)
+int cli_sim_event(SCliContext * pContext, SCliCmd * pCmd)
 {
   double dTime;
 
-  if (tokens_get_double_at(pTokens, 0, &dTime))
+  if (tokens_get_double_at(pCmd->pParamValues, 0, &dTime))
     return CLI_ERROR_COMMAND_FAILED;
   simulator_post_event(cli_sim_event_callback,
 		       _cli_sim_event_dump,
 		       cli_sim_event_destroy,
-		       str_create(tokens_get_string_at(pTokens, 1)),
+		       str_create(tokens_get_string_at(pCmd->pParamValues, 1)),
 		       dTime,
 		       ABSOLUTE_TIME);
   return CLI_SUCCESS;
@@ -82,11 +82,11 @@ int cli_sim_event(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {log-level}
  */
-int cli_sim_options_loglevel(SCliContext * pContext, STokens * pTokens)
+int cli_sim_options_loglevel(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcParam;
 
-  pcParam= tokens_get_string_at(pTokens, 0);
+  pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
   log_set_level(pLogDebug, log_str2level(pcParam));
   return CLI_SUCCESS;
 }
@@ -96,11 +96,11 @@ int cli_sim_options_loglevel(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {function}
  */
-int cli_sim_options_scheduler(SCliContext * pContext, STokens * pTokens)
+int cli_sim_options_scheduler(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcParam;
 
-  pcParam= tokens_get_string_at(pTokens, 0);
+  pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
   if (!strcmp(pcParam, "static"))
     SIM_OPTIONS_SCHEDULER= SCHEDULER_STATIC;
   else if (!strcmp(pcParam, "dynamic"))
@@ -114,7 +114,7 @@ int cli_sim_options_scheduler(SCliContext * pContext, STokens * pTokens)
 /**
  *
  */
-int cli_sim_queue_info(SCliContext * pContext, STokens * pTokens)
+int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
 {
   simulator_show_infos();
   return CLI_SUCCESS;
@@ -124,7 +124,7 @@ int cli_sim_queue_info(SCliContext * pContext, STokens * pTokens)
 /**
  *
  */
-int cli_sim_queue_show(SCliContext * pContext, STokens * pTokens)
+int cli_sim_queue_show(SCliContext * pContext, SCliCmd * pCmd)
 {
   simulator_dump_events(pLogOut);
   return CLI_SUCCESS;
@@ -132,7 +132,7 @@ int cli_sim_queue_show(SCliContext * pContext, STokens * pTokens)
 
 
 // ----- cli_sim_run ------------------------------------------------
-int cli_sim_run(SCliContext * pContext, STokens * pTokens)
+int cli_sim_run(SCliContext * pContext, SCliCmd * pCmd)
 {
   if (simulator_run())
     return CLI_ERROR_COMMAND_FAILED;
@@ -144,14 +144,14 @@ int cli_sim_run(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {num-steps}
  */
-int cli_sim_step(SCliContext * pContext, STokens * pTokens)
+int cli_sim_step(SCliContext * pContext, SCliCmd * pCmd)
 {
   unsigned int uNumSteps;
 
   // Get number of steps
-  if (tokens_get_uint_at(pTokens, 0, &uNumSteps)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uNumSteps)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid number of steps \"%s\".\n",
-	       tokens_get_string_at(pTokens, 0));
+	       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -167,18 +167,18 @@ int cli_sim_step(SCliContext * pContext, STokens * pTokens)
  * context: {}
  * tokens: {max-time}
  */
-int cli_sim_stop_at(SCliContext * pContext, STokens * pTokens)
+int cli_sim_stop_at(SCliContext * pContext, SCliCmd * pCmd)
 {
   double dMaxTime;
 
-  if (tokens_get_double_at(pTokens, 0, &dMaxTime))
+  if (tokens_get_double_at(pCmd->pParamValues, 0, &dMaxTime))
     return CLI_ERROR_COMMAND_FAILED;
   simulator_set_max_time(dMaxTime);
   return CLI_SUCCESS;
 }
 
 // ----- cli_sim_stop -----------------------------------------------
-int cli_sim_stop(SCliContext * pContext, STokens * pTokens)
+int cli_sim_stop(SCliContext * pContext, SCliCmd * pCmd)
 {
   return CLI_ERROR_COMMAND_FAILED;
 }
