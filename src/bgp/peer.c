@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 11/09/2006
+// @lastdate 15/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -179,7 +179,7 @@ int bgp_peer_session_ok(SBGPPeer * pPeer)
   // This must be updated: the router is not necessarily
   // adjacent... need to perform a kind of traceroute...
   pRRInfo= node_record_route(pPeer->pLocalRouter->pNode,
-			     sDest, 0);
+			     sDest, 0, 0, 0);
   iResult= (pRRInfo->iResult == NET_SUCCESS);
   net_record_route_info_destroy(&pRRInfo);
 
