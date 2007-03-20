@@ -37,6 +37,8 @@ libnet_la_SOURCES = \
 	ipip.h \
 	link.c \
 	link.h \
+	link_attr.c \
+	link_attr.h \
 	link-list.c \
 	link-list.h \
 	message.c \
@@ -46,7 +48,6 @@ libnet_la_SOURCES = \
 	net_types.h \
 	network.c \
 	network.h \
-	network_t.h \
 	node.c \
 	node.h \
 	ntf.c \
@@ -69,6 +70,10 @@ libnet_la_SOURCES = \
 	spt_vertex.c \
 	spt_vertex.h \
 	subnet.c \
-	subnet.h
+	subnet.h \
+	tm.c \
+	tm.h \
+	util.c \
+	util.h
 	 
 
