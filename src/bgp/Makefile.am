@@ -48,6 +48,8 @@ libbgp_la_SOURCES = \
 	comm_t.h \
 	comm_hash.c \
 	comm_hash.h \
+	dp_rt.c \
+	dp_rt.h \
 	dp_rules.c \
 	dp_rules.h \
 	domain.c \

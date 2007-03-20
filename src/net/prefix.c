@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 03/08/2006
+// @lastdate 19/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -97,21 +97,21 @@ int ip_string_to_address(char * pcString, char ** ppcEndPtr,
 /**
  *
  */
-SPrefix uint32_to_prefix(net_addr_t tPrefix, uint8_t uMaskLen)
+SPrefix uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen)
 {
   SPrefix sPrefix;
   sPrefix.tNetwork= tPrefix;
-  sPrefix.uMaskLen= uMaskLen;
+  sPrefix.uMaskLen= tMaskLen;
   return sPrefix;
 }
 
 
 // ----- create_ip_prefix -------------------------------------------
-SPrefix * create_ip_prefix(net_addr_t tAddr, uint8_t uMaskLen)
+SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
 {
   SPrefix * pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));
   pPrefix->tNetwork= tAddr;
-  pPrefix->uMaskLen= uMaskLen;
+  pPrefix->uMaskLen= tMaskLen;
   return pPrefix;
 }
 
@@ -282,11 +282,12 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
   }
 }
 
-// ----- network_nodes_destroy --------------------------------------
-void ip_prefixes_destroy(void ** ppItem)
+// ----- _ip_prefixes_destroy ---------------------------------------
+/* COMMENT ON 16/01/2007
+static void _ip_prefixes_destroy(void ** ppItem)
 {
   ip_prefix_destroy((SPrefix **) ppItem);
-}
+  }*/
 
  // ----- node_links_compare -----------------------------------------
 int ip_prefixes_compare(void * pItem1, void * pItem2,
@@ -294,10 +295,12 @@ int ip_prefixes_compare(void * pItem1, void * pItem2,
 {
   SPrefix * pPrefix1 = *((SPrefix **) pItem1);
   SPrefix * pPrefix2 = *((SPrefix **) pItem2);
-  if ((pPrefix1->tNetwork == pPrefix2->tNetwork) &&
-    (pPrefix1->uMaskLen == pPrefix2->uMaskLen)){
+
+  if ((ip_prefix_masked(pPrefix1).tNetwork ==
+       ip_prefix_masked(pPrefix2).tNetwork) &&
+    (pPrefix1->uMaskLen == pPrefix2->uMaskLen))
     return 0;
-  }
+
   else if (pPrefix1->uMaskLen == pPrefix2->uMaskLen) {
     if ((pPrefix1->tNetwork < pPrefix2->tNetwork))
       return -1;
@@ -377,9 +380,9 @@ void ip_prefix_destroy(SPrefix ** ppPrefix)
  * Precondition:
  * - the given prefix length must be in the range [0-32].
  */
-net_addr_t ip_build_mask(uint8_t uMaskLen)
+inline net_addr_t ip_build_mask(uint8_t tMaskLen)
 {
-  return (0xffffffff << (32-uMaskLen));
+  return (0xffffffff << (32-tMaskLen));
 }
 
 // ----- ip_prefix_mask ---------------------------------------------
@@ -388,7 +391,15 @@ net_addr_t ip_build_mask(uint8_t uMaskLen)
  */
 void ip_prefix_mask(SPrefix * pPrefix)
 {
-  pPrefix->tNetwork&= ip_build_mask(pPrefix->uMaskLen);
+  pPrefix->tNetwork&= (0xffffffff << (32-pPrefix->uMaskLen));
+}
+
+// ----- ip_prefix_masked -------------------------------------------
+SPrefix ip_prefix_masked(const SPrefix * pPrefix)
+{
+  SPrefix sPrefix= *pPrefix;
+  ip_prefix_mask(&sPrefix);
+  return sPrefix;
 }
 
 /////////////////////////////////////////////////////////////////////
