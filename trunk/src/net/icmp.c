@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 28/09/2006
+// @lastdate 22/01/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,8 +13,9 @@
 #include <stdlib.h>
 
 #include <net/prefix.h>
-#include <net/icmp.h>
+#include <net/protocol.h>
 #include <net/network.h>
+#include <net/net_types.h>
 
 #define ICMP_ECHO_REQUEST 0
 #define ICMP_ECHO_REPLY   1
