@@ -3742,8 +3742,9 @@ sub cbgp_valid_bgp_topology_run($)
 sub cbgp_valid_bgp_topology_subra2004($)
   {
     my ($cbgp)= @_;
+    my $topo_file= $resources_path."data/subra-2004.txt";
 
-    cbgp_send($cbgp, "bgp topology load \"data/subra-2004.txt\"");
+    cbgp_send($cbgp, "bgp topology load \"$topo_file\"");
     cbgp_send($cbgp, "bgp topology policies");
     cbgp_send($cbgp, "bgp topology run");
     cbgp_send($cbgp, "sim run");
@@ -3764,8 +3765,9 @@ sub cbgp_valid_bgp_topology_subra2004($)
 sub cbgp_valid_bgp_topology_smalltopo($)
   {
     my ($cbgp)= @_;
+    my $topo_file= $resources_path."data/small.topology.txt";
 
-    cbgp_send($cbgp, "bgp topology load \"data/small.topology.txt\"");
+    cbgp_send($cbgp, "bgp topology load \"$topo_file\"");
     cbgp_send($cbgp, "bgp topology policies");
     cbgp_send($cbgp, "bgp topology run");
     cbgp_send($cbgp, "sim run");
@@ -3786,8 +3788,9 @@ sub cbgp_valid_bgp_topology_smalltopo($)
 sub cbgp_valid_bgp_topology_largetopo($)
   {
     my ($cbgp)= @_;
+    my $topo_file= $resources_path."data/large.topology.txt";
 
-    cbgp_send($cbgp, "bgp topology load \"data/large.topology.txt\"");
+    cbgp_send($cbgp, "bgp topology load \"$topo_file\"");
     cbgp_send($cbgp, "bgp topology policies");
     cbgp_send($cbgp, "bgp topology run");
     cbgp_send($cbgp, "sim run");
