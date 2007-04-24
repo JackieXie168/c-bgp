@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 15/01/2007
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,16 +26,16 @@
 int route_nexthop_compare(SNetRouteNextHop sNH1,
 			  SNetRouteNextHop sNH2)
 {
-  if (sNH1.tAddr > sNH2.tAddr)
+  if (sNH1.tGateway > sNH2.tGateway)
     return 1;
-  if (sNH1.tAddr < sNH2.tAddr)
+  if (sNH1.tGateway < sNH2.tGateway)
     return -1;
   
-  if (link_get_address(sNH1.pIface) >
-      link_get_address(sNH2.pIface))
+  if (net_link_get_address(sNH1.pIface) >
+      net_link_get_address(sNH2.pIface))
     return 1;
-  if (link_get_address(sNH1.pIface) <
-      link_get_address(sNH2.pIface))
+  if (net_link_get_address(sNH1.pIface) <
+      net_link_get_address(sNH2.pIface))
     return -1;
 
   return 0;
@@ -69,14 +69,14 @@ void rt_perror(SLogStream * pStream, int iErrorCode)
  */
 SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
 				      SNetLink * pIface,
-				      net_addr_t tNextHop,
+				      net_addr_t tGateway,
 				      uint32_t uWeight,
 				      net_route_type_t tType)
 {
   SNetRouteInfo * pRouteInfo=
     (SNetRouteInfo *) MALLOC(sizeof(SNetRouteInfo));
   pRouteInfo->sPrefix= sPrefix;
-  pRouteInfo->sNextHop.tAddr= tNextHop;
+  pRouteInfo->sNextHop.tGateway= tGateway;
   pRouteInfo->sNextHop.pIface= pIface;
   pRouteInfo->pNextHops= NULL;
   pRouteInfo->uWeight= uWeight;
@@ -186,7 +186,7 @@ int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
  * table. The possible criteria are as follows:
  * - prefix  : exact match of destination prefix (NULL => match any)
  * - iface   : exact match of outgoing link (NULL => match any)
- * - next-hop: exact match of next-hop (NULL => match any)
+ * - gateway : exact match of gateway (NULL => match any)
  * - type    : exact match of type (mandatory)
  * All the given criteria have to match a route in order for it to be
  * deleted.
@@ -194,7 +194,7 @@ int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
 typedef struct {
   SPrefix * pPrefix;
   SNetLink * pIface;
-  net_addr_t * pNextHop;
+  net_addr_t * pGateway;
   net_route_type_t tType;
   SPtrArray * pRemovalList;
 } SNetRouteInfoFilter;
@@ -204,7 +204,7 @@ typedef struct {
  * Check if the given route-info matches the given filter. The
  * following fields are checked:
  * - next-hop interface
- * - next-hop address (gateway)
+ * - gateway address
  * - type (routing protocol)
  *
  * Return:
@@ -218,8 +218,8 @@ int net_route_info_matches_filter(SNetRouteInfo * pRI,
   if ((pRIFilter->pIface != NULL) &&
       (pRIFilter->pIface != pRI->sNextHop.pIface))
     return 0;
-  if ((pRIFilter->pNextHop != NULL) &&
-      (*pRIFilter->pNextHop != pRI->sNextHop.tAddr))
+  if ((pRIFilter->pGateway != NULL) &&
+      (*pRIFilter->pGateway != pRI->sNextHop.tGateway))
     return 0;
   if (pRIFilter->tType != pRI->tType)
     return 0;
@@ -242,9 +242,9 @@ void net_route_info_dump_filter(SLogStream * pStream,
     log_printf(pStream, "*");
 
   // Next-hop address (gateway)
-  log_printf(pStream, ", next-hop: ");
-  if (pRIFilter->pNextHop != NULL)
-    ip_address_dump(pStream, *pRIFilter->pNextHop);
+  log_printf(pStream, ", gateway: ");
+  if (pRIFilter->pGateway != NULL)
+    ip_address_dump(pStream, *pRIFilter->pGateway);
   else
     log_printf(pStream, "*");
 
@@ -546,7 +546,7 @@ int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
      on the 'rt_info_list_del' call */
   return ((pRIFilter->pPrefix != NULL) &&
 	  (pRIFilter->pIface != NULL) &&
-	  (pRIFilter->pNextHop)) ? iResult : 0;
+	  (pRIFilter->pGateway)) ? iResult : 0;
 }
 
 // ----- rt_del_route -----------------------------------------------
@@ -557,7 +557,7 @@ int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
  * attributes. The NULL value corresponds to the wildcard.
  */
 int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-		 SNetLink * pIface, net_addr_t * ptNextHop,
+		 SNetLink * pIface, net_addr_t * ptGateway,
 		 net_route_type_t tType)
 {
   SNetRouteInfoList * pRIList;
@@ -567,7 +567,7 @@ int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
   /* Prepare the attributes of the routes to be removed (context) */
   sRIFilter.pPrefix= pPrefix;
   sRIFilter.pIface= pIface;
-  sRIFilter.pNextHop= ptNextHop;
+  sRIFilter.pGateway= ptGateway;
   sRIFilter.tType= tType;
   sRIFilter.pRemovalList= NULL;
 
@@ -650,7 +650,7 @@ int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
  */
 void route_nexthop_dump(SLogStream * pStream, SNetRouteNextHop sNextHop)
 {
-  ip_address_dump(pStream, sNextHop.tAddr);
+  ip_address_dump(pStream, sNextHop.tGateway);
   log_printf(pStream, "\t");
   link_dst_dump(pStream, sNextHop.pIface);
 }

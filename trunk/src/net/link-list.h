@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 05/08/2003
-// @lastdate 23/01/2007
+// @lastdate 13/04/2007
 // ==================================================================
 
 #ifndef __NET_LINK_LIST_H__
@@ -35,6 +35,8 @@ extern "C" {
 				net_mask_t tIfaceMask);
   // ----- net_links_get_enum ---------------------------------------
   SEnumerator * net_links_get_enum(SNetLinks * pLinks);
+  // -----[ net_links_find_iface ]-------------------------------------
+  SNetLink * net_links_find_iface(SNetLinks * pLinks, net_addr_t tIfaceAddr);
 
 #ifdef __cplusplus
 }

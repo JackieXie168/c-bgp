@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 22/01/2007
+// @lastdate 13/04/2007
 // ==================================================================
 
 #ifndef __NET_SUBNET_H__
@@ -49,8 +49,8 @@ extern "C" {
   int _subnet_test();
   
   // ----- _subnet_forward ------------------------------------------
-  int _subnet_forward(net_addr_t tDstAddr, void * pContext,
-		      SNetNode ** ppNextHop);
+  int _subnet_forward(net_addr_t tPhysAddr, void * pContext,
+		      SNetNode ** ppNextHop, SNetMessage ** ppMsg);
 
 
   ///////////////////////////////////////////////////////////////////

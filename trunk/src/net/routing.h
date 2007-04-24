@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 15/01/2007
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -38,7 +38,7 @@ typedef SPtrArray SNetRouteInfoList;
  * address is mandatory for a multi-point link such as a subnet.
  */
 typedef struct {
-  net_addr_t tAddr;
+  net_addr_t tGateway;
   SNetLink * pIface;
 } SNetRouteNextHop;
 

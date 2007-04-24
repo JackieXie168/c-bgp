@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 23/01/2007
+// @lastdate 13/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -197,9 +197,9 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
       switch (pLink->uType) {
       case NET_LINK_TYPE_ROUTER:
 	if (igp_domain_contains_router_by_addr(pDomain,
-					       link_get_address(pLink))) {
+					       net_link_get_address(pLink))) {
 	  pContext= (SSPTContext *) MALLOC(sizeof(SSPTContext));
-	  pContext->tAddr= link_get_address(pLink);
+	  pContext->tAddr= net_link_get_address(pLink);
 	  pContext->pIface= pIface;
 	  pContext->tNextHop= tNextHop;
 	  pContext->tWeight= tNewWeight;

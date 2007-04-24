@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 19/01/2007
+// @lastdate 17/04/2007
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #define IPV4_TO_INT(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
+#define NET_ADDR_ANY 0
 
 // ----- IPv4 address -----
 typedef uint32_t net_addr_t;

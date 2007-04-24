@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 23/01/2007
+// @lastdate 13/04/2007
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -62,6 +62,9 @@ extern "C" {
   // ----- node_find_link_mtp ---------------------------------------
   SNetLink * node_find_link_mtp(SNetNode * pNode, SNetSubnet * pSubnet,
 				net_addr_t tIfaceAddr);
+  // -----[ node_find_iface ]------------------------------------------
+  SNetLink * node_find_iface(SNetNode * pNode, SNetDest sDest);
+
   // ----- node_links_clear -----------------------------------------
   void node_links_clear(SNetNode * pNode);
   

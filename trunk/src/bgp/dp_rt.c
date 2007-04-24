@@ -7,7 +7,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/01/2007
-// @lastdate 19/01/2007
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -39,7 +39,7 @@ static void _bgp_router_rt_add_route_error(SBGPRouter * pRouter,
     route_dump(pLogErr, pRoute);
     log_printf(pLogErr, ")\n");
     log_printf(pLogErr, "  RT entry : nh:");
-    ip_address_dump(pLogErr, pNextHop->tAddr);
+    ip_address_dump(pLogErr, pNextHop->tGateway);
     log_printf(pLogErr, ", if:");
     ip_prefix_dump(pLogErr, net_link_get_id(pNextHop->pIface));
     log_printf(pLogErr, ")\n");
@@ -60,7 +60,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   SNetRouteInfo * pOldRouteInfo;
   SNetRouteNextHop * pNextHop= node_rt_lookup(pRouter->pNode,
 					      pRoute->pAttr->tNextHop);
-  net_addr_t tNextHop;
+  net_addr_t tGateway;
   int iResult;
 
   /* Check that the next-hop is reachable. It MUST be reachable at
@@ -79,12 +79,13 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   }
   
   // Insert the route
-  tNextHop= pNextHop->tAddr;
-  if (pNextHop->pIface->uType != NET_LINK_TYPE_ROUTER)
-    tNextHop= pRoute->pAttr->tNextHop;
+  tGateway= pNextHop->tGateway;
+  if ((pNextHop->pIface->uType == NET_LINK_TYPE_TRANSIT) ||
+      (pNextHop->pIface->uType == NET_LINK_TYPE_STUB))
+    tGateway= pRoute->pAttr->tNextHop;
 
   iResult= node_rt_add_route_link(pRouter->pNode, pRoute->sPrefix,
-				  pNextHop->pIface, tNextHop,
+				  pNextHop->pIface, tGateway,
 				  0, NET_ROUTE_BGP);
   if (iResult)
     _bgp_router_rt_add_route_error(pRouter, pRoute, pNextHop, iResult);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 20/03/2007
+// @lastdate 18/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -186,24 +186,25 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
     if ((str_as_uint(pcValue, &uValue) < 0) ||
 	(uValue > NET_LINK_MAX_DEPTH)) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid depth \"%s\"\n", pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
     }
     tDepth= uValue;
   }
-
+  
   // Get optional link capacity
   pcValue= cli_options_get_value(pCmd->pOptions, "bw");
   if (pcValue != NULL) {
     if (str_as_uint(pcValue, &uValue) < 0) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid capacity \"%s\"\n", pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
     }
     tCapacity= uValue;
   }
-
   
   // Get source node
   pcNodeSrcAddr= tokens_get_string_at(pCmd->pParamValues, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
-    if (pNodeSrc == NULL) {
+  if (pNodeSrc == NULL) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not find node \"%s\"\n", pcNodeSrcAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -213,18 +214,18 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   if ((ip_string_to_dest(pcDest, &sDest) < 0) ||
       (sDest.tType == NET_DEST_ANY)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid destination \"%s\".\n",
-	       pcDest);
+	    pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
-
+  
   // Get delay
   if (tokens_get_uint_at(pCmd->pParamValues, 2, &uValue)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid delay %s.\n",
-	       tokens_get_string_at(pCmd->pParamValues, 2));
+	    tokens_get_string_at(pCmd->pParamValues, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
   tDelay= uValue;
-
+  
   // Add link
   if ((iErrorCode= node_add_link(pNodeSrc, sDest, tDelay, tCapacity,
 				 tDepth))) {
@@ -651,15 +652,17 @@ void cli_ctx_destroy_net_node_link(void ** ppItem)
 // ----- cli_net_node_ping ------------------------------------------
 /**
  * context: {node}
- * tokens: {addr}
+ * tokens : {addr}
+ * options: ttl=TTL
  */
 int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
 {
   SNetNode * pNode;
-  char * pcDstAddr;
-  char * pcEndChar;
+  char * pcValue;
   net_addr_t tDstAddr;
   int iErrorCode;
+  unsigned int uValue;
+  uint8_t uTTL= 0;
 
  // Get node from the CLI'scontext
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
@@ -667,24 +670,37 @@ int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
 
   // Get destination address
-  pcDstAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (ip_string_to_address(pcDstAddr, &pcEndChar, &tDstAddr) ||
-      (*pcEndChar != 0)) {
+  pcValue= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
+  if (str2address(pcValue, &tDstAddr) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid address \"%s\"\n",
-	       pcDstAddr);
+	       pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Send ICMP echo request
-  iErrorCode= icmp_echo_request(pNode, tDstAddr);
-  if (iErrorCode != NET_SUCCESS) {
+  // Optional: TTL ?
+  if (cli_options_has_value(pCmd->pOptions, "ttl")) {
+    pcValue= cli_options_get_value(pCmd->pOptions, "ttl");
+    if (pcValue == NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: TTL value must be specified\n");
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    if ((str_as_uint(pcValue, &uValue) < 0) || (uValue > 255)) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid TTL \"%s\"\n", pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    uTTL= uValue;
+  }
+
+  // Perform ping
+  iErrorCode= icmp_ping(pLogOut, pNode, NET_ADDR_ANY, tDstAddr, uTTL);
+  /*if (iErrorCode != NET_SUCCESS) {
     LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
-      log_printf(pLogErr, "Error: ICMP echo request failed: ");
+      log_printf(pLogErr, "Error: ping failed: ");
       network_perror(pLogErr, iErrorCode);
       log_printf(pLogErr, "\n");
     }
     return CLI_ERROR_COMMAND_FAILED;
-  }
+    }*/
   return CLI_SUCCESS;
 }
 
@@ -774,6 +790,45 @@ int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
+// ----- cli_net_node_traceroute ------------------------------------
+/**
+ * context: {node}
+ * tokens : {addr}
+ */
+int cli_net_node_traceroute(SCliContext * pContext, SCliCmd * pCmd)
+{
+  SNetNode * pNode;
+  char * pcValue;
+  net_addr_t tDstAddr;
+  int iErrorCode;
+
+ // Get node from the CLI'scontext
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  if (pNode == NULL)
+    return CLI_ERROR_COMMAND_FAILED;
+
+  // Get destination address
+  pcValue= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
+  if (str2address(pcValue, &tDstAddr) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid address \"%s\"\n",
+	       pcValue);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Perform traceroute
+  iErrorCode= icmp_trace_route(pLogOut, pNode, NET_ADDR_ANY, tDstAddr, 0);
+  /*if (iErrorCode != NET_SUCCESS) {
+    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
+      log_printf(pLogErr, "Error: traceroute failed: ");
+      network_perror(pLogErr, iErrorCode);
+      log_printf(pLogErr, "\n");
+    }
+    return CLI_ERROR_COMMAND_FAILED;
+    }*/
+
+  return CLI_SUCCESS;
+}
+
 // ----- cli_net_node_route_add -------------------------------------
 /**
  * This function adds a new static route to the given node.
@@ -784,11 +839,9 @@ int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
 int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
 {
   SNetNode * pNode;
-  char * pcEndChar;
-  char * pcPrefix;
   SPrefix sPrefix;
-  char * pcIface, * pcNextHop;
-  net_addr_t tNextHop;
+  char * pcValue;
+  net_addr_t tGateway;
   SNetDest sDest, sIface;
   unsigned long ulWeight;
   int iErrorCode;
@@ -799,36 +852,35 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   
   // Get the route's prefix
-  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
-      (*pcEndChar != 0)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2prefix(pcValue, &sPrefix) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Get the next-hop
-  pcNextHop= tokens_get_string_at(pCmd->pParamValues, 1);
-  if (ip_string_to_dest(pcNextHop, &sDest) ||
+  // Get the gateway
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 1);
+  if (ip_string_to_dest(pcValue, &sDest) ||
       (sDest.tType == NET_DEST_PREFIX)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n",
-	       pcNextHop);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid gateway \"%s\"\n",
+	    pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
   switch (sDest.tType) {
   case NET_DEST_ADDRESS:
-    tNextHop= sDest.uDest.tAddr; break;
+    tGateway= sDest.uDest.tAddr; break;
   case NET_DEST_ANY:
-    tNextHop= 0; break;
+    tGateway= 0; break;
   default:
     abort();
   }
   
   // Get the outgoing link identifier (address/prefix)
-  pcIface= tokens_get_string_at(pCmd->pParamValues, 2);
-  if (ip_string_to_dest(pcIface, &sIface) ||
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 2);
+  if (ip_string_to_dest(pcValue, &sIface) ||
       (sIface.tType == NET_DEST_ANY)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid interface \"%s\"\n",
-	       pcIface);
+	    pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -839,7 +891,7 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add the route
-  if ((iErrorCode= node_rt_add_route_dest(pNode, sPrefix, sIface, tNextHop,
+  if ((iErrorCode= node_rt_add_route_dest(pNode, sPrefix, sIface, tGateway,
 					  ulWeight, NET_ROUTE_STATIC))) {
     LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
       log_printf(pLogErr, "Error: could not add static route (");
@@ -862,13 +914,10 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
 int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
 {
   SNetNode * pNode;
-  char * pcEndChar;
-  char * pcPrefix;
+  char * pcValue;
   SPrefix sPrefix;
-  char * pcNextHop;
   SNetDest sDest;
-  net_addr_t tNextHop;
-  char * pcIface;
+  net_addr_t tGateway;
   SNetDest sIface;
 
   // Get node from the CLI'scontext
@@ -877,40 +926,39 @@ int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   
   // Get the route's prefix
-  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
-      (*pcEndChar != 0)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2prefix(pcValue, &sPrefix) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
-  // Get the next-hop
-  pcNextHop= tokens_get_string_at(pCmd->pParamValues, 1);
-  if (ip_string_to_dest(pcNextHop, &sDest) ||
+  // Get the gateway
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 1);
+  if (ip_string_to_dest(pcValue, &sDest) ||
       (sDest.tType == NET_DEST_PREFIX)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop \"%s\"\n",
-	       pcNextHop);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid gateway \"%s\"\n",
+	    pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
   switch (sDest.tType) {
   case NET_DEST_ADDRESS:
-    tNextHop= sDest.uDest.tAddr; break;
+    tGateway= sDest.uDest.tAddr; break;
   case NET_DEST_ANY:
-    tNextHop= 0; break;
+    tGateway= 0; break;
   default:
     abort();
   }
 
   // Get the outgoing link identifier (address/prefix)
-  pcIface= tokens_get_string_at(pCmd->pParamValues, 2);
-  if (ip_string_to_dest(pcIface, &sIface)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid next-hop address \"%s\"\n",
-	       pcIface);
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 2);
+  if (ip_string_to_dest(pcValue, &sIface)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid gateway address \"%s\"\n",
+	    pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Remove the route
-  if (node_rt_del_route(pNode, &sPrefix, &sIface, &tNextHop,
+  if (node_rt_del_route(pNode, &sPrefix, &sIface, &tGateway,
 			NET_ROUTE_STATIC)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not remove static route\n");
     return CLI_ERROR_COMMAND_FAILED;
@@ -1012,29 +1060,59 @@ int cli_net_node_show_rt(SCliContext * pContext, SCliCmd * pCmd)
 // ----- cli_net_node_tunnel_add ------------------------------------
 /**
  * context: {node}
- * tokens: {end-point}
+ * tokens: {end-point, if-addr}
+ * option: oif=<addr>, src=<addr>
  */
 int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
 {
   SNetNode * pNode;
-  char * pcEndPointAddr;
+  char * pcValue;
   net_addr_t tEndPointAddr;
-  char * pcEndChar;
+  net_addr_t tAddr;
+  SNetDest sDest;
+  SNetDest * pDest= NULL;
+  net_addr_t tSrcAddr= 0;
 
   // Get node from context
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
 
-  // Get tunnel end-point
-  pcEndPointAddr= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_address(pcEndPointAddr, &pcEndChar, &tEndPointAddr) ||
-      (*pcEndChar != 0)) {
+  // Get tunnel end-point (remote)
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (str2address(pcValue, &tEndPointAddr) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid end-point address \"%s\"\n",
-	       pcEndPointAddr);
+	       pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  // Get tunnel identifier: address (local)
+  pcValue= tokens_get_string_at(pCmd->pParamValues, 1);
+  if (str2address(pcValue, &tAddr) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid local address \"%s\"\n",
+	       pcValue);
+    return CLI_ERROR_COMMAND_FAILED;    
+  }
+
+  // get optional outgoing interface
+  pcValue= cli_options_get_value(pCmd->pOptions, "oif");
+  if (pcValue != NULL) {
+    if (ip_string_to_dest(pcValue, &sDest) < 0) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid outgoing interface \"%s\"\n", pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    pDest= &sDest;
+  }
+
+  // get optional source address
+  pcValue= cli_options_get_value(pCmd->pOptions, "src");
+  if (pcValue != NULL) {
+    if (str2address(pcValue, &tSrcAddr) < 0) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid source address \"%s\"\n", pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
   // Add tunnel
-  if (node_add_tunnel(pNode, tEndPointAddr)) {
+  if (node_add_tunnel(pNode, tEndPointAddr, tAddr, pDest, tSrcAddr)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: unexpected error\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -1279,7 +1357,7 @@ void cli_register_net_node_route(SCliCmds * pCmds)
 
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
-  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_params_add(pParams, "<gateway>", NULL);
   cli_params_add(pParams, "<iface>", NULL);
   cli_params_add(pParams, "<weight>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("add",
@@ -1287,7 +1365,7 @@ void cli_register_net_node_route(SCliCmds * pCmds)
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
-  cli_params_add(pParams, "<next-hop>", NULL);
+  cli_params_add(pParams, "<gateway>", NULL);
   cli_params_add(pParams, "<iface>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("del",
 					cli_net_node_route_del,
@@ -1318,12 +1396,15 @@ int cli_register_net_node_tunnel(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
+  SCliCmd * pCmd;
 
   pParams= cli_params_create();
   cli_params_add(pParams, "<end-point>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add",
-					cli_net_node_tunnel_add,
-					NULL, pParams));
+  cli_params_add(pParams, "<addr>", NULL);
+  pCmd= cli_cmd_create("add", cli_net_node_tunnel_add, NULL, pParams);
+  cli_cmd_add_option(pCmd, "oif", NULL);
+  cli_cmd_add_option(pCmd, "src", NULL);
+  cli_cmds_add(pSubCmds, pCmd);
   return cli_cmds_add(pCmds, cli_cmd_create("tunnel", NULL,
 					   pSubCmds, NULL));
 }
@@ -1350,11 +1431,13 @@ int cli_register_net_node(SCliCmds * pCmds)
   cli_params_add(pParams, "<name>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("name", cli_net_node_name,
 					NULL, pParams));
+
   pParams= cli_params_create();
   cli_params_add2(pParams, "<addr>", NULL, cli_net_enum_nodes);
-  cli_cmds_add(pSubCmds, cli_cmd_create("ping",
-					cli_net_node_ping,
-					NULL, pParams));
+  pCmd= cli_cmd_create("ping", cli_net_node_ping, NULL, pParams);
+  cli_cmd_add_option(pCmd, "ttl", NULL);
+  cli_cmds_add(pSubCmds, pCmd);
+
   pParams= cli_params_create();
   cli_params_add(pParams, "<address|prefix>", NULL);
   pCmd= cli_cmd_create("record-route",
@@ -1368,6 +1451,12 @@ int cli_register_net_node(SCliCmds * pCmds)
   cli_cmd_add_option(pCmd, "tos", NULL);
   cli_cmd_add_option(pCmd, "weight", NULL);
   cli_cmds_add(pSubCmds, pCmd);
+
+  pParams= cli_params_create();
+  cli_params_add2(pParams, "<addr>", NULL, cli_net_enum_nodes);
+  pCmd= cli_cmd_create("traceroute", cli_net_node_traceroute, NULL, pParams);
+  cli_cmds_add(pSubCmds, pCmd);
+
   cli_register_net_node_show(pSubCmds);
   cli_register_net_node_tunnel(pSubCmds);
 #ifdef OSPF_SUPPORT

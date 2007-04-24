@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 28/11/2002
-// @lastdate 20/04/2006
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -21,57 +21,71 @@ extern uint8_t SIM_OPTIONS_SCHEDULER;
 #define ABSOLUTE_TIME	0x00
 #define RELATIVE_TIME	0x01
 
+struct TSimulator;
+
 // ----- FSimEventCallback ------------------------------------------
-typedef int (*FSimEventCallback)(void * pContext);
+typedef int (*FSimEventCallback)(struct TSimulator * pSimulator,
+				 void * pContext);
 // ----- FSimEventDump ----------------------------------------------
 typedef void (*FSimEventDump)(SLogStream * pStream, void * pContext);
 // ----- FSimEventDestroy -------------------------------------------
 typedef void (*FSimEventDestroy)(void * pContext);
 
 // ----- FSimSchedulerRun -------------------------------------------
-typedef int (*FSimSchedulerRun)(void * pContext, int iNumSteps);
+typedef int (*FSimSchedulerRun)(void * pSchedCtx, void * pContext,
+				int iNumSteps);
 // ----- FSimSchedulerPost ------------------------------------------
-typedef int (*FSimSchedulerPost)(FSimEventCallback fCallback,
+typedef int (*FSimSchedulerPost)(void * pSchedCtx,
+				 FSimEventCallback fCallback,
 				 FSimEventDump fDump,
 				 FSimEventDestroy fDestroy,
 				 void * pContext,
 				 double uSchedulingTime,
 				 uint8_t uDeltaType);
 
-typedef struct {
+struct TSimulator {
+  void * pScheduler;
   FSimSchedulerRun fSchedulerRun;
   FSimSchedulerPost fSchedulerPost;
   double dCurrentTime;
   double dMaximumTime;
-} SSimulator;
+  uint8_t tType;
+};
+typedef struct TSimulator SSimulator;
 
-// ----- simulator_create -------------------------------------------
-extern void simulator_init();
-// ----- simulator_destroy ------------------------------------------
-extern void simulator_done();
-// ----- simulator_clear --------------------------------------------
-extern void simulator_clear();
-// ----- simulator_run ----------------------------------------------
-extern int simulator_run();
-// ----- simulator_step ---------------------------------------------
-extern int simulator_step(int iNumSteps);
-// ----- simulator_get_num_events -----------------------------------
-extern uint32_t simulator_get_num_events();
-// ----- simulator_post_event ---------------------------------------
-extern int simulator_post_event(FSimEventCallback fCallback,
-				FSimEventDump fDump,
-				FSimEventDestroy fDestroy,
-				void * pContext, double uSchedulingTime,
-				uint8_t uDeltaType);
-// ----- simulator_get_time -----------------------------------------
-extern double simulator_get_time();
-// ----- simulator_set_max_time -------------------------------------
-extern void simulator_set_max_time(double dMaximumTime);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// ----- simulator_dump_events --------------------------------------
-extern void simulator_dump_events(SLogStream * pStream);
-// ----- simulator_show_infos ---------------------------------------
-extern void simulator_show_infos();
+  // -----[ simulator_create ]---------------------------------------
+  SSimulator * simulator_create(uint8_t tType);
+  // -----[ simulator_destroy ]--------------------------------------
+  void simulator_destroy(SSimulator ** ppSimulator);
+  // ----- simulator_run --------------------------------------------
+  int simulator_run(SSimulator * pSimulator);
+  // ----- simulator_step -------------------------------------------
+  int simulator_step(SSimulator * pSimulator, int iNumSteps);
+  // ----- simulator_post_event -------------------------------------
+  int simulator_post_event(SSimulator * pSimulator,
+			   FSimEventCallback fCallback,
+			   FSimEventDump fDump,
+			   FSimEventDestroy fDestroy,
+			   void * pContext, double uSchedulingTime,
+			   uint8_t uDeltaType);
+  // ----- simulator_get_num_events ---------------------------------
+  uint32_t simulator_get_num_events(SSimulator * pSimulator);
+  // ----- simulator_get_time ---------------------------------------
+  double simulator_get_time(SSimulator * pSimulator);
+  // ----- simulator_set_max_time -----------------------------------
+  void simulator_set_max_time(SSimulator * pSimulator, double dMaximumTime);
+  // ----- simulator_dump_events ------------------------------------
+  void simulator_dump_events(SLogStream * pStream, SSimulator * pSimulator);
+  // ----- simulator_show_infos -------------------------------------
+  void simulator_show_infos(SLogStream * pStream, SSimulator * pSimulator);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

@@ -248,7 +248,7 @@ int node_add_link(SNetNode * pNode, SNetDest sDest,
 
 // ----- node_find_link_ptp -----------------------------------------
 SNetLink * node_find_link_ptp(SNetNode * pNode,
-				    net_addr_t tAddr)
+			      net_addr_t tAddr)
 {
   return net_links_find_ptp(pNode->pLinks, tAddr);
 }
@@ -263,7 +263,7 @@ static SNetLink * _node_find_link_mtp(SNetNode * pNode,
 
 // ----- node_find_link ---------------------------------------------
 /**
- *
+ * Find a link based on the destination address / prefix.
  */
 SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest)
 {
@@ -273,6 +273,23 @@ SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest)
   case NET_DEST_PREFIX:
     return _node_find_link_mtp(pNode,
 			       sDest.uDest.sPrefix.tNetwork,
+			       sDest.uDest.sPrefix.uMaskLen);
+  default:
+    return NULL;
+  }
+}
+
+// -----[ node_find_iface ]------------------------------------------
+/**
+ * Find a link based on the local address.
+ */
+SNetLink * node_find_iface(SNetNode * pNode, SNetDest sDest)
+{
+  switch (sDest.tType) {
+  case NET_DEST_ADDRESS:
+    return net_links_find_iface(pNode->pLinks, sDest.uDest.tAddr);
+  case NET_DEST_PREFIX:
+    return _node_find_link_mtp(pNode, sDest.uDest.sPrefix.tNetwork,
 			       sDest.uDest.sPrefix.uMaskLen);
   default:
     return NULL;
@@ -352,7 +369,7 @@ int node_rt_add_route_dest(SNetNode * pNode, SPrefix sPrefix,
 
   // Lookup the outgoing interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  pIface= node_find_link(pNode, sIfaceDest);
+  pIface= node_find_iface(pNode, sIfaceDest);
   if (pIface == NULL)
     return NET_RT_ERROR_IF_UNKNOWN;
 

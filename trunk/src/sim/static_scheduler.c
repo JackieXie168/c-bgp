@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 20/04/2006
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,8 +17,6 @@
 
 #define EVENT_QUEUE_DEPTH 256
 
-static SStaticScheduler * pStaticScheduler= NULL;
-
 typedef struct {
   FSimEventCallback fCallback;
   FSimEventDump fDump;
@@ -26,11 +24,11 @@ typedef struct {
   void * pContext;
 } SStaticEvent;
 
-// ----- static_scheduler_event_create ------------------------------
-SStaticEvent * static_scheduler_event_create(FSimEventCallback fCallback,
-					     FSimEventDump fDump,
-					     FSimEventDestroy fDestroy,
-					     void * pContext)
+// -----[ _static_sched_event_create ]-------------------------------
+static SStaticEvent * _static_sched_event_create(FSimEventCallback fCallback,
+						 FSimEventDump fDump,
+						 FSimEventDestroy fDestroy,
+						 void * pContext)
 {
   SStaticEvent * pEvent= (SStaticEvent *) MALLOC(sizeof(SStaticEvent));
   pEvent->fCallback= fCallback;
@@ -40,11 +38,11 @@ SStaticEvent * static_scheduler_event_create(FSimEventCallback fCallback,
   return pEvent;
 }
 
-// ----- static_scheduler_event_destroy -----------------------------
+// -----[ _static_sched_event_destroy ]------------------------------
 /**
  *
  */
-void static_scheduler_event_destroy(SStaticEvent ** ppEvent)
+static void _static_sched_event_destroy(SStaticEvent ** ppEvent)
 {
   if (*ppEvent != NULL) {
     FREE(*ppEvent);
@@ -52,50 +50,50 @@ void static_scheduler_event_destroy(SStaticEvent ** ppEvent)
   }
 }
 
-// ----- static_scheduler_event_fifo_destroy ------------------------
+// -----[ _static_sched_event_fifo_destroy ]-------------------------
 /**
  *
  */
-void static_scheduler_event_fifo_destroy(void ** ppItem)
+static void _static_sched_event_fifo_destroy(void ** ppItem)
 {
   SStaticEvent ** ppEvent= (SStaticEvent **) ppItem;
 
   if (((*ppEvent) != NULL) && ((*ppEvent)->fDestroy != NULL))
     (*ppEvent)->fDestroy((*ppEvent)->pContext);
-  static_scheduler_event_destroy(ppEvent);
+  _static_sched_event_destroy(ppEvent);
 }
 
-// ----- static_scheduler_init -------------------------------------
+// -----[ static_scheduler_create ]---------------------------------
 /**
  *
  */
-SStaticScheduler * static_scheduler_init()
+SStaticScheduler * static_scheduler_create()
 {
-  if (pStaticScheduler == NULL) {
-    pStaticScheduler=
-      (SStaticScheduler *) MALLOC(sizeof(SStaticScheduler));
-    pStaticScheduler->pEvents=
-      fifo_create(EVENT_QUEUE_DEPTH,
-		  static_scheduler_event_fifo_destroy);
-    fifo_set_option(pStaticScheduler->pEvents,
-		    FIFO_OPTION_GROW_EXPONENTIAL, 1);
-  }
-  return pStaticScheduler;
+  SStaticScheduler * pScheduler=
+    (SStaticScheduler *) MALLOC(sizeof(SStaticScheduler));
+  pScheduler->pEvents=
+    fifo_create(EVENT_QUEUE_DEPTH,
+		_static_sched_event_fifo_destroy);
+  fifo_set_option(pScheduler->pEvents,
+		  FIFO_OPTION_GROW_EXPONENTIAL, 1);
+  return pScheduler;
 }
 
-// ----- static_scheduler_done --------------------------------------
+// -----[ static_scheduler_destroy ]--------------------------------
 /**
  *
  */
-void static_scheduler_done()
+void static_scheduler_destroy(SStaticScheduler ** ppScheduler)
 {
-  if (pStaticScheduler != NULL) {
-    if (pStaticScheduler->pEvents->uCurrentDepth > 0)
+  if (*ppScheduler != NULL) {
+    if ((*ppScheduler)->pEvents->uCurrentDepth > 0)
       LOG_ERR(LOG_LEVEL_WARNING, "Warning: %d events still in queue.\n",
-		  pStaticScheduler->pEvents->uCurrentDepth);
-    fifo_destroy(&pStaticScheduler->pEvents);
-    FREE(pStaticScheduler);
-    pStaticScheduler= NULL;
+	      (*ppScheduler)->pEvents->uCurrentDepth);
+
+    fifo_destroy(&(*ppScheduler)->pEvents);
+
+    FREE(*ppScheduler);
+    *ppScheduler= NULL;
   }
 }
 
@@ -103,16 +101,18 @@ void static_scheduler_done()
 /**
  * Process the events in the global linear queue.
  *
- * Parameters:
+ * Arguments:
  * - iNumSteps: number of events to process during this run (if -1,
  *   process events until queue is empty).
  */
-int static_scheduler_run(void * pContext, int iNumSteps)
+int static_scheduler_run(void * pSchedCtx, void * pContext,
+			 int iNumSteps)
 {
+  SStaticScheduler * pScheduler= (SStaticScheduler *) pSchedCtx;
   SStaticEvent * pEvent;
   SSimulator * pSimulator= (SSimulator *) pContext;
 
-  while ((pEvent= (SStaticEvent *) fifo_pop(pStaticScheduler->pEvents))
+  while ((pEvent= (SStaticEvent *) fifo_pop(pScheduler->pEvents))
 	  != NULL) {
 
     LOG_DEBUG(LOG_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
@@ -125,8 +125,8 @@ int static_scheduler_run(void * pContext, int iNumSteps)
     //}
     //fprintf(log_get_stream(pMainLog), "\n");
 
-    pEvent->fCallback(pEvent->pContext);
-    static_scheduler_event_destroy(&pEvent);
+    pEvent->fCallback(pSimulator, pEvent->pContext);
+    _static_sched_event_destroy(&pEvent);
 
     LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
 
@@ -154,49 +154,53 @@ int static_scheduler_run(void * pContext, int iNumSteps)
 }
 
 // ----- static_scheduler_post --------------------------------------
-int static_scheduler_post(FSimEventCallback fCallback,
+int static_scheduler_post(void * pSchedCtx,
+			  FSimEventCallback fCallback,
 			  FSimEventDump fDump,
 			  FSimEventDestroy fDestroy,
 			  void * pContext,
 			  double uSchedulingTime,
 			  uint8_t uDeltaType)
 {
+  SStaticScheduler * pScheduler= (SStaticScheduler *) pSchedCtx;
   SStaticEvent * pEvent;
 
   assert((uSchedulingTime == 0) && (uDeltaType == RELATIVE_TIME));
-  pEvent= static_scheduler_event_create(fCallback, fDump, fDestroy, pContext);
+  pEvent= _static_sched_event_create(fCallback, fDump, fDestroy, pContext);
 
-  return fifo_push(pStaticScheduler->pEvents, pEvent);
+  return fifo_push(pScheduler->pEvents, pEvent);
 }
 
 // ----- static_scheduler_get_num_events ----------------------------
 /**
  * Return the number of queued events.
  */
-uint32_t static_scheduler_get_num_events()
+uint32_t static_scheduler_get_num_events(void * pSchedCtx)
 {
-  return pStaticScheduler->pEvents->uCurrentDepth;
+  SStaticScheduler * pScheduler= (SStaticScheduler *) pSchedCtx;
+  return pScheduler->pEvents->uCurrentDepth;
 }
 
 // ----- static_scheduler_dump_events -------------------------------
 /**
  * Return information 
  */
-void static_scheduler_dump_events(SLogStream * pStream)
+void static_scheduler_dump_events(SLogStream * pStream, void * pSchedCtx)
 {
+  SStaticScheduler * pScheduler= (SStaticScheduler *) pSchedCtx;
   SStaticEvent * pEvent;
   uint32_t uDepth;
   uint32_t uMaxDepth;
   uint32_t uStart;
   int iIndex;
 
-  uDepth= pStaticScheduler->pEvents->uCurrentDepth;
-  uMaxDepth= pStaticScheduler->pEvents->uMaxDepth;
-  uStart= pStaticScheduler->pEvents->uStartIndex;
+  uDepth= pScheduler->pEvents->uCurrentDepth;
+  uMaxDepth= pScheduler->pEvents->uMaxDepth;
+  uStart= pScheduler->pEvents->uStartIndex;
   log_printf(pStream, "Number of events queued: %u (%u)\n",
 	     uDepth, uMaxDepth);
   for (iIndex= 0; iIndex < uDepth; iIndex++) {
-    pEvent= (SStaticEvent *) pStaticScheduler->pEvents->ppItems[(uStart+iIndex) % uMaxDepth];
+    pEvent= (SStaticEvent *) pScheduler->pEvents->ppItems[(uStart+iIndex) % uMaxDepth];
     log_printf(pStream, "(%d) ", (uStart+iIndex) % uMaxDepth);
     log_flush(pStream);
     if (pEvent->fDump != NULL) {

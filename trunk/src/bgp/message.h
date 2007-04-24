@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 11/04/2006
+// @lastdate 22/04/2006
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -28,17 +28,20 @@ extern unsigned long context_destroy_count;
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  unsigned int uSeqNum;
 } SBGPMsg;
 
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  unsigned int uSeqNum;
   SRoute * pRoute;
 } SBGPMsgUpdate;
 
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  unsigned int uSeqNum;
   SPrefix sPrefix;
   net_addr_t * tNextHop;
 #ifdef __EXPERIMENTAL__
@@ -49,11 +52,13 @@ typedef struct {
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  unsigned int uSeqNum;
 } SBGPMsgClose;
 
 typedef struct {
   uint8_t uType;
   uint16_t uPeerAS;
+  unsigned int uSeqNum;
   net_addr_t tRouterID;
 } SBGPMsgOpen;
 
