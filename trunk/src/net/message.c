@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 19/01/2007
+// @lastdate 18/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -43,7 +43,8 @@ SNetMessage * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
 void message_destroy(SNetMessage ** ppMessage)
 {
   if (*ppMessage != NULL) {
-    if ((*ppMessage)->fDestroy != NULL)
+    if (((*ppMessage)->pPayLoad != NULL) &&
+	((*ppMessage)->fDestroy != NULL))
       (*ppMessage)->fDestroy(&(*ppMessage)->pPayLoad);
     FREE(*ppMessage);
   }

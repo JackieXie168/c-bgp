@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 28/09/2006
+// @lastdate 18/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,8 +27,6 @@
 
 unsigned long context_create_count= 0;
 unsigned long context_destroy_count= 0;
-
-extern SBGPRouter * AS[];
 
 typedef struct {
   uint16_t uRemoteAS;
@@ -154,8 +152,8 @@ int bgp_msg_send(SNetNode * pNode, net_addr_t tAddr, SBGPMsg * pMsg)
   //ip_address_dump(stdout, tAddr);
   //fprintf(stdout, "\n");
   
-  return node_send(pNode, 0, tAddr, NET_PROTOCOL_BGP, pMsg,
-		   (FPayLoadDestroy) bgp_msg_destroy);
+  return node_send_msg(pNode, 0, tAddr, NET_PROTOCOL_BGP, 255, pMsg,
+		       (FPayLoadDestroy) bgp_msg_destroy, NULL);
 }
 
 // ----- bgp_msg_dump -----------------------------------------------
@@ -328,7 +326,8 @@ void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
     // identify the destination of the messages
     ip_address_dump(pMonitor, tAddr);
     // Protocol and Time
-    log_printf(pMonitor, "|BGP4|%.2f", simulator_get_time());
+    log_printf(pMonitor, "|BGP4|%.2f",
+	       simulator_get_time(network_get_simulator()));
 
     bgp_msg_dump(pMonitor, pNode, pMsg);
 
@@ -349,7 +348,7 @@ void bgp_msg_monitor_destroy(SLogStream ** ppStream)
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
-// -----[ -message_destroy ]-----------------------------------------
+// -----[ _message_destroy ]-----------------------------------------
 void _message_destroy()
 {
   bgp_msg_monitor_destroy(&pMonitor);
