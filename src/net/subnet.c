@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 17/01/2007
+// @lastdate 17/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -102,45 +102,12 @@ void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet)
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++) {
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pLink);
     assert(pLink != NULL);
-    ip_address_to_string(pcAddr, link_get_iface(pLink));
+    ip_address_to_string(pcAddr, pLink->tIfaceAddr);
     log_printf(pStream, "%s\n", pcAddr);
     log_printf(pStream, "---\t\t\t\t\t\t");
   }
   log_printf(pStream,"\n");
 }
-
-// ----- subnet_get_links -------------------------------------------
-/**
- * Notes from bqu:
- *  - what is the purpose of this function ?
- *  - it should be based on a links_list_copy function (from link-list.h)
- *
- * COMMENT ON 15/01/2007 => TRY TO GET RID OF THIS FUNCTION !!!
- */
-/*
-links_list_t * subnet_get_links(SNetSubnet * pSubnet) 
-{
-  links_list_t * pList= net_links_create();
-  SNetLink * pLinkCopy, * pCurrentLink;
-  int iIndex;
-
-  for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++){
-    ptr_array_get_at(pSubnet->pLinks, iIndex, &pCurrentLink);
-
-    if (create_link_toRouter_byAddr(pCurrentLink->pSrcNode,
-				    pCurrentLink->pSrcNode->tAddr,
-				    &pLinkCopy) < 0)
-      return NULL;
-    pLinkCopy->uIGPweight = 0;
-    pLinkCopy->tIfaceAddr = pCurrentLink->tIfaceAddr;
-    pLinkCopy->uFlags = pCurrentLink->uFlags;
-#ifdef OSPF_SUPPORT
-    pLinkCopy->tArea = pCurrentLink->tArea;
-#endif
-    net_links_add(pList, pLinkCopy);
-  }
-  return pList;
-  }*/
 
 // ----- subnet_link_to_node ----------------------------------------
 int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
@@ -185,8 +152,8 @@ SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
 }
 
 // ----- _subnet_forward --------------------------------------------
-int _subnet_forward(net_addr_t tNextHop, void * pContext,
-		    SNetNode ** ppNextHop)
+int _subnet_forward(net_addr_t tPhysAddr, void * pContext,
+		    SNetNode ** ppNextHop, SNetMessage ** ppMsg)
 {
   SNetLink * pLink= (SNetLink *) pContext;
   SNetSubnet * pSubnet;
@@ -198,9 +165,9 @@ int _subnet_forward(net_addr_t tNextHop, void * pContext,
   pSubnet= pLink->tDest.pSubnet;
 
   // Find destination node
-  pSubLink= subnet_find_link(pSubnet, tNextHop);
+  pSubLink= subnet_find_link(pSubnet, tPhysAddr);
   if (pSubLink == NULL)
-    return NET_ERROR_DST_UNREACHABLE;
+    return NET_ERROR_DST_UNREACH;
 
   // Forward along this link...
   if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))

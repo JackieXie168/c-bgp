@@ -274,13 +274,13 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
   SRoute * pRoute= NULL;
   int iIndex;
 
-  //LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
     log_printf(pLogDebug, "bgp_router_del_network(");
     bgp_router_dump_id(pLogDebug, pRouter);
     log_printf(pLogDebug, ", ");
     ip_prefix_dump(pLogDebug, sPrefix);
     log_printf(pLogDebug, ")\n");
-  //}
+  }
 
   // Look for the route and mark it as unfeasible
   for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *)
@@ -320,7 +320,7 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
     // Free route
     route_destroy(&pRoute);
 
-    log_printf(pLogDebug, "RUN DECISION PROCESS...\n");
+    //log_printf(pLogDebug, "RUN DECISION PROCESS...\n");
 
     bgp_router_decision_process_disseminate(pRouter, sPrefix, NULL);
 
@@ -1636,7 +1636,8 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
  * at this time). The function looks for the destination peer and
  * delivers it for processing...
  */
-int bgp_router_handle_message(void * pHandler, SNetMessage * pMessage)
+int bgp_router_handle_message(SSimulator * pSimulator,
+			      void * pHandler, SNetMessage * pMessage)
 {
   SBGPRouter * pRouter= (SBGPRouter *) pHandler;
   SBGPMsg * pMsg= (SBGPMsg *) pMessage->pPayLoad;
@@ -1958,9 +1959,10 @@ SRadixTree * _bgp_router_prefixes(SBGPRouter * pRouter)
 
 // ----- _bgp_router_refresh_sessions -------------------------------
 /*
- * This function scans the peering sessions and checks that the peer
- * router is still reachable. If it is not, the sessions is teared
- * down.
+ * This function scans the peering sessions. For each session, it
+ * checks that the peer router is still reachable. If it is not, the
+ * session is teared down (see 'bgp_peer_session_refresh' for more
+ * details).
  */
 static void _bgp_router_refresh_sessions(SBGPRouter * pRouter)
 {

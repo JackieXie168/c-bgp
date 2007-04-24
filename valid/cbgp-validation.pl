@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 20/03/2007
+# @lastdate 23/04/2007
 # ===================================================================
 # Syntax:
 #
@@ -37,18 +37,20 @@
 #
 # --report=FORMAT
 #                   Generates a report summarizing the tests results.
-#                   The script currently only support HTML format, so
-#                   use --report=html. The report is composed of two
-#                   pages. The first one shows a table with all tests
+#                   The script currently only support HTML and XML
+#                   formats, so use --report=html or --report=xml.
+#                   The report is composed of two files/pages. The
+#                   first one contains a summary table with all tests
 #                   results. The second one contains the description
 #                   of each test. The description is automatically
 #                   extracted from the test Perl functions.
 #
 # --report-prefix=PREFIX
 #                   Changes the prefix of the report file names. The
-#                   result page will be called "PREFIX.html" while
-#                   the documentation page will be called
-#                   "PREFIX-doc.html".
+#                   result page will be called "PREFIX.html" or
+#                   "PREFIX.xml" (depending on the reports format)
+#                   while the documentation page will be called
+#                   "PREFIX-doc.html" or "PREFIX-doc.xml".
 #
 # --resources-path=PATH
 #                   Set the path to the resources needed by the
@@ -71,6 +73,7 @@ use CBGPValid::HTMLReport;
 use CBGPValid::TestConstants;
 use CBGPValid::Tests;
 use CBGPValid::UI;
+use CBGPValid::XMLReport;
 use POSIX;
 
 use constant CBGP_VALIDATION_VERSION => '1.9.0';
@@ -125,6 +128,30 @@ use constant CBGP_IFACE_TYPE => 0;
 use constant CBGP_IFACE_LOCAL => 1;
 use constant CBGP_IFACE_DEST => 2;
 
+# -----[ Ping fields ]-----
+use constant CBGP_PING_ADDR   => 0;
+use constant CBGP_PING_STATUS => 1;
+
+# -----[ PING status ]-----
+use constant CBGP_PING_STATUS_REPLY     => 'reply';
+use constant CBGP_PING_STATUS_NO_REPLY  => 'no reply';
+use constant CBGP_PING_STATUS_ICMP_TTL  => 'icmp error (time-exceeded)';
+use constant CBGP_PING_STATUS_ICMP_NET  => 'icmp error (network-unreachable)';
+use constant CBGP_PING_STATUS_ICMP_DST  => 'icmp error (destination-unreachable)';
+use constant CBGP_PING_STATUS_ICMP_PORT => 'icmp error (port-unreachable)';
+use constant CBGP_PING_STATUS_NET       => 'network unreachable';
+use constant CBGP_PING_STATUS_DST       => 'destination unreachable';
+
+# -----[ Traceroute fields ]-----
+use constant CBGP_TRACEROUTE_STATUS => 0;
+use constant CBGP_TRACEROUTE_NHOPS  => 1;
+use constant CBGP_TRACEROUTE_HOPS   => 2;
+
+# -----[ Traceroute status ]-----
+use constant CBGP_TRACEROUTE_STATUS_REPLY    => 'reply';
+use constant CBGP_TRACEROUTE_STATUS_NO_REPLY => 'no reply';
+use constant CBGP_TRACEROUTE_STATUS_ERROR    => 'error';
+
 # -----[ Error messages ]-----
 my $CBGP_ERROR_INVALID_SUBNET   = "invalid subnet";
 my $CBGP_ERROR_CLUSTERID_INVALID= "invalid cluster-id";
@@ -165,7 +192,7 @@ my $validation= {
 		};
 
 show_info("c-bgp validation v".$validation->{'program_version'});
-show_info("(c) 2006, Bruno Quoitin (bqu\@info.ucl.ac.be)");
+show_info("(c) 2006, 2007, Bruno Quoitin (bqu\@info.ucl.ac.be)");
 
 my %opts;
 if (!GetOptions(\%opts,
@@ -522,14 +549,14 @@ sub cbgp_topo_dp($$)
   {
     my ($cbgp, $num_peers)= @_;
 
-    die if $cbgp->send("net add node 1.0.0.1\n");
-    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
     for (my $index= 0; $index < $num_peers; $index++) {
       my $asn= $index+2;
       my $peer= "$asn.0.0.1";
-      die if $cbgp->send("net add node $peer\n");
-      die if $cbgp->send("net add link 1.0.0.1 $peer 0\n");
-      die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer 0\n");
+      cbgp_send($cbgp, "net add node $peer");
+      cbgp_send($cbgp, "net add link 1.0.0.1 $peer 0");
+      cbgp_send($cbgp, "net node 1.0.0.1 route add $peer/32 * $peer 0");
       cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
   }
@@ -539,13 +566,13 @@ sub cbgp_topo_dp2($$)
   {
     my ($cbgp, $num_peers)= @_;
 
-    die if $cbgp->send("net add node 1.0.0.1\n");
-    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
     for (my $index= 0; $index < $num_peers; $index++) {
       my $peer= "1.0.0.".($index+2);
-      die if $cbgp->send("net add node $peer\n");
-      die if $cbgp->send("net add link 1.0.0.1 $peer ".($index+1)."\n");
-      die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer 0\n");
+      cbgp_send($cbgp, "net add node $peer");
+      cbgp_send($cbgp, "net add link 1.0.0.1 $peer ".($index+1)."");
+      cbgp_send($cbgp, "net node 1.0.0.1 route add $peer/32 * $peer 0");
       cbgp_peering($cbgp, "1.0.0.1", $peer, "1", "virtual");
     }
   }
@@ -555,13 +582,13 @@ sub cbgp_topo_dp3($;@)
   {
     my ($cbgp, @peers)= @_;
 
-    die if $cbgp->send("net add node 1.0.0.1\n");
-    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
     for (my $index= 0; $index < @peers; $index++) {
       my ($peer, $asn, $weight)= @{$peers[$index]};
-      die if $cbgp->send("net add node $peer\n");
-      die if $cbgp->send("net add link 1.0.0.1 $peer $weight\n");
-      die if $cbgp->send("net node 1.0.0.1 route add $peer/32 * $peer $weight\n");
+      cbgp_send($cbgp, "net add node $peer\n");
+      cbgp_send($cbgp, "net add link 1.0.0.1 $peer $weight\n");
+      cbgp_send($cbgp, "net node 1.0.0.1 route add $peer/32 * $peer $weight\n");
       cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
   }
@@ -577,8 +604,8 @@ sub cbgp_topo_dp4($;@)
   {
     my ($cbgp, @peers)= @_;
 
-    die if $cbgp->send("net add node 1.0.0.1\n");
-    die if $cbgp->send("bgp add router 1 1.0.0.1\n");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
     for (my $index= 0; $index < @peers; $index++) {
       my @peer_record= @{$peers[$index]};
       my $peer= shift @peer_record;
@@ -1124,16 +1151,16 @@ sub cbgp_filter($$$$$$)
   {
     my ($cbgp, $router, $peer, $direction, $predicate, $actions)= @_;
 
-    die if $cbgp->send("bgp router $router\n");
-    die if $cbgp->send("\tpeer $peer\n");
-    die if $cbgp->send("\t\tfilter $direction\n");
-    die if $cbgp->send("\t\t\tadd-rule\n");
-    die if $cbgp->send("\t\t\t\tmatch \"$predicate\"\n");
-    die if $cbgp->send("\t\t\t\taction \"$actions\"\n");
-    die if $cbgp->send("\t\t\t\texit\n");
-    die if $cbgp->send("\t\t\texit\n");
-    die if $cbgp->send("\t\texit\n");
-    die if $cbgp->send("\texit\n");
+    cbgp_send($cbgp, "bgp router $router");
+    cbgp_send($cbgp, "\tpeer $peer");
+    cbgp_send($cbgp, "\t\tfilter $direction");
+    cbgp_send($cbgp, "\t\t\tadd-rule");
+    cbgp_send($cbgp, "\t\t\t\tmatch \"$predicate\"");
+    cbgp_send($cbgp, "\t\t\t\taction \"$actions\"");
+    cbgp_send($cbgp, "\t\t\t\texit");
+    cbgp_send($cbgp, "\t\t\texit");
+    cbgp_send($cbgp, "\t\texit");
+    cbgp_send($cbgp, "\texit");
   }
 
 # -----[ cbgp_recv_update ]------------------------------------------
@@ -1141,8 +1168,8 @@ sub cbgp_recv_update($$$$$)
   {
     my ($cbgp, $router, $asn, $peer, $msg)= @_;
 
-    die if $cbgp->send("bgp router $router peer $peer recv ".
-		       "\"BGP4|0|A|$router|$asn|$msg\"\n");
+    cbgp_send($cbgp, "bgp router $router peer $peer recv ".
+	      "\"BGP4|0|A|$router|$asn|$msg\"");
   }
 
 # -----[ cbgp_recv_withdraw ]----------------------------------------
@@ -1150,8 +1177,8 @@ sub cbgp_recv_withdraw($$$$$)
   {
     my ($cbgp, $router, $asn, $peer, $prefix)= @_;
 
-    die if $cbgp->send("bgp router $router peer $peer recv ".
-		       "\"BGP4|0|W|$router|$asn|$prefix\"\n");
+    cbgp_send($cbgp, "bgp router $router peer $peer recv ".
+	      "\"BGP4|0|W|$router|$asn|$prefix\"");
   }
 
 # -----[ cbgp_show_links ]-------------------------------------------
@@ -1218,8 +1245,8 @@ sub cbgp_show_rt($$;$)
       $destination= "*";
     }
 
-    die if $cbgp->send("net node $node show rt $destination\n");
-    die if $cbgp->send("print \"done\\n\"\n");
+    cbgp_send($cbgp, "net node $node show rt $destination");
+    cbgp_send($cbgp, "print \"done\\n\"");
     while ((my $result= $cbgp->expect(1)) ne "done") {
       my @fields= split /\s+/, $result;
       if (scalar(@fields) < 4) {
@@ -1603,8 +1630,8 @@ sub cbgp_show_rib_custom($$;$)
 # Arguments:
 #   $cbgp : CBGP instance
 #   $src  : IP address of source node
-#   $dst  : IP address of IP prefix
-#   %options:
+#   $dst  : IP address or IP prefix
+#   %args:
 #     -capacity=>1  : record max-capacity
 #     -checkloop=>1 : check for forwarding loop
 #     -delay=>1     : record delay
@@ -1698,6 +1725,83 @@ sub cbgp_net_record_route($$$;%)
     }
 
     return \@trace;
+  }
+
+# -----[ cbgp_net_ping ]---------------------------------------------
+# Ping a destination from a source node.
+#
+# Arguments:
+#   $cbgp : CBGP instance
+#   $src  : IP address of source node
+#   $dst  : IP address of destination node
+#   %args:
+#     -ttl=>TTL  : set time-to-live to TTL
+# -------------------------------------------------------------------
+sub cbgp_net_ping($$$;%)
+  {
+    my ($cbgp, $src, $dst, %args)= @_;
+    my $options= "";
+    (exists($args{-ttl})) and $options.= "--ttl=".$args{-ttl};
+
+    cbgp_send($cbgp, "net node $src ping $options $dst");
+    my $result= $cbgp->expect(1);
+    if ($result =~ m/^ping\:\s+([a-z\-\(\) ]+)$/) {
+      my @ping;
+      $ping[CBGP_PING_ADDR]= undef;
+      $ping[CBGP_PING_STATUS]= $1;
+      return \@ping;
+    } elsif ($result =~ m/^ping:\s+(.+)\s+from\s+([0-9.]+)$/) {
+      my @ping;
+      $ping[CBGP_PING_ADDR]= $2;
+      $ping[CBGP_PING_STATUS]= $1;
+      return \@ping;
+    } else {
+      show_error("incorrect format (net ping): \"$result\"");
+      exit(-1);
+    }
+  }
+
+# -----[ cbgp_net_traceroute ]---------------------------------------
+# Traceroute a destination from a source node.
+#
+# Arguments:
+#   $cbgp : CBGP instance
+#   $src  : IP address of source node
+#   $dst  : IP address of destination node
+# -------------------------------------------------------------------
+sub cbgp_net_traceroute($$$)
+  {
+    my ($cbgp, $src, $dst)= @_;
+    my $hop= 1;
+    my $status= CBGP_TRACEROUTE_STATUS_ERROR;
+    my @traceroute;
+    my @hops;
+
+    cbgp_send($cbgp, "net node $src traceroute $dst");
+    cbgp_send($cbgp, "print \"CHECKPOINT\\n\"");
+    while ((my $result= $cbgp->expect(1)) ne "CHECKPOINT") {
+      if ($result =~ m/^\s*([0-9]+)\s+([0-9.]+|\*)\s+(.+)$/) {
+	if ($hop != $1) {
+	  show_error("incorrect hop number \"$result\"");
+	  exit(-1);
+	}
+	push @hops, ([$1, $2, $3]);
+	if ($3 eq CBGP_PING_STATUS_REPLY) {
+	  $status= CBGP_TRACEROUTE_STATUS_REPLY;
+	} elsif ($3 eq CBGP_PING_STATUS_NO_REPLY) {
+	  $status= CBGP_TRACEROUTE_STATUS_NO_REPLY;
+	}
+      } else {
+	show_error("incorrect format (net traceroute): \"$result\"");
+	exit(-1);
+      }
+      $hop++;
+    }
+
+    $traceroute[CBGP_TRACEROUTE_STATUS]= $status;
+    $traceroute[CBGP_TRACEROUTE_NHOPS]= $hop-1;
+    $traceroute[CBGP_TRACEROUTE_HOPS]= \@hops;
+    return \@traceroute;
   }
 
 # -----[ cbgp_bgp_record_route ]-------------------------------------
@@ -2539,7 +2643,7 @@ sub cbgp_valid_net_ntf_load($$)
   {
     my ($cbgp, $ntf_file)= @_;
     my $topo= topo_from_ntf($ntf_file);
-    die if $cbgp->send("net ntf load \"$ntf_file\"\n");
+    cbgp_send($cbgp, "net ntf load \"$ntf_file\"");
     return cbgp_topo_check_links($cbgp, $topo);
   }
 
@@ -2803,6 +2907,344 @@ sub cbgp_valid_net_record_route_loop($)
     return TEST_SUCCESS;
   }
 
+# -----[ cbgp_valid_net_record_route_prefix ]-----------------------
+# Test that record-route works with a prefix destination.
+# ------------------------------------------------------------------
+sub cbgp_valid_net_record_route_prefix($)
+  {
+    my ($cbgp)= @_;
+    return TEST_NOT_TESTED;
+  }
+
+# -----[ cbgp_valid_net_icmp_ping ]---------------------------------
+# Test the behaviour of the ping command.
+#
+# Setup:
+#   - R1 (1.0.0.1)
+#   - R2 (1.0.0.2)
+#   - R3 (1.0.0.3)
+#   - R4 (1.0.0.4)
+#   - [R5 (1.0.0.5)]
+#   - [R6 (1.0.0.6)]
+#   - [R7 (1.0.0.7)]
+#   - [R8 (1.0.0.8)]
+#   - N1 (192.168.0/24)
+#   - N2 (192.168.1/24)
+#
+# Topology:
+#
+#   R1 ----- R2 ----- R3 --x-- R4
+#    |        |
+#   (N2)     (N1)
+#
+# Scenario:
+#   * Compute IGP routes
+#   * Break link R3-R4
+#   * Add to R1 a static route towards R5 through N1 (obviously incorrect)
+#   * Add to R1 a static route towards R6 through R2 (obviously incorrect)
+#   * Add to R1 a static route towards R8 through N2 (obviously incorrect)
+#   * Ping R1: should succeed
+#   * Ping R2: should succeed
+#   * Ping R3: should succeed
+#   * Ping R3 with TTL=1: should fail with icmp-time-exceeded
+#   * Ping R4: should fail with no-reply
+#   * Ping R5: should fail with icmp-net-unreach
+#   * Ping R6: should fail with icmp-dst-unreach
+#   * Ping R7: should wail with net-unreach
+#   * Ping R8: should fail with dst-unreach
+# ------------------------------------------------------------------
+sub cbgp_valid_net_icmp_ping($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "net add domain 1 igp");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.2");
+    cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.3");
+    cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.4");
+    cbgp_send($cbgp, "net node 1.0.0.4 domain 1");
+    cbgp_send($cbgp, "net add subnet 192.168.0/24 transit");
+    cbgp_send($cbgp, "net add subnet 192.168.1/24 transit");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.1 192.168.1.1/24 10");
+    cbgp_send($cbgp, "net link 1.0.0.1 192.168.1.1/24 igp-weight 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 1.0.0.3 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 192.168.0.1/24 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 192.168.0.1/24 igp-weight 10");
+    cbgp_send($cbgp, "net add link 1.0.0.3 1.0.0.4 10");
+    cbgp_send($cbgp, "net link 1.0.0.3 1.0.0.4 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net domain 1 compute");
+
+    cbgp_send($cbgp, "net link 1.0.0.3 1.0.0.4 down");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.5/32 * 1.0.0.2 1");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.6/32 * 1.0.0.2 1");
+    cbgp_send($cbgp, "net node 1.0.0.2 route add 1.0.0.6/32 * 192.168.0.1/24 1");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.8/32 * 192.168.1.1/24 1");
+
+    my $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.1');
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_REPLY) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.1')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.2');
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_REPLY) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.2')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.3');
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_REPLY) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.3')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.3', -ttl=>1);
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_ICMP_TTL) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.2')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.4');
+    if ($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_NO_REPLY) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.5');
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_ICMP_NET) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.2')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.6');
+    if (($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_ICMP_DST) ||
+	($ping->[CBGP_PING_ADDR] ne '1.0.0.2')) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.7');
+    if ($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_NET) {
+      return TEST_FAILURE;
+    }
+
+    $ping= cbgp_net_ping($cbgp, '1.0.0.1', '1.0.0.8');
+    if ($ping->[CBGP_PING_STATUS] ne CBGP_PING_STATUS_DST) {
+      return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_net_icmp_traceroute ]---------------------------
+# Test the behaviour of the traceroute command.
+# ------------------------------------------------------------------
+sub cbgp_valid_net_icmp_traceroute($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "net add domain 1 igp");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.2");
+    cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.3");
+    cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.4");
+    cbgp_send($cbgp, "net node 1.0.0.4 domain 1");
+    cbgp_send($cbgp, "net add subnet 192.168.0/24 transit");
+    cbgp_send($cbgp, "net add subnet 192.168.1/24 transit");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.1 192.168.1.1/24 10");
+    cbgp_send($cbgp, "net link 1.0.0.1 192.168.1.1/24 igp-weight 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 1.0.0.3 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 192.168.0.1/24 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 192.168.0.1/24 igp-weight 10");
+    cbgp_send($cbgp, "net add link 1.0.0.3 1.0.0.4 10");
+    cbgp_send($cbgp, "net link 1.0.0.3 1.0.0.4 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net domain 1 compute");
+
+    cbgp_send($cbgp, "net link 1.0.0.3 1.0.0.4 down");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.5/32 * 1.0.0.2 1");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.6/32 * 1.0.0.2 1");
+    cbgp_send($cbgp, "net node 1.0.0.2 route add 1.0.0.6/32 * 192.168.0.1/24 1");
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.8/32 * 192.168.1.1/24 1");
+
+    my $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.1');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 1) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[1] ne '1.0.0.1') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[2] ne CBGP_PING_STATUS_REPLY)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.2');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 1) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[1] ne '1.0.0.2') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[2] ne CBGP_PING_STATUS_REPLY)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.3');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 2) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[1] ne '1.0.0.3') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[2] ne CBGP_PING_STATUS_REPLY)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.4');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 3) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[2]->[1] ne '*') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[2]->[2] ne CBGP_PING_STATUS_NO_REPLY)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.5');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 2) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[1] ne '1.0.0.2') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[2] ne CBGP_PING_STATUS_ICMP_NET)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.6');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 2) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[1] ne '1.0.0.2') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[1]->[2] ne CBGP_PING_STATUS_ICMP_DST)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.7');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 1) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[1] ne '*') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[2] ne CBGP_PING_STATUS_NET)) {
+      return TEST_FAILURE;
+    }
+
+    $tr= cbgp_net_traceroute($cbgp, '1.0.0.1', '1.0.0.8');
+    if (($tr->[CBGP_TRACEROUTE_NHOPS] != 1) ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[1] ne '*') ||
+	($tr->[CBGP_TRACEROUTE_HOPS]->[0]->[2] ne CBGP_PING_STATUS_DST)) {
+      return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_net_tunnel ]------------------------------------
+# Check that a tunnel can be created. Check that forwarding through
+# the tunnel works.
+#
+# Setup:
+#   - R1 (1.0.0.0)
+#   - R2 (1.0.0.1)
+#   - R3 (1.0.0.2)
+#   - R4 (1.0.0.3)
+#   - R5 (1.0.0.4)
+#   - R6 (2.0.0.0)
+#   - N1 (192.168.0/24)
+#
+# Topology:
+#
+#    *---- R2 ----*    *---- R6
+#   /              \  /
+#  R1               R4
+#   \          w=10/ |
+#    *---- R3 ----*  |
+#           \        /
+#            *-(N1)-*
+#                |
+#                R5
+#
+# Scenario:
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_net_tunnel($)
+  {
+    my ($cbgp)= @_;
+
+    # Domain 1
+    cbgp_send($cbgp, "net add domain 1 igp");
+    cbgp_send($cbgp, "net add node 1.0.0.0");
+    cbgp_send($cbgp, "net node 1.0.0.0 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.2");
+    cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.3");
+    cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.4");
+    cbgp_send($cbgp, "net node 1.0.0.4 domain 1");
+    cbgp_send($cbgp, "net add subnet 192.168.0/24 transit");
+    cbgp_send($cbgp, "net add link 1.0.0.0 1.0.0.1 1");
+    cbgp_send($cbgp, "net link 1.0.0.0 1.0.0.1 igp-weight --bidir 1");
+    cbgp_send($cbgp, "net add link 1.0.0.0 1.0.0.2 1");
+    cbgp_send($cbgp, "net link 1.0.0.0 1.0.0.2 igp-weight --bidir 1");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.3 1");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
+    cbgp_send($cbgp, "net add link 1.0.0.2 1.0.0.3 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 192.168.0.1/24 1");
+    cbgp_send($cbgp, "net link 1.0.0.2 192.168.0.1/24 igp-weight 1");
+    cbgp_send($cbgp, "net add link 1.0.0.3 192.168.0.2/24 1");
+    cbgp_send($cbgp, "net link 1.0.0.3 192.168.0.2/24 igp-weight 1");
+    cbgp_send($cbgp, "net add link 1.0.0.4 192.168.0.3/24 1");
+    cbgp_send($cbgp, "net link 1.0.0.4 192.168.0.3/24 igp-weight 1");
+    cbgp_send($cbgp, "net domain 1 compute");
+
+    # Domain 2
+    cbgp_send($cbgp, "net add domain 2 igp");
+    cbgp_send($cbgp, "net add node 2.0.0.0");
+
+    # Interdomain link + static route
+    cbgp_send($cbgp, "net add link 1.0.0.3 2.0.0.0 1");
+    cbgp_send($cbgp, "net node 1.0.0.3 route add 2.0.0/24 * 2.0.0.0 1");
+
+    # Default route from R1 to R4 should be R1 R2 R4
+    # Default route from R1 to R5 should be R1 R2 R4 R5
+    # Default route from R1 to R6 should be R1 R2 R4 R6
+
+    # Create tunnels + static routes
+    cbgp_send($cbgp, "net node 1.0.0.3 ipip-enable");
+    cbgp_send($cbgp, "net node 1.0.0.0");
+    cbgp_send($cbgp, "  tunnel add --oif=1.0.0.2 1.0.0.3 255.0.0.0");
+    cbgp_send($cbgp, "  tunnel add 1.0.0.3 255.0.0.1");
+    cbgp_send($cbgp, "  tunnel add 1.0.0.4 255.0.0.2");
+    cbgp_send($cbgp, "  route add 1.0.0.3/32 * 255.0.0.0 1");
+    cbgp_send($cbgp, "  route add 2.0.0/24 * 255.0.0.1 1");
+    cbgp_send($cbgp, "  route add 1.0.0.1/32 * 255.0.0.2 1");
+
+    # Path from R1 to R4 should be R1 R3 R4
+    # Path from R1 to R5 should be R1 R3 R4 R5
+    # Path from R1 to R6 should be R1 R3 R5 R6 (i.e. through N1)
+
+
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_net_tunnel_duplicate ]---------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_net_tunnel_duplicate($)
+  {
+    my ($cbgp)= @_;
+
+    return TEST_NOT_TESTED;
+  }
+
+# -----[ cbgp_valid_net_record_route_tunnel ]------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_tunnel($)
+  {
+    my ($cbgp)= @_;
+
+    return TEST_NOT_TESTED;
+  }
 
 # -----[ cbgp_valid_net_static_routes ]------------------------------
 # Check ability to add and remove static routes.
@@ -3051,8 +3493,9 @@ sub cbgp_valid_net_longest_matching($)
     my ($cbgp)= @_;
     my $topo= topo_3nodes_line();
     cbgp_topo($cbgp, $topo);
-    die if $cbgp->send("net node 1.0.0.2 route add 1/8 * 1.0.0.1 10\n");
-    die if $cbgp->send("net node 1.0.0.2 route add 1.1/16 * 1.0.0.3 10\n");
+    cbgp_send($cbgp, "net node 1.0.0.2 route add 1/8 * 1.0.0.1 10");
+    cbgp_send($cbgp, "net node 1.0.0.2 route add 1.1/16 * 1.0.0.3 10");
+
     # Test longest-matching in show-rt
     my $rt;
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.0.0.0");
@@ -3086,7 +3529,7 @@ sub cbgp_valid_net_protocol_priority($)
     my $topo= topo_3nodes_line();
     cbgp_topo($cbgp, $topo, 1);
     cbgp_topo_igp_compute($cbgp, $topo, 1);
-    die if $cbgp->send("net node 1.0.0.2 route add 1.0.0.1/32 * 1.0.0.3 10\n");
+    cbgp_send($cbgp, "net node 1.0.0.2 route add 1.0.0.1/32 * 1.0.0.3 10");
     # Test protocol-priority in show-rt
     my $rt;
     $rt= cbgp_show_rt($cbgp, "1.0.0.2", "1.0.0.1");
@@ -3129,12 +3572,12 @@ sub cbgp_valid_bgp_options_showmode_cisco($)
   {
     my ($cbgp)= @_;
 
-    die if $cbgp->send("net add node 123.0.0.234\n");
-    die if $cbgp->send("bgp add router 255 123.0.0.234\n");
-    die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
-    die if $cbgp->send("bgp options show-mode cisco\n");
-    die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
-    die if $cbgp->send("print \"done\\n\"\n");
+    cbgp_send($cbgp, "net add node 123.0.0.234");
+    cbgp_send($cbgp, "bgp add router 255 123.0.0.234");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 add network 192.168.0/24");
+    cbgp_send($cbgp, "bgp options show-mode cisco");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 show rib *");
+    cbgp_send($cbgp, "print \"done\\n\"");
 
     while ((my $result= $cbgp->expect(1)) ne "done") {
       (!bgp_route_parse_cisco($result)) and
@@ -3157,12 +3600,12 @@ sub cbgp_valid_bgp_options_showmode_mrt($)
   {
     my ($cbgp)= @_;
 
-    die if $cbgp->send("net add node 123.0.0.234\n");
-    die if $cbgp->send("bgp add router 255 123.0.0.234\n");
-    die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
-    die if $cbgp->send("bgp options show-mode mrt\n");
-    die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
-    die if $cbgp->send("print \"done\\n\"\n");
+    cbgp_send($cbgp, "net add node 123.0.0.234");
+    cbgp_send($cbgp, "bgp add router 255 123.0.0.234");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 add network 192.168.0/24");
+    cbgp_send($cbgp, "bgp options show-mode mrt");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 show rib *");
+    cbgp_send($cbgp, "print \"done\\n\"");
 
     while ((my $result= $cbgp->expect(1)) ne "done") {
       (!bgp_route_parse_mrt($result)) and
@@ -3185,12 +3628,12 @@ sub cbgp_valid_bgp_options_showmode_custom($)
   {
     my ($cbgp)= @_;
 
-    die if $cbgp->send("net add node 123.0.0.234\n");
-    die if $cbgp->send("bgp add router 255 123.0.0.234\n");
-    die if $cbgp->send("bgp router 123.0.0.234 add network 192.168.0/24\n");
-    die if $cbgp->send("bgp options show-mode custom \"ROUTE:%i;%a;%p;%P;%C;%O;%n\"\n");
-    die if $cbgp->send("bgp router 123.0.0.234 show rib *\n");
-    die if $cbgp->send("print \"done\\n\"\n");
+    cbgp_send($cbgp, "net add node 123.0.0.234");
+    cbgp_send($cbgp, "bgp add router 255 123.0.0.234");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 add network 192.168.0/24");
+    cbgp_send($cbgp, "bgp options show-mode custom \"ROUTE:%i;%a;%p;%P;%C;%O;%n\"");
+    cbgp_send($cbgp, "bgp router 123.0.0.234 show rib *");
+    cbgp_send($cbgp, "print \"done\\n\"");
 
     while ((my $result= $cbgp->expect(1)) ne "done") {
       (!($result =~ m/^ROUTE\:([0-9.]+|LOCAL)\;([0-9]+|LOCAL)\;([0-9.]+\/[0-9]+)\;([0-9 ]+|null)\;\;\;([0-9.]+)$/)) and
@@ -3280,16 +3723,82 @@ sub cbgp_valid_bgp_topology_run($)
     my $topo= topo_from_subramanian($topo_file);
 
     cbgp_send($cbgp, "bgp topology load \"$topo_file\"\n");
-    die if $cbgp->send("bgp topology policies\n");
-    die if $cbgp->send("bgp topology run\n");
+    cbgp_send($cbgp, "bgp topology policies");
+    cbgp_send($cbgp, "bgp topology run");
     if (!cbgp_topo_check_ebgp_sessions($cbgp, $topo, "OPENWAIT")) {
       return TEST_FAILURE;
     }
-    die if $cbgp->send("sim run\n");
+    cbgp_send($cbgp, "sim run");
     if (!cbgp_topo_check_ebgp_sessions($cbgp, $topo, "ESTABLISHED")) {
       return TEST_FAILURE;
     }
 
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_bgp_topology_subra2004 ]-------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_topology_subra2004($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "bgp topology load \"data/subra-2004.txt\"");
+    cbgp_send($cbgp, "bgp topology policies");
+    cbgp_send($cbgp, "bgp topology run");
+    cbgp_send($cbgp, "sim run");
+    # AS7018
+    cbgp_send($cbgp, "bgp router 27.106.0.0 add network 255/8");
+    # AS8709
+    cbgp_send($cbgp, "bgp router 34.5.0.0 add network 245/8");
+    cbgp_send($cbgp, "sim run");
+
+    my $rib= cbgp_show_rib($cbgp, "27.106.0.0");
+    $rib= cbgp_show_rib($cbgp, "34.5.0.0");
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_bgp_topology_smalltopo ]-------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_topology_smalltopo($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "bgp topology load \"data/small.topology.txt\"");
+    cbgp_send($cbgp, "bgp topology policies");
+    cbgp_send($cbgp, "bgp topology run");
+    cbgp_send($cbgp, "sim run");
+    # AS0
+    cbgp_send($cbgp, "bgp router 0.0.0.0 add network 255/8");
+    # AS11922
+    cbgp_send($cbgp, "bgp router 46.146.0.0 add network 254/8");
+    cbgp_send($cbgp, "sim run");
+
+    my $rib= cbgp_show_rib($cbgp, "0.0.0.0");
+    $rib= cbgp_show_rib($cbgp, "46.146.0.0");
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_bgp_topology_largetopo ]-------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_topology_largetopo($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "bgp topology load \"data/large.topology.txt\"");
+    cbgp_send($cbgp, "bgp topology policies");
+    cbgp_send($cbgp, "bgp topology run");
+    cbgp_send($cbgp, "sim run");
+    # AS0
+    cbgp_send($cbgp, "bgp router 0.0.0.0 add network 255/8");
+    # AS14694
+    cbgp_send($cbgp, "bgp router 57.102.0.0 add network 254/8");
+    cbgp_send($cbgp, "sim run");
+
+    my $rib= cbgp_show_rib($cbgp, "0.0.0.0");
+    $rib= cbgp_show_rib($cbgp, "57.102.0.0");
     return TEST_SUCCESS;
   }
 
@@ -3482,12 +3991,15 @@ sub cbgp_valid_bgp_session_nexthop_subnet($)
     cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
     cbgp_send($cbgp, "net add node 1.0.0.2");
     cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add domain 2 igp");
     cbgp_send($cbgp, "net add node 2.0.0.1");
+    cbgp_send($cbgp, "net node 2.0.0.1 domain 2");
     cbgp_send($cbgp, "net add subnet 192.168.0/24 transit");
     cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
     cbgp_send($cbgp, "net add link 1.0.0.1 192.168.0.1/24 10");
     cbgp_send($cbgp, "net add link 2.0.0.1 192.168.0.2/24 10");
     cbgp_send($cbgp, "net domain 1 compute");
+    cbgp_send($cbgp, "net domain 2 compute");
     cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
     cbgp_send($cbgp, "bgp router 1.0.0.1");
     cbgp_send($cbgp, "\tadd peer 1 1.0.0.2");
@@ -3845,7 +4357,7 @@ sub cbgp_valid_bgp_router_up_down($)
     cbgp_send($cbgp, "bgp router 1.0.0.2 stop");
     cbgp_send($cbgp, "bgp router 1.0.0.3 stop");
     cbgp_send($cbgp, "sim run");
-    # All sessions should be in OPENWAIT state
+    # All sessions should be in IDLE state
     if (!cbgp_check_peering($cbgp, "1.0.0.1", "1.0.0.2", "IDLE") ||
 	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.1", "IDLE") ||
 	!cbgp_check_peering($cbgp, "1.0.0.2", "1.0.0.3", "IDLE") ||
@@ -6598,6 +7110,240 @@ sub cbgp_valid_abilene($)
     return TEST_SUCCESS;
   }
 
+# -----[ cbgp_valid_nasty_bgp_peering_1w_down ]----------------------
+# Test that C-BGP detects that a session is down even when one
+# direction still works.
+#
+# Setup:
+#   - R1 (0.1.0.0, AS1)
+#   - R2 (0.2.0.0, AS2)
+#
+# Topology:
+#
+#       eBGP
+#   R1 ------ R2
+#
+# Scenario:
+#   * Establish the BGP session
+#   * Remove the route from R1 to R2
+#   * Refresh BGP session state
+#   * Check that the session is in ACTIVE state on both ends
+# -------------------------------------------------------------------
+sub cbgp_valid_nasty_bgp_peering_1w_down($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "net add node 0.1.0.0");
+    cbgp_send($cbgp, "net add node 0.2.0.0");
+    cbgp_send($cbgp, "net add link 0.1.0.0 0.2.0.0 10");
+    cbgp_send($cbgp, "net node 0.1.0.0 route add 0.2/16 * 0.2.0.0 10");
+    cbgp_send($cbgp, "net node 0.2.0.0 route add 0.1/16 * 0.1.0.0 10");
+
+    cbgp_send($cbgp, "bgp add router 1 0.1.0.0");
+    cbgp_send($cbgp, "bgp router 0.1.0.0");
+    cbgp_send($cbgp, "\tadd peer 2 0.2.0.0");
+    cbgp_send($cbgp, "\tpeer 0.2.0.0 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp add router 2 0.2.0.0");
+    cbgp_send($cbgp, "bgp router 0.2.0.0");
+    cbgp_send($cbgp, "\tadd peer 1 0.1.0.0");
+    cbgp_send($cbgp, "\tpeer 0.1.0.0 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "sim run");
+
+    my $peers= cbgp_show_peers($cbgp, "0.1.0.0");
+    if (!exists($peers->{'0.2.0.0'}) ||
+	($peers->{'0.2.0.0'}->[CBGP_PEER_STATE] ne 'ESTABLISHED')) {
+      return TEST_FAILURE;
+    }
+    $peers= cbgp_show_peers($cbgp, "0.2.0.0");
+    if (!exists($peers->{'0.1.0.0'}) ||
+	($peers->{'0.1.0.0'}->[CBGP_PEER_STATE] ne 'ESTABLISHED')) {
+      return TEST_FAILURE;
+    }
+
+    cbgp_send($cbgp, "net node 0.1.0.0 route del 0.2/16 * *");
+    cbgp_send($cbgp, "bgp router 0.1.0.0 rescan");
+    cbgp_send($cbgp, "bgp router 0.2.0.0 rescan");
+
+    $peers= cbgp_show_peers($cbgp, "0.1.0.0");
+    if (!exists($peers->{'0.2.0.0'}) ||
+	($peers->{'0.2.0.0'}->[CBGP_PEER_STATE] ne 'ACTIVE')) {
+      return TEST_FAILURE;
+    }
+    $peers= cbgp_show_peers($cbgp, "0.2.0.0");
+    if (!exists($peers->{'0.1.0.0'}) ||
+	($peers->{'0.1.0.0'}->[CBGP_PEER_STATE] ne 'ACTIVE')) {
+      return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_nasty_bgp_session_segment_ordering ]-------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_nasty_bgp_session_segment_ordering($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "net add domain 1 igp");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.2");
+    cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.3");
+    cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 2");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 igp-weight --bidir 2");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.3 10");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.3 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net add link 1.0.0.2 1.0.0.3 10");
+    cbgp_send($cbgp, "net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net domain 1 compute");
+
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
+    cbgp_send($cbgp, "bgp router 1.0.0.1");
+    cbgp_send($cbgp, "\tadd peer 1 1.0.0.2");
+    cbgp_send($cbgp, "\tpeer 1.0.0.2 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.2");
+    cbgp_send($cbgp, "bgp router 1.0.0.2");
+    cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp router 1.0.0.1 add network 254/8");
+    cbgp_send($cbgp, "sim run");
+
+    cbgp_send($cbgp, "net node 1.0.0.1 route add 1.0.0.2/32 * 1.0.0.3 1");
+
+    cbgp_send($cbgp, "bgp router 1.0.0.1 del network 254/8");
+    cbgp_send($cbgp, "net node 1.0.0.1 route del 1.0.0.2/32 * 1.0.0.3");
+    cbgp_send($cbgp, "bgp router 1.0.0.1 add network 254/8");
+    cbgp_send($cbgp, "sim run");
+
+    return TEST_FAILURE;
+  }
+
+# -----[ cbgp_valid_nasty_bgp_med_ordering ]-------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_nasty_bgp_med_ordering($)
+  {
+    my ($cbgp)= @_;
+
+    cbgp_send($cbgp, "net add domain 1 igp");
+    cbgp_send($cbgp, "net add node 1.0.0.1");
+    cbgp_send($cbgp, "net node 1.0.0.1 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.2");
+    cbgp_send($cbgp, "net node 1.0.0.2 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.3");
+    cbgp_send($cbgp, "net node 1.0.0.3 domain 1");
+    cbgp_send($cbgp, "net add node 1.0.0.4");
+    cbgp_send($cbgp, "net node 1.0.0.4 domain 1");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.2 1");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 igp-weight --bidir 20");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.3 1");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.3 igp-weight --bidir 5");
+    cbgp_send($cbgp, "net add link 1.0.0.1 1.0.0.4 1");
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.4 igp-weight --bidir 10");
+    cbgp_send($cbgp, "net domain 1 compute");
+
+    cbgp_send($cbgp, "bgp add router 1 1.0.0.1");
+    cbgp_send($cbgp, "bgp router 1.0.0.1");
+    cbgp_send($cbgp, "\tadd peer 2 1.0.0.2");
+    cbgp_send($cbgp, "\tpeer 1.0.0.2 up");
+    cbgp_send($cbgp, "\tadd peer 2 1.0.0.3");
+    cbgp_send($cbgp, "\tpeer 1.0.0.3 up");
+    cbgp_send($cbgp, "\tadd peer 3 1.0.0.4");
+    cbgp_send($cbgp, "\tpeer 1.0.0.4 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp add router 2 1.0.0.2");
+    cbgp_send($cbgp, "bgp router 1.0.0.2");
+    cbgp_send($cbgp, "\tadd network 255/8");
+    cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1");
+    cbgp_send($cbgp, "\t\tfilter out");
+    cbgp_send($cbgp, "\t\t\tadd-rule");
+    cbgp_send($cbgp, "\t\t\t\tmatch any");
+    cbgp_send($cbgp, "\t\t\t\taction \"metric 10\"");
+    cbgp_send($cbgp, "\t\t\t\texit");
+    cbgp_send($cbgp, "\t\t\texit");
+    cbgp_send($cbgp, "\t\texit");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp add router 2 1.0.0.3");
+    cbgp_send($cbgp, "bgp router 1.0.0.3");
+    cbgp_send($cbgp, "\tadd network 255/8");
+    cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1");
+    cbgp_send($cbgp, "\t\tfilter out");
+    cbgp_send($cbgp, "\t\t\tadd-rule");
+    cbgp_send($cbgp, "\t\t\t\tmatch any");
+    cbgp_send($cbgp, "\t\t\t\taction \"metric 20\"");
+    cbgp_send($cbgp, "\t\t\t\texit");
+    cbgp_send($cbgp, "\t\t\texit");
+    cbgp_send($cbgp, "\t\texit");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "bgp add router 3 1.0.0.4");
+    cbgp_send($cbgp, "bgp router 1.0.0.4");
+    cbgp_send($cbgp, "\tadd network 255/8");
+    cbgp_send($cbgp, "\tadd peer 1 1.0.0.1");
+    cbgp_send($cbgp, "\tpeer 1.0.0.1 up");
+    cbgp_send($cbgp, "\texit");
+
+    cbgp_send($cbgp, "sim run");
+
+    my $rib= cbgp_show_rib($cbgp, '1.0.0.1', '255/8');
+    if (!exists($rib->{'255.0.0.0/8'}) ||
+       ($rib->{'255.0.0.0/8'}->[CBGP_RIB_NEXTHOP] ne '1.0.0.4')) {
+      return TEST_FAILURE;
+    }
+
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 down");
+    cbgp_send($cbgp, "net domain 1 compute");
+    cbgp_send($cbgp, "bgp router 1.0.0.1 rescan");
+    cbgp_send($cbgp, "bgp router 1.0.0.2 rescan");
+    cbgp_send($cbgp, "sim run");
+
+    $rib= cbgp_show_rib($cbgp, '1.0.0.1', '255/8');
+    if (!exists($rib->{'255.0.0.0/8'}) ||
+       ($rib->{'255.0.0.0/8'}->[CBGP_RIB_NEXTHOP] ne '1.0.0.3')) {
+      return TEST_FAILURE;
+    }
+
+    cbgp_send($cbgp, "net link 1.0.0.1 1.0.0.2 up");
+    cbgp_send($cbgp, "net domain 1 compute");
+    cbgp_send($cbgp, "bgp router 1.0.0.1 rescan");
+    cbgp_send($cbgp, "bgp router 1.0.0.2 rescan");
+    cbgp_send($cbgp, "sim run");
+
+    $rib= cbgp_show_rib($cbgp, '1.0.0.1', '255/8');
+    if (!exists($rib->{'255.0.0.0/8'}) ||
+       ($rib->{'255.0.0.0/8'}->[CBGP_RIB_NEXTHOP] ne '1.0.0.4')) {
+      return TEST_FAILURE;
+    }
+
+    cbgp_send($cbgp, "bgp router 1.0.0.2 del network 255/8");
+    cbgp_send($cbgp, "sim run");
+
+    $rib= cbgp_show_rib($cbgp, '1.0.0.1', '255/8');
+    if (!exists($rib->{'255.0.0.0/8'}) ||
+       ($rib->{'255.0.0.0/8'}->[CBGP_RIB_NEXTHOP] ne '1.0.0.3')) {
+      return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+  }
+
 # -----[ test_set_result ]-------------------------------------------
 sub test_set_result($$;$)
   {
@@ -6639,7 +7385,8 @@ $tests->register("net subnet misc", "cbgp_valid_net_subnet_misc", $topo);
 $tests->register("net create", "cbgp_valid_net_create", $topo);
 $tests->register("net igp", "cbgp_valid_net_igp", $topo);
 $tests->register("net igp overflow", "cbgp_valid_net_igp_overflow");
-$tests->register("net igp unknown domain", "cbgp_valid_net_igp_unknown_domain");
+$tests->register("net igp unknown domain",
+		 "cbgp_valid_net_igp_unknown_domain");
 $tests->register("net igp subnet", "cbgp_valid_net_igp_subnet");
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 		 $resources_path."valid-record-route.ntf");
@@ -6651,6 +7398,14 @@ $tests->register("net record-route capacity",
 $tests->register("net record-route load",
 		 "cbgp_valid_net_record_route_load");
 $tests->register("net record-route loop", "cbgp_valid_net_record_route_loop");
+$tests->register("net record-route prefix",
+		 "cbgp_valid_net_record_route_prefix");
+$tests->register("net icmp ping", "cbgp_valid_net_icmp_ping");
+$tests->register("net icmp traceroute", "cbgp_valid_net_icmp_traceroute");
+$tests->register("net tunnel", "cbgp_valid_net_tunnel");
+$tests->register("net tunnel duplicate", "cbgp_valid_net_tunnel_duplicate");
+$tests->register("net record-route tunnel",
+		 "cbgp_valid_net_record_route_tunnel");
 $tests->register("net static routes", "cbgp_valid_net_static_routes");
 $tests->register("net static routes wildcards",
 		 "cbgp_valid_net_static_routes_wildcards");
@@ -6669,6 +7424,9 @@ $tests->register("bgp options show-mode custom",
 $tests->register("bgp topology load", "cbgp_valid_bgp_topology_load");
 $tests->register("bgp topology policies", "cbgp_valid_bgp_topology_policies");
 $tests->register("bgp topology run", "cbgp_valid_bgp_topology_run");
+$tests->register("bgp topology subra-2004", "cbgp_valid_bgp_topology_subra2004");
+$tests->register("bgp topology small-topo", "cbgp_valid_bgp_topology_smalltopo");
+$tests->register("bgp topology large-topo", "cbgp_valid_bgp_topology_largetopo");
 $tests->register("bgp session ibgp", "cbgp_valid_bgp_session_ibgp");
 $tests->register("bgp session ebgp", "cbgp_valid_bgp_session_ebgp");
 $tests->register("bgp session nexthop subnet",
@@ -6755,10 +7513,14 @@ $tests->register("bgp RR cluster-id-list ssld",
 		 "cbgp_valid_bgp_rr_clssld");
 $tests->register("bgp implicit-withdraw",
 		 "cbgp_valid_bgp_implicit_withdraw");
-$tests->register("net tm load",
-		 "cbgp_valid_net_tm_load");
-$tests->register("abilene",
-		 "cbgp_valid_abilene");
+$tests->register("net tm load", "cbgp_valid_net_tm_load");
+$tests->register("abilene", "cbgp_valid_abilene");
+$tests->register("nasty: bgp peering one-way down",
+		 "cbgp_valid_nasty_bgp_peering_1w_down");
+$tests->register("nasty: bgp session segment ordering",
+		 "cbgp_valid_nasty_bgp_session_segment_ordering");
+$tests->register("nasty: bgp med ordering",
+		 "cbgp_valid_nasty_bgp_med_ordering");
 
   my $return_value= 0;
 if ($tests->run() > 0) {
@@ -6773,6 +7535,11 @@ if (exists($opts{report})) {
     CBGPValid::HTMLReport::report_write("$report_prefix",
 					$validation,
 					$tests);
+  }
+  if ($opts{report} eq "xml") {
+    CBGPValid::XMLReport::report_write("$report_prefix",
+				       $validation,
+				       $tests);
     CBGPValid::BaseReport::save_resources("$report_prefix.resources");
   }
 }

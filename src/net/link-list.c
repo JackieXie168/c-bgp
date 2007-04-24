@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 05/08/2003
-// @lastdate 23/01/2007
+// @lastdate 13/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,7 +19,7 @@
  * Links in this list are ordered based on their IDs. A link identifier
  * depends on the link type:
  *   ptp: dst address + mask length (32)
- *   mtp: local interface address + subet's mask length
+ *   mtp: local interface address + subnet's mask length
  */
 static int _net_links_link_compare(void * pItem1, void * pItem2,
 				   unsigned int uEltSize)
@@ -150,4 +150,22 @@ SNetLink * net_links_find_mtp(SNetLinks * pLinks, net_addr_t tIfaceAddr,
 SEnumerator * net_links_get_enum(SNetLinks * pLinks)
 {
   return _array_get_enum((SArray *) pLinks);
+}
+
+// -----[ net_links_find_iface ]-------------------------------------
+SNetLink * net_links_find_iface(SNetLinks * pLinks, net_addr_t tIfaceAddr)
+{
+  SNetLink * pLink;
+  unsigned int uIndex;
+  SPrefix sPrefix;
+
+  for (uIndex= 0; uIndex < ptr_array_length(pLinks); uIndex++) {
+    pLink= (SNetLink *) pLinks->data[uIndex];
+
+    sPrefix= net_link_get_id(pLink);
+
+    if (tIfaceAddr == sPrefix.tNetwork)
+      return pLink;
+  }
+  return NULL;
 }

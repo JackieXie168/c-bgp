@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/06/2005
-// @lastdate 23/01/2007
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -15,6 +15,7 @@
 #include <net/link_attr.h>
 #include <net/prefix.h>
 #include <net/routing_t.h>
+#include <sim/simulator.h>
 
 typedef uint8_t net_tos_t;
 typedef uint8_t   ospf_dest_type_t;
@@ -54,7 +55,8 @@ typedef struct {
 } SNetMessage;
 
 // ----- FNetNodeHandleEvent -----
-typedef int (*FNetNodeHandleEvent)(void * pHandler,
+typedef int (*FNetNodeHandleEvent)(SSimulator * pSimulator,
+				   void * pHandler,
 				   SNetMessage * pMessage);
 // ----- FNetNodeHandlerDestroy -----
 typedef void (*FNetNodeHandlerDestroy)(void ** ppHandler);
@@ -83,6 +85,7 @@ typedef struct {
 typedef struct {
   STrie * pNodes;
   SNetSubnets  * pSubnets;
+  SSimulator * pSimulator;
 } SNetwork;
 
 
@@ -193,24 +196,34 @@ typedef struct {
  * - point-to-point links use 'link_forward'
  * - subnets use 'subnet_forward'
  * - tunnels use 'ipip_forward'
+ *
+ * The arguments of FNetLinkForward are as follows:
+ *   tPhysAddr: physical address of the next-hop on the link (only used
+ *              on point-to-multipoint links)
+ *   pContext : the link context
+ *   ppNextHop: the node to which the message shall be forwarded
  */
-typedef int (*FNetLinkForward)(net_addr_t tNextHop, void * pContext,
-			       SNetNode ** ppNextHop);
+typedef int (*FNetLinkForward)(net_addr_t tPhysAddr,
+			       void * pContext,
+			       SNetNode ** ppNextHop,
+			       SNetMessage ** ppMsg);
+// -----[ FNetLinkDestroy ]------------------------------------------
+/**
+ * This type defines a callback that is used to destroy the context
+ * of a link. Providing this function is optional.
+ */
+typedef void (*FNetLinkDestroy)(void * pContext);
 
-/*
-  A link can point to a router or a subnet.
-  Router can be reached in topology db by IP address (tAddr),
-  Subnet can be reached in topology db by memory pointer.
-  
-  To obtain IP address link_get_address() function MUST BE USED
-*/
+// --- link destination type ---
+/**
+ * A link can bind a node to another node or a to a subnet. In the
+ * first case, the link's destination is an IP address. In the second
+ * case, the destination is a pointer to the subnet.
+ */
 typedef union {
   net_addr_t tAddr;
   SNetSubnet * pSubnet;
 } net_link_dst_t;
-
-//#define link_is_to_router(L) (L->uDestinationType == NET_LINK_TYPE_ROUTER)
-
 
 // ----- SNetLink --------------------------------------------
 /**
@@ -220,28 +233,39 @@ typedef union {
  * mask.
  */
 typedef struct {
-  uint8_t            uType;      // Type of link: ROUTER/TRANSIT/STUB
+  uint8_t            uType;      // Type of link
+                                 //   ptp : NET_LINK_TYPE_ROUTER
+                                 //   tun : NET_LINK_TYPE_TUNNEL
+                                 //   ptmp: NET_LINK_TYPE_TRANSIT/STUB
 
-  // Identification of source
+  // --- Identification of source ---
   SNetNode         * pSrcNode;   // Node to which the link is attached
-  net_addr_t         tIfaceAddr; // Local interface address
-                                 //   ptp: remote destination
-                                 //   mtp: local interface
+  net_addr_t         tIfaceAddr; // Local interface address:
+                                 //   ptp: remote destination addr
+                                 //   ptmp: local interface addr
+                                 //   tun: local interface addr
   net_mask_t         tIfaceMask; // Local interface mask
+                                 //   ptp,tun: 32
+                                 //   ptmp: <32
 
-  // Identification of destination
+  // --- Identification of destination ---
   net_link_dst_t     tDest;      // Depends on uType
+                                 //   ptp,tun: addr
+                                 //   ptmp: pointer to subnet
 
-  // Attributes
+  // --- Physical attributes ---
   net_link_delay_t   tDelay;     // Propagation delay
   net_link_load_t    tCapacity;  // Link capacity
   net_link_load_t    tLoad;      // Link load
   uint8_t            uFlags;     // Flags: state (up/down), IGP_ADV
+
+  // --- IGP protocol attributes ---
   SNetIGPWeights   * pWeights;   // List of IGP weights (1/topo)
 
-  // Context and methods
+  // --- Context and methods ---
   void             * pContext;
   FNetLinkForward    fForward;
+  FNetLinkDestroy    fDestroy;
 
 #ifdef OSPF_SUPPORT
   ospf_area_t      tArea;  

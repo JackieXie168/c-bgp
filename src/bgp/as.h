@@ -135,7 +135,9 @@ extern int bgp_router_decision_process(SBGPRouter * pRouter,
 				       SBGPPeer * pOriginPeer,
 				       SPrefix sPrefix);
 // ----- bgp_router_handle_message ----------------------------------
-extern int bgp_router_handle_message(void * pRouter, SNetMessage * pMessage);
+extern int bgp_router_handle_message(SSimulator * pSimulator,
+				     void * pRouter,
+				     SNetMessage * pMessage);
 // ----- bgp_router_ecomm_red_process -------------------------------
 extern int bgp_router_ecomm_red_process(SBGPPeer * pPeer, SRoute * pRoute);
 // ----- bgp_router_num_providers -----------------------------------

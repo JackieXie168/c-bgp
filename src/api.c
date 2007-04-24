@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 17/11/2006
+// @lastdate 16/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -70,7 +70,6 @@ void libcbgp_init()
   _filter_path_regex_init();
   _route_map_init();
   _rexford_init();
-  simulator_init();
 }
 
 // -----[ libcbgp_done ]---------------------------------------------
@@ -79,7 +78,6 @@ void libcbgp_init()
  */
 void libcbgp_done()
 {
-  simulator_done();
   _cli_common_destroy();
 #ifdef HAVE_LIBREADLINE
   //  _rl_destroy();

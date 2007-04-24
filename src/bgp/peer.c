@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 15/01/2007
+// @lastdate 23/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,7 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 
+#include <net/icmp.h>
 #include <net/record-route.h>
 #include <bgp/as.h>
 #include <bgp/comm.h>
@@ -169,20 +170,26 @@ static int _bgp_peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
  */
 int bgp_peer_session_ok(SBGPPeer * pPeer)
 {
+  int iResult;
   SNetDest sDest;
   SNetRecordRouteInfo * pRRInfo;
-  int iResult;
 
-  sDest.tType= NET_DEST_ADDRESS;
-  sDest.uDest.tAddr= pPeer->tAddr;
+  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    sDest.tType= NET_DEST_ADDRESS;
+    sDest.uDest.tAddr= pPeer->tAddr;
 
-  // This must be updated: the router is not necessarily
-  // adjacent... need to perform a kind of traceroute...
-  pRRInfo= node_record_route(pPeer->pLocalRouter->pNode,
-			     sDest, 0, 0, 0);
-  iResult= (pRRInfo->iResult == NET_SUCCESS);
-  net_record_route_info_destroy(&pRRInfo);
-
+    // This must be updated: the router is not necessarily
+    // adjacent... need to perform a kind of traceroute...
+    pRRInfo= node_record_route(pPeer->pLocalRouter->pNode,
+			       sDest, 0, 0, 0);
+    iResult= (pRRInfo->iResult == NET_SUCCESS);
+    net_record_route_info_destroy(&pRRInfo);
+  } else {
+    iResult= icmp_ping_send_recv(pPeer->pLocalRouter->pNode,
+				 0,
+				 pPeer->tAddr, 0);
+    iResult= (iResult == NET_SUCCESS);
+  }
   return iResult;
 }
 
@@ -242,6 +249,10 @@ int bgp_peer_open_session(SBGPPeer * pPeer)
   if ((pPeer->uSessionState == SESSION_STATE_IDLE) ||
       (pPeer->uSessionState == SESSION_STATE_ACTIVE)) {
 
+    // Initialize "TCP" sequence numbers
+    pPeer->uSendSeqNum= 0;
+    pPeer->uRecvSeqNum= 0;
+
     /* Send an OPEN message to the peer (except for virtual peers) */
     if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
       pMsg= bgp_msg_open_create(pPeer->pLocalRouter->uNumber,
@@ -250,6 +261,8 @@ int bgp_peer_open_session(SBGPPeer * pPeer)
 	pPeer->uSessionState= SESSION_STATE_OPENWAIT;
       } else {
 	pPeer->uSessionState= SESSION_STATE_ACTIVE;
+	pPeer->uSendSeqNum= 0;
+	pPeer->uRecvSeqNum= 0;
       }
     } else {
 
@@ -313,6 +326,8 @@ int bgp_peer_close_session(SBGPPeer * pPeer)
     }    
     pPeer->uSessionState= SESSION_STATE_IDLE;
     pPeer->tRouterID= 0;
+    pPeer->uSendSeqNum= 0;
+    pPeer->uRecvSeqNum= 0;
 
     /* For virtual peers configured with the soft-restart option, do
        not clear the Adj-RIB-in. */
@@ -362,7 +377,6 @@ static void _bgp_peer_session_open_rcvd(SBGPPeer * pPeer, SBGPMsg * pMsg)
   switch (pPeer->uSessionState) {
   case SESSION_STATE_ACTIVE:
     pPeer->uSessionState= SESSION_STATE_ESTABLISHED;
-
     bgp_peer_send(pPeer,
 		  bgp_msg_open_create(pPeer->pLocalRouter->uNumber,
 				      pPeer->pLocalRouter->tRouterID));
@@ -402,6 +416,8 @@ static void _bgp_peer_session_close_rcvd(SBGPPeer * pPeer)
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
     pPeer->uSessionState= SESSION_STATE_ACTIVE;
+    pPeer->uSendSeqNum= 0;
+    pPeer->uRecvSeqNum= 0;
     _bgp_peer_rescan_adjribin(pPeer, !bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
@@ -625,43 +641,19 @@ void bgp_peer_announce_route(SBGPPeer * pPeer, SRoute * pRoute)
     route_destroy(&pRoute);
 }
 
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-void peer_set_walton_limit(SBGPPeer * pPeer, unsigned int uWaltonLimit)
-{
-  //TODO : check the MAX_VALUE !
-  pPeer->uWaltonLimit = uWaltonLimit;
-  bgp_router_walton_peer_set(pPeer, uWaltonLimit);
-}
-
-uint16_t peer_get_walton_limit(SBGPPeer * pPeer)
-{
-  return pPeer->uWaltonLimit;
-}
-#endif
-
 // ----- bgp_peer_withdraw_prefix -----------------------------------
 /**
  * Withdraw the given prefix to the given peer.
  *
  * Note: withdraws are not sent to virtual peers.
  */
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix, net_addr_t * tNextHop)
-#else
 void bgp_peer_withdraw_prefix(SBGPPeer * pPeer, SPrefix sPrefix)
-#endif
 {
-  /* Send the message to the peer (except if this is a virtual peer) */
+  // Send the message to the peer (except if this is a virtual peer)
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    bgp_peer_send(pPeer,
-		  bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
-					  sPrefix, tNextHop));
-#else
     bgp_peer_send(pPeer,
 		  bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
 					  sPrefix));
-#endif
   }
 }
 
@@ -805,36 +797,161 @@ int bgp_peer_route_feasible(SBGPPeer * pPeer, SRoute * pRoute)
   return (pNextHop != NULL);
 }
 
-// ----- bgp_peer_handle_message ------------------------------------
+// -----[ _bgp_peer_process_update ]----------------------------------
 /**
- * Handle one route message (UPDATE or WITHDRAW).
- * This is PHASE I of the Decision Process.
+ * Process a BGP UPDATE message.
  *
- * UPDATE:
- * - if a route towards the same prefix already exists it is replaced
- * by the new one. Otherwise the new route is simply added. The
- * function then tests if the route is feasible and set the route
- * flags accordingly.
- *
- * WITHDRAW:
- * - if a route towards the same prefix already exists, it is set as
- * 'unfeasible', then the decision process (phase-II) is
- * ran. Afterwards, the route is removed from the Adj-RIB-In.
+ * The operation is as follows:
+ * 1). If a route towards the same prefix already exists it is
+ *     replaced by the new one. Otherwise the new route is added.
+ * 2). Tag the route as received from this peer.
+ * 3). Clear the LOCAL-PREF is the session is external (eBGP)
+ * 4). Test if the route is feasible (next-hop reachable) and flag
+ *     it accordingly.
+ * 5). The decision process is run.
  */
-int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
+static void _bgp_peer_process_update(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
-  SBGPMsgUpdate * pMsgUpdate;
-  SBGPMsgWithdraw * pMsgWithdraw;
-  SRoute * pRoute;
+  SBGPMsgUpdate * pMsgUpdate= (SBGPMsgUpdate *) pMsg;
+  SRoute * pRoute= pMsgUpdate->pRoute;
   SRoute * pOldRoute= NULL;
   SPrefix sPrefix;
   int iNeedDecisionProcess;
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  SRoutes * pOldRoutes;
-  uint16_t uIndexRoute;
-  net_addr_t tNextHop;
+
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "\tupdate: ");
+    route_dump(pLogDebug, pRoute);
+    log_printf(pLogDebug, "\n");
+  }
+
+  // Tag the route as received from this peer
+  route_peer_set(pRoute, pPeer);
+
+  // If route learned over eBGP, clear LOCAL-PREF
+  if (pPeer->uRemoteAS != pPeer->pLocalRouter->uNumber)
+    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
+
+  // Check route against import filter
+  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
+  route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
+  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
+		 bgp_peer_route_eligible(pPeer, pRoute));
+  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
+		 bgp_peer_route_feasible(pPeer, pRoute));
+  
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
 #endif
 
+  // Update route delay attribute (if BGP-QoS)
+  //peer_route_delay_update(pPeer, pRoute);
+
+  // Update route RR-client flag
+  peer_route_rr_client_update(pPeer, pRoute);
+
+  // The decision process need only be run in the following cases:
+  // - the old route was the best
+  // - the new route is eligible
+  iNeedDecisionProcess= 0;
+  pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+  if (((pOldRoute != NULL) &&
+       route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
+      route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) 
+    iNeedDecisionProcess= 1;
+
+  sPrefix= pRoute->sPrefix;
+  
+  // Replace former route in Adj-RIB-In
+  if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+    assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
+  } else {
+    if (pOldRoute != NULL)
+      assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix) == 0);
+    route_destroy(&pRoute);
+  }
+  
+  // Run decision process for this route
+  if (iNeedDecisionProcess)
+    bgp_router_decision_process(pPeer->pLocalRouter, pPeer, sPrefix);
+}
+
+// -----[ _bgp_peer_process_withdraw ]--------------------------------
+/**
+ * Process a BGP WITHDRAW message.
+ *
+ * The operation is as follows:
+ * 1). If a route towards the withdrawn prefix already exists, it is
+ *     set as 'uneligible'
+ * 2). The decision process is ran for the destination prefix.
+ * 3). The old route is removed from the Adj-RIB-In.
+ */
+static void _bgp_peer_process_withdraw(SBGPPeer * pPeer, SBGPMsg * pMsg)
+{
+  SBGPMsgWithdraw * pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
+  SRoute * pRoute;
+  
+  // Identifiy route to be removed based on destination prefix
+  pRoute= rib_find_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix);
+  
+  // If there was no previous route, do nothing
+  // Note: we should probably trigger an error/warning message in this case
+  if (pRoute == NULL)
+    return;
+
+  // Flag the route as un-eligible
+  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+
+  // Run decision process in case this route is the best route
+  // towards this prefix
+  bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
+			      pMsgWithdraw->sPrefix);
+  
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "\tremove: ");
+    route_dump(pLogDebug, pRoute);
+    log_printf(pLogDebug, "\n");
+  }
+  
+  assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix) == 0);
+}
+
+
+// -----[ _bgp_peer_seqnum_check ]-----------------------------------
+/**
+ * Check BGP message sequence number. The sequence number of the
+ * received message must be equal to the recv-sequence-number stored
+ * in the peering state. If this condition is not true, the program
+ * is aborted.
+ *
+ * There are two exceptions:
+ *   - this check is not performed for messages received from a
+ *     virtual peering
+ *   
+ */
+static void _bgp_peer_seqnum_check(SBGPPeer * pPeer, SBGPMsg * pMsg)
+{
+  if ((bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) == 0) &&
+      (pPeer->uRecvSeqNum != pMsg->uSeqNum)) {
+    if (pMsg->uType != BGP_MSG_CLOSE) {
+      bgp_peer_dump_id(pLogErr, pPeer);
+      log_printf(pLogErr, ": out-of-sequence BGP message (%d)", pMsg->uSeqNum);
+      log_printf(pLogErr, " - expected (%d)", pPeer->uRecvSeqNum);
+      log_printf(pLogErr,  " [state=%s]\n",
+		 SESSION_STATES[pPeer->uSessionState]);
+      bgp_msg_dump(pLogErr, pPeer->pLocalRouter->pNode, pMsg);
+      log_printf(pLogErr, "\n");
+      abort();
+    }
+  }
+}
+
+// ----- bgp_peer_handle_message ------------------------------------
+/**
+ * Handle received BGP messages (OPEN, CLOSE, UPDATE, WITHDRAW).
+ * Check the sequence number of incoming messages.
+ */
+int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
+{
   LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
     log_printf(pLogDebug, "HANDLE_MESSAGE from ");
     bgp_peer_dump_id(pLogDebug, pPeer);
@@ -843,153 +960,91 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
     log_printf(pLogDebug, "\n");
   }
 
+  _bgp_peer_seqnum_check(pPeer, pMsg);
+  pPeer->uRecvSeqNum++;
+
   switch (pMsg->uType) {
   case BGP_MSG_UPDATE:
     _bgp_peer_session_update_rcvd(pPeer, pMsg);
-    pMsgUpdate= (SBGPMsgUpdate *) pMsg;
-
-    pRoute= pMsgUpdate->pRoute;
-
-    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      log_printf(pLogDebug, "\tupdate: ");
-      route_dump(pLogDebug, pRoute);
-      log_printf(pLogDebug, "\n");
-    }
-
-    route_peer_set(pRoute, pPeer);
-
-    // If route learned over eBGP, clear LOCAL-PREF
-    if (pPeer->uRemoteAS != pPeer->pLocalRouter->uNumber)
-      route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
-
-    // Check route against import filter
-    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-    route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
-    route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		   bgp_peer_route_eligible(pPeer, pRoute));
-    route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		   bgp_peer_route_feasible(pPeer, pRoute));
-
-#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
-#endif
-
-    // Update route delay attribute (if BGP-QoS)
-    //peer_route_delay_update(pPeer, pRoute);
-
-    // Update route RR-client flag
-    peer_route_rr_client_update(pPeer, pRoute);
-
-    // The decision process need only be run in the following cases:
-    // - the old route was the best
-    // - the new route is eligible
-    iNeedDecisionProcess= 0;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-    pOldRoutes = rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
-    if (pOldRoutes != NULL) {
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes); uIndexRoute++) {
-	pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
-    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      log_printf(pLogDebug, "\tupdate: ");
-      route_dump(pLogDebug, pOldRoute);
-      log_printf(pLogDebug, "\n");
-    }
+    _bgp_peer_process_update_walton(pPeer, pMsg);
 #else
-    pOldRoute= rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+    _bgp_peer_process_update(pPeer, pMsg);
 #endif
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-	if ((pOldRoute != NULL) &&
-	    route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) {
-	  route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
-	  iNeedDecisionProcess= 1;
-	  break;
-	}
-      }
-    } else if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
-      iNeedDecisionProcess = 1;
-    }
-#else
-    if (((pOldRoute != NULL) &&
-	 route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
-	route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) 
-      iNeedDecisionProcess= 1;
-#endif
-
-    sPrefix= pRoute->sPrefix;
-    
-    // Replace former route in Adj-RIB-In
-    if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
-      assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
-    } else {
-      if (pOldRoute != NULL)
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      {
-	tNextHop = route_get_nexthop(pRoute);
-	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix, &tNextHop) == 0);
-      }
-#else
-	assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix) == 0);
-#endif
-      route_destroy(&pRoute);
-    }
-
-    // Run decision process for this route
-    if (iNeedDecisionProcess)
-      bgp_router_decision_process(pPeer->pLocalRouter, pPeer, sPrefix);
-
     break;
+
   case BGP_MSG_WITHDRAW:
     _bgp_peer_session_withdraw_rcvd(pPeer);
-    pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
-
-    // Remove former route from AdjRIBIn
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    //LOG_DEBUG("withdraw for nexthop : ");
-    //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), pMsgWithdraw->tNextHop);
-    //LOG_DEBUG("\n");
-    pRoute= rib_find_one_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix, (pMsgWithdraw->tNextHop));
+    _bgp_peer_process_withdraw_walton(pPeer, pMsg);
 #else
-    pRoute= rib_find_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix);
+    _bgp_peer_process_withdraw(pPeer, pMsg);
 #endif
-
-    if (pRoute == NULL) break;
-    //assert(pRoute != NULL);
-
-    route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
-    // *** unlock Adj-RIB-In ***
-    // Run decision process in case this route is the best route
-    // towards this prefix
-    bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
-			pMsgWithdraw->sPrefix);
-
-    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      log_printf(pLogDebug, "\tremove: ");
-      route_dump(pLogDebug, pRoute);
-      log_printf(pLogDebug, "\n");
-    }
-
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix, (pMsgWithdraw->tNextHop)) == 0);
-#else
-    assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix) == 0);
-#endif
-
     break;
+
   case BGP_MSG_CLOSE:
-    _bgp_peer_session_close_rcvd(pPeer);
-    break;
+    _bgp_peer_session_close_rcvd(pPeer); break;
+
   case BGP_MSG_OPEN:
-    _bgp_peer_session_open_rcvd(pPeer, pMsg);
-    break;
+    _bgp_peer_session_open_rcvd(pPeer, pMsg); break;
+
   default:
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: unknown message type received\n");
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: \n");
+    bgp_peer_session_error(pPeer);
+    LOG_ERR(LOG_LEVEL_FATAL, "Unknown BGP message type received (%d)\n",
+	    pMsg->uType);
     abort();
   }
   bgp_msg_destroy(&pMsg);
 
   return 0;
+}
+
+// -----[ bgp_peer_send ]--------------------------------------------
+/**
+ * Send a BGP message to the given peer. If activated, this function
+ * will tap BGP messages and record them to a file (see
+ * 'pRecordStream').
+ *
+ * Note: if the peer is virtual, the message will be discarded and the
+ * function will return an error.
+ */
+int bgp_peer_send(SBGPPeer * pPeer, SBGPMsg * pMsg)
+{
+  pMsg->uSeqNum= pPeer->uSendSeqNum++;
+  
+  // Record BGP messages (optional)
+  if (pPeer->pRecordStream != NULL) {
+    bgp_msg_dump(pPeer->pRecordStream, NULL, pMsg);
+    log_printf(pPeer->pRecordStream, "\n");
+    log_flush(pPeer->pRecordStream);
+  }
+
+  // Send the message
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    return bgp_msg_send(pPeer->pLocalRouter->pNode,
+			pPeer->tAddr, pMsg);
+  } else {
+    bgp_msg_destroy(&pMsg);
+    return -1;
+  }
+}
+
+// -----[ bgp_peer_send_enabled ]------------------------------------
+/**
+ * Tell if this peer can send BGP messages. Basically, all non-virtual
+ * peers are able to send BGP messages. However, if the record
+ * functionnality is activated on a virtual peer, this peer will
+ * appear as if it was able to send messages. This is needed in order
+ * to tap BGP messages sent to virtual peers.
+ *
+ * Return values:
+ *      0 if the peer cannot send messages
+ *   != 0 otherwise
+ */
+int bgp_peer_send_enabled(SBGPPeer * pPeer)
+{
+  return (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) ||
+	  (pPeer->pRecordStream != NULL));
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1044,6 +1099,9 @@ void bgp_peer_dump(SLogStream * pStream, SBGPPeer * pPeer)
       log_printf(pStream, "\t[DOWN]");
     }
   }
+
+  log_printf(pStream, "\tsnd-seq:%d\trcv-seq:%d", pPeer->uSendSeqNum,
+	     pPeer->uRecvSeqNum);
 }
 
 typedef struct {
@@ -1164,48 +1222,183 @@ int bgp_peer_set_record_stream(SBGPPeer * pPeer, SLogStream * pStream)
   return 0;
 }
 
-// -----[ bgp_peer_send ]--------------------------------------------
+/////////////////////////////////////////////////////////////////////
+//
+// WALTON DRAFT (EXPERIMENTAL)
+//
+/////////////////////////////////////////////////////////////////////
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+
+// -----[ _bgp_peer_process_update_walton ]----------------------------------
 /**
- * Send a BGP message to the given peer. If activated, this function
- * will tap BGP messages and record them to a file (see
- * 'pRecordStream').
+ * Process a BGP UPDATE message.
  *
- * Note: if the peer is virtual, the message will be discarded and the
- * function will return an error.
+ * The operation is as follows:
+ * 1). If a route towards the same prefix already exists it is
+ *     replaced by the new one. Otherwise the new route is added.
+ * 2). Tag the route as received from this peer.
+ * 3). Clear the LOCAL-PREF is the session is external (eBGP)
+ * 4). Test if the route is feasible (next-hop reachable) and flag
+ *     it accordingly.
+ * 5). The decision process is run.
  */
-int bgp_peer_send(SBGPPeer * pPeer, SBGPMsg * pMsg)
+static void _bgp_peer_process_update_walton(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
-  // Record BGP messages (optional)
-  if (pPeer->pRecordStream != NULL) {
-    bgp_msg_dump(pPeer->pRecordStream, NULL, pMsg);
-    log_printf(pPeer->pRecordStream, "\n");
-    log_flush(pPeer->pRecordStream);
+  SBGPMsgUpdate * pMsgUpdate= (SBGPMsgUpdate *) pMsg;
+  SRoute * pRoute= pMsgUpdate->pRoute;
+  SRoute * pOldRoute= NULL;
+  SPrefix sPrefix;
+  int iNeedDecisionProcess;
+  SRoutes * pOldRoutes;
+  uint16_t uIndexRoute;
+  net_addr_t tNextHop;
+
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "\tupdate: ");
+    route_dump(pLogDebug, pRoute);
+    log_printf(pLogDebug, "\n");
   }
 
-  // Send the message
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    return bgp_msg_send(pPeer->pLocalRouter->pNode,
-			pPeer->tAddr, pMsg);
+  // Tag the route as received from this peer
+  route_peer_set(pRoute, pPeer);
+
+  // If route learned over eBGP, clear LOCAL-PREF
+  if (pPeer->uRemoteAS != pPeer->pLocalRouter->uNumber)
+    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
+
+  // Check route against import filter
+  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
+  route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
+  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
+		 bgp_peer_route_eligible(pPeer, pRoute));
+  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
+		 bgp_peer_route_feasible(pPeer, pRoute));
+  
+#ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
+    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+#endif
+
+  // Update route RR-client flag
+  peer_route_rr_client_update(pPeer, pRoute);
+
+  // The decision process need only be run in the following cases:
+  // - the old route was the best
+  // - the new route is eligible
+  iNeedDecisionProcess= 0;
+  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
+  pOldRoutes = rib_find_exact(pPeer->pAdjRIBIn, pRoute->sPrefix);
+  if (pOldRoutes != NULL) {
+    for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes);
+	 uIndexRoute++) {
+      pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
+      LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+	log_printf(pLogDebug, "\tupdate: ");
+	route_dump(pLogDebug, pOldRoute);
+	log_printf(pLogDebug, "\n");
+      }
+      if ((pOldRoute != NULL) &&
+	  route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) {
+	route_flag_set(pOldRoute, ROUTE_FLAG_BEST, 0);
+	iNeedDecisionProcess= 1;
+	break;
+      }
+    }
+  } else if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+    iNeedDecisionProcess = 1;
+  }
+
+  sPrefix= pRoute->sPrefix;
+  
+  // Replace former route in Adj-RIB-In
+  if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+    assert(rib_replace_route(pPeer->pAdjRIBIn, pRoute) == 0);
   } else {
-    bgp_msg_destroy(&pMsg);
-    return -1;
+    if (pOldRoute != NULL) {
+      tNextHop = route_get_nexthop(pRoute);
+      assert(rib_remove_route(pPeer->pAdjRIBIn, pRoute->sPrefix, &tNextHop)
+	     == 0);
+    }
+    route_destroy(&pRoute);
   }
+  
+  // Run decision process for this route
+  if (iNeedDecisionProcess)
+    bgp_router_decision_process(pPeer->pLocalRouter, pPeer, sPrefix);
 }
 
-// -----[ bgp_peer_send_enabled ]------------------------------------
+// -----[ _bgp_peer_process_withdraw_walton ]------------------------
 /**
- * Tell if this peer can send BGP messages. Basically, all non-virtual
- * peers are able to send BGP messages. However, if the record
- * functionnality is activated on a virtual peer, this peer will
- * appear as if it was able to send messages. This is needed in order
- * to tap BGP messages sent to virtual peers.
+ * Process a BGP WITHDRAW message (Walton draft).
  *
- * Return values:
- *      0 if the peer cannot send messages
- *   != 0 otherwise
+ * The operation is as follows:
+ * 1). If a route towards the withdrawn prefix and with the specified
+ *     next-hop already exists, it is set as 'uneligible'
+ * 2). The decision process is ran for the destination prefix.
+ * 3). The old route is removed from the Adj-RIB-In.
  */
-int bgp_peer_send_enabled(SBGPPeer * pPeer)
+static void _bgp_peer_process_walton_withdraw(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
-  return (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) ||
-	  (pPeer->pRecordStream != NULL));
+  SBGPMsgWithdraw * pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
+  SRoute * pRoute;
+  net_addr_t tNextHop;
+
+  //LOG_DEBUG("walton-withdraw: next-hop=");
+  //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog),
+  //      			      pMsgWithdraw->tNextHop);
+  //LOG_DEBUG("\n");
+
+
+  // Identifiy route to be removed based on destination prefix and next-hop
+  pRoute= rib_find_one_exact(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix,
+			     pMsgWithdraw->tNextHop);
+
+  // If there was no previous route, do nothing
+  // Note: we should probably trigger an error/warning message in this case
+  if (pRoute == NULL)
+    return;
+  
+  // Flag the route as un-eligible
+  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+
+  // Run decision process in case this route is the best route
+  // towards this prefix
+  bgp_router_decision_process(pPeer->pLocalRouter, pPeer,
+			      pMsgWithdraw->sPrefix);
+  
+  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
+    log_printf(pLogDebug, "\tremove: ");
+    route_dump(pLogDebug, pRoute);
+    log_printf(pLogDebug, "\n");
+  }
+
+  assert(rib_remove_route(pPeer->pAdjRIBIn, pMsgWithdraw->sPrefix,
+			  pMsgWithdraw->tNextHop) == 0);
 }
+
+void bgp_peer_withdraw_prefix_walton(SBGPPeer * pPeer, SPrefix sPrefix,
+				     net_addr_t * tNextHop)
+{
+  // Send the message to the peer (except if this is a virtual peer)
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL))
+    bgp_peer_send(pPeer,
+		  bgp_msg_withdraw_create(pPeer->pLocalRouter->uNumber,
+					  sPrefix, tNextHop));
+}
+
+// -----[ bgp_peer_set_walton_limit ]--------------------------------
+void bgp_peer_set_walton_limit(SBGPPeer * pPeer, unsigned int uWaltonLimit)
+{
+  //TODO : check the MAX_VALUE !
+  pPeer->uWaltonLimit = uWaltonLimit;
+  bgp_router_walton_peer_set(pPeer, uWaltonLimit);
+}
+
+// -----[ bgp_peer_get_walton_limit ]--------------------------------
+uint16_t bgp_peer_get_walton_limit(SBGPPeer * pPeer)
+{
+  return pPeer->uWaltonLimit;
+}
+
+#endif
+
