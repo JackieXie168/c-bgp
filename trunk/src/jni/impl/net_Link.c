@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 09/02/2007
+// @lastdate 24/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,7 +34,8 @@ jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
   jobject joLink;
 
   /* Convert link attributes to Java objects */
-  jobject obj_IPAddress= cbgp_jni_new_IPAddress(jEnv, link_get_address(pLink));
+  jobject obj_IPAddress=
+    cbgp_jni_new_IPAddress(jEnv, net_link_get_address(pLink));
 
   /* Check that the conversion was successful */
   if (obj_IPAddress == NULL)

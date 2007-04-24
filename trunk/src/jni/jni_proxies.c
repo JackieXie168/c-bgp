@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 06/10/2006
+// @lastdate 24/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -50,7 +50,7 @@ static void _jni_proxy_destroy(void * pElt)
 }
 
 // -----[ _jni_proxy_compute ]---------------------------------------
-static uint32_t _jni_proxy_compute(void * pElt, uint32_t uHashSize)
+static uint32_t _jni_proxy_compute(const void * pElt, const uint32_t uHashSize)
 {
   SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
   return pHashObj->jiHashCode % uHashSize;
