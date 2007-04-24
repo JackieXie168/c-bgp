@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 09/02/2007
+// @lastdate 24/04/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -1049,7 +1049,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpFilterFinalize
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  if (simulator_run() != 0)
+  if (simulator_run(network_get_simulator()) != 0)
     cbgp_jni_throw_CBGPException(jEnv, "simulation error");
 }
 
@@ -1062,7 +1062,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simStep
   (JNIEnv * jEnv, jobject joCBGP, jint jiNumSteps)
 {
-  if (simulator_step(jiNumSteps) != 0)
+  if (simulator_step(network_get_simulator(), jiNumSteps) != 0)
     cbgp_jni_throw_CBGPException(jEnv, "simulation error");
 }
 
@@ -1075,7 +1075,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simStep
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simClear
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  simulator_clear();
+  //simulator_clear(network_get_simulator());
 }
 
 // -----[ simGetEventCount ]-----------------------------------------
@@ -1087,7 +1087,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simClear
 JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  return (jlong) simulator_get_num_events();
+  return (jlong) simulator_get_num_events(network_get_simulator());
 }
 
 // -----[ runCmd ]---------------------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 09/02/2007
+// @lastdate 24/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -292,7 +292,8 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix, SNetRouteInfo * pRou
 
   /* Convert route attributes to Java objects */
   jobject obj_IPPrefix= cbgp_jni_new_IPPrefix(env, sPrefix);
-  jobject obj_IPAddress= cbgp_jni_new_IPAddress(env, link_get_address(pRoute->sNextHop.pIface));
+  jobject obj_IPAddress=
+    cbgp_jni_new_IPAddress(env, net_link_get_address(pRoute->sNextHop.pIface));
 
   /* Check that the conversion was successful */
   if ((obj_IPPrefix == NULL) || (obj_IPAddress == NULL))
