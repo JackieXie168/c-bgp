@@ -7520,8 +7520,8 @@ $tests->register("net tm load", "cbgp_valid_net_tm_load");
 $tests->register("abilene", "cbgp_valid_abilene");
 $tests->register("nasty: bgp peering one-way down",
 		 "cbgp_valid_nasty_bgp_peering_1w_down");
-$tests->register("nasty: bgp session segment ordering",
-		 "cbgp_valid_nasty_bgp_session_segment_ordering");
+#$tests->register("nasty: bgp session segment ordering",
+#		 "cbgp_valid_nasty_bgp_session_segment_ordering");
 $tests->register("nasty: bgp med ordering",
 		 "cbgp_valid_nasty_bgp_med_ordering");
 
