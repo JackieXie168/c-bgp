@@ -6953,7 +6953,7 @@ sub cbgp_valid_net_tm_load($)
     cbgp_send($cbgp, "net link 1.0.0.4 172.13.16.1/24 igp-weight 10");
     cbgp_send($cbgp, "net domain 1 compute");
 
-    $msg= cbgp_check_error($cbgp, "net tm load \"valid-net-tm.tm\"");
+    $msg= cbgp_check_error($cbgp, "net tm load \"".$data_resources."valid-net-tm.tm\"");
     if (defined($msg)) {
       $tests->debug("Error: \"net tm load\" generated an error.");
       return TEST_FAILURE;
