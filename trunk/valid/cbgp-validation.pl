@@ -7083,17 +7083,17 @@ sub cbgp_valid_abilene($)
 
     cbgp_send($cbgp, "sim run");
 
-    cbgp_send($cbgp, "bgp router 198.32.12.9 load rib \"abilene/ATLA/rib.20050801.0124-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.25 load rib \"abilene/CHIN/rib.20050801.0017-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.41 load rib \"abilene/DNVR/rib.20050801.0014-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.57 load rib \"abilene/HSTN/rib.20050801.0149-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.177 load rib \"abilene/IPLS/rib.20050801.0157-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.89 load rib \"abilene/KSCY/rib.20050801.0154-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.105 load rib \"abilene/LOSA/rib.20050801.0034-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.121 load rib \"abilene/NYCM/rib.20050801.0050-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.137 load rib \"abilene/SNVA/rib.20050801.0118-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.153 load rib \"abilene/STTL/rib.20050801.0124-ebgp.ascii\"");
-    cbgp_send($cbgp, "bgp router 198.32.12.169 load rib \"abilene/WASH/rib.20050801.0101-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.9 load rib \"".$resources_path."abilene/ATLA/rib.20050801.0124-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.25 load rib \"".$resources_path."abilene/CHIN/rib.20050801.0017-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.41 load rib \"".$resources_path."abilene/DNVR/rib.20050801.0014-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.57 load rib \"".$resources_path."abilene/HSTN/rib.20050801.0149-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.177 load rib \"".$resources_path."abilene/IPLS/rib.20050801.0157-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.89 load rib \"".$resources_path."abilene/KSCY/rib.20050801.0154-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.105 load rib \"".$resources_path."abilene/LOSA/rib.20050801.0034-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.121 load rib \"".$resources_path."abilene/NYCM/rib.20050801.0050-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.137 load rib \"".$resources_path."abilene/SNVA/rib.20050801.0118-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.153 load rib \"".$resources_path."abilene/STTL/rib.20050801.0124-ebgp.ascii\"");
+    cbgp_send($cbgp, "bgp router 198.32.12.169 load rib \"".$resources_path."abilene/WASH/rib.20050801.0101-ebgp.ascii\"");
 
     cbgp_send($cbgp, "sim run");
 
