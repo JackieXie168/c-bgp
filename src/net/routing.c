@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 16/04/2007
+// @lastdate 25/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -484,16 +484,18 @@ SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
   return NULL;
 }
 
-// ----- rt_add_route -----------------------------------------------
+// -----[ rt_add_route ]---------------------------------------------
 /**
  * Add a route into the routing table.
+ *
+ * Returns:
+ *   NET_RT_SUCCESS       on success
+ *   NET_RT_ERROR_ADD_DUP in case of error (duplicate route)
  */
 int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 		 SNetRouteInfo * pRouteInfo)
 {
   SNetRouteInfoList * pRIList;
-  int iInsert= 0;
-  int iResult;
 
   pRIList=
     (SNetRouteInfoList *) trie_find_exact((STrie *) pRT,
@@ -503,19 +505,16 @@ int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
   // Create a new info-list if none exists for the given prefix
   if (pRIList == NULL) {
     pRIList= rt_info_list_create();
-    iInsert= 1;
+    assert(rt_info_list_add(pRIList, pRouteInfo) == NET_RT_SUCCESS);
+    trie_insert((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen, pRIList);
+
+  } else {
+
+    return rt_info_list_add(pRIList, pRouteInfo);
+
   }
 
-  if ((iResult= rt_info_list_add(pRIList, pRouteInfo)) == NET_RT_SUCCESS) {
-    // We only insert into the trie if the route could be added to the
-    // new info-list
-    if (iInsert)
-      trie_insert((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen, pRIList);
-  } else {
-    rt_info_list_destroy(&pRIList);
-  }
-  
-  return iResult;
+  return NET_RT_SUCCESS;
 }
 
 // ----- rt_del_for_each --------------------------------------------
