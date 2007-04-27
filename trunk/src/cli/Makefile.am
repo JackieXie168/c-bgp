@@ -42,6 +42,8 @@ libcli_la_SOURCES = \
 	bgp.h \
 	common.c \
 	common.h \
+	enum.c \
+	enum.h \
 	net.c \
 	net.h \
 	net_domain.c \
