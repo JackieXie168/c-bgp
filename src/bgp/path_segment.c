@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 03/03/2006
+// @lastdate 13/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -69,11 +69,13 @@ SPathSegment * path_segment_copy(SPathSegment * pSegment)
  * Return value:
  *   The function returns the number of character written (not
  *   including the trailing '\0'. If the output was truncated, the
- *   returned value is equal to the destination buffer size.
+ *   returned value is equal or larger to the destination buffer
+ *   size.
  *
  * Note: the function uses snprintf() in order to write into the
  * destination buffer. The return value of snprintf() is important. A
- * return value of size or more means that the output was truncated.
+ * return value equal or larger that the maximum destination size
+ *  means that the output was truncated.
  */
 int path_segment_to_string(SPathSegment * pSegment,
 			   uint8_t uReverse,
@@ -84,8 +86,9 @@ int path_segment_to_string(SPathSegment * pSegment,
   int iWritten;
   size_t tInitialDstSize= tDstSize;
 
-  assert((pSegment->uType == AS_PATH_SEGMENT_SET) ||
-	 (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE));
+  assert(((pSegment->uType == AS_PATH_SEGMENT_SET) ||
+	  (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE)) &&
+	 (pSegment->uLength > 0));
 
   if (pSegment->uType == AS_PATH_SEGMENT_SET) {
     iWritten= snprintf(pcDst, tDstSize, "}");
