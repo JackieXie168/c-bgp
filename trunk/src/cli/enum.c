@@ -1,6 +1,8 @@
 // ==================================================================
 // @(#)enum.c
 //
+// Enumeration functions used by the CLI.
+//
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 //
 // @date 27/04/2007
@@ -19,8 +21,8 @@
 #include <net/node.h>
 #include <net/protocol.h>
 
-// -----[ _ enum_net_nodes ]-----------------------------------------
-SNetNode * _enum_net_nodes(const char * pcText, int state)
+// -----[ cli_enum_net_nodes ]---------------------------------------
+SNetNode * cli_enum_net_nodes(const char * pcText, int state)
 {
   static SEnumerator * pEnum= NULL;
   SNetNode * pNode;
@@ -44,13 +46,13 @@ SNetNode * _enum_net_nodes(const char * pcText, int state)
   return NULL;
 }
 
-// -----[ _ enum_bgp_routers ]---------------------------------------
-SBGPRouter * _enum_bgp_routers(const char * pcText, int state)
+// -----[ cli_enum_bgp_routers ]-------------------------------------
+SBGPRouter * cli_enum_bgp_routers(const char * pcText, int state)
 {
   SNetNode * pNode;
   SNetProtocol * pProtocol;
 
-  while ((pNode= _enum_net_nodes(pcText, state++)) != NULL) {
+  while ((pNode= cli_enum_net_nodes(pcText, state++)) != NULL) {
 
     // Check if node supports BGP
     pProtocol= node_get_protocol(pNode, NET_PROTOCOL_BGP);
@@ -62,32 +64,32 @@ SBGPRouter * _enum_bgp_routers(const char * pcText, int state)
   return NULL;
 }
 
-// -----[ cli_enum_net_nodes ]---------------------------------------
+// -----[ cli_enum_net_nodes_addr ]---------------------------------------
 /**
  * Enumerate all the nodes.
  */
-char * cli_enum_net_nodes(const char * pcText, int state)
+char * cli_enum_net_nodes_addr(const char * pcText, int state)
 {
   SNetNode * pNode= NULL;
   char acNode[16];
   
-  while ((pNode= _enum_net_nodes(pcText, state++)) != NULL) {
+  while ((pNode= cli_enum_net_nodes(pcText, state++)) != NULL) {
     ip_address_to_string(acNode, pNode->tAddr);
     return strdup(acNode);
   }
   return NULL;
 }
 
-// -----[ cli_enum_bgp_routers ]-------------------------------------
+// -----[ cli_enum_bgp_routers_addr ]--------------------------------
 /**
  * Enumerate all the BGP routers.
  */
-char * cli_enum_bgp_routers(const char * pcText, int state)
+char * cli_enum_bgp_routers_addr(const char * pcText, int state)
 {
   SBGPRouter * pRouter= NULL;
   char acNode[16];
   
-  while ((pRouter= _enum_bgp_routers(pcText, state)) != NULL) {
+  while ((pRouter= cli_enum_bgp_routers(pcText, state)) != NULL) {
     ip_address_to_string(acNode, pRouter->pNode->tAddr);
     return strdup(acNode);
   }
