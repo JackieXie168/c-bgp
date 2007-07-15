@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 04/12/2002
-// @lastdate 28/02/2006
+// @lastdate 21/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -42,7 +42,7 @@ void rib_routes_list_destroy(void ** ppItem)
 typedef struct {
   FRadixTreeForEach fForEach;
   void * pContext;
-}SRIBCtx;
+} SRIBCtx;
 
 //TODO : propagate the result!!!
 int rib_trie_for_each(trie_key_t uKey, trie_key_len_t uKeyLen, void * pItem, void * pContext)
@@ -66,11 +66,7 @@ int rib_trie_for_each(trie_key_t uKey, trie_key_len_t uKeyLen, void * pItem, voi
  */
 SRIB * rib_create(uint8_t uOptions)
 {
-#ifdef __EXPERIMENTAL__
   FTrieDestroy fDestroy;
-#else
-  FRadixTreeDestroy fDestroy;
-#endif
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   if (uOptions & RIB_OPTION_ALIAS)
@@ -84,11 +80,7 @@ SRIB * rib_create(uint8_t uOptions)
     fDestroy= rib_route_destroy;
 #endif
 
-#ifdef __EXPERIMENTAL__
   return (SRIB *) trie_create(fDestroy);
-#else
-  return (SRIB *) radix_tree_create(32, fDestroy);
-#endif
 }
 
 // ----- rib_destroy ------------------------------------------------
@@ -97,16 +89,8 @@ SRIB * rib_create(uint8_t uOptions)
  */
 void rib_destroy(SRIB ** ppRIB)
 {
-
-#ifdef __EXPERIMENTAL__
   STrie ** ppTrie= (STrie **) ppRIB;
-
   trie_destroy(ppTrie);
-#else
-  SRadixTree ** ppRadixTree= (SRadixTree **) ppRIB;
-
-  radix_tree_destroy(ppRadixTree);
-#endif
 }
 
 // ----- rib_find_best ----------------------------------------------
@@ -119,18 +103,14 @@ SRoutes * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
 SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   return (SRoutes *) trie_find_best((STrie *) pRIB,
 				   sPrefix.tNetwork,
 				   sPrefix.uMaskLen);
-#elif defined __EXPERIMENTAL__
+#else
   return (SRoute *) trie_find_best((STrie *) pRIB,
 				   sPrefix.tNetwork,
 				   sPrefix.uMaskLen);
-#else
-  return (SRoute *) radix_tree_get_best((SRadixTree *) pRIB,
-					sPrefix.tNetwork,
-					sPrefix.uMaskLen);
 #endif
 }
 
@@ -145,18 +125,14 @@ SRoutes * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   return (SRoutes *) trie_find_exact((STrie *) pRIB,
 				    sPrefix.tNetwork,
 				    sPrefix.uMaskLen);
-#elif defined __EXPERIMENTAL__
+#else
   return (SRoute *) trie_find_exact((STrie *) pRIB,
 				    sPrefix.tNetwork,
 				    sPrefix.uMaskLen);
-#else
-  return (SRoute *) radix_tree_get_exact((SRadixTree *) pRIB,
-					 sPrefix.tNetwork,
-					 sPrefix.uMaskLen);
 #endif
 }
 
@@ -178,7 +154,7 @@ SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix)
   return NULL;
 }
 
-// ----- rib_find_onex_exact -----------------------------------------
+// ----- rib_find_one_exact -----------------------------------------
 /**
  *
  */
@@ -285,7 +261,7 @@ int _rib_remove_route(SRoutes * pRoutes, net_addr_t tNextHop)
  */
 int rib_add_route(SRIB * pRIB, SRoute * pRoute)
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
 				      pRoute->sPrefix.tNetwork,
 				      pRoute->sPrefix.uMaskLen);
@@ -294,12 +270,9 @@ int rib_add_route(SRIB * pRIB, SRoute * pRoute)
   } else {
     return _rib_replace_route(pRIB, pRoutes, pRoute);
   }
-#elif defined __EXPERIMENTAL__
+#else
   return trie_insert((STrie *) pRIB, pRoute->sPrefix.tNetwork,
 		     pRoute->sPrefix.uMaskLen, pRoute);
-#else
-  return radix_tree_add((SRadixTree *) pRIB, pRoute->sPrefix.tNetwork,
-			pRoute->sPrefix.uMaskLen, pRoute);
 #endif
 }
 
@@ -309,7 +282,7 @@ int rib_add_route(SRIB * pRIB, SRoute * pRoute)
  */
 int rib_replace_route(SRIB * pRIB, SRoute * pRoute)
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
 				      pRoute->sPrefix.tNetwork,
 				      pRoute->sPrefix.uMaskLen);
@@ -318,12 +291,9 @@ int rib_replace_route(SRIB * pRIB, SRoute * pRoute)
   } else {
     return _rib_replace_route(pRIB, pRoutes, pRoute);
   }
-#elif defined __EXPERIMENTAL__
+#else
   return trie_insert((STrie *) pRIB, pRoute->sPrefix.tNetwork,
 		     pRoute->sPrefix.uMaskLen, pRoute);
-#else
-  return radix_tree_add((SRadixTree *) pRIB, pRoute->sPrefix.tNetwork,
-			pRoute->sPrefix.uMaskLen, pRoute);
 #endif
 }
 
@@ -337,7 +307,7 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix, net_addr_t * tNextHop)
 int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
 				      sPrefix.tNetwork,
 				      sPrefix.uMaskLen);
@@ -356,14 +326,10 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
     }
   }
   return 0;
-#elif defined __EXPERIMENTAL__
+#else
   return trie_remove((STrie *) pRIB,
 		     sPrefix.tNetwork,
 		     sPrefix.uMaskLen);
-#else
-  return radix_tree_remove((SRadixTree *) pRIB,
-			   sPrefix.tNetwork,
-			   sPrefix.uMaskLen, 1);
 #endif
 }
 
@@ -375,7 +341,7 @@ int rib_for_each(SRIB * pRIB, FRadixTreeForEach fForEach,
 		 void * pContext)
 {
 
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+#if defined __EXPERIMENTAL_WALTON__
   int iRet;
   SRIBCtx * pCtx = MALLOC(sizeof(SRIBCtx));
 
@@ -385,11 +351,8 @@ int rib_for_each(SRIB * pRIB, FRadixTreeForEach fForEach,
   iRet = trie_for_each((STrie *) pRIB, rib_trie_for_each, pCtx);
   FREE(pCtx);
   return iRet;
-#elif defined __EXPERIMENTAL__
+#else
   return trie_for_each((STrie *) pRIB, fForEach,
 		       pContext);
-#else
-  return radix_tree_for_each((SRadixTree *) pRIB, fForEach,
-			     pContext);
 #endif
 }
