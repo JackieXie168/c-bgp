@@ -1,11 +1,13 @@
 // ==================================================================
 // @(#)rl.c
 //
+// Provides an interactive CLI, based on GNU readline. If GNU
+// readline isn't available, provides a basic replacement CLI.
+//
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 31/03/2006
+// @lastdate 22/06/2007
 // ==================================================================
-// Help about this code can be found in the GNU readline manual.
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -15,59 +17,78 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <libgds/cli.h>
+#include <libgds/cli_ctx.h>
+
+#include <cli/common.h>
 #include <ui/rl.h>
+#include <ui/completion.h>
+#include <ui/help.h>
 
 #ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
+#endif
+#ifdef HAVE_READLINE_HISTORY_H
 #include <readline/history.h>
 #endif
 
 #define CBGP_HISTFILE ".cbgp_history"
+#define MAX_LINE_READ 1024
 
-/* A static variable for holding the line. */
+// A static variable for holding the line.
 static char * pcLineRead= NULL;
 
-/* Maximum number of lines to hold in readline's history */
-int iHistFileSize= 500;
+// Maximum number of lines to hold in readline's history.
+static int iHistFileSize= 500;
+
 
 // ---- rl_gets -----------------------------------------------------
 /**
- * Read a string, and return a pointer to it.
+ * Reads a string, and return a pointer to it. This function is
+ * inspired from an example in the GNU readline manual.
+ *
  * Returns NULL on EOF.
  */
-char * rl_gets(char * pcPrompt)
+char * rl_gets()
 {
-#define MAX_LINE_READ 1024
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 
-#ifdef HAVE_LIBREADLINE
-  /* If the buffer has already been allocated,
-     return the memory to the free pool. */
+  // If the buffer has already been allocated,
+  // return the memory to the free pool.
   if (pcLineRead) {
     free(pcLineRead);
     pcLineRead= (char *) NULL;
   }
 
-  /* Get a line from the user. */
-  pcLineRead= readline(pcPrompt);
+  // Show the prompt and get a line from the user.
+  pcLineRead= readline(cli_context_to_string(cli_get()->pCtx, "cbgp"));
 
-  /* If the line has any text in it,
-     save it on the history. */
+  // If the line has any text in it, save it on the history.
   if (pcLineRead && *pcLineRead) {
     add_history(pcLineRead);
     stifle_history((int) iHistFileSize);
   }
+
 #else
-  /* If the buffer has not yet been allocated, allocate it.
-     The buffer will be freed by the destructor function. */
+
+  // If the buffer has not yet been allocated, allocate it.
+  // The buffer will be freed by the destructor function.
   if (pcLineRead == NULL)
     pcLineRead= (char *) malloc(MAX_LINE_READ*sizeof(char));
 
-  /* Get at most MAX_LINE_READ-1 characters from stdin */
+  // Print the prompt
+  fprintf(cli_context_to_string(cli_get()->pCtx, "cbgp"));
+
+  // Get at most MAX_LINE_READ-1 characters from stdin
   fgets(pcLineRead, MAX_LINE_READ, stdin);
+
 #endif
 
   return (pcLineRead);
 }
+
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
@@ -75,11 +96,13 @@ char * rl_gets(char * pcPrompt)
 
 // ----- _rl_init ---------------------------------------------------
 /**
- *
+ * Initializes the interactive CLI, using GNU readline. This function
+ * loads the CLI history if the environment variable CBGP_HISTFILE is
+ * defined.
  */
 void _rl_init()
 {
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_HISTORY_H)
   char * pcEnvHistFile;
   char * pcEnvHistFileSize;
   char * pcEnvHome;
@@ -110,18 +133,27 @@ void _rl_init()
     if ((*endptr == '\0') && (lTmp < INT_MAX))
       iHistFileSize= (int) lTmp;
   }
+
+  _rl_completion_init();
+  _rl_help_init();
+
 #endif
 }
 
 // ----- _rl_destroy ------------------------------------------------
 /**
- *
+ * Frees the resources used by the interactive CLI. This function
+ * also stores the CLI history in a file if the environment variable
+ * CBGP_HISTFILE is defined.
  */
 void _rl_destroy()
 {
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_HISTORY_H)
   char * pcEnvHistFile;
   char * pcEnvHome;
+
+  _rl_completion_done();
+  _rl_help_done();
 
   pcEnvHistFile= getenv("CBGP_HISTFILE");
   if (pcEnvHistFile != NULL) {
