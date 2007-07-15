@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 23/01/2007
+// @lastdate 31/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,12 +23,14 @@
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
-#include <bgp/rexford.h>
+#include <bgp/record-route.h>
 #include <bgp/route_map.h>
 #include <bgp/tie_breaks.h>
 
 #include <cli/bgp.h>
+#include <cli/bgp_topology.h>
 #include <cli/common.h>
+#include <cli/enum.h>
 #include <cli/net.h>
 #include <ui/rl.h>
 #include <libgds/cli_ctx.h>
@@ -40,12 +42,6 @@
 #include <net/record-route.h>
 #include <net/util.h>
 #include <string.h>
-
-// ----- cli_bgp_enum_nodes -----------------------------------------
-char * cli_bgp_enum_nodes(const char * pcText, int state)
-{
-  return network_enum_bgp_nodes(pcText, state);
-}
 
 // ----- cli_bgp_add_router -----------------------------------------
 /**
@@ -248,106 +244,6 @@ int cli_bgp_domain_recordroute(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
-
-// ----- cli_bgp_topology_load --------------------------------------
-/**
- * context: {}
- * tokens: {file}
- */
-int cli_bgp_topology_load(SCliContext * pContext, SCliCmd * pCmd)
-{
-  if (rexford_load(tokens_get_string_at(pCmd->pParamValues, 0)))
-    return CLI_ERROR_COMMAND_FAILED;
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_topology_policies ----------------------------------
-/**
- * context: {}
- * tokens: {}
- */
-int cli_bgp_topology_policies(SCliContext * pContext, SCliCmd * pCmd)
-{
-  rexford_setup_policies();
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_topology_recordroute -------------------------------
-/**
- * context: {}
- * tokens: {prefix, file-in, file-out}
- */
-int cli_bgp_topology_recordroute(SCliContext * pContext,
-				 SCliCmd * pCmd)
-{
-  SPrefix sPrefix;
-  char * pcPrefix;
-  SLogStream * pOutput;
-  int iResult= CLI_SUCCESS;
-  char * pcOutput, * pcInput;
-
-  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str2prefix(pcPrefix, &sPrefix) < 0)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  pcOutput= tokens_get_string_at(pCmd->pParamValues, 2);
-  if ((pOutput= log_create_file(pcOutput)) == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  pcInput= tokens_get_string_at(pCmd->pParamValues, 1);
-  if (rexford_record_route(pOutput, pcInput, sPrefix))
-    iResult= CLI_ERROR_COMMAND_FAILED;
-
-  log_destroy(&pOutput);
-  return iResult;
-}
-
-// ----- cli_bgp_topology_showrib -----------------------------------
-/**
- * context: {}
- * tokens: {}
- */
-int cli_bgp_topology_showrib(SCliContext * pContext,
-			     SCliCmd * pCmd)
-{
-  return CLI_ERROR_COMMAND_FAILED;
-}
-
-// ----- cli_bgp_topology_route_dp_rule -----------------------------
-/**
- * context: {}
- * tokens: {prefix, file-out}
- */
-/*
-int cli_bgp_topology_route_dp_rule(SCliContext * pContext,
-				   SCliCmd * pCmd)
-{
-  SPrefix sPrefix;
-  FILE * fOutput;
-  int iResult= CLI_SUCCESS;
-
-  if (str2prefix(tokens_get_string_at(pTokens, 0), &sPrefix) < 0)
-    return CLI_ERROR_COMMAND_FAILED;
-  if ((fOutput= fopen(tokens_get_string_at(pTokens, 1), "w")) == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-  if (rexford_route_dp_rule(fOutput, sPrefix))
-    iResult= CLI_ERROR_COMMAND_FAILED;
-  fclose(fOutput);
-  return iResult;
-}
-*/
-
-// ----- cli_bgp_topology_run ---------------------------------------
-/**
- * context: {}
- * tokens: {}
- */
-int cli_bgp_topology_run(SCliContext * pContext, SCliCmd * pCmd)
-{
-  rexford_run();
-  return CLI_SUCCESS;
-}
-
 // ----- cli_ctx_create_bgp_route_map --------------------------------
 /**
  * context: {} -> {&filter}
@@ -474,33 +370,24 @@ int cli_bgp_options_autocreate(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_options_showmode(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcParam;
+  uint8_t uFormat;
 
   // Get mode
   pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (!strcmp(pcParam, "cisco")) {
-    
-    // No additional argument allowed for this mode
+  if (route_str2format(pcParam, &uFormat) != 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown BGP show-mode \"%s\"\n",
+	    pcParam);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  if ((uFormat == BGP_ROUTES_OUTPUT_CISCO) ||
+      (uFormat == BGP_ROUTES_OUTPUT_MRT_ASCII)) {
     if (tokens_get_num(pCmd->pParamValues) > 1) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: no additional argument allowed for mode \"cisco\"\n");
       return CLI_ERROR_COMMAND_FAILED;
     }
-
-    // Update global option
-    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CISCO;
-
-  } else if (!strcmp(pcParam, "mrt")) {
-
-    // No additional argument allowed for this mode
-    if (tokens_get_num(pCmd->pParamValues) > 1) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: no additional argument allowed for mode \"mrt\"\n");
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-
-    // Update global option
-    BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_MRT;
-
-  } else if (!strcmp(pcParam, "custom")) {
-
+    BGP_OPTIONS_SHOW_MODE= uFormat;
+  } else {
     // Check that an additional argument (format) is provided
     if (tokens_get_num(pCmd->pParamValues) != 2) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: mode \"custom\" requires a format specifier\n");
@@ -513,10 +400,6 @@ int cli_bgp_options_showmode(SCliContext * pContext, SCliCmd * pCmd)
     BGP_OPTIONS_SHOW_FORMAT=
       str_create(tokens_get_string_at(pCmd->pParamValues, 1));
     BGP_OPTIONS_SHOW_MODE= ROUTE_SHOW_CUSTOM;
-
-  } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown show mode \"%s\"\n", pcParam);
-    return CLI_ERROR_COMMAND_FAILED;
   }
 
   return CLI_SUCCESS;
@@ -743,12 +626,16 @@ int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
  *
  * context: {router}
  * tokens: {file}
+ * options: {--format,--force,--summary}
  */
 int cli_bgp_router_load_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
   char * pcFileName;
+  char * pcValue;
   SBGPRouter * pRouter;
+  uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
+  uint8_t tOptions= 0;
 
   // Get the BGP instance from the context
   pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
@@ -756,8 +643,26 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
   // Get the MRTD file name
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
 
+  // Get the optional format
+  pcValue= cli_options_get_value(pCmd->pOptions, "format");
+  if (pcValue != NULL) {
+    if (bgp_routes_str2format(pcValue, &tFormat) != 0) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid input format \"%s\"\n",
+	      pcValue);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  // Get option --force ?
+  if (cli_options_has_value(pCmd->pOptions, "force"))
+    tOptions|= BGP_ROUTER_LOAD_OPTIONS_FORCE;
+    
+  // Get option --summary ?
+  if (cli_options_has_value(pCmd->pOptions, "summary"))
+    tOptions|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
+
   // Load the MRTD file 
-  if (bgp_router_load_rib(pcFileName, pRouter)) {
+  if (bgp_router_load_rib(pRouter, pcFileName, tFormat, tOptions) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not load \"%s\"\n", pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -819,7 +724,7 @@ int cli_bgp_router_save_rib(SCliContext * pContext,
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
 
   // Save the Loc-RIB
-  if (bgp_router_save_rib(pcFileName, pRouter)) {
+  if (bgp_router_save_rib(pRouter, pcFileName)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to save into \"%s\"\n",
 	    pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
@@ -1110,7 +1015,7 @@ int cli_bgp_router_show_routeinfo(SCliContext * pContext,
   }
 
   // Show the route information
-  if (bgp_router_show_routes_info(pStream, pRouter, sDest) < 0) {
+  if (bgp_router_show_routes_info(pStream, pRouter, sDest) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE,
 	    "Error: failed to show info for route(s) towards \"%s\"\n",
 	    pcDest);
@@ -1129,7 +1034,6 @@ int cli_bgp_router_show_routeinfo(SCliContext * pContext,
  * context: {router}
  * tokens: {}
  */
-#ifdef __EXPERIMENTAL__
 int cli_bgp_router_show_stats(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
@@ -1140,7 +1044,6 @@ int cli_bgp_router_show_stats(SCliContext * pContext,
 
   return CLI_SUCCESS;
 }
-#endif
 
 // ----- cli_bgp_router_recordroute ---------------------------------
 /**
@@ -1167,10 +1070,10 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
   }
 
   // Record route
-  iResult= bgp_router_record_route(pRouter, sPrefix, &pPath, 0);
+  iResult= bgp_record_route(pRouter, sPrefix, &pPath, 0);
 
   // Display recorded-route
-  bgp_router_dump_recorded_route(pLogOut, pRouter, sPrefix, pPath, iResult);
+  bgp_dump_recorded_route(pLogOut, pRouter, sPrefix, pPath, iResult);
 
   path_destroy(&pPath);
 
@@ -1333,7 +1236,7 @@ int cli_bgp_router_add_peer(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if (bgp_router_add_peer(pRouter, uASNum, tAddr, 0) == NULL) {
+  if (bgp_router_add_peer(pRouter, uASNum, tAddr, NULL) != 0) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: peer already exists\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -2326,6 +2229,36 @@ int cli_bgp_router_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_show_routers(SCliContext * pContext, SCliCmd * pCmd)
 {
+  char * pcPrefix;
+  char * pcAddr;
+  int iState= 0;
+
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (!strcmp(pcPrefix, "*"))
+    pcPrefix= NULL;
+
+  while ((pcAddr= cli_enum_bgp_routers_addr(pcPrefix, iState++)) != NULL) {
+    log_printf(pLogOut, "%s\n", pcAddr);
+  }
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_bgp_clearadjrib ]--------------------------------------
+/**
+ * context: ---
+ * tokens : ---
+ */
+int cli_bgp_clearadjrib(SCliContext * pContext,
+			SCliCmd * pCmd)
+{
+  SBGPRouter * pRouter;
+  int iState= 0;
+
+  while ((pRouter= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
+    bgp_router_clear_adjrib(pRouter);
+  }
+
   return CLI_ERROR_COMMAND_FAILED;
 }
 
@@ -2379,7 +2312,7 @@ int cli_register_bgp_domain(SCliCmds * pCmds)
   pCmd= cli_cmd_create("record-route",
 		       cli_bgp_domain_recordroute,
 		       NULL, pParams);
-  cli_cmd_add_option(pCmd, "option", NULL);
+  cli_cmd_add_option(pCmd, "deflection", NULL);
   cli_cmds_add(pSubCmds, pCmd);
   pParams= cli_params_create();
   cli_params_add(pParams, "<as-number>", NULL);
@@ -2387,50 +2320,6 @@ int cli_register_bgp_domain(SCliCmds * pCmds)
 						cli_ctx_create_bgp_domain,
 						cli_ctx_destroy_bgp_domain,
 						pSubCmds, pParams));
-}
-
-// ----- cli_register_bgp_topology ----------------------------------
-int cli_register_bgp_topology(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
-  cli_cmds_add(pSubCmds, cli_cmd_create("load",
-					cli_bgp_topology_load,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("policies",
-					cli_bgp_topology_policies,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix>", NULL);
-  cli_params_add(pParams, "<input>", NULL);
-  cli_params_add(pParams, "<output>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("record-route",
-					cli_bgp_topology_recordroute,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show-rib",
-					cli_bgp_topology_showrib,
-					NULL, NULL));
-  /*
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix>", NULL);
-  cli_params_add(pParams, "<output>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("route-dp-rule",
-					cli_bgp_topology_route_dp_rule,
-					NULL, pParams));
-  */
-  cli_cmds_add(pSubCmds, cli_cmd_create("run",
-					cli_bgp_topology_run,
-					NULL, NULL));
-  return cli_cmds_add(pCmds, cli_cmd_create("topology", NULL, pSubCmds, NULL));
 }
 
 // ----- cli_register_bgp_router_add --------------------------------
@@ -2733,7 +2622,7 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
 					cli_bgp_router_peer_virtual,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add2(pParams, "<addr>", NULL, cli_bgp_enum_nodes);
+  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_routers_addr);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("peer",
 						cli_ctx_create_bgp_router_peer,
 						cli_ctx_destroy_bgp_router_peer,
@@ -2817,18 +2706,16 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
   SCliParams * pParams;
+  SCliCmd * pCmd;
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
-  cli_cmds_add(pSubCmds, cli_cmd_create("rib",
-					cli_bgp_router_load_rib,
-					NULL, pParams));
+  cli_params_add_file(pParams, "<file>", NULL);
+  pCmd= cli_cmd_create("rib", cli_bgp_router_load_rib, NULL, pParams);
+  cli_cmd_add_option(pCmd, "force", NULL);
+  cli_cmd_add_option(pCmd, "format", NULL);
+  cli_cmd_add_option(pCmd, "summary", NULL);
+  cli_cmds_add(pSubCmds, pCmd);
 #ifdef __EXPERIMENTAL__
   pParams = cli_params_create();
   cli_params_add(pParams, "<file>", NULL);
@@ -2848,23 +2735,13 @@ int cli_register_bgp_router_save(SCliCmds * pCmds)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
+  cli_params_add_file(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib",
 					cli_bgp_router_save_rib,
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<peer>", NULL);
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
+  cli_params_add_file(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in",
 					cli_bgp_router_save_ribin,
 					NULL, pParams));
@@ -2932,11 +2809,9 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("route-info",
 					cli_bgp_router_show_routeinfo,
 					NULL, pParams));
-#ifdef __EXPERIMENTAL__
   cli_cmds_add(pSubCmds, cli_cmd_create("stats",
 					cli_bgp_router_show_stats,
 					NULL, NULL));
-#endif
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
@@ -2980,7 +2855,7 @@ int cli_register_bgp_router(SCliCmds * pCmds)
   cli_register_bgp_router_set(pSubCmds);
   cli_register_bgp_router_show(pSubCmds);
   pParams= cli_params_create();
-  cli_params_add2(pParams, "<addr>", NULL, cli_bgp_enum_nodes);
+  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_routers_addr);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("router",
 						cli_ctx_create_bgp_router,
 						cli_ctx_destroy_bgp_router, 
@@ -3019,6 +2894,8 @@ int cli_register_bgp(SCli * pCli)
   cli_register_bgp_topology(pCmds);
   cli_register_bgp_router(pCmds);
   cli_register_bgp_show(pCmds);
+  cli_cmds_add(pCmds, cli_cmd_create("clear-adj-rib", cli_bgp_clearadjrib,
+				     NULL, NULL));
   cli_register_cmd(pCli, cli_cmd_create("bgp", NULL, pCmds, NULL));
   return 0;
 }
