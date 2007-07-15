@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/11/2002
-// @lastdate 28/09/2006
+// @lastdate 21/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -81,6 +81,10 @@ SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
   pRoute->pOriginRouter= NULL;
 #endif
 
+#ifdef __BGP_ROUTE_INFO_DP__
+    pRoute->tRank= 0;
+#endif
+
   return pRoute;
 }
 
@@ -91,6 +95,7 @@ SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
 void route_destroy(SRoute ** ppRoute)
 {
   if (*ppRoute != NULL) {
+
     /* BGP QoS */
 #ifdef BGP_QOS
     ptr_array_destroy(&(*ppRoute)->pAggrRoutes);
@@ -666,15 +671,35 @@ SRoute * route_copy(SRoute * pRoute)
   pNewRoute->pRouterList= route_router_list_copy(pRoute);
 #endif
 
+#ifdef __BGP_ROUTE_DP_INFO__
+  pNewRoute->tRank= pRoute->tRank;
+#endif
+
   return pNewRoute;
 }
 
 
 /////////////////////////////////////////////////////////////////////
 //
-// ROUTE DUMP
+// ROUTE DUMP FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
+
+// -----[ route_str2format ]-----------------------------------------
+int route_str2format(const char * pcFormat, uint8_t * puFormat)
+{
+  if (!strcmp(pcFormat, "cisco") || !strcmp(pcFormat, "default")) {
+    *puFormat= BGP_ROUTES_OUTPUT_CISCO;
+    return 0;
+  } else if (!strcmp(pcFormat, "mrt") || !strcmp(pcFormat, "mrt-ascii")) {
+    *puFormat= BGP_ROUTES_OUTPUT_MRT_ASCII;
+    return 0;
+  } else if (!strcmp(pcFormat, "custom")) {
+    *puFormat= BGP_ROUTES_OUTPUT_CUSTOM;
+    return 0;
+  }
+  return -1;
+}
 
 // ----- route_dump -------------------------------------------------
 /**
@@ -683,13 +708,13 @@ SRoute * route_copy(SRoute * pRoute)
 void route_dump(SLogStream * pStream, SRoute * pRoute)
 {
   switch (BGP_OPTIONS_SHOW_MODE) {
-  case ROUTE_SHOW_MRT:
+  case BGP_ROUTES_OUTPUT_MRT_ASCII:
     route_dump_mrt(pStream, pRoute);
     break;
-  case ROUTE_SHOW_CUSTOM:
-    route_dump_custom(pStream, pRoute);
+  case BGP_ROUTES_OUTPUT_CUSTOM:
+    route_dump_custom(pStream, pRoute, BGP_OPTIONS_SHOW_FORMAT);
     break;
-  case ROUTE_SHOW_CISCO:
+  case BGP_ROUTES_OUTPUT_CISCO:
   default:
     route_dump_cisco(pStream, pRoute);
   }
@@ -890,11 +915,14 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
  * %e             | Extended-Communities
  * %O             | Originator-ID
  * %C             | Cluster-ID-List
+ * %A             | origin AS
  */
-void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
+void route_dump_custom(SLogStream * pStream, SRoute * pRoute,
+		       const char * pcFormat)
 {
-  char * pPos= BGP_OPTIONS_SHOW_FORMAT;
+  const char * pPos= pcFormat;
   int iState= 0; /* 0: normal, 1: escaped */
+  int iASN;
 
   while ((pPos != NULL) && (*pPos != 0)) {
     if (iState == 0) {
@@ -960,6 +988,14 @@ void route_dump_custom(SLogStream * pStream, SRoute * pRoute)
       case 'C':
 	if (pRoute->pAttr->pClusterList != NULL)
 	  cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
+	break;
+      case 'A':
+	iASN= path_first_as(pRoute->pAttr->pASPathRef);
+	if (iASN >= 0) {
+	  log_printf(pStream, "%u", iASN);
+	} else {
+	  log_printf(pStream, "*");
+	}
 	break;
       default:
 	log_printf(pStream, "?unknown?");
