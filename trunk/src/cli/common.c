@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 09/01/2007
+// @lastdate 16/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -29,6 +29,7 @@
 #include <cli/net.h>
 #include <cli/sim.h>
 #include <net/prefix.h>
+#include <net/util.h>
 #include <ui/output.h>
 #include <ui/rl.h>
 
@@ -104,6 +105,28 @@ int parse_version(char * pcVersion, unsigned int * puVersion)
   free(pcVersion);
   tokenizer_destroy(&pTokenizer);
   return iResult;
+}
+
+// -----[ cli_net_node_by_addr ]-------------------------------------
+SNetNode * cli_net_node_by_addr(char * pcAddr)
+{
+  net_addr_t tAddr;
+
+  if (str2address(pcAddr, &tAddr))
+    return NULL;
+  return network_find_node(tAddr);
+}
+
+// -----[ cli_params_add_file ]--------------------------------------
+int cli_params_add_file(SCliParams * pParams, const char * pcName,
+			FCliCheckParam fCheck)
+{
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  return cli_params_add2(pParams, (char *) pcName, fCheck,
+			 _FILENAME_COMPLETION_FUNCTION);
+#else
+  return cli_params_add(pParams, (char *) pcName, fCheck);
+#endif
 }
 
 // ----- cli_require_version ----------------------------------------
@@ -269,10 +292,11 @@ int cli_set_debug(SCliContext * pContext, SCliCmd * pCmd)
 int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
 {
 #ifdef HAVE_BGPDUMP
+  /*
   char * pcPredicate;
   SFilterMatcher * pMatcher;
 
-  /* Parse predicate */
+  // Parse predicate
   pcPredicate= tokens_get_string_at(pCmd->pParamValues, 1);
   if (predicate_parse(&pcPredicate, &pMatcher)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n",
@@ -280,9 +304,9 @@ int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  /* Dump routes that match the given predicate */
+  // Dump routes that match the given predicate
   mrtd_load_routes(tokens_get_string_at(pCmd->pParamValues, 0), 1, pMatcher);
-
+*/
   return CLI_SUCCESS;
 #else
   LOG_ERR(LOG_LEVEL_SEVERE, "Error: compiled without bgpdump.\n");
@@ -450,6 +474,9 @@ int cli_show_version(SCliContext * pContext, SCliCmd * pCmd)
 #ifdef __EXPERIMENTAL__ 
   log_printf(pLogOut, " [experimental]");
 #endif
+#ifdef HAVE_LIBZ
+  log_printf(pLogOut, " [zlib]");
+#endif
 #ifdef HAVE_JNI
   log_printf(pLogOut, " [jni]");
 #endif
@@ -600,12 +627,7 @@ void cli_register_show(SCli * pCli)
 					cli_show_commands,
 					NULL, NULL));  
   pParams= cli_params_create();
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<filename>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<filename>", NULL);
-#endif
+  cli_params_add_file(pParams, "<filename>", NULL);
   cli_params_add(pParams, "<predicate>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("mrt", cli_show_mrt,
 					NULL, pParams));
@@ -636,13 +658,7 @@ void cli_register_include(SCli * pCli)
 {
   SCliParams * pParams= cli_params_create();
 
-#ifdef _FILENAME_COMPLETION_FUNCTION
-  cli_params_add2(pParams, "<file>", NULL,
-		  _FILENAME_COMPLETION_FUNCTION);
-#else
-  cli_params_add(pParams, "<file>", NULL);
-#endif
-
+  cli_params_add_file(pParams, "<file>", NULL);
   cli_register_cmd(pCli, cli_cmd_create("include", cli_include,
 					NULL, pParams));
 }
