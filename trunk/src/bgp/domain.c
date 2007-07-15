@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 23/01/2007
+// @lastdate 31/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -238,7 +238,7 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
       pRouter2= pRouters->data[iIndex2];
 
       bgp_router_add_peer(pRouter1, pDomain->uNumber,
-			  pRouter2->pNode->tAddr, 0);
+			  pRouter2->pNode->tAddr, NULL);
 
     }
 
