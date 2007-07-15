@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 03/03/2006
+// @lastdate 24/04/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -161,7 +161,7 @@ int predicate_parse(char ** ppcExpr, SFilterMatcher ** ppMatcher)
  */
 void predicate_parser_test()
 {
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
   char * pcMatcher;
   SFilterMatcher * pMatcher;
 
