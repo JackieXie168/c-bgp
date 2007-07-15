@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 05/08/2005
+// @lastdate 02/05/2007
 // ==================================================================
 
 #ifndef __PEER_T_H__
@@ -19,11 +19,6 @@
 #define SESSION_STATE_ACTIVE      3
 
 extern char * SESSION_STATES[4];
-
-#define PEER_TYPE_CUSTOMER 0
-#define PEER_TYPE_PROVIDER 1
-#define PEER_TYPE_PEER     2
-#define PEER_TYPE_UNKNOWN  255
 
 // ----- Peer flags -----
 /* The peer is a route-reflector client */
@@ -47,4 +42,4 @@ extern char * SESSION_STATES[4];
 struct TBGPPeer;
 typedef struct TBGPPeer SBGPPeer;
 
-#endif
+#endif /* __PEER_T_H__ */
