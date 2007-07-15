@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/02/2004
-// @lastdate 11/09/2006
+// @lastdate 21/05/2007
 // ==================================================================
 
 #ifndef __MRTD_H__
@@ -16,34 +16,62 @@
 #include <bgp/message.h>
 #include <bgp/peer_t.h>
 #include <bgp/routes_list.h>
+#include <bgp/route-input.h>
 
 typedef uint8_t mrtd_input_t;
 
+// ----- MRT file types -----
 #define MRTD_TYPE_INVALID  0
 #define MRTD_TYPE_RIB      'B' /* Best route */
 #define MRTD_TYPE_UPDATE   'A' /* Advertisement */
 #define MRTD_TYPE_WITHDRAW 'W' /* Withdraw */
 
-// ----- mrtd_create_path -------------------------------------------
-extern SBGPPath * mrtd_create_path(char * pcPath);
+// ----- MRT file formats -----
+#define MRT_FORMAT_ASCII  0
+#define MRT_FORMAT_BINARY 1
 
-// ----- mrtd_route_from_line ---------------------------------------
-extern SRoute * mrtd_route_from_line(SBGPRouter * pRouter,
-				     char * pcLine);
-// ----- mrtd_msg_from_line -----------------------------------------
-extern SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter,
-				    SBGPPeer * pPeer,
-				    char * pcLine);
-// ----- mrtd_ascii_load_routes -------------------------------------
-extern SPtrArray * mrtd_ascii_load_routes(SBGPRouter * pRouter,
-					  char * pcFileName);
-// ----- mrtd_load_routes -------------------------------------------
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  ///////////////////////////////////////////////////////////////////
+  // ASCII MRT FUNCTIONS
+  ///////////////////////////////////////////////////////////////////
+
+  // ----- mrtd_create_path -----------------------------------------
+  SBGPPath * mrtd_create_path(const char * pcPath);
+  // ----- mrtd_route_from_line -------------------------------------
+  SRoute * mrtd_route_from_line(const char * pcLine,
+				net_addr_t * ptPeerAddr,
+				unsigned int * puPeerAS);
+  // ----- mrtd_msg_from_line ---------------------------------------
+  SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SBGPPeer * pPeer,
+			       const char * pcLine);
+  // ----- mrtd_ascii_load_routes -----------------------------------
+  int mrtd_ascii_load(const char * pcFileName, FBGPRouteHandler fHandler,
+		      void * pContext);
+
+
+  ///////////////////////////////////////////////////////////////////
+  // BINARY MRT FUNCTIONS
+  ///////////////////////////////////////////////////////////////////
+
 #ifdef HAVE_BGPDUMP
-extern SRoutes * mrtd_load_routes(const char * pcFileName, int iOnlyDump,
-				  SFilterMatcher * pMatcher);
+  // -----[ mrtd_binary_load ]---------------------------------------
+  int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
+		       void * pContext);
 #endif
 
-// ----- _mrtd_destroy ----------------------------------------------
-extern void _mrtd_destroy();
 
+  ///////////////////////////////////////////////////////////////////
+  // INITIALIZATION & FINALIZATION
+  ///////////////////////////////////////////////////////////////////
+
+  // ----- _mrtd_destroy --------------------------------------------
+  void _mrtd_destroy();
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* __MRTD_H__ */
