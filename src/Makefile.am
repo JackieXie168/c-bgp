@@ -71,10 +71,16 @@ libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
-bin_PROGRAMS = cbgp
-cbgp_SOURCES = \
-	main.c
+bin_PROGRAMS = cbgp cbgp-dump cbgp-test
+cbgp_SOURCES = main.c
 cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+
+cbgp_dump_SOURCES = main-dump.c
+cbgp_dump_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+
+cbgp_test_SOURCES = main-test.c
+cbgp_test_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+
 
 # -------------------------------------------------------------------
 # Install hook (called after all install targets/hooks)
