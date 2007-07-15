@@ -1,4 +1,4 @@
-/* $Id: bgpdump_lib.h,v 1.1 2005-02-23 08:16:01 bqu Exp $ */
+/* $Id: bgpdump_lib.h,v 1.2 2007-07-15 14:44:22 bqu Exp $ */
 /*
 
 Copyright (c) 2002                      RIPE NCC
@@ -66,11 +66,15 @@ To Do             :
 #define BGPDUMP_MAX_AS_PATH_LEN	2000
 
 typedef struct struct_BGPDUMP {
-    gzFile	*f;
-    int		eof;
-    char	filename[BGPDUMP_MAX_FILE_LEN];
-    int		parsed;
-    int		parsed_ok;
+#ifdef HAVE_LIBZ
+  gzFile	*f;
+#else
+  FILE *f; 
+#endif
+  int		eof;
+  char	filename[BGPDUMP_MAX_FILE_LEN];
+  int		parsed;
+  int		parsed_ok;
 } BGPDUMP;
 
 /* prototypes */
