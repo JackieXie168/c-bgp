@@ -175,11 +175,11 @@ int comm_hash_set_method(uint8_t uMethod)
   return 0;
 }
 
-// -----[ comm_hash_content_for_each ]-------------------------------
+// -----[ _comm_hash_content_for_each ]------------------------------
 /**
  *
  */
-int _comm_hash_content_for_each(void * pItem, void * pContext)
+static int _comm_hash_content_for_each(void * pItem, void * pContext)
 {
   SLogStream * pStream= (SLogStream *) pContext;
   SCommunities * pCommunities= (SCommunities *) pItem;
@@ -187,9 +187,9 @@ int _comm_hash_content_for_each(void * pItem, void * pContext)
 
   uRefCnt= hash_info(pCommHash, pCommunities);
 
-  log_printf(pStream, "%u\t", uRefCnt);
+  log_printf(pStream, "%u\t[", uRefCnt);
   comm_dump(pStream, pCommunities, 1);
-  log_printf(pStream, "\n");
+  log_printf(pStream, "]\n");
   return 0;
 }
 
@@ -210,11 +210,11 @@ void comm_hash_content(SLogStream * pStream)
 			pStream));
 }
 
-// -----[ comm_hash_statistics_for_each ]----------------------------
+// -----[ _comm_hash_statistics_for_each ]---------------------------
 /**
  *
  */
-int _comm_hash_statistics_for_each(void * pItem, void * pContext)
+static int _comm_hash_statistics_for_each(void * pItem, void * pContext)
 {
   SLogStream * pStream= (SLogStream *) pContext;
   SPtrArray * pArray= (SPtrArray *) pItem;

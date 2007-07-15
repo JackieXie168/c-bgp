@@ -76,7 +76,7 @@ void bgp_attr_destroy(SBGPAttr ** ppAttr)
 /**
  *
  */
-inline void bgp_attr_set_nexthop(SBGPAttr ** ppAttr,
+void bgp_attr_set_nexthop(SBGPAttr ** ppAttr,
 				 net_addr_t tNextHop)
 {
   (*ppAttr)->tNextHop= tNextHop;
@@ -86,7 +86,7 @@ inline void bgp_attr_set_nexthop(SBGPAttr ** ppAttr,
 /**
  *
  */
-inline net_addr_t bgp_attr_get_nexthop(SBGPAttr * pAttr)
+net_addr_t bgp_attr_get_nexthop(SBGPAttr * pAttr)
 {
   return pAttr->tNextHop;
 }
@@ -95,7 +95,7 @@ inline net_addr_t bgp_attr_get_nexthop(SBGPAttr * pAttr)
 /**
  *
  */
-inline void bgp_attr_set_origin(SBGPAttr ** ppAttr,
+void bgp_attr_set_origin(SBGPAttr ** ppAttr,
 				      bgp_origin_t tOrigin)
 {
   (*ppAttr)->tOrigin= tOrigin;
@@ -103,14 +103,17 @@ inline void bgp_attr_set_origin(SBGPAttr ** ppAttr,
 
 // -----[ bgp_attr_set_path ]----------------------------------------
 /**
- *
+ * Takes an external path and associates it to the route. If the path
+ * already exists in the repository, the external path is destroyed.
+ * Otherwize, it is internalized (put in the repository).
  */
-inline void bgp_attr_set_path(SBGPAttr ** ppAttr, SBGPPath * pPath)
+void bgp_attr_set_path(SBGPAttr ** ppAttr, SBGPPath * pPath)
 {
   _bgp_attr_path_destroy(*ppAttr);
   if (pPath != NULL) {
     assert(path_hash_add(pPath) != -1);
     (*ppAttr)->pASPathRef= path_hash_get(pPath);
+
     if ((*ppAttr)->pASPathRef != pPath)
       path_destroy(&pPath);
   }
@@ -156,6 +159,7 @@ static void _bgp_attr_path_copy(SBGPAttr * pAttr, SBGPPath * pPath)
 static void _bgp_attr_path_destroy(SBGPAttr * pAttr)
 {
   if (pAttr->pASPathRef != NULL) {
+    /*log_printf(pLogErr, "remove (%p)\n", pAttr->pASPathRef);*/
     path_hash_remove(pAttr->pASPathRef);
     pAttr->pASPathRef= NULL;
   }
@@ -165,7 +169,7 @@ static void _bgp_attr_path_destroy(SBGPAttr * pAttr)
 /**
  *
  */
-inline void bgp_attr_set_comm(SBGPAttr ** ppAttr,
+void bgp_attr_set_comm(SBGPAttr ** ppAttr,
 			      SCommunities * pCommunities)
 {
   bgp_attr_comm_destroy(ppAttr);
@@ -182,7 +186,7 @@ inline void bgp_attr_set_comm(SBGPAttr ** ppAttr,
  * Copy the Communities attribute and update the references into the
  * global path repository.
  */
-inline void _bgp_attr_comm_copy(SBGPAttr * pAttr,
+void _bgp_attr_comm_copy(SBGPAttr * pAttr,
 			       SCommunities * pCommunities)
 {
   bgp_attr_comm_destroy(&pAttr);
@@ -195,7 +199,7 @@ inline void _bgp_attr_comm_copy(SBGPAttr * pAttr,
  * Destroy the Communities attribute and removes the global
  * reference.
  */
-inline void bgp_attr_comm_destroy(SBGPAttr ** ppAttr)
+void bgp_attr_comm_destroy(SBGPAttr ** ppAttr)
 {
   if ((*ppAttr)->pCommunities != NULL) {
     comm_hash_remove((*ppAttr)->pCommunities);
@@ -207,7 +211,7 @@ inline void bgp_attr_comm_destroy(SBGPAttr ** ppAttr)
 /**
  *
  */
-inline void bgp_attr_comm_remove(SBGPAttr ** ppAttr, comm_t tCommunity)
+void bgp_attr_comm_remove(SBGPAttr ** ppAttr, comm_t tCommunity)
 {
   SCommunities * pCommunities;
 
@@ -255,7 +259,7 @@ static inline void _bgp_attr_originator_copy(SBGPAttr * pAttr,
 /**
  *
  */
-inline void bgp_attr_originator_destroy(SBGPAttr * pAttr)
+void bgp_attr_originator_destroy(SBGPAttr * pAttr)
 {
   if (pAttr->pOriginator != NULL) {
     FREE(pAttr->pOriginator);
@@ -280,7 +284,7 @@ static inline void _bgp_attr_cluster_list_copy(SBGPAttr * pAttr,
 /**
  *
  */
-inline void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr)
+void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr)
 {
   cluster_list_destroy(&pAttr->pClusterList);
 }
