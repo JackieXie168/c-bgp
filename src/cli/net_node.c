@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/05/2007
-// @lastdate 15/05/2007
+// @lastdate 22/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,6 +19,7 @@
 #include <net/icmp.h>
 #include <net/igp_domain.h>
 #include <net/net_types.h>
+#include <net/netflow.h>
 #include <net/node.h>
 #include <net/record-route.h>
 #include <net/util.h>
@@ -49,6 +50,7 @@ int cli_ctx_create_net_node(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_net_node -----------------------------------
 void cli_ctx_destroy_net_node(void ** ppItem)
 {
+  // Nothing to do (context is only a reference)
 }
 
 // ----- cli_ctx_create_net_node_link ------------------------------------
@@ -88,6 +90,7 @@ int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_net_node_link -----------------------------------
 void cli_ctx_destroy_net_node_link(void ** ppItem)
 {
+  // Nothing to do (context is only a reference)
 }
 
 
@@ -150,7 +153,7 @@ int cli_net_node_ipip_enable(SCliContext * pContext, SCliCmd * pCmd)
   // Get node from context
   pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
 
-  // Enabled IP-in-IP
+  // Enable IP-in-IP
   if (node_ipip_enable(pNode)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: unexpected error.\n");
     return CLI_ERROR_COMMAND_FAILED;
@@ -218,16 +221,9 @@ int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
     uTTL= uValue;
   }
 
-  // Perform ping
+  // Perform ping (note that errors are ignored)
   iErrorCode= icmp_ping(pLogOut, pNode, NET_ADDR_ANY, tDstAddr, uTTL);
-  /*if (iErrorCode != NET_SUCCESS) {
-    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
-      log_printf(pLogErr, "Error: ping failed: ");
-      network_perror(pLogErr, iErrorCode);
-      log_printf(pLogErr, "\n");
-    }
-    return CLI_ERROR_COMMAND_FAILED;
-    }*/
+
   return CLI_SUCCESS;
 }
 
@@ -342,16 +338,8 @@ int cli_net_node_traceroute(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Perform traceroute
-  iErrorCode= icmp_trace_route(pLogOut, pNode, NET_ADDR_ANY, tDstAddr, 0);
-  /*if (iErrorCode != NET_SUCCESS) {
-    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
-      log_printf(pLogErr, "Error: traceroute failed: ");
-      network_perror(pLogErr, iErrorCode);
-      log_printf(pLogErr, "\n");
-    }
-    return CLI_ERROR_COMMAND_FAILED;
-    }*/
+  // Perform traceroute (note that errors are ignored)
+  iErrorCode= icmp_trace_route(pLogOut, pNode, NET_ADDR_ANY, tDstAddr, 0, NULL);
 
   return CLI_SUCCESS;
 }
@@ -647,12 +635,61 @@ int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
+// -----[ cli_net_node_traffic_load ] -------------------------------
+/**
+ * context: {node}
+ * tokens: {<filename>}
+ * option: ---
+ */
+int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
+{
+  char * pcFileName;
+  SNetNode * pNode;
+  int iResult;
+  uint8_t tOptions= 0;
+
+  // Get node from context
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+
+  // Get option "--summary" ?
+  if (cli_options_has_value(pCmd->pOptions, "summary"))
+    tOptions|= NET_NODE_NETFLOW_OPTIONS_SUMMARY;
+
+  // Load Netflow from file
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
+  iResult= node_load_netflow(pNode, pcFileName, tOptions);
+  if (iResult != NETFLOW_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
+    netflow_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
+}
+
 
 /////////////////////////////////////////////////////////////////////
 //
 // CLI REGISTRATION
 //
 /////////////////////////////////////////////////////////////////////
+
+// ----- cli_register_net_node_traffic ------------------------------
+int cli_register_net_node_traffic(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds;
+  SCliParams * pParams;
+  SCliCmd * pCmd;
+
+  pSubCmds= cli_cmds_create();
+  pParams= cli_params_create();
+  cli_params_add_file(pParams, "<filename>", NULL);
+  pCmd= cli_cmd_create("load", cli_net_node_traffic_load, NULL, pParams);
+  cli_cmd_add_option(pCmd, "summary", NULL);
+  cli_cmds_add(pSubCmds, pCmd);
+  return cli_cmds_add(pCmds, cli_cmd_create("traffic", NULL, pSubCmds, NULL));
+}
 
 // ----- cli_register_net_node_show ---------------------------------
 int cli_register_net_node_show(SCliCmds * pCmds)
@@ -788,6 +825,7 @@ int cli_register_net_node(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, pCmd);
 
   cli_register_net_node_show(pSubCmds);
+  cli_register_net_node_traffic(pSubCmds);
   cli_register_net_node_tunnel(pSubCmds);
 #ifdef OSPF_SUPPORT
   cli_register_net_node_ospf(pSubCmds);
