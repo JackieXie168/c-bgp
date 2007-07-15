@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 10/04/2006
+// @lastdate 22/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,6 +19,7 @@
 #include <net/network.h>
 #include <bgp/peer.h>
 #include <net/protocol.h>
+#include <bgp/record-route.h>
 #include <bgp/route_t.h>
 
 int build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
@@ -80,8 +81,7 @@ int bgp_assert_reachability()
 	  pRoute= (SRoute *) pRouterDst->pLocalNetworks->data[iIndexNet];
 
 	  // Check BGP reachability
-	  if (bgp_router_record_route(pRouterSrc, pRoute->sPrefix,
-				      &pPath, 0)) {
+	  if (bgp_record_route(pRouterSrc, pRoute->sPrefix, &pPath, 0)) {
 	    log_printf(pLogOut, "Assert: ");
 	    ip_address_dump(pLogOut, pRouterSrc->pNode->tAddr);
 	    log_printf(pLogOut, " can not reach ");
