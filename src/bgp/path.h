@@ -3,11 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 03/03/2006
+// @lastdate 22/05/2007
 // ==================================================================
 
-#ifndef __PATH_H__
-#define __PATH_H__
+#ifndef __BGP_PATH_H__
+#define __BGP_PATH_H__
 
 #include <stdio.h>
 
@@ -16,55 +16,63 @@
 
 #include <bgp/types.h>
 
-
-// ----- path_create ------------------------------------------------
-extern SBGPPath * path_create();
-// ----- path_destroy -----------------------------------------------
-extern void path_destroy(SBGPPath ** ppPath);
-// ----- path_max_value ---------------------------------------------
-SBGPPath * path_max_value();
-// ----- path_addref ------------------------------------------------
-//extern void path_addref(SBGPPath ** ppPath);
-// ----- path_unref -------------------------------------------------
-//extern void path_unref(SBGPPath ** ppPath);
-// ----- path_copy --------------------------------------------------
-extern SBGPPath * path_copy(SBGPPath * pPath);
-// ----- path_num_segments ------------------------------------------
-extern int path_num_segments(SBGPPath * pPath);
-// ----- path_length ------------------------------------------------
-extern int path_length(SBGPPath * pPath);
-// ----- path_add_segment -------------------------------------------
-extern int path_add_segment(SBGPPath * pPath, SPathSegment *pSegment);
-// ----- path_append ------------------------------------------------
-extern int path_append(SBGPPath ** ppPath, uint16_t uAS);
-// ----- path_contains ----------------------------------------------
-extern int path_contains(SBGPPath * pPath, uint16_t uAS);
-// -----[ path_last_as ]---------------------------------------------
-extern int path_last_as(SBGPPath * pPath);
-// -----[ path_to_string ]-------------------------------------------
-extern int path_to_string(SBGPPath * pPath, uint8_t uReverse,
-			  char * pcDst, size_t tDstSize);
-// ----- path_dump_string -------------------------------------------
-char * path_dump_string(SBGPPath * pPath, uint8_t uReverse);
-// ----- path_dump --------------------------------------------------
-extern void path_dump(SLogStream * pStream, SBGPPath * pPath,
-		      uint8_t uReverse);
-// ----- path_hash --------------------------------------------------
-extern int path_hash(SBGPPath * pPath);
-// -----[ path_hash_zebra ]------------------------------------------
-extern uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize);
-// -----[ path_hash_OAT ]--------------------------------------------
-extern uint32_t path_hash_OAT(const void * pItem, const uint32_t uHashSize);
-// ----- path_comparison --------------------------------------------
-int path_comparison(SBGPPath * path1, SBGPPath * path2);
-// ----- path_equals ------------------------------------------------
-extern int path_equals(SBGPPath * pPath1, SBGPPath * pPath2);
-// ----- path_aggregate ---------------------------------------------
-/*extern SBGPPath * path_aggregate(SBGPPath * apPaths[],
-  unsigned int uNumPaths);*/
-// ----- path_match -------------------------------------------------
-int path_match(SBGPPath * pPath, int iArrayPathRegExPos);
-
-extern void _path_test();
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // ----- path_create ----------------------------------------------
+  SBGPPath * path_create();
+  // ----- path_destroy ---------------------------------------------
+  void path_destroy(SBGPPath ** ppPath);
+  // ----- path_max_value -------------------------------------------
+  SBGPPath * path_max_value();
+  // ----- path_addref ----------------------------------------------
+  //void path_addref(SBGPPath ** ppPath);
+  // ----- path_unref -----------------------------------------------
+  //void path_unref(SBGPPath ** ppPath);
+  // ----- path_copy ------------------------------------------------
+  SBGPPath * path_copy(SBGPPath * pPath);
+  // ----- path_num_segments ----------------------------------------
+  int path_num_segments(SBGPPath * pPath);
+  // ----- path_length ----------------------------------------------
+  int path_length(SBGPPath * pPath);
+  // ----- path_add_segment -----------------------------------------
+  int path_add_segment(SBGPPath * pPath, SPathSegment *pSegment);
+  // ----- path_append ----------------------------------------------
+  int path_append(SBGPPath ** ppPath, uint16_t uAS);
+  // ----- path_contains --------------------------------------------
+  int path_contains(SBGPPath * pPath, uint16_t uAS);
+  // -----[ path_last_as ]-------------------------------------------
+  int path_last_as(SBGPPath * pPath);
+  // -----[ path_first_as ]------------------------------------------
+  int path_first_as(SBGPPath * pPath);
+  // -----[ path_to_string ]-----------------------------------------
+  int path_to_string(SBGPPath * pPath, uint8_t uReverse,
+		     char * pcDst, size_t tDstSize);
+  // ----- path_dump_string -----------------------------------------
+  char * path_dump_string(SBGPPath * pPath, uint8_t uReverse);
+  // ----- path_dump ------------------------------------------------
+  void path_dump(SLogStream * pStream, SBGPPath * pPath, uint8_t uReverse);
+  // ----- path_hash ------------------------------------------------
+  int path_hash(SBGPPath * pPath);
+  // -----[ path_hash_zebra ]----------------------------------------
+  uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize);
+  // -----[ path_hash_OAT ]--------------------------------------------
+  uint32_t path_hash_OAT(const void * pItem, const uint32_t uHashSize);
+  // ----- path_comparison ------------------------------------------
+  int path_comparison(SBGPPath * path1, SBGPPath * path2);
+  // ----- path_equals ----------------------------------------------
+  int path_equals(SBGPPath * pPath1, SBGPPath * pPath2);
+  // ----- path_aggregate -------------------------------------------
+  /*extern SBGPPath * path_aggregate(SBGPPath * apPaths[],
+    unsigned int uNumPaths);*/
+  // ----- path_match -----------------------------------------------
+  int path_match(SBGPPath * pPath, int iArrayPathRegExPos);
+  
+  void _path_test();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BGP_PATH_H__ */

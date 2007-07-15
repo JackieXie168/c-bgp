@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 03/03/2006
+// @lastdate 13/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -53,6 +53,7 @@ SBGPPath * path_create()
 void path_destroy(SBGPPath ** ppPath)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
+  /*log_printf(pLogErr, "destroy (%p)\n", *ppPath);*/
   ptr_array_destroy(ppPath);
 #else
   if (*ppPath != NULL) {
@@ -343,6 +344,36 @@ int path_last_as(SBGPPath * pPath) {
 #endif
 }
 
+// -----[ path_first_as ]--------------------------------------------
+/**
+ * Return the first AS-number in the AS-Path. This function can be
+ * used to retrieve the origin AS.
+ *
+ * Note: this function does not work if the first segment in the
+ * AS-Path is of type AS-SET since there is no ordering of the
+ * AS-numbers in this case.
+ */
+int path_first_as(SBGPPath * pPath) {
+#ifndef __BGP_PATH_TYPE_TREE__
+  SPathSegment * pSegment;
+
+  if (path_length(pPath) > 0) {
+    pSegment= (SPathSegment *) pPath->data[0];
+
+    // Check that the segment is of type AS_SEQUENCE 
+    assert(pSegment->uType == AS_PATH_SEGMENT_SEQUENCE);
+    // Check that segment's size is larger than 0
+    assert(pSegment->uLength > 0);
+
+    return pSegment->auValue[0];
+  } else {
+    return -1;
+  }
+#else
+  abort();
+#endif
+}
+
 // -----[ path_to_string ]-------------------------------------------
 /**
  * Convert the given AS-Path to a string. The string memory MUST have
@@ -350,10 +381,15 @@ int path_last_as(SBGPPath * pPath) {
  * allocated buffer, based on the provided destination buffer size.
  *
  * Return value:
- *   The function returns a valid pointer if the AS-Path could be
- *   written in the provided buffer. The returned pointer is the first
- *   character that follows the conversion. If there was not enough
- *   space in the buffer to write the AS-Path, then NULL is returned.
+ *   The function returns the number of character written (not
+ *   including the trailing '\0'. If the output was truncated, the
+ *   returned value is equal or larger to the destination buffer
+ *   size.
+ *
+ * Note: the function uses snprintf() in order to write into the
+ * destination buffer. The return value of snprintf() is important. A
+ * return value equal or larger that the maximum destination size
+ *  means that the output was truncated.
  */
 int path_to_string(SBGPPath * pPath, uint8_t uReverse,
 		   char * pcDst, size_t tDstSize)
@@ -364,17 +400,15 @@ int path_to_string(SBGPPath * pPath, uint8_t uReverse,
   size_t tInitialDstSize= tDstSize;
   int iNumSegments;
 
-  if (pPath == NULL) {
-    iWritten= snprintf(pcDst, tDstSize, "null");
-    if (iWritten >= tDstSize)
-      return tDstSize;
-    pcDst+= iWritten;
-    tDstSize-= iWritten;
-    return (tInitialDstSize-tDstSize);
+  if ((pPath == NULL) || (path_num_segments(pPath) == 0)) {
+    if (tDstSize < 1)
+      return tInitialDstSize;
+    *pcDst= '\0';
+    return 1;
   }
 
   if (uReverse) {
-    iNumSegments= path_num_segments(pPath); 
+    iNumSegments= path_num_segments(pPath);
     for (iIndex= iNumSegments; iIndex > 0; iIndex--) {
       // Write space (if required)
       if (iIndex < iNumSegments) {
@@ -392,6 +426,7 @@ int path_to_string(SBGPPath * pPath, uint8_t uReverse,
       pcDst+= iWritten;
       tDstSize-= iWritten;
     }
+
   } else {
     for (iIndex= 0; iIndex < path_num_segments(pPath);
 	 iIndex++) {
@@ -504,8 +539,8 @@ void path_dump(SLogStream * pStream, SBGPPath * pPath, uint8_t uReverse)
 #ifndef __BGP_PATH_TYPE_TREE__
   int iIndex;
 
-  if (pPath == NULL) {
-    log_printf(pStream, "null");
+  if ((pPath == NULL) || (path_num_segments(pPath) == 0)) {
+    log_printf(pStream, "");
   } else {
     if (uReverse) {
       for (iIndex= path_num_segments(pPath); iIndex > 0;
