@@ -44,27 +44,39 @@ static char acPathStr1[AS_PATH_STR_SIZE];
 static char acPathStr2[AS_PATH_STR_SIZE];
 static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize)
 {
+  uint32_t tKey;
   assert(path_to_string((SBGPPath *) pPath, 1, acPathStr1, AS_PATH_STR_SIZE)
 	 < AS_PATH_STR_SIZE);
-  return hash_utils_key_compute_string(acPathStr1, uPathHashSize)%uHashSize;
+  tKey= hash_utils_key_compute_string(acPathStr1, uPathHashSize) % uHashSize;
+  /*log_printf(pLogErr, "key(%p): %d [%s]\n", pPath, tKey, acPathStr1);*/
+  return tKey;
 }
 
 // -----[ path_hash_item_compare ]-----------------------------------
 int _path_hash_item_compare(void * pPath1, void * pPath2,
 			    unsigned int uEltSize)
 {
+  int iCmp;
+
+  // If paths pointers are equal, no need to compare their content.
+  if (pPath1 == pPath2)
+    return 0;
+
   assert(path_to_string(pPath1, 1, acPathStr1, AS_PATH_STR_SIZE)
 	 < AS_PATH_STR_SIZE);
   assert(path_to_string(pPath2, 1, acPathStr2, AS_PATH_STR_SIZE)
 	 < AS_PATH_STR_SIZE);
-
-  return strcmp(acPathStr1, acPathStr2);
+  iCmp= strcmp(acPathStr1, acPathStr2);
+  /*log_printf(pLogErr, "compare(%p [%s], %p [%s]): %d\n",
+    pPath1, acPathStr1, pPath2, acPathStr2, iCmp);*/
+  return iCmp;
 }
 
 // -----[ path_hash_item_destroy ]-----------------------------------
 void _path_hash_item_destroy(void * pItem)
 {
   SBGPPath * pPath= (SBGPPath *) pItem;
+  /*log_printf(pLogErr, "path-hash-destroy %p\n", pPath);*/
   path_destroy(&pPath);
 }
 
@@ -95,6 +107,9 @@ SBGPPath * path_hash_get(SBGPPath * pPath)
 int path_hash_remove(SBGPPath * pPath)
 {
   _path_hash_init();
+  /*log_printf(pLogErr, "path-hash-remove %p [", pPath);
+  path_dump(pLogErr, pPath, 1);
+  log_printf(pLogErr, "]\n");*/
   return hash_del(pPathHash, pPath);
 }
 
@@ -165,6 +180,7 @@ int _path_hash_content_for_each(void * pItem, void * pContext)
 
   log_printf(pStream, "%u\t", uRefCnt);
   path_dump(pStream, pPath, 1);
+  /*log_printf(pStream, " (%p)", pPath);*/
   log_printf(pStream, "\n");
   return 0;
 }
