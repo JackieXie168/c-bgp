@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 24/11/2002
-// @lastdate 23/04/2007
+// @lastdate 30/04/2007
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -28,7 +28,6 @@ struct TBGPPeer {
 			      // IP address when the session is
 			      // opened.
   uint16_t uRemoteAS;         // AS-number of the neighbor.
-  uint8_t uPeerType;
   SBGPRouter * pLocalRouter;  // Reference to the local router.
   SFilter * pInFilter;        // Input and output filters
   SFilter * pOutFilter;
@@ -53,8 +52,7 @@ extern "C" {
   // ----- bgp_peer_create ------------------------------------------
   SBGPPeer * bgp_peer_create(uint16_t uRemoteAS,
 			     net_addr_t tAddr,
-			     SBGPRouter * pLocalRouter,
-			     uint8_t uPeerType);
+			     SBGPRouter * pLocalRouter);
   // ----- bgp_peer_destroy -----------------------------------------
   void bgp_peer_destroy(SBGPPeer ** ppPeer);
 

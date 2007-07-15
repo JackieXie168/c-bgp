@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 23/04/2007
+// @lastdate 31/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,7 @@
 #include <libgds/log.h>
 #include <libgds/memory.h>
 
+#include <net/error.h>
 #include <net/icmp.h>
 #include <net/record-route.h>
 #include <bgp/as.h>
@@ -28,6 +29,7 @@
 #include <bgp/qos.h>
 #include <bgp/route.h>
 #include <net/network.h>
+#include <net/node.h>
 
 char * SESSION_STATES[4]= {
   "IDLE",
@@ -48,13 +50,12 @@ static void _bgp_peer_rescan_adjribin(SBGPPeer * pPeer, int iClear);
  *   - input/output adjacent RIBs
  */
 SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
-			   SBGPRouter * pLocalRouter, uint8_t uPeerType)
+			   SBGPRouter * pLocalRouter)
 {
   SBGPPeer * pPeer= (SBGPPeer *) MALLOC(sizeof(SBGPPeer));
   pPeer->uRemoteAS= uRemoteAS;
   pPeer->tAddr= tAddr;
   pPeer->tRouterID= 0;
-  pPeer->uPeerType= uPeerType;
   pPeer->pLocalRouter= pLocalRouter;
   pPeer->pInFilter= NULL; // Default = ACCEPT ANY
   pPeer->pOutFilter= NULL; // Default = ACCEPT ANY
