@@ -50,7 +50,7 @@ To Do             :
 
 /**
  * Updated by Bruno Quoitin (bqu@info.ucl.ac.be)
- * @lastdate 11/10/2005
+ * @lastdate 16/05/2007
  */
 
 #ifdef HAVE_CONFIG_H
@@ -71,7 +71,21 @@ To Do             :
 
 #include <syslog.h>
 
+#ifdef HAVE_LIBZ
 #include <zlib.h>
+typedef gzFile FILE_TYPE;
+#define FILE_OPEN(N,A) gzopen(N,A)
+#define FILE_DOPEN(N,A) gzdopen(N,A)
+#define FILE_CLOSE(F) gzclose(F)
+#define FILE_READ(F,B,S) gzread(F, B, S)
+#else
+#include <stdio.h>
+typedef FILE FILE_TYPE;
+#define FILE_OPEN(N,A) fopen(N,A)
+#define FILE_DOPEN(N,A) fdopen(N,A)
+#define FILE_CLOSE(F) fclose(F)
+#define FILE_READ(F,B,S) fread(B, 1, S, F)
+#endif
 
 //static    int process_mrtd_bgp(struct mstream *s,BGPDUMP_ENTRY *entry);
 static    int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry);
@@ -104,16 +118,16 @@ static    size_t strlcat(char *dst, const char *src, size_t size);
 
 BGPDUMP *bgpdump_open_dump(const char *filename) {
     BGPDUMP *this_dump=NULL;
-    gzFile *f;
+    FILE_TYPE *f;
 
     this_dump = malloc(sizeof(BGPDUMP));
 
     if((filename == NULL) || (strcmp(filename, "-") == 0)) {
 	/* dump from stdin */
-	f = gzdopen(0, "r");
+	f = FILE_DOPEN(0, "r");
 	strcpy(this_dump->filename, "[STDIN]");
     } else {
-	f = gzopen(filename, "r");
+	f = FILE_OPEN(filename, "r");
 	strcpy(this_dump->filename, filename);
     }
     
@@ -132,7 +146,7 @@ BGPDUMP *bgpdump_open_dump(const char *filename) {
 
 void bgpdump_close_dump(BGPDUMP *dump) {
     if(dump!=NULL) 
-	gzclose(dump->f);
+	FILE_CLOSE(dump->f);
 }
 
 BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
@@ -144,7 +158,7 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 
     this_entry = malloc(sizeof(BGPDUMP_ENTRY));
 
-    bytes_read = gzread(dump->f, this_entry, 12);
+    bytes_read = FILE_READ(dump->f, this_entry, 12);
 
     if(bytes_read != 12) {
 	if(bytes_read > 0) {
@@ -185,7 +199,7 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
       return NULL;
     }
 
-    bytes_read = gzread(dump->f, buffer, this_entry->length);
+    bytes_read = FILE_READ(dump->f, buffer, this_entry->length);
     if(bytes_read != this_entry->length) { 
 	syslog(LOG_ERR,
 	       "bgpdump_read_next: incomplete dump record (%d bytes read, expecting %d)",
