@@ -5,15 +5,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 16/04/2007
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
-#endif
-
-#ifdef HAVE_LIBREADLINE
-//# include <readline/readline.h>
 #endif
 
 #include <api.h>
@@ -21,6 +17,7 @@
 #include <libgds/gds.h>
 
 #include <bgp/as.h>
+#include <bgp/as-level.h>
 #include <bgp/comm_hash.h>
 #include <bgp/domain.h>
 #include <bgp/filter_registry.h>
@@ -54,12 +51,13 @@ void libcbgp_init()
   gds_init(0);
 #endif
 
-  /* Initialize log */
+  // Initialize log.
   libcbgp_set_err_level(LOG_LEVEL_WARNING);
   libcbgp_set_debug_level(LOG_LEVEL_WARNING);
 
   // Hash init code commented in order to allow parameter setup
-  // through he command-line/script
+  // through he command-line/script (initialization is performed
+  // just-in-time).
   //_comm_hash_init();
   //_path_hash_init();
 
@@ -69,7 +67,6 @@ void libcbgp_init()
   _ft_registry_init();
   _filter_path_regex_init();
   _route_map_init();
-  _rexford_init();
 }
 
 // -----[ libcbgp_done ]---------------------------------------------
@@ -79,11 +76,7 @@ void libcbgp_init()
 void libcbgp_done()
 {
   _cli_common_destroy();
-#ifdef HAVE_LIBREADLINE
-  //  _rl_destroy();
-#endif
   _message_destroy();
-  _rexford_destroy();
   _route_map_destroy();
   _filter_path_regex_destroy();
   _ft_registry_destroy();
@@ -94,6 +87,7 @@ void libcbgp_done()
   _path_hash_destroy();
   _comm_hash_destroy();
   _bgp_router_destroy();
+  _aslevel_destroy();
 
   gds_destroy();
 }
