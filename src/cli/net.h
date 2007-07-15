@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net.h
 //
-// @author Bruno Quoitin (bqu@infonet.fundp.ac.be)
+// @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 16/01/2007
+// @lastdate 15/05/2007
 // ==================================================================
 
 #ifndef __CLI_NET_H__
@@ -16,8 +16,6 @@
 extern "C" {
 #endif
 
-  // ----- cli_net_node_by_addr -------------------------------------
-  SNetNode * cli_net_node_by_addr(char * pcAddr);
   // ----- cli_register_net -----------------------------------------
   int cli_register_net(SCli * pCli);
 
