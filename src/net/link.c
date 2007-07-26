@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 16/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,11 @@
 #endif
 
 #include <assert.h>
+
+#include <libgds/log.h>
+#include <libgds/memory.h>
+
+#include <net/error.h>
 #include <net/net_types.h>
 #include <net/network.h>
 #include <net/subnet.h>
@@ -19,8 +24,6 @@
 #include <net/link_attr.h>
 #include <net/ospf.h>
 #include <net/node.h>
-#include <libgds/log.h>
-#include <libgds/memory.h>
 
 // ----- Forward declarations --------------------------------------------
 static int _net_link_forward(net_addr_t tPhysAddr, void * pContext,
@@ -58,6 +61,7 @@ static inline SNetLink * _net_link_create(SNetNode * pSrcNode,
   pLink->uFlags= NET_LINK_FLAG_UP | NET_LINK_FLAG_IGP_ADV;
   pLink->pContext= pLink;
   pLink->fForward= fForward;
+  pLink->fHandle= NULL;
   pLink->fDestroy= NULL;
 
 #ifdef OSPF_SUPPORT
@@ -86,27 +90,31 @@ void net_link_destroy(SNetLink ** ppLink)
   }
 }
 
-//  ----- net_link_create_ptp2 --------------------------------------
+// ----- net_link_create_ptp ----------------------------------------
 /**
  * Create a link to a single router (point-to-point link).
  */
-int net_link_create_ptp2(SNetNode * pSrcNode,
-			 net_addr_t tAddr,
-			 net_link_delay_t tDelay,
-			 net_link_load_t tCapacity,
-			 uint8_t tDepth,
-			 SNetLink ** ppLink)
+int net_link_create_ptp(SNetNode * pSrcNode,
+			SNetNode * pDstNode,
+			net_link_delay_t tDelay,
+			net_link_load_t tCapacity,
+			uint8_t tDepth,
+			SNetLink ** ppLink)
 {
   SNetLink * pLink;
 
+  // Check that endpoints are different
+  if (pSrcNode == pDstNode)
+    return NET_ERROR_MGMT_LINK_LOOP;
+
   // Check that endpoints addresses are different
-  if (pSrcNode->tAddr == tAddr)
+  if (pSrcNode->tAddr == pDstNode->tAddr)
     return NET_ERROR_MGMT_LINK_LOOP;
 
   pLink= _net_link_create(pSrcNode, tDelay, tCapacity, tDepth,
 			  _net_link_forward);
   pLink->uType= NET_LINK_TYPE_ROUTER;
-  pLink->tDest.tAddr= tAddr;
+  pLink->tDest.pNode= pDstNode;
 
   // *** Needs to be fixed ***
   // If we allow multiple parallel links, this interface address must
@@ -122,34 +130,17 @@ int net_link_create_ptp2(SNetNode * pSrcNode,
   return NET_SUCCESS;
 }
 
-// ----- net_link_create_ptp ----------------------------------------
-/**
- * Create a link to a single router (point-to-point link).
- */
-int net_link_create_ptp(SNetNode * pSrcNode,
-			SNetNode * pDstNode,
-			net_link_delay_t tDelay,
-			net_link_load_t tCapacity,
-			uint8_t tDepth,
-			SNetLink ** ppLink)
-{
-  if (pSrcNode == pDstNode)
-    return NET_ERROR_MGMT_LINK_LOOP;
-
-  return net_link_create_ptp2(pSrcNode, pDstNode->tAddr,
-			      tDelay, tCapacity, tDepth, ppLink);
-}
-
 // ----- net_link_create_mtp ----------------------------------------
 /**
  * Create a link to a subnet (point-to-multi-point link).
  */
-SNetLink * net_link_create_mtp(SNetNode * pSrcNode,
+int net_link_create_mtp(SNetNode * pSrcNode,
 			       SNetSubnet * pSubnet,
 			       net_addr_t tIfaceAddr,
 			       net_link_delay_t tDelay,
 			       net_link_load_t tCapacity,			       
-			       uint8_t tDepth)
+			       uint8_t tDepth,
+			       SNetLink ** ppLink)
 {
   SNetLink * pLink= _net_link_create(pSrcNode, tDelay, tCapacity,
 				     tDepth, _subnet_forward);
@@ -167,7 +158,9 @@ SNetLink * net_link_create_mtp(SNetNode * pSrcNode,
 
   pLink->pContext= pLink;
 
-  return pLink;
+  *ppLink= pLink;
+
+  return NET_SUCCESS;
 }
 
 // ----- net_link_get_address ---------------------------------------
@@ -178,7 +171,7 @@ net_addr_t net_link_get_address(SNetLink * pLink)
 {
   if ((pLink->uType == NET_LINK_TYPE_ROUTER) ||
       (pLink->uType == NET_LINK_TYPE_TUNNEL)) {
-    return (pLink->tDest).tAddr;
+    return (pLink->tDest).pNode->tAddr;
   } else {
     assert(pLink->tDest.pSubnet != NULL);
     return ((pLink->tDest).pSubnet->sPrefix).tNetwork;
@@ -198,7 +191,7 @@ SPrefix net_link_get_id(SNetLink * pLink)
   SPrefix sPrefix;
 
   if (pLink->uType == NET_LINK_TYPE_ROUTER) {
-    sPrefix.tNetwork= pLink->tDest.tAddr; // destination address
+    sPrefix.tNetwork= pLink->tDest.pNode->tAddr; // destination address
     sPrefix.uMaskLen= 32;
   } else {
     sPrefix.tNetwork= pLink->tIfaceAddr;  // belongs to destination network
@@ -215,7 +208,7 @@ SPrefix net_link_get_prefix(SNetLink * pLink)
 {
   SPrefix sPrefix;
   if (pLink->uType == NET_LINK_TYPE_ROUTER ) {
-    sPrefix.tNetwork= pLink->tDest.tAddr;
+    sPrefix.tNetwork= pLink->tDest.pNode->tAddr;
     sPrefix.uMaskLen= 32;
   } else {
     // ptmp,tun
@@ -256,18 +249,12 @@ static int _net_link_forward(net_addr_t tPhysAddr, void * pContext,
 {
   SNetLink * pLink= (SNetLink *) pContext;
 
-  /*log_printf(pLogOut, "NET_LINK_FORWARD.begin(");
-  ip_address_dump(pLogOut, pLink->pSrcNode->tAddr);
-  log_printf(pLogOut, ",");
-  ip_address_dump(pLogOut, pLink->tDest.tAddr);
-  log_printf(pLogOut, ")\n");*/
 
   // Check link's state
   if (!net_link_get_state(pLink, NET_LINK_FLAG_UP))
     return NET_ERROR_LINK_DOWN;
 
-  // Node lookup: O(log(n))
-  *ppNextHop= network_find_node(pLink->tDest.tAddr);
+  *ppNextHop= pLink->tDest.pNode;
   
   return NET_SUCCESS;
 }
