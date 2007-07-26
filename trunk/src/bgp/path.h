@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 22/05/2007
+// @lastdate 20/07/2007
 // ==================================================================
 
 #ifndef __BGP_PATH_H__
@@ -26,10 +26,6 @@ extern "C" {
   void path_destroy(SBGPPath ** ppPath);
   // ----- path_max_value -------------------------------------------
   SBGPPath * path_max_value();
-  // ----- path_addref ----------------------------------------------
-  //void path_addref(SBGPPath ** ppPath);
-  // ----- path_unref -----------------------------------------------
-  //void path_unref(SBGPPath ** ppPath);
   // ----- path_copy ------------------------------------------------
   SBGPPath * path_copy(SBGPPath * pPath);
   // ----- path_num_segments ----------------------------------------
@@ -49,6 +45,8 @@ extern "C" {
   // -----[ path_to_string ]-----------------------------------------
   int path_to_string(SBGPPath * pPath, uint8_t uReverse,
 		     char * pcDst, size_t tDstSize);
+  // -----[ path_from_string ]---------------------------------------
+  SBGPPath * path_from_string(const char * pcPath);
   // ----- path_dump_string -----------------------------------------
   char * path_dump_string(SBGPPath * pPath, uint8_t uReverse);
   // ----- path_dump ------------------------------------------------
@@ -63,13 +61,15 @@ extern "C" {
   int path_comparison(SBGPPath * path1, SBGPPath * path2);
   // ----- path_equals ----------------------------------------------
   int path_equals(SBGPPath * pPath1, SBGPPath * pPath2);
-  // ----- path_aggregate -------------------------------------------
-  /*extern SBGPPath * path_aggregate(SBGPPath * apPaths[],
-    unsigned int uNumPaths);*/
+  // -----[ path_cmp ]-----------------------------------------------
+  int path_cmp(SBGPPath * pPath1, SBGPPath * pPath2);
+  // -----[ path_str_cmp ]-------------------------------------------
+  int path_str_cmp(SBGPPath * pPath1, SBGPPath * pPath2);
   // ----- path_match -----------------------------------------------
   int path_match(SBGPPath * pPath, int iArrayPathRegExPos);
-  
-  void _path_test();
+
+  // -----[ _path_destroy ]------------------------------------------
+  void _path_destroy();
 
 #ifdef __cplusplus
 }
