@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 31/05/2007
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifndef __BGP_ROUTER_H__
@@ -35,9 +35,9 @@
 #define BGP_ROUTER_LOAD_OPTIONS_SUMMARY 0x01
 #define BGP_ROUTER_LOAD_OPTIONS_FORCE   0x02
 
-extern unsigned long route_create_count;
+/*extern unsigned long route_create_count;
 extern unsigned long route_copy_count;
-extern unsigned long route_destroy_count;
+extern unsigned long route_destroy_count;*/
 
 extern FTieBreakFunction BGP_OPTIONS_TIE_BREAK;
 extern uint8_t BGP_OPTIONS_NLRI;
@@ -200,8 +200,6 @@ extern "C" {
   // ----- _bgp_router_peers_compare --------------------------------
   int _bgp_router_peers_compare(void * pItem1, void * pItem2,
 				unsigned int uEltSize);
-  // ----- bgp_router_dump_rib_string -------------------------------
-  char * bgp_router_dump_rib_string(SBGPRouter * pRouter);
   // ----- bgp_router_dump_rib --------------------------------------
   void bgp_router_dump_rib(SLogStream * pStream, SBGPRouter * pRouter);
   // ----- bgp_router_dump_rib_address ------------------------------
