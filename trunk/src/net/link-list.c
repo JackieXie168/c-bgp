@@ -113,10 +113,11 @@ SNetLink * net_links_find_ptp(SNetLinks * pLinks, net_addr_t tDstAddr)
 {
   unsigned int uIndex;
   SNetLink sWrapLink, * pWrapLink= &sWrapLink;
+  SNetNode sNode= { .tAddr= tDstAddr };
 
   // Identification in this case is only the destination address
   sWrapLink.uType= NET_LINK_TYPE_ROUTER;
-  sWrapLink.tDest.tAddr= tDstAddr;
+  sWrapLink.tDest.pNode= &sNode;
 
   if (ptr_array_sorted_find_index(pLinks, &pWrapLink, &uIndex) == 0)
     return (SNetLink *) pLinks->data[uIndex];
