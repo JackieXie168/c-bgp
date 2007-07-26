@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 24/04/2007
+// @lastdate 30/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -53,7 +53,8 @@
 
 #define CLASS_IPTrace "be/ac/ucl/ingi/cbgp/IPTrace"
 #define CONSTR_IPTrace "(Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;III)V"
+                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;I" \
+                       "Lbe/ac/ucl/ingi/cbgp/LinkMetrics;)V"
 #define METHOD_IPTrace_append "(Lbe/ac/ucl/ingi/cbgp/IPAddress;)V"
 
 #define CLASS_BGPRoute "be/ac/ucl/ingi/cbgp/bgp/Route"
@@ -61,6 +62,18 @@
                         "Lbe/ac/ucl/ingi/cbgp/IPAddress;JJZZB" \
                         "Lbe/ac/ucl/ingi/cbgp/bgp/ASPath;Z" \
                         "Lbe/ac/ucl/ingi/cbgp/bgp/Communities;)V"
+
+#define CLASS_MessageUpdate "be/ac/ucl/ingi/cbgp/bgp/MessageUpdate"
+#define CONSTR_MessageUpdate \
+  "(Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+  "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+  "Lbe/ac/ucl/ingi/cbgp/bgp/Route;)V"
+
+#define CLASS_MessageWithdraw "be/ac/ucl/ingi/cbgp/bgp/MessageWithdraw"
+#define CONSTR_MessageWithdraw \
+  "(Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+  "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+  "Lbe/ac/ucl/ingi/cbgp/IPPrefix;)V"
 
 #define CLASS_Communities "be/ac/ucl/ingi/cbgp/bgp/Communities"
 #define CONSTR_Communities "()V"
@@ -322,8 +335,12 @@ int cbgp_jni_IPTrace_for_each(void * pItem, void * pContext)
   net_addr_t tAddress= *(net_addr_t *) pItem;
   jobject joAddress;
 
-  if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, tAddress)) == NULL)
-    return -1;
+  if (tAddress == NET_ADDR_ANY) {
+    joAddress= NULL;
+  } else {
+    if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, tAddress)) == NULL)
+      return -1;
+  }
 
   return cbgp_jni_call_void(pCtx->jEnv, pCtx->joVector,
 			    "append",
@@ -335,34 +352,48 @@ int cbgp_jni_IPTrace_for_each(void * pItem, void * pContext)
 /**
  *
  */
-jobject cbgp_jni_new_IPTrace(JNIEnv * env, net_addr_t tSrc,
-			     net_addr_t tDst, SNetPath * pPath,
-			     int iStatus, net_link_delay_t tDelay,
-			     net_link_delay_t tWeight)
+jobject cbgp_jni_new_IPTrace(JNIEnv * jEnv, net_addr_t tSrc,
+			     net_addr_t tDst,
+			     SNetRecordRouteInfo * pRRInfo)
 {
   jobject joIPTrace;
   jobject joSrc, joDst;
+  jobject joMetrics;
   SJNIContext sCtx;
 
   /* Convert src/dst to Java objects */
-  if ((joSrc= cbgp_jni_new_IPAddress(env, tSrc)) == NULL)
+  if ((joSrc= cbgp_jni_new_IPAddress(jEnv, tSrc)) == NULL)
     return NULL;
-  if ((joDst= cbgp_jni_new_IPAddress(env, tDst)) == NULL)
+  if ((joDst= cbgp_jni_new_IPAddress(jEnv, tDst)) == NULL)
     return NULL;
 
+  /* Create new LinkMetrics object */
+  /*
+  if ((joMetrics= cbgp_jni_new_LinkMetrics(jEnv, pRRInfo->iDelay,
+					   pRRInfo->iWeight)) == NULL) 
+    return NULL*/;
+  joMetrics= NULL;
+
   /* Create new IPTrace object */
-  if ((joIPTrace= cbgp_jni_new(env, CLASS_IPTrace, CONSTR_IPTrace,
-			       joSrc, joDst, (jint) iStatus,
-			       (jint) tDelay, (jint) tWeight)) == NULL)
+  if ((joIPTrace= cbgp_jni_new(jEnv, CLASS_IPTrace, CONSTR_IPTrace,
+			       joSrc, joDst, (jint) pRRInfo->iResult, joMetrics)) == NULL)
     return NULL;
 
   /* Add hops */
-  sCtx.jEnv= env;
+  sCtx.jEnv= jEnv;
   sCtx.joVector= joIPTrace;
-  if (net_path_for_each(pPath, cbgp_jni_IPTrace_for_each, &sCtx) != 0)
+  if (net_path_for_each(pRRInfo->pPath, cbgp_jni_IPTrace_for_each, &sCtx) != 0)
     return NULL;
 
   return joIPTrace;
+}
+
+// -----[ cbgp_jni_new_LinkMetrics ]---------------------------------
+jobject cbgp_jni_new_LinkMetrics(JNIEnv * jEnv,
+				 net_link_delay_t tDelay,
+				 net_link_delay_t tWeight)
+{
+  return NULL;
 }
 
 // -----[ cbgp_jni_new_BGPRoute ]------------------------------------
@@ -404,6 +435,53 @@ jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
 		      joASPath,
 		      (route_flag_get(pRoute, ROUTE_FLAG_INTERNAL))?JNI_TRUE:JNI_FALSE,
 		      joCommunities);
+}
+
+// -----[ cbgp_jni_new_BGPMessage ]----------------------------------
+/**
+ * This function creates a new instance of the bgp.Message object
+ * from a CBGP message.
+ */
+jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, SNetMessage * pMessage)
+{
+  jobject joFrom= cbgp_jni_new_IPAddress(jEnv, pMessage->tSrcAddr);
+  jobject joTo= cbgp_jni_new_IPAddress(jEnv, pMessage->tDstAddr);
+  jobject joMessage= NULL;
+  jobject joRoute= NULL;
+  jobject joPrefix= NULL;
+  SBGPMsg * pMsg= (SBGPMsg *) pMessage->pPayLoad;
+  SBGPMsgUpdate * pMsgUpdate;
+  SBGPMsgWithdraw * pMsgWithdraw;
+  
+  /* Check that the conversion was successful */
+  if ((joFrom == NULL) || (joTo == NULL))
+    return NULL;
+
+  switch (pMsg->uType) {
+  case BGP_MSG_UPDATE:
+    pMsgUpdate= (SBGPMsgUpdate *) pMsg;
+    if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pMsgUpdate->pRoute)) == NULL)
+      return NULL;
+    joMessage= cbgp_jni_new(jEnv, CLASS_MessageUpdate,
+			    CONSTR_MessageUpdate,
+			    joFrom, joTo, joRoute);
+    break;
+
+  case BGP_MSG_WITHDRAW:
+    pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
+    if ((joPrefix= cbgp_jni_new_IPPrefix(jEnv, pMsgWithdraw->sPrefix)) == NULL)
+      return NULL;
+    joMessage= cbgp_jni_new(jEnv, CLASS_MessageWithdraw,
+			    CONSTR_MessageWithdraw,
+			    joFrom, joTo, joPrefix);
+    break;
+
+  default:
+    return NULL;
+  }
+
+  /* Create new bgp.Message object */
+  return joMessage;
 }
 
 // -----[ ip_jstring_to_address ]------------------------------------
