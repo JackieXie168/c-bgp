@@ -166,29 +166,6 @@ int check_scripts()
   return 0;
 }
 
-int check_cluster_id_list()
-{
-  MSG_CHECKING("cluster-id-list");
-  typedef SUInt32Array SClusterList;
-  uint32_t tAddr;
-
-  SClusterList * pClusterList= cluster_list_create();
-
-  tAddr= IPV4_TO_INT(1, 2, 3, 4);
-  cluster_list_append(pClusterList, tAddr);
-  tAddr= IPV4_TO_INT(5, 6, 7, 8);
-  cluster_list_append(pClusterList, tAddr);
-  tAddr= IPV4_TO_INT(9, 0, 1, 2);
-  cluster_list_append(pClusterList, tAddr);
-  tAddr= IPV4_TO_INT(3, 4, 5, 6);
-  cluster_list_append(pClusterList, tAddr);
-
-  /*cluster_list_dump(stderr, pClusterList);*/
-  cluster_list_destroy(&pClusterList);
-  MSG_RESULT_SUCCESS();
-  return 0;
-}
-
 /////////////////////////////////////////////////////////////////////
 // MAIN PART
 /////////////////////////////////////////////////////////////////////
@@ -198,7 +175,6 @@ int main(int argc, char * argv[])
 {
   //check_decision_process();
   check_scripts();
-  check_cluster_id_list();
 
   return 0;
 }
