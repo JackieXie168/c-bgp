@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/11/2002
-// @lastdate 19/01/2007
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -29,33 +29,22 @@ net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
   return (((((((net_addr_t) uA) << 8) + uB) << 8) + uC) << 8) + uD;
 }
 
-// ----- ip_address_to_string ----------------------------------------
+// -----[ ip_address_to_string ]-------------------------------------
 /**
+ * Convert an IPv4 address to a string.
  *
- *
+ * Return value:
+ *   -1    if buffer too small
+ *   >= 0  number of characters written
  */
-void ip_address_to_string(char * pcAddr, net_addr_t tAddr)
+int ip_address_to_string(net_addr_t tAddr, char * pcAddr, size_t tDstSize)
 {
-  sprintf(pcAddr, "%u.%u.%u.%u",
-	  (unsigned int) (tAddr >> 24),
-	  (unsigned int) (tAddr >> 16) & 255, 
-	  (unsigned int) (tAddr >> 8) & 255,
-	  (unsigned int) tAddr & 255);
-}
-
-// ----- ip_address_dump_string -------------------------------------
-/**
- *
- */
-char * ip_address_dump_string(net_addr_t tAddr)
-{
-  char * cAddress = MALLOC(16);
-  sprintf(cAddress, "%u.%u.%u.%u",
-          (unsigned int) (tAddr >> 24),
-	  (unsigned int) (tAddr >> 16) & 255,
-	  (unsigned int) (tAddr >> 8) & 255,
-          (unsigned int) tAddr & 255);
-  return cAddress;
+  int iResult= snprintf(pcAddr, tDstSize, "%u.%u.%u.%u",
+			(unsigned int) (tAddr >> 24),
+			(unsigned int) (tAddr >> 16) & 255, 
+			(unsigned int) (tAddr >> 8) & 255,
+			(unsigned int) tAddr & 255);
+  return ((iResult < 0) || (iResult >= tDstSize)) ? -1 : iResult;
 }
 
 // ----- ip_address_dump --------------------------------------------
@@ -115,22 +104,6 @@ SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
   return pPrefix;
 }
 
-// ----- ip_prefix_dump_string ---------------------------------------------
-/**
- *
- */
-char * ip_prefix_dump_string(SPrefix sPrefix)
-{
-  char * cPrefix = MALLOC(20);
-  
-  sprintf(cPrefix, "%u.%u.%u.%u/%u",
-	  (unsigned int) sPrefix.tNetwork >> 24,
-          (unsigned int) (sPrefix.tNetwork >> 16) & 255,
-	  (unsigned int) (sPrefix.tNetwork >> 8) & 255,
-          (unsigned int) (sPrefix.tNetwork & 255),
-	  sPrefix.uMaskLen);
-  return cPrefix;
-}
 // ----- ip_prefix_dump ---------------------------------------------
 /**
  *
@@ -148,14 +121,15 @@ void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix)
  *
  *
  */
-void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix)
+int ip_prefix_to_string(SPrefix * pPrefix, char * pcPrefix, size_t tDstSize)
 {
-  sprintf(pcPrefix, "%u.%u.%u.%u/%u", 
-      (unsigned int) pPrefix->tNetwork >> 24,
-      (unsigned int) (pPrefix->tNetwork >> 16) & 255,
-      (unsigned int) (pPrefix->tNetwork >> 8) & 255,
-      (unsigned int) pPrefix->tNetwork & 255,
-      pPrefix->uMaskLen);
+  int iResult= snprintf(pcPrefix, tDstSize, "%u.%u.%u.%u/%u", 
+			(unsigned int) pPrefix->tNetwork >> 24,
+			(unsigned int) (pPrefix->tNetwork >> 16) & 255,
+			(unsigned int) (pPrefix->tNetwork >> 8) & 255,
+			(unsigned int) pPrefix->tNetwork & 255,
+			pPrefix->uMaskLen);
+  return ((iResult < 0) || (iResult >= tDstSize)) ? -1 : iResult;
 }
 
 // ----- ip_string_to_prefix ----------------------------------------
@@ -282,54 +256,68 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
   }
 }
 
-// ----- _ip_prefixes_destroy ---------------------------------------
-/* COMMENT ON 16/01/2007
-static void _ip_prefixes_destroy(void ** ppItem)
+// -----[ ip_prefix_cmp ]--------------------------------------------
+/**
+ * Compare two prefixes.
+ *
+ * Return value:
+ *   -1  if P1 < P2
+ *   0   if P1 == P2
+ *   1   if P1 > P2
+ */
+int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2)
 {
-  ip_prefix_destroy((SPrefix **) ppItem);
-  }*/
-
- // ----- node_links_compare -----------------------------------------
-int ip_prefixes_compare(void * pItem1, void * pItem2,
-		       unsigned int uEltSize)
-{
-  SPrefix * pPrefix1 = *((SPrefix **) pItem1);
-  SPrefix * pPrefix2 = *((SPrefix **) pItem2);
-
-  if ((ip_prefix_masked(pPrefix1).tNetwork ==
-       ip_prefix_masked(pPrefix2).tNetwork) &&
-    (pPrefix1->uMaskLen == pPrefix2->uMaskLen))
+  // Pointers are equal ?
+  if (pPrefix1 == pPrefix2)
     return 0;
-
-  else if (pPrefix1->uMaskLen == pPrefix2->uMaskLen) {
-    if ((pPrefix1->tNetwork < pPrefix2->tNetwork))
-      return -1;
-    else
-      return  1;
-  }
-  else if (pPrefix1->uMaskLen < pPrefix2->uMaskLen) 
-    return -1;
-  else
-    return  1;
   
+  // Compare mask length
+  if (pPrefix1->uMaskLen < pPrefix2->uMaskLen) 
+    return -1;
+  else if (pPrefix1->uMaskLen > pPrefix2->uMaskLen)
+    return  1;
+
+  // Prefixes are equal ?
+  if (pPrefix1->tNetwork < pPrefix2->tNetwork)
+    return -1;
+  else if (pPrefix1->tNetwork > pPrefix2->tNetwork)
+    return  1;
+
+  return 0;
 }
 
 // ----- ip_prefix_equals -------------------------------------------
 /**
+ * Test if two prefixes are equal.
  *
+ * Return value:
+ *   != 0  if prefixes are equal
+ *   0     otherwise
  */
 int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2)
 {
-  return (sPrefix1.tNetwork == sPrefix2.tNetwork) &&
-    (sPrefix1.uMaskLen == sPrefix2.uMaskLen);
+  return ((sPrefix1.tNetwork == sPrefix2.tNetwork) &&
+	  (sPrefix1.uMaskLen == sPrefix2.uMaskLen));
 }
 
 // ----- ip_address_in_prefix ---------------------------------------
 /**
+ * Test if the address is in the prefix (i.e. if the address matches
+ * the prefix).
  *
+ * Return value:
+ *   != 0  if address is in prefix
+ *   0     otherwise
  */
 int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
 {
+  assert(sPrefix.uMaskLen <= 32);
+
+  // Warning, shift on 32-bit int is only defined if operand in [0-31]
+  // Thus, special case for 0 mask-length (match everything)
+  if (sPrefix.uMaskLen == 0)
+    return 1;
+
   return ((tAddr >> (32-sPrefix.uMaskLen)) ==
 	  (sPrefix.tNetwork >> (32-sPrefix.uMaskLen)));
 }
@@ -337,15 +325,26 @@ int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
 // ----- ip_prefix_in_prefix ----------------------------------------
 /**
  * Test if P1 is more specific than P2.
+ *
+ * Return value:
+ *   != 0  if P1 is in P2
+ *   0     otherwise
  */
 int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
 {
+  assert(sPrefix2.uMaskLen <= 32);
+
+  // Warning, shift on 32-bit int is only defined if operand in [0-31]
+  // Thus, special case for 0 mask-length (match everything)
+  if (sPrefix2.uMaskLen == 0)
+    return 1;
+
   // P1.masklen must be >= P2.masklen
-  if (sPrefix1.uMaskLen < sPrefix2.uMaskLen) {
+  if (sPrefix1.uMaskLen < sPrefix2.uMaskLen)
     return 0;
-  }
 
   // Compare bits masked with less specific (P2)
+  // Warning, shift on 32-bit int is only defined if operand in [0-31]
   return ((sPrefix1.tNetwork >> (32-sPrefix2.uMaskLen)) ==
           (sPrefix2.tNetwork >> (32-sPrefix2.uMaskLen)));
 }
@@ -382,6 +381,13 @@ void ip_prefix_destroy(SPrefix ** ppPrefix)
  */
 inline net_addr_t ip_build_mask(uint8_t tMaskLen)
 {
+  assert(tMaskLen <= 32);
+
+  // Warning, shift on 32-bit int is only defined if operand in [0-31]
+  // Thus, special case for 0 mask-length
+  if (tMaskLen == 0)
+    return 0;
+
   return (0xffffffff << (32-tMaskLen));
 }
 
@@ -391,7 +397,7 @@ inline net_addr_t ip_build_mask(uint8_t tMaskLen)
  */
 void ip_prefix_mask(SPrefix * pPrefix)
 {
-  pPrefix->tNetwork&= (0xffffffff << (32-pPrefix->uMaskLen));
+  pPrefix->tNetwork&= ip_build_mask(pPrefix->uMaskLen);
 }
 
 // ----- ip_prefix_masked -------------------------------------------
@@ -402,28 +408,3 @@ SPrefix ip_prefix_masked(const SPrefix * pPrefix)
   return sPrefix;
 }
 
-/////////////////////////////////////////////////////////////////////
-// TEST
-/////////////////////////////////////////////////////////////////////
-
-// ----- test_prefix ------------------------------------------------
-void test_prefix()
-{
-  char * pcEndPtr;
-  net_addr_t tAddr;
-  SPrefix sPrefix;
-
-  assert(!ip_string_to_address("192.168.0.1", &pcEndPtr, &tAddr));
-  assert(*pcEndPtr == 0);
-  ip_address_dump(pLogDebug, tAddr);
-  assert(!ip_string_to_prefix("192.168.0.0/24", &pcEndPtr, &sPrefix));
-  assert(*pcEndPtr == 0);
-  ip_prefix_dump(pLogDebug, sPrefix);
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
-  assert(!ip_string_to_prefix("192.168.0/24", &pcEndPtr, &sPrefix));
-  assert(*pcEndPtr == 0);
-  ip_prefix_dump(pLogDebug, sPrefix);
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
-
-  exit(EXIT_SUCCESS);
-}

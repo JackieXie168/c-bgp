@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
 // @date 01/12/2002
-// @lastdate 17/04/2007
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -48,14 +48,12 @@ extern "C" {
 #endif
 
   // ----- ip_address_to_string ----------------------------------------
-  void ip_address_to_string(char * pcAddr, net_addr_t tAddr);
+  int ip_address_to_string(net_addr_t tAddr, char * pcAddr, size_t tDstSize);
   // ----- create_ip_prefix ----------------------------------------
   SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen);
   // ----- ip_dotted_to_address ---------------------------------------
   net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
 				  uint8_t uC, uint8_t uD);
-  // ----- ip_address_dump_string -------------------------------------
-  char * ip_address_dump_string(net_addr_t tAddr);
   // ----- ip_address_dump --------------------------------------------
   void ip_address_dump(SLogStream * pStream, net_addr_t tAddr);
   // ----- ip_string_to_address ---------------------------------------
@@ -63,12 +61,10 @@ extern "C" {
 			   net_addr_t * ptAddr);
   // ----- uint32_to_prefix -------------------------------------------
   SPrefix uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen);
-  // ----- ip_prefix_dump_string ---------------------------------------------
-  char * ip_prefix_dump_string(SPrefix sPrefix);
   // ----- ip_prefix_dump ---------------------------------------------
   void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix);
-  // ----- ip_prefix_to_strin -----------------------------------------
-  void ip_prefix_to_string(char * pcPrefix, SPrefix * pPrefix);
+  // ----- ip_prefix_to_string ----------------------------------------
+  int ip_prefix_to_string(SPrefix * pPrefix, char * pcPrefix, size_t tDstSize);
   // ----- ip_string_to_prefix ----------------------------------------
   int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
 			  SPrefix * pPrefix);
@@ -80,9 +76,8 @@ extern "C" {
   SPrefix ip_prefix_masked(const SPrefix * pPrefix);
   // ----- ip_prefix_equals -------------------------------------------
   int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
-  // ----- ip_prefixes_compare ---------------------------------------
-  int ip_prefixes_compare(void * pItem1, void * pItem2,
-			  unsigned int uEltSize);
+  // -----[ ip_prefix_cmp ]--------------------------------------------
+  int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2);
   // ----- ip_address_in_prefix ---------------------------------------
   int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix);
   // ----- ip_prefix_in_prefix ----------------------------------------
@@ -104,4 +99,4 @@ extern "C" {
 }
 #endif
 
-#endif
+#endif /* __IP_PREFIX_H__ */
