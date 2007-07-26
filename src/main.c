@@ -46,9 +46,7 @@ char * pcArgMode= NULL;
  */
 void simulation_cli_help()
 {
-  printf("C-BGP routing solver %s\n", PACKAGE_VERSION);
-  printf("Copyright (C) 2007 Bruno Quoitin\n");
-  printf("IP Networking Lab, CSE Dept, UCL, Belgium\n");
+  libcbgp_banner();
   printf("\nUsage: cbgp [OPTIONS]\n");
   printf("\n");
   printf("  -h             display this message.\n");
@@ -64,10 +62,6 @@ void simulation_cli_help()
 #ifdef OSPF_SUPPORT
   printf("  -o             test OSPF model (cbgp must be compiled with --enable-ospf option).\n");
 #endif
-  printf("\n");
-  printf("C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
-  printf("This is free software, and you are welcome to redistribute it\n");
-  printf("under certain conditions; see file COPYING for details.\n");
   printf("\n");
 }
 
@@ -97,10 +91,7 @@ int simulation_interactive()
   int iResult= CLI_SUCCESS;
   char * pcLine;
 
-  fprintf(stdout, "C-BGP routing solver %s\n", PACKAGE_VERSION);
-  fprintf(stdout, "Copyright (C) 2007 Bruno Quoitin\n");
-  fprintf(stdout, "IP Networking Lab, CSE Dept, UCL, Belgium\n");
-  fprintf(stdout, "\n");
+  libcbgp_banner();
   fprintf(stdout, "cbgp> init.\n");
 
   _rl_init();
