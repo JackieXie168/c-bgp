@@ -6,7 +6,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 25/06/2007
+// @lastdate 26/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,8 +76,10 @@ static char * _cli_compl_cmd_generator(const char * pcText, int iState)
   SCliCmd * pCmd;
 
   // Check that a command is to be completed.
-  if (pComplCmd == NULL)
+  if ((pComplCmd == NULL) || (pComplCmd->pSubCmds == NULL)) {
+    rl_attempted_completion_over= 1;
     return NULL;
+  }
 
   // First call, initialize generator's state.
   if (iState == 0)
@@ -114,8 +116,10 @@ static char * _cli_compl_options_generator(const char * pcText, int iState)
   char * pcOptionName;
 
   // Check that a command is to be completed.
-  if (pComplCmd == NULL)
+  if (pComplCmd == NULL) {
+    rl_attempted_completion_over= 1;
     return NULL;
+  }
 
   // Skip option name's prefix ("--") 
   pcText+= 2;
@@ -154,8 +158,10 @@ static char * _cli_compl_option_generator(const char * pcText, int iState)
   //char * pcMatch;
 
   // Check that a valid option is to be completed.
-  if (pComplOption == NULL)
+  if (pComplOption == NULL) {
+    rl_attempted_completion_over= 1;
     return NULL;
+  }
 
   // First call, initialize generator's state
   if (iState == 0)
