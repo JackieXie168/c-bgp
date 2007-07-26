@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 13/07/2007
+// @lastdate 22/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,11 +16,14 @@
 
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/tokenizer.h>
 
 #include <bgp/path.h>
 #include <bgp/path_hash.h>
 #include <bgp/path_segment.h>
 #include <bgp/filter.h>
+
+static STokenizer * pPathTokenizer= NULL;
 
 // ----- _path_destroy_segment --------------------------------------
 static void _path_destroy_segment(void * pItem)
@@ -53,7 +56,6 @@ SBGPPath * path_create()
 void path_destroy(SBGPPath ** ppPath)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
-  /*log_printf(pLogErr, "destroy (%p)\n", *ppPath);*/
   ptr_array_destroy(ppPath);
 #else
   if (*ppPath != NULL) {
@@ -78,43 +80,6 @@ SBGPPath * path_max_value()
   
   return path;
 } 
-
-// ----- path_addref ------------------------------------------------
-/**
- *
- */
-/*void path_addref(SBGPPath ** ppPath)
-{
-  SBGPPath * pRefPath;
-  assert((*ppPath)->tRefCnt == 0);
-
-  pRefPath= path_hash_get(*ppPath);
-  if (pRefPath == NULL) {
-    (*ppPath)->tRefCnt++;
-  } else {
-    if (*ppPath != pRefPath)
-      path_destroy(ppPath);
-    pRefPath->tRefCnt++;
-    *ppPath= pRefPath;
-  }
-
-  pRefPath->tRefCnt++;
-  }*/
-
-// ----- path_unref -------------------------------------------------
-/**
- *
- */
- /*void path_unref(SBGPPath ** ppPath)
-{
-  if ((*ppPath)->tRefCnt > 0)
-    (*ppPath)->tRefCnt--;
-
-  if ((*ppPath)->tRefCnt == 0) {
-    path_hash_remove(*ppPath);
-    path_destroy(ppPath);
-  }
-  }*/
 
 // ----- path_copy --------------------------------------------------
 /**
@@ -258,22 +223,27 @@ uAS))
 // ----- path_contains ----------------------------------------------
 /**
  * Test if the given AS-Path contains the given AS number.
+ *
+ * Return value:
+ *   1  if the path contains the ASN
+ *   0  otherwise
  */
 int path_contains(SBGPPath * pPath, uint16_t uAS)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
-  int iIndex;
-  int iResult;
+  unsigned int uIndex;
 
-  for (iIndex= 0; iIndex < path_num_segments(pPath); iIndex++) {
-    iResult= path_segment_contains((SPathSegment *) pPath->data[iIndex], uAS);
-    if (iResult >= 0)
-      return iResult;
+  if (pPath == NULL)
+    return 0;
+
+  for (uIndex= 0; uIndex < path_num_segments(pPath); uIndex++) {
+    if (path_segment_contains((SPathSegment *) pPath->data[uIndex], uAS) != 0)
+      return 1;
   }
 #else
   abort();
 #endif
-  return -1;
+  return 0;
 }
 
 // ----- path_at ----------------------------------------------------
@@ -381,30 +351,28 @@ int path_first_as(SBGPPath * pPath) {
  * allocated buffer, based on the provided destination buffer size.
  *
  * Return value:
- *   The function returns the number of character written (not
- *   including the trailing '\0'. If the output was truncated, the
- *   returned value is equal or larger to the destination buffer
- *   size.
+ *   -1    if the destination buffer is too small
+ *   >= 0  number of characters written (without \0)
  *
  * Note: the function uses snprintf() in order to write into the
  * destination buffer. The return value of snprintf() is important. A
  * return value equal or larger that the maximum destination size
- *  means that the output was truncated.
+ * means that the output was truncated.
  */
 int path_to_string(SBGPPath * pPath, uint8_t uReverse,
 		   char * pcDst, size_t tDstSize)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
+  size_t tInitialSize= tDstSize;
   int iIndex;
-  int iWritten;
-  size_t tInitialDstSize= tDstSize;
+  int iWritten= 0;
   int iNumSegments;
 
   if ((pPath == NULL) || (path_num_segments(pPath) == 0)) {
     if (tDstSize < 1)
-      return tInitialDstSize;
+      return -1;
     *pcDst= '\0';
-    return 1;
+    return 0;
   }
 
   if (uReverse) {
@@ -414,15 +382,16 @@ int path_to_string(SBGPPath * pPath, uint8_t uReverse,
       if (iIndex < iNumSegments) {
 	iWritten= snprintf(pcDst, tDstSize, " ");
 	if (iWritten >= tDstSize)
-	  return tInitialDstSize;
+	  return -1;
 	pcDst+= iWritten;
 	tDstSize-= iWritten;
       }
+
       // Write AS-Path segment
       iWritten= path_segment_to_string((SPathSegment *) pPath->data[iIndex-1],
 				       uReverse, pcDst, tDstSize);
       if (iWritten >= tDstSize)
-	return tInitialDstSize;
+	return -1;
       pcDst+= iWritten;
       tDstSize-= iWritten;
     }
@@ -434,7 +403,7 @@ int path_to_string(SBGPPath * pPath, uint8_t uReverse,
       if (iIndex > 0) {
 	iWritten= snprintf(pcDst, tDstSize, " ");
 	if (iWritten >= tDstSize)
-	  return tInitialDstSize;
+	  return -1;
 	pcDst+= iWritten;
 	tDstSize-= iWritten;
       }
@@ -442,15 +411,67 @@ int path_to_string(SBGPPath * pPath, uint8_t uReverse,
       iWritten= path_segment_to_string((SPathSegment *) pPath->data[iIndex],
 				       uReverse, pcDst, tDstSize);
       if (iWritten >= tDstSize)
-	return tInitialDstSize;
+	return -1;
       pcDst+= iWritten;
       tDstSize-= iWritten;
     }
   }
-  return (tInitialDstSize-tDstSize);
+  return tInitialSize-tDstSize;
 #else
   abort();
 #endif
+}
+
+// -----[ path_from_string ]-----------------------------------------
+/**
+ * Convert a string to an AS-Path.
+ *
+ * Return value:
+ *   NULL  if the string does not contain a valid AS-Path
+ *   new path otherwise
+ */
+SBGPPath * path_from_string(const char * pcPath)
+{
+  int iIndex;
+  STokens * pPathTokens;
+  SBGPPath * pPath= NULL;
+  char * pcSegment;
+  SPathSegment * pSegment;
+  unsigned long ulASNum;
+
+  if (pPathTokenizer == NULL)
+    pPathTokenizer= tokenizer_create(" ", 0, "[", "]");
+
+  if (tokenizer_run(pPathTokenizer, (char *) pcPath) != TOKENIZER_SUCCESS)
+    return NULL;
+
+  pPathTokens= tokenizer_get_tokens(pPathTokenizer);
+
+  pPath= path_create();
+  for (iIndex= tokens_get_num(pPathTokens); iIndex > 0; iIndex--) {
+    pcSegment= tokens_get_string_at(pPathTokens, iIndex-1);
+    if (!tokens_get_ulong_at(pPathTokens, iIndex-1, &ulASNum)) {
+      if (ulASNum > 65535) {
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid AS-Num \"%s\"\n",
+		   pcSegment);
+	path_destroy(&pPath);
+	break;
+      }
+      path_append(&pPath, ulASNum);
+    } else {
+      pSegment= path_segment_from_string(pcSegment);
+      if (pSegment == NULL) {
+	LOG_ERR(LOG_LEVEL_SEVERE,
+		"Error: not a valid path segment \"%s\"\n",
+		pcSegment);
+	path_destroy(&pPath);
+	break;
+      }
+      path_add_segment(pPath, pSegment);
+    }
+  }
+
+  return pPath;
 }
 
 extern SPtrArray * paPathExpr;
@@ -724,78 +745,75 @@ int path_equals(SBGPPath * pPath1, SBGPPath * pPath2)
 #endif
 }
 
-// ----- path_aggregate ---------------------------------------------
+// -----[ path_cmp ]-------------------------------------------------
 /**
- * Simple AS-Path aggregation:
+ * Compare two AS-Paths. This function is aimed at sorting AS-Paths,
+ * not at measuring their length for the decision process !
  *
- * Create a path with a single segment of type AS-SET which contains
- * every AS number found in the input paths.
+ * Return value:
+ *   -1  if path1 < path2
+ *   0   if path1 == path2
+ *   1   if path1 > path2
  */
-/*SBGPPath * path_aggregate(SBGPPath * apPaths[], unsigned int uNumPaths)
+int path_cmp(SBGPPath * pPath1, SBGPPath * pPath2)
 {
-  SBGPPath * pAggrPath= path_create();
-  int iPathIndex, iSegmentIndex, iIndex;
-  SUInt16Array * pASNumArray= uint16_array_create(ARRAY_OPTION_SORTED|
-						  ARRAY_OPTION_UNIQUE);
-  SPathSegment * pSegment;
+  unsigned int uIndex;
+  int iCmp;
+
+  // Null paths are equal
+  if (pPath1 == pPath2)
+    return 0;
+
+  // Null and empty paths are equal
+  if (((pPath1 == NULL) && (path_num_segments(pPath2) == 0)) ||
+      ((pPath2 == NULL) && (path_num_segments(pPath1) == 0)))
+    return 0;
+
+  if (pPath1 == NULL)
+    return -1;
+  if (pPath2 == NULL)
+    return 1;
   
-  for (iPathIndex= 0; iPathIndex < uNumPaths; iPathIndex++) {
-    for (iSegmentIndex= 0; iSegmentIndex <
-	   path_num_segments(apPaths[iPathIndex]); iSegmentIndex++) {
-      pSegment= (SPathSegment *) apPaths[iPathIndex]->data[iSegmentIndex];
-      for (iIndex= 0; iIndex < pSegment->uLength; iIndex++)
-	_array_add((SArray *) pASNumArray, &pSegment->auValue[iIndex]);
-    }
+  // Longest is first
+  if (path_num_segments(pPath1) < path_num_segments(pPath2))
+    return -1;
+  else if (path_num_segments(pPath1) > path_num_segments(pPath2))
+    return 1;
+
+  // Equal size paths, inspect individual segments
+  for (uIndex= 0; uIndex < path_num_segments(pPath1); uIndex++) {
+    iCmp= path_segment_cmp((SPathSegment *) pPath1->data[uIndex],
+			   (SPathSegment *) pPath2->data[uIndex]);
+    if (iCmp != 0)
+      return iCmp;
   }
 
-  pSegment= path_segment_create(AS_PATH_SEGMENT_SET, 0);
-  for (iIndex= 0; iIndex < _array_length((SArray *) pASNumArray);
-       iIndex++)
-    path_segment_add(&pSegment, pASNumArray->data[iIndex]);
-  path_add_segment(pAggrPath, pSegment);
-  uint16_array_destroy(&pASNumArray);
-  return pAggrPath;
-  }*/
-
-/////////////////////////////////////////////////////////////////////
-// TEST & VALIDATION SECTION
-/////////////////////////////////////////////////////////////////////
-
-void _path_test()
-{
-  SPathSegment * pSegment= path_segment_create(AS_PATH_SEGMENT_SET, 0);
-  SBGPPath * pPath= path_create();
-  SBGPPath * pPath2= path_create();
-  //SBGPPath * pAggrPath= NULL;
-  SBGPPath * apPaths[2];
-
-  path_segment_add(&pSegment, 4);
-  path_segment_add(&pSegment, 5);
-  path_segment_add(&pSegment, 6);
-  path_add_segment(pPath, pSegment);
-  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
-  path_append(&pPath, 1);
-  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
-  path_append(&pPath, 2);
-  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n", path_length(pPath));
-  path_append(&pPath, 3);
-  path_dump(pLogOut, pPath, 1); fprintf(stdout, ": length=%d\n",
-				       path_length(pPath));
-
-  path_append(&pPath2, 1);
-  path_append(&pPath2, 3);
-  path_append(&pPath2, 7);
-  path_append(&pPath2, 6);
-  path_dump(pLogOut, pPath2, 1); fprintf(stdout, "\n");
-
-  apPaths[0]= pPath;
-  apPaths[1]= pPath2;
-  /*pAggrPath= path_aggregate(apPaths, 2),
-    path_dump(stdout, pAggrPath, 1); fprintf(stdout, "\n");*/
-  path_destroy(&pPath);
-  path_destroy(&pPath2);
-  //path_destroy(&pAggrPath);
+  return 0;
 }
+
+// -----[ path_str_cmp ]---------------------------------------------
+int path_str_cmp(SBGPPath * pPath1, SBGPPath * pPath2)
+{
+#define AS_PATH_STR_SIZE 1024
+  char acPathStr1[AS_PATH_STR_SIZE];
+  char acPathStr2[AS_PATH_STR_SIZE];
+
+  // If paths pointers are equal, no need to compare their content.
+  if (pPath1 == pPath2)
+    return 0;
+
+  assert(path_to_string(pPath1, 1, acPathStr1, AS_PATH_STR_SIZE) >= 0);
+  assert(path_to_string(pPath2, 1, acPathStr2, AS_PATH_STR_SIZE) >= 0);
+   
+  return strcmp(acPathStr1, acPathStr2);
+}
+
+// -----[ _path_destroy ]--------------------------------------------
+void _path_destroy()
+{
+  tokenizer_destroy(&pPathTokenizer);
+}
+
 
 
 
