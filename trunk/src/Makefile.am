@@ -39,8 +39,8 @@ else
   OPT_BGPDUMP_DIR = 
 endif
 
-SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) $(OPT_BGPDUMP_DIR) check
-DIST_SUBDIRS = bgp cli external net sim ui util jni liballoc check 
+SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) $(OPT_BGPDUMP_DIR)
+DIST_SUBDIRS = bgp cli external net sim ui util jni liballoc
 
 # Compile experimental features ?
 if WITH_EXPERIMENTAL
@@ -71,7 +71,7 @@ libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
-bin_PROGRAMS = cbgp cbgp-dump cbgp-test
+bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
 cbgp_SOURCES = main.c
 cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 
@@ -81,6 +81,11 @@ cbgp_dump_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 cbgp_test_SOURCES = main-test.c
 cbgp_test_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 
+cbgp_perf_SOURCES = main-perf.c
+cbgp_perf_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+
+TESTS = \
+	cbgp-test
 
 # -------------------------------------------------------------------
 # Install hook (called after all install targets/hooks)
