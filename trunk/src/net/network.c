@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 18/04/2007
+// @lastdate 30/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,11 +12,15 @@
 
 #include <assert.h>
 #include <string.h>
+
+#include <libgds/fifo.h>
 #include <libgds/log.h>
 #include <libgds/memory.h>
 #include <libgds/patricia-tree.h>
 #include <libgds/stack.h>
 #include <libgds/str_util.h>
+
+#include <net/error.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/icmp.h>
@@ -28,11 +32,10 @@
 #include <net/ospf.h>
 #include <net/ospf_rt.h>
 #include <net/subnet.h>
-#include <ui/output.h>
 #include <bgp/message.h>
-#include <libgds/fifo.h>
 #include <bgp/as_t.h>
 #include <bgp/rib.h>
+#include <ui/output.h>
 
 SNetwork * pTheNetwork= NULL;
 
@@ -50,44 +53,6 @@ static void _network_send_dump(SLogStream * pStream, void * pContext);
 static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
 			    net_addr_t tNextHop, SNetMessage * pMessage,
 			    SSimulator * pSimulator);
-
-// ----- network_perror ---------------------------------------------
-/**
- * Dump an error message for the given error code.
- */
-void network_perror(SLogStream * pStream, int iErrorCode)
-{
-  switch (iErrorCode) {
-  case NET_SUCCESS:
-    log_printf(pStream, "success"); break;
-  case NET_ERROR_NET_UNREACH:
-    log_printf(pStream, "network unreachable"); break;
-  case NET_ERROR_DST_UNREACH:
-    log_printf(pStream, "destination unreachable"); break;
-  case NET_ERROR_PORT_UNREACH:
-    log_printf(pStream, "port unreachable"); break;
-  case NET_ERROR_TIME_EXCEEDED:
-    log_printf(pStream, "time exceeded"); break;
-  case NET_ERROR_ICMP_NET_UNREACH:
-    log_printf(pStream, "icmp error (network-unreachable)"); break;
-  case NET_ERROR_ICMP_DST_UNREACH:
-    log_printf(pStream, "icmp error (destination-unreachable)"); break;
-  case NET_ERROR_ICMP_PORT_UNREACH:
-    log_printf(pStream, "icmp error (port-unreachable)"); break;
-  case NET_ERROR_ICMP_TIME_EXCEEDED:
-    log_printf(pStream, "icmp error (time-exceeded)"); break;
-  case NET_ERROR_NO_REPLY:
-    log_printf(pStream, "no reply"); break;
-  case NET_ERROR_LINK_DOWN:
-    log_printf(pStream, "link down"); break;
-  case NET_ERROR_PROTOCOL_ERROR:
-    log_printf(pStream, "protocol error"); break;
-  case NET_ERROR_IF_UNKNOWN:
-    log_printf(pStream, "unknown interface"); break;
-  default:
-    log_printf(pStream, "unknown error (%i)", iErrorCode);
-  }
-}
 
 // -----[ network_get_simulator ]------------------------------------
 SSimulator * network_get_simulator()
@@ -145,7 +110,7 @@ int node_add_tunnel(SNetNode * pNode,
  */
 int node_del_tunnel(SNetNode * pNode, net_addr_t tAddr)
 {
-  return NET_SUCCESS;
+  return NET_ERROR_UNSUPPORTED;
 }
 
 // -----[ node_ipip_enable ]-----------------------------------------
@@ -232,130 +197,6 @@ SNetRouteNextHop * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
   return pNextHop;
 }
 
-// ----- node_has_address -------------------------------------------
-/**
- * This function checks if the node has the given address. The
- * function first checks the loopback address (that identifies the
- * node). Then, the function checks the multi-point links of the node
- * for an 'interface' address.
- *
- * Return:
- * 1 if the node has the given address
- * 0 otherwise
- */
-int node_has_address(SNetNode * pNode, net_addr_t tAddress)
-{
-  unsigned int uIndex;
-  SNetLink * pLink;
-
-  // Check loopback address
-  if (pNode->tAddr == tAddress)
-    return 1;
-
-  // Check interface addresses
-  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->tIfaceAddr == tAddress)
-      return 1;
-  }
-
-  return 0;
-}
-
-// ----- node_addresses_for_each ------------------------------------
-/**
- * This function calls the given callback function for each address
- * owned by the node. The first address is the node's loopback address
- * (its identifier). The other addresses are the interface addresses
- * (that are set on multi-point links, for instance).
- */
-int node_addresses_for_each(SNetNode * pNode, FArrayForEach fForEach,
-			    void * pContext)
-{
-  int iResult;
-  unsigned int uIndex;
-  SNetLink * pLink;
-
-  // Loopback interface
-  if ((iResult= fForEach(&pNode->tAddr, pContext)) != 0)
-    return iResult;
-    
-
-  // Other interfaces
-  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->uType == NET_LINK_TYPE_ROUTER)
-      continue;
-    if ((iResult= fForEach(&pLink->tIfaceAddr, pContext)) != 0)
-      return iResult;
-  }
-  
-  return 0;
-}
-
-// ----- node_addresses_dump ----------------------------------------
-/**
- * This function shows the list of addresses owned by the node. The
- * first address is the node's loopback address (its identifier). The
- * other addresses are the interface addresses (that are set on
- * multi-point links, for instance).
- */
-void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
-{
-  unsigned int uIndex;
-  SNetLink * pLink;
-
-  // Show loopback address
-  ip_address_dump(pStream, pNode->tAddr);
-
-  // Show interface addresses
-  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->uType == NET_LINK_TYPE_ROUTER)
-      continue;
-
-    log_printf(pStream, " ");
-    ip_address_dump(pStream, pLink->tIfaceAddr);
-  }
-}
-
-// -----[ node_ifaces_dump ]-----------------------------------------
-/**
- * This function shows the list of interfaces of a given node's, along
- * with their type.
- */
-void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
-{
-  unsigned int uIndex;
-  SNetLink * pLink;
-
-  // Show loobpack interface
-  log_printf(pStream, "lo\t");
-  ip_address_dump(pStream, pNode->tAddr);
-  log_printf(pStream, "\n");
-
-  // Show link interfaces
-  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uType == NET_LINK_TYPE_STUB)) {
-      log_printf(pStream, "ptmp\t");
-      ip_address_dump(pStream, pLink->tIfaceAddr);
-      log_printf(pStream, "\t");
-      ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
-    } else {
-      if (pLink->uType == NET_LINK_TYPE_ROUTER)
-	log_printf(pStream, "ptp\t");
-      else
-	log_printf(pStream, "tun\t");
-      ip_address_dump(pStream, pLink->tIfaceAddr);
-      log_printf(pStream, "\t");
-      ip_address_dump(pStream, pLink->tDest.tAddr);
-    }
-    log_printf(pStream, "\n");
-  }
-}
-
 // -----[ _node_error_dump ]-----------------------------------------
 static void _node_error_dump(int iErrorCode)
 {
@@ -395,8 +236,8 @@ int _node_process_msg(SNetNode * pNode, SNetMessage * pMessage,
   pProtocol= protocols_get(pNode->pProtocols, pMessage->uProtocol);
   if (pProtocol == NULL)
     return _node_fwd_error(pNode, pMessage, pSimulator,
-			   NET_ERROR_PORT_UNREACH,
-			   ICMP_ERROR_PORT_UNREACH);
+			   NET_ERROR_PROTO_UNREACH,
+			   ICMP_ERROR_PROTO_UNREACH);
     
   iResult= pProtocol->fHandleEvent(pSimulator, 
 				   pProtocol->pHandler,
@@ -459,10 +300,10 @@ int node_recv_msg(SNetNode * pNode, SNetMessage * pMessage,
 			    pNextHop->tGateway,
 			    pMessage,
 			    pSimulator);
-  if (iResult == NET_ERROR_DST_UNREACH) {
+  if (iResult == NET_ERROR_HOST_UNREACH) {
     return _node_fwd_error(pNode, pMessage, pSimulator,
-			   NET_ERROR_DST_UNREACH,
-			   ICMP_ERROR_DST_UNREACH);
+			   NET_ERROR_HOST_UNREACH,
+			   ICMP_ERROR_HOST_UNREACH);
   }
 
   return iResult;
@@ -643,7 +484,7 @@ static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
   iResult= pLink->fForward(tNextHop, pLink->pContext, &pNextHop, &pMsg);
 
   // If destination is unreachable
-  if (iResult == NET_ERROR_DST_UNREACH)
+  if (iResult == NET_ERROR_HOST_UNREACH)
     return iResult;
 
   // If one link was DOWN, drop the message.
@@ -738,56 +579,6 @@ void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork)
     }*/
 }
 
-// ----- network_enum_nodes -----------------------------------------
-/**
- * This function can be used by the CLI to enumerate all known nodes.
- */
-char * network_enum_nodes(const char * pcText, int state)
-{
-  static SEnumerator * pEnum= NULL;
-  SNetNode * pNode;
-  char acNode[16];
-
-  if (state == 0)
-    pEnum= trie_get_enum(pTheNetwork->pNodes);
-  while (enum_has_next(pEnum)) {
-    pNode= *((SNetNode **) enum_get_next(pEnum));
-    ip_address_to_string(acNode, pNode->tAddr);
-    if (!strncmp(pcText, acNode, strlen(pcText)))
-      return strdup(acNode);
-  }
-  enum_destroy(&pEnum);
-  return NULL;
-}
-
-// ----- network_enum_bgp_nodes -------------------------------------
-/**
- * This function can be used by the CLI to enumerate all known nodes
- * that support BGP.
- */
-char * network_enum_bgp_nodes(const char * pcText, int state)
-{
-  static SEnumerator * pEnum= NULL;
-  SNetNode * pNode;
-  char acNode[16];
-
-  if (state == 0)
-    pEnum= trie_get_enum(pTheNetwork->pNodes);
-  while (enum_has_next(pEnum)) {
-    pNode= *((SNetNode **) enum_get_next(pEnum));
-
-    // Test if node supports BGP. If not, skip...
-    if (node_get_protocol(pNode, NET_PROTOCOL_BGP) == NULL)
-      continue;
-
-    ip_address_to_string(acNode, pNode->tAddr);
-    if (!strncmp(pcText, acNode, strlen(pcText)))
-      return strdup(acNode);
-  }
-  enum_destroy(&pEnum);
-  return NULL;
-}
-
 // ----- network_links_clear ----------------------------------------
 /**
  * Clear the load of all links in the topology.
@@ -803,6 +594,25 @@ void network_links_clear()
     node_links_clear(pNode);
   }
   enum_destroy(&pEnum);
+}
+
+// ----- network_links_save -----------------------------------------
+/**
+ * Save the load of all links in the topology.
+ */
+int network_links_save(SLogStream * pStream)
+{
+  SEnumerator * pEnum= NULL;
+  SNetNode * pNode;
+
+  pEnum= trie_get_enum(pTheNetwork->pNodes);
+  while (enum_has_next(pEnum)) {
+    pNode= *((SNetNode **) enum_get_next(pEnum));
+    node_links_save(pStream, pNode);
+  }
+  enum_destroy(&pEnum);
+
+  return 0;
 }
 
 
