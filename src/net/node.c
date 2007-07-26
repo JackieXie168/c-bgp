@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 23/01/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,40 +12,15 @@
 
 #include <libgds/str_util.h>
 
+#include <net/error.h>
 #include <net/link.h>
 #include <net/link-list.h>
 #include <net/net_types.h>
+#include <net/netflow.h>
 #include <net/network.h>
 #include <net/node.h>
+#include <net/record-route.h>
 #include <net/subnet.h>
-
-// ----- node_mgmt_perror -------------------------------------------
-/**
- *
- */
-void node_mgmt_perror(SLogStream * pStream, int iErrorCode)
-{
-  switch (iErrorCode) {
-  case NET_SUCCESS:
-    log_printf(pStream, "success"); break;
-  case NET_ERROR_MGMT_INVALID_NODE:
-    log_printf(pStream, "invalid node"); break;
-  case NET_ERROR_MGMT_INVALID_LINK:
-    log_printf(pStream, "invalid link"); break;
-  case NET_ERROR_MGMT_INVALID_SUBNET:
-    log_printf(pStream, "invalid subnet"); break;
-  case NET_ERROR_MGMT_NODE_ALREADY_EXISTS:
-    log_printf(pStream, "node already exists"); break;
-  case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
-    log_printf(pStream, "link already exists"); break;
-  case NET_ERROR_MGMT_LINK_LOOP:
-    log_printf(pStream, "link endpoints are equal"); break;
-  case NET_ERROR_MGMT_INVALID_OPERATION:
-    log_printf(pStream, "invalid operation"); break;
-  default:
-    log_printf(pStream, "unknown error (%i)", iErrorCode);
-  }
-}
 
 // ----- node_create ------------------------------------------------
 /**
@@ -67,8 +42,8 @@ SNetNode * node_create(net_addr_t tAddr)
 
   pNode->pIGPDomains = uint16_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
   pNode->pProtocols= protocols_create();
-  node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode,
-			 NULL, icmp_event_handler);
+  node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode, NULL,
+			 icmp_event_handler);
   return pNode;
 }
 
@@ -167,7 +142,7 @@ int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB,
 
   iResult= net_link_create_ptp(pNodeA, pNodeB, tDelay, tCapacity,
 			       tDepth, &pLink);
-  if (iResult < 0)
+  if (iResult != NET_SUCCESS)
     return iResult;
 
   if (iMutual) {
@@ -194,19 +169,20 @@ static inline int node_add_link_mtp(SNetNode * pNode,
 				    net_addr_t tIfaceAddr,
 				    net_link_delay_t tDelay,
 				    net_link_load_t tCapacity,
-				    uint8_t tDepth,
-				    int iMutual)
+				    uint8_t tDepth)
 {
-  SNetLink * pLink= net_link_create_mtp(pNode, pSubnet, tIfaceAddr,
-					tDelay, tCapacity, tDepth);
+  SNetLink * pLink;
+  int iResult;
+
+  iResult= net_link_create_mtp(pNode, pSubnet, tIfaceAddr,
+			       tDelay, tCapacity, tDepth, &pLink);
+  if (iResult != NET_SUCCESS)
+    return iResult;
 
   if (net_links_add(pNode->pLinks, pLink) < 0)
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
 
-  else if (iMutual)
-    return subnet_add_link(pSubnet, pLink, tIfaceAddr);
-  else 
-    return NET_SUCCESS;
+  return subnet_add_link(pSubnet, pLink);
 }
 
 // ----- node_add_link ----------------------------------------------
@@ -238,7 +214,7 @@ int node_add_link(SNetNode * pNode, SNetDest sDest,
       return NET_ERROR_MGMT_INVALID_SUBNET;
     return node_add_link_mtp(pNode, pDestSubnet,
 			     sDest.uDest.sPrefix.tNetwork, tDelay, tCapacity,
-			     tDepth, 1);
+			     tDepth);
 
   default:
     return NET_ERROR_MGMT_INVALID_OPERATION;
@@ -325,6 +301,174 @@ void node_links_clear(SNetNode * pNode)
   enum_destroy(&pEnum);
 }
 
+// ----- node_links_save --------------------------------------------
+void node_links_save(SLogStream * pStream, SNetNode * pNode)
+{
+  SEnumerator * pEnum= net_links_get_enum(pNode->pLinks);
+  SNetLink * pLink;
+
+  while (enum_has_next(pEnum)) {
+    pLink= *((SNetLink **) enum_get_next(pEnum));
+  
+    // Skip tunnels
+    if (pLink->uType == NET_LINK_TYPE_TUNNEL)
+      continue;
+  
+    // This side of the link
+    ip_address_dump(pStream, pNode->tAddr);
+    log_printf(pStream, "\t");
+    ip_prefix_dump(pStream, net_link_get_id(pLink));
+    log_printf(pStream, "\t");
+
+    // Other side of the link
+    switch (pLink->uType) {
+    case NET_LINK_TYPE_ROUTER:
+      ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
+      log_printf(pStream, "\t");
+      ip_address_dump(pStream, pNode->tAddr);
+      log_printf(pStream, "/32");
+      break;
+    case NET_LINK_TYPE_TRANSIT:
+    case NET_LINK_TYPE_STUB:
+      ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
+      log_printf(pStream, "\t---");
+      break;
+    default:
+      abort();
+    }
+
+    // Link load
+    log_printf(pStream, "\t%u\n", pLink->tLoad);
+  }
+    
+  enum_destroy(&pEnum);
+}
+
+// ----- node_has_address -------------------------------------------
+/**
+ * This function checks if the node has the given address. The
+ * function first checks the loopback address (that identifies the
+ * node). Then, the function checks the multi-point links of the node
+ * for an 'interface' address.
+ *
+ * Return:
+ * 1 if the node has the given address
+ * 0 otherwise
+ */
+int node_has_address(SNetNode * pNode, net_addr_t tAddress)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Check loopback address
+  if (pNode->tAddr == tAddress)
+    return 1;
+
+  // Check interface addresses
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if (pLink->tIfaceAddr == tAddress)
+      return 1;
+  }
+
+  return 0;
+}
+
+// ----- node_addresses_for_each ------------------------------------
+/**
+ * This function calls the given callback function for each address
+ * owned by the node. The first address is the node's loopback address
+ * (its identifier). The other addresses are the interface addresses
+ * (that are set on multi-point links, for instance).
+ */
+int node_addresses_for_each(SNetNode * pNode, FArrayForEach fForEach,
+			    void * pContext)
+{
+  int iResult;
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Loopback interface
+  if ((iResult= fForEach(&pNode->tAddr, pContext)) != 0)
+    return iResult;
+    
+
+  // Other interfaces
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if (pLink->uType == NET_LINK_TYPE_ROUTER)
+      continue;
+    if ((iResult= fForEach(&pLink->tIfaceAddr, pContext)) != 0)
+      return iResult;
+  }
+  
+  return 0;
+}
+
+// ----- node_addresses_dump ----------------------------------------
+/**
+ * This function shows the list of addresses owned by the node. The
+ * first address is the node's loopback address (its identifier). The
+ * other addresses are the interface addresses (that are set on
+ * multi-point links, for instance).
+ */
+void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Show loopback address
+  ip_address_dump(pStream, pNode->tAddr);
+
+  // Show interface addresses
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if (pLink->uType == NET_LINK_TYPE_ROUTER)
+      continue;
+
+    log_printf(pStream, " ");
+    ip_address_dump(pStream, pLink->tIfaceAddr);
+  }
+}
+
+// -----[ node_ifaces_dump ]-----------------------------------------
+/**
+ * This function shows the list of interfaces of a given node's, along
+ * with their type.
+ */
+void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+  SNetLink * pLink;
+
+  // Show loobpack interface
+  log_printf(pStream, "lo\t");
+  ip_address_dump(pStream, pNode->tAddr);
+  log_printf(pStream, "\n");
+
+  // Show link interfaces
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
+    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
+	(pLink->uType == NET_LINK_TYPE_STUB)) {
+      log_printf(pStream, "ptmp\t");
+      ip_address_dump(pStream, pLink->tIfaceAddr);
+      log_printf(pStream, "\t");
+      ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
+    } else {
+      if (pLink->uType == NET_LINK_TYPE_ROUTER)
+	log_printf(pStream, "ptp\t");
+      else
+	log_printf(pStream, "tun\t");
+      ip_address_dump(pStream, pLink->tIfaceAddr);
+      log_printf(pStream, "\t");
+      ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
+    }
+    log_printf(pStream, "\n");
+  }
+}
+
+
 /////////////////////////////////////////////////////////////////////
 //
 // ROUTING TABLE FUNCTIONS
@@ -396,7 +540,7 @@ int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
   // through the given interface.
   if (tNextHop != 0) {
     if (pIface->uType == NET_LINK_TYPE_ROUTER) {
-      if (pIface->tDest.tAddr != tNextHop)
+      if (pIface->tDest.pNode->tAddr != tNextHop)
 	return NET_RT_ERROR_NH_UNREACH;
     } else {
       pSubLink= subnet_find_link(pIface->tDest.pSubnet, tNextHop);
@@ -438,7 +582,7 @@ int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
 
 /////////////////////////////////////////////////////////////////////
 //
-// PROTOCOLS
+// PROTOCOL FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
 
@@ -470,3 +614,101 @@ SNetProtocol * node_get_protocol(SNetNode * pNode, uint8_t uNumber)
 {
   return protocols_get(pNode->pProtocols, uNumber);
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// TRAFFIC LOAD FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
+typedef struct {
+  SNetNode *   pTargetNode;
+  uint8_t      uOptions;
+  unsigned int uFlowsTotal;
+  unsigned int uFlowsOk;
+  unsigned int uFlowsError;
+  unsigned int uOctetsTotal;
+  unsigned int uOctetsOk;
+  unsigned int uOctetsError;
+} SNET_NODE_NETFLOW_CTX;
+
+// -----[ _node_netflow_handler ]------------------------------------
+static int _node_netflow_handler(net_addr_t tSrc, net_addr_t tDst,
+				 unsigned int uOctets, void * pContext)
+{
+  SNET_NODE_NETFLOW_CTX * pCtx= (SNET_NODE_NETFLOW_CTX *) pContext;
+  SNetNode * pNode= pCtx->pTargetNode;
+  SNetRecordRouteInfo * pRRInfo;
+  SNetDest sDst= { .tType= NET_DEST_ADDRESS, .uDest.tAddr= tDst };
+
+  pCtx->uFlowsTotal++;
+  pCtx->uOctetsTotal+= uOctets;
+
+  pRRInfo= node_record_route(pNode, sDst, 0,
+			     NET_RECORD_ROUTE_OPTION_LOAD,
+			     uOctets);
+
+  if (pCtx->uOptions & NET_NODE_NETFLOW_OPTIONS_DETAILS) {
+    log_printf(pLogOut, "src:");
+    ip_address_dump(pLogOut, tSrc);
+    log_printf(pLogOut, " dst:");
+    ip_address_dump(pLogOut, tDst);
+    log_printf(pLogOut, " octets:%u ", uOctets);
+    if (pRRInfo != NULL) {
+      log_printf(pLogOut, "status:%d\n", pRRInfo->iResult);
+    } else {
+      log_printf(pLogOut, "status:?\n");
+    }
+  }
+  
+  if (pRRInfo == NULL) {
+    pCtx->uFlowsError++;
+    pCtx->uOctetsError+= uOctets;
+    return NETFLOW_ERROR_UNEXPECTED;
+  }
+
+  /** IN THE FUTURE, WE SHOULD CHECK TRAFFIC MATRIX ERRORS
+      if (pRRInfo->iResult == NET_RECORD_ROUTE_TO_HOST) {
+      iError= NET_TM_ERROR_ROUTE;
+      break;
+      }
+  */
+  net_record_route_info_destroy(&pRRInfo);
+
+  pCtx->uFlowsOk++;
+  pCtx->uOctetsOk+= uOctets;
+  
+  return NETFLOW_SUCCESS;
+}
+
+// -----[ node_load_netflow ]----------------------------------------
+int node_load_netflow(SNetNode * pNode, const char * pcFileName,
+		      uint8_t uOptions)
+{
+  int iResult;
+  SNET_NODE_NETFLOW_CTX sCtx= {
+    .pTargetNode= pNode,
+    .uOptions= uOptions,
+    .uFlowsTotal= 0,
+    .uFlowsOk= 0,
+    .uFlowsError= 0,
+    .uOctetsTotal= 0,
+    .uOctetsOk= 0,
+    .uOctetsError= 0,
+  };
+
+  iResult= netflow_load(pcFileName, _node_netflow_handler, &sCtx);
+
+  if (uOptions & NET_NODE_NETFLOW_OPTIONS_SUMMARY) {
+    log_printf(pLogOut, "Flows total : %u\n", sCtx.uFlowsTotal);
+    log_printf(pLogOut, "Flows ok    : %u\n", sCtx.uFlowsOk);
+    log_printf(pLogOut, "Flows error : %u\n", sCtx.uFlowsError);
+    log_printf(pLogOut, "Octets total: %u\n", sCtx.uOctetsTotal);
+    log_printf(pLogOut, "Octets ok   : %u\n", sCtx.uOctetsOk);
+    log_printf(pLogOut, "Octets error: %u\n", sCtx.uOctetsError);
+  }
+
+  return iResult;
+}
+
