@@ -9,10 +9,8 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// @lastdate 22/05/2007
+// @lastdate 20/07/2007
 // ==================================================================
-// Future changes:
-// - move attribute parsers in corresponding sections
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -60,9 +58,6 @@ typedef FILE FILE_TYPE;
 
 // ----- Local tokenizers -----
 static STokenizer * pLineTokenizer= NULL;
-static STokenizer * pCommTokenizer= NULL;
-static STokenizer * pPathTokenizer= NULL;
-static STokenizer * pSegmentTokenizer= NULL;
 
 
 /////////////////////////////////////////////////////////////////////
@@ -70,113 +65,6 @@ static STokenizer * pSegmentTokenizer= NULL;
 // ASCII MRT FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
-
-// -----[ _mrtd_create_path_segment ]--------------------------------
-static SPathSegment * _mrtd_create_path_segment(const char * pcPathSegment)
-{
-  int iIndex;
-  STokens * pTokens;
-  SPathSegment * pSegment;
-  unsigned long ulASNum;
-
-  if (pSegmentTokenizer == NULL)
-    pSegmentTokenizer= tokenizer_create(" ", 0, NULL, NULL);
-
-  if (tokenizer_run(pSegmentTokenizer, (char *) pcPathSegment)
-      != TOKENIZER_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: parse error in 'mrtd_create_path_segment'\n");
-    return NULL;
-  }
-
-  pTokens= tokenizer_get_tokens(pSegmentTokenizer);
-  pSegment= path_segment_create(AS_PATH_SEGMENT_SET, 0);
-  for (iIndex= tokens_get_num(pTokens); iIndex > 0; iIndex--) {
-    if (tokens_get_ulong_at(pTokens, iIndex-1, &ulASNum) || (ulASNum > 65535)) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid AS-Num \"%s\"\n",
-		 tokens_get_string_at(pTokens, iIndex-1));
-      path_segment_destroy(&pSegment);
-      break;
-    }
-    path_segment_add(&pSegment, ulASNum);
-  }
-  return pSegment;
-}
-
-// -----[ mrtd_create_path ]-----------------------------------------
-SBGPPath * mrtd_create_path(const char * pcPath)
-{
-  int iIndex;
-  STokens * pPathTokens;
-  SBGPPath * pPath= NULL;
-  char * pcSegment;
-  SPathSegment * pSegment;
-  unsigned long ulASNum;
-
-  if (pPathTokenizer == NULL)
-    pPathTokenizer= tokenizer_create(" ", 0, "[", "]");
-
-  if (tokenizer_run(pPathTokenizer, (char *) pcPath) != TOKENIZER_SUCCESS)
-    return NULL;
-
-  pPathTokens= tokenizer_get_tokens(pPathTokenizer);
-
-  pPath= path_create();
-  for (iIndex= tokens_get_num(pPathTokens); iIndex > 0; iIndex--) {
-    pcSegment= tokens_get_string_at(pPathTokens, iIndex-1);
-    if (!tokens_get_ulong_at(pPathTokens, iIndex-1, &ulASNum)) {
-      if (ulASNum > 65535) {
-	LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid AS-Num \"%s\"\n",
-		   pcSegment);
-	path_destroy(&pPath);
-	break;
-      }
-      path_append(&pPath, ulASNum);
-    } else {
-      pSegment= _mrtd_create_path_segment(pcSegment);
-      if (pSegment == NULL) {
-	LOG_ERR(LOG_LEVEL_SEVERE,
-		"Error: not a valid path segment \"%s\"\n",
-		pcSegment);
-	path_destroy(&pPath);
-	break;
-      }
-      path_add_segment(pPath, pSegment);
-    }
-  }
-
-  return pPath;
-}
-
-// -----[ _mrtd_create_communities ]---------------------------------
-static SCommunities * _mrtd_create_communities(const char * pcCommunities)
-{
-  int iIndex;
-  SCommunities * pComm= NULL;
-  STokens * pTokens;
-  comm_t uComm;
-
-  if (pCommTokenizer == NULL)
-    pCommTokenizer= tokenizer_create(" ", 0, NULL, NULL);
-
-  if (tokenizer_run(pCommTokenizer, (char *) pcCommunities)
-      != TOKENIZER_SUCCESS)
-    return NULL;
-
-  pTokens= tokenizer_get_tokens(pCommTokenizer);
-
-  pComm= comm_create();
-  for (iIndex= 0; iIndex < tokens_get_num(pTokens); iIndex++) {
-    if (comm_from_string(tokens_get_string_at(pTokens, iIndex), &uComm)) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid community \"%s\"\n",
-		 tokens_get_string_at(pTokens, iIndex));
-      comm_destroy(&pComm);
-      return NULL;
-    }
-    comm_add(&pComm, uComm);
-  }
-  
-  return pComm;
-}
 
 // -----[ _mrtd_get_origin ]-----------------------------------------
 /**
@@ -386,7 +274,7 @@ static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
 
   /* Check the AS-PATH */
   pcTemp= tokens_get_string_at(pTokens, 6);
-  pPath= mrtd_create_path(pcTemp);
+  pPath= path_from_string(pcTemp);
   if (pPath == NULL) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid AS-Path \"%s\"\n", pcTemp);
     return -1;
@@ -429,7 +317,7 @@ static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
   /* Check the COMMUNITIES (if present) */
   if (tokens_get_num(pTokens) > 11) {
     pcTemp= tokens_get_string_at(pTokens, 11);
-    pComm= _mrtd_create_communities(pcTemp);
+    pComm= comm_from_string(pcTemp);
     if (pComm == NULL) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid communities \"%s\"\n", pcTemp);
       path_destroy(&pPath);
@@ -835,7 +723,4 @@ int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
 void _mrtd_destroy()
 {
   tokenizer_destroy(&pLineTokenizer);
-  tokenizer_destroy(&pCommTokenizer);
-  tokenizer_destroy(&pPathTokenizer);
-  tokenizer_destroy(&pSegmentTokenizer);
 }
