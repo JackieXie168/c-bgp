@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 18/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <assert.h>
 
+#include <net/error.h>
 #include <net/ipip.h>
 #include <net/link.h>
 #include <net/network.h>
@@ -51,7 +52,7 @@ int ipip_link_create(SNetNode * pNode, net_addr_t tDstPoint,
   SNetLink * pLink;
   SIPIPContext * pContext;
   SNetRouteNextHop * pRouteNH;
-  net_addr_t tGateway= 0;
+  net_addr_t tGateway= NET_ADDR_ANY;
 
   // Retrieve the outgoing interface used to reach the tunnel endpoint
   if (pOutIface == NULL) {
@@ -75,7 +76,8 @@ int ipip_link_create(SNetNode * pNode, net_addr_t tDstPoint,
   pLink->tIfaceAddr= tAddr;
   pLink->tIfaceMask= 32;
   pLink->uType= NET_LINK_TYPE_TUNNEL;
-  pLink->tDest.tAddr= tDstPoint;
+  
+  pLink->tDest.tEndPoint= tDstPoint;
 
   // Create the IPIP context
   pContext= (SIPIPContext *) MALLOC(sizeof(SIPIPContext));
@@ -86,9 +88,11 @@ int ipip_link_create(SNetNode * pNode, net_addr_t tDstPoint,
 
   pLink->pContext= pContext;
   pLink->fForward= _ipip_link_forward;
+  pLink->fHandle= NULL;
   pLink->fDestroy= _ipip_link_destroy;
 
   *ppLink= pLink;
+
   return NET_SUCCESS;
 }
 
@@ -143,12 +147,12 @@ static int _ipip_link_forward(net_addr_t tNextHop, void * pContext,
   net_addr_t tSrcAddr= pTunnel->tSrcAddr;
 
   // Default IP encap source address = outgoing interface's address.
-  if (tSrcAddr == 0)
+  if (tSrcAddr == NET_ADDR_ANY)
     tSrcAddr= pTunnel->pOutIface->tIfaceAddr;
 
   // Build encapsulation message
   *ppMsg= message_create(tSrcAddr,
-			 pTunnelIface->tDest.tAddr,
+			 pTunnelIface->tDest.tEndPoint,
 			 NET_PROTOCOL_IPIP,
 			 255, *ppMsg, _ipip_msg_destroy);
 
