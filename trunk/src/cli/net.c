@@ -406,7 +406,8 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 
   // Change link weight in backward direction (if requested)
   if (iBidir) {
-    pNode= network_find_node(pLink->tDest.tAddr);
+    pNode= pLink->tDest.pNode;
+    /*network_find_node(pLink->tDest.tAddr);*/
     assert(pNode != NULL);
     pLink= node_find_link_ptp(pNode, pLink->pSrcNode->tAddr);
     assert(pLink != NULL);
@@ -623,14 +624,30 @@ int cli_net_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_traffic_save(SCliContext * pContext, SCliCmd * pCmd)
 {
-  char * pcFileName;
+  char * pcFileName= NULL;
+  SLogStream * pStream= pLogOut;
   int iResult;
 
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  iResult= network_links_save(pcFileName);
+  // Get the optional parameter
+  if ((pCmd->pParamValues != NULL) &&
+      (tokens_get_num(pCmd->pParamValues) > 0)) {
+    pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
+    log_printf(pLogOut, "filename: %s\n", pcFileName);
+    pStream= log_create_file(pcFileName);
+    if (pStream == NULL) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not create \"%d\"\n",
+	      pcFileName);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  iResult= network_links_save(pStream);
+
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
+
   if (iResult != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not save traffic matrix \"%s\"\n",
-	    pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not save traffic matrix\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -834,7 +851,7 @@ int cli_register_net_traffic(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("load", cli_net_traffic_load,
 					NULL, pParams));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<file>", NULL);
+  cli_params_add_vararg(pParams, "<file>", 1, NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("save", cli_net_traffic_save,
 					NULL, pParams));
   return cli_cmds_add(pCmds, cli_cmd_create("traffic", NULL, pSubCmds, NULL));
