@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/06/2005
-// @lastdate 16/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -207,6 +207,10 @@ typedef int (*FNetLinkForward)(net_addr_t tPhysAddr,
 			       void * pContext,
 			       SNetNode ** ppNextHop,
 			       SNetMessage ** ppMsg);
+
+// ----- FNetLinkHandle ---------------------------------------------
+typedef void (*FNetLinkHandle)();
+
 // -----[ FNetLinkDestroy ]------------------------------------------
 /**
  * This type defines a callback that is used to destroy the context
@@ -221,8 +225,9 @@ typedef void (*FNetLinkDestroy)(void * pContext);
  * case, the destination is a pointer to the subnet.
  */
 typedef union {
-  net_addr_t tAddr;
-  SNetSubnet * pSubnet;
+  SNetNode * pNode;      // ptp links
+  SNetSubnet * pSubnet;  // ptmp links
+  net_addr_t tEndPoint;  // tunnels
 } net_link_dst_t;
 
 // ----- SNetLink --------------------------------------------
@@ -264,7 +269,8 @@ typedef struct {
 
   // --- Context and methods ---
   void             * pContext;
-  FNetLinkForward    fForward;
+  FNetLinkForward    fForward;   // Send message function
+  FNetLinkHandle     fHandle;    // Recv message function
   FNetLinkDestroy    fDestroy;
 
 #ifdef OSPF_SUPPORT
