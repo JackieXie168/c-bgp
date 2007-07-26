@@ -6,13 +6,14 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 //
 // @date 27/04/2007
-// @lastdate 27/04/2007
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include <string.h>
 
 #include <bgp/as.h>
@@ -35,7 +36,7 @@ SNetNode * cli_enum_net_nodes(const char * pcText, int state)
 
     // Optionally check if prefix matches
     if (pcText != NULL) {
-      ip_address_to_string(acNode, pNode->tAddr);
+      assert(ip_address_to_string(pNode->tAddr, acNode, sizeof(acNode)) >= 0);
       if (strncmp(pcText, acNode, strlen(pcText)))
 	continue;
     }
@@ -74,7 +75,7 @@ char * cli_enum_net_nodes_addr(const char * pcText, int state)
   char acNode[16];
   
   while ((pNode= cli_enum_net_nodes(pcText, state++)) != NULL) {
-    ip_address_to_string(acNode, pNode->tAddr);
+    assert(ip_address_to_string(pNode->tAddr, acNode, sizeof(acNode)) >= 0);
     return strdup(acNode);
   }
   return NULL;
@@ -90,7 +91,8 @@ char * cli_enum_bgp_routers_addr(const char * pcText, int state)
   char acNode[16];
   
   while ((pRouter= cli_enum_bgp_routers(pcText, state)) != NULL) {
-    ip_address_to_string(acNode, pRouter->pNode->tAddr);
+    assert(ip_address_to_string(pRouter->pNode->tAddr, acNode,
+				sizeof(acNode)) >= 0);
     return strdup(acNode);
   }
   return NULL;
