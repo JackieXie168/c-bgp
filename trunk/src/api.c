@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 29/06/2007
+// @lastdate 20/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,11 +18,14 @@
 
 #include <bgp/as.h>
 #include <bgp/as-level.h>
+#include <bgp/comm.h>
 #include <bgp/comm_hash.h>
 #include <bgp/domain.h>
 #include <bgp/filter_registry.h>
 #include <bgp/mrtd.h>
+#include <bgp/path.h>
 #include <bgp/path_hash.h>
+#include <bgp/path_segment.h>
 #include <bgp/peer_t.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/qos.h>
@@ -88,8 +91,27 @@ void libcbgp_done()
   _comm_hash_destroy();
   _bgp_router_destroy();
   _aslevel_destroy();
+  _path_destroy();
+  _path_segment_destroy();
+  _comm_destroy();
 
   gds_destroy();
+}
+
+// -----[ libcbgp_banner ]-------------------------------------------
+/**
+ *
+ */
+void libcbgp_banner()
+{
+  log_printf(pLogOut, "C-BGP routing solver %s\n", PACKAGE_VERSION);
+  log_printf(pLogOut, "Copyright (C) 2007 Bruno Quoitin\n");
+  log_printf(pLogOut, "IP Networking Lab, CSE Dept, UCL, Belgium\n");
+  log_printf(pLogOut, "\n");
+  log_printf(pLogOut, "C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
+  log_printf(pLogOut, "This is free software, and you are welcome to redistribute it\n");
+  log_printf(pLogOut, "under certain conditions; see file COPYING for details.\n");
+  log_printf(pLogOut, "\n");
 }
 
 // -----[ libcbgp_set_debug_callback ]-------------------------------
