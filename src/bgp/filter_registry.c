@@ -4,12 +4,14 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 09/01/2007
+// @lastdate 20/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <assert.h>
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
@@ -106,7 +108,7 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
 
   // Get community
   pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (comm_from_string(pcCommunity, &tCommunity)) {
+  if (comm_value_from_string(pcCommunity, &tCommunity)) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -233,6 +235,7 @@ static int ft_cli_predicate_path (SCliContext * pContext,
   pFilterRegEx = MALLOC(sizeof(SPathMatch));
   pFilterRegEx->pcPattern = MALLOC(strlen(pcPattern)+1);
   strcpy(pFilterRegEx->pcPattern, pcPattern);
+
   /* Try to find the expression in the hash table 
    * if not found, insert it in the hash table and in the array.
    * else the we have found the structure added in the hash table. 
@@ -244,10 +247,9 @@ static int ft_cli_predicate_path (SCliContext * pContext,
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: Invalid Regular Expression : \"%s\"\n", pcPattern);
       return CLI_ERROR_COMMAND_FAILED;
     }
-    if (hash_add(pHashPathExpr, pHashFilterRegEx) == -1) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: Could'nt insert the path reg exp in the hash table\n");
-      return CLI_ERROR_COMMAND_FAILED;
-    }
+
+    assert(hash_add(pHashPathExpr, pHashFilterRegEx) != NULL);
+
     if ( (iPos = ptr_array_add(paPathExpr, &pHashFilterRegEx)) == -1) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: Could not insert path reg exp in the array\n");
       return CLI_ERROR_COMMAND_FAILED;
@@ -509,7 +511,7 @@ int ft_cli_action_community_add(SCliContext * pContext,
   comm_t tCommunity;
 
   pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (comm_from_string(pcCommunity, &tCommunity)) {
+  if (comm_value_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
@@ -530,7 +532,7 @@ int ft_cli_action_community_remove(SCliContext * pContext,
   comm_t tCommunity;
 
   pcCommunity= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (comm_from_string(pcCommunity, &tCommunity)) {
+  if (comm_value_from_string(pcCommunity, &tCommunity)) {
     *ppAction= NULL;
     LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid community \"%s\"\n", pcCommunity);
     return CLI_ERROR_COMMAND_FAILED;
