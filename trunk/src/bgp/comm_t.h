@@ -3,11 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/05/2003
-// @lastdate 28/09/2006
+// @lastdate 19/07/2007
 // ==================================================================
 
-#ifndef __COMM_T_H__
-#define __COMM_T_H__
+#ifndef __BGP_COMM_T_H__
+#define __BGP_COMM_T_H__
 
 #include <libgds/types.h>
 
@@ -28,4 +28,4 @@ typedef struct {
   comm_t asComms[0];
 } SCommunities;
 
-#endif
+#endif /* __BGP_COMM_T_H__ */
