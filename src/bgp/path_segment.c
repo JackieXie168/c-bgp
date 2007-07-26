@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 13/07/2007
+// @lastdate 22/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,8 +16,11 @@
 
 #include <libgds/log.h>
 #include <libgds/memory.h>
+#include <libgds/tokenizer.h>
 #include <bgp/path.h>
 #include <bgp/path_segment.h>
+
+static STokenizer * pSegmentTokenizer= NULL;
 
 // ----- path_segment_create ----------------------------------------
 /**
@@ -67,10 +70,8 @@ SPathSegment * path_segment_copy(SPathSegment * pSegment)
  * buffer size.
  *
  * Return value:
- *   The function returns the number of character written (not
- *   including the trailing '\0'. If the output was truncated, the
- *   returned value is equal or larger to the destination buffer
- *   size.
+ *   -1    if the destination buffer is too small
+ *   >= 0  otherwise (number of characters written without \0)
  *
  * Note: the function uses snprintf() in order to write into the
  * destination buffer. The return value of snprintf() is important. A
@@ -82,9 +83,9 @@ int path_segment_to_string(SPathSegment * pSegment,
 			   char * pcDst,
 			   size_t tDstSize)
 {
+  size_t tInitialSize= tDstSize;
   int iIndex;
-  int iWritten;
-  size_t tInitialDstSize= tDstSize;
+  int iWritten= 0;
 
   assert(((pSegment->uType == AS_PATH_SEGMENT_SET) ||
 	  (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE)) &&
@@ -93,7 +94,7 @@ int path_segment_to_string(SPathSegment * pSegment,
   if (pSegment->uType == AS_PATH_SEGMENT_SET) {
     iWritten= snprintf(pcDst, tDstSize, "}");
     if (iWritten == tDstSize)
-      return tInitialDstSize;
+      return -1;
     tDstSize-= iWritten;
     pcDst+= iWritten;
   }
@@ -107,7 +108,7 @@ int path_segment_to_string(SPathSegment * pSegment,
 	iWritten= snprintf(pcDst, tDstSize, "%u",
 			   pSegment->auValue[iIndex-1]);	  
       if (iWritten >= tDstSize)
-	return tInitialDstSize;
+	return -1;
       tDstSize-= iWritten;
       pcDst+= iWritten;
     }
@@ -120,7 +121,7 @@ int path_segment_to_string(SPathSegment * pSegment,
 	iWritten= snprintf(pcDst, tDstSize, "%u",
 			   pSegment->auValue[iIndex-1]);	  
       if (iWritten >= tDstSize)
-	return tInitialDstSize;
+	return -1;
       tDstSize-= iWritten;
       pcDst+= iWritten;
     }
@@ -129,12 +130,50 @@ int path_segment_to_string(SPathSegment * pSegment,
   if (pSegment->uType == AS_PATH_SEGMENT_SET) {
     iWritten= snprintf(pcDst, tDstSize, "}");
     if (iWritten >= tDstSize)
-      return tInitialDstSize;
+      return -1;
     tDstSize-= iWritten;
     pcDst+= iWritten;
   }
 
-  return (tInitialDstSize-tDstSize);
+  return tInitialSize-tDstSize;
+}
+
+// -----[ path_segment_from_string ]---------------------------------
+/**
+ * Convert a string to an AS-Path segment.
+ *
+ * Return value:
+ *   NULL  if the string does not contain a valid AS-Path
+ *   a new AS-Path segment otherwise
+ */
+SPathSegment * path_segment_from_string(const char * pcPathSegment)
+{
+  int iIndex;
+  STokens * pTokens;
+  SPathSegment * pSegment;
+  unsigned long ulASNum;
+
+  if (pSegmentTokenizer == NULL)
+    pSegmentTokenizer= tokenizer_create(" ", 0, NULL, NULL);
+
+  if (tokenizer_run(pSegmentTokenizer, (char *) pcPathSegment)
+      != TOKENIZER_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: parse error in 'mrtd_create_path_segment'\n");
+    return NULL;
+  }
+
+  pTokens= tokenizer_get_tokens(pSegmentTokenizer);
+  pSegment= path_segment_create(AS_PATH_SEGMENT_SET, 0);
+  for (iIndex= tokens_get_num(pTokens); iIndex > 0; iIndex--) {
+    if (tokens_get_ulong_at(pTokens, iIndex-1, &ulASNum) || (ulASNum > 65535)) {
+      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid AS-Num \"%s\"\n",
+		 tokens_get_string_at(pTokens, iIndex-1));
+      path_segment_destroy(&pSegment);
+      break;
+    }
+    path_segment_add(&pSegment, ulASNum);
+  }
+  return pSegment;
 }
 
 // ----- path_segment_dump_string ------------------------------------------
@@ -235,11 +274,12 @@ void path_segment_dump(SLogStream * pStream, SPathSegment * pSegment,
   }
 }
 
-// ----- path_segment_resize ----------------------------------------
+// -----[ _path_segment_resize ]-------------------------------------
 /**
  * Resizes an existing segment.
  */
-inline void path_segment_resize(SPathSegment ** ppSegment, uint8_t uNewLength)
+static inline void _path_segment_resize(SPathSegment ** ppSegment,
+					uint8_t uNewLength)
 {
   if (uNewLength != (*ppSegment)->uLength) {
     *ppSegment= (SPathSegment *) REALLOC(*ppSegment,
@@ -262,8 +302,8 @@ inline void path_segment_resize(SPathSegment ** ppSegment, uint8_t uNewLength)
  */
 int path_segment_add(SPathSegment ** ppSegment, uint16_t uAS)
 {
-  if ((*ppSegment)->uLength < 255) {
-    path_segment_resize(ppSegment, (*ppSegment)->uLength+1);
+  if ((*ppSegment)->uLength < MAX_PATH_SEQUENCE_LENGTH) {
+    _path_segment_resize(ppSegment, (*ppSegment)->uLength+1);
     (*ppSegment)->auValue[(*ppSegment)->uLength-1]= uAS;
     return 0;
   } else
@@ -272,20 +312,22 @@ int path_segment_add(SPathSegment ** ppSegment, uint16_t uAS)
 
 // ----- path_segment_contains --------------------------------------
 /**
- * Test if the given segment contains the given AS number. If the AS
- * number was not found, the function returns -1, else it returns the
- * AS number's position in the segment.
+ * Test if the given segment contains the given AS number.
+ *
+ * Return value:
+ *   1  if the segment contains the ASN
+ *   0  otherwise
  */
 inline int path_segment_contains(SPathSegment * pSegment, uint16_t uAS)
 {
-  int iIndex= 0;
+  unsigned int uIndex;
 
-  while (iIndex < pSegment->uLength) {
-    if (pSegment->auValue[iIndex] == uAS)
-      return iIndex;
-    iIndex++;
+  for (uIndex= 0; uIndex < pSegment->uLength; uIndex++) {
+    if (pSegment->auValue[uIndex] == uAS)
+      return 1;
   }
-  return -1;
+
+  return 0;
 }
 
 // ----- path_segment_equals ----------------------------------------
@@ -330,4 +372,47 @@ inline int path_segment_equals(SPathSegment * pSegment1,
   return 0;
 }
 
- 
+// -----[ path_segment_cmp ]-----------------------------------------
+/**
+ * Compare two path segments. This function is aimed at sorting path
+ * segments, not at measuring their length in the decision process !
+ *
+ * Pre-condition: path segments must not be NULL.
+ *
+ * Return value:
+ *   -1  if seg1 < seg2
+ *   0   if seg1 == seg2
+ *   1   if seg1 > seg2
+ *
+ * Note: in the case of segments of type SEQUENCE, two segments with
+ *       the same content might be considered different when their
+ *       content is ordered differently.
+ */
+int path_segment_cmp(SPathSegment * pSeg1, SPathSegment * pSeg2)
+{
+  unsigned int uIndex;
+
+  assert((pSeg1 != NULL) && (pSeg2 != NULL));
+
+  // Longest is first
+  if (pSeg1->uLength < pSeg2->uLength)
+    return -1;
+  else if (pSeg1->uLength > pSeg2->uLength)
+    return 1;
+
+  // Equal size segments, compare each AS number individually
+  for (uIndex= 0; uIndex < pSeg1->uLength; uIndex++) {
+    if (pSeg1->auValue[uIndex] < pSeg2->auValue[uIndex])
+      return -1;
+    else if (pSeg1->auValue[uIndex] > pSeg2->auValue[uIndex])
+      return 1;
+  }
+
+  return 0;
+}
+
+// -----[ _path_segment_destroy ]------------------------------------
+void _path_segment_destroy()
+{
+  tokenizer_destroy(&pSegmentTokenizer);
+}
