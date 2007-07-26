@@ -4,13 +4,14 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 13/04/2007
+// @lastdate 23/07/2007
 // ===========================================================
 
 #ifndef __NET_LINK_H__
 #define __NET_LINK_H__
 
 #include <stdlib.h>
+
 #include <net/net_types.h>
 #include <net/message.h>
 #include <net/prefix.h>
@@ -46,17 +47,13 @@ extern "C" {
 			  net_link_delay_t tDelay,
 			  net_link_load_t tCapacity,
 			  uint8_t tDepth, SNetLink ** ppLink);
-  // ----- net_link_create_ptp2 -------------------------------------
-  int net_link_create_ptp2(SNetNode * pSrcNode, net_addr_t tDstAddr,
-			   net_link_delay_t tDelay,
-			   net_link_load_t tCapacity,
-			   uint8_t tDepth, SNetLink ** ppLink);
   // ----- net_link_create_mtp --------------------------------------
-  SNetLink * net_link_create_mtp(SNetNode * pSrcNode, SNetSubnet * pSubnet,
-				 net_addr_t tIfaceAddr,
-				 net_link_delay_t tdelay,
-				 net_link_load_t tCapacity,
-				 uint8_t tDepth);
+  int net_link_create_mtp(SNetNode * pSrcNode, SNetSubnet * pSubnet,
+			  net_addr_t tIfaceAddr,
+			  net_link_delay_t tdelay,
+			  net_link_load_t tCapacity,
+			  uint8_t tDepth,
+			  SNetLink ** ppLink);
   // ----- net_link_destroy -----------------------------------------
   void net_link_destroy(SNetLink ** ppLink);
 
