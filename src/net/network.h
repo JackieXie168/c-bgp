@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 18/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -24,21 +24,6 @@
 #include <net/routing.h>
 #include <sim/simulator.h>
 
-#define NET_SUCCESS                  0
-#define NET_ERROR_UNKNOWN            -1
-#define NET_ERROR_NET_UNREACH        -2
-#define NET_ERROR_DST_UNREACH        -3
-#define NET_ERROR_PORT_UNREACH       -4
-#define NET_ERROR_TIME_EXCEEDED      -5
-#define NET_ERROR_ICMP_NET_UNREACH   -6
-#define NET_ERROR_ICMP_DST_UNREACH   -7
-#define NET_ERROR_ICMP_PORT_UNREACH  -8
-#define NET_ERROR_ICMP_TIME_EXCEEDED -9
-#define NET_ERROR_LINK_DOWN          -10
-#define NET_ERROR_PROTOCOL_ERROR     -11
-#define NET_ERROR_IF_UNKNOWN         -12
-#define NET_ERROR_NO_REPLY           -13
-
 // ----- options -----
 extern uint8_t NET_OPTIONS_MAX_HOPS;
 
@@ -46,8 +31,6 @@ extern uint8_t NET_OPTIONS_MAX_HOPS;
 extern "C" {
 #endif
 
-  // ----- network_perror -------------------------------------------
-  void network_perror(SLogStream * pStream, int iErrorCode);
   // -----[ network_get_simulator ]----------------------------------
   SSimulator * network_get_simulator();
   // ----- node_create ----------------------------------------------
@@ -56,16 +39,6 @@ extern "C" {
   void node_get_prefix(SNetNode * pNode, SPrefix * pPrefix);
   // ----- node_post_event ------------------------------------------
   int node_post_event(SNetNode * pNode);
-  // ----- node_has_address -----------------------------------------
-  int node_has_address(SNetNode * pNode, net_addr_t tAddress);
-  // ----- node_addresses_for_each ----------------------------------
-  int node_addresses_for_each(SNetNode * pNode,
-				     FArrayForEach fForEach,
-				     void * pContext);
-  // ----- node_addresses_dump --------------------------------------
-  void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
-  // -----[ node_ifaces_dump ]---------------------------------------
-  void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode);
   // ----- node_links_dump ------------------------------------------
   void node_links_dump(SLogStream * pStream, SNetNode * pNode);
   // ----- node_links_destroy ---------------------------------------
@@ -127,10 +100,6 @@ extern "C" {
   
   //---- network_dump_subnets ---------------------------------------
   void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork);
-  // ----- network_enum_nodes ---------------------------------------
-  char * network_enum_nodes(const char * pcText, int state);
-  // ----- network_enum_bgp_nodes -----------------------------------
-  char * network_enum_bgp_nodes(const char * pcText, int state);
   // ----- _network_create ------------------------------------------
   void _network_create();
   // ----- _network_destroy -----------------------------------------
@@ -142,6 +111,8 @@ extern "C" {
 
   // ----- network_links_clear --------------------------------------
   void network_links_clear();
+  // ----- network_links_save ---------------------------------------
+  int network_links_save(SLogStream * pStream);
 
     
 #ifdef __cplusplus
