@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/07/2005
-// @lastdate 16/01/2007
+// @lastdate 15/05/2007
 // ==================================================================
 
 #ifndef __CLI_NET_DOMAIN_H__
@@ -17,8 +17,6 @@ extern "C" {
 
   // ----- cli_net_add_domain ---------------------------------------
   int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd);
-  // ----- cli_net_node_domain --------------------------------------
-  int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd);
   // ----- cli_register_net_domain ----------------------------------
   int cli_register_net_domain(SCliCmds * pCmds);
 
