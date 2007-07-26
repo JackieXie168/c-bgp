@@ -40,43 +40,27 @@ static FHashCompute fPathHashCompute= _path_hash_item_compute;
  * frequent memory allocation.
  */
 #define AS_PATH_STR_SIZE 1024
-static char acPathStr1[AS_PATH_STR_SIZE];
-static char acPathStr2[AS_PATH_STR_SIZE];
 static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize)
 {
+  char acPathStr1[AS_PATH_STR_SIZE];
   uint32_t tKey;
-  assert(path_to_string((SBGPPath *) pPath, 1, acPathStr1, AS_PATH_STR_SIZE)
-	 < AS_PATH_STR_SIZE);
+  assert(path_to_string((SBGPPath *) pPath, 1, acPathStr1, AS_PATH_STR_SIZE) >= 0);
   tKey= hash_utils_key_compute_string(acPathStr1, uPathHashSize) % uHashSize;
-  /*log_printf(pLogErr, "key(%p): %d [%s]\n", pPath, tKey, acPathStr1);*/
   return tKey;
 }
 
 // -----[ path_hash_item_compare ]-----------------------------------
-int _path_hash_item_compare(void * pPath1, void * pPath2,
-			    unsigned int uEltSize)
+static int _path_hash_item_compare(void * pPath1, void * pPath2,
+				   unsigned int uEltSize)
 {
-  int iCmp;
-
-  // If paths pointers are equal, no need to compare their content.
-  if (pPath1 == pPath2)
-    return 0;
-
-  assert(path_to_string(pPath1, 1, acPathStr1, AS_PATH_STR_SIZE)
-	 < AS_PATH_STR_SIZE);
-  assert(path_to_string(pPath2, 1, acPathStr2, AS_PATH_STR_SIZE)
-	 < AS_PATH_STR_SIZE);
-  iCmp= strcmp(acPathStr1, acPathStr2);
-  /*log_printf(pLogErr, "compare(%p [%s], %p [%s]): %d\n",
-    pPath1, acPathStr1, pPath2, acPathStr2, iCmp);*/
-  return iCmp;
+  //return path_str_cmp(pPath1, pPath2);
+  return path_cmp(pPath1, pPath2);
 }
 
 // -----[ path_hash_item_destroy ]-----------------------------------
-void _path_hash_item_destroy(void * pItem)
+static void _path_hash_item_destroy(void * pItem)
 {
   SBGPPath * pPath= (SBGPPath *) pItem;
-  /*log_printf(pLogErr, "path-hash-destroy %p\n", pPath);*/
   path_destroy(&pPath);
 }
 
@@ -84,13 +68,13 @@ void _path_hash_item_destroy(void * pItem)
 /**
  *
  */
-int path_hash_add(SBGPPath * pPath)
+void * path_hash_add(SBGPPath * pPath)
 {
   _path_hash_init();
   return hash_add(pPathHash, pPath);
 }
 
-// -----[ path_hash_add ]--------------------------------------------
+// -----[ path_hash_get ]--------------------------------------------
 /**
  *
  */
@@ -100,17 +84,16 @@ SBGPPath * path_hash_get(SBGPPath * pPath)
   return (SBGPPath *) hash_search(pPathHash, pPath);
 }
 
-// -----[ path_hash_add ]--------------------------------------------
+// -----[ path_hash_remove ]-----------------------------------------
 /**
  *
  */
 int path_hash_remove(SBGPPath * pPath)
 {
+  int iResult;
   _path_hash_init();
-  /*log_printf(pLogErr, "path-hash-remove %p [", pPath);
-  path_dump(pLogErr, pPath, 1);
-  log_printf(pLogErr, "]\n");*/
-  return hash_del(pPathHash, pPath);
+  assert((iResult= hash_del(pPathHash, pPath)) != 0);
+  return iResult;
 }
 
 // -----[ path_hash_get_size ]---------------------------------------
@@ -176,11 +159,11 @@ int _path_hash_content_for_each(void * pItem, void * pContext)
   SBGPPath * pPath= (SBGPPath *) pItem;
   uint32_t uRefCnt= 0;
 
-  uRefCnt= hash_info(pPathHash, pPath);
+  uRefCnt= hash_get_refcnt(pPathHash, pPath);
 
   log_printf(pStream, "%u\t", uRefCnt);
   path_dump(pStream, pPath, 1);
-  /*log_printf(pStream, " (%p)", pPath);*/
+  log_printf(pStream, " (%p)", pPath);
   log_printf(pStream, "\n");
   return 0;
 }
@@ -246,7 +229,7 @@ void _path_hash_init()
 {
   if (pPathHash == NULL) {
     pPathHash= hash_init(uPathHashSize,
-			 0.5,
+			 0,
 			 _path_hash_item_compare,
 			 _path_hash_item_destroy,
 			 fPathHashCompute);
