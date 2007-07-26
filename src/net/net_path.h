@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 03/03/2006
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifndef __NET_PATH_H__
@@ -16,24 +16,30 @@
 
 typedef SUInt32Array SNetPath;
 
-// ----- net_path_create --------------------------------------------
-extern SNetPath * net_path_create();
-// ----- path_destroy -------------------------------------------
-extern void net_path_destroy(SNetPath ** ppPath);
-// ----- path_append --------------------------------------------
-extern int net_path_append(SNetPath * pPath, net_addr_t tAddr);
-// ----- path_copy ----------------------------------------------
-extern SNetPath * net_path_copy(SNetPath * pPath);
-// ----- net_path_length --------------------------------------------
-extern int net_path_length(SNetPath * pPath);
-// ----- net_path_for_each ------------------------------------------
-extern int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
-			     void * pContext);
-// ----- path_dump ----------------------------------------------
-extern void net_path_dump(SLogStream * pStream, SNetPath * pPath);
-// ----- net_path_dump_string ---------------------------------------
-char * net_path_dump_string(SNetPath * pPath);
-// ----- net_path_search ---------------------------------------------
-int net_path_search(SNetPath * pPath, net_addr_t tAddr);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // ----- net_path_create ------------------------------------------
+  SNetPath * net_path_create();
+  // ----- path_destroy ---------------------------------------------
+  void net_path_destroy(SNetPath ** ppPath);
+  // ----- path_append ----------------------------------------------
+  int net_path_append(SNetPath * pPath, net_addr_t tAddr);
+  // ----- path_copy ------------------------------------------------
+  SNetPath * net_path_copy(SNetPath * pPath);
+  // ----- net_path_length ------------------------------------------
+  int net_path_length(SNetPath * pPath);
+  // ----- net_path_for_each ----------------------------------------
+  int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
+			void * pContext);
+  // ----- path_dump ------------------------------------------------
+  void net_path_dump(SLogStream * pStream, SNetPath * pPath);
+  // ----- net_path_search ------------------------------------------
+  int net_path_search(SNetPath * pPath, net_addr_t tAddr);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __NET_PATH_H__ */
