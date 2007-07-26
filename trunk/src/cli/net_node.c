@@ -639,7 +639,7 @@ int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
 /**
  * context: {node}
  * tokens: {<filename>}
- * option: ---
+ * option: --summary, --details
  */
 int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
 {
@@ -654,6 +654,10 @@ int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
   // Get option "--summary" ?
   if (cli_options_has_value(pCmd->pOptions, "summary"))
     tOptions|= NET_NODE_NETFLOW_OPTIONS_SUMMARY;
+
+  // Get option "--details" ?
+  if (cli_options_has_value(pCmd->pOptions, "details"))
+    tOptions|= NET_NODE_NETFLOW_OPTIONS_DETAILS;
 
   // Load Netflow from file
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -686,6 +690,7 @@ int cli_register_net_node_traffic(SCliCmds * pCmds)
   pParams= cli_params_create();
   cli_params_add_file(pParams, "<filename>", NULL);
   pCmd= cli_cmd_create("load", cli_net_node_traffic_load, NULL, pParams);
+  cli_cmd_add_option(pCmd, "details", NULL);
   cli_cmd_add_option(pCmd, "summary", NULL);
   cli_cmds_add(pSubCmds, pCmd);
   return cli_cmds_add(pCmds, cli_cmd_create("traffic", NULL, pSubCmds, NULL));
