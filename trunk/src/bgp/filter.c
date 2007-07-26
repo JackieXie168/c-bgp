@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 03/03/2006
+// @lastdate 20/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,28 +30,20 @@ SPtrArray * paPathExpr = NULL;
 SHash * pHashPathExpr = NULL;
 static uint32_t  uHashPathRegExSize = 64;
 
-// ----- filter_path_regex_compare -----------------------------------
-int filter_path_regex_compare(void * pItem1, void * pItem2, 
+// -----[ _filter_path_regex_hash_compare ]--------------------------
+static int _filter_path_regex_hash_compare(void * pItem1, void * pItem2, 
 				unsigned int uEltSize)
 {
-  SPathMatch * pRegEx1 = (SPathMatch *) pItem1;
-  SPathMatch * pRegEx2 = (SPathMatch *) pItem2;
-  int iComp;
+  SPathMatch * pRegEx1= (SPathMatch *) pItem1;
+  SPathMatch * pRegEx2= (SPathMatch *) pItem2;
 
-  //printf("pattern1 : %s\tpattern2: %s\n", pRegEx1->pcPattern, pRegEx2->pcPattern);
-  iComp = strcmp(pRegEx1->pcPattern, pRegEx2->pcPattern);
-  if (iComp < 0)
-    return -1;
-  else if (iComp > 0)
-    return 1;
-  else
-    return 0;
+  return strcmp(pRegEx1->pcPattern, pRegEx2->pcPattern);
 }
 
-// ----- filter_path_regex_destroy -----------------------------------
-void filter_path_regex_destroy(void * pItem)
+// -----[ _filter_path_regex_hash_destroy ]--------------------------
+static void _filter_path_regex_hash_destroy(void * pItem)
 {
-  SPathMatch * pRegEx = (SPathMatch *)pItem;
+  SPathMatch * pRegEx= (SPathMatch *) pItem;
 
   if ( pRegEx != NULL) {
     if (pRegEx->pcPattern != NULL)
@@ -63,19 +55,21 @@ void filter_path_regex_destroy(void * pItem)
   }
 }
 
-// ----- filter_path_regex_hash --------------------------------------------------
+// -----[ _filter_path_regex_hash_compute ]--------------------------
 /**
  * Universal hash function for string keys (discussed in Sedgewick's
  * "Algorithms in C, 3rd edition") and adapted.
  */
-uint32_t filter_path_regex_hash(const void * pItem, const uint32_t uHashSize)
+static uint32_t _filter_path_regex_hash_compute(const void * pItem,
+						const uint32_t uHashSize)
 {
-  SPathMatch * pRegEx = (SPathMatch *)pItem;
+  SPathMatch * pRegEx= (SPathMatch *) pItem;
   
   if (pRegEx == NULL)
     return 0;
 
-  return hash_utils_key_compute_string(pRegEx->pcPattern, uHashPathRegExSize)%uHashSize;
+  return hash_utils_key_compute_string(pRegEx->pcPattern,
+				       uHashPathRegExSize) % uHashSize;
 }
 
 // ----- filter_matcher_create --------------------------------------
@@ -726,6 +720,7 @@ SFilterAction * filter_action_path_prepend(uint8_t uAmount)
 void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
 {
   comm_t tCommunity;
+  SPathMatch * pPathMatch;
 
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
@@ -774,6 +769,13 @@ void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
       log_printf(pStream, "prefix in ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
+    case FT_MATCH_AS_PATH:
+      ptr_array_get_at(paPathExpr, *((int *) pMatcher->auParams), &pPathMatch);
+      if (pPathMatch != NULL)
+	log_printf(pStream, "path matches %s", pPathMatch->pcPattern);
+      else
+	log_printf(pStream, "path matches ???");
+      break;
     default:
       log_printf(pStream, "?");
     }
@@ -793,7 +795,8 @@ void filter_action_dump(SLogStream * pStream, SFilterAction * pAction)
     case FT_ACTION_DENY: log_printf(pStream, "DENY"); break;
     case FT_ACTION_COMM_APPEND:
       log_printf(pStream, "append community ");
-      comm_dump2(pStream, *((uint32_t *) pAction->auParams), COMM_DUMP_TEXT);
+      comm_value_dump(pStream, *((uint32_t *) pAction->auParams),
+		      COMM_DUMP_TEXT);
       break;
     case FT_ACTION_COMM_STRIP: log_printf(pStream, "comm strip"); break;
     case FT_ACTION_COMM_REMOVE:
@@ -865,10 +868,11 @@ void filter_dump(SLogStream * pStream, SFilter * pFilter)
  */
 void _filter_path_regex_init()
 {
-  pHashPathExpr = hash_init(uHashPathRegExSize, .5, filter_path_regex_compare, 
-				filter_path_regex_destroy, 
-				filter_path_regex_hash);
-  paPathExpr = ptr_array_create(0, NULL, NULL);
+  pHashPathExpr= hash_init(uHashPathRegExSize, .5, 
+			   _filter_path_regex_hash_compare, 
+			   _filter_path_regex_hash_destroy, 
+			   _filter_path_regex_hash_compute);
+  paPathExpr= ptr_array_create(0, NULL, NULL);
 }
 
 // ----- filter_path_regex_destroy ----------------------------------
