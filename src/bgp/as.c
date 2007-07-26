@@ -2227,39 +2227,6 @@ static int _bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
-
-
-// ----- bgp_router_dump_route_string --------------------------------------
-/**
- *
- */
-/* COMMENT ON 22/01/2007
-int bgp_router_dump_route_string(uint32_t uKey, uint8_t uKeyLen,
-				 void * pItem, void * pContext)
-{
-  SRouteDumpCtx * pCtx= (SRouteDumpCtx *) pContext;
-  uint32_t iPtr;
-  char * cCharTmp;
-
-  if (pCtx->cDump == NULL) {
-    pCtx->cDump = MALLOC(255);
-    iPtr = 0;
-  } else {
-    iPtr = strlen(pCtx->cDump);
-    iPtr += 255;
-    pCtx->cDump = REALLOC(pCtx->cDump, iPtr);
-  }
-
-  cCharTmp = route_dump_string((SRoute *) pItem);
-  strcpy((pCtx->cDump)+iPtr, cCharTmp);
-  iPtr += strlen(cCharTmp);
-  strcpy((pCtx->cDump)+iPtr, "\n");
-
-  return 0;
-}
-*/
-
-
 // ----- bgp_router_dump_rib ----------------------------------------
 /**
  *
