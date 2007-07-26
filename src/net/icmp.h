@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 18/04/2007
+// @lastdate 30/05/2007
 // ==================================================================
 
 #ifndef __NET_ICMP_H__
@@ -12,11 +12,12 @@
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/network.h>
+#include <net/net_path.h>
 
-#define ICMP_ERROR_NET_UNREACH   1
-#define ICMP_ERROR_DST_UNREACH   2
-#define ICMP_ERROR_PORT_UNREACH  3
-#define ICMP_ERROR_TIME_EXCEEDED 4
+#define ICMP_ERROR_NET_UNREACH    1
+#define ICMP_ERROR_HOST_UNREACH   2
+#define ICMP_ERROR_PROTO_UNREACH  3
+#define ICMP_ERROR_TIME_EXCEEDED  4
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,10 +51,11 @@ extern "C" {
   // -----[ icmp_trace_route ]---------------------------------------
   int icmp_trace_route(SLogStream * pStream,
 		       SNetNode * pSrcNode, net_addr_t tSrcAddr,
-		       net_addr_t tDstAddr, uint8_t uMaxTTL);
+		       net_addr_t tDstAddr, uint8_t uMaxTTL,
+		       SNetPath * pPath);
   
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* __NET_ICMP_H__ */
