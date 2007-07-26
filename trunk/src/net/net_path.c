@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 09/07/2003
-// @lastdate 03/03/2006
+// @lastdate 21/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -70,28 +70,6 @@ int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
 {
   return _array_for_each((SArray *) pPath, fForEach, pContext);
 }
-
-// ----- net_path_dump_string ---------------------------------------
-/**
- *
- */
-char * net_path_dump_string(SNetPath * pPath)
-{
-  int iIndex;
-  char * cPath = MALLOC(255), * cCharTmp;
-  uint8_t icPathPtr = 0;
-
-  for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
-    if (iIndex > 0)
-      strcpy(cPath+icPathPtr++, " ");
-    cCharTmp = ip_address_dump_string(pPath->data[iIndex]);
-    strcpy(cPath+icPathPtr, cCharTmp);
-    icPathPtr += strlen(cCharTmp);
-    FREE(cCharTmp);
-  }
-  return cPath;
-}
-
 
 // ----- net_path_dump ----------------------------------------------
 /**
