@@ -3,11 +3,11 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 28/09/2006
+// @lastdate 17/07/2007
 // ==================================================================
 
-#ifndef __FILTER_H__
-#define __FILTER_H__
+#ifndef __BGP_FILTER_H__
+#define __BGP_FILTER_H__
 
 #include <stdio.h>
 
@@ -62,103 +62,106 @@ typedef struct {
   char * pcPattern;
   SRegEx * pRegEx;
   uint32_t uArrayPos;
-}SPathMatch;
+} SPathMatch;
 
-
-// ----- filter_path_regex_init --------------------------------------
-void filter_path_regex_init();
-// ----- filter_path_regex_finalize ----------------------------------
-void filter_path_regex_finalize();
-// ----- filter_rule_create -----------------------------------------
-extern SFilterRule * filter_rule_create(SFilterMatcher * pMatcher,
-					SFilterAction * pAction);
-// ----- filter_create ----------------------------------------------
-extern SFilter * filter_create();
-// ----- filter_destroy ---------------------------------------------
-extern void filter_destroy(SFilter ** ppFilter);
-// ----- filter_matcher_destroy -------------------------------------
-extern void filter_matcher_destroy(SFilterMatcher ** ppMatcher);
-// ----- filter_action_destroy --------------------------------------
-extern void filter_action_destroy(SFilterAction ** ppAction);
-// ----- filter_add_rule --------------------------------------------
-extern int filter_add_rule(SFilter * pFilter,
-			   SFilterMatcher * pMatcher,
-			   SFilterAction * pAction);
-// ----- filter_add_rule2 -------------------------------------------
-extern int filter_add_rule2(SFilter * pFilter,
-			    SFilterRule * pRule);
-// ----- filter_insert_rule -----------------------------------------
-extern int filter_insert_rule(SFilter * pFilter, unsigned int uIndex,
-			      SFilterRule * pRule);
-// ----- filter_remove_rule -----------------------------------------
-extern int filter_remove_rule(SFilter * pFilter, unsigned int uIndex);
-// ----- filter_apply -----------------------------------------------
-extern int filter_apply(SFilter * pFilter, SBGPRouter * pRouter,
-			SRoute * pRoute);
-// ----- filter_matcher_apply ---------------------------------------
-extern int filter_matcher_apply(SFilterMatcher * pMatcher,
-				SBGPRouter * pRouter,
-				SRoute * pRoute);
-// ----- filter_action_apply ----------------------------------------
-extern int filter_action_apply(SFilterAction * pAction,
-			       SBGPRouter * pRouter,
-			       SRoute * pRoute);
-// ----- filter_match_and -------------------------------------------
-extern SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,
-					 SFilterMatcher * pMatcher2);
-// ----- filter_match_or --------------------------------------------
-extern SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
-					SFilterMatcher * pMatcher2);
-// ----- filter_match_not -------------------------------------------
-extern SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher);
-// ----- filter_match_comm_contains ---------------------------------
-extern SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity);
-// ----- filter_match_nexthop_equals --------------------------------
-extern SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop);
-// ----- filter_match_nexthop_in ------------------------------------
-extern SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix);
-// ----- filter_match_prefix_equals ---------------------------------
-extern SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
-// ----- filter_match_prefix_in -------------------------------------
-extern SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix);
-// ----- filter_math_path -------------------------------------------
-SFilterMatcher * filter_match_path(int iArrayPathRegExPos);
-// ----- filter_action_accept ---------------------------------------
-extern SFilterAction * filter_action_accept();
-// ----- filter_action_deny -----------------------------------------
-extern SFilterAction * filter_action_deny();
-// ----- filter_action_jump ------------------------------------------
-SFilterAction * filter_action_jump(SFilter * pFilter);
-// ----- filter_action_call ------------------------------------------
-SFilterAction * filter_action_call(SFilter * pFilter);
-// ----- filter_action_pref_set -------------------------------------
-extern SFilterAction * filter_action_pref_set(uint32_t uPref);
-// ----- filter_action_metric_set -----------------------------------
-extern SFilterAction * filter_action_metric_set(uint32_t uMetric);
-// ----- filter_action_metric_internal ------------------------------
-extern SFilterAction * filter_action_metric_internal();
-// ----- filter_action_comm_append ----------------------------------
-extern SFilterAction * filter_action_comm_append(comm_t uCommunity);
-// ----- filter_action_comm_remove ----------------------------------
-extern SFilterAction * filter_action_comm_remove(comm_t uCommunity);
-// ----- filter_action_comm_strip -----------------------------------
-extern SFilterAction * filter_action_comm_strip();
-// ----- filter_action_ecomm_append ---------------------------------
-extern SFilterAction * filter_action_ecomm_append(SECommunity * pComm);
-// ----- filter_action_path_prepend ---------------------------------
-extern SFilterAction * filter_action_path_prepend(uint8_t uAmount);
-// ----- filter_dump ------------------------------------------------
-extern void filter_dump(SLogStream * pStream, SFilter * pFilter);
-// ----- filter_matcher_dump ----------------------------------------
-extern void filter_matcher_dump(SLogStream * pStream,
-				SFilterMatcher * pMatcher);
-// ----- filter_action_dump -----------------------------------------
-extern void filter_action_dump(SLogStream * pStream,
-			       SFilterAction * pAction);
-
-// ----- filter_path_regex_init --------------------------------------
-extern void _filter_path_regex_init();
-// ----- filter_path_regex_destroy ----------------------------------
-extern void _filter_path_regex_destroy();
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // ----- filter_rule_create ---------------------------------------
+  SFilterRule * filter_rule_create(SFilterMatcher * pMatcher,
+				   SFilterAction * pAction);
+  // ----- filter_create --------------------------------------------
+  SFilter * filter_create();
+  // ----- filter_destroy -------------------------------------------
+  void filter_destroy(SFilter ** ppFilter);
+  // ----- filter_matcher_destroy -----------------------------------
+  void filter_matcher_destroy(SFilterMatcher ** ppMatcher);
+  // ----- filter_action_destroy ------------------------------------
+  void filter_action_destroy(SFilterAction ** ppAction);
+  // ----- filter_add_rule ------------------------------------------
+  int filter_add_rule(SFilter * pFilter,
+		      SFilterMatcher * pMatcher,
+		      SFilterAction * pAction);
+  // ----- filter_add_rule2 -----------------------------------------
+  int filter_add_rule2(SFilter * pFilter,
+		       SFilterRule * pRule);
+  // ----- filter_insert_rule ---------------------------------------
+  int filter_insert_rule(SFilter * pFilter, unsigned int uIndex,
+			 SFilterRule * pRule);
+  // ----- filter_remove_rule ---------------------------------------
+  int filter_remove_rule(SFilter * pFilter, unsigned int uIndex);
+  // ----- filter_apply ---------------------------------------------
+  int filter_apply(SFilter * pFilter, SBGPRouter * pRouter,
+		   SRoute * pRoute);
+  // ----- filter_matcher_apply -------------------------------------
+  int filter_matcher_apply(SFilterMatcher * pMatcher,
+			   SBGPRouter * pRouter,
+			   SRoute * pRoute);
+  // ----- filter_action_apply --------------------------------------
+  int filter_action_apply(SFilterAction * pAction,
+			  SBGPRouter * pRouter,
+			  SRoute * pRoute);
+  // ----- filter_match_and -----------------------------------------
+  SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,
+				    SFilterMatcher * pMatcher2);
+  // ----- filter_match_or ------------------------------------------
+  SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
+				   SFilterMatcher * pMatcher2);
+  // ----- filter_match_not -----------------------------------------
+  SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher);
+  // ----- filter_match_comm_contains -------------------------------
+  SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity);
+  // ----- filter_match_nexthop_equals ------------------------------
+  SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop);
+  // ----- filter_match_nexthop_in ----------------------------------
+  SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix);
+  // ----- filter_match_prefix_equals -------------------------------
+  SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
+  // ----- filter_match_prefix_in -----------------------------------
+  SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix);
+  // ----- filter_math_path -----------------------------------------
+  SFilterMatcher * filter_match_path(int iArrayPathRegExPos);
+  // ----- filter_action_accept -------------------------------------
+  SFilterAction * filter_action_accept();
+  // ----- filter_action_deny ---------------------------------------
+  SFilterAction * filter_action_deny();
+  // ----- filter_action_jump ---------------------------------------
+  SFilterAction * filter_action_jump(SFilter * pFilter);
+  // ----- filter_action_call ---------------------------------------
+  SFilterAction * filter_action_call(SFilter * pFilter);
+  // ----- filter_action_pref_set -----------------------------------
+  SFilterAction * filter_action_pref_set(uint32_t uPref);
+  // ----- filter_action_metric_set ---------------------------------
+  SFilterAction * filter_action_metric_set(uint32_t uMetric);
+  // ----- filter_action_metric_internal ----------------------------
+  SFilterAction * filter_action_metric_internal();
+  // ----- filter_action_comm_append --------------------------------
+  SFilterAction * filter_action_comm_append(comm_t uCommunity);
+  // ----- filter_action_comm_remove --------------------------------
+  SFilterAction * filter_action_comm_remove(comm_t uCommunity);
+  // ----- filter_action_comm_strip ---------------------------------
+  SFilterAction * filter_action_comm_strip();
+  // ----- filter_action_ecomm_append -------------------------------
+  SFilterAction * filter_action_ecomm_append(SECommunity * pComm);
+  // ----- filter_action_path_prepend -------------------------------
+  SFilterAction * filter_action_path_prepend(uint8_t uAmount);
+  // ----- filter_dump ----------------------------------------------
+  void filter_dump(SLogStream * pStream, SFilter * pFilter);
+  // ----- filter_matcher_dump --------------------------------------
+  void filter_matcher_dump(SLogStream * pStream,
+			   SFilterMatcher * pMatcher);
+  // ----- filter_action_dump ---------------------------------------
+  void filter_action_dump(SLogStream * pStream,
+			  SFilterAction * pAction);
+  
+  // ----- filter_path_regex_init -----------------------------------
+  void _filter_path_regex_init();
+  // ----- filter_path_regex_destroy --------------------------------
+  void _filter_path_regex_destroy();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BGP_FILTER_H__ */
