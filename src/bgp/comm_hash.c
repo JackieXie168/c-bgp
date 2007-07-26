@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/10/2005
-// @lastdate 28/09/2006
+// @lastdate 18/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,13 +41,14 @@ static FHashCompute fCommHashCompute= _comm_hash_item_compute;
  * order to avoid frequent memory allocation.
  */
 #define AS_COMM_STR_SIZE 1024
-static char acCommStr1[AS_COMM_STR_SIZE];
-static char acCommStr2[AS_COMM_STR_SIZE];
 static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize)
 {
+  char acCommStr1[AS_COMM_STR_SIZE];
+  uint32_t uKey;
   assert(comm_to_string((SCommunities *) pItem, acCommStr1,
-			AS_COMM_STR_SIZE) < AS_COMM_STR_SIZE);
-  return hash_utils_key_compute_string(acCommStr1, uCommHashSize)%uHashSize;
+			AS_COMM_STR_SIZE) >= 0);
+  uKey= hash_utils_key_compute_string(acCommStr1, uCommHashSize)%uHashSize;
+  return uKey;
 }
 
 // -----[ _comm_hash_item_compute_zebra ]----------------------------
@@ -56,7 +57,8 @@ static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHash
  * Communities attribute. The function is based on Zebra's Communities
  * attribute hashing function.
  */
-static uint32_t _comm_hash_item_compute_zebra(const void * pItem, const uint32_t uHashSize)
+static uint32_t _comm_hash_item_compute_zebra(const void * pItem,
+					      const uint32_t uHashSize)
 {
   SCommunities * pCommunities= (SCommunities *) pItem;
   unsigned int uKey= 0;
@@ -80,12 +82,17 @@ static uint32_t _comm_hash_item_compute_zebra(const void * pItem, const uint32_t
 int _comm_hash_item_compare(void * pComm1, void * pComm2,
 			    unsigned int uEltSize)
 {
-  assert(comm_to_string(pComm1, acCommStr1, AS_COMM_STR_SIZE)
-	 < AS_COMM_STR_SIZE);
-  assert(comm_to_string(pComm2, acCommStr2, AS_COMM_STR_SIZE)
-	 < AS_COMM_STR_SIZE);
+  /* Old way to compare two Communities fields
+     char acCommStr1[AS_COMM_STR_SIZE];
+     char acCommStr2[AS_COMM_STR_SIZE];
+     assert(comm_to_string(pComm1, acCommStr1, AS_COMM_STR_SIZE) >= 0);
+     assert(comm_to_string(pComm2, acCommStr2, AS_COMM_STR_SIZE) >= 0);
+     return strcmp(acCommStr1, acCommStr2);
+  */
 
-  return strcmp(acCommStr1, acCommStr2);
+  // New way to compare two Communities fields (more efficient)
+  return comm_cmp((SCommunities *) pComm1,
+		  (SCommunities *) pComm2);
 }
 
 // -----[ comm_hash_item_destroy ]-----------------------------------
@@ -99,13 +106,13 @@ void _comm_hash_item_destroy(void * pItem)
 /**
  *
  */
-int comm_hash_add(SCommunities * pCommunities)
+void * comm_hash_add(SCommunities * pCommunities)
 {
   _comm_hash_init();
   return hash_add(pCommHash, pCommunities);
 }
 
-// -----[ comm_hash_add ]--------------------------------------------
+// -----[ comm_hash_get ]--------------------------------------------
 /**
  *
  */
@@ -115,7 +122,7 @@ SCommunities * comm_hash_get(SCommunities * pCommunities)
   return (SCommunities *) hash_search(pCommHash, pCommunities);
 }
 
-// -----[ comm_hash_add ]--------------------------------------------
+// -----[ comm_hash_remove ]-----------------------------------------
 /**
  *
  */
@@ -123,6 +130,16 @@ int comm_hash_remove(SCommunities * pCommunities)
 {
   _comm_hash_init();
   return hash_del(pCommHash, pCommunities);
+}
+
+// -----[ comm_hash_refcnt ]-----------------------------------------
+/**
+ *
+ */
+uint32_t comm_hash_refcnt(SCommunities * pCommunities)
+{
+  _comm_hash_init();
+  return hash_get_refcnt(pCommHash, pCommunities);
 }
 
 // -----[ comm_hash_get_size ]---------------------------------------
@@ -183,11 +200,8 @@ static int _comm_hash_content_for_each(void * pItem, void * pContext)
 {
   SLogStream * pStream= (SLogStream *) pContext;
   SCommunities * pCommunities= (SCommunities *) pItem;
-  uint32_t uRefCnt= 0;
 
-  uRefCnt= hash_info(pCommHash, pCommunities);
-
-  log_printf(pStream, "%u\t[", uRefCnt);
+  log_printf(pStream, "%u\t[", hash_get_refcnt(pCommHash, pCommunities));
   comm_dump(pStream, pCommunities, 1);
   log_printf(pStream, "]\n");
   return 0;
@@ -254,7 +268,7 @@ void _comm_hash_init()
 {
   if (pCommHash == NULL) {
     pCommHash= hash_init(uCommHashSize,
-			 0.5,
+			 0,
 			 _comm_hash_item_compare,
 			 _comm_hash_item_destroy,
 			 fCommHashCompute);
