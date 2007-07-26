@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 08/08/2005
-// @lastdate 13/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -13,20 +13,13 @@
 #include <net/net_types.h>
 #include <net/protocol.h>
 
-#define NET_ERROR_MGMT_INVALID_NODE        -100
-#define NET_ERROR_MGMT_INVALID_LINK        -101
-#define NET_ERROR_MGMT_INVALID_SUBNET      -102
-#define NET_ERROR_MGMT_NODE_ALREADY_EXISTS -110
-#define NET_ERROR_MGMT_LINK_ALREADY_EXISTS -120
-#define NET_ERROR_MGMT_LINK_LOOP           -121
-#define NET_ERROR_MGMT_INVALID_OPERATION   -130
+// ----- Netflow load options -----
+#define NET_NODE_NETFLOW_OPTIONS_SUMMARY 0x01
+#define NET_NODE_NETFLOW_OPTIONS_DETAILS 0x02
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-  // ----- node_mgmt_perror -----------------------------------------
-  void node_mgmt_perror(SLogStream * pStream, int iErrorCode);
 
   // ----- node_create ----------------------------------------------
   SNetNode * node_create(net_addr_t tAddr);
@@ -62,11 +55,24 @@ extern "C" {
   // ----- node_find_link_mtp ---------------------------------------
   SNetLink * node_find_link_mtp(SNetNode * pNode, SNetSubnet * pSubnet,
 				net_addr_t tIfaceAddr);
-  // -----[ node_find_iface ]------------------------------------------
+  // -----[ node_find_iface ]----------------------------------------
   SNetLink * node_find_iface(SNetNode * pNode, SNetDest sDest);
 
   // ----- node_links_clear -----------------------------------------
   void node_links_clear(SNetNode * pNode);
+  // ----- node_links_save ------------------------------------------
+  void node_links_save(SLogStream * pStream, SNetNode * pNode);
+
+  // ----- node_has_address -----------------------------------------
+  int node_has_address(SNetNode * pNode, net_addr_t tAddress);
+  // ----- node_addresses_for_each ----------------------------------
+  int node_addresses_for_each(SNetNode * pNode,
+				     FArrayForEach fForEach,
+				     void * pContext);
+  // ----- node_addresses_dump --------------------------------------
+  void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
+  // -----[ node_ifaces_dump ]---------------------------------------
+  void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode);
   
   
   ///////////////////////////////////////////////////////////////////
@@ -92,7 +98,7 @@ extern "C" {
   
   
   ///////////////////////////////////////////////////////////////////
-  // PROTOCOLS
+  // PROTOCOL FUNCTIONS
   ///////////////////////////////////////////////////////////////////
 
   // ----- node_register_protocol -----------------------------------
@@ -102,6 +108,16 @@ extern "C" {
 			     FNetNodeHandleEvent fHandleEvent);
   // -----[ node_get_protocol ]--------------------------------------
   SNetProtocol * node_get_protocol(SNetNode * pNode, uint8_t uNumber);
+
+
+  ///////////////////////////////////////////////////////////////////
+  // TRAFFIC LOAD FUNCTIONS
+  ///////////////////////////////////////////////////////////////////
+
+  // -----[ node_load_netflow ]--------------------------------------
+  int node_load_netflow(SNetNode * pNode, const char * pcFileName,
+			uint8_t uOptions);
+
   
 #ifdef __cplusplus
 }
