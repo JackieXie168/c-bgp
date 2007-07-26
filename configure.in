@@ -2,10 +2,10 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 15/07/2007
+dnl @version 19/07/2007
 dnl =================================================================
 
-AC_INIT([cbgp], [1.4.0-rc2])
+AC_INIT([cbgp], [1.4.0-rc3])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -247,31 +247,29 @@ if test "$with_readline" != "no"; then
   done
 
   dnl Default readline (should be found in current paths)
-  if test "$with_readline" = "yes"; then
-    AC_CHECK_LIB(readline, readline,
-      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],, [${gp_tcap}])
-   else
-     dnl Specific readline (path specified as an option)
-     if test -d "$with_readline/include"; then
-       readline_cflags="-I$with_readline/include"
-       CFLAGS="$CFLAGS $readline_cflags"
-       AC_SUBST(CFLAGS)
-     fi
-     if test -d "$with_readline/lib"; then
-       readline_libs="-L$with_readline/lib"
-       LDFLAGS="$LDFLAGS $readline_libs"
-       AC_SUBST(LDFLAGS)
-     fi
-    AC_CHECK_LIB(readline,readline,
-      [TERMLIBS="-lreadline $gp_tcap $TERMLIBS"],,[${gp_tcap}])
+  if test "$with_readline" != "yes"; then
+    dnl Specific readline (path specified as an option)
+    if test -d "$with_readline/include"; then
+      readline_cflags="-I$with_readline/include"
+      CFLAGS="$CFLAGS $readline_cflags"
+      AC_SUBST(CFLAGS)
+    fi
+    if test -d "$with_readline/lib"; then
+      readline_libs="-L$with_readline/lib"
+      LDFLAGS="$LDFLAGS $readline_libs"
+      AC_SUBST(LDFLAGS)
+    fi
   fi
+
+  AC_CHECK_LIB(readline, readline,
+    [TERMLIBS="-lreadline $gp_tcap"],,[${gp_tcap}])
 
   if test "$ac_cv_lib_readline_readline" = no; then
     AC_MSG_ERROR([GNU readline not found])
   else
  
     # Check that "rl_gnu_readline_p" is defined in the library
-    AC_CHECK_LIB(readline,rl_gnu_readline_p,[],[])
+    AC_CHECK_LIB(readline,rl_gnu_readline_p,[],[],[${gp_tcap}])
     if test "$ac_cv_lib_readline_rl_gnu_readline_p" = no; then
       AC_MSG_ERROR([This is not GNU readline])
     else
@@ -399,4 +397,4 @@ AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" = "yes"])
 
 TESTS="src/checks/basic"
 
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile src/check/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile)
