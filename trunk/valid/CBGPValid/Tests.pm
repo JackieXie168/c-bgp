@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 23/04/2007
+# lastdate 23/07/2007
 # ===================================================================
 #
 # Usage:
@@ -129,6 +129,7 @@ sub new($%)
 	     'max-warnings' => 0,
 	     'num-failures' => 0,
 	     'num-warnings' => 0,
+	     'num-skipped'  => 0,
 	    };
   (exists($args{'-cache'})) and
     $self->{'cache-file'}= $args{'-cache'};
@@ -229,12 +230,15 @@ sub run($)
 	my $crashed= 1;
 	while (time()-$time_alive < 5) {
 	  my $result= $cbgp->expect(0);
-	  if (defined($result) &&
-	      ($result =~ m/STILL_ALIVE/)) {
-	    $crashed= 0;
-	    last;
+	  if (defined($result)) {
+	    if ($result =~ m/STILL_ALIVE/) {
+	      $crashed= 0;
+	      last;
+	    }
+	  } else {
+	    select(undef, undef, undef, 0.1);
+	    #sleep(1);
 	  }
-	  sleep(0);
 	}
 	($crashed == 1) and $result= TEST_CRASHED;
 
@@ -243,6 +247,7 @@ sub run($)
 	if ($result == TEST_SUCCESS) {
 	  show_testing_success($test_time_duration);
 	} elsif ($result == TEST_NOT_TESTED) {
+	  $self->{'num-skipped'}++;
 	  show_testing_skipped();
 	} elsif ($result == TEST_FAILURE) {
 	  $self->{'num-failures'}++;
@@ -265,6 +270,11 @@ sub run($)
     }
   }
   $self->{'duration'}= time()-$time_start;
+
+  print "\n==Summary==\n";
+  printf "  FAILURES=%d / SKIPPED=%d / TESTS=%d\n\n",
+    $self->{'num-failures'}, $self->{'num-skipped'},
+      scalar(@{$self->{'list'}});
 
   (defined($self->{'cache-file'})) and
     $self->cache_write();
