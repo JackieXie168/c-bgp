@@ -4,13 +4,14 @@
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/12/2004
-// @lastdate 07/11/2006
+// @lastdate 18/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <string.h>
 
 #include <libgds/array.h>
@@ -133,9 +134,10 @@ int route_map_add(char * pcRouteMapName, SFilter * pFilter)
   phRouteMapElt->pcRouteMapName = pcRouteMapName;
   if ( (phRouteMapEltSearched = hash_search(phRouteMap, phRouteMapElt)) 
 								== NULL) {
-    phRouteMapEltSearched = phRouteMapElt;
-    phRouteMapEltSearched->pFilter = pFilter;
-    return hash_add(phRouteMap, phRouteMapEltSearched);
+    phRouteMapEltSearched= phRouteMapElt;
+    phRouteMapEltSearched->pFilter= pFilter;
+    assert(hash_add(phRouteMap, phRouteMapEltSearched) != NULL);
+    return 0;
   } else {
     FREE(phRouteMapElt);
     LOG_DEBUG(LOG_LEVEL_DEBUG, "route_map_add>Route Map %s already exists.\n",
@@ -161,7 +163,8 @@ int route_map_replace(char * pcRouteMapName, SFilter * pFilter)
 							    != NULL) {
     hash_del(phRouteMap, phRouteMapEltSearched);
     phRouteMapElt->pFilter = pFilter;
-    return hash_add(phRouteMap, phRouteMapElt);
+    assert(hash_add(phRouteMap, phRouteMapElt) != NULL);
+    return 0;
   } else {
     FREE(phRouteMapElt);
     LOG_DEBUG(LOG_LEVEL_DEBUG,
