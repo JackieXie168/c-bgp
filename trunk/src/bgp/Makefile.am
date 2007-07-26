@@ -33,6 +33,15 @@ INCLUDES = -I..
 libbgp_la_SOURCES = \
 	as.c \
 	as.h \
+	as-level.c \
+	as-level.h \
+	as-level-filter.c \
+	as-level-filter.h \
+	as-level-types.h \
+	as-level-stat.c \
+	as-level-stat.h \
+	as-level-util.c \
+	as-level-util.h \
 	as_t.h \
 	attr.c \
 	attr.h \
@@ -43,6 +52,10 @@ libbgp_la_SOURCES = \
 	bgp_debug.h \
 	bgp_debug.c \
 	brite.h \
+	caida.c \
+	caida.h \
+	cisco.c \
+	cisco.h \
 	comm.c \
 	comm.h \
 	comm_t.h \
@@ -82,6 +95,8 @@ libbgp_la_SOURCES = \
 	qos.c \
 	qos.h \
 	qos_t.h \
+	record-route.c \
+	record-route.h \
 	rexford.c \
 	rexford.h \
 	rib.c \
@@ -96,6 +111,8 @@ libbgp_la_SOURCES = \
 	route_map.h \
 	routes_list.c \
 	routes_list.h \
+	route-input.c \
+	route-input.h \
 	route_t.h \
 	stats.h \
 	tie_breaks.c \
