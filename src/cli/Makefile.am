@@ -40,6 +40,8 @@ INCLUDES = -I..
 libcli_la_SOURCES = \
 	bgp.c \
 	bgp.h \
+	bgp_topology.c \
+	bgp_topology.h \
 	common.c \
 	common.h \
 	enum.c \
@@ -48,6 +50,8 @@ libcli_la_SOURCES = \
 	net.h \
 	net_domain.c \
 	net_domain.h \
+	net_node.c \
+	net_node.h \
 	net_ospf.c \
 	net_ospf.h \
 	sim.c \
