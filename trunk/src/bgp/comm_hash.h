@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/10/2005
-// @lastdate 03/03/2006
+// @lastdate 20/07/2007
 // ==================================================================
 
 #ifndef __BGP_COMM_HASH_H__
@@ -17,29 +17,40 @@
 #define COMM_HASH_METHOD_STRING 0
 #define COMM_HASH_METHOD_ZEBRA 1
 
-// -----[ comm_hash_add ]--------------------------------------------
-extern int comm_hash_add(SCommunities * pCommunities);
-// -----[ comm_hash_add ]--------------------------------------------
-extern SCommunities * comm_hash_get(SCommunities * pCommunities);
-// -----[ comm_hash_add ]--------------------------------------------
-extern int comm_hash_remove(SCommunities * pCommunities);
-// -----[ comm_hash_get_size ]---------------------------------------
-extern uint32_t comm_hash_get_size();
-// -----[ comm_hash_set_size ]---------------------------------------
-extern int comm_hash_set_size(uint32_t uSize);
-// -----[ path_hash_get_method ]-------------------------------------
-extern uint8_t comm_hash_get_method();
-// -----[ comm_hash_set_method ]-------------------------------------
-extern int comm_hash_set_method(uint8_t uMethod);
-
-// -----[ comm_hash_content ]----------------------------------------
-extern void comm_hash_content(SLogStream * pStream);
-// -----[ comm_hash_statistics ]-------------------------------------
-extern void comm_hash_statistics(SLogStream * pStream);
-
-// -----[ _comm_hash_init ]------------------------------------------
-extern void _comm_hash_init();
-// -----[ _comm_hash_destroy ]---------------------------------------
-extern void _comm_hash_destroy();
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // -----[ comm_hash_add ]------------------------------------------
+  void * comm_hash_add(SCommunities * pCommunities);
+  // -----[ comm_hash_get ]------------------------------------------
+  SCommunities * comm_hash_get(SCommunities * pCommunities);
+  // -----[ comm_hash_remove ]---------------------------------------
+  int comm_hash_remove(SCommunities * pCommunities);
+  // -----[ comm_hash_refcnt ]---------------------------------------
+  uint32_t comm_hash_refcnt(SCommunities * pCommunities);
+
+  // -----[ comm_hash_get_size ]-------------------------------------
+  uint32_t comm_hash_get_size();
+  // -----[ comm_hash_set_size ]-------------------------------------
+  int comm_hash_set_size(uint32_t uSize);
+  // -----[ path_hash_get_method ]-----------------------------------
+  uint8_t comm_hash_get_method();
+  // -----[ comm_hash_set_method ]-----------------------------------
+  int comm_hash_set_method(uint8_t uMethod);
+  
+  // -----[ comm_hash_content ]--------------------------------------
+  void comm_hash_content(SLogStream * pStream);
+  // -----[ comm_hash_statistics ]-----------------------------------
+  void comm_hash_statistics(SLogStream * pStream);
+  
+  // -----[ _comm_hash_init ]----------------------------------------
+  void _comm_hash_init();
+  // -----[ _comm_hash_destroy ]-------------------------------------
+  void _comm_hash_destroy();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BGP_COMM_HASH_H__ */
