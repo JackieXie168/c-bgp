@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 16/05/2007
+// @lastdate 19/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -611,7 +611,7 @@ void cli_register_show(SCli * pCli)
 
   pSubCmds= cli_cmds_create();
   pParams= cli_params_create();
-  cli_params_add(pParams, "<filename>", NULL);
+  cli_params_add_file(pParams, "<filename>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-content",
 					cli_show_comm_hash_content,
 					NULL, pParams));
@@ -619,7 +619,7 @@ void cli_register_show(SCli * pCli)
 					cli_show_comm_hash_size,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<filename>", NULL);
+  cli_params_add_file(pParams, "<filename>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-stat",
 					cli_show_comm_hash_stat,
 					NULL, pParams));
@@ -636,7 +636,7 @@ void cli_register_show(SCli * pCli)
 //  cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_time_limit,
 //					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<filename>", NULL);
+  cli_params_add_file(pParams, "<filename>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-content",
 					cli_show_path_hash_content,
 					NULL, pParams));
@@ -644,7 +644,7 @@ void cli_register_show(SCli * pCli)
 					cli_show_path_hash_size,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<filename>", NULL);
+  cli_params_add_file(pParams, "<filename>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-stat",
 					cli_show_path_hash_stat,
 					NULL, pParams));
