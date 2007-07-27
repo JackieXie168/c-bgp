@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 25/04/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,22 +83,24 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
   SJNIContext sCtx;
   SBGPDomain * pDomain;
 
+  jni_lock(jEnv);
+
   pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   sCtx.joVector= joVector;
   sCtx.jEnv= jEnv;
   sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joDomain);
 
   if (bgp_domain_routers_for_each(pDomain, _bgpDomainGetRouters, &sCtx))
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  return joVector;
+  return_jni_unlock(jEnv, joVector);
 }
 
 // -----[ rescan ]---------------------------------------------------
@@ -112,9 +114,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_rescan
 {
   SBGPDomain * pDomain;
 
+  jni_lock(jEnv);
+
   pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   bgp_domain_rescan(pDomain);
+
+  jni_unlock(jEnv);
 }

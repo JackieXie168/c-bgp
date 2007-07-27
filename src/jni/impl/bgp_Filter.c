@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/04/2006
-// @lastdate 25/04/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -64,16 +64,16 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter_getRules
   SFilter * pFilter;
   SJNIContext sCtx;
 
+  jni_lock(jEnv);
+
   pFilter= (SFilter *) jni_proxy_lookup(jEnv, joFilter);
   if (pFilter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   sCtx.jEnv= jEnv;
   sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joFilter);
   if ((sCtx.joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
-
+    return_jni_unlock(jEnv, NULL);
   
-  
-  return sCtx.joVector;
+  return_jni_unlock(jEnv, sCtx.joVector);
 }
