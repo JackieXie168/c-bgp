@@ -55,6 +55,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
   (JNIEnv *, jobject, jstring);
 
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Router
+ * Method:    getAdjRIB
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Z)Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getAdjRIB
+  (JNIEnv *, jobject, jstring, jstring, jboolean);
+
 #ifdef __cplusplus
 }
 #endif

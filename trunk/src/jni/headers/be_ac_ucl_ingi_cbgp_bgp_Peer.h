@@ -79,6 +79,14 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getFlags
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    isInternal
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
  * Method:    getNextHopSelf
  * Signature: ()Z
  */

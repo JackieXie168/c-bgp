@@ -9,10 +9,26 @@ extern "C" {
 #endif
 /*
  * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getBGP
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/bgp/Router;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getBGP
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
  * Method:    recordRoute
  * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    traceRoute
+ * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_traceRoute
   (JNIEnv *, jobject, jstring);
 
 /*
