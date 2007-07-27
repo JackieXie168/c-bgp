@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/02/2005
-// @lastdate 12/04/2006
+// @lastdate 30/05/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp;
@@ -125,6 +125,10 @@ public class Peer extends ProxyObject
     // -----[ getFlags ]---------------------------------------------
     protected native synchronized boolean getFlags()
     	throws CBGPException;
+
+    // -----[ isInternal ]-------------------------------------------
+    public native synchronized boolean isInternal()
+	throws CBGPException;
 
     // -----[ isReflectorClient ]------------------------------------
     /**
