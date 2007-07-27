@@ -3,49 +3,55 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 18/02/2004
-// @lastdate 19/02/2005
+// @lastdate 30/05/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
 
 import java.util.Vector;
+import be.ac.ucl.ingi.cbgp.LinkMetrics;
 
 // -----[ IPTrace ]--------------------------------------------------
 /**
- * This class represents the result of an IP record-route.
+ * This class represents the result of an IP record-route or IP
+ * traceroute.
  */
 public class IPTrace
 {
 
-    // -----[ constants ]--------------------------------------------
-    public static final int IP_TRACE_SUCCESS       = 0;
-    public static final int IP_TRACE_TOO_LONG      = -1;
-    public static final int IP_TRACE_UNREACH       = -2;
-    public static final int IP_TRACE_DOWN          = -3;
-    public static final int IP_TRACE_TUNNEL_UNREACH= -4;
-    public static final int IP_TRACE_TUNNEL_BROKEN = -5;
+    // -----[ error code constants ]---------------------------------
+    public static final int IP_TRACE_SUCCESS           = 0;
+    public static final int IP_TRACE_UNKNOWN           = -1;
+    public static final int IP_TRACE_TOO_LONG          = -2;
+    public static final int IP_TRACE_UNREACH           = -3;
+    public static final int IP_TRACE_DOWN              = -4;
+    public static final int IP_TRACE_TUNNEL_UNREACH    = -5;
+    public static final int IP_TRACE_TUNNEL_BROKEN     = -6;
+    public static final int IP_TRACE_ICMP_TIME_EXP     = -7;
+    public static final int IP_TRACE_ICMP_HOST_UNREACH = -8;
+    public static final int IP_TRACE_ICMP_NET_UNREACH  = -9;
 
     // -----[ protected attributes ]---------------------------------
     protected IPAddress src;
     protected IPAddress dst;
     protected int iStatus;
-    protected int iDelay;
-    protected int iWeight;
-    protected Vector hops;
+    protected LinkMetrics metrics;
+    protected Vector<IPAddress> hops;
+    protected Vector<LinkMetrics> hopsMetrics;
 
     // -----[ IPTrace ]----------------------------------------------
     /**
      * IPTrace's constructor.
      */
-    public IPTrace(IPAddress src, IPAddress dst,
-		   int iStatus, int iDelay, int iWeight)
+    public IPTrace(IPAddress src, IPAddress dst, int iStatus,
+		   LinkMetrics metrics)
     {
 	this.src= src;
 	this.dst= dst;
 	this.iStatus= iStatus;
-	this.iDelay= iDelay;
-	this.iWeight= iWeight;
-	this.hops= new Vector();
+	this.metrics= metrics;
+	this.hops= new Vector<IPAddress>();
+	this.hopsMetrics= null;
     }
 
     // -----[ append ]-----------------------------------------------
@@ -57,13 +63,20 @@ public class IPTrace
     	hops.add(hop);
     }
 
-    // -----[ getDelay ]---------------------------------------------
+    // -----[ appendWithInfo ]---------------------------------------
     /**
-     * Returns the trace's delay.
+     *
      */
-    public int getDelay()
+    public void appendWithInfo(IPAddress hop, LinkMetrics metrics,
+			       int iStatus)
     {
-	return iDelay;
+    	hops.add(hop);
+
+	// Add hop metrics
+	if (hopsMetrics == null)
+	    hopsMetrics= new Vector<LinkMetrics>();
+	metrics.setMetric("status", new Integer(iStatus));
+	hopsMetrics.add(metrics);
     }
 
     // -----[ getHop ]-----------------------------------------------
@@ -93,13 +106,37 @@ public class IPTrace
 	return iStatus;
     }
 
+    // -----[ getCapacity ]------------------------------------------
+    /**
+     * Returns the trace's capacity.
+     */
+    public int getCapacity() throws UnknownMetricException
+    {
+	if (metrics == null)
+	    throw new UnknownMetricException();
+	return metrics.getCapacity();
+    }
+
+    // -----[ getDelay ]---------------------------------------------
+    /**
+     * Returns the trace's delay.
+     */
+    public int getDelay() throws UnknownMetricException
+    {
+	if (metrics == null)
+	    throw new UnknownMetricException();
+	return metrics.getDelay();
+    }
+
     // -----[ getWeight ]--------------------------------------------
     /**
      * Returns the trace's weight.
      */
-    public int getWeight()
+    public int getWeight() throws UnknownMetricException
     {
-	return iWeight;
+	if (metrics == null)
+	    throw new UnknownMetricException();
+	return metrics.getWeight();
     }
 
     // -----[ statusToString ]---------------------------------------
@@ -109,14 +146,26 @@ public class IPTrace
     public static String statusToString(int iStatus)
     {
 	switch (iStatus) {
-	case IP_TRACE_SUCCESS: return "SUCCESS";
-	case IP_TRACE_TOO_LONG: return "TOO_LONG";
-	case IP_TRACE_UNREACH: return "UNREACH";
-	case IP_TRACE_DOWN: return "DOWN";
-	case IP_TRACE_TUNNEL_UNREACH: return "TUNNEL_UNREACH";
-	case IP_TRACE_TUNNEL_BROKEN: return "TUNNEL_BROKEN";
+	case IP_TRACE_SUCCESS:
+	    return "SUCCESS";
+	case IP_TRACE_TOO_LONG:
+	    return "TOO_LONG";
+	case IP_TRACE_UNREACH:
+	    return "UNREACH";
+	case IP_TRACE_DOWN:
+	    return "DOWN";
+	case IP_TRACE_TUNNEL_UNREACH:
+	    return "TUNNEL_UNREACH";
+	case IP_TRACE_TUNNEL_BROKEN:
+	    return "TUNNEL_BROKEN";
+	case IP_TRACE_ICMP_TIME_EXP:
+	    return "ICMP error (time-expired)";
+	case IP_TRACE_ICMP_HOST_UNREACH:
+	    return "ICMP error (host-unreachable)";
+	case IP_TRACE_ICMP_NET_UNREACH:
+	    return "ICMP error (network-unreachable)";
 	default:
-	    return "?";
+	    return "UNKNOWN";
 	}
     }
 
@@ -127,6 +176,7 @@ public class IPTrace
     public String toString()
     {
 	String s= "";
+	IPAddress addr;
 
 	s+= src;
 	s+= "\t";
@@ -138,12 +188,25 @@ public class IPTrace
 	    if (iIndex > 0) {
 		s+= " ";
 	    }
-	    s+= hops.get(iIndex);
+	    addr= hops.get(iIndex);
+	    if (addr != null)
+		s+= addr;
+	    else
+		s+= "*";
 	}
-	s+= "\t";
-	s+= iDelay;
-	s+= "\t";
-	s+= iWeight;
+
+	// Show available metrics
+	if (metrics != null) {
+	    try {
+		if (metrics.hasMetric(LinkMetrics.DELAY))
+		    s+= "\tdelay:" + metrics.getDelay();
+		if (metrics.hasMetric(LinkMetrics.WEIGHT))
+		    s+= "\tweight:" + metrics.getWeight();
+		if (metrics.hasMetric(LinkMetrics.CAPACITY))
+		    s+= "\tcapacity:" + metrics.getCapacity();
+	    } catch (UnknownMetricException e) {
+	    }
+	}
 
 	return s;
     }
