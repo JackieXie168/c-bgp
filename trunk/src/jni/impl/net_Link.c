@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 24/04/2007
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -71,12 +71,17 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getState
   (JNIEnv * jEnv, jobject joLink)
 {
   SNetLink * pLink;
+  jboolean jbState;
+
+  jni_lock(jEnv);
   
   pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
-    return JNI_FALSE;
+    return_jni_unlock(jEnv, JNI_FALSE);
 
-  return net_link_get_state(pLink, NET_LINK_FLAG_UP)?JNI_TRUE:JNI_FALSE;
+  jbState= net_link_get_state(pLink, NET_LINK_FLAG_UP)?JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jbState);
 }
 
 // -----[ setState ]-------------------------------------------------
@@ -90,11 +95,15 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setState
 {
   SNetLink * pLink;
 
+  jni_lock(jEnv);
+
   pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
-    return;
+    return_jni_unlock2(jEnv);
     
   net_link_set_state(pLink, NET_LINK_FLAG_UP, (bState == JNI_TRUE)?1:0);
+
+  jni_unlock(jEnv);
 }
 
 // -----[ getWeight ]--------------------------------------------
@@ -107,12 +116,17 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getWeight
   (JNIEnv * jEnv, jobject joLink)
 {
   SNetLink * pLink;
+  jlong jlResult;
+
+  jni_lock(jEnv);
 
   pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
-    return 0;
+    return_jni_unlock(jEnv, 0);
 
-  return (jlong) net_link_get_weight(pLink, 0);
+  jlResult= (jlong) net_link_get_weight(pLink, 0);
+
+  return_jni_unlock(jEnv, jlResult);
 }
 
 // -----[ setWeight ]--------------------------------------------
@@ -126,10 +140,14 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setWeight
 {
   SNetLink * pLink;
 
+  jni_lock(jEnv);
+
   pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
   if (pLink == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   net_link_set_weight(pLink, 0, (uint32_t) jlWeight);
+
+  jni_unlock(jEnv);
 }
 

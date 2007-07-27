@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 25/04/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -65,27 +65,33 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
   SIGPDomain * pDomain;
   SNetNode * pNode; 
   net_addr_t tNetAddr;
+  jobject joNode;
+
+  jni_lock(jEnv);
 
   /* Get the domain */
   pDomain= (SIGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
   if ((pNode= node_create(tNetAddr)) == NULL) {
     cbgp_jni_throw_CBGPException(jEnv, "node could not be created");
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
   }
 
   if (network_add_node(pNode) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "node already exists");
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
   }
 
   igp_domain_add_router(pDomain, pNode);
 
-  return cbgp_jni_new_net_Node(jEnv, jni_proxy_get_CBGP(jEnv, joDomain), pNode);
+  joNode= cbgp_jni_new_net_Node(jEnv, jni_proxy_get_CBGP(jEnv, joDomain),
+				pNode); 
+
+  return_jni_unlock(jEnv, joNode);
 }
 
 // -----[ _netDomainGetNodes ]---------------------------------------
@@ -116,22 +122,24 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_getNodes
   SJNIContext sCtx;
   SIGPDomain * pDomain= NULL;
 
+  jni_lock(jEnv);
+
   pDomain= (SIGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   sCtx.joVector= joVector;
   sCtx.jEnv= jEnv;
   sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joDomain);
 
   if (igp_domain_routers_for_each(pDomain, _netDomainGetNodes, &sCtx))
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  return joVector;
+  return_jni_unlock(jEnv, joVector);
 }
 
 // -----[ compute ]--------------------------------------------------
@@ -145,12 +153,16 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_compute
 {
   SIGPDomain * pDomain= NULL;
 
+  jni_lock(jEnv);
+
   pDomain= (SIGPDomain *) jni_proxy_lookup(jEnv, joDomain);
   if (pDomain == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   if (igp_domain_compute(pDomain) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "could not compute IGP paths");
-    return;
+    return_jni_unlock2(jEnv);
   }
+
+  jni_unlock(jEnv);
 }
