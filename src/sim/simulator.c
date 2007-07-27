@@ -97,6 +97,17 @@ uint32_t simulator_get_num_events(SSimulator * pSimulator)
   }
 }
 
+// ----- simulator_get_event --------------------------------------
+void * simulator_get_event(SSimulator * pSimulator, unsigned int uIndex)
+{
+  switch (pSimulator->tType) {
+  case SCHEDULER_STATIC:
+    return static_scheduler_get_event(pSimulator->pScheduler, uIndex);
+  default:
+    return 0;
+  }  
+}
+
 // ----- simulator_post_event ---------------------------------------
 /**
  *
