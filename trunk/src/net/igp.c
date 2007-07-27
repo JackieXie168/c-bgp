@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 13/04/2007
+// @lastdate 04/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -167,10 +167,10 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	  !net_link_get_state(pLink, NET_LINK_FLAG_UP))
 	continue;
 
-      // Warn if weight is 0
+      // Ignore link if its weight is 0 or NET_IGP_MAX_WEIGHT
       tWeight= net_link_get_weight(pLink, 0);
-      if (tWeight == 0) {
-	//LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 !!!\n");
+      if ((tWeight == 0) || (tWeight == NET_IGP_MAX_WEIGHT)) {
+	//LOG_ERR(LOG_LEVEL_WARNING, "Warning: link weight is 0 or infinity !!!\n");
 	continue;
       }
 
@@ -221,6 +221,9 @@ SRadixTree * spt_bfs(SNetwork * pNetwork, net_addr_t tSrcAddr,
 	  // Skip if sub-link is not UP
 	  if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))
 	    continue;
+
+	  // We traverse the sub-link in reverse direction (i.e. from
+	  // subnet to node) => don't take weight into account
 
 	  sInfoPrefix.tNetwork= pSubLink->pSrcNode->tAddr;
 	  sInfoPrefix.uMaskLen= 32;
