@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 17/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,6 +15,8 @@
 #include <string.h>
 
 #include <libgds/memory.h>
+
+#include <net/error.h>
 #include <net/link-list.h>
 #include <net/node.h>
 #include <net/subnet.h>
@@ -79,14 +81,13 @@ void subnet_destroy(SNetSubnet ** ppSubnet)
 // ----- subnet_dump ------------------------------------------------
 void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet)
 {
-  char pcAddr[16];
   SNetLink * pLink = NULL;
-  char pcPrefix[30];
   int iIndex;
   
-  ip_prefix_to_string(pcPrefix, &(pSubnet->sPrefix));
-  log_printf(pStream, "SUBNET PREFIX <%s>\t", pcPrefix);
-  log_printf(pStream, "OSPF AREA  <%u>\t", (unsigned int) pSubnet->uOSPFArea);
+  log_printf(pStream, "SUBNET PREFIX <");
+  ip_prefix_dump(pStream, pSubnet->sPrefix);
+  log_printf(pStream, ">\tOSPF AREA  <%u>\t",
+	     (unsigned int) pSubnet->uOSPFArea);
   switch (pSubnet->uType) {
   case NET_SUBNET_TYPE_TRANSIT : 
     log_printf(pStream, "TRANSIT\t");
@@ -102,16 +103,14 @@ void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet)
   for (iIndex = 0; iIndex < ptr_array_length(pSubnet->pLinks); iIndex++) {
     ptr_array_get_at(pSubnet->pLinks, iIndex, &pLink);
     assert(pLink != NULL);
-    ip_address_to_string(pcAddr, pLink->tIfaceAddr);
-    log_printf(pStream, "%s\n", pcAddr);
-    log_printf(pStream, "---\t\t\t\t\t\t");
+    ip_address_dump(pStream, pLink->tIfaceAddr);
+    log_printf(pStream, "\n---\t\t\t\t\t\t");
   }
   log_printf(pStream,"\n");
 }
 
-// ----- subnet_link_to_node ----------------------------------------
-int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
-		    net_addr_t tIfaceAddr)
+// -----[ subnet_add_link ]------------------------------------------
+int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink)
 {
   if (ptr_array_add(pSubnet->pLinks, &pLink) < 0) {
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
@@ -136,14 +135,15 @@ int subnet_is_stub(SNetSubnet * pSubnet) {
 }
 
 // ----- subnet_find_link -------------------------------------------
+/**
+ * Find a link based on its interface address.
+ */
 SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
 {
-  SNetLink sWrapLink;
+  SNetLink sWrapLink= { .tIfaceAddr= tDstAddr };
   SNetLink * pLink= NULL;
   unsigned int uIndex;
   SNetLink * pWrapLink= &sWrapLink;
-
-  sWrapLink.tIfaceAddr= tDstAddr;
 
   if (ptr_array_sorted_find_index(pSubnet->pLinks, &pWrapLink, &uIndex) == 0)
     pLink= (SNetLink *) pSubnet->pLinks->data[uIndex];
@@ -164,12 +164,16 @@ int _subnet_forward(net_addr_t tPhysAddr, void * pContext,
 
   pSubnet= pLink->tDest.pSubnet;
 
-  // Find destination node
+  // Forward along link from node -> subnet ...
+  if (!net_link_get_state(pLink, NET_LINK_FLAG_UP))
+    return NET_ERROR_LINK_DOWN;
+
+  // Find destination node (based on "physical address")
   pSubLink= subnet_find_link(pSubnet, tPhysAddr);
   if (pSubLink == NULL)
-    return NET_ERROR_DST_UNREACH;
+    return NET_ERROR_HOST_UNREACH;
 
-  // Forward along this link...
+  // Forward along link from subnet -> node ...
   if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))
     return NET_ERROR_LINK_DOWN;
 
@@ -376,10 +380,7 @@ static int _subnets_compare(void * pItem1, void * pItem2,
   SNetSubnet * pSub1= *((SNetSubnet **) pItem1);
   SNetSubnet * pSub2= *((SNetSubnet **) pItem2);
 
-  SPrefix * pPfx1 = &(pSub1->sPrefix);
-  SPrefix * pPfx2 = &(pSub2->sPrefix);
-  
-  return ip_prefixes_compare(&pPfx1, &pPfx2, 0);
+  return ip_prefix_cmp(&pSub1->sPrefix, &pSub2->sPrefix);
 }
 
 // ----- _subnets_destroy -------------------------------------------
@@ -415,7 +416,8 @@ SNetSubnet * subnets_find(SNetSubnets * pSubnets, SPrefix sPrefix)
   unsigned int uIndex;
   SNetSubnet sWrapSubnet, * pWrapSubnet= &sWrapSubnet;
 
-  memcpy(&sWrapSubnet.sPrefix, &sPrefix, sizeof(sPrefix));
+  sWrapSubnet.sPrefix= sPrefix;
+  ip_prefix_mask(&sWrapSubnet.sPrefix);
 
   if (ptr_array_sorted_find_index(pSubnets, &pWrapSubnet, &uIndex) == 0)
     return (SNetSubnet *) pSubnets->data[uIndex];

@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 13/04/2007
+// @lastdate 23/07/2007
 // ==================================================================
 
 #ifndef __NET_SUBNET_H__
@@ -37,8 +37,7 @@ extern "C" {
   // ----- subnet_is_stub -------------------------------------------
   int subnet_is_stub(SNetSubnet * pSubnet);
   // ----- subnet_add_link ------------------------------------------
-  int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink,
-		      net_addr_t tIfaceAddr);
+  int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink);
   // ----- subnet_find_link -----------------------------------------
   SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr);
   // ----- subnet_get_links -----------------------------------------
