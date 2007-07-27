@@ -11,18 +11,20 @@
 #define __NET_RECORD_ROUTE_H__
 
 #include <stdio.h>
+
 #include <libgds/log.h>
+
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/net_path.h>
 
-#define NET_RECORD_ROUTE_SUCCESS         0
-#define NET_RECORD_ROUTE_TOO_LONG       -1
-#define NET_RECORD_ROUTE_UNREACH        -2
-#define NET_RECORD_ROUTE_DOWN           -3
+//#define NET_RECORD_ROUTE_SUCCESS         NET_SUCCESS
+//#define NET_RECORD_ROUTE_TOO_LONG        NET_ERROR_TIME_EXCEEDED
+//#define NET_RECORD_ROUTE_UNREACH         NET_ERROR_HOST_UNREACH
+//#define NET_RECORD_ROUTE_DOWN            NET_ERROR_NET_UNREACH
 #define NET_RECORD_ROUTE_TUNNEL_UNREACH -4
 #define NET_RECORD_ROUTE_TUNNEL_BROKEN  -5
-#define NET_RECORD_ROUTE_LOOP		-6
+//#define NET_RECORD_ROUTE_LOOP		 NET_ERROR_FWD_LOOP
 
 // -----[ Record-route options ]-----
 /** Each option should set a single bit so that they can be
