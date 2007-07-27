@@ -39,6 +39,8 @@ extern "C" {
 			    uint8_t uDeltaType);
   // ----- static_scheduler_get_num_events --------------------------
   uint32_t static_scheduler_get_num_events(void * pSchedCtx);
+  // ----- static_scheduler_get_event -------------------------------
+  void * static_scheduler_get_event(void * pSchedCtx, unsigned int uIndex);
   // ----- static_scheduler_dump_events -----------------------------
   void static_scheduler_dump_events(SLogStream * pStream, void * pSchedCtx);
 

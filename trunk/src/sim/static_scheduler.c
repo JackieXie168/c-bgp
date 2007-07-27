@@ -181,6 +181,24 @@ uint32_t static_scheduler_get_num_events(void * pSchedCtx)
   return pScheduler->pEvents->uCurrentDepth;
 }
 
+// ----- static_scheduler_get_event -------------------------------
+void * static_scheduler_get_event(void * pSchedCtx, unsigned int uIndex)
+{
+  SStaticScheduler * pScheduler= (SStaticScheduler *) pSchedCtx;
+  uint32_t uDepth;
+  uint32_t uMaxDepth;
+  uint32_t uStart;
+
+  uDepth= pScheduler->pEvents->uCurrentDepth;
+  if (uIndex >= uDepth)
+    return NULL;
+
+  uMaxDepth= pScheduler->pEvents->uMaxDepth;
+  uStart= pScheduler->pEvents->uStartIndex;
+  return ((SStaticEvent *) pScheduler->pEvents->ppItems[(uStart+uIndex) % uMaxDepth])->pContext;
+
+}
+
 // ----- static_scheduler_dump_events -------------------------------
 /**
  * Return information 
