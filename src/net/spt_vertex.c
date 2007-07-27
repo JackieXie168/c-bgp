@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it), (C) 2005
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4 July 2005
-// @lastdate 08/08/2005
+// @lastdate 22/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -175,7 +175,7 @@ int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
       SPrefix sPrefV2 = spt_vertex_get_id(pVertex2); 
       SPrefix * pPrefV1 = &sPrefV1;
       SPrefix * pPrefV2 = &sPrefV2;
-      return ip_prefixes_compare(&pPrefV1, &pPrefV2, 0);
+      return ip_prefix_cmp(pPrefV1, pPrefV2);
     }
   }
   else if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER)

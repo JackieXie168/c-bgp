@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/06/2005
-// @lastdate 08/08/2005
+// @lastdate 22/07/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -598,7 +598,7 @@ int ospf_br_rt_for_each_search_intra_route(uint32_t uKey, uint8_t uKeyLen, void 
   /* Discard route toward myself */
   SPrefix sNodePfx, * pPfx1 = &sPrefix, * pPfx2 = &sNodePfx;
   node_get_prefix(pMyContext->pSourceNode, &sNodePfx);
-  if (ip_prefixes_compare(&pPfx1, &pPfx2, 0) == 0)
+  if (ip_prefix_cmp(pPfx1, pPfx2) == 0)
     return OSPF_SUCCESS;
   
   /* Analize available routes */
