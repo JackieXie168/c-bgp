@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/04/2006
-// @lastdate 25/04/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -91,11 +91,13 @@ JNIEXPORT jbyte JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getSessionState
 {
   SBGPPeer * pPeer;
   
+  jni_lock(jEnv);
+
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
-    return JNI_FALSE;
+    return_jni_unlock(jEnv, JNI_FALSE);
 
-  return pPeer->uSessionState;
+  return_jni_unlock(jEnv, pPeer->uSessionState);
 }
 
 // -----[ openSession ]----------------------------------------------
@@ -108,15 +110,19 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_openSession
   (JNIEnv * jEnv, jobject joObject)
 {
   SBGPPeer * pPeer;
+
+  jni_lock(jEnv);
   
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
-    return;
+    return_jni_unlock2(jEnv);
  
   bgp_peer_open_session(pPeer);
+
+  jni_unlock(jEnv);
 }
 
-// -----[ openSession ]----------------------------------------------
+// -----[ closeSession ]---------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
  * Method:    closeSession
@@ -126,12 +132,16 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_closeSession
   (JNIEnv * jEnv, jobject joObject)
 {
   SBGPPeer * pPeer;
+
+  jni_lock(jEnv);
   
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   bgp_peer_close_session(pPeer);
+
+  jni_unlock(jEnv);
 }
 
 // -----[ recv ]-----------------------------------------------------
@@ -147,9 +157,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_recv
   const char * cMesg;
   SBGPMsg * pMsg;
 
+  jni_lock(jEnv);
+
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   /* Build a message from the MRT-record */
   cMesg= (*jEnv)->GetStringUTFChars(jEnv, jsMesg, NULL);
@@ -161,7 +173,33 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_recv
     cbgp_jni_throw_CBGPException(jEnv, "could not understand MRT message");
   }
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsMesg, cMesg);
+
+  jni_unlock(jEnv);
 }
+
+// -----[ isInternal ]-----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    isInternal
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+  jboolean jResult;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  jResult= (pPeer->uRemoteAS == pPeer->pLocalRouter->uNumber)?JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jResult);
+}
+
 
 // -----[ getNextHopSelf ]-------------------------------------------
 /*
@@ -173,12 +211,18 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHopSelf
   (JNIEnv * jEnv, jobject joPeer)
 {
   SBGPPeer * pPeer;
+  jboolean jbNextHopSelf;
+
+  jni_lock(jEnv);
 
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
-    return JNI_FALSE;
+    return_jni_unlock(jEnv, JNI_FALSE);
 
-  return bgp_peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)?JNI_TRUE:JNI_FALSE;
+  jbNextHopSelf= bgp_peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)?
+    JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jbNextHopSelf);
 }
 
 // -----[ setNextHopSelf ]-------------------------------------------
@@ -192,12 +236,16 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
 {
   SBGPPeer * pPeer;
 
+  jni_lock(jEnv);
+
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF,
 		    (state==JNI_TRUE)?1:0);
+
+  jni_unlock(jEnv);
 }
 
 // -----[ getInputfilter ]-------------------------------------------
@@ -211,16 +259,21 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getInputFilter
 {
   SBGPPeer * pPeer;
   SFilter * pFilter;
+  jobject joFilter;
+
+  jni_lock(jEnv);
 
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if ((pFilter= bgp_peer_in_filter_get(pPeer)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  return cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
-				 pFilter);
+  joFilter= cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+				    pFilter);
+
+  return_jni_unlock(jEnv, joFilter);
 }
 
 // -----[ getOutputFilter ]------------------------------------------
@@ -234,14 +287,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getOutputFilter
 {
   SBGPPeer * pPeer;
   SFilter * pFilter;
+  jobject joFilter;
+
+  jni_lock(jEnv);
 
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if ((pFilter= bgp_peer_out_filter_get(pPeer)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  return cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
-				 pFilter);
+  joFilter= cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+				    pFilter);
+
+  return_jni_unlock(jEnv, joFilter);
 }
