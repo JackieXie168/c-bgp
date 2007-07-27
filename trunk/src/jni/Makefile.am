@@ -28,37 +28,46 @@ libjni_la_SOURCES = \
 	jni_proxies.c \
 	jni_proxies.h \
 	jni_util.c \
-	jni_util.h
+	jni_util.h \
+	listener.c \
+	listener.h
 libjni_la_LIBADD = impl/libjni_impl.la
 
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
 
 JAVAFILES= \
-	be/ac/ucl/ingi/cbgp/bgp/ASPath.java \
-	be/ac/ucl/ingi/cbgp/bgp/ASPathSegment.java \
+	be/ac/ucl/ingi/cbgp/BGPMsgListener.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/CBGPException.java \
-	be/ac/ucl/ingi/cbgp/bgp/Communities.java \
+	be/ac/ucl/ingi/cbgp/CBGPTest.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
 	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
-	be/ac/ucl/ingi/cbgp/bgp/Domain.java \
-	be/ac/ucl/ingi/cbgp/bgp/Route.java \
-	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
 	be/ac/ucl/ingi/cbgp/IPAddress.java \
 	be/ac/ucl/ingi/cbgp/IPPrefix.java \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
-	be/ac/ucl/ingi/cbgp/bgp/Filter.java \
-	be/ac/ucl/ingi/cbgp/bgp/FilterRule.java \
-	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
-	be/ac/ucl/ingi/cbgp/bgp/Router.java \
-	be/ac/ucl/ingi/cbgp/net/Link.java \
-	be/ac/ucl/ingi/cbgp/net/Node.java \
+	be/ac/ucl/ingi/cbgp/LinkMetrics.java \
+	be/ac/ucl/ingi/cbgp/UnknownMetricException.java \
 	be/ac/ucl/ingi/cbgp/ProxyObject.java \
 	be/ac/ucl/ingi/cbgp/Route.java \
-	be/ac/ucl/ingi/cbgp/RouteInterface.java
+	be/ac/ucl/ingi/cbgp/RouteInterface.java \
+	be/ac/ucl/ingi/cbgp/bgp/ASPath.java \
+	be/ac/ucl/ingi/cbgp/bgp/ASPathSegment.java \
+	be/ac/ucl/ingi/cbgp/bgp/Communities.java \
+	be/ac/ucl/ingi/cbgp/bgp/Domain.java \
+	be/ac/ucl/ingi/cbgp/bgp/Route.java \
+	be/ac/ucl/ingi/cbgp/bgp/Filter.java \
+	be/ac/ucl/ingi/cbgp/bgp/FilterRule.java \
+	be/ac/ucl/ingi/cbgp/bgp/MessageUpdate.java \
+	be/ac/ucl/ingi/cbgp/bgp/MessageWithdraw.java \
+	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
+	be/ac/ucl/ingi/cbgp/bgp/Router.java \
+	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
+	be/ac/ucl/ingi/cbgp/net/Link.java \
+	be/ac/ucl/ingi/cbgp/net/Message.java \
+	be/ac/ucl/ingi/cbgp/net/Node.java
 
 METAFILE= META-INF/MANIFEST.MF
 
