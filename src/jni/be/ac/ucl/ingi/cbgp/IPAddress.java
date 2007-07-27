@@ -54,4 +54,10 @@ public class IPAddress
 	    byte2int(abAddress[3]);
     }
 
+    // -----[ equals ]-----------------------------------------------
+    public boolean equals(IPAddress addr)
+    {
+	return addr.toString().equals(toString());
+    }
+
 }
