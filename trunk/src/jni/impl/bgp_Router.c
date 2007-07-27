@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 14/09/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -81,20 +81,25 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addNetwork
 {
   SBGPRouter * pRouter;
   SPrefix sPrefix;
+  jobject joPrefix;
+
+  jni_lock(jEnv);
 
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if (bgp_router_add_network(pRouter, sPrefix) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "coud not add network");
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
   }
 
-  return cbgp_jni_new_IPPrefix(jEnv, sPrefix);
+  joPrefix= cbgp_jni_new_IPPrefix(jEnv, sPrefix);
+
+  return_jni_unlock(jEnv, joPrefix);
 }
 
 // -----[ delNetwork ]-----------------------------------------------
@@ -109,17 +114,21 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_delNetwork
   SBGPRouter * pRouter;
   SPrefix sPrefix;
 
+  jni_lock(jEnv);
+
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return;
+    return_jni_unlock2(jEnv);
 
   if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
-    return;
+    return_jni_unlock2(jEnv);
 
   if (bgp_router_del_network(pRouter, sPrefix) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "coud not remove network");
-    return;
+    return_jni_unlock2(jEnv);
   }
+
+  jni_unlock(jEnv);
 }
 
 // -----[ addPeer ]--------------------------------------------------
@@ -134,22 +143,26 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addPeer
   SBGPRouter * pRouter;
   SBGPPeer * pPeer;
   net_addr_t tPeerAddr;
+  jobject joPeer;
+
+  jni_lock(jEnv);
 
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if (ip_jstring_to_address(jEnv, jsPeerAddr, &tPeerAddr) != 0)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  pPeer= bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, 0);
-  if (pPeer == NULL) {
+  if (bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, &pPeer) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "could not add peer");
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
   }
 
-  return cbgp_jni_new_bgp_Peer(jEnv, jni_proxy_get_CBGP(jEnv, joRouter),
-			       pPeer);
+  joPeer= cbgp_jni_new_bgp_Peer(jEnv, jni_proxy_get_CBGP(jEnv, joRouter),
+				pPeer);
+
+  return_jni_unlock(jEnv, joPeer);
 }
 
 // -----[ _cbgp_jni_get_peer ]----------------------------------------
@@ -179,22 +192,24 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getPeers
   jobject joVector;
   SJNIContext sCtx;
 
+  jni_lock(jEnv);
+
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   /* Create a Vector object that will hold the BGP routes to be
      returned */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   sCtx.joVector= joVector;
   sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joRouter);
   sCtx.jEnv= jEnv;
   if (bgp_router_peers_for_each(pRouter, _cbgp_jni_get_peer, &sCtx) != 0)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
-  return joVector;
+  return_jni_unlock(jEnv, joVector);
 }
 
 // -----[ _cbgp_jni_get_rib_route ]----------------------------------
@@ -227,15 +242,17 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
   SRoute * pRoute;
   jobject joRoute;
 
+  jni_lock(jEnv);
+
   /* Get the router instance */
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   /* Create a Vector object that will hold the BGP routes to be
      returned */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if (jsPrefix == NULL) {
 
@@ -246,13 +263,13 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
     sCtx.joVector= joVector;
     sCtx.jEnv= jEnv;
     if (rib_for_each(pRouter->pLocRIB, _cbgp_jni_get_rib_route, &sCtx) != 0)
-      return NULL;
+      return_jni_unlock(jEnv, NULL);
 
   } else {
 
     /* Convert the prefix */
     if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
-      return NULL;
+      return_jni_unlock(jEnv, NULL);
 
     pRoute= NULL;
 #ifndef __EXPERIMENTAL_WALTON__ 
@@ -264,8 +281,150 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
 
     if (pRoute != NULL) {
       if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pRoute)) == NULL)
-	return NULL;
+	return_jni_unlock(jEnv, NULL);
       cbgp_jni_Vector_add(jEnv, joVector, joRoute);
+    }
+
+  }
+
+  return_jni_unlock(jEnv, joVector);
+}
+
+// -----[ getAdjRIB ]------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Router
+ * Method:    getAdjRIB
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getAdjRIB
+  (JNIEnv * jEnv, jobject joRouter, jstring jsPeerAddr,
+   jstring jsPrefix, jboolean bIn)
+{
+  SBGPRouter * pRouter;
+  jobject joVector;
+  jobject joRoute;
+  SPrefix sPrefix;
+  net_addr_t tPeerAddr;
+  int iIndex;
+  SBGPPeer * pPeer= NULL;
+  SRoute * pRoute;
+
+  /* Get the router instance */
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
+  if (pRouter == NULL)
+    return NULL;
+
+  /* Create a Vector object that will hold the BGP routes to be returned */
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return NULL;
+
+  /* Convert the peer address */
+  if (jsPeerAddr != NULL) {
+    if (ip_jstring_to_address(jEnv, jsPeerAddr, &tPeerAddr) != 0)
+      return NULL;
+    if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL)
+      return NULL;
+  }
+
+  if (jsPrefix == NULL) {
+    
+    /* Add routes into the Vector object */
+    if (pPeer == NULL) {
+      
+      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+	pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
+	
+	/* For each route in the RIB, create a new BGPRoute object and add
+	   it to the Vector object */
+	SJNIContext sCtx;
+	sCtx.pRouter= pRouter;
+	sCtx.joVector= joVector;
+	sCtx.jEnv= jEnv;
+	if (bIn == JNI_TRUE) {
+	  if (rib_for_each(pPeer->pAdjRIBIn, _cbgp_jni_get_rib_route, &sCtx) != 0)
+	    return NULL;
+	} else {
+	  if (rib_for_each(pPeer->pAdjRIBOut, _cbgp_jni_get_rib_route, &sCtx) != 0)
+	    return NULL;
+	}
+	
+      }
+      
+    } else {
+      
+      /* For each route in the RIB, create a new BGPRoute object and add
+	 it to the Vector object */
+      SJNIContext sCtx;
+      sCtx.pRouter= pRouter;
+      sCtx.joVector= joVector;
+      sCtx.jEnv= jEnv;
+      if (bIn == JNI_TRUE) {
+	if (rib_for_each(pPeer->pAdjRIBIn, _cbgp_jni_get_rib_route, &sCtx) != 0)
+	  return NULL;
+      } else {
+	if (rib_for_each(pPeer->pAdjRIBOut, _cbgp_jni_get_rib_route, &sCtx) != 0)
+	  return NULL;
+      }
+      
+    }
+    
+  } else {
+
+    /* Convert the prefix */
+    if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+      return NULL;
+    
+    if (pPeer == NULL) {
+      
+      for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+	pPeer= (SBGPPeer *) pRouter->pPeers->data[iIndex];
+
+	pRoute= NULL;
+
+	if (sPrefix.uMaskLen == 32) {
+	  if (bIn == JNI_TRUE) {
+	    pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
+	  } else {
+	    pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
+	  }
+	} else {
+	  if (bIn == JNI_TRUE) {
+	    pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+	  } else {
+	    pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
+	  }
+	}
+
+	if (pRoute != NULL) {
+	  if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pRoute)) == NULL)
+	    return NULL;
+	  cbgp_jni_Vector_add(jEnv, joVector, joRoute);
+	}
+      }
+      
+    } else {
+
+      pRoute= NULL;
+      if (sPrefix.uMaskLen == 32) {
+	if (bIn == JNI_TRUE) {
+	  pRoute= rib_find_best(pPeer->pAdjRIBIn, sPrefix);
+	} else {
+	  pRoute= rib_find_best(pPeer->pAdjRIBOut, sPrefix);
+	}
+      } else {
+	if (bIn == JNI_TRUE) {
+	  pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+	} else {
+	  pRoute= rib_find_exact(pPeer->pAdjRIBOut, sPrefix);
+	}
+      }
+      
+      if (pRoute != NULL) {
+	if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pRoute)) == NULL)
+	  return NULL;
+	cbgp_jni_Vector_add(jEnv, joVector, joRoute);
+      }
+
     }
 
   }
@@ -300,13 +459,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
   jobject joVector;
   SJNIContext sCtx;
 
+  jni_lock(jEnv);
+
   /* Get the router instance */
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
-    return NULL;
+    return_jni_unlock(jEnv, NULL);
 
   sCtx.jEnv= jEnv;
   sCtx.joVector= joVector;
@@ -314,5 +475,5 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
   
   bgp_router_networks_for_each(pRouter, _getNetworks, &sCtx);
 
-  return joVector;
+  return_jni_unlock(jEnv, joVector);
 }
