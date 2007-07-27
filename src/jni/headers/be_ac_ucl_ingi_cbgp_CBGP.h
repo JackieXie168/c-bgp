@@ -7,6 +7,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_EVERYTHING
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_EVERYTHING 0L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_DEBUG
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_DEBUG 1L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_INFO
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_INFO 2L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_WARNING
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_WARNING 3L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_SEVERE
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_SEVERE 4L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_FATAL
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_FATAL 5L
+#undef be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_MAX
+#define be_ac_ucl_ingi_cbgp_CBGP_LOG_LEVEL_MAX 255L
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    init
@@ -70,6 +84,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
   (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netGetNode
+ * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/net/Node;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNode
+  (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
@@ -161,6 +183,14 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    simGetEvent
+ * Signature: (I)Lbe/ac/ucl/ingi/cbgp/net/Message;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEvent
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
  * Method:    runCmd
  * Signature: (Ljava/lang/String;)V
  */
@@ -198,6 +228,14 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getVersion
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    setBGPMsgListener
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/BGPMsgListener;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
+  (JNIEnv *, jobject, jobject);
 
 #ifdef __cplusplus
 }

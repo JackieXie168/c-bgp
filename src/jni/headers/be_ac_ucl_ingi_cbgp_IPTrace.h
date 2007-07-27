@@ -9,16 +9,24 @@ extern "C" {
 #endif
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_SUCCESS
 #define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_SUCCESS 0L
+#undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_UNKNOWN
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_UNKNOWN -1L
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TOO_LONG
-#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TOO_LONG -1L
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TOO_LONG -2L
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_UNREACH
-#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_UNREACH -2L
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_UNREACH -3L
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_DOWN
-#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_DOWN -3L
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_DOWN -4L
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_UNREACH
-#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_UNREACH -4L
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_UNREACH -5L
 #undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_BROKEN
-#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_BROKEN -5L
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_TUNNEL_BROKEN -6L
+#undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_TIME_EXP
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_TIME_EXP -7L
+#undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_HOST_UNREACH
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_HOST_UNREACH -8L
+#undef be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_NET_UNREACH
+#define be_ac_ucl_ingi_cbgp_IPTrace_IP_TRACE_ICMP_NET_UNREACH -9L
 #ifdef __cplusplus
 }
 #endif
