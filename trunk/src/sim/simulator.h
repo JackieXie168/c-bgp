@@ -74,6 +74,8 @@ extern "C" {
 			   uint8_t uDeltaType);
   // ----- simulator_get_num_events ---------------------------------
   uint32_t simulator_get_num_events(SSimulator * pSimulator);
+  // ----- simulator_get_event --------------------------------------
+  void * simulator_get_event(SSimulator * pSimulator, unsigned int uIndex);
   // ----- simulator_get_time ---------------------------------------
   double simulator_get_time(SSimulator * pSimulator);
   // ----- simulator_set_max_time -----------------------------------
