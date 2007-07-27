@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/02/2006
-// @lastdate 24/04/2006
+// @lastdate 30/05/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.net; 
@@ -83,9 +83,17 @@ public class Node extends ProxyObject
 	    return protocols.keys();
 	return null;
     }
+
+    // -----[ getBGP ]-----------------------------------------------
+    public native synchronized be.ac.ucl.ingi.cbgp.bgp.Router getBGP()
+	throws CBGPException;
     
     // -----[ recordRoute ]-----------------------------------------
-    public native synchronized 	IPTrace recordRoute(String sDstAddr)
+    public native synchronized IPTrace recordRoute(String sDstAddr)
+		throws CBGPException;
+
+    // -----[ traceRoute ]------------------------------------------
+    public native synchronized IPTrace traceRoute(String sDstAddr)
 		throws CBGPException;
     
     // -----[ getAddresses ]----------------------------------------
