@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/03/2006
-// @lastdate 06/10/2006
+// @lastdate 29/06/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
@@ -85,7 +85,7 @@ public class Router extends ProxyObject
 		throws CBGPException;
     
     // -----[ getPeers ]--------------------------------------------
-    public native Vector getPeers()
+    public native Vector<Peer> getPeers()
 		throws CBGPException;
     
     // -----[ getNetworks ]-----------------------------------------
@@ -93,8 +93,13 @@ public class Router extends ProxyObject
     	throws CBGPException;
     
     // -----[ getRIB ]----------------------------------------------
-    public native Vector getRIB(String sPrefix)
-		throws CBGPException;
+    public native Vector<Route> getRIB(String prefix)
+	throws CBGPException;
+
+    // -----[ getAdjRIB ]-------------------------------------------
+    public native Vector<Route> getAdjRIB(String peer, String prefix,
+					  boolean in)
+	throws CBGPException;
 
     // -----[ toString ]---------------------------------------------
     /**
