@@ -25,6 +25,8 @@ noinst_LTLIBRARIES = libnet.la
 INCLUDES = -I..
 
 libnet_la_SOURCES = \
+	error.c \
+	error.h \
 	icmp.c \
 	icmp.h \
 	iface.c \
@@ -46,6 +48,8 @@ libnet_la_SOURCES = \
 	net_path.c \
 	net_path.h \
 	net_types.h \
+	netflow.c \
+	netflow.h \
 	network.c \
 	network.h \
 	node.c \
