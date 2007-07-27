@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 16/04/2007
+// @lastdate 31/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,9 +12,13 @@
 #endif
 
 #include <assert.h>
+
 #include <libgds/log.h>
 #include <libgds/memory.h>
+
+#include <net/error.h>
 #include <net/network.h>
+#include <net/node.h>
 #include <net/record-route.h>
 #include <ui/output.h>
 
@@ -24,7 +28,7 @@ SNetRecordRouteInfo * net_record_route_info_create(const uint8_t uOptions)
   SNetRecordRouteInfo * pRRInfo=
     (SNetRecordRouteInfo *) MALLOC(sizeof(SNetRecordRouteInfo));
   pRRInfo->uOptions= uOptions;
-  pRRInfo->iResult= NET_RECORD_ROUTE_UNREACH;
+  pRRInfo->iResult= NET_ERROR_UNEXPECTED;
   pRRInfo->pPath= net_path_create();
   pRRInfo->tDelay= 0;
   pRRInfo->tWeight= 0;
@@ -63,6 +67,7 @@ static int _node_record_route_nexthop(SNetNode * pCurrentNode,
   net_addr_t tNextHop;
   SNetRouteInfo * pRouteInfo;
   SNetRouteNextHop * pNextHop;
+  int iResult;
 
   // Lookup the next-hop for this destination
   switch (sDest.tType) {
@@ -91,11 +96,11 @@ static int _node_record_route_nexthop(SNetNode * pCurrentNode,
 
   // No route: return UNREACH
   if (pNextHop == NULL)
-    return NET_RECORD_ROUTE_UNREACH;
+    return NET_ERROR_NET_UNREACH;
   
   // Link down: return DOWN
   if (!net_link_get_state(pNextHop->pIface, NET_LINK_FLAG_UP))
-    return NET_RECORD_ROUTE_DOWN;
+    return NET_ERROR_LINK_DOWN;
   
   /*
   //Check if deflection happens on the forwarding path. We check it by the
@@ -174,10 +179,11 @@ static int _node_record_route_nexthop(SNetNode * pCurrentNode,
 
   // Forward along the link (using the link's method). The result
   // is the outgoing interface (link) and an optional next-hop (???)
-  if (pNextHop->pIface->fForward(tNextHop,
-				 pNextHop->pIface->pContext,
-				 ppNextHopNode, NULL) != NET_SUCCESS)
-    return NET_RECORD_ROUTE_UNREACH;
+  iResult= pNextHop->pIface->fForward(tNextHop,
+				      pNextHop->pIface->pContext,
+				      ppNextHopNode, NULL);
+  if (iResult != NET_SUCCESS)
+    return iResult;
    
   return 0;
 }
@@ -232,7 +238,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
     /* Check for a loop */
     if ((uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP) &&
 	net_path_search(pRRInfo->pPath, pCurrentNode->tAddr)) {
-      pRRInfo->iResult = NET_RECORD_ROUTE_LOOP;
+      pRRInfo->iResult = NET_ERROR_FWD_LOOP;
       net_path_append(pRRInfo->pPath, pCurrentNode->tAddr);
       break;
     }
@@ -277,7 +283,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
 	} else {*/
 
 	// Destination reached :-)
-	pRRInfo->iResult= NET_RECORD_ROUTE_SUCCESS;
+	pRRInfo->iResult= NET_SUCCESS;
 	break;
 
 	//}
@@ -303,7 +309,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
     uHopCount++;
 
     if (uHopCount > NET_OPTIONS_MAX_HOPS) {
-      pRRInfo->iResult= NET_RECORD_ROUTE_TOO_LONG;
+      pRRInfo->iResult= NET_ERROR_TIME_EXCEEDED;
       break;
     }
 
@@ -339,29 +345,29 @@ int print_deflected_path_for_each(void * pItem, void * pContext)
   return 0;
 }
 
-// -----[ node_record_route_perror ]---------------------------------
-/**
- * Print a message that describes the record-route status code.
- */
-void node_record_route_perror(SLogStream * pStream, int iCode)
+// -----[ net_record_route_perror ]----------------------------------
+static void net_record_route_perror(SLogStream * pStream, int iErrorCode)
 {
-  switch (iCode) {
-  case NET_RECORD_ROUTE_SUCCESS:
-    log_printf(pStream, "SUCCESS"); break;
-  case NET_RECORD_ROUTE_TOO_LONG:
-    log_printf(pStream, "TOO_LONG"); break;
-  case NET_RECORD_ROUTE_UNREACH:
-    log_printf(pStream, "UNREACH"); break;
-  case NET_RECORD_ROUTE_DOWN:
-    log_printf(pStream, "DOWN"); break;
+#define LOG(M) log_printf(pStream, M); break;
+  switch (iErrorCode) {
+  case NET_SUCCESS:
+    LOG("SUCCESS");
+  case NET_ERROR_NET_UNREACH:
+    LOG("UNREACH");
+  case NET_ERROR_HOST_UNREACH:
+    LOG("UNREACH");
+  case NET_ERROR_LINK_DOWN:
+    LOG("DOWN");
+  case NET_ERROR_FWD_LOOP:
+    LOG("LOOP");
+    /*
   case NET_RECORD_ROUTE_TUNNEL_UNREACH:
-    log_printf(pStream, "TUNNEL_UNREACH"); break;
+    LOG("TUNNEL_UNREACH");
   case NET_RECORD_ROUTE_TUNNEL_BROKEN:
-    log_printf(pStream, "TUNNEL_BROKEN"); break;
-  case NET_RECORD_ROUTE_LOOP:
-    log_printf(pStream, "LOOP"); break;
+    LOG("TUNNEL_BROKEN");
+    */
   default:
-    log_printf(pStream, "UNKNOWN_ERROR");
+    LOG("UNKNOWN");
   }
 }
 
@@ -387,7 +393,7 @@ void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
   log_printf(pStream, "\t");
   ip_dest_dump(pStream, sDest);
   log_printf(pStream, "\t");
-  node_record_route_perror(pStream, pRRInfo->iResult);
+  net_record_route_perror(pStream, pRRInfo->iResult);
   log_printf(pStream, "\t%u\t", net_path_length(pRRInfo->pPath));
   net_path_dump(pStream, pRRInfo->pPath);
 
