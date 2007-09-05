@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 31/05/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1344,18 +1344,23 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
 {
   char * pcPredicate;
   char * pcTemp;
-  SFilterMatcher * pMatcher;
+  SFilterMatcher* pMatcher;
   SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
   int iMatches= 0;
   int iIndex;
   SRoute * pRoute;
+  int iResult;
 
   // Parse predicate
   pcPredicate= tokens_get_string_at(pCmd->pParamValues,
 				    tokens_get_num(pCmd->pParamValues)-1);
   pcTemp= pcPredicate;
-  if (predicate_parse(&pcTemp, &pMatcher)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n", pcPredicate);
+  iResult= predicate_parser(pcTemp, &pMatcher);
+  if (iResult != PREDICATE_PARSER_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\" (",
+	    pcPredicate);
+    predicate_parser_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -1538,6 +1543,7 @@ int cli_bgp_filter_rule_match(SCliContext * pContext,
   SFilterRule * pRule;
   char * pcPredicate;
   SFilterMatcher * pMatcher;
+  int iResult;
 
   // Get rule from context
   pRule= (SFilterRule *) cli_context_get_item_at_top(pContext);
@@ -1545,8 +1551,12 @@ int cli_bgp_filter_rule_match(SCliContext * pContext,
   // Parse predicate
   pcPredicate= tokens_get_string_at(pCmd->pParamValues,
 				    tokens_get_num(pCmd->pParamValues)-1);
-  if (predicate_parse(&pcPredicate, &pMatcher)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n", pcPredicate);
+  iResult= predicate_parser(pcPredicate, &pMatcher);
+  if (iResult != PREDICATE_PARSER_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\" (",
+	    pcPredicate);
+    predicate_parser_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
