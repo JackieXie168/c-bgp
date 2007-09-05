@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 20/07/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -301,14 +301,14 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
       memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
       return route_comm_contains(pRoute, tCommunity)?1:0;
       break;
-    case FT_MATCH_NEXTHOP_EQUALS:
+    case FT_MATCH_NEXTHOP_IS:
       return (pRoute->pAttr->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
       break;
     case FT_MATCH_NEXTHOP_IN:
       return ip_address_in_prefix(pRoute->pAttr->tNextHop,
 				  *((SPrefix*) pMatcher->auParams))?1:0;
       break;
-    case FT_MATCH_PREFIX_EQUALS:
+    case FT_MATCH_PREFIX_IS:
       return ip_prefix_equals(pRoute->sPrefix,
 			      *((SPrefix*) pMatcher->auParams))?1:0;
       break;
@@ -316,7 +316,7 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
       return ip_prefix_in_prefix(pRoute->sPrefix,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
       break;
-    case FT_MATCH_AS_PATH:
+    case FT_MATCH_PATH_MATCHES:
       return path_match(route_get_path(pRoute),
 			*((int *) pMatcher->auParams))?1:0;
       break;
@@ -440,10 +440,13 @@ SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,
   // Simplify:
   //   AND(ANY, predicate) = predicate
   //   AND(predicate, ANY) = predicate
-  if (pMatcher1 == NULL)
+  if ((pMatcher1 == NULL) || (pMatcher1->uCode == FT_MATCH_ANY)) {
+    filter_matcher_destroy(&pMatcher1);
     return pMatcher2;
-  else if (pMatcher2 == NULL)
+  } else if ((pMatcher2 == NULL) || (pMatcher2->uCode == FT_MATCH_ANY)) {
+    filter_matcher_destroy(&pMatcher2);
     return pMatcher1;
+  }
 
   // Build AND(predicate1, predicate2)
   iSize1= sizeof(SFilterMatcher)+pMatcher1->uSize;
@@ -471,7 +474,8 @@ SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
   //   OR(ANY, ANY) == ANY
   //   OR(ANY, *) = ANY
   //   OR(*, ANY) = ANY
-  if ((pMatcher1 == NULL) || (pMatcher2 == NULL)) {
+  if ((pMatcher1 == NULL) || (pMatcher1->uCode == FT_MATCH_ANY) ||
+      (pMatcher2 == NULL) || (pMatcher2->uCode == FT_MATCH_ANY)) {
     filter_matcher_destroy(&pMatcher2);
     filter_matcher_destroy(&pMatcher1);
     return NULL;
@@ -494,8 +498,23 @@ SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
  */
 SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher)
 {
+  SFilterMatcher * pNewMatcher;
+
+  // Simplify operation: in the case of "not(not(expr))", return "expr"
+  if ((pMatcher != NULL) && (pMatcher->uCode == FT_MATCH_OP_NOT)) {
+
+    pNewMatcher=
+      filter_matcher_create(((SFilterMatcher *) pMatcher->auParams)->uCode,
+			    ((SFilterMatcher *) pMatcher->auParams)->uSize);
+    memcpy(pNewMatcher->auParams,
+	   ((SFilterMatcher *) pMatcher->auParams)->auParams,
+	   ((SFilterMatcher *) pMatcher->auParams)->uSize);
+    filter_matcher_destroy(&pMatcher);
+    return pNewMatcher;
+  }
+
   int iSize= sizeof(SFilterMatcher)+pMatcher->uSize;
-  SFilterMatcher * pNewMatcher= filter_matcher_create(FT_MATCH_OP_NOT,
+  pNewMatcher= filter_matcher_create(FT_MATCH_OP_NOT,
 						   iSize);
   memcpy(pNewMatcher->auParams, pMatcher, iSize);
   filter_matcher_destroy(&pMatcher);
@@ -506,7 +525,7 @@ SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher)
 SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop)
 {
   SFilterMatcher * pMatcher=
-    filter_matcher_create(FT_MATCH_NEXTHOP_EQUALS,
+    filter_matcher_create(FT_MATCH_NEXTHOP_IS,
 			  sizeof(tNextHop));
   memcpy(pMatcher->auParams, &tNextHop, sizeof(tNextHop));
   return pMatcher;
@@ -529,7 +548,7 @@ SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix)
 SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix)
 {
   SFilterMatcher * pMatcher=
-    filter_matcher_create(FT_MATCH_PREFIX_EQUALS,
+    filter_matcher_create(FT_MATCH_PREFIX_IS,
 			  sizeof(SPrefix));
   memcpy(pMatcher->auParams, &sPrefix, sizeof(SPrefix));
   return pMatcher;
@@ -568,7 +587,7 @@ SFilterMatcher * filter_match_comm_contains(comm_t uCommunity)
 SFilterMatcher * filter_match_path(int iArrayPathRegExPos)
 {
   SFilterMatcher * pMatcher=
-    filter_matcher_create(FT_MATCH_AS_PATH,
+    filter_matcher_create(FT_MATCH_PATH_MATCHES,
 			  sizeof(int));
 
  memcpy(pMatcher->auParams, &iArrayPathRegExPos, sizeof(iArrayPathRegExPos));
@@ -751,9 +770,9 @@ void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
       break;
     case FT_MATCH_COMM_CONTAINS:
       memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
-      log_printf(pStream, "comm contains %u", tCommunity);
+      log_printf(pStream, "community is %u", tCommunity);
       break;
-    case FT_MATCH_NEXTHOP_EQUALS:
+    case FT_MATCH_NEXTHOP_IS:
       log_printf(pStream, "next-hop is ");
       ip_address_dump(pStream, *((net_addr_t *) pMatcher->auParams));
       break;
@@ -761,7 +780,7 @@ void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
       log_printf(pStream, "next-hop in ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
-    case FT_MATCH_PREFIX_EQUALS:
+    case FT_MATCH_PREFIX_IS:
       log_printf(pStream, "prefix is ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
@@ -769,12 +788,12 @@ void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
       log_printf(pStream, "prefix in ");
       ip_prefix_dump(pStream, *((SPrefix *) pMatcher->auParams));
       break;
-    case FT_MATCH_AS_PATH:
+    case FT_MATCH_PATH_MATCHES:
       ptr_array_get_at(paPathExpr, *((int *) pMatcher->auParams), &pPathMatch);
       if (pPathMatch != NULL)
-	log_printf(pStream, "path matches %s", pPathMatch->pcPattern);
+	log_printf(pStream, "path \\\"%s\\\"", pPathMatch->pcPattern);
       else
-	log_printf(pStream, "path matches ???");
+	abort();
       break;
     default:
       log_printf(pStream, "?");
