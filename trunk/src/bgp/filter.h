@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 17/07/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifndef __BGP_FILTER_H__
@@ -24,18 +24,19 @@
 #include <util/regex.h>
 
 // Matcher codes
+#define FT_MATCH_ANY            0
 #define FT_MATCH_OP_AND         1
 #define FT_MATCH_OP_OR          2
 #define FT_MATCH_OP_NOT         3
 #define FT_MATCH_COMM_CONTAINS  10
-#define FT_MATCH_PATH_CONTAINS  20
-#define FT_MATCH_NEXTHOP_EQUALS 25
+#define FT_MATCH_PATH_MATCHES   20
+#define FT_MATCH_NEXTHOP_IS     25
 #define FT_MATCH_NEXTHOP_IN     26
-#define FT_MATCH_PREFIX_EQUALS  30
+#define FT_MATCH_PREFIX_IS      30
 #define FT_MATCH_PREFIX_IN      31
-#define FT_MATCH_AS_PATH        40
 
 // Action codes
+#define FT_ACTION_NOP             0
 #define FT_ACTION_ACCEPT          1
 #define FT_ACTION_DENY            2
 #define FT_ACTION_COMM_APPEND     10
