@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 20/07/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,33 +30,24 @@
 static SCli * pFtPredicateCLI= NULL;
 static SCli * pFtActionCLI= NULL;
 
-// ----- ft_registry_predicate_parse ----------------------------
+// -----[ ft_registry_predicate_parser ]-----------------------------
 /**
  * This function takes a string, parses it and if it matches the
  * definition of a predicate, creates and returns it.
  */
-int ft_registry_predicate_parse(char * pcExpr,
-				SFilterMatcher ** ppMatcher)
+int ft_registry_predicate_parser(char * pcExpr,
+				 SFilterMatcher ** ppMatcher)
 {
-  int iResult;
-
-  iResult= cli_execute_ctx(pFtPredicateCLI, pcExpr, (void *) ppMatcher);
-  if (iResult != CLI_SUCCESS) {
-    cli_perror(pLogErr, iResult);
-    return FILTER_PARSER_ERROR_UNEXPECTED;
-  }
-  return FILTER_PARSER_SUCCESS;
-
-  return -1;
+  return cli_execute_ctx(pFtPredicateCLI, pcExpr, (void *) ppMatcher);
 }
 
-// ----- ft_registry_action_parse -----------------------------------
+// -----[ ft_registry_action_parser ]--------------------------------
 /**
  * This function takes a string, parses it and if it matches the
  * definition of an action, creates and returns it.
  */
-int ft_registry_action_parse(char * pcExpr,
-			     SFilterAction ** ppAction)
+int ft_registry_action_parser(char * pcExpr,
+			      SFilterAction ** ppAction)
 {
   int iResult;
 
