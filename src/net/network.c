@@ -547,6 +547,7 @@ int network_to_file(SLogStream * pStream, SNetwork * pNetwork)
   while (enum_has_next(pEnum)) {
     pNode= *(SNetNode **) enum_get_next(pEnum);
     node_dump(pStream, pNode);
+    log_printf(pStream, "\n");
   }
   enum_destroy(&pEnum);
   return 0;
