@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/03/2005
-// @lastdate 23/01/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@ int ntf_load(char * pcFileName)
       pTokens= tokenizer_get_tokens(pTokenizer);
 
       if (tokens_get_num(pTokens) < 3) {
-	LOG_ERR(LOG_LEVEL_SEVERE, "Error: not enouh parameters in NTF file, line %u\n",
+	LOG_ERR(LOG_LEVEL_SEVERE, "Error: not enough parameters in NTF file, line %u\n",
 		   uLineNumber);
 	iError= NTF_ERROR_NUM_PARAMS;
 	break;	
