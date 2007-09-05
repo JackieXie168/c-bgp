@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 25/06/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <libgds/cli_ctx.h>
 #include <cli/common.h>
@@ -29,6 +30,7 @@
  * Display help for a context: gives the available sub-commands and
  * their parameters.
  */
+#ifdef HAVE_LIBREADLINE
 static void _cli_help_cmd(SCliCmd * pCmd)
 {
   int iIndex, iIndex2;
@@ -61,8 +63,10 @@ static void _cli_help_cmd(SCliCmd * pCmd)
   rl_on_new_line();
 #endif
 }
+#endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_option ]-----------------------------------------
+#ifdef HAVE_LIBREADLINE
 static void _cli_help_option(SCliOption * pOption)
 {
   fprintf(stdout, "\n");
@@ -76,8 +80,10 @@ static void _cli_help_option(SCliOption * pOption)
   rl_on_new_line();
 #endif
 }
+#endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_param ]------------------------------------------
+#ifdef HAVE_LIBREADLINE
 static void _cli_help_param(SCliParam * pParam)
 {
   fprintf(stdout, "\n");
@@ -91,12 +97,14 @@ static void _cli_help_param(SCliParam * pParam)
   rl_on_new_line();
 #endif
 }
+#endif /* HAVE_LIBREADLINE */
 
 // -----[ cli_help ]-------------------------------------------------
 /**
  * This function provides help for the command passed in the given
  * string.
  */
+#ifdef HAVE_LIBREADLINE
 void cli_help(SCli * pCli, char * pcLine, int iPos)
 {
   SCliCmd * pCtxCmd= NULL;
@@ -153,6 +161,7 @@ void cli_help(SCli * pCli, char * pcLine, int iPos)
     rl_on_new_line();
 #endif
 }
+#endif /* HAVE_LIBREADLINE */
 
 #ifdef HAVE_LIBREADLINE
 static int _rl_help_command(int count, int key)
