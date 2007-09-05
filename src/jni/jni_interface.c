@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 29/06/2007
+// @lastdate 05/09/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -523,6 +523,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
    jint jiWeight)
 {
   SNetNode * pNodeSrc, * pNodeDst;
+  SNetLink * pLink;
   jobject joLink;
 
   jni_lock(jEnv);
@@ -538,7 +539,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
     return_jni_unlock(jEnv, NULL);
   }
 
-  joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, NULL);
+  pLink= node_find_link_ptp(pNodeSrc, pNodeDst->tAddr);
+  joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, pLink);
 
   return_jni_unlock(jEnv, joLink);
 }
