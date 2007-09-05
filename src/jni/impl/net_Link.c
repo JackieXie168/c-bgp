@@ -50,6 +50,7 @@ jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
 
   // Add reference into proxy repository
   jni_proxy_add(jEnv, joLink, pLink);
+
   return joLink;
 }
 
