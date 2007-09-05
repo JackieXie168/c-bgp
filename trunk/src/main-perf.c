@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 20/07/07
+// @date 04/09/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -130,10 +130,10 @@ static int _route_handler(int iStatus, SRoute * pRoute,
  * of bytes.  No alignment or length assumptions are made about
  * the input key.
  */
-uint32_t jhash (void *key, u_int32_t length, u_int32_t initval)
+uint32_t jhash (void *key, uint32_t length, uint32_t initval)
 {
-  u_int32_t a, b, c, len;
-  u_int8_t *k = key;
+  uint32_t a, b, c, len;
+  uint8_t *k = key;
 
   len = length;
   a = b = JHASH_GOLDEN_RATIO;
@@ -142,14 +142,14 @@ uint32_t jhash (void *key, u_int32_t length, u_int32_t initval)
   while (len >= 12)
     {
       a +=
-        (k[0] + ((u_int32_t) k[1] << 8) + ((u_int32_t) k[2] << 16) +
-         ((u_int32_t) k[3] << 24));
+        (k[0] + ((uint32_t) k[1] << 8) + ((uint32_t) k[2] << 16) +
+         ((uint32_t) k[3] << 24));
       b +=
-        (k[4] + ((u_int32_t) k[5] << 8) + ((u_int32_t) k[6] << 16) +
-         ((u_int32_t) k[7] << 24));
+        (k[4] + ((uint32_t) k[5] << 8) + ((uint32_t) k[6] << 16) +
+         ((uint32_t) k[7] << 24));
       c +=
-        (k[8] + ((u_int32_t) k[9] << 8) + ((u_int32_t) k[10] << 16) +
-         ((u_int32_t) k[11] << 24));
+        (k[8] + ((uint32_t) k[9] << 8) + ((uint32_t) k[10] << 16) +
+         ((uint32_t) k[11] << 24));
 
       __jhash_mix (a, b, c);
 
@@ -161,25 +161,25 @@ uint32_t jhash (void *key, u_int32_t length, u_int32_t initval)
   switch (len)
     {
     case 11:
-      c += ((u_int32_t) k[10] << 24);
+      c += ((uint32_t) k[10] << 24);
     case 10:
-      c += ((u_int32_t) k[9] << 16);
+      c += ((uint32_t) k[9] << 16);
     case 9:
-      c += ((u_int32_t) k[8] << 8);
+      c += ((uint32_t) k[8] << 8);
     case 8:
-      b += ((u_int32_t) k[7] << 24);
+      b += ((uint32_t) k[7] << 24);
     case 7:
-      b += ((u_int32_t) k[6] << 16);
+      b += ((uint32_t) k[6] << 16);
     case 6:
-      b += ((u_int32_t) k[5] << 8);
+      b += ((uint32_t) k[5] << 8);
     case 5:
       b += k[4];
     case 4:
-      a += ((u_int32_t) k[3] << 24);
+      a += ((uint32_t) k[3] << 24);
     case 3:
-      a += ((u_int32_t) k[2] << 16);
+      a += ((uint32_t) k[2] << 16);
     case 2:
-      a += ((u_int32_t) k[1] << 8);
+      a += ((uint32_t) k[1] << 8);
     case 1:
       a += k[0];
     };
