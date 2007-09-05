@@ -66,7 +66,7 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
 
   // Node address ?
   if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &tAddr)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (invalid address)");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (invalid address)\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
