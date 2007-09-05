@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 21/05/07
+// @date 28/08/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -154,11 +154,14 @@ int main(int argc, char * argv[])
     case OPTION_FILTER:
       pcFilter= strdup(optarg);
       if (sContext.pMatcher != NULL) {
-	fprintf(stderr, "Error: route filter already specified.\n");
+	log_printf(pLogErr, "Error: route filter already specified.\n");
 	return EXIT_FAILURE;
       }
-      if (predicate_parse(&pcFilter, &sContext.pMatcher) != 0) {
-	fprintf(stderr, "Error: invalid route filter \"%s\"\n", optarg);
+      iResult= predicate_parser(pcFilter, &sContext.pMatcher);
+      if (iResult != PREDICATE_PARSER_SUCCESS) {
+	log_printf(pLogErr, "Error: invalid route filter \"%s\" [", optarg);
+	predicate_parser_perror(pLogErr, iResult);
+	log_printf(pLogErr, "\n");
 	return EXIT_FAILURE;
       }
       break;
@@ -167,19 +170,19 @@ int main(int argc, char * argv[])
       return EXIT_SUCCESS;
     case OPTION_IN_FORMAT:
       if (bgp_routes_str2format(optarg, &uInFormat) != 0) {
-	fprintf(stderr, "Error: invalid input format \"%s\".\n", optarg);
+	log_printf(pLogErr, "Error: invalid input format \"%s\".\n", optarg);
 	return EXIT_FAILURE;
       }
       break;
     case OPTION_OUT_FORMAT:
       if (route_str2format(optarg, &uOutFormat) != 0) {
-	fprintf(stderr, "Error: invalid output format \"%s\".\n", optarg);
+	log_printf(pLogErr, "Error: invalid output format \"%s\".\n", optarg);
 	return EXIT_FAILURE;
       }
       break;
     case OPTION_OUT_SPEC:
       if (sContext.pcOutSpec != NULL) {
-	fprintf(stderr, "Error: output spec already specified.\n");
+	log_printf(pLogErr, "Error: output spec already specified.\n");
 	return EXIT_FAILURE;
       }
       sContext.pcOutSpec= strdup(optarg);
@@ -191,7 +194,7 @@ int main(int argc, char * argv[])
   }
 
   if (optind >= argc) {
-    fprintf(stderr, "Error: no input file.\n");
+    log_printf(pLogErr, "Error: no input file.\n");
     return EXIT_FAILURE;
   }
 
