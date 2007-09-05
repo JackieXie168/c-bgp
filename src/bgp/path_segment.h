@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 20/07/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifndef __BGP_PATH_SEGMENT_H__
@@ -16,8 +16,10 @@
 
 #include <bgp/types.h>
 
-#define AS_PATH_SEGMENT_SET 1
-#define AS_PATH_SEGMENT_SEQUENCE 2
+#define AS_PATH_SEGMENT_SET             1
+#define AS_PATH_SEGMENT_SEQUENCE        2
+#define AS_PATH_SEGMENT_CONFED_SET      3
+#define AS_PATH_SEGMENT_CONFED_SEQUENCE 4
 
 #define MAX_PATH_SEQUENCE_LENGTH 255
 
