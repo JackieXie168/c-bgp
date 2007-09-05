@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/08/2003
-// @lastdate 09/01/2007
+// @lastdate 28/08/2007
 // ==================================================================
 // Syntax:
 //   Script     ::= Rules
@@ -85,8 +85,8 @@ int filter_parser_action(char * pcActions, SFilterAction ** ppAction)
   if (tokenizer_run(pTokenizer, pcActions) == 0) {
     pTokens= tokenizer_get_tokens(pTokenizer);
     for (iIndex= 0; iIndex < tokens_get_num(pTokens); iIndex++) {
-      if (ft_registry_action_parse(tokens_get_string_at(pTokens, iIndex),
-				   (void *) &pAction) == 0) {
+      if (ft_registry_action_parser(tokens_get_string_at(pTokens, iIndex),
+				    (void *) &pAction) == 0) {
 	if (*ppAction == NULL) {
 	  *ppAction= pAction;
 	  ppNewAction= &(pAction->pNextAction);
