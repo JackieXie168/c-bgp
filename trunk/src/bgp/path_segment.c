@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/10/2003
-// @lastdate 22/07/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,6 +19,18 @@
 #include <libgds/tokenizer.h>
 #include <bgp/path.h>
 #include <bgp/path_segment.h>
+
+// -----[ path segment delimiters ]-----
+/**
+ * These are the delimiters used in route_btoa.
+ */
+#define PATH_SEG_SET_DELIMS            "[]"
+/**
+ * These are the delimiters used in libbgpdump.
+ */
+//#define PATH_SEG_SET_DELIMS            "{}"
+//#define PATH_SEG_CONFED_SET_DELIM      "[]"
+//#define PATH_SEG_CONFED_SEQUENCE_DELIM "()"
 
 static STokenizer * pSegmentTokenizer= NULL;
 
@@ -88,10 +100,12 @@ int path_segment_to_string(SPathSegment * pSegment,
   int iWritten= 0;
 
   assert(((pSegment->uType == AS_PATH_SEGMENT_SET) ||
-	  (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE)) &&
+	  (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE) ||
+	  (pSegment->uType == AS_PATH_SEGMENT_CONFED_SET) ||
+	  (pSegment->uType == AS_PATH_SEGMENT_CONFED_SEQUENCE)) &&
 	 (pSegment->uLength > 0));
 
-  if (pSegment->uType == AS_PATH_SEGMENT_SET) {
+  if (pSegment->uType != AS_PATH_SEGMENT_SEQUENCE) {
     iWritten= snprintf(pcDst, tDstSize, "}");
     if (iWritten == tDstSize)
       return -1;
@@ -127,7 +141,7 @@ int path_segment_to_string(SPathSegment * pSegment,
     }
   }
 
-  if (pSegment->uType == AS_PATH_SEGMENT_SET) {
+  if (pSegment->uType != AS_PATH_SEGMENT_SEQUENCE) {
     iWritten= snprintf(pcDst, tDstSize, "}");
     if (iWritten >= tDstSize)
       return -1;
@@ -158,7 +172,7 @@ SPathSegment * path_segment_from_string(const char * pcPathSegment)
 
   if (tokenizer_run(pSegmentTokenizer, (char *) pcPathSegment)
       != TOKENIZER_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: parse error in 'mrtd_create_path_segment'\n");
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: parse error in 'path_segment_from_string'\n");
     return NULL;
   }
 
