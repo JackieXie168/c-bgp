@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 23/07/07
+// @date 05/09/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,10 +25,12 @@
 #include <bgp/as.h>
 #include <bgp/comm.h>
 #include <bgp/comm_hash.h>
+#include <bgp/filter_parser.h>
 #include <bgp/mrtd.h>
 #include <bgp/path.h>
 #include <bgp/path_hash.h>
 #include <bgp/path_segment.h>
+#include <bgp/predicate_parser.h>
 #include <bgp/route.h>
 #include <bgp/route-input.h>
 #include <net/error.h>
@@ -660,11 +662,28 @@ static int test_bgp_attr_aspath_str2()
   pPath= path_from_string("");
   ASSERT_RETURN(pPath != NULL,
 		"\"\" is a valid AS-Path");
-  //ASSERT_RETURN(pPath);
   path_destroy(&pPath);
   pPath= path_from_string("12 34 56");
   ASSERT_RETURN(pPath != NULL,
 		"\"12 34 56\" is a valid AS-Path");
+  path_destroy(&pPath);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_attr_aspath_set_str2 ]----------------------------
+static int test_bgp_attr_aspath_set_str2()
+{
+  SBGPPath * pPath;
+  SPathSegment * pSegment;
+  pPath= path_from_string("{1 2 3}");
+  ASSERT_RETURN(pPath != NULL, "\"{1 2 3}\" is a valid AS-Path");
+  ASSERT_RETURN(path_num_segments(pPath) == 1,
+		"Path should have a single segment");
+  pSegment= (SPathSegment *) pPath->data[0];
+  ASSERT_RETURN(pSegment->uType == AS_PATH_SEGMENT_SET,
+		"Segment type should be AS_SET");
+  ASSERT_RETURN(pSegment->uLength == 3,
+		"Segment size should be 3");
   path_destroy(&pPath);
   return UTEST_SUCCESS;
 }
@@ -1064,6 +1083,472 @@ static int test_bgp_route_aspath()
 
 /////////////////////////////////////////////////////////////////////
 //
+// BGP FILTER ACTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_bgp_filter_action_comm_add ]--------------------------
+int test_bgp_filter_action_comm_add()
+{
+  SFilterAction * pAction= filter_action_comm_append(1234);
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_COMM_APPEND,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_comm_remove ]-----------------------
+int test_bgp_filter_action_comm_remove()
+{
+  SFilterAction * pAction= filter_action_comm_remove(1234);
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_COMM_REMOVE,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_comm_strip ]------------------------
+int test_bgp_filter_action_comm_strip()
+{
+  SFilterAction * pAction= filter_action_comm_strip();
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_COMM_STRIP,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_local_pref ]------------------------
+int test_bgp_filter_action_local_pref()
+{
+  SFilterAction * pAction= filter_action_pref_set(1234);
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_PREF_SET,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_metric ]----------------------------
+int test_bgp_filter_action_metric()
+{
+  SFilterAction * pAction= filter_action_metric_set(1234);
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_METRIC_SET,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_metric_internal ]-------------------
+int test_bgp_filter_action_metric_internal()
+{
+  SFilterAction * pAction= filter_action_metric_internal();
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_METRIC_INTERNAL,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_path_prepend ]----------------------
+int test_bgp_filter_action_path_prepend()
+{
+  SFilterAction * pAction= filter_action_path_prepend(5);
+  ASSERT_RETURN(pAction != NULL, "New action should be NULL");
+  ASSERT_RETURN(pAction->uCode == FT_ACTION_PATH_PREPEND,
+		"Incorrect action code");
+  filter_action_destroy(&pAction);
+  ASSERT_RETURN(pAction == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_comm_add_str2 ]---------------------
+int test_bgp_filter_action_comm_add_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("community add 1234", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_comm_remove_str2 ]------------------
+int test_bgp_filter_action_comm_remove_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("community remove 1234", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_comm_strip_str2 ]-------------------
+int test_bgp_filter_action_comm_strip_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("community strip", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_local_pref_str2 ]-------------------
+int test_bgp_filter_action_local_pref_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("local-pref 1234", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_metric_str2 ]-----------------------
+int test_bgp_filter_action_metric_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("metric 1234", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_metric_internal_str2 ]--------------
+int test_bgp_filter_action_metric_internal_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("metric internal", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_path_prepend_str2 ]-----------------
+int test_bgp_filter_action_path_prepend_str2()
+{
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("as-path prepend 5", &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_expression_str2 ]-------------------
+int test_bgp_filter_action_expression_str2()
+{
+  return UTEST_SKIPPED;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// BGP FILTER PREDICATES
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_bgp_filter_predicate_comm_contains ]------------------
+int test_bgp_filter_predicate_comm_contains()
+{
+  SFilterMatcher * pPredicate= filter_match_comm_contains(1234);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_COMM_CONTAINS,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_nexthop_is ]---------------------
+int test_bgp_filter_predicate_nexthop_is()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_nexthop_equals(IPV4_TO_INT(10,0,0,0));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_NEXTHOP_IS,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_nexthop_in ]---------------------
+int test_bgp_filter_predicate_nexthop_in()
+{
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(10,0,0,0),
+		     .uMaskLen= 16 };
+  SFilterMatcher * pPredicate=
+    filter_match_nexthop_in(sPrefix);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_NEXTHOP_IN,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_is ]----------------------
+int test_bgp_filter_predicate_prefix_is()
+{
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(10,0,0,0),
+		     .uMaskLen= 16 };
+  SFilterMatcher * pPredicate=
+    filter_match_prefix_equals(sPrefix);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_IS,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_in ]----------------------
+int test_bgp_filter_predicate_prefix_in()
+{
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(10,0,0,0),
+		     .uMaskLen= 16 };
+  SFilterMatcher * pPredicate=
+    filter_match_prefix_in(sPrefix);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_IN,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_path_regexp ]--------------------
+int test_bgp_filter_predicate_path_regexp()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_path(0);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PATH_MATCHES,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_bgp_filter_predicate_and ]----------------------------
+int test_bgp_filter_predicate_and()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_and(filter_match_comm_contains(1),
+		     filter_match_comm_contains(2));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_OP_AND,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_and_any ]------------------------
+int test_bgp_filter_predicate_and_any()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_and(NULL,
+		     filter_match_comm_contains(2));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_COMM_CONTAINS,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_not ]----------------------------
+int test_bgp_filter_predicate_not()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_not(filter_match_comm_contains(1));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_OP_NOT,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_not_not ]------------------------
+int test_bgp_filter_predicate_not_not()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_not(filter_match_not(filter_match_comm_contains(1)));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_COMM_CONTAINS,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_or ]----------------------------
+int test_bgp_filter_predicate_or()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_or(filter_match_comm_contains(1),
+		    filter_match_comm_contains(2));
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_OP_OR,
+		"Incorrect predicate code");
+  filter_matcher_destroy(&pPredicate);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_or_any ]------------------------
+int test_bgp_filter_predicate_or_any()
+{
+  SFilterMatcher * pPredicate=
+    filter_match_or(NULL,
+		    filter_match_comm_contains(2));
+  ASSERT_RETURN(pPredicate == NULL,
+		"New predicate should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_comm_contains_str2 ]-------------
+int test_bgp_filter_predicate_comm_contains_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("community is 1", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_nexthop_is_str2 ]----------------
+int test_bgp_filter_predicate_nexthop_is_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("next-hop is 1.0.0.0", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_nexthop_in_str2 ]----------------
+int test_bgp_filter_predicate_nexthop_in_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("next-hop in 10/8", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_is_str2 ]-----------------
+int test_bgp_filter_predicate_prefix_is_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("prefix is 10/8", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_in_str2 ]-----------------
+int test_bgp_filter_predicate_prefix_in_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("prefix in 10/8", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_path_regexp_str2 ]---------------
+int test_bgp_filter_predicate_path_regexp_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("path \"^(1_)\"", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_expr_str2 ]----------------------
+int test_bgp_filter_predicate_expr_str2()
+{
+  char * pcPredicates[]= {
+    "(community is 1)",
+    "(community is 1) | (community is 2)",
+    "(path \"^(1_)\") & (community is 1) | (community is 2)",
+    "(path \"^(1_)\") & ((community is 1) | (community is 2))",
+    "!community is 1",
+    "!(community is 1)",
+    "(community is 1 & community is 2)",
+    "!(!community is 1)",
+    "((community is 1))",
+  };
+  SFilterMatcher * pMatcher;
+  unsigned int uIndex;
+
+  for (uIndex= 0; uIndex < sizeof(pcPredicates)/sizeof(pcPredicates[0]);
+       uIndex++) {
+    ASSERT_RETURN(predicate_parser(pcPredicates[uIndex], &pMatcher) >= 0,
+		  "predicate_parser() should return >= 0");
+    ASSERT_RETURN(pMatcher != NULL,
+		  "New predicate should not be NULL");
+    filter_matcher_destroy(&pMatcher);
+    ASSERT_RETURN(pMatcher == NULL, "Predicate should be NULL when destroyed");
+  }
+
+  ASSERT_RETURN(predicate_parser("path \"^(1_)", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_UNFINISHED_STRING,
+		"Should return \"unfinished-string\" error");
+  ASSERT_RETURN(predicate_parser("plop", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_ATOM,
+		"Should return \"atom\" error");
+  ASSERT_RETURN(predicate_parser("(community is 1", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_PAR_MISMATCH,
+		"Should return \"parenthesis-mismatch\" error");
+  ASSERT_RETURN(predicate_parser("community is 1)", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_PAR_MISMATCH,
+		"Should return \"parenthesis-mismatch\" error");
+  ASSERT_RETURN(predicate_parser("& community is 1", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_LEFT_EXPR,
+		"Should return \"left-expression\" error");
+  ASSERT_RETURN(predicate_parser("community is 1 &", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_UNEXPECTED_EOF,
+		"Should return \"unexpected-eof\" error");
+  ASSERT_RETURN(predicate_parser("!!community is 1", &pMatcher) ==
+		PREDICATE_PARSER_ERROR_UNARY_OP,
+		"Should return \"unary-op-not-allowed\" error");
+
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // MAIN PART
 //
 /////////////////////////////////////////////////////////////////////
@@ -1118,6 +1603,7 @@ SUnitTest TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath_prepend_too_much, "as-path prepend (too much)"},
   {test_bgp_attr_aspath_2str, "as-path (-> string)"},
   {test_bgp_attr_aspath_str2, "as-path (<- string)"},
+  {test_bgp_attr_aspath_set_str2, "as-path set (<- string)"},
   {test_bgp_attr_aspath_cmp, "as-path (compare)"},
   {test_bgp_attr_aspath_contains, "as-path (contains)"},
   {test_bgp_attr_communities, "communities"},
@@ -1140,11 +1626,55 @@ SUnitTest TEST_BGP_ROUTE[]= {
 };
 #define TEST_BGP_ROUTE_SIZE ARRAY_SIZE(TEST_BGP_ROUTE)
 
+SUnitTest TEST_BGP_FILTER_ACTION[]= {
+  {test_bgp_filter_action_comm_add, "comm add"},
+  {test_bgp_filter_action_comm_remove, "comm remove"},
+  {test_bgp_filter_action_comm_strip, "comm strip"},
+  {test_bgp_filter_action_local_pref, "local-pref"},
+  {test_bgp_filter_action_metric, "metric"},
+  {test_bgp_filter_action_metric_internal, "metric internal"},
+  {test_bgp_filter_action_path_prepend, "as-path prepend"},
+  {test_bgp_filter_action_comm_add_str2, "comm add (string ->)"},
+  {test_bgp_filter_action_comm_remove_str2, "comm remove (string ->)"},
+  {test_bgp_filter_action_comm_strip_str2, "comm strip (string ->)"},
+  {test_bgp_filter_action_local_pref_str2, "local-pref (string ->)"},
+  {test_bgp_filter_action_metric_str2, "metric (string ->)"},
+  {test_bgp_filter_action_metric_internal_str2, "metric internal (string ->)"},
+  {test_bgp_filter_action_path_prepend_str2, "as-path prepend (string ->)"},
+  {test_bgp_filter_action_expression_str2, "expression (string ->)"},
+};
+#define TEST_BGP_FILTER_ACTION_SIZE ARRAY_SIZE(TEST_BGP_FILTER_ACTION)
+
+SUnitTest TEST_BGP_FILTER_PRED[]= {
+  {test_bgp_filter_predicate_comm_contains, "comm contains"},
+  {test_bgp_filter_predicate_nexthop_is, "next-hop is"},
+  {test_bgp_filter_predicate_nexthop_in, "next-hop in"},
+  {test_bgp_filter_predicate_prefix_is, "prefix is"},
+  {test_bgp_filter_predicate_prefix_in, "prefix in"},
+  {test_bgp_filter_predicate_path_regexp, "path regexp"},
+  {test_bgp_filter_predicate_and, "and(x,y)"},
+  {test_bgp_filter_predicate_and_any, "and(any,x)"},
+  {test_bgp_filter_predicate_not, "not(x)"},
+  {test_bgp_filter_predicate_not_not, "not(not(x))"},
+  {test_bgp_filter_predicate_or, "or(x,y)"},
+  {test_bgp_filter_predicate_or_any, "or(any,y)"},
+  {test_bgp_filter_predicate_comm_contains_str2, "comm contains (string ->)"},
+  {test_bgp_filter_predicate_nexthop_is_str2, "nexthop is (string ->)"},
+  {test_bgp_filter_predicate_nexthop_in_str2, "nexthop in (string ->)"},
+  {test_bgp_filter_predicate_prefix_is_str2, "prefix is (string ->)"},
+  {test_bgp_filter_predicate_prefix_in_str2, "prefix in (string ->)"},
+  {test_bgp_filter_predicate_path_regexp_str2, "path regexp (string ->)"},
+  {test_bgp_filter_predicate_expr_str2, "expression (string ->)"},
+};
+#define TEST_BGP_FILTER_PRED_SIZE ARRAY_SIZE(TEST_BGP_FILTER_PRED)
+
 SUnitTestSuite TEST_SUITES[]= {
   {"Net Attributes", TEST_NET_ATTR_SIZE, TEST_NET_ATTR},
   {"Net Links", TEST_NET_LINK_SIZE, TEST_NET_LINK},
   {"BGP Attributes", TEST_BGP_ATTR_SIZE, TEST_BGP_ATTR},
   {"BGP Routes", TEST_BGP_ROUTE_SIZE, TEST_BGP_ROUTE},
+  {"BGP Filter Actions", TEST_BGP_FILTER_ACTION_SIZE, TEST_BGP_FILTER_ACTION},
+  {"BGP Filter Predicates", TEST_BGP_FILTER_PRED_SIZE, TEST_BGP_FILTER_PRED},
 };
 #define TEST_SUITES_SIZE ARRAY_SIZE(TEST_SUITES)
 
