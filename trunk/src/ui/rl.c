@@ -6,7 +6,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 22/06/2007
+// @lastdate 28/08/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,9 @@
 static char * pcLineRead= NULL;
 
 // Maximum number of lines to hold in readline's history.
+#ifdef HAVE_LIBREADLINE
 static int iHistFileSize= 500;
+#endif /* HAVE_LIBREADLINE */
 
 
 // ---- rl_gets -----------------------------------------------------
@@ -79,7 +81,7 @@ char * rl_gets()
     pcLineRead= (char *) malloc(MAX_LINE_READ*sizeof(char));
 
   // Print the prompt
-  fprintf(cli_context_to_string(cli_get()->pCtx, "cbgp"));
+  fprintf(stdout, cli_context_to_string(cli_get()->pCtx, "cbgp"));
 
   // Get at most MAX_LINE_READ-1 characters from stdin
   fgets(pcLineRead, MAX_LINE_READ, stdin);
