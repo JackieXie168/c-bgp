@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 22/07/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -440,7 +440,7 @@ SBGPPath * path_from_string(const char * pcPath)
   unsigned long ulASNum;
 
   if (pPathTokenizer == NULL)
-    pPathTokenizer= tokenizer_create(" ", 0, "[", "]");
+    pPathTokenizer= tokenizer_create(" ", 0, "{[(", "}])");
 
   if (tokenizer_run(pPathTokenizer, (char *) pcPath) != TOKENIZER_SUCCESS)
     return NULL;
