@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 30/05/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,7 @@
 #include <bgp/domain.h>
 #include <bgp/peer.h>
 #include <bgp/route.h>
+#include <net/error.h>
 #include <net/igp_domain.h>
 #include <net/link.h>
 #include <net/network.h>
@@ -50,12 +51,6 @@
 #define CLASS_IPRoute "be/ac/ucl/ingi/cbgp/IPRoute"
 #define CONSTR_IPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
                         "Lbe/ac/ucl/ingi/cbgp/IPAddress;B)V"
-
-#define CLASS_IPTrace "be/ac/ucl/ingi/cbgp/IPTrace"
-#define CONSTR_IPTrace "(Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;I" \
-                       "Lbe/ac/ucl/ingi/cbgp/LinkMetrics;)V"
-#define METHOD_IPTrace_append "(Lbe/ac/ucl/ingi/cbgp/IPAddress;)V"
 
 #define CLASS_BGPRoute "be/ac/ucl/ingi/cbgp/bgp/Route"
 #define CONSTR_BGPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
@@ -326,66 +321,6 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix, SNetRouteInfo * pRou
     return NULL;
 
   return obj_IPRoute;
-}
-
-// -----[ cbgp_jni_IPTrace_for_each ]--------------------------------
-int cbgp_jni_IPTrace_for_each(void * pItem, void * pContext)
-{
-  SJNIContext * pCtx= (SJNIContext *) pContext;
-  net_addr_t tAddress= *(net_addr_t *) pItem;
-  jobject joAddress;
-
-  if (tAddress == NET_ADDR_ANY) {
-    joAddress= NULL;
-  } else {
-    if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, tAddress)) == NULL)
-      return -1;
-  }
-
-  return cbgp_jni_call_void(pCtx->jEnv, pCtx->joVector,
-			    "append",
-			    METHOD_IPTrace_append,
-			    joAddress);
-}
-
-// -----[ cbgp_jni_new_IPTrace ]-------------------------------------
-/**
- *
- */
-jobject cbgp_jni_new_IPTrace(JNIEnv * jEnv, net_addr_t tSrc,
-			     net_addr_t tDst,
-			     SNetRecordRouteInfo * pRRInfo)
-{
-  jobject joIPTrace;
-  jobject joSrc, joDst;
-  jobject joMetrics;
-  SJNIContext sCtx;
-
-  /* Convert src/dst to Java objects */
-  if ((joSrc= cbgp_jni_new_IPAddress(jEnv, tSrc)) == NULL)
-    return NULL;
-  if ((joDst= cbgp_jni_new_IPAddress(jEnv, tDst)) == NULL)
-    return NULL;
-
-  /* Create new LinkMetrics object */
-  /*
-  if ((joMetrics= cbgp_jni_new_LinkMetrics(jEnv, pRRInfo->iDelay,
-					   pRRInfo->iWeight)) == NULL) 
-    return NULL*/;
-  joMetrics= NULL;
-
-  /* Create new IPTrace object */
-  if ((joIPTrace= cbgp_jni_new(jEnv, CLASS_IPTrace, CONSTR_IPTrace,
-			       joSrc, joDst, (jint) pRRInfo->iResult, joMetrics)) == NULL)
-    return NULL;
-
-  /* Add hops */
-  sCtx.jEnv= jEnv;
-  sCtx.joVector= joIPTrace;
-  if (net_path_for_each(pRRInfo->pPath, cbgp_jni_IPTrace_for_each, &sCtx) != 0)
-    return NULL;
-
-  return joIPTrace;
 }
 
 // -----[ cbgp_jni_new_LinkMetrics ]---------------------------------
@@ -698,4 +633,11 @@ SBGPDomain * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber)
 
   return get_bgp_domain((uint16_t) iNumber);
 }
+
+// -----[ cbgp_jni_net_error_str ]-----------------------------------
+jstring cbgp_jni_net_error_str(JNIEnv * jEnv, int iErrorCode)
+{
+  return cbgp_jni_new_String(jEnv, network_strerror(iErrorCode));
+}
+
 
