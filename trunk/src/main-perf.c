@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 04/09/07
+// @date 02/10/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -263,10 +263,14 @@ int test_path_hash_perf(int argc, char * argv[])
 
     log_printf(pLogErr, "- file \"%s\"...", argv[2]);
     log_flush(pLogErr);
+#ifdef HAVE_BGPDUMP
     if (mrtd_binary_load(argv[2], _route_handler, pArray) != 0)
+#endif /* HAVE_BGPDUMP */
       log_printf(pLogErr, " ko :-(\n");
+#ifdef HAVE_BGPDUMP
     else
       log_printf(pLogErr, " ok :-)\n");
+#endif /* HAVE_BGPDUMP */
     log_flush(pLogErr);
 
   }
