@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 30/05/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -17,7 +17,6 @@
 #include <net/link.h>
 #include <net/network.h>
 #include <net/prefix.h>
-#include <net/record-route.h>
 #include <net/routing.h>
 
 #include <jni.h>
@@ -62,10 +61,6 @@ extern "C" {
   // -----[ cbgp_jni_new_IPRoute ]-----------------------------------
   jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix,
 			       SNetRouteInfo * pRoute);
-  // -----[ cbgp_jni_new_IPTrace ]-----------------------------------
-  jobject cbgp_jni_new_IPTrace(JNIEnv * env, net_addr_t tSrc,
-			       net_addr_t tDst,
-			       SNetRecordRouteInfo * pRRInfo);
   // -----[ cbgp_jni_new_BGPRoute ]----------------------------------
   jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute);
   // -----[ cbgp_jni_new_BGPMessage ]----------------------------------
@@ -89,6 +84,9 @@ extern "C" {
   SIGPDomain * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber);
   // -----[ cbgp_jni_bgp_domain_from_int ]---------------------------
   SBGPDomain * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber);
+
+  // -----[ cbgp_jni_net_error_str ]---------------------------------
+  jstring cbgp_jni_net_error_str(JNIEnv * jEnv, int iErrorCode);
 
 #ifdef __cplusplus
 }
