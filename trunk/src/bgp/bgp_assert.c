@@ -22,8 +22,9 @@
 #include <bgp/record-route.h>
 #include <bgp/route_t.h>
 
-int build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
-			   void * pItem, void * pContext)
+// -----[ _build_router_list_rtfe ]----------------------------------
+static int _build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
+				   void * pItem, void * pContext)
 {
   SPtrArray * pRL= (SPtrArray *) pContext;
   SNetNode * pNode= (SNetNode *) pItem;
@@ -43,7 +44,7 @@ static SPtrArray * build_router_list()
   SNetwork * pNetwork= network_get();
 
   // Build list of BGP routers
-  trie_for_each(pNetwork->pNodes, build_router_list_rtfe, pRL);
+  trie_for_each(pNetwork->pNodes, _build_router_list_rtfe, pRL);
 
   return pRL;
 }
