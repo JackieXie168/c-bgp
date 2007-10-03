@@ -61,8 +61,11 @@ if test -z "$RUN" && test configure -nt configure.in; then
 fi
 
 # *** Remove configure cache ***
-echo "(*) Cleaning config cache"
-rm -f config.cache
+echo "(*) Cleaning config.cache, aclocal.m4, ..."
+rm -f config.cache config.status config.log config.guess config.sub
+rm -f compile depcomp mkinstalldirs libtool ltmain.sh install-sh
+rm -f aclocal.m4 missing
+rm -Rf autom4te.cache
 
 # Specify that libtool/automake files are copied rather than symlinked.
 #COPY="--copy"
@@ -72,10 +75,13 @@ COPY=""
 # On some system, GNU glibtoolize is installed instead.
 for XLIBTOOLIZE in libtoolize glibtoolize; do
   WHICH=`which $XLIBTOOLIZE`
-  if test $? -eq 0; then
-    #echo "$XLIBTOOLIZE is available"
-    LIBTOOLIZE="$XLIBTOOLIZE"  
-    break
+  if [ $? = 0 ]; then
+    echo "$WHICH" | grep '^no ' > /dev/null
+    if [ $? = 1 ]; then
+      #echo "$XLIBTOOLIZE is available"
+      LIBTOOLIZE="$XLIBTOOLIZE"  
+      break
+    fi
   fi
 done
 
@@ -92,6 +98,7 @@ fi
 #         be generated...
 # --force: replace existing libtool files in the current directory.
 echo "(*) Running $LIBTOOLIZE"
+$LIBTOOLIZE --version | grep libtoolize
 $LIBTOOLIZE --automake --force $COPY
 if test $? != 0; then
   echo "Warning: $LIBTOOLIZE returned with exit code $?"
@@ -100,6 +107,7 @@ fi
 
 # *** Run aclocal ***
 echo "(*) Running aclocal"
+aclocal --version | grep aclocal
 aclocal $INCLUDE_DIRS
 if test $? != 0; then
   echo "Warning: aclocal returned with exit code $?"
@@ -108,6 +116,7 @@ fi
 
 # *** Run autoheader ***
 echo "(*) Running autoheader"
+autoheader --version | grep autoheader
 autoheader
 if test $? != 0; then
   echo "Warning: autoheader returned with exit code $?"
@@ -116,6 +125,7 @@ fi
 
 # *** Run automake ***
 echo "(*) Running automake"
+automake --version | grep automake
 automake --add-missing $COPY --gnu
 if test $? != 0; then
   echo "Warning: automake returned with exit code $?"
@@ -124,6 +134,7 @@ fi
 
 # *** Run autoconf ***
 echo "(*) Running autoconf"
+autoconf --version | grep autoconf
 autoconf $INCLUDE_DIRS
 if test $? != 0; then
   echo -e "Warning: autoconf returned with exit code $?"
