@@ -430,7 +430,7 @@ make_release()
 
     local RELEASE_TIME=`date +'%d%m%Y-%H%M%S'`
 
-    declare REDIRECT=">/tmp/src-release-$TIME.log 2>&1"
+    declare REDIRECT=">/tmp/src-release-$RELEASE_TIME.log 2>&1"
     declare -i BUILD=1
     declare -i PUBLISH=0
     declare -i RELEASE=1
