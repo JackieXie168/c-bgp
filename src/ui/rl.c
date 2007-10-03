@@ -6,7 +6,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 28/08/2007
+// @lastdate 02/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,7 @@
 static char * pcLineRead= NULL;
 
 // Maximum number of lines to hold in readline's history.
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static int iHistFileSize= 500;
 #endif /* HAVE_LIBREADLINE */
 
