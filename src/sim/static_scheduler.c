@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 16/04/2007
+// @lastdate 13/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,6 +14,7 @@
 #include <libgds/memory.h>
 #include <sim/static_scheduler.h>
 #include <net/network.h>
+#include <sys/time.h>
 
 #define EVENT_QUEUE_DEPTH 256
 
@@ -76,6 +77,8 @@ SStaticScheduler * static_scheduler_create()
 		_static_sched_event_fifo_destroy);
   fifo_set_option(pScheduler->pEvents,
 		  FIFO_OPTION_GROW_EXPONENTIAL, 1);
+  pScheduler->dCurrentTime= 0;
+  pScheduler->pProgressLogStream= NULL;
   return pScheduler;
 }
 
@@ -92,9 +95,48 @@ void static_scheduler_destroy(SStaticScheduler ** ppScheduler)
 
     fifo_destroy(&(*ppScheduler)->pEvents);
 
+    if ((*ppScheduler)->pProgressLogStream != NULL) {
+      log_destroy(&(*ppScheduler)->pProgressLogStream);
+    }
+
     FREE(*ppScheduler);
     *ppScheduler= NULL;
   }
+}
+
+// -----[ static_scheduler_set_log_progress ]------------------------
+/**
+ *
+ */
+void static_scheduler_set_log_progress(SStaticScheduler * pScheduler,
+				       const char * pcFileName)
+{
+  if (pScheduler->pProgressLogStream != NULL)
+    log_destroy(&pScheduler->pProgressLogStream);
+
+  if (pcFileName != NULL) {
+    pScheduler->pProgressLogStream= log_create_file((char *) pcFileName);
+    log_printf(pScheduler->pProgressLogStream, "# C-BGP Queue Progress\n");
+    log_printf(pScheduler->pProgressLogStream, "# <step> <time (us)> <depth>\n");
+  }
+}
+
+// -----[ _static_scheduler_log_progress ]---------------------------
+static void _static_scheduler_log_progress(SStaticScheduler * pScheduler)
+{
+  struct timeval tv;
+
+  if (pScheduler->pProgressLogStream == NULL)
+    return;
+
+  if (gettimeofday(&tv, NULL) < 0) {
+    perror("gettimeofday:");
+    abort();
+  }
+  log_printf(pScheduler->pProgressLogStream, "%d\t%.0f\t%d\n",
+	     pScheduler->dCurrentTime,
+	     ((double) tv.tv_sec)*1000000 + (double) tv.tv_usec,
+	     fifo_depth(pScheduler->pEvents));
 }
 
 // ----- static_scheduler_run ---------------------------------------
@@ -132,6 +174,7 @@ int static_scheduler_run(void * pSchedCtx, void * pContext,
 
     // Update simulation time
     (pSimulator->dCurrentTime)+= 1;
+    pScheduler->dCurrentTime++;
 
     // Limit on simulation time ??
     if ((pSimulator->dMaximumTime > 0) &&
@@ -147,6 +190,8 @@ int static_scheduler_run(void * pSchedCtx, void * pContext,
       if (iNumSteps == 0)
 	break;
     }
+
+    _static_scheduler_log_progress(pScheduler);
 
   }
 

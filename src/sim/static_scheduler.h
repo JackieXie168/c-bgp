@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/07/2003
-// @lastdate 16/04/2007
+// @lastdate 13/09/2007
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
@@ -16,6 +16,8 @@
 
 typedef struct {
   SFIFO * pEvents;
+  unsigned int dCurrentTime;
+  SLogStream * pProgressLogStream;
 } SStaticScheduler;
 
 #ifdef __cplusplus
@@ -43,6 +45,10 @@ extern "C" {
   void * static_scheduler_get_event(void * pSchedCtx, unsigned int uIndex);
   // ----- static_scheduler_dump_events -----------------------------
   void static_scheduler_dump_events(SLogStream * pStream, void * pSchedCtx);
+
+  // -----[ static_scheduler_set_log_progress ]-----------------------
+  void static_scheduler_set_log_progress(SStaticScheduler * pScheduler,
+					 const char * pcFileName);
 
 #ifdef __cplusplus
 }

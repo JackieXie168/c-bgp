@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/06/2003
-// @lastdate 16/04/2007
+// @lastdate 18/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -175,3 +175,18 @@ void simulator_show_infos(SLogStream * pStream, SSimulator * pSimulator)
   log_printf(pStream, "maximum time: %f\n", pSimulator->dMaximumTime);
 }
 
+// -----[ simulator_set_log_progress ]-------------------------------
+int simulator_set_log_progress(SSimulator * pSimulator,
+			       const char * pcFileName)
+{
+  switch (pSimulator->tType) {
+  case SCHEDULER_STATIC:
+    static_scheduler_set_log_progress((SStaticScheduler*)
+				      pSimulator->pScheduler, pcFileName);
+    break;
+  default:
+    log_printf(pLogErr, "not supported");
+    return -1;
+  }
+  return 0;
+}
