@@ -67,11 +67,12 @@ AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OS
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES = api.c
 libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE) $(OPT_BGPDUMP_LIBADD)
-libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs)
+libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs) -release $(LT_RELEASE) -version-info $(LT_VERSION)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
 bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
+
 cbgp_SOURCES = main.c
 cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
 
