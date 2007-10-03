@@ -6,7 +6,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 //
 // @date 27/04/2007
-// @lastdate 27/04/2007
+// @lastdate 01/10/2007
 // ==================================================================
 
 #ifndef __CLI_ENUM_H__
@@ -23,6 +23,9 @@ extern "C" {
   SNetNode * cli_enum_net_nodes(const char * pcText, int state);
   // -----[ cli_enum_bgp_routers ]-----------------------------------
   SBGPRouter * cli_enum_bgp_routers(const char * pcText, int state);
+  // -----[ cli_enum_bgp_peers ]---------------------------------------
+  SBGPPeer * cli_enum_bgp_peers(SBGPRouter * pRouter, const char * pcText,
+				int state);
   // -----[ cli_enum_net_nodes_addr ]--------------------------------
   char * cli_enum_net_nodes_addr(const char * pcText, int state);
   // -----[ cli_enum_bgp_routers_addr ]------------------------------

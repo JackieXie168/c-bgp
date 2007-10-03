@@ -65,7 +65,21 @@ SBGPRouter * cli_enum_bgp_routers(const char * pcText, int state)
   return NULL;
 }
 
-// -----[ cli_enum_net_nodes_addr ]---------------------------------------
+// -----[ cli_enum_bgp_peers ]---------------------------------------
+SBGPPeer * cli_enum_bgp_peers(SBGPRouter * pRouter, const char * pcText,
+			      int state)
+{
+  static unsigned int uIndex= 0;
+
+  if (state == 0)
+    uIndex= 0;
+
+  if (uIndex >= ptr_array_length(pRouter->pPeers))
+    return NULL;
+  return (SBGPPeer *) pRouter->pPeers->data[uIndex++];
+}
+
+// -----[ cli_enum_net_nodes_addr ]----------------------------------
 /**
  * Enumerate all the nodes.
  */

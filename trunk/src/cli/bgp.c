@@ -469,14 +469,18 @@ int cli_bgp_options_localpref(SCliContext * pContext, SCliCmd * pCmd)
 // ----- cli_bgp_options_msgmonitor ---------------------------------
 /**
  * context: {}
- * tokens: {output-file}
+ * tokens: {output-file|"-"}
  */
 int cli_bgp_options_msgmonitor(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcParam;
 
   pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
-  bgp_msg_monitor_open(pcParam);
+  if (strcmp(pcParam, "-") == 0) {
+    bgp_msg_monitor_close();
+  } else {
+    bgp_msg_monitor_open(pcParam);
+  }
   return CLI_SUCCESS;
 }
 
@@ -2254,6 +2258,39 @@ int cli_bgp_show_routers(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
+// ----- cli_bgp_show_sessions --------------------------------------
+/**
+ * Show the list of sessions.
+ *
+ * context: {}
+ * tokens: {}
+ */
+int cli_bgp_show_sessions(SCliContext * pContext, SCliCmd * pCmd)
+{
+  SBGPRouter * pRouter;
+  SBGPPeer * pPeer;
+  int iState= 0, iState2;
+  SLogStream * pStream= pLogOut;
+
+  pStream= log_create_file("/tmp/cbgp-sessions.dat");
+
+  while ((pRouter= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
+    iState2= 0;
+    while ((pPeer= cli_enum_bgp_peers(pRouter, NULL, iState2++)) != NULL) {
+      ip_address_dump(pStream, pRouter->pNode->tAddr);
+      log_printf(pStream, "\t");
+      ip_address_dump(pStream, pPeer->tAddr);
+      log_printf(pStream, "\t%d\t%d\n", pPeer->uSendSeqNum,
+		 pPeer->uRecvSeqNum);
+    }
+  }
+
+  if (pStream != pLogOut)
+    log_destroy(&pStream);
+
+  return CLI_SUCCESS;
+}
+
 // -----[ cli_bgp_clearadjrib ]--------------------------------------
 /**
  * context: ---
@@ -2883,6 +2920,8 @@ int cli_register_bgp_show(SCliCmds * pCmds)
   cli_params_add(pParams, "<prefix|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("routers", cli_bgp_show_routers,
 					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("sessions", cli_bgp_show_sessions,
+					NULL, NULL));
   return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
 					    pSubCmds, NULL));
 }
