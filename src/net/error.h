@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 30/05/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifndef __NET_ERROR_H__
@@ -45,6 +45,9 @@ extern "C" {
 
   // ----- network_perror -------------------------------------------
   void network_perror(SLogStream * pStream, int iErrorCode);
+  // ----- network_strerror -----------------------------------------
+  char * network_strerror(int iErrorCode);
+
 
 #ifdef __cplusplus
 }

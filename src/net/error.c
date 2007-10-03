@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 30/05/2007
+// @lastdate 05/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,53 +20,60 @@
  */
 void network_perror(SLogStream * pStream, int iErrorCode)
 {
-#define LOG(M) log_printf(pStream, M); break;
+  char * pcErrorStr= network_strerror(iErrorCode);
+  if (pcErrorStr != NULL)
+    log_printf(pStream, pcErrorStr);
+  else
+    log_printf(pStream, "unknown error (%i)", iErrorCode);    
+}
+
+// ----- network_perror ---------------------------------------------
+char * network_strerror(int iErrorCode)
+{
   switch (iErrorCode) {
   case NET_SUCCESS:
-    LOG("success");
+    return "success";
   case NET_ERROR_UNSUPPORTED:
-    LOG("unexpected error");
+    return "unexpected error";
   case NET_ERROR_NET_UNREACH:
-    LOG("network unreachable");
+    return "network unreachable";
   case NET_ERROR_HOST_UNREACH:
-    LOG("host unreachable");
+    return "host unreachable";
   case NET_ERROR_PROTO_UNREACH:
-    LOG("protocol unreachable");
+    return "protocol unreachable";
   case NET_ERROR_TIME_EXCEEDED:
-    LOG("time exceeded");
+    return "time exceeded";
   case NET_ERROR_ICMP_NET_UNREACH:
-    LOG("icmp error (network-unreachable)");
+    return "icmp error (network-unreachable)";
   case NET_ERROR_ICMP_HOST_UNREACH:
-    LOG("icmp error (host-unreachable)");
+    return "icmp error (host-unreachable)";
   case NET_ERROR_ICMP_PROTO_UNREACH:
-    LOG("icmp error (proto-unreachable)");
+    return "icmp error (proto-unreachable)";
   case NET_ERROR_ICMP_TIME_EXCEEDED:
-    LOG("icmp error (time-exceeded)");
+    return "icmp error (time-exceeded)";
   case NET_ERROR_NO_REPLY:
-    LOG("no reply");
+    return "no reply";
   case NET_ERROR_LINK_DOWN:
-    LOG("link down");
+    return "link down";
   case NET_ERROR_PROTOCOL_ERROR:
-    LOG("protocol error");
+    return "protocol error";
   case NET_ERROR_IF_UNKNOWN:
-    LOG("unknown interface");
+    return "unknown interface";
   case NET_ERROR_MGMT_INVALID_NODE:
-    LOG("invalid node");
+    return "invalid node";
   case NET_ERROR_MGMT_INVALID_LINK:
-    LOG("invalid link");
+    return "invalid link";
   case NET_ERROR_MGMT_INVALID_SUBNET:
-    LOG("invalid subnet");
+    return "invalid subnet";
   case NET_ERROR_MGMT_NODE_ALREADY_EXISTS:
-    LOG("node already exists");
+    return "node already exists";
   case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
-    LOG("link already exists");
+    return "link already exists";
   case NET_ERROR_MGMT_LINK_LOOP:
-    LOG("link endpoints are equal");
+    return "link endpoints are equal";
   case NET_ERROR_MGMT_INVALID_OPERATION:
-    LOG("invalid operation");
-  default:
-    log_printf(pStream, "unknown error (%i)", iErrorCode);
+    return "invalid operation";
   }
-#undef LOG
+  return NULL;
 }
 
