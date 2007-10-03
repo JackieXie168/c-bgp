@@ -2,7 +2,7 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 19/07/2007
+dnl @version 19/09/2007
 dnl =================================================================
 
 AC_INIT([cbgp], [1.4.0-rc4])
@@ -33,6 +33,9 @@ dnl Test for get/setrlimit availability
 AC_CHECK_FUNCS(getrlimit setrlimit)
 AC_CHECK_HEADER(sys/resource.h)
 AC_CHECK_FUNCS(syslog)
+AC_CHECK_HEADER(getopt.h,,[
+  AC_MSG_ERROR([getopt.h is required])])
+
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -40,7 +43,10 @@ AC_TYPE_SIZE_T
 
 dnl Now arrange the build libtool
 AC_PROG_LIBTOOL
-
+#LIBTOOL="$LIBTOOL --preserve-dup-deps"
+#AC_SUBST(LIBTOOL)
+AC_SUBST(LT_RELEASE, [1.4])
+AC_SUBST(LT_VERSION, [0])
 
 AC_DEFUN([AC_PROG_JAVAH],[
 AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
@@ -227,13 +233,13 @@ dnl *****************************************************************
 dnl READLINE CHECK: BEGIN
 dnl *****************************************************************
 AC_ARG_WITH(readline,dnl
-[  --with-readline         use the builtin minimal readline function (default)
+[  --with-readline        use the builtin minimal readline function (default)
   --without-readline      do not use the builtin readline function
   --with-readline=DIR     Specify the location of GNU readline],,
   [test -z "$with_readline" && with_readline=yes])
 
 dnl GNU readline and the required terminal library
-if test "$with_readline" != "no"; then
+if test "$with_readline" != no; then
   dnl check for terminal library
   dnl this is a very cool solution from octave's configure.in
   gp_tcap=""
@@ -261,58 +267,74 @@ if test "$with_readline" != "no"; then
     fi
   fi
 
+  readline_test_state=ok
+
+  dnl Check that library is found
   AC_CHECK_LIB(readline, readline,
-    [TERMLIBS="-lreadline $gp_tcap"],,[${gp_tcap}])
+    [TERMLIBS="-lreadline $gp_tcap"],[
+    AC_MSG_WARN([The GNU readline library was not found !
+                 Although C-BGP will still compile, some features
+                 will not be available.])
+    readline_test_state=missing
+    ],[${gp_tcap}])
 
-  if test "$ac_cv_lib_readline_readline" = no; then
-    AC_MSG_ERROR([GNU readline not found])
+  dnl Check that this is GNU readline
+  if test "$readline_test_state" = ok; then
+    AC_CHECK_LIB(readline,rl_gnu_readline_p,[],
+      [readline_test_state=notgnu],[${gp_tcap}])
+  fi
+
+  dnl Check readline headers
+  if test "$readline_test_state" = ok; then
+    AC_CHECK_HEADERS(readline/readline.h,[],[readline_test_state=headers])
+    AC_CHECK_HEADERS(readline/history.h,[],[readline_test_state=headers])
+  fi
+        
+  dnl Check readline functions
+  if test "$readline_test_state" = ok; then
+    AC_CHECK_LIB(readline,rl_completion_matches,
+      [AC_DEFINE(HAVE_RL_COMPLETION_MATCHES, 1,
+                 [ Define if rl_completion_matches is available. ])],
+      [readline_test_state=functions],[${gp_tcap}])
+    AC_CHECK_LIB(readline,rl_filename_completion_function,
+      [AC_DEFINE(HAVE_RL_FILENAME_COMPLETION_FUNCTION, 1,
+                 [ Define if rl_filename_completion_function is available. ])],
+      [readline_test_state=functions],[${gp_tcap}])
+    AC_CHECK_LIB(readline,rl_on_new_line,
+      [AC_DEFINE(HAVE_RL_ON_NEW_LINE, 1,
+                 [ Define if rl_on_new_line is available. ])],
+      [readline_test_state=functions],[${gp_tcap}])
+  fi
+
+  dnl Summary
+  if test "$readline_test_state" = ok; then
+    AC_DEFINE(HAVE_LIBREADLINE,1,
+              [ Define if you are using the GNU readline library. ])
+    dnl Add libraries (used by Makefile.am)
+    readline_libs="$TERMLIBS"
+    AC_SUBST(readline_libs)
+    dnl Add libraries (used by subsequent tests)
+    LIBS="$LIBS $TERMLIBS"
+    AC_SUBST(LIBS)
   else
- 
-    # Check that "rl_gnu_readline_p" is defined in the library
-    AC_CHECK_LIB(readline,rl_gnu_readline_p,[],[],[${gp_tcap}])
-    if test "$ac_cv_lib_readline_rl_gnu_readline_p" = no; then
-      AC_MSG_ERROR([This is not GNU readline])
-    else
-
-      AC_DEFINE(HAVE_LIBREADLINE,1,
-                [ Define if you are using the GNU readline library. ])
-      readline_libs="$TERMLIBS"
-      AC_SUBST(readline_libs)
-      AC_CHECK_HEADERS(readline/readline.h,,
-      AC_MSG_WARN([found GNU readline library but not readline.h
-                   Please add path to readline.h to CPPFLAGS in Makefile]))
-      readline_too_old=no
-      AC_CHECK_LIB(readline,rl_completion_matches,[],[])
-      if test "$ac_cv_lib_readline_rl_completion_matches" = yes; then
-        AC_DEFINE(HAVE_RL_COMPLETION_MATCHES, 1,
-                  [ Define if rl_completion_matches is available. ])
-      else
-        readline_too_old=yes
-      fi
-      AC_CHECK_LIB(readline,rl_filename_completion_function,[], [])
-      if test "$ac_cv_lib_readline_rl_filename_completion_function" = yes; then
-        AC_DEFINE(HAVE_RL_FILENAME_COMPLETION_FUNCTION, 1,
-                  [ Define if rl_filename_completion_function is available. ])
-      else
-        readline_too_old=yes
-      fi
-      AC_CHECK_LIB(readline,rl_on_new_line,[],[])
-      if test "$ac_cv_lib_readline_rl_on_new_line" = yes; then
-        AC_DEFINE(HAVE_RL_ON_NEW_LINE, 1,
-                  [ Define if rl_on_new_line is available. ])
-      else
-        readline_too_old=yes
-      fi
-      if test "$readline_too_old" = yes; then
-        AC_MSG_WARN([Some readline functions were not found.
-                     Your readline library might be too old.
-                     Although C-BGP will still compile, some features
-    		     will not be available.])
-      fi
-      AC_CHECK_HEADERS(readline/history.h,,
-        AC_MSG_WARN([found GNU readline library but not history.h
-                     Please add path to history.h to CPPFLAGS in Makefile]))
-    fi
+    case "$readline_test_state" in
+    missing)
+      AC_MSG_WARN([The readline library was not found !])
+      break;;
+    notgnu)
+      AC_MSG_WARN([A readline library was found, but it is not from GNU !])
+      break;;
+    headers)
+      AC_MSG_WARN([Some readline headers were not found !
+                   Please add path to headers to CPPFLAGS in Makefile])
+      break;;
+    functions)
+      AC_MSG_WARN([Some readline functions were not found !
+                   Your readline library might be too old.])
+      break;;
+    esac
+    AC_MSG_WARN([Although C-BGP will still compile, some features
+                 will not be available.])
   fi
 fi
 dnl *****************************************************************
