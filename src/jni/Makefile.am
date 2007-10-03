@@ -69,6 +69,17 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/net/Message.java \
 	be/ac/ucl/ingi/cbgp/net/Node.java
 
+JNICLASSFILES= \
+	be.ac.ucl.ingi.cbgp.CBGP \
+	be.ac.ucl.ingi.cbgp.IPTrace \
+	be.ac.ucl.ingi.cbgp.bgp.Domain \
+	be.ac.ucl.ingi.cbgp.bgp.Filter \
+	be.ac.ucl.ingi.cbgp.bgp.Peer \
+	be.ac.ucl.ingi.cbgp.bgp.Router \
+	be.ac.ucl.ingi.cbgp.net.IGPDomain \
+	be.ac.ucl.ingi.cbgp.net.Link \
+	be.ac.ucl.ingi.cbgp.net.Node
+
 METAFILE= META-INF/MANIFEST.MF
 
 CLASSFILES = $(JAVAFILES:.java=.class)
@@ -76,20 +87,24 @@ EXTRA_DIST = $(JAVAFILES) $(METAFILE)
 
 # Invoke javac in order to build Java classes. In addition, invoke
 # javah in order to build the native function headers.
-%.class: %.java
+.java.class:
 	$(JAVAC) $<
-	(CLASSNAME=`echo $@ | sed -e 's/\//./g' -e 's/.class//g'`; \
-	  $(JAVAH) -d headers $$CLASSNAME)
+
+# Old way to build JNI headers was through the generic .class -> .java
+# rule. This was not working since 'javac' sometimes not only builds
+# the specified target but also dependencies.
+#(CLASSNAME=`echo $@ | sed -e 's/\//./g' -e 's/.class//g'`; \
+#  $(JAVAH) -d headers $$CLASSNAME)
 
 SUFFIXES= .java .class
 
 # Build the jar file
 $(JARFILE): $(CLASSFILES)
+	@(for f in $(JNICLASSFILES); do \
+	 echo "$(JAVAH) -d headers $$f"; \
+	 $(JAVAH) -d headers $$f; \
+	done)
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
-
-#	(CLASSNAMES=`echo $(CLASSFILES) | \
-#         sed -e 's/\//./g' -e 's/.class//g'`; \
-#	 $(JAVAH) -d headers $$CLASSNAMES)
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)
 
