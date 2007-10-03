@@ -55,6 +55,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
   (JNIEnv *, jobject, jstring);
 
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    addRoute
+ * Signature: (Ljava/lang/String;Ljava/lang/String;I)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addRoute
+  (JNIEnv *, jobject, jstring, jstring, jint);
+
 #ifdef __cplusplus
 }
 #endif

@@ -55,27 +55,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_closeSession
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
- * Method:    bgpRouterPeerRecv
+ * Method:    recv
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_bgpRouterPeerRecv
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
   (JNIEnv *, jobject, jstring);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
- * Method:    getAdjRib
- * Signature: (Ljava/lang/String;Z)Ljava/util/Vector;
- */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getAdjRib
-  (JNIEnv *, jobject, jstring, jboolean);
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
- * Method:    getFlags
- * Signature: ()Z
- */
-JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getFlags
-  (JNIEnv *, jobject);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
@@ -83,6 +67,38 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getFlags
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    isReflectorClient
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isReflectorClient
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    setReflectorClient
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setReflectorClient
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    isVirtual
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isVirtual
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    setVirtual
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setVirtual
   (JNIEnv *, jobject);
 
 /*
@@ -100,6 +116,14 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHopSelf
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
   (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    hasSoftRestart
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_hasSoftRestart
+  (JNIEnv *, jobject);
 
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
