@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/08/2003
-// @lastdate 01/03/2004
+// @lastdate 20/09/2007
 // ==================================================================
 
 #ifndef __FILTER_PARSER_H__
@@ -15,14 +15,14 @@
 #define FILTER_PARSER_ERROR_UNEXPECTED -1
 #define FILTER_PARSER_ERROR_END        -2
 
-// ----- filter_parser_rule -----------------------------------------
-extern int filter_parser_rule(char * pcRule, SFilterRule ** ppRule);
-// ----- filter_parser_run ------------------------------------------
-/*
-extern int filter_parser_run(char * pcScript, SFilter ** ppFilter);
-*/
-// ----- filter_parser_action ---------------------------------------
-extern int filter_parser_action(char * pcAction,
-				SFilterAction ** ppAction);
-
+#ifdef _cplusplus
+extern "C" {
 #endif
+
+  // ----- filter_parser_rule ---------------------------------------
+  int filter_parser_rule(char * pcRule, SFilterRule ** ppRule);
+  // ----- filter_parser_action -------------------------------------
+  int filter_parser_action(char * pcAction,
+			   SFilterAction ** ppAction);
+
+#endif /* __FILTER_PARSER_H__ */
