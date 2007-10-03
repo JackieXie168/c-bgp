@@ -84,6 +84,9 @@ extern "C" {
   void simulator_dump_events(SLogStream * pStream, SSimulator * pSimulator);
   // ----- simulator_show_infos -------------------------------------
   void simulator_show_infos(SLogStream * pStream, SSimulator * pSimulator);
+  // -----[ simulator_set_log_progress ]-----------------------------
+  int simulator_set_log_progress(SSimulator * pSimulator,
+				 const char * pcFileName);
 
 #ifdef __cplusplus
 }
