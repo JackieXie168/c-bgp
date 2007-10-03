@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 16/04/2007
+// @lastdate 13/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -123,6 +123,17 @@ int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
+// ----- cli_sim_queue_log ------------------------------------------
+/**
+ *
+ */
+int cli_sim_queue_log(SCliContext * pContext, SCliCmd * pCmd)
+{
+  simulator_set_log_progress(network_get_simulator(),
+			     tokens_get_string_at(pCmd->pParamValues, 0));
+  return CLI_SUCCESS;
+}
+
 // ----- cli_sim_queue_show -----------------------------------------
 /**
  *
@@ -235,13 +246,16 @@ int cli_register_sim_options(SCliCmds * pCmds)
 int cli_register_sim_queue(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
+  SCliParams * pParams;
 
   pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create("info",
-					cli_sim_queue_info,
+  cli_cmds_add(pSubCmds, cli_cmd_create("info", cli_sim_queue_info,
 					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show",
-					cli_sim_queue_show,
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("log", cli_sim_queue_log,
+					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("show",	cli_sim_queue_show,
 					NULL, NULL));
   return cli_cmds_add(pCmds, cli_cmd_create("queue", NULL,
 					    pSubCmds, NULL));
