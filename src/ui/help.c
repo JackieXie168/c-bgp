@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 28/08/2007
+// @lastdate 02/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,7 +30,7 @@
  * Display help for a context: gives the available sub-commands and
  * their parameters.
  */
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_cmd(SCliCmd * pCmd)
 {
   int iIndex, iIndex2;
@@ -66,7 +66,7 @@ static void _cli_help_cmd(SCliCmd * pCmd)
 #endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_option ]-----------------------------------------
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_option(SCliOption * pOption)
 {
   fprintf(stdout, "\n");
@@ -83,7 +83,7 @@ static void _cli_help_option(SCliOption * pOption)
 #endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_param ]------------------------------------------
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_param(SCliParam * pParam)
 {
   fprintf(stdout, "\n");
@@ -104,7 +104,7 @@ static void _cli_help_param(SCliParam * pParam)
  * This function provides help for the command passed in the given
  * string.
  */
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 void cli_help(SCli * pCli, char * pcLine, int iPos)
 {
   SCliCmd * pCtxCmd= NULL;
@@ -163,7 +163,7 @@ void cli_help(SCli * pCli, char * pcLine, int iPos)
 }
 #endif /* HAVE_LIBREADLINE */
 
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static int _rl_help_command(int count, int key)
 {
   SCli * pCli= cli_get();
@@ -180,7 +180,7 @@ static int _rl_help_command(int count, int key)
 // -----[ _rl_help_init ]--------------------------------------------
 void _rl_help_init()
 {
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
   if (rl_bind_key('?', _rl_help_command) != 0)
     fprintf(stderr, "Error: could not bind.\n");
   else
