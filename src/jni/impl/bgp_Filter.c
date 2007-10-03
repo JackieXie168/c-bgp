@@ -44,14 +44,6 @@ jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
   return joFilter;
 }
 
-// -----[ _proxy_finalize ]------------------------------------------
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter__1proxy_1finalize
-(JNIEnv * jEnv, jobject joObject)
-{
-  //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
-}
-
 // -----[ getRules ]-------------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Filter

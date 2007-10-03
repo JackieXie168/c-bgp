@@ -46,14 +46,6 @@ jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
   return joDomain;
 }
 
-// -----[ _proxy_finalize ]------------------------------------------
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain__1proxy_1finalize
-(JNIEnv * jEnv, jobject joObject)
-{
-  //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
-}
-
 // -----[ _bgpDomainGetRouters ]-------------------------------------
 static int _bgpDomainGetRouters(uint32_t uKey, uint8_t uKeyLen,
 				void * pItem, void * pContext)
