@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 18/07/2007
+// @lastdate 06/09/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,14 +27,14 @@
 typedef struct {
   uint8_t    uType;      // ICMP type
   uint8_t    uSubType;   // ICMP subtype
+  SNetNode * pNode;      // Origin node
 } SICMPMsg;
 
 typedef struct {
   SNetNode * pNode;      // Node that received the message
   net_addr_t tSrcAddr;   // Source address of the message
   net_addr_t tDstAddr;   // Destination address of the message
-  uint8_t    uType;      // ICMP type
-  uint8_t    uSubType;   // ICMP subtype
+  SICMPMsg   sMsg;
   int        iReceived;
 } SICMPMessage;
 static SICMPMessage sICMPRecv= { .iReceived= 0 };
@@ -73,11 +73,14 @@ int is_icmp_error(SNetMessage * pMessage)
 }
 
 // -----[ _icmp_msg_create ]-----------------------------------------
-static inline SICMPMsg * _icmp_msg_create(uint8_t uType, uint8_t uSubType)
+static inline SICMPMsg * _icmp_msg_create(uint8_t uType,
+					  uint8_t uSubType,
+					  SNetNode * pNode)
 {
   SICMPMsg * pMsg= MALLOC(sizeof(SICMPMsg));
   pMsg->uType= uType;
   pMsg->uSubType= uSubType;
+  pMsg->pNode= pNode;
   return pMsg;
 }
 
@@ -99,7 +102,7 @@ int icmp_send_error(SNetNode * pNode, net_addr_t tSrcAddr,
 		    SSimulator * pSimulator)
 {
   return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       255, _icmp_msg_create(ICMP_ERROR, uErrorCode),
+		       255, _icmp_msg_create(ICMP_ERROR, uErrorCode, pNode),
 		       (FPayLoadDestroy) _icmp_msg_destroy,
 		       pSimulator);
 }
@@ -113,7 +116,7 @@ int icmp_send_echo_request(SNetNode * pNode, net_addr_t tSrcAddr,
 			   SSimulator * pSimulator)
 {
   return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       uTTL, _icmp_msg_create(ICMP_ECHO_REQUEST, 0),
+		       uTTL, _icmp_msg_create(ICMP_ECHO_REQUEST, 0, pNode),
 		       (FPayLoadDestroy) _icmp_msg_destroy,
 		       pSimulator);
 }
@@ -132,7 +135,7 @@ int icmp_send_echo_reply(SNetNode * pNode, net_addr_t tSrcAddr,
 {
   // Source address is fixed
   return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       uTTL, _icmp_msg_create(ICMP_ECHO_REPLY, 0),
+		       uTTL, _icmp_msg_create(ICMP_ECHO_REPLY, 0, pNode),
 		       (FPayLoadDestroy) _icmp_msg_destroy,
 		       pSimulator);
   /*
@@ -159,10 +162,9 @@ int icmp_event_handler(SSimulator * pSimulator,
   sICMPRecv.pNode= pNode;
   sICMPRecv.tSrcAddr= pMessage->tSrcAddr;
   sICMPRecv.tDstAddr= pMessage->tDstAddr;
-  sICMPRecv.uType= pMsg->uType;
-  sICMPRecv.uSubType= pMsg->uSubType;
+  sICMPRecv.sMsg= *pMsg;
 
-  switch (sICMPRecv.uType) {
+  switch (sICMPRecv.sMsg.uType) {
   case ICMP_ECHO_REQUEST:
     icmp_send_echo_reply(pNode, pMessage->tDstAddr, pMessage->tSrcAddr,
 			 255, pSimulator);
@@ -174,7 +176,7 @@ int icmp_event_handler(SSimulator * pSimulator,
 
   default:
     LOG_ERR(LOG_LEVEL_FATAL, "Error: unsupported ICMP message type (%d)\n",
-	    sICMPRecv.uType);
+	    sICMPRecv.sMsg.uType);
     abort();
   }
 
@@ -209,12 +211,12 @@ int icmp_ping_send_recv(SNetNode * pSrcNode, net_addr_t tSrcAddr,
     simulator_run(pSimulator);
 
     if ((sICMPRecv.iReceived) && (sICMPRecv.pNode == pSrcNode)) {
-      switch (sICMPRecv.uType) {
+      switch (sICMPRecv.sMsg.uType) {
       case ICMP_ECHO_REPLY:
 	iResult= NET_SUCCESS;
 	break;
       case ICMP_ERROR:
-	switch (sICMPRecv.uSubType) {
+	switch (sICMPRecv.sMsg.uSubType) {
 	case ICMP_ERROR_NET_UNREACH:
 	  iResult= NET_ERROR_ICMP_NET_UNREACH; break;
 	case ICMP_ERROR_HOST_UNREACH:
@@ -309,8 +311,12 @@ int icmp_trace_route(SLogStream * pStream,
     case NET_ERROR_ICMP_HOST_UNREACH:
     case NET_ERROR_ICMP_PROTO_UNREACH:
     case NET_ERROR_ICMP_TIME_EXCEEDED:
-      if (pStream != NULL)
+      if (pStream != NULL) {
 	ip_address_dump(pStream, sICMPRecv.tSrcAddr);
+	/*log_printf(pStream, " (");
+	ip_address_dump(pStream, sICMPRecv.sMsg.pNode->tAddr);
+	log_printf(pStream, ")");*/
+      }
       if (pPath != NULL)
 	net_path_append(pPath, sICMPRecv.tSrcAddr);
       break;
