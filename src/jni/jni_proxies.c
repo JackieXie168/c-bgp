@@ -282,7 +282,6 @@ static jobject joLockObj= NULL;
 // -----[ jni_init_lock ]--------------------------------------------
 void jni_init_lock(jobject joObj)
 {
-  fprintf(stderr, "debug: sizeof(jint): %lu\n", sizeof(jint));
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: init monitor [%p]\n", joObj);
   fflush(stderr);
