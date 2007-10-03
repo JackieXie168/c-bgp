@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 29/06/2007
+// @lastdate 02/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,6 +20,7 @@
 
 #include <bgp/as.h>
 #include <bgp/route.h>
+#include <bgp/route-input.h>
 
 #define CLASS_BGPRouter "be/ac/ucl/ingi/cbgp/bgp/Router"
 #define CONSTR_BGPRouter "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
@@ -60,14 +61,6 @@ jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joRouter, pRouter);
 
   return joRouter;
-}
-
-// -----[ _proxy_finalize ]------------------------------------------
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router__1proxy_1finalize
-(JNIEnv * jEnv, jobject joObject)
-{
-  //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
 }
 
 // -----[ addNetwork ]-----------------------------------------------
@@ -476,4 +469,58 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
   bgp_router_networks_for_each(pRouter, _getNetworks, &sCtx);
 
   return_jni_unlock(jEnv, joVector);
+}
+
+// -----[ loadRib ]--------------------------------------------------
+/*
+ * Class:     bgp.Router
+ * Method:    loadRib
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
+  (JNIEnv * jEnv, jobject joRouter, jstring jsFileName)
+{
+  char * cFileName;
+  SBGPRouter * pRouter;
+  uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
+  uint8_t tOptions= 0;
+
+  jni_lock(jEnv);
+
+  /* Get the router instance */
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
+  if (pRouter == NULL)
+    return_jni_unlock2(jEnv);
+
+  cFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  if (bgp_router_load_rib(pRouter, (char *) cFileName,
+			  tFormat, tOptions) != 0)
+    cbgp_jni_throw_CBGPException(jEnv, "could not load RIB");
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, cFileName);
+
+  jni_unlock(jEnv);
+}
+
+// -----[ rescan ]---------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Router
+ * Method:    rescan
+ * Signature: ()I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_rescan
+  (JNIEnv * jEnv, jobject joRouter)
+{
+  SBGPRouter * pRouter;
+
+  jni_lock(jEnv);
+
+  /* Get the router instance */
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
+  if (pRouter == NULL)
+    return_jni_unlock2(jEnv);
+
+  if (bgp_router_scan_rib(pRouter) != 0)
+    cbgp_jni_throw_CBGPException(jEnv, "could not rescan router");
+
+  jni_unlock(jEnv);
 }

@@ -15,6 +15,7 @@
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
+#include <jni/impl/net_IPTrace.h>
 #include <jni/impl/net_Link.h>
 #include <jni/impl/net_Node.h>
 #include <jni/impl/bgp_Router.h>
@@ -74,14 +75,6 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joNode, pNode);
 
   return joNode;
-}
-
-// -----[ _proxy_finalize ]------------------------------------------
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node__1proxy_1finalize
-(JNIEnv * jEnv, jobject joObject)
-{
-  //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
 }
 
 // -----[ recordRoute ]----------------------------------------------
@@ -152,8 +145,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_traceRoute
 
   /* Trace the IP-level route */
   sRRInfo.pPath= net_path_create();
-  icmp_trace_route(NULL, pNode, NET_ADDR_ANY, sDest.uDest.tAddr, 0, sRRInfo.pPath);
-
+  sRRInfo.iResult=
+    icmp_trace_route(NULL, pNode, NET_ADDR_ANY, sDest.uDest.tAddr,
+		     0, sRRInfo.pPath);
 
   /* Convert to an IPTrace object */
   joIPTrace= cbgp_jni_new_IPTrace(jEnv, pNode->tAddr, sDest.uDest.tAddr, &sRRInfo);
@@ -368,4 +362,40 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getBGP
     return_jni_unlock(jEnv, NULL);
   
   return_jni_unlock(jEnv, joRouter);
+}
+
+// -----[ addRoute ]-------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    addRoute
+ * Signature: (Ljava/lang/String;Ljava/lang/String;I)I
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addRoute
+  (JNIEnv * jEnv, jobject joNode, jstring jsPrefix,
+   jstring jsNexthop, jint jiWeight)
+{
+  SNetNode * pNode;
+  SPrefix sPrefix;
+  net_addr_t tNextHop;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock2(jEnv);
+
+  if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+    return_jni_unlock2(jEnv);
+
+  if (ip_jstring_to_address(jEnv, jsNexthop, &tNextHop) != 0)
+    return_jni_unlock2(jEnv);
+
+  if (node_rt_add_route(pNode, sPrefix, tNextHop, tNextHop,
+			jiWeight, NET_ROUTE_STATIC) != 0) {
+    cbgp_jni_throw_CBGPException(jEnv, "could not add route");
+    return_jni_unlock2(jEnv);
+  }
+
+  jni_unlock(jEnv);
 }
