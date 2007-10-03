@@ -5,6 +5,8 @@ noinst_LTLIBRARIES = libjni_impl.la
 INCLUDES = -I../..
 
 libjni_impl_la_SOURCES = \
+	net_IPTrace.c \
+	net_IPTrace.h \
 	net_Link.c \
 	net_Link.h \
 	net_Node.c \
