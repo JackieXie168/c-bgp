@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/04/2006
-// @lastdate 29/06/2007
+// @lastdate 01/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,7 +23,7 @@
 
 #define CLASS_BGPPeer "be/ac/ucl/ingi/cbgp/bgp/Peer"
 #define CONSTR_BGPPeer "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
-                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;IB)V"
+                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;I)V"
 
 // -----[ cbgp_jni_new_bgp_Peer ]------------------------------------
 /**
@@ -44,8 +44,7 @@ jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
   if ((joPeer= cbgp_jni_new(jEnv, CLASS_BGPPeer, CONSTR_BGPPeer,
 			    joCBGP,
 		            joIPAddress,
-		            (jint) pPeer->uRemoteAS,
-		            (jbyte) pPeer->uFlags)) == NULL)
+		            (jint) pPeer->uRemoteAS)) == NULL)
     return NULL;
 
   // Add reference into proxy repository
@@ -54,16 +53,8 @@ jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
   return joPeer;
 }
 
-// -----[ _proxy_finalize ]------------------------------------------
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer__1proxy_1finalize
-(JNIEnv * jEnv, jobject joObject)
-{
-  //jint jiHashCode= jni_Object_hashCode(jEnv, joObject);
-  //fprintf(stderr, "JNI::net_Link__proxy_finalize [key=%d]\n", jiHashCode);
-}
-
 // -----[ getRouterID ]----------------------------------------------
-/*
+/**
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
  * Method:    getRouterID
  * Signature: ()Lbe/ac/ucl/ingi/cbgp/IPAddress;
@@ -150,7 +141,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_closeSession
  * Method:    recv
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_recv
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
   (JNIEnv * jEnv, jobject joPeer, jstring jsMesg)
 {
   SBGPPeer * pPeer;
@@ -200,6 +191,99 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
   return_jni_unlock(jEnv, jResult);
 }
 
+// -----[ is ReflectorClient ]---------------------------------------
+/**
+ * Class:     bgp.Peer
+ * Method:    isReflectorClient
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isReflectorClient
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+  jboolean jResult;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  jResult= (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT) != 0)?
+    JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jResult);
+}									       
+
+// -----[ setReflectorClient ]---------------------------------------
+/*
+ * Class:     bgp.Peer
+ * Method:    setReflectorClient
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setReflectorClient
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock2(jEnv);
+
+  pPeer->pLocalRouter->iRouteReflector= 1;
+  bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
+
+  jni_unlock(jEnv);
+}
+
+// -----[ isVirtual ]------------------------------------------------
+/**
+ * Class:     bgp.Peer
+ * Method:    isVirtual
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isVirtual
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+  jboolean jResult;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  jResult= (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) != 0)?
+    JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jResult);
+}
+
+// -----[ setVirtual ]-----------------------------------------------
+/*
+ * Class:     bgp.Peer
+ * Method:    setVirtual
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setVirtual
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock2(jEnv);
+
+  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
+
+  jni_unlock(jEnv);
+}
 
 // -----[ getNextHopSelf ]-------------------------------------------
 /*
@@ -246,6 +330,30 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
 		    (state==JNI_TRUE)?1:0);
 
   jni_unlock(jEnv);
+}
+
+// -----[ hasSoftRestart ]-------------------------------------------
+/**
+ * Class:     bgp.Peer
+ * Method:    hasSoftRestart
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_hasSoftRestart
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+  jboolean jResult;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  jResult= (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART) != 0)?
+    JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jResult);
 }
 
 // -----[ getInputfilter ]-------------------------------------------
