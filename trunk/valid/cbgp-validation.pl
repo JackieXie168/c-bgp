@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 25/07/2007
+# @lastdate 04/10/2007
 # ===================================================================
 # Syntax:
 #
@@ -7137,14 +7137,17 @@ sub cbgp_valid_bgp_load_rib_full_binary($)
   {
     my ($cbgp)= @_;
     my $rib_file= $resources_path."abilene-rib.gz";
+    my $rib_file_ascii= $resources_path."abilene-rib.marco";
     cbgp_send($cbgp, "bgp options auto-create on");
     cbgp_send($cbgp, "net add node 198.32.12.9");
     cbgp_send($cbgp, "bgp add router 11537 198.32.12.9");
     cbgp_send($cbgp, "bgp router 198.32.12.9 load rib --format=mrt-binary $rib_file");
 
     # Use Marco d'Itri's zebra-dump-parser to compare content
+    # File obtained using
+    #   zcat abilene-rib.gz | ./zebra-dump-parser.pl > abilene-rib.marco
     my $num_routes= 0;
-    open(ZEBRA_DUMP_PARSER, "zcat $rib_file | ./zebra-dump-parser.pl |") or die;
+    open(ZEBRA_DUMP_PARSER, "$rib_file_ascii") or die;
     while (<ZEBRA_DUMP_PARSER>) {
       chomp;
       my @fields= split /\s+/, $_, 2;
