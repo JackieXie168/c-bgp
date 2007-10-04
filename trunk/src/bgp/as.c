@@ -2578,6 +2578,8 @@ int bgp_router_load_rib(SBGPRouter * pRouter, const char * pcFileName,
  * Yet another unfinished function by S. Tandel :-(
  */
 #ifdef __EXPERIMENTAL__
+/* DE-ACTIVATED by BQU on 2007/10/04 */
+#ifdef COMMENT_BQU
 int bgp_router_load_ribs_in(SBGPRouter * pRouter, const char * pcFileName)
 {
   SRoute * pRoute;
@@ -2636,7 +2638,8 @@ int bgp_router_load_ribs_in(SBGPRouter * pRouter, const char * pcFileName)
   fclose(phFiRib);
   return 0;
 }
-#endif
+#endif /* COMMENT_BQU */
+#endif /* __EXPERIMENTAL__ */
 
 // -----[ _bgp_router_save_route_mrtd ]------------------------------
 /**

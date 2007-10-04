@@ -2044,6 +2044,8 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
  * context: {router}
  * tokens: {file}
  */
+/* DE-ACTIVATED by BQU on 2007/10/04 */
+#ifdef COMMENT_BQU
 int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
@@ -2059,7 +2061,8 @@ int cli_bgp_router_load_ribs_in(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
-#endif
+#endif /* COMMENT_BQU */
+#endif /* __EXPERIMENTAL__ */
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 // ----- cli_bgp_router_peer_walton_limit ----------------------------
@@ -2764,12 +2767,14 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
   cli_cmd_add_option(pCmd, "summary", NULL);
   cli_cmds_add(pSubCmds, pCmd);
 #ifdef __EXPERIMENTAL__
+#ifdef COMMENT_BQU
   pParams = cli_params_create();
   cli_params_add(pParams, "<file>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in", 
 					cli_bgp_router_load_ribs_in,
 					NULL, pParams));
-#endif
+#endif /* COMMENT_BQU */
+#endif /* __EXPERIMENTAL__ */
   return cli_cmds_add(pCmds, cli_cmd_create("load", NULL,
 					    pSubCmds, NULL));
 }
