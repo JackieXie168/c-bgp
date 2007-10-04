@@ -32,7 +32,7 @@
  * compact trie (Patricia tree).
  */
 #ifdef __EXPERIMENTAL__
-int test_rib_perf(int argc, char * argv[])
+/*int test_rib_perf(int argc, char * argv[])
 {
   int iIndex;
   SRoutes * pRoutes= mrtd_ascii_load_routes(NULL, pcArg);
@@ -60,7 +60,7 @@ int test_rib_perf(int argc, char * argv[])
     fprintf(stderr, "could not load \"%s\"\n", pcArg);
     return -1;
   }
-}
+  }*/
 #endif
 
 // -----[ test_path_hash_perf ]--------------------------------------
