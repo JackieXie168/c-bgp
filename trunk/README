@@ -1,63 +1,49 @@
-                              CBGP
-                              ----
-                          (17/10/2003)
 
-CBGP is an efficient BGP decision process simulator. The BGP mod-
-el implemented in CBGP is not hindered by the transmission of BGP
-messages  on  simulated  TCP connections as in SSFNet or JavaSim.
-The simulator supports the complete BGP decision process,  import
-and  export  filters and redistribution communities. It is easily
-configurable through a CISCO-like  command-line  interface.  CBGP
-does not model session establishment and timers (MRAI, dampening,
-...)
-
-CBGP can be used to experiment with modified  decision  processes
-and  additional  BGP  attributes. It can also be used to evaluate
-the impact of input/output policies on the routing tables of oth-
-er ASes. Due to its efficiency, it can be used with large topolo-
-gies with sizes of the same order of magnitude than the Internet.
-
-CBGP is open source and written in C language. It has been tested
-on various platforms like Linux, FreeBSD  and  Solaris.  To  make
-large  simulations  easier  to perform, CBGP is also able to load
-interdomain topologies produced by AT&T and is also able to  out-
-put  all the exchanged BGP messages in MRTD format so that exist-
-ing analysis scripts may be re-used.
+                  -=[ The C-BGP Routing Solver ]=-
 
 
+C-BGP is an efficient solver for BGP, the de facto standard protocol
+used for exchanging routing information accross domains in the
+Internet. BGP was initially described in RFC1771 in 1995. It has since
+undergone several updates recently standardized in RFC4271 (2006).
 
+C-BGP is aimed at computing the outcome of the BGP decision process in
+networks composed of several routers. For this purpose, it takes into
+account the routers' configuration, the externally received BGP routes
+and the network topology. It supports the complete BGP decision
+process, versatile import and export filters, route-reflection, and
+experimental attributes such as redistribution communities. It is
+easily configurable through a CISCO-like command-line interface. C-BGP
+has been described in an IEEE Network magazine paper entitled
+"Modeling the Routing of an Autonomous System with C-BGP" (please
+refer to this paper when you cite C-BGP).
 
+C-BGP can be used as a research tool to experiment with modified
+decision processes and additional BGP route attributes. It can also be
+used by the operator of an ISP network to evaluate the impact of
+logical and topological changes on the routing tables computed in its
+routers. Topological changes include links and routers
+failures. Logical changes include changes in the configuration of the
+routers such as input/output routing policies or IGP link
+weights. Thanks to its efficiency, C-BGP can be used on large
+topologies with sizes of the same order of magnitude than the
+Internet. For the moment, we mainly use it to study interdomain
+traffic engineering techniques and to model the network of ISPs.
 
+The original version of C-BGP was written by Bruno Quoitin within the
+Computer Science and Engineering Department at Universite Catholique
+de Louvain (UCL), in Belgium. It has since been contributed by others
+(see the AUTHORS file for a complete list). C-BGP is written in C
+language. It is mainly used and tested on Linux and Mac OS X. It has
+also been used on other platforms such as FreeBSD, Solaris and even
+under Windows, using the cygwin API. It should compile on most POSIX
+compliant environment. C-BGP is Open-Source and provided under the
+LGPL license. This means that it can be freely embedded in a
+commercial tool. The text of the LGPL license is available in
+the COPYING file included in this distribution.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+C-BGP website:  http://cbgp.info.ucl.ac.be
+libGDS website: http://libgds.info.ucl.ac.be
 
 
 
