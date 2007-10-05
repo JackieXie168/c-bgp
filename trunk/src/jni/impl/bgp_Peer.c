@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/04/2006
-// @lastdate 01/10/2007
+// @lastdate 05/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -153,6 +153,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
   pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
+
+  /* Check that the peer is virtual */
+  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+    cbgp_jni_throw_CBGPException(jEnv, "only virtual peers can do that");
+    return_jni_unlock2(jEnv);
+  }
 
   /* Build a message from the MRT-record */
   cMesg= (*jEnv)->GetStringUTFChars(jEnv, jsMesg, NULL);
