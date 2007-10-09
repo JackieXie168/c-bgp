@@ -6,7 +6,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/02/2004
-// @lastdate 02/10/2007
+// @lastdate 09/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -84,7 +84,8 @@ char * rl_gets()
   fprintf(stdout, cli_context_to_string(cli_get()->pCtx, "cbgp"));
 
   // Get at most MAX_LINE_READ-1 characters from stdin
-  fgets(pcLineRead, MAX_LINE_READ, stdin);
+  if (fgets(pcLineRead, MAX_LINE_READ, stdin) == NULL)
+    return NULL;
 
 #endif
 
