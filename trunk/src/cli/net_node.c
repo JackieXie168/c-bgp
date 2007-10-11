@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/05/2007
-// @lastdate 22/05/2007
+// @lastdate 09/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -99,6 +99,38 @@ void cli_ctx_destroy_net_node_link(void ** ppItem)
 // CLI COMMANDS
 //
 /////////////////////////////////////////////////////////////////////
+
+// ----- cli_net_node_coord -----------------------------------------
+/**
+ * context: {node}
+ * tokens: {latitude,longitude}
+ */
+int cli_net_node_coord(SCliContext * pContext, SCliCmd * pCmd)
+{
+  SNetNode * pNode;
+  double dTmp;
+
+  // Get node from context
+  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  
+  // Get latitude
+  if (tokens_get_double_at(pCmd->pParamValues, 0, &dTmp)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid latitude \"%s\"\n",
+	    tokens_get_string_at(pCmd->pParamValues, 0));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  pNode->fLatitude= dTmp;
+  
+  // Get latitude
+  if (tokens_get_double_at(pCmd->pParamValues, 1, &dTmp)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid longitude \"%s\"\n",
+	    tokens_get_string_at(pCmd->pParamValues, 1));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  pNode->fLongitude= dTmp;
+
+  return CLI_SUCCESS;
+}
 
 // ----- cli_net_node_domain ----------------------------------------
 /**
@@ -792,6 +824,11 @@ int cli_register_net_node(SCliCmds * pCmds)
   
     cli_register_net_node_link(pSubCmds);
   cli_register_net_node_route(pSubCmds);
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<latitude>", NULL);
+  cli_params_add(pParams, "<longitude>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("coord", cli_net_node_coord,
+					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<id>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("domain", cli_net_node_domain,
