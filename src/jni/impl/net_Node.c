@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 29/06/2007
+// @lastdate 09/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -399,3 +399,84 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addRoute
 
   jni_unlock(jEnv);
 }
+
+// -----[ getLatitude ]----------------------------------------------
+/**
+ *
+ */
+JNIEXPORT jfloat JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLatitude
+(JNIEnv * jEnv, jobject joNode)
+{
+  SNetNode * pNode;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, 0);
+
+  return_jni_unlock(jEnv, pNode->fLatitude);
+}
+
+// -----[ setLatitude ]----------------------------------------------
+/**
+ *
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLatitude
+(JNIEnv * jEnv, jobject joNode, jfloat jfLatitude)
+{
+  SNetNode * pNode;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock2(jEnv);
+
+  pNode->fLatitude= jfLatitude;
+
+  jni_unlock(jEnv);
+}
+
+// -----[ getLongitude ]---------------------------------------------
+/**
+ *
+ */
+JNIEXPORT jfloat JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLongitude
+(JNIEnv * jEnv, jobject joNode)
+{
+  SNetNode * pNode;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, 0);
+
+  return_jni_unlock(jEnv, pNode->fLatitude);
+}
+
+// -----[ setLongitude ]---------------------------------------------
+/**
+ *
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLongitude
+(JNIEnv * jEnv, jobject joNode, jfloat jfLatitude)
+{
+  SNetNode * pNode;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock2(jEnv);
+
+  pNode->fLatitude= jfLatitude;
+
+  jni_unlock(jEnv);
+}
+
