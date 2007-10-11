@@ -161,6 +161,8 @@ typedef struct {
   SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
   SNetProtocols * pProtocols;
   SIGPDomain    * pDomain;
+  float           fLatitude;
+  float           fLongitude;
 } SNetNode;
 
 
