@@ -44,6 +44,9 @@ SNetNode * node_create(net_addr_t tAddr)
   pNode->pProtocols= protocols_create();
   node_register_protocol(pNode, NET_PROTOCOL_ICMP, pNode, NULL,
 			 icmp_event_handler);
+
+  pNode->fLatitude= 0;
+  pNode->fLongitude= 0;
   return pNode;
 }
 
@@ -86,6 +89,23 @@ void node_set_name(SNetNode * pNode, const char * pcName)
     pNode->pcName= str_create(pcName);
   else
     pNode->pcName= NULL;
+}
+
+// -----[ node_set_coord ]--------------------------------------------
+/**
+ *
+ */
+
+// -----[ node_get_coord ]--------------------------------------------
+/**
+ *
+ */
+void node_get_coord(SNetNode * pNode, float * pfLatitude, float * pfLongitude)
+{
+  if (pfLatitude != NULL)
+    *pfLatitude= pNode->fLatitude;
+  if (pfLongitude != NULL)
+    *pfLongitude= pNode->fLongitude;
 }
 
 // ----- node_dump ---------------------------------------------------
