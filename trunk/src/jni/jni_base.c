@@ -3,13 +3,15 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/03/2006
-// @lastdate 27/03/2006
+// @lastdate 11/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
+#include <stdlib.h>
 #include <jni/jni_base.h>
 
 /////////////////////////////////////////////////////////////////////
@@ -252,12 +254,3 @@ int cbgp_jni_ArrayList_add(JNIEnv * jEnv, jobject joArrayList,
 			       "(Ljava/lang/Object;)Z",
 			       joItem);
 }
-
-// -----[ jni_Object_hashCode ]--------------------------------------
-jint jni_Object_hashCode(JNIEnv * jEnv, jobject joObject)
-{
-  jclass jcObject= (*jEnv)->GetObjectClass(jEnv, joObject);
-  jmethodID jmObject= (*jEnv)->GetMethodID(jEnv, jcObject, "hashCode", "()I");
-  return (*jEnv)->CallIntMethod(jEnv, joObject, jmObject);
-}
-
