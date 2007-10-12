@@ -34,6 +34,11 @@ jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
 {
   jobject joDomain;
 
+  /* Java proxy object already existing ? */
+  joDomain= jni_proxy_get(jEnv, pDomain);
+  if (joDomain != NULL)
+    return joDomain;
+
   /* Create new BGPDomain object */
   if ((joDomain= cbgp_jni_new(jEnv, CLASS_BGPDomain, CONSTR_BGPDomain,
 			      joCBGP,

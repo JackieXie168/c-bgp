@@ -33,6 +33,11 @@ jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
 {
   jobject joFilter;
 
+  /* Java proxy object already existing ? */
+  joFilter= jni_proxy_get(jEnv, pFilter);
+  if (joFilter != NULL)
+    return joFilter;
+
   /* Create new Filter object */
   if ((joFilter= cbgp_jni_new(jEnv, CLASS_BGPFilter, CONSTR_BGPFilter,
 			      joCBGP)) == NULL)

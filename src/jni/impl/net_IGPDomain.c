@@ -31,6 +31,11 @@ jobject cbgp_jni_new_net_IGPDomain(JNIEnv * jEnv, jobject joCBGP,
 {
   jobject joDomain;
 
+  /* Java proxy object already existing ? */
+  joDomain= jni_proxy_get(jEnv, pDomain);
+  if (joDomain != NULL)
+    return joDomain;
+
   /* Create new IGPDomain object */
   if ((joDomain= cbgp_jni_new(jEnv, CLASS_IGPDomain,
 			      CONSTR_IGPDomain,
