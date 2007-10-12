@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 29/06/2007
+// @lastdate 11/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,29 +18,50 @@
 #include <libgds/memory.h>
 
 #include <jni/jni_base.h>
+#include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
 
 //#define DEBUG_LOCK
 //#define DEBUG_PROXIES
-//#define ERROR_PROXIES
 
 #define JNI_PROXY_HASH_SIZE 1000
 
 #define CLASS_ProxyObject "be/ac/ucl/ingi/cbgp/ProxyObject"
 #define METHOD_ProxyObject_getCBGP "()Lbe/ac/ucl/ingi/cbgp/CBGP;"
 
-static SHash * pHashCode2Object= NULL;
+static SHash * pC2JHash= NULL;
+static SHash * pJ2CHash= NULL;
+static unsigned long ulProxySeqNum= 0;
 
+// -----[ SHashCodeObject ]-----
+/** Maintains the mapping between a CObj and a JObj. */
 typedef struct {
-  jint jiHashCode;
-  void * pObject;
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
-  char * pcClassName;
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
-} SHashCodeObject;
+  void * pObject;   // Identifier for CObj
+  jobject joObject; // Identifier for JObj (weak global reference)
+  unsigned long int ulObjectId;
 
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
-static char * get_class_name(JNIEnv * jEnv, jobject joObject)
+#if defined(DEBUG_PROXIES)
+  char * pcClassName;
+#endif /* DEBUG_PROXIES */
+
+} SHashCodeObject;
+typedef SHashCodeObject SJNIProxy;
+
+// -----[ jni_abort ]------------------------------------------------
+void jni_abort(JNIEnv * jEnv)
+{
+  if ((*jEnv)->ExceptionOccurred(jEnv)) {
+    (*jEnv)->ExceptionDescribe(jEnv); 
+    (*jEnv)->ExceptionClear(jEnv);
+    fflush(stderr);
+  }
+  fprintf(stderr, "aborting.\n");
+  abort();
+}
+
+// -----[ get_class_name ]-------------------------------------------
+//#if defined(DEBUG_PROXIES)
+char * get_class_name(JNIEnv * jEnv, jobject joObject)
 {
   jclass jcClass;
   jstring jsName;
@@ -61,50 +82,169 @@ static char * get_class_name(JNIEnv * jEnv, jobject joObject)
 
   return pcResult;
 }
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
+//#endif /* DEBUG_PROXIES */
 
-// -----[ _jni_proxy_compare ]---------------------------------------
-static int _jni_proxy_compare(void * pElt1, void * pElt2, uint32_t uEltSize)
+// -----[ _jni_proxy_Object_get_id ]---------------------------------
+/**
+ *
+ */
+static jlong _jni_proxy_Object_get_id(JNIEnv * jEnv, jobject joObject)
+{
+  jclass jcClass;
+  jfieldID jfFieldID;
+
+  jcClass= (*jEnv)->GetObjectClass(jEnv, joObject);
+  if (jcClass == NULL) {
+    fprintf(stderr, "Fatal error: couldn't get object's class.\n");
+    jni_abort(jEnv);
+  }
+
+  jfFieldID= (*jEnv)->GetFieldID(jEnv, jcClass, "objectId", "J");
+  if (jfFieldID == NULL) {
+    fprintf(stderr, "Fatal error: couldn't get class's field ID.\n");
+    jni_abort(jEnv);
+  }
+
+  return (*jEnv)->GetLongField(jEnv, joObject, jfFieldID);
+}
+
+// -----[ _jni_proxy_Object_set_id ]---------------------------------
+/**
+ *
+ */
+static void _jni_proxy_Object_set_id(JNIEnv * jEnv, jobject joObject,
+				     jlong jlId)
+{
+  jclass jcClass;
+  jfieldID jfFieldID;
+
+  jcClass= (*jEnv)->GetObjectClass(jEnv, joObject);
+  if (jcClass == NULL) {
+    fprintf(stderr, "Fatal error: couldn't get object's class.\n");
+    jni_abort(jEnv);
+  }
+
+  jfFieldID= (*jEnv)->GetFieldID(jEnv, jcClass, "objectId", "J");
+  if (jfFieldID == NULL) {
+    fprintf(stderr, "Fatal error: couldn't get class's field ID.\n");
+    jni_abort(jEnv);
+  }
+
+  (*jEnv)->SetLongField(jEnv, joObject, jfFieldID, jlId);
+}
+
+// -----[ _jni_proxy_create ]----------------------------------------
+static SJNIProxy * _jni_proxy_create(JNIEnv * jEnv,
+				     void * pObject,
+				     jobject joObject)
+{
+  SJNIProxy * pProxy= MALLOC(sizeof(SJNIProxy));
+  pProxy->pObject= pObject;
+  pProxy->joObject= (*jEnv)->NewWeakGlobalRef(jEnv, joObject);;
+  pProxy->ulObjectId= ++ulProxySeqNum;
+
+  // NOTE: We can't use Java's hashcode since it is allowed to return
+  // an equal value for two different objects (sadly unicity isn't
+  // guaranteed for Java hashcodes). Therefore, to provide the
+  // mapping from the JObj to the CObj, we store a sequence number
+  // which is then used as a key to retrieve the CObj's pointer.
+  _jni_proxy_Object_set_id(jEnv, joObject, pProxy->ulObjectId);
+
+#if defined(DEBUG_PROXIES)
+  pProxy->pcClassName= get_class_name(jEnv, joObject);
+#endif /* DEBUG_PROXIES */
+
+  return pProxy;
+}
+
+// -----[ _jni_proxy_dump ]------------------------------------------
+static void _jni_proxy_dump(SJNIProxy * pProxy)
+{
+  fprintf(stderr, "[c-obj:%p/j-obj:%p/id:%lu",
+	  pProxy->pObject, pProxy->joObject, pProxy->ulObjectId);
+
+#if defined(DEBUG_PROXIES)
+  fprintf(stderr, "/class:%s", pProxy->pcClassName);
+#endif /* DEBUG_PROXIES */
+
+  fprintf(stderr, "]");
+}
+
+// -----[ _jni_proxy_c2j_cmp ]---------------------------------------
+static int _jni_proxy_c2j_cmp(void * pElt1, void * pElt2,
+			      uint32_t uEltSize)
 {
   SHashCodeObject * pHashObj1= (SHashCodeObject *) pElt1;
   SHashCodeObject * pHashObj2= (SHashCodeObject *) pElt2;
-  if (pHashObj1->jiHashCode > pHashObj2->jiHashCode)
-    return 1;
-  else if (pHashObj1->jiHashCode < pHashObj2->jiHashCode)
-    return -1;
-  else {
 
-#ifdef DEBUG_PROXIES
-    fprintf(stderr, "debug: \033[33;1mwarning, same hash code (%d==%d)\033[0m\n", (int) pHashObj1->jiHashCode, (int) pHashObj2->jiHashCode);
+  if (pHashObj1->pObject > pHashObj2->pObject)
+    return 1;
+  else if (pHashObj1->pObject < pHashObj2->pObject)
+    return -1;
+  else
+    return 0;
+}
+
+// -----[ _jni_proxy_j2c_cmp ]---------------------------------------
+static int _jni_proxy_j2c_cmp(void * pElt1, void * pElt2,
+			      uint32_t uEltSize)
+{
+  SHashCodeObject * pHashObj1= (SHashCodeObject *) pElt1;
+  SHashCodeObject * pHashObj2= (SHashCodeObject *) pElt2;
+
+  if (pHashObj1->ulObjectId > pHashObj2->ulObjectId)
+    return 1;
+  else if (pHashObj1->ulObjectId < pHashObj2->ulObjectId)
+    return -1;
+  else
+    return 0;
+}
+
+// -----[ _jni_proxy_c2j_destroy ]-----------------------------------
+static void _jni_proxy_c2j_destroy(void * pElt)
+{
+  SJNIProxy * pProxy= (SJNIProxy *) pElt;
+
+#if defined(DEBUG_PROXIES)
+  fprintf(stderr, "debug: invalidate ");
+  _jni_proxy_dump(pProxy);
+  fprintf(stderr, "\n");
 #endif /* DEBUG_PROXIES */
 
-    return 0;
-  }
+  pProxy->pObject= NULL;
 }
 
-// -----[ _jni_proxy_destroy ]---------------------------------------
-static void _jni_proxy_destroy(void * pElt)
+// -----[ _jni_proxy_j2c_destroy ]-----------------------------------
+static void _jni_proxy_j2c_destroy(void * pElt)
 {
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
-  SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
-  fprintf(stderr, "debug: remove \"%s\" (key:%d)\n",
-	  pHashObj->pcClassName,
-	  (int) pHashObj->jiHashCode);
-  free(pHashObj->pcClassName);
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
+  SJNIProxy * pProxy= (SJNIProxy *) pElt;
 
-  FREE(pElt);
+#if defined(DEBUG_PROXIES)
+  fprintf(stderr, "debug: destroy ");
+  _jni_proxy_dump(pProxy);
+  fprintf(stderr, "\n");
+#endif /* DEBUG_PROXIES */
+
+  //(*jEnv)->DeleteWeakGlobalRef(jEnv, pProxy->joObject);
+  FREE(pProxy);
 }
 
-// -----[ _jni_proxy_compute ]---------------------------------------
-static uint32_t _jni_proxy_compute(const void * pElt, const uint32_t uHashSize)
+// -----[ _jni_proxy_c2j_compute ]-----------------------------------
+static uint32_t _jni_proxy_c2j_compute(const void * pElt,
+				       const uint32_t uHashSize)
 {
   SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
-  if (pHashObj->jiHashCode < 0) {
-    fprintf(stderr, "warning: hashcode < 0 (%d)\n",
-	    (int) pHashObj->jiHashCode);
-  }
-  return pHashObj->jiHashCode % uHashSize;
+
+  return ((unsigned long int) pHashObj->pObject) % uHashSize;
+}
+
+// -----[ _jni_proxy_j2c_compute ]-----------------------------------
+static uint32_t _jni_proxy_j2c_compute(const void * pElt,
+				       const uint32_t uHashSize)
+{
+  SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
+
+  return pHashObj->ulObjectId % uHashSize;
 }
 
 // -----[ jni_proxy_add ]--------------------------------------------
@@ -113,51 +253,27 @@ static uint32_t _jni_proxy_compute(const void * pElt, const uint32_t uHashSize)
  */
 void jni_proxy_add(JNIEnv * jEnv, jobject joObject, void * pObject)
 {
-  SHashCodeObject * pHashObj;
-  jclass jcClass;
-  jfieldID jfFieldID;
-  
-  // Set the object's hash code
-  if ((jcClass= (*jEnv)->GetObjectClass(jEnv, joObject)) == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get object's class.\n");
-    abort();
-  }
-  if ((jfFieldID= (*jEnv)->GetFieldID(jEnv, jcClass, "hash_code", "I")) == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get class's method ID.\n");
-    abort();
-  }
+  SJNIProxy * pProxy= _jni_proxy_create(jEnv, pObject, joObject);
 
-  // NOTE: This is a very tricky thing that I shouldn't do: cast a
-  // pointer to an int (won't work under 64-bits platform). I'm
-  // just going on a proof of concept...
-  (*jEnv)->SetIntField(jEnv, joObject, jfFieldID, (int) pObject);
-
-  pHashObj=
-    (SHashCodeObject *) MALLOC(sizeof(SHashCodeObject));
-  pHashObj->jiHashCode= jni_Object_hashCode(jEnv, joObject);
-
-#ifdef DEBUG_PROXIES
-  fprintf(stderr, "debug: proxy add [j-obj:%p, c-obj:%p, key:\033[1m%d\033[0m]\n", joObject,
-	  pObject, (int) pHashObj->jiHashCode);
+#if defined(DEBUG_PROXIES)
+  fprintf(stderr, "debug: proxy add ");
+  _jni_proxy_dump(pProxy);
+  fprintf(stderr, "\n");
   fflush(stderr);
 #endif /* DEBUG_PROXIES */
 
-  pHashObj->pObject= pObject;
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
-  pHashObj->pcClassName= get_class_name(jEnv, joObject);
-  fprintf(stderr, "debug: add \"%s\" (key:%d)\n",
-	  pHashObj->pcClassName,
-	  (int) pHashObj->jiHashCode);
-  fflush(stderr);
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
-  if (pHashCode2Object == NULL) {
-    pHashCode2Object= hash_init(JNI_PROXY_HASH_SIZE,
-				0,
-				_jni_proxy_compare,
-				_jni_proxy_destroy,
-				_jni_proxy_compute);
+  if (hash_add(pC2JHash, pProxy) != pProxy) {
+    fprintf(stderr, "*** WARNING: same object already referenced (C2J) ! ***\n");
+    _jni_proxy_dump(pProxy);
+    fprintf(stderr, "\n");
+    abort();
   }
-  hash_add(pHashCode2Object, pHashObj);
+  if (hash_add(pJ2CHash, pProxy) != pProxy) {
+    fprintf(stderr, "*** WARNING: same object already referenced (J2C) ! ***\n");
+    _jni_proxy_dump(pProxy);
+    fprintf(stderr, "\n");
+    abort();
+  }
 
 #ifdef DEBUG_PROXIES
   fprintf(stderr, "debug: proxy added\n");
@@ -171,20 +287,41 @@ void jni_proxy_add(JNIEnv * jEnv, jobject joObject, void * pObject)
  */
 void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
 {
-  SHashCodeObject sObject;
+  SJNIProxy sProxy, * pProxy;
+  //char * pcSearchedClassName;
 
-  sObject.jiHashCode= jni_Object_hashCode(jEnv, joObject);
+  sProxy.ulObjectId= _jni_proxy_Object_get_id(jEnv, joObject);
 
 #ifdef DEBUG_PROXIES
-  fprintf(stderr, "\033[1mdebug: proxy remove [j-obj:%p; key:\033[1m%d\033[0m]\033[0m\n", joObject,
-	  (int) sObject.jiHashCode);
+  fprintf(stderr, "debug: proxy remove [j-obj:%p/key:%lu]\n",
+	  joObject, sProxy.ulObjectId);
   fflush(stderr);
 #endif /* DEBUG_PROXIES */
 
-  hash_del(pHashCode2Object, &sObject);
+  /*
+  pcSearchedClassName= get_class_name(jEnv, joObject);
+  fprintf(stderr, "  --> class-name: \"%s\"\n", pcSearchedClassName);
+  fflush(stderr);
+  free(pcSearchedClassName);
+  */
+
+  pProxy= hash_search(pJ2CHash, &sProxy);
+  if (pProxy == NULL)
+    jni_abort(jEnv);
+
+  /*
+    if (!(*jEnv)->IsSameObject(jEnv, joObject, pProxy->joObject)) {
+    fprintf(stderr, "NOK (not the same object) ***\n");
+    jni_abort(jEnv);
+    }
+  */
+
+  if (pC2JHash != NULL)
+    hash_del(pC2JHash, pProxy);
+  hash_del(pJ2CHash, pProxy);
 
 #ifdef DEBUG_PROXIES
-  fprintf(stderr, "\033[1mdebug: proxy removed\033[0m\n");
+  fprintf(stderr, "debug: proxy removed\n");
   fflush(stderr);
 #endif /* DEBUG_PROXIES */
 }
@@ -195,59 +332,90 @@ void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
  */
 void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
 {
-  SHashCodeObject sObject;
-  SHashCodeObject * pObject;
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
+#if defined(DEBUG_PROXIES)
   char * pcSearchedClassName;
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
-
-  sObject.jiHashCode= jni_Object_hashCode(jEnv, joObject);
+#endif /* DEBUG_PROXIES */
+  unsigned long int ulObjectId= _jni_proxy_Object_get_id(jEnv, joObject);
+  SHashCodeObject sHashObject;
+  SHashCodeObject * pHashObject;
 
 #ifdef DEBUG_PROXIES
-  fprintf(stderr, "debug: proxy lookup [j-obj:%p, key:\033[1m%d\033[0m]\n", joObject,
-	  (int) sObject.jiHashCode);
+  fprintf(stderr, "debug: proxy lookup [j-obj:%p/key:%lu]\n",
+	  joObject, ulObjectId);
 #endif
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
+
+#if defined(DEBUG_PROXIES)
   pcSearchedClassName= get_class_name(jEnv, joObject);
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
-#ifdef DEBUG_PROXIES
   fprintf(stderr, "  --> class-name: \"%s\"\n", pcSearchedClassName);
   fflush(stderr);
+  free(pcSearchedClassName);
 #endif /* DEBUG_PROXIES */
 
-  pObject= hash_search(pHashCode2Object, &sObject);
-  if (pObject == NULL) {
+  if (pJ2CHash == NULL) {
+    fprintf(stderr, "Error: proxy lookup while C-BGP not initialized.\n");
+    abort();
+  }
+
+  sHashObject.ulObjectId= ulObjectId;
+  pHashObject= hash_search(pJ2CHash, &sHashObject);
+  if (pHashObject == NULL) {
+    fprintf(stderr, "Error: during lookup, reported ID has no mapping\n");
+    abort();
+  }
+
+  return pHashObject->pObject;
+
+}
+
+// -----[ jni_proxy_get ]--------------------------------------------
+/**
+ *
+ */
+jobject jni_proxy_get(JNIEnv * jEnv, void * pObject)
+{
+  SJNIProxy sProxy;
+  SJNIProxy * pProxy;
 
 #ifdef DEBUG_PROXIES
-    fprintf(stderr, "debug: proxy lookup failed\n");
+  fprintf(stderr, "debug: proxy get [c-obj:%p]\n", pObject);
+#endif
+
+  sProxy.pObject= pObject;
+  pProxy= hash_search(pC2JHash, &sProxy);
+  if (pProxy == NULL) {
+#ifdef DEBUG_PROXIES
+    fprintf(stderr, "debug: proxy get failed\n");
     fflush(stderr);
 #endif /* DEBUG_PROXIES */
-
-    cbgp_jni_throw_CBGPException(jEnv, "JNI proxy lookup error");
     return NULL;
   }
 
 #ifdef DEBUG_PROXIES
-  fprintf(stderr, "  --> class-name: \"%s\"\n", pObject->pcClassName);
-#endif /* DEBUG_PROXIES */
-#if defined(ERROR_PROXIES) || defined(DEBUG_PROXIES)
-  if (strcmp(pcSearchedClassName, pObject->pcClassName) != 0) {
-    fprintf(stderr, "debug: \033[33;1merror, class-name mismatch\033[0m\n");
-    fprintf(stderr, "       --> searched: \"\033[33;1m%s\033[0m\" (key:\033[33;1m%d\033[0m)\n", pcSearchedClassName, (int) sObject.jiHashCode);
-    fprintf(stderr, "       --> found: \"\033[33;1m%s\033[0m\" (key:\033[33;1m%d\033[0m)\n", pObject->pcClassName, (int) pObject->jiHashCode);
-  }
-  free(pcSearchedClassName);
-#endif /* ERROR_PROXIES || DEBUG_PROXIES */
-#ifdef DEBUG_PROXIES
-  fprintf(stderr, "debug: proxy lookup ok [c-obj:%p, key:\033[1m%d\033[0m]\n", pObject->pObject,
-	  (int) pObject->jiHashCode);
-  if (pObject->jiHashCode != sObject.jiHashCode) {
-    fprintf(stderr, "debug: \033[33;1mwarning, key mismatch\033[0m\n");
-  }
-  fflush(stderr);
+  fprintf(stderr, "  --> proxy: ");
+  _jni_proxy_dump(pProxy);
+  fprintf(stderr, "\n");
 #endif /* DEBUG_PROXIES */
 
-  return pObject->pObject;
+  /*#if defined(DEBUG_PROXIES)
+  if (strcmp(pcSearchedClassName, pHashObject->pcClassName) != 0) {
+    fprintf(stderr, "debug: \033[33;1merror, class-name mismatch\033[0m\n");
+    fprintf(stderr, "       --> searched: \"\033[33;1m%s\033[0m\" (key:\033[33;1m%p\033[0m)\n", pcSearchedClassName, sHashObject.pObject);
+    fprintf(stderr, "       --> found: \"\033[33;1m%s\033[0m\" (key:\033[33;1m%p\033[0m)\n", pObject->pcClassName, pHashObject->pObject);
+  }
+  #endif*/ /* DEBUG_PROXIES */
+
+  /** TODO: need to check if weak reference has not been
+   * garbage-collected ! This can be done by relying on the
+   * "IsSameObject" method...
+   *
+   * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   */
+  if ((*jEnv)->IsSameObject(jEnv, pProxy->joObject, NULL)) {
+    fprintf(stderr, "Error: object was garbage-collected.\n");
+    abort();
+  }
+
+  return pProxy->joObject;
 }
 
 // -----[ jni_proxy_get_CBGP ]---------------------------------------
@@ -262,32 +430,135 @@ inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
 
 // -----[ _jni_unregister ]------------------------------------------
 /**
+ * This is called when a Java proxy object is garbage-collected.
  *
+ * This must only happen when the pJ2CHash is allocated and the
+ * jni_lock_init() has been called. The CBGP.init() function takes
+ * care of this.
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_ProxyObject__1jni_1unregister
   (JNIEnv * jEnv, jobject joObject)
 {
+  jni_lock(jEnv);
   jni_proxy_remove(jEnv, joObject);
+  jni_unlock(jEnv);
 }
 
 
 /////////////////////////////////////////////////////////////////////
 //
-// JNI Critical Section management functions
+// INITIALIZATION / FINALIZATION OF THE C->JAVA AND JAVA->C MAPPINGS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ _jni_proxies_init ]----------------------------------------
+/**
+ * This function initializes the C->Java and Java->C mappings. It can
+ * safely be used upon a CBGP JNI session creating or upon the JNI
+ * library loading. The CBGP.init() JNI function currently takes care
+ * of this call.
+ */
+void _jni_proxies_init()
+{
+  /** Note: this hash should be persistent accross multiple C-BGP
+   * classes initialization/finalization since proxy objects can be
+   * garbage-collected by the Java VM after the C-BGP object has been
+   * removed.
+   */
+  if (pC2JHash == NULL) {
+    pC2JHash= hash_init(JNI_PROXY_HASH_SIZE,
+			0,
+			_jni_proxy_c2j_cmp,
+			_jni_proxy_c2j_destroy,
+			_jni_proxy_c2j_compute);
+  }
+  if (pJ2CHash == NULL) {
+    pJ2CHash= hash_init(JNI_PROXY_HASH_SIZE,
+			0,
+			_jni_proxy_j2c_cmp,
+			_jni_proxy_j2c_destroy,
+			_jni_proxy_j2c_compute);
+  }
+}
+
+// -----[ _jni_proxies_invalidate ]----------------------------------
+/**
+ * This function invalidates all the C->Java mappings. This function
+ * must be called at the end of a C-BGP session. The CBGP.destroy()
+ * JNI function takes care of this call.
+ */
+void _jni_proxies_invalidate()
+{
+  hash_destroy(&pC2JHash);
+}
+
+// -----[ _jni_proxies_destroy ]-------------------------------------
+/**
+ * This function frees all the C->Java and Java->C mappings. This
+ * function must only be called when the JNI library is unloaded. The
+ * JNI_OnUnload function takes care of this call.
+ */
+void _jni_proxies_destroy()
+{
+  hash_destroy(&pC2JHash);
+  hash_destroy(&pJ2CHash);
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// JNI CRITICAL SECTION MANAGEMENT FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
 
 static jobject joLockObj= NULL;
 
-// -----[ jni_init_lock ]--------------------------------------------
-void jni_init_lock(jobject joObj)
+// -----[ _jni_lock_init ]-------------------------------------------
+/**
+ * This function initializes the C-BGP JNI locking system. It is
+ * responsible for creating a globally reference object which will be
+ * used for locking by all the JNI functions. This function can safely
+ * be used upon a C-BGP JNI session creation of upon a JNI library
+ * loading. The JNI_OnLoad function currently takes care of this call.
+ */
+void _jni_lock_init(JNIEnv * jEnv)
 {
+  jclass jcClass;
+
 #ifdef DEBUG_LOCK
-  fprintf(stderr, "debug: init monitor [%p]\n", joObj);
+  fprintf(stderr, "debug: init monitor\n");
   fflush(stderr);
 #endif /* DEBUG_LOCK */
 
-  joLockObj= joObj;
+  if (joLockObj == NULL) {
+    jcClass= (*jEnv)->FindClass(jEnv, "java/lang/Object");
+    if (jcClass == NULL)
+      jni_abort(jEnv);
+    joLockObj= (*jEnv)->AllocObject(jEnv, jcClass);
+    if (joLockObj == NULL)
+      jni_abort(jEnv);
+    joLockObj= (*jEnv)->NewGlobalRef(jEnv, joLockObj);
+    if (joLockObj == NULL)
+      jni_abort(jEnv);
+
+#ifdef DEBUG_LOCK
+    fprintf(stderr, "debug: global lock created [%p]\n", joLockObj);
+    fflush(stderr);
+#endif /* DEBUG_LOCK */
+
+  }
+}
+
+// -----[ _jni_lock_destroy ]----------------------------------------
+/**
+ * This function terminates the C-BGP JNI locking system. It removes
+ * the global reference towards the dummy monitored object. The
+ * JNI_OnUnload function takes care of this call.
+ */
+void _jni_lock_destroy(JNIEnv * jEnv)
+{
+  (*jEnv)->DeleteGlobalRef(jEnv, joLockObj);
+  joLockObj= NULL;
 }
 
 // -----[ jni_lock ]-------------------------------------------------
@@ -298,9 +569,12 @@ void jni_lock(JNIEnv * jEnv)
   fflush(stderr);
 #endif /* DEBUG_LOCK */
 
+  if (joLockObj == NULL)
+    jni_abort(jEnv);
+
   if ((*jEnv)->MonitorEnter(jEnv, joLockObj) != JNI_OK) {
     fprintf(stderr, "ERROR: could not enter JNI monitor\n");
-    abort();
+    jni_abort(jEnv);
   }
 
 #ifdef DEBUG_LOCK
@@ -317,15 +591,12 @@ void jni_unlock(JNIEnv * jEnv)
   fflush(stderr);
 #endif /* DEBUG_LOCK */
 
-  (*jEnv)->ExceptionClear(jEnv);
+  if (joLockObj == NULL)
+    jni_abort(jEnv);
+
   if ((*jEnv)->MonitorExit(jEnv, joLockObj) != JNI_OK) {
     fprintf(stderr, "ERROR: could not exit JNI monitor\n");
-    if ((*jEnv)->ExceptionOccurred(jEnv)) {
-      (*jEnv)->ExceptionDescribe(jEnv); 
-      (*jEnv)->ExceptionClear(jEnv);
-    }
-    fprintf(stderr, "aborting.\n");
-    abort();
+    jni_abort(jEnv);
   }
 
 #ifdef DEBUG_LOCK

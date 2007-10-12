@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 02/10/2007
+// @lastdate 12/10/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -119,49 +119,52 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   (JNIEnv * jEnv, jobject joCBGP, jstring file_log)
 {
   JNI_LOG_ENTER;
+  jni_lock(jEnv);
 
+  // Test if a C-BGP JNI session has already been created.
   if (joGlobalCBGP != NULL) {
     cbgp_jni_throw_CBGPException(jEnv, "CBGP class already initialized");
     JNI_LOG_LEAVE;
-    return;
+    return_jni_unlock2(jEnv);
   }
 
-  // Create global reference that can be garbage-collected (weak)
-  joGlobalCBGP= (*jEnv)->NewWeakGlobalRef(jEnv, joCBGP);
+  // Create global reference
+  joGlobalCBGP= (*jEnv)->NewGlobalRef(jEnv, joCBGP);
+
+  // Initialize C-BGP library (but not the GDS library)
+  libcbgp_init2();
+  _jni_proxies_init();
 
   // Initialize console listeners contexts
   jni_listener_init(&sConsoleOutListener);
   jni_listener_init(&sConsoleErrListener);
   jni_listener_init(&sBGPListener);
 
-  // Initialize C-BGP library
-  libcbgp_init();
-  /*libcbgp_set_debug_level(LOG_LEVEL_EVERYTHING);
-    libcbgp_set_debug_file("/tmp/cbgp_jni.log");*/
-
-  fprintf(stdout, "C-BGP library started.\n");
+  fprintf(stdout, "C-BGP JNI library started.\n");
   fflush(stdout);
 
-  jni_init_lock(joGlobalCBGP);
-
+  jni_unlock(jEnv);
   JNI_LOG_LEAVE;
 }
 
 // -----[ destroy ]--------------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    finalize
+ * Method:    destroy
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   (JNIEnv * jEnv, jobject joCBGP)
 {
   JNI_LOG_ENTER;
-
   jni_lock(jEnv);
 
-  // Free simulator data structures...
-  libcbgp_done();
+  // Test if a C-BGP JNI session has already been created.
+  if (joGlobalCBGP == NULL) {
+    cbgp_jni_throw_CBGPException(jEnv, "CBGP class already initialized");
+    JNI_LOG_LEAVE;
+    return_jni_unlock2(jEnv);
+  }
 
   // Delete global references to console listeners
   bgp_router_set_msg_listener(NULL, NULL);
@@ -173,13 +176,20 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   jni_listener_unset(&sConsoleErrListener, jEnv);
   jni_listener_unset(&sBGPListener, jEnv);
 
-  fprintf(stdout, "C-BGP library stopped.\n");
+  // Invalidates all the C->Java mappings
+  _jni_proxies_invalidate();
+
+  // Free simulator data structures (but do not terminate GDS).
+  libcbgp_done2();
+
+  // Remove global reference
+  (*jEnv)->DeleteGlobalRef(jEnv, joGlobalCBGP);
+  joGlobalCBGP= NULL;
+
+  fprintf(stdout, "C-BGP JNI library stopped.\n");
   fflush(stdout);
 
   jni_unlock(jEnv);
-
-  joGlobalCBGP= NULL;
-
   JNI_LOG_LEAVE;
 }
 
@@ -847,17 +857,21 @@ static int _cbgp_jni_routes_list_function(void * pItem, void * pContext)
 {
   SJNIContext * pCtx= (SJNIContext *) pContext;
   jobject joRoute;
+  int iResult;
 
   if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, *(SRoute **) pItem)) == NULL)
     return -1;
 
-  // TODO: if there is a large number of objects, we should remove the
+  // Add the route object to the list
+  iResult= cbgp_jni_ArrayList_add(pCtx->jEnv, pCtx->joVector, joRoute);
+
+  // if there is a large number of objects, we should remove the
   // reference to the route as soon as it is added to the Vector
   // object. If we keep a large number of references to Java
-  // instances, the performance will quickly decrease! This probably
-  // apply to other places in the JNI code where a large number of
-  // objects is returned in a single collection...
-  return cbgp_jni_ArrayList_add(pCtx->jEnv, pCtx->joVector, joRoute);
+  // instances, the performance will quickly decrease!
+  (*(pCtx->jEnv))->DeleteLocalRef(pCtx->jEnv, joRoute);
+
+  return iResult;
 }
 
 // -----[ loadMRT ]--------------------------------------------------
@@ -936,3 +950,73 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
 
   jni_unlock(jEnv);
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// JNI Library Load/UnLoad
+//
+/////////////////////////////////////////////////////////////////////
+
+/**
+ * The VM calls JNI_OnLoad when the native library is loaded (for
+ * example, through System.loadLibrary). JNI_OnLoad must return the
+ * JNI version needed by the native library. In order to use any of
+ * the new JNI functions, a native library must export a JNI_OnLoad
+ * function that returns JNI_VERSION_1_2. If the native library does
+ * not export a JNI_OnLoad function, the VM assumes that the library
+ * only requires JNI version JNI_VERSION_1_1. If the VM does not
+ * recognize the version number returned by JNI_OnLoad, the native
+ * library cannot be loaded.
+ */
+
+// -----[ JNI_OnLoad ]-----------------------------------------------
+/**
+ * This function is called when the JNI library is loaded.
+ */
+jint JNI_OnLoad(JavaVM * jVM, void *reserved)
+{
+  JNIEnv * jEnv= NULL;
+
+  fprintf(stdout, "C-BGP JNI library loaded.\n");
+  fflush(stdout);
+
+#ifdef __MEMORY_DEBUG__
+  gds_init(GDS_OPTION_MEMORY_DEBUG);
+#else
+  gds_init(0);
+#endif
+
+  // Get JNI environment
+  if ((*jVM)->GetEnv(jVM, (void **) &jEnv, JNI_VERSION_1_2) != JNI_OK)
+    abort();
+
+  // Init locking system
+  _jni_lock_init(jEnv);
+
+  return JNI_VERSION_1_2;
+}
+
+// -----[ JNI_OnUnload ]---------------------------------------------
+/**
+ * This function is called when the JNI library is unloaded.
+ */
+void JNI_OnUnload(JavaVM * jVM, void *reserved)
+{
+  JNIEnv * jEnv= NULL;
+
+  fprintf(stdout, "C-BGP JNI library unloaded.\n");
+  fflush(stdout);
+
+  // Get JNI environment
+  if ((*jVM)->GetEnv(jVM, (void **) &jEnv, JNI_VERSION_1_2) != JNI_OK)
+    abort();
+
+  // Terminate C<->Java mappings and locking system
+  _jni_proxies_destroy();
+  _jni_lock_destroy(jEnv);
+
+  gds_destroy();
+}
+
+
