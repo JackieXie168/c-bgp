@@ -28,7 +28,7 @@ void jni_listener_set(SJNIListener * pListener, JNIEnv * jEnv,
 
   // Get reference to Java Virtual Machine (required by the JNI callback)
   if (pListener->jVM == NULL)
-    if ((*jEnv)->GetJavaVM(jEnv, &pListener->jVM) != 0) {
+    if ((*jEnv)->GetJavaVM(jEnv, &pListener->jVM) != JNI_OK) {
       cbgp_jni_throw_CBGPException(jEnv, "could not get reference to Java VM");
       return;
     }
