@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/03/2006
-// @lastdate 01/06/2007
+// @lastdate 11/10/2007
 // ==================================================================
 
 #ifndef __JNI_BASE_H__
@@ -66,9 +66,6 @@ extern "C" {
   // -----[ cbgp_jni_ArrayList_add ]---------------------------------
   int cbgp_jni_ArrayList_add(JNIEnv * jEnv, jobject joArrayList,
 			     jobject joItem);
-  
-  // -----[ jni_Object_hashCode ]------------------------------------
-  jint jni_Object_hashCode(JNIEnv * jEnv, jobject joObject);
   
 #ifdef __cplusplus
 }
