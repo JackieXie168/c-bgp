@@ -5,22 +5,16 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-# Compile with debugging symbols ?
-if WITH_DEBUGGING
-  OPT_DEBUGGING = -g
-else
-  OPT_DEBUGGING =
-endif
-
 if WITH_OSPF
   OPT_WITH_OSPF = -DOSPF_SUPPORT
 else
   OPT_WITH_OSPF =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OSPF)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 
 noinst_LTLIBRARIES = libnet.la
+libnet_la_CFLAGS= $(LIBGDS_CFLAGS)
 
 INCLUDES = -I..
 

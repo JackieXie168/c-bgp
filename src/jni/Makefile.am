@@ -5,14 +5,7 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-# Compile with debugging symbols ?
-if WITH_DEBUGGING
-  OPT_DEBUGGING = -g
-else
-  OPT_DEBUGGING =
-endif
-
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
 
 noinst_LTLIBRARIES = libjni.la
 
@@ -32,6 +25,7 @@ libjni_la_SOURCES = \
 	listener.c \
 	listener.h
 libjni_la_LIBADD = impl/libjni_impl.la
+libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -Werror -O2 -g
 
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
