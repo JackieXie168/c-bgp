@@ -1,6 +1,7 @@
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING)
+AM_CFLAGS = $(OPT_EXPERIMENTAL)
 
 noinst_LTLIBRARIES = libjni_impl.la
+libjni_impl_la_CFLAGS = $(LIBGDS_CFLAGS)
 
 INCLUDES = -I../..
 
