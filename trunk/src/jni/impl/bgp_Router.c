@@ -40,6 +40,11 @@ jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
   jobject joRouterID;
   jobject joRouter;
 
+  /* Java proxy object already existing ? */
+  joRouter= jni_proxy_get(jEnv, pRouter);
+  if (joRouter != NULL)
+    return joRouter;
+
   /* Convert router attributes to Java objects */
   if ((joIPAddress= cbgp_jni_new_IPAddress(jEnv, pRouter->pNode->tAddr)) == NULL)
     return NULL;

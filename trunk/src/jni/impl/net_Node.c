@@ -42,6 +42,11 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   jobject joString;
   int iIndex;
 
+  /* Java proxy object already existing ? */
+  joNode= jni_proxy_get(jEnv, pNode);
+  if (joNode != NULL)
+    return joNode;
+
   /* Convert node attributes to Java objects */
   jobject joAddress= cbgp_jni_new_IPAddress(jEnv, pNode->tAddr);
   if (pNode->pcName != NULL)

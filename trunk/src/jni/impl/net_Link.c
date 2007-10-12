@@ -33,6 +33,11 @@ jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
 {
   jobject joLink;
 
+  /* Java proxy object already existing ? */
+  joLink= jni_proxy_get(jEnv, pLink);
+  if (joLink != NULL)
+    return joLink;
+
   /* Convert link attributes to Java objects */
   jobject obj_IPAddress=
     cbgp_jni_new_IPAddress(jEnv, net_link_get_address(pLink));

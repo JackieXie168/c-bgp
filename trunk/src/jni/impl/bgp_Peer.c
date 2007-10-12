@@ -36,6 +36,11 @@ jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
   jobject joIPAddress;
   jobject joPeer;
 
+  /* Java proxy object already existing ? */
+  joPeer= jni_proxy_get(jEnv, pPeer);
+  if (joPeer != NULL)
+    return joPeer;
+
   /* Convert peer attributes to Java objects */
   if ((joIPAddress= cbgp_jni_new_IPAddress(jEnv, pPeer->tAddr)) == NULL)
     return NULL;
