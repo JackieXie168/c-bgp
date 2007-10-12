@@ -10,10 +10,10 @@ endif
 # Compile with liballoc ?
 if WITH_LIBALLOC
   OPT_LIBALLOC_DIR = liballoc
-  OPT_LIBALLOC_LDADD = liballoc/liballoc.la
+  OPT_LIBALLOC_LIBADD = liballoc/liballoc.la
 else
   OPT_LIBALLOC_DIR =
-  OPT_LIBALLOC_LDADD =
+  OPT_LIBALLOC_LIBADD =
 endif
 
 # Compile with ospf support?
@@ -49,41 +49,54 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-# Compile with debugging symbols ?
-if WITH_DEBUGGING
-  OPT_DEBUGGING = -g
-else
-  OPT_DEBUGGING =
-endif
-
 if WITH_MEMORY_DEBUG
   OPT_MEMORY_DEBUG = -D__MEMORY_DEBUG__
 else
   OPT_MEMORY_DEBUG =
 endif
 
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_DEBUGGING) $(OPT_WITH_OSPF) $(OPT_MEMORY_DEBUG)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES = api.c
-libcsim_la_LIBADD = -lgds bgp/libbgp.la cli/libcli.la sim/libsim.la net/libnet.la ui/libui.la util/libutil.la $(OPT_JNI_LIBADD) $(OPT_EFENCE) $(OPT_BGPDUMP_LIBADD)
-libcsim_la_LDFLAGS = -no-undefined $(pcre_libs) $(readline_libs) -release $(LT_RELEASE) -version-info $(LT_VERSION)
+libcsim_la_LIBADD = \
+	bgp/libbgp.la \
+	cli/libcli.la \
+	sim/libsim.la \
+	net/libnet.la \
+	ui/libui.la \
+	util/libutil.la \
+	$(OPT_JNI_LIBADD) \
+	$(OPT_LIBALLOC_LIBADD) \
+	$(OPT_BGPDUMP_LIBADD) \
+	$(OPT_EFENCE)
+libcsim_la_LDFLAGS = -no-undefined -release $(CBGP_LT_RELEASE) \
+	$(READLINE_LIBS) \
+	$(LIBGDS_LIBS) \
+	$(PCRE_LIBS)
+libcsim_la_CFLAGS = \
+	$(OPT_MEMORY_DEBUG) \
+	$(LIBGDS_CFLAGS)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
 bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
 
 cbgp_SOURCES = main.c
-cbgp_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+cbgp_LDADD = libcsim.la
+cbgp_CFLAGS = $(LIBGDS_CFLAGS)
 
 cbgp_dump_SOURCES = main-dump.c
-cbgp_dump_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+cbgp_dump_LDADD = libcsim.la
+cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS)
 
 cbgp_test_SOURCES = main-test.c
-cbgp_test_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+cbgp_test_LDADD = libcsim.la
+cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
 
 cbgp_perf_SOURCES = main-perf.c
-cbgp_perf_LDADD = libcsim.la $(OPT_LIBALLOC_LDADD) $(pcre_libs) $(readline_libs)
+cbgp_perf_LDADD = libcsim.la
+cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS)
 
 TESTS = \
 	cbgp-test

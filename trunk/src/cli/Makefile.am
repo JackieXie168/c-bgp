@@ -23,17 +23,10 @@ else
   OPT_WALTON = 
 endif
 
-
-# Compile with debugging symbols ?
-if WITH_DEBUGGING
-  OPT_DEBUGGING = -g
-else
-  OPT_DEBUGGING =
-endif
-
-AM_CFLAGS = -Wall -Werror -O2 $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) $(OPT_WITH_OSPF) $(OPT_DEBUGGING) 
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) $(OPT_WITH_OSPF)
 
 noinst_LTLIBRARIES = libcli.la
+libcli_la_CFLAGS = $(LIBGDS_CFLAGS) $(READLINE_CFLAGS)
 
 INCLUDES = -I..
 
