@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/10/2006
-// @lastdate 20/07/2007
+// @lastdate 12/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,29 +47,12 @@
  */
 void libcbgp_init()
 {
-  //#define __MEMORY_DEBUG__
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
 #else
   gds_init(0);
 #endif
-
-  // Initialize log.
-  libcbgp_set_err_level(LOG_LEVEL_WARNING);
-  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
-
-  // Hash init code commented in order to allow parameter setup
-  // through he command-line/script (initialization is performed
-  // just-in-time).
-  //_comm_hash_init();
-  //_path_hash_init();
-
-  _network_create();
-  _bgp_domain_init();
-  _igp_domain_init();
-  _ft_registry_init();
-  _filter_path_regex_init();
-  _route_map_init();
+  libcbgp_init2();
 }
 
 // -----[ libcbgp_done ]---------------------------------------------
@@ -78,23 +61,7 @@ void libcbgp_init()
  */
 void libcbgp_done()
 {
-  _cli_common_destroy();
-  _message_destroy();
-  _route_map_destroy();
-  _filter_path_regex_destroy();
-  _ft_registry_destroy();
-  _bgp_domain_destroy();
-  _igp_domain_destroy();
-  _network_destroy();
-  _mrtd_destroy();
-  _path_hash_destroy();
-  _comm_hash_destroy();
-  _bgp_router_destroy();
-  _aslevel_destroy();
-  _path_destroy();
-  _path_segment_destroy();
-  _comm_destroy();
-
+  libcbgp_done2();
   gds_destroy();
 }
 
@@ -207,6 +174,7 @@ void libcbgp_set_debug_file(char * pcFileName)
   pLogDebug= pLogTmp;
 }
 
+
 /////////////////////////////////////////////////////////////////////
 //
 // API
@@ -253,3 +221,72 @@ int libcbgp_exec_stream(FILE * pStream)
 {
   return cli_execute_file(cli_get(), pStream);
 }
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// Initialization and configuration of the library (use with care).
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ libcbgp_init2 ]--------------------------------------------
+/**
+ * Initialize the C-BGP library, but not the GDS library. This
+ * function is used by programs or libraries that run multiple C-BGP
+ * C-BGP sessions and manage the GDS library by themselve (see the
+ * JNI library for an example).
+ *
+ * NOTE: You should normaly not use this function. Consider using the
+ * 'libcbgp_init' function instead.
+ */
+void libcbgp_init2()
+{
+  // Initialize log.
+  libcbgp_set_err_level(LOG_LEVEL_WARNING);
+  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
+
+  // Hash init code commented in order to allow parameter setup
+  // through he command-line/script (initialization is performed
+  // just-in-time).
+  //_comm_hash_init();
+  //_path_hash_init();
+
+  _network_create();
+  _bgp_domain_init();
+  _igp_domain_init();
+  _ft_registry_init();
+  _filter_path_regex_init();
+  _route_map_init();
+}
+
+// -----[ libcbgp_done2 ]--------------------------------------------
+/**
+ * Free the resources allocated by the C-BGP library, but do not
+ * terminate the GDS library. See the 'libcbgp_init2' function for
+ * more details.
+ *
+ * NOTE: You should normaly not use this function. Consider using the
+ * 'libcbgp_done' function instead. 
+ */
+void libcbgp_done2()
+{
+  _cli_common_destroy();
+  _message_destroy();
+  _route_map_destroy();
+  _filter_path_regex_destroy();
+  _ft_registry_destroy();
+  _bgp_domain_destroy();
+  _igp_domain_destroy();
+  _network_destroy();
+  _mrtd_destroy();
+  _path_hash_destroy();
+  _comm_hash_destroy();
+  _bgp_router_destroy();
+  _aslevel_destroy();
+  _path_destroy();
+  _path_segment_destroy();
+  _comm_destroy();
+}
+
+
+
