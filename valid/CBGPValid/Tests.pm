@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 23/07/2007
+# lastdate 16/10/2007
 # ===================================================================
 #
 # Usage:
@@ -127,6 +127,7 @@ sub new($%)
 	     'include' => undef,
 	     'max-failures' => 0,
 	     'max-warnings' => 0,
+	     'num-success' => 0,
 	     'num-failures' => 0,
 	     'num-warnings' => 0,
 	     'num-skipped'  => 0,
@@ -245,6 +246,7 @@ sub run($)
 	$cbgp->finalize();
 	$self->set_result($test_record, $result, $test_time_duration);
 	if ($result == TEST_SUCCESS) {
+	  $self->{'num-success'}++;
 	  show_testing_success($test_time_duration);
 	} elsif ($result == TEST_NOT_TESTED) {
 	  $self->{'num-skipped'}++;
@@ -274,7 +276,7 @@ sub run($)
   print "\n==Summary==\n";
   printf "  FAILURES=%d / SKIPPED=%d / TESTS=%d\n\n",
     $self->{'num-failures'}, $self->{'num-skipped'},
-      scalar(@{$self->{'list'}});
+      $self->{'num-success'};
 
   (defined($self->{'cache-file'})) and
     $self->cache_write();
