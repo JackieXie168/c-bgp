@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 04/10/2007
+# @lastdate 16/10/2007
 # ===================================================================
 # Syntax:
 #
@@ -76,7 +76,7 @@ use CBGPValid::UI;
 use CBGPValid::XMLReport;
 use POSIX;
 
-use constant CBGP_VALIDATION_VERSION => '1.10.0';
+use constant CBGP_VALIDATION_VERSION => '1.11.0';
 
 # -----[ IP link fields ]-----
 use constant CBGP_LINK_TYPE => 0;
@@ -3985,6 +3985,31 @@ sub cbgp_valid_bgp_topology_load_caida($)
     return TEST_SUCCESS;
   }
 
+# -----[ cbgp_valid_bgp_topology_load_caida ]------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_topology_load_meulle($)
+  {
+    my ($cbgp)= @_;
+    my $filename= "/tmp/as-level-meulle.txt";
+    my $options= "--format=meulle";
+    my $error;
+
+    die if !open(AS_LEVEL, ">$filename");
+    print AS_LEVEL "AS1\tAS2\tP2C\n";
+    print AS_LEVEL "AS2\tAS3\tPEER\n";
+    print AS_LEVEL "AS2\tAS1\tC2P\n";
+    print AS_LEVEL "AS3\tAS2\tPEER\n";
+    close(AS_LEVEL);
+
+    $error= cbgp_check_error($cbgp,"bgp topology load $options \"$filename\"");
+    defined($error) and return TEST_FAILURE;
+    $error= cbgp_check_error($cbgp, "bgp topology install");
+    defined($error) and return TEST_FAILURE;
+
+    return TEST_SUCCESS;
+  }
+
 # -----[ cbgp_valid_bgp_topology_load_consistency ]------------------
 #
 # -------------------------------------------------------------------
@@ -4008,13 +4033,42 @@ sub cbgp_valid_bgp_topology_load_consistency($)
 sub cbgp_valid_bgp_topology_load_duplicate($)
   {
     my ($cbgp)= @_;
-    my $filename= $resources_path."as-level-duplicate.txt";
+    my $filename= "/tmp/as-level-duplicate.txt";
     my $options= "--addr-sch=local --format=caida";
+
+    die if !open(AS_LEVEL, ">$filename");
+    print AS_LEVEL "1 2 -1\n1 2 0\n";
+    close(AS_LEVEL);
 
     my $error= cbgp_check_error($cbgp, "bgp topology load $options \"$filename\"");
     if (!defined($error) || !($error =~ m/duplicate link/)) {
       return TEST_FAILURE;
     }
+
+    unlink($filename);
+
+    return TEST_SUCCESS;
+  }
+
+# -----[ cbgp_valid_bgp_topology_load_loop ]-------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_topology_load_loop($)
+  {
+    my ($cbgp)= @_;
+    my $filename= "/tmp/as-level-loop.txt";
+    my $options= "--addr-sch=local --format=caida";
+
+    die if !open(AS_LEVEL, ">$filename");
+    print AS_LEVEL "123 123 1\n";
+    close(AS_LEVEL);
+
+    my $error= cbgp_check_error($cbgp, "bgp topology load $options \"$filename\"");
+    if (!defined($error) || !($error =~ m/loop link/)) {
+      return TEST_FAILURE;
+    }
+
+    unlink($filename);
 
     return TEST_SUCCESS;
   }
@@ -8510,10 +8564,14 @@ $tests->register("bgp topology load (addr-sch=local)",
 		 "cbgp_valid_bgp_topology_load_local");
 $tests->register("bgp topology load (format=caida)",
 		 "cbgp_valid_bgp_topology_load_caida");
+$tests->register("bgp topology load (format=meulle)",
+		 "cbgp_valid_bgp_topology_load_meulle");
 $tests->register("bgp topology load (consistency)",
 		 "cbgp_valid_bgp_topology_load_consistency");
 $tests->register("bgp topology load (duplicate)",
 		 "cbgp_valid_bgp_topology_load_duplicate");
+$tests->register("bgp topology load (loop)",
+		 "cbgp_valid_bgp_topology_load_loop");
 $tests->register("bgp topology check (cycle)",
 		 "cbgp_valid_bgp_topology_check_cycle");
 $tests->register("bgp topology check (connectedness)",
