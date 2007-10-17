@@ -2,10 +2,10 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 12/10/2007
+dnl @version 17/10/2007
 dnl =================================================================
 
-AC_INIT([cbgp], [1.4.1])
+AC_INIT([cbgp], [1.4.2])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -46,7 +46,7 @@ AC_TYPE_SIZE_T
 
 dnl Now arrange the build libtool
 AC_PROG_LIBTOOL
-AC_SUBST(CBGP_LT_RELEASE, [1.4.1])
+AC_SUBST(CBGP_LT_RELEASE, [1.4.2])
 
 
 dnl *****************************************************************
