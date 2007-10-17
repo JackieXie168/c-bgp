@@ -21,6 +21,12 @@ INCLUDES = -I..
 libnet_la_SOURCES = \
 	error.c \
 	error.h \
+	export.c \
+	export.h \
+	export_cli.c \
+	export_cli.h \
+	export_ntf.c \
+	export_ntf.h \
 	icmp.c \
 	icmp.h \
 	iface.c \
