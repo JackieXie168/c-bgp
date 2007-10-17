@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 30/05/2007
+// @lastdate 15/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,6 +25,7 @@
 #include <cli/net_node.h>
 #include <cli/net_ospf.h>
 #include <net/error.h>
+#include <net/export.h>
 #include <net/node.h>
 #include <net/ntf.h>
 #include <net/prefix.h>
@@ -63,6 +64,8 @@ static inline SNetSubnet * _cli_net_subnet_by_prefix(char * pcAddr)
 int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
 {
   net_addr_t tAddr;
+  SNetNode * pNode;
+  int iResult;
 
   // Node address ?
   if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &tAddr)) {
@@ -70,19 +73,16 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Check that node does not already exist
-  // THIS CHECK SHOULD BE MOVED TO THE NETWORK MGMT PART.
-  if (network_find_node(tAddr) != NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (");
-    network_perror(pLogErr, NET_ERROR_MGMT_NODE_ALREADY_EXISTS);
-    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
+  // Create new node
+  pNode= node_create(tAddr);
 
-  // Add node.
-  // NOTE: IF THAT FAILS, THE NEW NODE SHOULD BE DISPOSED.
-  if (network_add_node(node_create(tAddr))) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (unknown reason)\n");
+  // Add node
+  iResult= network_add_node(pNode);
+  if (iResult != NET_SUCCESS) {
+    node_destroy(&pNode);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (");
+    network_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -263,6 +263,27 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 // ----- cli_ctx_destroy_net_link -----------------------------------
 void cli_ctx_destroy_net_link(void ** ppItem)
 {
+}
+
+// -----[ cli_net_export ]-------------------------------------------
+/**
+ * Context: {}
+ * tokens: {file}
+ */
+int cli_net_export(SCliContext * pContext, SCliCmd * pCmd)
+{
+  char * pcFileName;
+
+  // Get name of the output file
+  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
+  
+  if (net_export_file(pcFileName) != NET_SUCCESS) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not export to \"%s\"\n",
+	    pcFileName);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  return CLI_SUCCESS;
 }
 
 // ----- cli_net_ntf_load -------------------------------------------
@@ -694,6 +715,15 @@ int cli_register_net_add(SCliCmds * pCmds)
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
 }
 
+// -----[ cli_register_net_export ]----------------------------------
+int cli_register_net_export(SCliCmds * pCmds)
+{
+  SCliParams * pParams= cli_params_create();
+  cli_params_add(pParams, "<file>", NULL);
+  return cli_cmds_add(pCmds, cli_cmd_create("export", cli_net_export,
+					    NULL, pParams));
+}
+
 // ----- cli_register_net_link_load ---------------------------------
 int cli_register_net_link_load(SCliCmds * pCmds)
 {
@@ -868,6 +898,7 @@ int cli_register_net(SCli * pCli)
   pCmds= cli_cmds_create();
   cli_register_net_add(pCmds);
   cli_register_net_domain(pCmds);
+  cli_register_net_export(pCmds);
   cli_register_net_link(pCmds);
   cli_register_net_links(pCmds);
   cli_register_net_ntf(pCmds);

@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 5/07/2005
-// @lastdate 17/03/2006
+// @lastdate 15/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -38,7 +38,7 @@ SIGPDomain * igp_domain_create(uint16_t uNumber, EDomainType tType)
   pDomain->uECMP= 0;
 
   /* Radix-tree with all routers. Destroy function is NULL. */
-  pDomain->pRouters= radix_tree_create(32, NULL);
+  pDomain->pRouters= trie_create(NULL);
 
   return pDomain;
 }
@@ -50,7 +50,7 @@ SIGPDomain * igp_domain_create(uint16_t uNumber, EDomainType tType)
 void igp_domain_destroy(SIGPDomain ** ppDomain)
 {
   if (*ppDomain != NULL) {
-    radix_tree_destroy(&((*ppDomain)->pRouters));
+    trie_destroy(&((*ppDomain)->pRouters));
     FREE(*ppDomain);
     *ppDomain= NULL;
   }
@@ -84,7 +84,7 @@ int igp_domain_set_ecmp(SIGPDomain * pDomain, int iState)
  */
 int igp_domain_add_router(SIGPDomain * pDomain, SNetNode * pNode)
 {
-  radix_tree_add(pDomain->pRouters, pNode->tAddr, 32, pNode);
+  trie_insert(pDomain->pRouters, pNode->tAddr, 32, pNode);
   return node_igp_domain_add(pNode, pDomain->uNumber);
 }
 
@@ -97,7 +97,7 @@ int igp_domain_routers_for_each(SIGPDomain * pDomain,
 				FRadixTreeForEach fForEach,
 				void * pContext)
 {
-  radix_tree_for_each(pDomain->pRouters, fForEach, pContext);
+  trie_for_each(pDomain->pRouters, fForEach, pContext);
   return 0;
 }
 
@@ -126,11 +126,11 @@ SIGPDomain * get_igp_domain(uint16_t uNumber)
   return apIGPDomains[uNumber];
 }
 
-// -----[ igp_domain_for_each ]--------------------------------------
+// -----[ igp_domains_for_each ]-------------------------------------
 /**
  *
  */
-int igp_domain_for_each(FIGPDomainsForEach fForEach, void * pContext)
+int igp_domains_for_each(FIGPDomainsForEach fForEach, void * pContext)
 {
   uint32_t uIndex;
   int iResult;
@@ -180,9 +180,9 @@ static int _igp_domain_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
 // ----- igp_domain_dump --------------------------------------------
 int igp_domain_dump(SLogStream * pStream, SIGPDomain * pDomain)
 {
-  return radix_tree_for_each(pDomain->pRouters,
-			     _igp_domain_dump_for_each,
-			     pStream);
+  return trie_for_each(pDomain->pRouters,
+		       _igp_domain_dump_for_each,
+		       pStream);
 }
 
 // ----- igp_domain_info --------------------------------------------
@@ -239,8 +239,7 @@ int igp_domain_compute(SIGPDomain * pDomain)
  */
 int igp_domain_contains_router(SIGPDomain * pDomain, SNetNode * pNode)
 {
-  if (radix_tree_get_exact(pDomain->pRouters, pNode->tAddr,
-			   32) == NULL)
+  if (trie_find_exact(pDomain->pRouters, pNode->tAddr, 32) == NULL)
     return 0;
   return 1;
 }
@@ -252,7 +251,7 @@ int igp_domain_contains_router(SIGPDomain * pDomain, SNetNode * pNode)
  */
 int igp_domain_contains_router_by_addr(SIGPDomain * pDomain, net_addr_t tAddr)
 {
-  if (radix_tree_get_exact(pDomain->pRouters, tAddr, 32) == NULL)
+  if (trie_find_exact(pDomain->pRouters, tAddr, 32) == NULL)
     return 0;
   return 1;
 }

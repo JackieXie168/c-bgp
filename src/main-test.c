@@ -327,6 +327,23 @@ static int test_net_attr_igpweight_add()
 
 /////////////////////////////////////////////////////////////////////
 //
+// NET NODES
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_node ]--------------------------------------------
+static int test_net_node()
+{
+  SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,0));
+  ASSERT_RETURN(pNode != NULL, "node creation should succeed");
+  node_destroy(&pNode);
+  ASSERT_RETURN(pNode == NULL, "destroyed node should be NULL");
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // NET LINKS
 //
 /////////////////////////////////////////////////////////////////////
@@ -575,6 +592,61 @@ static int test_net_link_tunnel_forward()
   ASSERT_RETURN(pLink == NULL,
 		"destroyed link should be NULL");
   return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NET NETWORK
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_network ]-----------------------------------------
+static int test_net_network()
+{
+  SNetwork * pNetwork= network_create();
+  ASSERT_RETURN(pNetwork != NULL, "network creation should succeed");
+  network_destroy(&pNetwork);
+  ASSERT_RETURN(pNetwork == NULL, "destroyed network should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_network_add_node ]--------------------------------
+static int test_net_network_add_node()
+{
+  SNetwork * pNetwork= network_create();
+  SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,0));
+  ASSERT_RETURN(network_add_node(pNode) == NET_SUCCESS,
+		"node addition should succeed");
+  network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_network_add_node_dup ]----------------------------
+static int test_net_network_add_node_dup()
+{
+  SNetwork * pNetwork= network_create();
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(1,0,0,0));
+  int iResult;
+  ASSERT_RETURN(network_add_node(pNode1) == NET_SUCCESS,
+		"node addition should succeed");
+  ASSERT_RETURN((iResult= network_add_node(pNode2)) != NET_SUCCESS,
+		"duplicate node addition should fail (%d)", iResult);
+  network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_network_add_subnet ]------------------------------
+static int test_net_network_add_subnet()
+{
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_net_network_add_subnet_dup ]--------------------------
+static int test_net_network_add_subnet_dup()
+{
+  return UTEST_SKIPPED;
 }
 
 
@@ -1585,6 +1657,11 @@ SUnitTest TEST_NET_ATTR[]= {
 };
 #define TEST_NET_ATTR_SIZE ARRAY_SIZE(TEST_NET_ATTR)
 
+SUnitTest TEST_NET_NODE[]= {
+  {test_net_node, "node"},
+};
+#define TEST_NET_NODE_SIZE ARRAY_SIZE(TEST_NET_NODE)
+
 SUnitTest TEST_NET_LINK[]= {
   {test_net_link, "link"},
   {test_net_link_forward, "link forward"},
@@ -1596,6 +1673,15 @@ SUnitTest TEST_NET_LINK[]= {
   {test_net_link_tunnel_forward, "tunnel forward"},
 };
 #define TEST_NET_LINK_SIZE ARRAY_SIZE(TEST_NET_LINK)
+
+SUnitTest TEST_NET_NETWORK[]= {
+  {test_net_network, "network"},
+  {test_net_network_add_node, "network add node"},
+  {test_net_network_add_node_dup, "network add node (duplicate)"},
+  {test_net_network_add_subnet, "network add subnet"},
+  {test_net_network_add_subnet_dup, "network add subnet (duplicate)"},
+};
+#define TEST_NET_NETWORK_SIZE ARRAY_SIZE(TEST_NET_NETWORK)
 
 SUnitTest TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath, "as-path"},
@@ -1670,7 +1756,9 @@ SUnitTest TEST_BGP_FILTER_PRED[]= {
 
 SUnitTestSuite TEST_SUITES[]= {
   {"Net Attributes", TEST_NET_ATTR_SIZE, TEST_NET_ATTR},
+  {"Net Nodes", TEST_NET_NODE_SIZE, TEST_NET_NODE},
   {"Net Links", TEST_NET_LINK_SIZE, TEST_NET_LINK},
+  {"Net Network", TEST_NET_NETWORK_SIZE, TEST_NET_NETWORK},
   {"BGP Attributes", TEST_BGP_ATTR_SIZE, TEST_BGP_ATTR},
   {"BGP Routes", TEST_BGP_ROUTE_SIZE, TEST_BGP_ROUTE},
   {"BGP Filter Actions", TEST_BGP_FILTER_ACTION_SIZE, TEST_BGP_FILTER_ACTION},

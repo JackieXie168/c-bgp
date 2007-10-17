@@ -101,7 +101,7 @@ typedef enum { DOMAIN_IGP, DOMAIN_OSPF } EDomainType;
 typedef struct {
   uint16_t uNumber;
   char * pcName;
-  SRadixTree * pRouters;
+  STrie * pRouters;
   EDomainType tType;
   uint8_t uECMP;
 } SIGPDomain;

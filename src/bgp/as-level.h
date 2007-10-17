@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/04/2007
-// @lastdate 24/05/2007
+// @lastdate 16/10/2007
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_H__
@@ -25,6 +25,7 @@
 // ----- File format -----
 #define ASLEVEL_FORMAT_REXFORD 0
 #define ASLEVEL_FORMAT_CAIDA   1
+#define ASLEVEL_FORMAT_MEULLE  2
 #define ASLEVEL_FORMAT_DEFAULT ASLEVEL_FORMAT_REXFORD
 
 // ----- Topology state -----
@@ -47,19 +48,20 @@
 #define ASLEVEL_ERROR_INVALID_RELATION  -5
 #define ASLEVEL_ERROR_INVALID_DELAY     -6
 #define ASLEVEL_ERROR_DUPLICATE_LINK    -7
-#define ASLEVEL_ERROR_NODE_EXISTS       -8
-#define ASLEVEL_ERROR_NO_TOPOLOGY       -9
-#define ASLEVEL_ERROR_TOPOLOGY_LOADED   -10
-#define ASLEVEL_ERROR_UNKNOWN_FORMAT    -11
-#define ASLEVEL_ERROR_UNKNOWN_ADDRSCH   -12
-#define ASLEVEL_ERROR_CYCLE_DETECTED    -13
-#define ASLEVEL_ERROR_DISCONNECTED      -14
-#define ASLEVEL_ERROR_INCONSISTENT      -15
-#define ASLEVEL_ERROR_UNKNOWN_FILTER    -16
-#define ASLEVEL_ERROR_INVALID_STATE     -17
-#define ASLEVEL_ERROR_NOT_INSTALLED     -18
-#define ASLEVEL_ERROR_ALREADY_INSTALLED -19
-#define ASLEVEL_ERROR_ALREADY_RUNNING   -20
+#define ASLEVEL_ERROR_LOOP_LINK         -8
+#define ASLEVEL_ERROR_NODE_EXISTS       -9
+#define ASLEVEL_ERROR_NO_TOPOLOGY       -10
+#define ASLEVEL_ERROR_TOPOLOGY_LOADED   -11
+#define ASLEVEL_ERROR_UNKNOWN_FORMAT    -12
+#define ASLEVEL_ERROR_UNKNOWN_ADDRSCH   -13
+#define ASLEVEL_ERROR_CYCLE_DETECTED    -14
+#define ASLEVEL_ERROR_DISCONNECTED      -15
+#define ASLEVEL_ERROR_INCONSISTENT      -16
+#define ASLEVEL_ERROR_UNKNOWN_FILTER    -17
+#define ASLEVEL_ERROR_INVALID_STATE     -18
+#define ASLEVEL_ERROR_NOT_INSTALLED     -19
+#define ASLEVEL_ERROR_ALREADY_INSTALLED -20
+#define ASLEVEL_ERROR_ALREADY_RUNNING   -21
 
 // ----- Business relationships -----
 #define ASLEVEL_PEER_TYPE_CUSTOMER 0
@@ -104,9 +106,10 @@ extern "C" {
   // -----[ aslevel_as_num_providers ]-------------------------------
   unsigned int aslevel_as_num_providers(SASLevelDomain * pDomain);
   // -----[ aslevel_as_add_link ]------------------------------------
-  SASLevelLink * aslevel_as_add_link(SASLevelDomain * pDomain1,
-				     SASLevelDomain * pDomain2,
-				     peer_type_t tPeerType);
+  int aslevel_as_add_link(SASLevelDomain * pDomain1,
+			  SASLevelDomain * pDomain2,
+			  peer_type_t tPeerType,
+			  SASLevelLink ** ppLink);
   // -----[ aslevel_as_get_link ]------------------------------------
   SASLevelLink * aslevel_as_get_link(SASLevelDomain * pDomain1,
 				      SASLevelDomain * pDomain2);

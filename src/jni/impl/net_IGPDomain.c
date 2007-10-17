@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 29/06/2007
+// @lastdate 16/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -73,12 +73,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
 
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
     return_jni_unlock(jEnv, NULL);
+
   if ((pNode= node_create(tNetAddr)) == NULL) {
     cbgp_jni_throw_CBGPException(jEnv, "node could not be created");
     return_jni_unlock(jEnv, NULL);
   }
 
-  if (network_add_node(pNode) != 0) {
+  if (network_add_node(pNode)) {
+    node_destroy(&pNode);
     cbgp_jni_throw_CBGPException(jEnv, "node already exists");
     return_jni_unlock(jEnv, NULL);
   }

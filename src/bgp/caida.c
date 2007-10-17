@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/04/2007
-// @lastdate 14/05/2007
+// @lastdate 16/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -129,10 +129,9 @@ int caida_parser(FILE * pStream, SASLevelTopo * pTopo,
     }
     
     // Add link in one direction
-    if (aslevel_as_add_link(pDomain1, pDomain2, tPeerType) == NULL) {
-      iError= ASLEVEL_ERROR_DUPLICATE_LINK;
+    iError= aslevel_as_add_link(pDomain1, pDomain2, tPeerType, NULL);
+    if (iError != ASLEVEL_SUCCESS)
       break;
-    }
     
   }
   tokenizer_destroy(&pTokenizer);
