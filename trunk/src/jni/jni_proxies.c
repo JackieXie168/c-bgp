@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 16/10/2007
+// @lastdate 17/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -48,14 +48,14 @@ typedef struct {
 typedef SHashCodeObject SJNIProxy;
 
 // -----[ jni_abort ]------------------------------------------------
-void jni_abort(JNIEnv * jEnv)
+void jni_abort(JNIEnv * jEnv, char * pcMsg)
 {
   if ((*jEnv)->ExceptionOccurred(jEnv)) {
     (*jEnv)->ExceptionDescribe(jEnv); 
     (*jEnv)->ExceptionClear(jEnv);
     fflush(stderr);
   }
-  fprintf(stderr, "aborting with fatal error.\n");
+  fprintf(stderr, "C-BGP JNI: %s\n", pcMsg);
   (*jEnv)->FatalError(jEnv, "C-BGP JNI fatal error");
 }
 
@@ -94,16 +94,12 @@ static jlong _jni_proxy_Object_get_id(JNIEnv * jEnv, jobject joObject)
   jfieldID jfFieldID;
 
   jcClass= (*jEnv)->GetObjectClass(jEnv, joObject);
-  if (jcClass == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get object's class.\n");
-    jni_abort(jEnv);
-  }
+  if (jcClass == NULL)
+    jni_abort(jEnv, "couldn't get object's class (proxy-get-id)");
 
   jfFieldID= (*jEnv)->GetFieldID(jEnv, jcClass, "objectId", "J");
-  if (jfFieldID == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get class's field ID.\n");
-    jni_abort(jEnv);
-  }
+  if (jfFieldID == NULL)
+    jni_abort(jEnv, "couldn't get class's field ID (proxy-get-id)");
 
   return (*jEnv)->GetLongField(jEnv, joObject, jfFieldID);
 }
@@ -119,16 +115,12 @@ static void _jni_proxy_Object_set_id(JNIEnv * jEnv, jobject joObject,
   jfieldID jfFieldID;
 
   jcClass= (*jEnv)->GetObjectClass(jEnv, joObject);
-  if (jcClass == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get object's class.\n");
-    jni_abort(jEnv);
-  }
+  if (jcClass == NULL)
+    jni_abort(jEnv, "couldn't get object's class (proxy-set-id)");
 
   jfFieldID= (*jEnv)->GetFieldID(jEnv, jcClass, "objectId", "J");
-  if (jfFieldID == NULL) {
-    fprintf(stderr, "Fatal error: couldn't get class's field ID.\n");
-    jni_abort(jEnv);
-  }
+  if (jfFieldID == NULL)
+    jni_abort(jEnv, "couldn't get class's field ID (proxy-set-id)");
 
   (*jEnv)->SetLongField(jEnv, joObject, jfFieldID, jlId);
 }
@@ -298,22 +290,13 @@ void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
   fflush(stderr);
 #endif /* DEBUG_PROXIES */
 
-  /*
-  pcSearchedClassName= get_class_name(jEnv, joObject);
-  fprintf(stderr, "  --> class-name: \"%s\"\n", pcSearchedClassName);
-  fflush(stderr);
-  free(pcSearchedClassName);
-  */
-
   pProxy= hash_search(pJ2CHash, &sProxy);
   if (pProxy == NULL)
-    jni_abort(jEnv);
+    jni_abort(jEnv, "couldn't find a mapping (remove-proxy)");
 
   /*
-    if (!(*jEnv)->IsSameObject(jEnv, joObject, pProxy->joObject)) {
-    fprintf(stderr, "NOK (not the same object) ***\n");
-    jni_abort(jEnv);
-    }
+    if (!(*jEnv)->IsSameObject(jEnv, joObject, pProxy->joObject))
+      jni_abort(jEnv, "not the same object (remove-proxy)");
   */
 
   if (pC2JHash != NULL)
@@ -533,13 +516,15 @@ void _jni_lock_init(JNIEnv * jEnv)
   if (joLockObj == NULL) {
     jcClass= (*jEnv)->FindClass(jEnv, "java/lang/Object");
     if (jcClass == NULL)
-      jni_abort(jEnv);
+      jni_abort(jEnv, "could not get class for java/lang/Object (lock-init)");
+
     joLockObj= (*jEnv)->AllocObject(jEnv, jcClass);
     if (joLockObj == NULL)
-      jni_abort(jEnv);
+      jni_abort(jEnv, "could not allocate Object (lock-init)");
+
     joLockObj= (*jEnv)->NewGlobalRef(jEnv, joLockObj);
     if (joLockObj == NULL)
-      jni_abort(jEnv);
+      jni_abort(jEnv, "could not create global ref to Object (lock-init)");
 
 #ifdef DEBUG_LOCK
     fprintf(stderr, "debug: global lock created [%p]\n", joLockObj);
@@ -579,22 +564,22 @@ void jni_lock(JNIEnv * jEnv)
 #endif /* DEBUG_LOCK */
 
   if (joLockObj == NULL)
-    jni_abort(jEnv);
+    jni_abort(jEnv, "not initialized (lock)");
 
   // Check if there is a pending exception => clear
+  // Note: ExceptionOccurred creates a local ref. to the exception
   jtException= (*jEnv)->ExceptionOccurred(jEnv);
   if (jtException != NULL)
     (*jEnv)->ExceptionClear(jEnv);
 
   // Enter monitor (failure => abort)
-  if ((*jEnv)->MonitorEnter(jEnv, joLockObj) != JNI_OK) {
-    fprintf(stderr, "ERROR: could not enter JNI monitor\n");
-    jni_abort(jEnv);
-  }
+  if ((*jEnv)->MonitorEnter(jEnv, joLockObj) != JNI_OK)
+    jni_abort(jEnv, "could not enter JNI monitor (lock)");
 
   // Re-raise pending exception
   if (jtException != NULL)
-    (*jEnv)->Throw(jEnv, jtException);
+    if ((*jEnv)->Throw(jEnv, jtException) < 0)
+      jni_abort(jEnv, "could not re-raise pending exception (lock)");
 
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: monitor entered\n");
@@ -620,27 +605,22 @@ void jni_unlock(JNIEnv * jEnv)
 #endif /* DEBUG_LOCK */
 
   if (joLockObj == NULL)
-    jni_abort(jEnv);
+    jni_abort(jEnv, "not initialized (unlock)");
 
   // Check if there is a pending exception => clear
+  // Note: ExceptionOccurred creates a local ref. to the exception
   jtException= (*jEnv)->ExceptionOccurred(jEnv);
-  if (jtException != NULL) {
-    fprintf(stderr, "pending exception\n");
+  if (jtException != NULL)
     (*jEnv)->ExceptionClear(jEnv);
-  }
 
   // Exit monitor (failure => abort)
-  if ((*jEnv)->MonitorExit(jEnv, joLockObj) != JNI_OK) {
-    fprintf(stderr, "ERROR: could not exit JNI monitor\n");
-    jni_abort(jEnv);
-  }
+  if ((*jEnv)->MonitorExit(jEnv, joLockObj) != JNI_OK)
+    jni_abort(jEnv, "could not exit JNI monitor (unlock)");
 
   // Re-raise pending exception
-  if (jtException != NULL) {
-    fprintf(stderr, "raise(pending exception)\n");
+  if (jtException != NULL)
     if ((*jEnv)->Throw(jEnv, jtException) < 0)
-      jni_abort(jEnv);
-  }
+      jni_abort(jEnv, "could not re-raise pending exception (unlock)");
 
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: monitor exited\n");
