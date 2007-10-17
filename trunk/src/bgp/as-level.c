@@ -3,12 +3,12 @@
 //
 // Provide structures and functions to handle an AS-level topology
 // with business relationships. This is the foundation for handling
-// AS-level topologies inferred by Subramanian et al and later by
-// CAIDA.
+// AS-level topologies inferred by Subramanian et al, by CAIDA and
+// by Meulle et al.
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/04/2007
-// @lastdate 05/07/2007
+// @lastdate 15/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,6 +27,7 @@
 #include <bgp/as-level-types.h>
 #include <bgp/as-level-util.h>
 #include <bgp/caida.h>
+#include <bgp/import_meulle.h>
 #include <bgp/record-route.h>
 #include <bgp/rexford.h>
 #include <bgp/peer_t.h>
@@ -50,8 +51,8 @@ static inline int _aslevel_check_peer_type(peer_type_t tPeerType)
       (tPeerType == ASLEVEL_PEER_TYPE_PEER) ||
       (tPeerType == ASLEVEL_PEER_TYPE_PROVIDER) ||
       (tPeerType == ASLEVEL_PEER_TYPE_SIBLING))
-    return 0;
-  return -1;
+    return ASLEVEL_SUCCESS;
+  return ASLEVEL_ERROR_INVALID_RELATION;
 }
 
 // -----[ _aslevel_link_create ]-------------------------------------
@@ -173,6 +174,8 @@ void aslevel_perror(SLogStream * pStream, int iErrorCode)
     LOG("invalid delay");
   case ASLEVEL_ERROR_DUPLICATE_LINK:
     LOG("duplicate link");
+  case ASLEVEL_ERROR_LOOP_LINK:
+    LOG("loop link");
   case ASLEVEL_ERROR_NODE_EXISTS:
     LOG("node already exists");
   case ASLEVEL_ERROR_NO_TOPOLOGY:
@@ -367,27 +370,32 @@ unsigned int aslevel_as_num_providers(SASLevelDomain * pDomain)
 }
 
 // -----[ aslevel_as_add_link ]--------------------------------------
-SASLevelLink * aslevel_as_add_link(SASLevelDomain * pDomain1,
+int aslevel_as_add_link(SASLevelDomain * pDomain1,
 				   SASLevelDomain * pDomain2,
-				   peer_type_t tPeerType)
+				   peer_type_t tPeerType,
+				   SASLevelLink ** ppLink)
 {
   SASLevelLink * pLink;
 
   // Check peer type validity
-  if (_aslevel_check_peer_type(tPeerType) != 0)
-    return NULL;
+  if (_aslevel_check_peer_type(tPeerType) != ASLEVEL_SUCCESS)
+    return ASLEVEL_ERROR_INVALID_RELATION;
 
   // Check that link endpoints are different
   if (pDomain1->uASN == pDomain2->uASN)
-    return NULL;
+    return ASLEVEL_ERROR_LOOP_LINK;
 
   pLink= _aslevel_link_create(pDomain2, tPeerType);
 
   if (ptr_array_add(pDomain1->pNeighbors, &pLink) < 0) {
     _aslevel_link_destroy(&pLink);
-    return NULL;
+    return ASLEVEL_ERROR_DUPLICATE_LINK;
   }
-  return pLink;
+
+  if (ppLink != NULL)
+    *ppLink= pLink;
+
+  return ASLEVEL_SUCCESS;;
 }
 
 // -----[ aslevel_as_get_link ]--------------------------------------
@@ -900,6 +908,9 @@ int aslevel_topo_load(const char * pcFileName, uint8_t uFormat,
     case ASLEVEL_FORMAT_CAIDA:
       iResult= caida_parser(pFile, pTheTopo, &uLineNumber);
       break;
+    case ASLEVEL_FORMAT_MEULLE:
+      iResult= meulle_parser(pFile, pTheTopo, &uLineNumber);
+      break;
     default:
       iResult= ASLEVEL_ERROR_UNKNOWN_FORMAT;
     }
@@ -1115,6 +1126,9 @@ int aslevel_topo_str2format(const char * pcFormat, uint8_t * puFormat)
     return ASLEVEL_SUCCESS;
   } else if (!strcmp(pcFormat, "caida")) {
     *puFormat= ASLEVEL_FORMAT_CAIDA;
+    return ASLEVEL_SUCCESS;
+  } else if (!strcmp(pcFormat, "meulle")) {
+    *puFormat= ASLEVEL_FORMAT_MEULLE;
     return ASLEVEL_SUCCESS;
   }
   return ASLEVEL_ERROR_UNKNOWN_FORMAT;

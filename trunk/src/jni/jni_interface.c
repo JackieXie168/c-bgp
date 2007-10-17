@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 12/10/2007
+// @lastdate 15/10/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -140,8 +140,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   jni_listener_init(&sConsoleErrListener);
   jni_listener_init(&sBGPListener);
 
-  fprintf(stdout, "C-BGP JNI library started.\n");
-  fflush(stdout);
+  /*fprintf(stdout, "C-BGP JNI library started.\n");
+    fflush(stdout);*/
 
   jni_unlock(jEnv);
   JNI_LOG_LEAVE;
@@ -161,7 +161,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
 
   // Test if a C-BGP JNI session has already been created.
   if (joGlobalCBGP == NULL) {
-    cbgp_jni_throw_CBGPException(jEnv, "CBGP class already initialized");
+    cbgp_jni_throw_CBGPException(jEnv, "CBGP class not initialized");
     JNI_LOG_LEAVE;
     return_jni_unlock2(jEnv);
   }
@@ -186,8 +186,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   (*jEnv)->DeleteGlobalRef(jEnv, joGlobalCBGP);
   joGlobalCBGP= NULL;
 
-  fprintf(stdout, "C-BGP JNI library stopped.\n");
-  fflush(stdout);
+  /*fprintf(stdout, "C-BGP JNI library stopped.\n");
+    fflush(stdout);*/
 
   jni_unlock(jEnv);
   JNI_LOG_LEAVE;
@@ -360,7 +360,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
   sCtx.joVector= joVector;
   sCtx.joCBGP= joCBGP;
 
-  if (igp_domain_for_each(_netGetDomains, &sCtx) != 0) {
+  if (igp_domains_for_each(_netGetDomains, &sCtx) != 0) {
     cbgp_jni_throw_CBGPException(jEnv, "could not get list of domains");
     return_jni_unlock(jEnv, NULL);
   }
@@ -398,6 +398,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
     return_jni_unlock(jEnv, NULL);
+
   if ((pNode= node_create(tNetAddr)) == NULL) {
     cbgp_jni_throw_CBGPException(jEnv, "node could not be created");
     return_jni_unlock(jEnv, NULL);
@@ -978,8 +979,8 @@ jint JNI_OnLoad(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
 
-  fprintf(stdout, "C-BGP JNI library loaded.\n");
-  fflush(stdout);
+  /*fprintf(stdout, "C-BGP JNI library loaded.\n");
+    fflush(stdout);*/
 
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
@@ -1005,8 +1006,8 @@ void JNI_OnUnload(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
 
-  fprintf(stdout, "C-BGP JNI library unloaded.\n");
-  fflush(stdout);
+  /*fprintf(stdout, "C-BGP JNI library unloaded.\n");
+    fflush(stdout);*/
 
   // Get JNI environment
   if ((*jVM)->GetEnv(jVM, (void **) &jEnv, JNI_VERSION_1_2) != JNI_OK)

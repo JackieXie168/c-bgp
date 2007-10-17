@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 28/07/2003
-// @lastdate 14/05/2007
+// @lastdate 16/05/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -142,12 +142,13 @@ int rexford_parser(FILE * pStream, SASLevelTopo * pTopo,
     }
     
     // Add link in both directions
-    if ((aslevel_as_add_link(pDomain1, pDomain2, tPeerType) == NULL) ||
-	(aslevel_as_add_link(pDomain2, pDomain1,
-			     aslevel_reverse_relation(tPeerType)) == NULL)) {
-      iError= ASLEVEL_ERROR_DUPLICATE_LINK;
+    iError= aslevel_as_add_link(pDomain1, pDomain2, tPeerType, NULL);
+    if (iError != ASLEVEL_SUCCESS)
       break;
-    }
+    tPeerType= aslevel_reverse_relation(tPeerType);
+    iError= aslevel_as_add_link(pDomain2, pDomain1, tPeerType, NULL);
+    if (iError != ASLEVEL_SUCCESS)
+      break;
     
   }
 

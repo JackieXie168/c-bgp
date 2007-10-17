@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 13/02/2002
-// @lastdate 19/01/2007
+// @lastdate 15/10/2007
 // ==================================================================
 
 #ifndef __IGP_DOMAIN_H__
@@ -31,8 +31,8 @@ extern "C" {
   void igp_domain_destroy(SIGPDomain ** ppDomain);
   // ----- igp_domain_add_router ------------------------------------
   int igp_domain_add_router(SIGPDomain * pDomain, SNetNode * pRouter);
-  // -----[ igp_domain_for_each ]------------------------------------
-  int igp_domain_for_each(FIGPDomainsForEach fForEach, void * pContext);
+  // -----[ igp_domains_for_each ]-----------------------------------
+  int igp_domains_for_each(FIGPDomainsForEach fForEach, void * pContext);
   // ----- igp_domain_routers_for_each ------------------------------
   int igp_domain_routers_for_each(SIGPDomain * pDomain,
 				  FRadixTreeForEach fForEach,

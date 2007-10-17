@@ -419,6 +419,10 @@ SNetwork * network_get()
  */
 int network_add_node(SNetNode * pNode)
 {
+  // Check that node does not already exist
+  if (network_find_node(pNode->tAddr) != NULL)
+    return NET_ERROR_MGMT_NODE_ALREADY_EXISTS;
+
   pNode->pNetwork= pTheNetwork;
   return trie_insert(pTheNetwork->pNodes, pNode->tAddr, 32, pNode);
 }

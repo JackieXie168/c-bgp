@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 11/10/2007
+// @lastdate 16/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -55,8 +55,8 @@ void jni_abort(JNIEnv * jEnv)
     (*jEnv)->ExceptionClear(jEnv);
     fflush(stderr);
   }
-  fprintf(stderr, "aborting.\n");
-  abort();
+  fprintf(stderr, "aborting with fatal error.\n");
+  (*jEnv)->FatalError(jEnv, "C-BGP JNI fatal error");
 }
 
 // -----[ get_class_name ]-------------------------------------------
@@ -562,8 +562,17 @@ void _jni_lock_destroy(JNIEnv * jEnv)
 }
 
 // -----[ jni_lock ]-------------------------------------------------
+/**
+ * Enters the global JNI monitor.
+ *
+ * Note: If there is a pending exception, it is cleared before the
+ * call to MonitorEnter, then re-raised after the call. If the call
+ * to MonitorEnter fails, the program is aborted.
+ */
 void jni_lock(JNIEnv * jEnv)
 {
+  jthrowable jtException= NULL;
+
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: monitor enter [%p]\n", joLockObj);
   fflush(stderr);
@@ -572,10 +581,20 @@ void jni_lock(JNIEnv * jEnv)
   if (joLockObj == NULL)
     jni_abort(jEnv);
 
+  // Check if there is a pending exception => clear
+  jtException= (*jEnv)->ExceptionOccurred(jEnv);
+  if (jtException != NULL)
+    (*jEnv)->ExceptionClear(jEnv);
+
+  // Enter monitor (failure => abort)
   if ((*jEnv)->MonitorEnter(jEnv, joLockObj) != JNI_OK) {
     fprintf(stderr, "ERROR: could not enter JNI monitor\n");
     jni_abort(jEnv);
   }
+
+  // Re-raise pending exception
+  if (jtException != NULL)
+    (*jEnv)->Throw(jEnv, jtException);
 
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: monitor entered\n");
@@ -584,8 +603,17 @@ void jni_lock(JNIEnv * jEnv)
 }
 
 // -----[ jni_unlock ]-----------------------------------------------
+/**
+ * Exits the global JNI monitor.
+ *
+ * Note: If there is a pending exception, it is cleared before the
+ * call to MonitorEnter, then re-raised after the call. If the call
+ * to MonitorEnter fails, the program is aborted.
+ */
 void jni_unlock(JNIEnv * jEnv)
 {
+  jthrowable jtException= NULL;
+
 #ifdef DEBUG_LOCK
   fprintf(stderr, "debug: monitor exit [%p]\n", joLockObj);
   fflush(stderr);
@@ -594,9 +622,24 @@ void jni_unlock(JNIEnv * jEnv)
   if (joLockObj == NULL)
     jni_abort(jEnv);
 
+  // Check if there is a pending exception => clear
+  jtException= (*jEnv)->ExceptionOccurred(jEnv);
+  if (jtException != NULL) {
+    fprintf(stderr, "pending exception\n");
+    (*jEnv)->ExceptionClear(jEnv);
+  }
+
+  // Exit monitor (failure => abort)
   if ((*jEnv)->MonitorExit(jEnv, joLockObj) != JNI_OK) {
     fprintf(stderr, "ERROR: could not exit JNI monitor\n");
     jni_abort(jEnv);
+  }
+
+  // Re-raise pending exception
+  if (jtException != NULL) {
+    fprintf(stderr, "raise(pending exception)\n");
+    if ((*jEnv)->Throw(jEnv, jtException) < 0)
+      jni_abort(jEnv);
   }
 
 #ifdef DEBUG_LOCK

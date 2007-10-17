@@ -331,7 +331,7 @@ int igp_compute_rt_for_each(uint32_t uKey, uint8_t uKeyLen,
  */
 int igp_compute_domain(SIGPDomain * pDomain)
 {
-  return radix_tree_for_each(pDomain->pRouters,
-			     igp_compute_rt_for_each,
-			     pDomain);
+  return trie_for_each(pDomain->pRouters,
+		       igp_compute_rt_for_each,
+		       pDomain);
 }

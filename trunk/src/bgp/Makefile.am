@@ -71,6 +71,8 @@ libbgp_la_SOURCES = \
 	filter_registry.c \
 	filter_registry.h \
 	filter_t.h \
+	import_meulle.c \
+	import_meulle.h \
 	message.c \
 	message.h \
 	mrtd.c \
