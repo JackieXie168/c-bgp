@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/03/2006
-// @lastdate 11/10/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,6 +17,25 @@
 /////////////////////////////////////////////////////////////////////
 // Helper functions for Java objects creation and method calls
 /////////////////////////////////////////////////////////////////////
+
+// -----[ jni_check_null ]-------------------------------------------
+/**
+ * Check that the given Java object is not NULL. If the object is
+ * NULL, raise a NullPointerException and return -1. Otherwise,
+ * return 0.
+ */
+int jni_check_null(JNIEnv * jEnv, jobject joObject)
+{
+  jclass jcClass;
+
+  if (joObject == NULL) {
+    jcClass= (*jEnv)->FindClass(jEnv, "java/lang/NullPointerException");
+    assert(jcClass != NULL);
+    assert((*jEnv)->ThrowNew(jEnv, jcClass, NULL) >= 0);
+    return -1;
+  }
+  return 0;
+}
 
 // -----[ cbgp_jni_new ]---------------------------------------------
 /**

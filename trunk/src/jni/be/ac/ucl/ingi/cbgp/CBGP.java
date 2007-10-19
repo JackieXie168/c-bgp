@@ -4,18 +4,19 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 29/06/2007
+// @lastdate 16/10/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
 
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.Vector;
 
-import be.ac.ucl.ingi.cbgp.bgp.Peer;
 import be.ac.ucl.ingi.cbgp.bgp.Router;
-import be.ac.ucl.ingi.cbgp.net.*;
+import be.ac.ucl.ingi.cbgp.net.IGPDomain;
+import be.ac.ucl.ingi.cbgp.net.Link;
+import be.ac.ucl.ingi.cbgp.net.Message;
+import be.ac.ucl.ingi.cbgp.net.Node;
 
 // -----[ CBGP ]-----------------------------------------------------
 /**
@@ -52,7 +53,8 @@ public class CBGP
     /**
      * Finalizes the C-BGP JNI API.
      */
-    public native synchronized void destroy();
+    public native synchronized void destroy()
+		throws CBGPException;
 
     // -----[ consoleSetOutListener ]--------------------------------
     /**
@@ -83,12 +85,28 @@ public class CBGP
     // IGP Domains Management
     /////////////////////////////////////////////////////////////////
 
-    // -----[ netAddDomains ]----------------------------------------
+    // -----[ netAddNode ]-------------------------------------------
+    public native synchronized Node netAddNode(String addr, int domain)
+    	throws CBGPException;
+    
+    // -----[ netAddDomain ]-----------------------------------------
+    /**
+     * Add an IGP domain.
+     *
+     * @param i the domain's identifier
+     * @return the newly created domain
+     */
     public native synchronized IGPDomain netAddDomain(int iDomain)
-	throws CBGPException;
+		throws CBGPException;
+
     // -----[ netGetDomains ]----------------------------------------
+    /**
+     * Get the list of all IGP domains.
+     *
+     * @return a Vector of IGPDomain's
+     */
     public native synchronized Vector netGetDomains()
-	throws CBGPException;
+		throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -96,18 +114,22 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ netGetNodes ]------------------------------------------
-    public native synchronized
-	Vector<Node> netGetNodes()
-	throws CBGPException;
+    /**
+     * Get the list of all nodes.
+     *
+     * @return a Vector of Node's
+     */
+    public native synchronized Vector<Node> netGetNodes()
+		throws CBGPException;
+
     // -----[ netGetNode ]-------------------------------------------
-    public native synchronized
-	Node netGetNode(String sNodeAddr)
-	throws CBGPException;
-    // -----[ netNodeRouteAdd ]--------------------------------------
-    public native synchronized
-	void netNodeRouteAdd(String sRouterAddr, String sPrefix,
-			     String sNexthop, 
-			     int iWeight)
+    /**
+     * Get a specific node based on its identifier.
+     *
+     * @param sNodeAddr the node's identifier
+     * @return the requested Node
+     */
+    public native synchronized Node netGetNode(String sNodeAddr)
 		throws CBGPException;
 
 
@@ -116,9 +138,17 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ netAddLink ]-------------------------------------------
-    public native synchronized
-	Link netAddLink(String sSrcAddr, String sDstAddr, int iWeight) 
-	throws CBGPException;
+    /**
+     * Add a new point-to-point link.
+     *
+     * @param sSrcAddr the link's head end
+     * @param sDstAddr the link's tail end
+     * @param iWeight the link's propagation delay
+     * @return the newly created Link
+     */
+    public native synchronized Link netAddLink(String sSrcAddr,
+    	String sDstAddr, int iWeight) 
+		throws CBGPException;
     
     
     /////////////////////////////////////////////////////////////////
@@ -126,9 +156,13 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ bgpGetDomains ]----------------------------------------
-    public native synchronized
-	Vector bgpGetDomains()
-	throws CBGPException;
+    /**
+     * Get the list of all BGP domains (ASes).
+     *
+     * @return a Vector of Domains
+     */
+    public native synchronized Vector bgpGetDomains()
+		throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -136,21 +170,17 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ bgpAddRouter ]-----------------------------------------
+    /**
+     * Add a BGP router.
+     *
+     * @param sName the router's name
+     * @param sAddr the router's identifier (must exist)
+     * @param iASNumber the router's AS Number (will be created if it
+     *                   does not already exists)
+     * @return the newly created Router
+     */
     public native synchronized
 	Router bgpAddRouter(String sName, String sAddr, int iASNumber)
-	throws CBGPException;
-    // -----[ bgpRouterPeerReflectorClient ]-------------------------
-    public native synchronized
-	void bgpRouterPeerReflectorClient(String sRouterAddr,
-					  String sPeerAddr)
-	throws CBGPException;
-    // -----[ bgpRouterPeerVirtual ]---------------------------------
-    public native synchronized
-	void bgpRouterPeerVirtual(String sRouterAddr,
-				  String sPeerAddr)
-	throws CBGPException;
-    // -----[ bgpRouterLoadRib ]-------------------------------------
-    public native void bgpRouterLoadRib(String sRouterAddr, String sFileName)
 	throws CBGPException;
 
 
@@ -199,7 +229,7 @@ public class CBGP
      * @param i the position of the event in the queue
      */
     public native synchronized Message simGetEvent(int i)
-	throws CBGPException;
+		throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -235,12 +265,33 @@ public class CBGP
     	throws CBGPException;
 
     // -----[ cliGetHelp ]------------------------------------------
+    /* To be added */
+
     // -----[ cliGetSyntax ]----------------------------------------
+    /* To be added */
+
     // -----[ getVersion ]------------------------------------------
+    /**
+     * Returns the C-BGP version. The version should be of the form
+     * "x.y.z" where x,y,z are positive integer numbers. For
+     * example, a possible version is '1.4.1'. The returned version
+     * could also contain an additional suffix part separated by
+     * a dash. For example, a possible version is '1.4.1-rc2'.
+     *
+     * @return a String containing the C-BGP version
+     */
     public native synchronized String getVersion()
     	throws CBGPException;
 
+    // -----[ getErrorMsg ]-----------------------------------------
+    /**
+     * Returns the last error message.
+     *
+     * @return a String containing the last error message
+     */
+    public native synchronized String getErrorMsg(int iErrorCode);
 
+    
     /////////////////////////////////////////////////////////////////
     // Experimental features
     /////////////////////////////////////////////////////////////////
@@ -250,6 +301,14 @@ public class CBGP
 
     // -----[ setBGPMsgListener ]------------------------------------
     public native void setBGPMsgListener(BGPMsgListener listener);
+    
+    // -----[ netExport ]--------------------------------------------
+    /**
+     * Export the current topology and routing setup to a file in CLI
+     * format.
+     */
+    public native void netExport(String sFileName)
+    	throws CBGPException;
 
 
     /////////////////////////////////////////////////////////////////
@@ -260,17 +319,15 @@ public class CBGP
 
     // -----[ JNI library loading ]----------------------------------
     static {
-	try {
-	    System.loadLibrary("csim");
-	} catch (UnsatisfiedLinkError e) {
-	    System.err.println("Could not load one of the libraries "+
-			       "required by CBGP (reason: "+
-			       e.getMessage()+")");
-	    e.printStackTrace();
-	    System.exit(-1);
-	}
+    	try {
+    		System.loadLibrary("csim");
+    	} catch (UnsatisfiedLinkError e) {
+    		System.err.println("Could not load one of the libraries "+
+    						   "required by CBGP (reason: "+
+			                   e.getMessage()+")");
+    		e.printStackTrace();
+    		System.exit(-1);
+    	}
     }
 
 }
-
-    

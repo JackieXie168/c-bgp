@@ -17,7 +17,9 @@ import java.lang.Exception;
 public class UnknownMetricException extends Exception
 {
 
-    // -----[ UnknownMetricException ]-------------------------------
+	private static final long serialVersionUID = 1L;
+
+	// -----[ UnknownMetricException ]-------------------------------
     /**
      * UnknownMetricException's constructor.
      */

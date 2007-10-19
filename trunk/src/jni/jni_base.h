@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/03/2006
-// @lastdate 11/10/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifndef __JNI_BASE_H__
@@ -19,6 +19,8 @@ extern "C" {
   // Helper functions for Java objects creation and method calls
   ///////////////////////////////////////////////////////////////////
 
+  // -----[ jni_check_null ]-----------------------------------------
+  int jni_check_null(JNIEnv * jEnv, jobject joObject);
   // -----[ cbgp_jni_new ]-------------------------------------------
   jobject cbgp_jni_new(JNIEnv * env, const char * pcClass,
 		       const char * pcConstr, ...);

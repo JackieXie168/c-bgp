@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 09/10/2007
+// @lastdate 18/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,7 +26,7 @@
 #define CLASS_Node "be/ac/ucl/ingi/cbgp/net/Node"
 #define CONSTR_Node "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
                     "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                    "Ljava/lang/String;Ljava/util/Hashtable;)V"
+                    "Ljava/util/Hashtable;)V"
 
 // -----[ cbgp_jni_new_net_Node ]------------------------------------
 /**
@@ -37,9 +37,9 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
 			      SNetNode * pNode)
 {
   jobject joNode;
-  jstring jsName= NULL;
   jobject joHashtable= NULL;
   jobject joString;
+  jobject joAddress;
   int iIndex;
 
   /* Java proxy object already existing ? */
@@ -48,9 +48,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
     return joNode;
 
   /* Convert node attributes to Java objects */
-  jobject joAddress= cbgp_jni_new_IPAddress(jEnv, pNode->tAddr);
-  if (pNode->pcName != NULL)
-    jsName= cbgp_jni_new_String(jEnv, pNode->pcName);
+  joAddress= cbgp_jni_new_IPAddress(jEnv, pNode->tAddr);
 
   /* Check that the conversion was successful */
   if (joAddress == NULL)
@@ -72,7 +70,6 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   if ((joNode= cbgp_jni_new(jEnv, CLASS_Node, CONSTR_Node,
 			    joCBGP,
 			    joAddress,
-			    jsName,
 			    joHashtable)) == NULL)
     return NULL;
 
@@ -80,6 +77,63 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joNode, pNode);
 
   return joNode;
+}
+
+// -----[ getName ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getName
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getName
+  (JNIEnv * jEnv, jobject joNode)
+{
+  SNetNode * pNode;
+  jstring jsName= NULL;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  /* Get the name */
+  if (pNode->pcName != NULL)
+    jsName= cbgp_jni_new_String(jEnv, pNode->pcName);
+
+  jni_unlock(jEnv);
+  return jsName;
+}
+
+// -----[ setName ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    setName
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setName
+  (JNIEnv * jEnv, jobject joNode, jstring jsName)
+{
+  SNetNode * pNode;
+  const char * pcName;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock2(jEnv);
+
+  /* Set the name */
+  if (jsName != NULL) {
+    pcName= (*jEnv)->GetStringUTFChars(jEnv, jsName, NULL);
+    node_set_name(pNode, pcName);
+    (*jEnv)->ReleaseStringUTFChars(jEnv, jsName, pcName);
+  } else
+    node_set_name(pNode, NULL);
+
+  jni_unlock(jEnv);
 }
 
 // -----[ recordRoute ]----------------------------------------------

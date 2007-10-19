@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 17/10/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -32,6 +32,7 @@
 static SHash * pC2JHash= NULL;
 static SHash * pJ2CHash= NULL;
 static unsigned long ulProxySeqNum= 0;
+JNIEnv * jCurrentEnv= NULL;
 
 // -----[ SHashCodeObject ]-----
 /** Maintains the mapping between a CObj and a JObj. */
@@ -132,7 +133,7 @@ static SJNIProxy * _jni_proxy_create(JNIEnv * jEnv,
 {
   SJNIProxy * pProxy= MALLOC(sizeof(SJNIProxy));
   pProxy->pObject= pObject;
-  pProxy->joObject= (*jEnv)->NewWeakGlobalRef(jEnv, joObject);;
+  pProxy->joObject= (*jEnv)->NewGlobalRef(jEnv, joObject);
   pProxy->ulObjectId= ++ulProxySeqNum;
 
   // NOTE: We can't use Java's hashcode since it is allowed to return
@@ -203,6 +204,7 @@ static void _jni_proxy_c2j_destroy(void * pElt)
   fprintf(stderr, "\n");
 #endif /* DEBUG_PROXIES */
 
+  (*jCurrentEnv)->DeleteGlobalRef(jCurrentEnv, pProxy->joObject);
   pProxy->pObject= NULL;
 }
 
@@ -217,7 +219,6 @@ static void _jni_proxy_j2c_destroy(void * pElt)
   fprintf(stderr, "\n");
 #endif /* DEBUG_PROXIES */
 
-  //(*jEnv)->DeleteWeakGlobalRef(jEnv, pProxy->joObject);
   FREE(pProxy);
 }
 
@@ -299,9 +300,11 @@ void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
       jni_abort(jEnv, "not the same object (remove-proxy)");
   */
 
+  jCurrentEnv= jEnv;
   if (pC2JHash != NULL)
     hash_del(pC2JHash, pProxy);
   hash_del(pJ2CHash, pProxy);
+  jCurrentEnv= NULL;
 
 #ifdef DEBUG_PROXIES
   fprintf(stderr, "debug: proxy removed\n");
@@ -313,7 +316,8 @@ void jni_proxy_remove(JNIEnv * jEnv, jobject joObject)
 /**
  *
  */
-void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
+void * jni_proxy_lookup2(JNIEnv * jEnv, jobject joObject,
+			 char * pcFile, int iLine)
 {
 #if defined(DEBUG_PROXIES)
   char * pcSearchedClassName;
@@ -321,6 +325,10 @@ void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
   unsigned long int ulObjectId= _jni_proxy_Object_get_id(jEnv, joObject);
   SHashCodeObject sHashObject;
   SHashCodeObject * pHashObject;
+
+  // If it is a lookup on a NULL pointer, generate a NullPointerException
+  if (jni_check_null(jEnv, joObject))
+    return NULL;
 
 #ifdef DEBUG_PROXIES
   fprintf(stderr, "debug: proxy lookup [j-obj:%p/key:%lu]\n",
@@ -342,7 +350,7 @@ void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
   sHashObject.ulObjectId= ulObjectId;
   pHashObject= hash_search(pJ2CHash, &sHashObject);
   if (pHashObject == NULL) {
-    fprintf(stderr, "Error: during lookup, reported ID has no mapping\n");
+    fprintf(stderr, "Error: during lookup, reported ID has no mapping (%s,%d)\n", pcFile, iLine);
     abort();
   }
 
@@ -354,7 +362,8 @@ void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject)
 /**
  *
  */
-jobject jni_proxy_get(JNIEnv * jEnv, void * pObject)
+jobject jni_proxy_get2(JNIEnv * jEnv, void * pObject,
+		       char * pcFile, int iLine)
 {
   SJNIProxy sProxy;
   SJNIProxy * pProxy;
@@ -394,7 +403,8 @@ jobject jni_proxy_get(JNIEnv * jEnv, void * pObject)
    * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
    */
   if ((*jEnv)->IsSameObject(jEnv, pProxy->joObject, NULL)) {
-    fprintf(stderr, "Error: object was garbage-collected.\n");
+    fprintf(stderr, "Error: object was garbage-collected c:%p/j:%p (%s, %d).\n",
+	    pObject, pProxy->joObject, pcFile, iLine);
     abort();
   }
 
@@ -470,9 +480,11 @@ void _jni_proxies_init()
  * must be called at the end of a C-BGP session. The CBGP.destroy()
  * JNI function takes care of this call.
  */
-void _jni_proxies_invalidate()
+void _jni_proxies_invalidate(JNIEnv * jEnv)
 {
+  jCurrentEnv= jEnv;
   hash_destroy(&pC2JHash);
+  jCurrentEnv= NULL;
 }
 
 // -----[ _jni_proxies_destroy ]-------------------------------------
@@ -481,10 +493,12 @@ void _jni_proxies_invalidate()
  * function must only be called when the JNI library is unloaded. The
  * JNI_OnUnload function takes care of this call.
  */
-void _jni_proxies_destroy()
+void _jni_proxies_destroy(JNIEnv * jEnv)
 {
+  jCurrentEnv= jEnv;
   hash_destroy(&pC2JHash);
   hash_destroy(&pJ2CHash);
+  jCurrentEnv= NULL;
 }
 
 

@@ -20,9 +20,11 @@ extern "C" {
   // -----[ jni_proxy_remove ]---------------------------------------
   void jni_proxy_remove(JNIEnv * jEnv, jobject joObject);
   // -----[ jni_proxy_lookup ]---------------------------------------
-  void * jni_proxy_lookup(JNIEnv * jEnv, jobject joObject);
+  void * jni_proxy_lookup2(JNIEnv * jEnv, jobject joObject,
+			   char * pcLine, int iLine);
   // -----[ jni_proxy_get ]------------------------------------------
-  jobject jni_proxy_get(JNIEnv * jEnv, void * pObject);
+  jobject jni_proxy_get2(JNIEnv * jEnv, void * pObject,
+			char * pcLine, int iLine);
 
   // -----[ jni_proxy_get_CBGP ]-------------------------------------
   jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject);
@@ -35,9 +37,9 @@ extern "C" {
   // -----[ _jni_proxies_init ]--------------------------------------
   void _jni_proxies_init();
   // -----[ _jni_proxies_destroy ]-----------------------------------
-  void _jni_proxies_destroy();
+  void _jni_proxies_destroy(JNIEnv * jEnv);
   // -----[ _jni_proxies_invalidate ]--------------------------------
-  void _jni_proxies_invalidate();
+  void _jni_proxies_invalidate(JNIEnv * jEnv);
 
   // -----[ _jni_lock_init ]------------------------------------------
   void _jni_lock_init(JNIEnv * jEnv);
@@ -46,6 +48,8 @@ extern "C" {
 
 #define return_jni_unlock(E, R) if (1) { jni_unlock(E); return R; }
 #define return_jni_unlock2(E) if (1) { jni_unlock(E); return; }
+#define jni_proxy_lookup(E,O) jni_proxy_lookup2(E,O,__FILE__,__LINE__)
+#define jni_proxy_get(E,O) jni_proxy_get2(E,O,__FILE__,__LINE__)
 
 #ifdef __cplusplus
 }
