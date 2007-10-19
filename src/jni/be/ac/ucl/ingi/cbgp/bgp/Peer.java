@@ -3,14 +3,15 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/02/2005
-// @lastdate 30/05/2007
+// @lastdate 01/10/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp;
 
-import java.util.Vector;
-
-import be.ac.ucl.ingi.cbgp.*;
+import be.ac.ucl.ingi.cbgp.CBGP;
+import be.ac.ucl.ingi.cbgp.CBGPException;
+import be.ac.ucl.ingi.cbgp.IPAddress;
+import be.ac.ucl.ingi.cbgp.ProxyObject;
 
 // -----[ Peer ]-----------------------------------------------------
 /**
@@ -25,25 +26,19 @@ public class Peer extends ProxyObject
     public static final byte SESSION_STATE_ESTABLISHED= 2;
     public static final byte SESSION_STATE_ACTIVE     = 3;
 
-    public static final byte PEER_FLAG_RR_CLIENT    = 0x01;
-    public static final byte PEER_FLAG_VIRTUAL      = 0x04;
-    public static final byte PEER_FLAG_SOFT_RESTART = 0x08;
-
     // -----[ protected attributes ]---------------------------------
     protected IPAddress address;
     protected int iAS;
-    protected byte bFlags;
 
     // -----[ Peer ]-------------------------------------------------
     /**
      * Peer's constructor.
      */
-    protected Peer(CBGP cbgp, IPAddress address, int iAS, byte bFlags)
+    protected Peer(CBGP cbgp, IPAddress address, int iAS)
     {
     	super(cbgp);
     	this.address= address;
     	this.iAS= iAS;
-    	this.bFlags= bFlags;
     }
 
     // -----[ getAddress ]-------------------------------------------
@@ -114,18 +109,10 @@ public class Peer extends ProxyObject
 	}
     }
     
-    // -----[ recv ]------------------------------------------------
-    public native synchronized	void bgpRouterPeerRecv(String sMesg)
-	    throws CBGPException;
+    // -----[ recv ]-------------------------------------------------
+    public native synchronized	void recv(String sMesg)
+	throws CBGPException;
     
-    // -----[ getAdjRib ]-------------------------------------------
-    public native Vector getAdjRib(String sPrefix, boolean bIn)
-		throws CBGPException;
-    
-    // -----[ getFlags ]---------------------------------------------
-    protected native synchronized boolean getFlags()
-    	throws CBGPException;
-
     // -----[ isInternal ]-------------------------------------------
     public native synchronized boolean isInternal()
 	throws CBGPException;
@@ -134,19 +121,29 @@ public class Peer extends ProxyObject
     /**
      * Returns true if the peer is a route-reflector client.
      */
-    public boolean isReflectorClient()
-    {
-    	return (bFlags & PEER_FLAG_RR_CLIENT) != 0;
-    }
+    public native synchronized boolean isReflectorClient()
+	throws CBGPException;
+
+    // -----[ setReflectorClient ]-----------------------------------
+    /**
+     * Configure this peer as a route-reflector client.
+     */
+    public native synchronized void setReflectorClient()
+	throws CBGPException;
 
     // -----[ isVirtual ]--------------------------------------------
     /**
      * Returns true if the peer is virtual.
      */
-    public boolean isVirtual()
-    {
-    	return (bFlags & PEER_FLAG_VIRTUAL) != 0;
-    }
+    public native synchronized boolean isVirtual()
+	throws CBGPException;
+
+    // -----[ setVirtual ]-------------------------------------------
+    /**
+     * Configure this peer as a virtual peer.
+     */
+    public native synchronized void setVirtual()
+	throws CBGPException;
 
     //  -----[ getNextHopSelf ]--------------------------------------
     public native synchronized boolean getNextHopSelf()
@@ -160,10 +157,8 @@ public class Peer extends ProxyObject
     /**
      * Returns true if the peer has the soft-restart feature.
      */
-    public boolean hasSoftRestart()
-    {
-	return (bFlags & PEER_FLAG_SOFT_RESTART) != 0;
-    }
+    public native synchronized boolean hasSoftRestart()
+	throws CBGPException;
     
     // -----[ getInputFilter ]---------------------------------------
     public native Filter getInputFilter()
@@ -191,25 +186,25 @@ public class Peer extends ProxyObject
         } catch (CBGPException e) {
           s+= "???";
         }
-	if (isReflectorClient()) {
-	    s+= (iOptions++ > 0)?",":"\t(";
-	    s+= "rr-client";
-	}
 	try {
-		if (getNextHopSelf()) {
-			s+= (iOptions++ > 0)?",":"\t(";
-			s+= "next-hop-self";
-		}
+	    if (isReflectorClient()) {
+		s+= (iOptions++ > 0)?",":"\t(";
+		s+= "rr-client";
+	    }
+	    if (getNextHopSelf()) {
+		s+= (iOptions++ > 0)?",":"\t(";
+		s+= "next-hop-self";
+	    }
+	    if (isVirtual()) {
+		s+= (iOptions++ > 0)?",":"\t(";
+		s+= "virtual";
+	    }
+	    if (hasSoftRestart()) {
+		s+= (iOptions++ > 0)?",":"\t(";
+		s+= "soft-restart";
+	    }
 	} catch (CBGPException e) {
 		s+= "???";
-	}
-	if (isVirtual()) {
-	    s+= (iOptions++ > 0)?",":"\t(";
-	    s+= "virtual";
-	}
-	if (hasSoftRestart()) {
-	    s+= (iOptions++ > 0)?",":"\t(";
-	    s+= "soft-restart";
 	}
 	s+= (iOptions > 0)?")":"";
 

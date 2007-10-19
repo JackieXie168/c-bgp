@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 20/03/2006
-// @lastdate 29/06/2007
+// @lastdate 02/10/2007
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
@@ -32,6 +32,12 @@ public class Router extends ProxyObject
     // -----[ Router ]----------------------------------------------
     /**
      * Router's constructor.
+     *
+     * @param cbgp the C-BGP instance
+     * @param address the router's identifier
+     * @param asn the router's AS number
+     * @param routerID the router ID
+     * @param name the router name
      */
     protected Router(CBGP cbgp, IPAddress address, short asn, IPAddress routerID, String name)
     {
@@ -45,6 +51,8 @@ public class Router extends ProxyObject
     // -----[ getAddress ]-------------------------------------------
     /**
      * Returns the router's IP address.
+     *
+     * @return the router's identifier
      */
     public IPAddress getAddress()
     {
@@ -52,12 +60,22 @@ public class Router extends ProxyObject
     }
     
     // -----[ getASN ]----------------------------------------------
+    /**
+     * Returns the router's ASN
+     *
+     * @return the router's ASN
+     */
     public short getASN()
     {
     	return asn;
     }
 
     // -----[ getRouterID ]-----------------------------------------
+    /**
+     * Returns the router ID
+     *
+     * @return the router ID
+     */
     public IPAddress getRouterID()
     {
     	return routerID;
@@ -66,6 +84,8 @@ public class Router extends ProxyObject
     // -----[ getName ]----------------------------------------------
     /**
      * Returns the router's name.
+     *
+     * @return the router's name
      */
     public String getName()
     {
@@ -100,6 +120,15 @@ public class Router extends ProxyObject
     public native Vector<Route> getAdjRIB(String peer, String prefix,
 					  boolean in)
 	throws CBGPException;
+
+    // -----[ loadRib ]----------------------------------------------
+    public native void loadRib(String sFileName)
+	throws CBGPException;
+
+    // -----[ rescan ]-----------------------------------------------
+    public native void rescan()
+	throws CBGPException;
+
 
     // -----[ toString ]---------------------------------------------
     /**
