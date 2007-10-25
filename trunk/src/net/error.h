@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 05/09/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifndef __NET_ERROR_H__
@@ -31,13 +31,14 @@
 #define NET_ERROR_NO_REPLY           -14
 #define NET_ERROR_FWD_LOOP           -15
 
-#define NET_ERROR_MGMT_INVALID_NODE        -100
-#define NET_ERROR_MGMT_INVALID_LINK        -101
-#define NET_ERROR_MGMT_INVALID_SUBNET      -102
-#define NET_ERROR_MGMT_NODE_ALREADY_EXISTS -110
-#define NET_ERROR_MGMT_LINK_ALREADY_EXISTS -120
-#define NET_ERROR_MGMT_LINK_LOOP           -121
-#define NET_ERROR_MGMT_INVALID_OPERATION   -130
+#define NET_ERROR_MGMT_INVALID_NODE          -100
+#define NET_ERROR_MGMT_INVALID_LINK          -101
+#define NET_ERROR_MGMT_INVALID_SUBNET        -102
+#define NET_ERROR_MGMT_NODE_ALREADY_EXISTS   -110
+#define NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS -111
+#define NET_ERROR_MGMT_LINK_ALREADY_EXISTS   -112
+#define NET_ERROR_MGMT_LINK_LOOP             -113
+#define NET_ERROR_MGMT_INVALID_OPERATION     -114
 
 #ifdef __cplusplus
 extern "C" {
