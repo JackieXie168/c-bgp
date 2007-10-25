@@ -1,6 +1,6 @@
 # ===================================================================
 # Release script for libgds/cbgp: release functions
-# Last modified: 17/11/2006 (bqu)
+# Last modified: 25/10/2007 (bqu)
 # ===================================================================
 
 declare -a CONF_OPTIONS
@@ -159,6 +159,8 @@ check_project_version()
 check_build()
 {
     local OPTIONS
+    local SAVE_PWD
+
     info "Checking build..."
     if [ ! -z "$PREBUILD" ]; then
 	eval "$PREBUILD $REDIRECT"
@@ -166,12 +168,30 @@ check_build()
 	    error "prebuild command failed."
 	fi
     fi
+
+    SAVE_PWD=$PWD
+    cd $BUILDROOT
+
+    PACKAGE_NAME="$MODULE-$VERSION"
+    PACKAGE_FILE="$PACKAGE_NAME.tar.gz"
+    eval "tar xvzf $PACKAGE_FILE $REDIRECT"
+    if [ $? != 0 ]; then
+	error "could not extract packegr from archive."
+    fi
+    
+    eval "cd $PACKAGE_NAME $REDIRECT"
+    if [ $? != 0 ]; then
+	error "could not enter package directory."
+    fi
+
     for (( i= ${#CONF_OPTIONS[*]}-1 ; $i >= 0 ; i-- )) do
 	OPTIONS="${CONF_OPTIONS[$i]}"
 	check_configure "$OPTIONS"
 	check_compilation
 	check_validation
     done
+
+    cd $SAVE_PWD
 }
 
 # -----[ check_configure ]-------------------------------------------
@@ -226,9 +246,11 @@ make_dist() {
 # -----[ check_validation ]------------------------------------------
 check_validation()
 {
-    if [ ! -z "$VALID_EXEC" ]; then
-	for (( i= 0 ; $i < ${#VALID_EXEC[*]} ; i-- )) do
-	    VALID="${VALID_EXEC[$i]}"
+    local VALID_EXEC
+
+    if [ ! -z "$VALID_EXECS" ]; then
+	for (( i= 0 ; $i < ${#VALID_EXECS[*]} ; i++ )) do
+	    VALID_EXEC="${VALID_EXECS[$i]}"
 	    info "+ Checking validation ($i)..."
 	    eval "$VALID_EXEC $REDIRECT"
 	    if [ $? != 0 ]; then
@@ -382,6 +404,9 @@ src_release_check_parameters()
     else
 	RELEASE_MODE=0 # Minor
     fi
+    if [ -z $BUILDROOT ]; then
+        error "BUILDROOT variable not defined"
+    fi
 }
 
 # -----[ src_release_parse_arguments ]-------------------------------
@@ -454,7 +479,14 @@ make_release()
 	check_svn_status
     fi
     check_project_version
-    check_build;
+
+    # ===================================================================
+    # Part II. Build/test distribution package (.tar.gz)
+    # ===================================================================
+    info_part "II. Building/testing distribution package"
+    make_dist
+
+    check_build
     if [ $TEST_ONLY -eq 1 ]; then
 	read_yes_no "Build release ?" "N"
 	if [ "$READ_YES_NO_RESULT" = "y" ]; then
@@ -466,11 +498,10 @@ make_release()
 	fi
     fi
 
-
     # ===================================================================
-    # Part II. Building release
+    # Part III. Building release
     # ===================================================================
-    info_part "II. Building release"
+    info_part "III. Building release"
     if [ $RELEASE -eq 1 ]; then
 	info "Building the release"
 	if [ $RELEASE_MODE -eq 0 ]; then
@@ -510,7 +541,7 @@ make_release()
 
 
     # ===================================================================
-    # Part III. Publish distribution
+    # Part IV. Publish distribution
     # ===================================================================
     if [ ! $PUBLISH -eq 1 ]; then
 	read_yes_no "Publish package ?" "Y"
@@ -519,7 +550,7 @@ make_release()
 	fi
     fi
     if [ $PUBLISH -eq 1 ]; then
-	info_part "III. Publishing release"
+	info_part "IV. Publishing release"
 	echo "Publishing distribution"
 	for f in $PUBLISH_FILES; do
 	    scp -C $f $PUBLISH_URL
@@ -530,7 +561,7 @@ make_release()
     fi
 
     # ===============================================================
-    # Part IV. Display last recommendations
+    # Part V. Display last recommendations
     # ===============================================================
     echo "***** Last recommendations *****"
     echo "Do not forget"
