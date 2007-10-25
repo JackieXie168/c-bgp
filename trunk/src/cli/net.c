@@ -99,6 +99,7 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
   char * pcType;
   uint8_t uType;
   SNetSubnet * pSubnet;
+  int iResult;
 
   // Subnet prefix
   if ((str2prefix(tokens_get_string_at(pCmd->pParamValues, 0), &sPrefix))) {
@@ -115,13 +116,6 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Check that subnet does not already exist
-  // THIS CHECK SHOULD BE MOVED TO THE NETWORK MGMT PART.
-  if (network_find_subnet(sPrefix) != NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add subnet (already exists)\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
   // Subnet type: transit / stub ?
   pcType = tokens_get_string_at(pCmd->pParamValues, 1);
   if (strcmp(pcType, "transit") == 0)
@@ -133,12 +127,17 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Add the subnet
-  // NOTE: IF THAT FAILS, THE NEW SUBNET SHOULD BE DISPOSED.
+  // Create new subnet
   pSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, uType);
-  if (network_add_subnet(pSubnet) < 0) {
+
+  // Add the subnet
+  iResult= network_add_subnet(pSubnet);
+  if (iResult != NET_SUCCESS) {
+    subnet_destroy(&pSubnet);
     LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not add subnet (unknown reason)\n");
+	    "Error: could not add subnet (");
+    network_perror(pLogErr, iResult);
+    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
