@@ -43,13 +43,16 @@
 #include <jni/impl/net_IGPDomain.h>
 #include <jni/impl/net_Link.h>
 #include <jni/impl/net_Node.h>
+#include <jni/impl/net_Subnet.h>
 
+#include <net/error.h>
+#include <net/igp.h>
 #include <net/network.h>
 #include <net/node.h>
-#include <net/protocol.h>
 #include <net/prefix.h>
-#include <net/igp.h>
+#include <net/protocol.h>
 #include <net/routing.h>
+#include <net/subnet.h>
 
 #include <bgp/as.h>
 #include <bgp/as_t.h>
@@ -389,6 +392,49 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
   return_jni_unlock(jEnv, joVector);
 }
 
+// -----[ netAddSubnet ]---------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netAddSubnet
+ * Signature: (Ljava/lang/String;I)Lbe/ac/ucl/ingi/cbgp/net/Subnet;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
+  (JNIEnv * jEnv, jobject joCBGP, jstring jsPrefix, jint jiType)
+{
+  SNetSubnet * pSubnet;
+  jobject joSubnet= NULL;
+  SPrefix sPrefix;
+  int iResult;
+
+  if (jni_check_null(jEnv, joCBGP))
+    return NULL;
+
+  jni_lock(jEnv);
+
+  // Convert prefix
+  if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+    return_jni_unlock(jEnv, NULL);
+
+  // Create new subnet
+  pSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
+  if (pSubnet == NULL) {
+    cbgp_jni_throw_CBGPException(jEnv, "subnet cound notbe created");
+    return_jni_unlock(jEnv, NULL);
+  }
+
+  // Add subnet to network
+  iResult= network_add_subnet(pSubnet);
+  if (iResult != NET_SUCCESS) {
+    subnet_destroy(&pSubnet);
+    cbgp_jni_throw_CBGPException(jEnv, "subnet already exists");
+    return_jni_unlock(jEnv, NULL);
+  }
+
+  // Create Java Subnet object
+  joSubnet= cbgp_jni_new_net_Subnet(jEnv, joCBGP, pSubnet);
+
+  return_jni_unlock(jEnv, joSubnet);
+}
 
 //////////////////////////////////////////////////////////////////////
 //
