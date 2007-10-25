@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 05/09/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -67,6 +67,8 @@ char * network_strerror(int iErrorCode)
     return "invalid subnet";
   case NET_ERROR_MGMT_NODE_ALREADY_EXISTS:
     return "node already exists";
+  case NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS:
+    return "subnet already exists";
   case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
     return "link already exists";
   case NET_ERROR_MGMT_LINK_LOOP:
