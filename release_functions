@@ -174,9 +174,9 @@ check_build()
 
     PACKAGE_NAME="$MODULE-$VERSION"
     PACKAGE_FILE="$PACKAGE_NAME.tar.gz"
-    eval "tar xvzf $PACKAGE_FILE $REDIRECT"
+    eval "tar xvzf $SAVE_PWD/$PACKAGE_FILE $REDIRECT"
     if [ $? != 0 ]; then
-	error "could not extract packegr from archive."
+	error "could not extract package from archive."
     fi
     
     eval "cd $PACKAGE_NAME $REDIRECT"
