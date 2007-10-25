@@ -411,4 +411,4 @@ TESTS="src/checks/basic"
 CFLAGS="$CFLAGS -Wall -Werror -O2"
 AC_SUBST(CFLAGS)
 
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile libcsim.pc cbgp.spec)
+AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec)
