@@ -17,6 +17,7 @@ import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Link;
 import be.ac.ucl.ingi.cbgp.net.Message;
 import be.ac.ucl.ingi.cbgp.net.Node;
+import be.ac.ucl.ingi.cbgp.net.Subnet;
 
 // -----[ CBGP ]-----------------------------------------------------
 /**
@@ -89,6 +90,10 @@ public class CBGP
     public native synchronized Node netAddNode(String addr, int domain)
     	throws CBGPException;
     
+    // -----[ netAddSubnet ]-----------------------------------------
+    public native synchronized Subnet netAddSubnet(String prefix, int type)
+    	throws CBGPException;
+    
     // -----[ netAddDomain ]-----------------------------------------
     /**
      * Add an IGP domain.
@@ -149,7 +154,6 @@ public class CBGP
     public native synchronized Link netAddLink(String sSrcAddr,
     	String sDstAddr, int iWeight) 
 		throws CBGPException;
-    
     
     /////////////////////////////////////////////////////////////////
     // BGP domains management
