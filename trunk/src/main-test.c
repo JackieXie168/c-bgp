@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 05/09/07
+// @date 25/10/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -344,6 +344,24 @@ static int test_net_node()
 
 /////////////////////////////////////////////////////////////////////
 //
+// NET SUBNETS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_subnet ]------------------------------------------
+static int test_net_subnet()
+{
+  SNetSubnet * pSubnet= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
+				      NET_SUBNET_TYPE_STUB);
+  ASSERT_RETURN(pSubnet != NULL, "subnet creation should succeed");
+  subnet_destroy(&pSubnet);
+  ASSERT_RETURN(pSubnet == NULL, "destroyed subnet should be NULL");
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // NET LINKS
 //
 /////////////////////////////////////////////////////////////////////
@@ -628,11 +646,11 @@ static int test_net_network_add_node_dup()
   SNetwork * pNetwork= network_create();
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(1,0,0,0));
-  int iResult;
   ASSERT_RETURN(network_add_node(pNode1) == NET_SUCCESS,
 		"node addition should succeed");
-  ASSERT_RETURN((iResult= network_add_node(pNode2)) != NET_SUCCESS,
-		"duplicate node addition should fail (%d)", iResult);
+  ASSERT_RETURN(network_add_node(pNode2)
+		== NET_ERROR_MGMT_NODE_ALREADY_EXISTS,
+		"duplicate node addition should fail");
   network_destroy(&pNetwork);
   return UTEST_SUCCESS;
 }
@@ -640,13 +658,30 @@ static int test_net_network_add_node_dup()
 // -----[ test_net_network_add_subnet ]------------------------------
 static int test_net_network_add_subnet()
 {
-  return UTEST_SKIPPED;
+  SNetwork * pNetwork= network_create();
+  SNetSubnet * pSubnet= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
+				      NET_SUBNET_TYPE_STUB);
+  ASSERT_RETURN(network_add_subnet(pSubnet) == NET_SUCCESS,
+		"subnet addition should succeed");
+  network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_network_add_subnet_dup ]--------------------------
 static int test_net_network_add_subnet_dup()
 {
-  return UTEST_SKIPPED;
+  SNetwork * pNetwork= network_create();
+  SNetSubnet * pSubnet1= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
+				       NET_SUBNET_TYPE_STUB);
+  SNetSubnet * pSubnet2= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
+				       NET_SUBNET_TYPE_STUB);
+  ASSERT_RETURN(network_add_subnet(pSubnet1) == NET_SUCCESS,
+		"subnet addition should succeed");
+  ASSERT_RETURN(network_add_subnet(pSubnet2)
+		== NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS,
+		"duplicate subnet addision should fail");
+  network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
 }
 
 
@@ -1662,6 +1697,11 @@ SUnitTest TEST_NET_NODE[]= {
 };
 #define TEST_NET_NODE_SIZE ARRAY_SIZE(TEST_NET_NODE)
 
+SUnitTest TEST_NET_SUBNET[]= {
+  {test_net_subnet, "subnet"},
+};
+#define TEST_NET_SUBNET_SIZE ARRAY_SIZE(TEST_NET_SUBNET)
+
 SUnitTest TEST_NET_LINK[]= {
   {test_net_link, "link"},
   {test_net_link_forward, "link forward"},
@@ -1757,6 +1797,7 @@ SUnitTest TEST_BGP_FILTER_PRED[]= {
 SUnitTestSuite TEST_SUITES[]= {
   {"Net Attributes", TEST_NET_ATTR_SIZE, TEST_NET_ATTR},
   {"Net Nodes", TEST_NET_NODE_SIZE, TEST_NET_NODE},
+  {"Net Subnets", TEST_NET_SUBNET_SIZE, TEST_NET_SUBNET},
   {"Net Links", TEST_NET_LINK_SIZE, TEST_NET_LINK},
   {"Net Network", TEST_NET_NETWORK_SIZE, TEST_NET_NETWORK},
   {"BGP Attributes", TEST_BGP_ATTR_SIZE, TEST_BGP_ATTR},

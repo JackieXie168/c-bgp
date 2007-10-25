@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 19/10/2007
+// @lastdate 25/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -424,7 +424,9 @@ int network_add_node(SNetNode * pNode)
     return NET_ERROR_MGMT_NODE_ALREADY_EXISTS;
 
   pNode->pNetwork= pTheNetwork;
-  return trie_insert(pTheNetwork->pNodes, pNode->tAddr, 32, pNode);
+  if (trie_insert(pTheNetwork->pNodes, pNode->tAddr, 32, pNode) != 0)
+    return NET_ERROR_UNEXPECTED;
+  return NET_SUCCESS;
 }
 
 // ----- network_add_subnet -------------------------------------------
@@ -437,7 +439,9 @@ int network_add_subnet(SNetSubnet * pSubnet)
   if (network_find_subnet(pSubnet->sPrefix) != NULL)
     return NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS;
 
-  return subnets_add(pTheNetwork->pSubnets, pSubnet);
+  if (subnets_add(pTheNetwork->pSubnets, pSubnet) < 0)
+    return NET_ERROR_UNEXPECTED;
+  return NET_SUCCESS;
 }
 
 // ----- network_find_node ------------------------------------------
