@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 18/10/2007
+// @lastdate 23/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <string.h>
 #include <jni_md.h>
 #include <jni.h>
 #include <jni/jni_base.h>
@@ -25,8 +26,7 @@
 
 #define CLASS_Node "be/ac/ucl/ingi/cbgp/net/Node"
 #define CONSTR_Node "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
-                    "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                    "Ljava/util/Hashtable;)V"
+                    "Lbe/ac/ucl/ingi/cbgp/IPAddress;)V"
 
 // -----[ cbgp_jni_new_net_Node ]------------------------------------
 /**
@@ -37,10 +37,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
 			      SNetNode * pNode)
 {
   jobject joNode;
-  jobject joHashtable= NULL;
-  jobject joString;
   jobject joAddress;
-  int iIndex;
 
   /* Java proxy object already existing ? */
   joNode= jni_proxy_get(jEnv, pNode);
@@ -54,23 +51,10 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   if (joAddress == NULL)
     return NULL;
 
-  /* Create list of protocols */
-  if ((joHashtable= cbgp_jni_new_Hashtable(jEnv)) == NULL)
-    return NULL;
-  for (iIndex= 0; iIndex < NET_PROTOCOL_MAX; iIndex++) {
-    if (node_get_protocol(pNode, iIndex)) {
-      joString= cbgp_jni_new_String(jEnv, PROTOCOL_NAMES[iIndex]);
-      if (joString == NULL)
-	return NULL;
-      cbgp_jni_Hashtable_put(jEnv, joHashtable, joString, joString);
-    }
-  }
-
   /* Create new Node object */
   if ((joNode= cbgp_jni_new(jEnv, CLASS_Node, CONSTR_Node,
 			    joCBGP,
-			    joAddress,
-			    joHashtable)) == NULL)
+			    joAddress)) == NULL)
     return NULL;
 
   // Add reference into proxy repository
@@ -264,6 +248,75 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getAddresses
   return_jni_unlock(jEnv, joVector);
 }
 
+// -----[ addLTLLink ]-----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    addLTLLink
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/net/Node;Z)Lbe/ac/ucl/ingi/cbgp/net/Link;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addLTLLink
+  (JNIEnv * jEnv, jobject joNode, jobject joDst, jboolean jbBidir)
+{
+  SNetNode * pNode, *pNodeDst;
+  SNetLink * pLink;
+  jobject joLink;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, NULL); 
+
+  /* Get the destination */
+  pNodeDst= (SNetNode*) jni_proxy_lookup(jEnv, joDst);
+  if (pNodeDst == NULL)
+    return_jni_unlock(jEnv, NULL); 
+
+  /* Add links
+   * params: src, dst, delay, capacity, depth, bidir */
+  if (node_add_link_ptp(pNode, pNodeDst, 0, 0, 1,
+			(jbBidir == JNI_TRUE)?1:0) < 0) {
+    cbgp_jni_throw_CBGPException(jEnv, "link already exists");
+    return_jni_unlock(jEnv, NULL);
+  }
+
+  /* Retrieve new link */
+  pLink= node_find_link_ptp(pNode, pNodeDst->tAddr);
+  joLink= cbgp_jni_new_net_Link(jEnv, jni_proxy_get_CBGP(jEnv, joNode), pLink);
+
+  return_jni_unlock(jEnv, joLink);
+}
+
+// -----[ addPTPLink ]-----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    addPTPLink
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/net/Node;Ljava/lang/String;Ljava/lang/String;Z)Lbe/ac/ucl/ingi/cbgp/net/Link;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTPLink
+  (JNIEnv * jEnv, jobject joNode, jobject joDst, jstring joSrcIface,
+   jstring jsDstIface, jboolean jbBidir)
+{
+  jni_lock(jEnv);
+
+  return_jni_unlock(jEnv, NULL);
+}
+
+// -----[ addPTMPLink ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    addPTMPLink
+ * Signature: (Lbe/ac/ucl/ingi/cbgp/net/Subnet;Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/net/Link;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTMPLink
+  (JNIEnv * jEnv, jobject joNode, jobject joDst, jstring jsIface)
+{
+  jni_lock(jEnv);
+
+  return_jni_unlock(jEnv, NULL);
+}
+
 // -----[ _cbgp_jni_get_link ]---------------------------------------
 static int _cbgp_jni_get_link(void * pItem, void * pContext)
 {
@@ -385,6 +438,86 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
       cbgp_jni_Vector_add(jEnv, joVector, joRoute);
     }
     
+  }
+
+  return_jni_unlock(jEnv, joVector);
+}
+
+// -----[ hasProtocol ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    hasProtocol
+ * Signature: (Ljava/lang/String;)Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_hasProtocol
+  (JNIEnv * jEnv, jobject joNode, jstring jsProtocol)
+{
+  SNetNode * pNode;
+  unsigned int uIndex;
+  const char * pcProtocol;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  /* Find protocol index */
+  pcProtocol= (*jEnv)->GetStringUTFChars(jEnv, jsProtocol, NULL);
+    uIndex= 0;
+  while (uIndex < NET_PROTOCOL_MAX) {
+    if (!strcmp(PROTOCOL_NAMES[uIndex], pcProtocol))
+      break;
+    uIndex++;
+  }
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsProtocol, pcProtocol);
+
+  /* Protocol name unknown */
+  if (uIndex >= NET_PROTOCOL_MAX)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  /* Check if protocol is supported */
+  if (node_get_protocol(pNode, uIndex) != NULL)
+    return_jni_unlock(jEnv, JNI_TRUE);
+
+  return_jni_unlock(jEnv, JNI_FALSE);
+}
+
+// -----[ getProtocols ]---------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getProtocols
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getProtocols
+  (JNIEnv * jEnv, jobject joNode)
+{
+  SNetNode * pNode;
+  jobject joVector= NULL;
+  int iIndex;
+  jstring jsProtocol;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  /* Create Vector object */
+  joVector= cbgp_jni_new_Vector(jEnv);
+  if (joVector == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  /* Populate with identifier of supported protocols */
+  for (iIndex= 0; iIndex < NET_PROTOCOL_MAX; iIndex++) {
+    if (node_get_protocol(pNode, iIndex)) {
+      jsProtocol= cbgp_jni_new_String(jEnv, PROTOCOL_NAMES[iIndex]);
+      if (jsProtocol == NULL)
+	return_jni_unlock(jEnv, NULL);
+      cbgp_jni_Vector_add(jEnv, joVector, jsProtocol);
+    }
   }
 
   return_jni_unlock(jEnv, joVector);
@@ -515,7 +648,7 @@ JNIEXPORT jfloat JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLongitude
   if (pNode == NULL)
     return_jni_unlock(jEnv, 0);
 
-  return_jni_unlock(jEnv, pNode->fLatitude);
+  return_jni_unlock(jEnv, pNode->fLongitude);
 }
 
 // -----[ setLongitude ]---------------------------------------------
@@ -523,7 +656,7 @@ JNIEXPORT jfloat JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLongitude
  *
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLongitude
-(JNIEnv * jEnv, jobject joNode, jfloat jfLatitude)
+(JNIEnv * jEnv, jobject joNode, jfloat jfLongitude)
 {
   SNetNode * pNode;
 
@@ -534,7 +667,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLongitude
   if (pNode == NULL)
     return_jni_unlock2(jEnv);
 
-  pNode->fLatitude= jfLatitude;
+  pNode->fLongitude= jfLongitude;
 
   jni_unlock(jEnv);
 }
