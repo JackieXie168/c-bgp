@@ -52,9 +52,10 @@ AC_SUBST(CBGP_LT_RELEASE, [1.4.3])
 dnl *****************************************************************
 dnl LIBGDS CHECK
 dnl *****************************************************************
-AC_SUBST(LIBGDS_VERSION, [1.4.2])
+LIBGDS_VERSION="1.4.2"
+AC_SUBST(LIBGDS_VERSION, [$LIBGDS_VERSION])
 PKG_CHECK_MODULES([LIBGDS], libgds >= $LIBGDS_VERSION,[],[
-  AC_MSG_ERROR([libgds is needed to compile cbgp])
+  AC_MSG_ERROR([libgds >= $LIBGDS_VERSION is needed to compile cbgp])
 ])
 AC_SUBST(LIBGDS_CFLAGS)
 AC_SUBST(LIBGDS_LIBS)
