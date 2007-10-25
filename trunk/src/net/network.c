@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 4/07/2003
-// @lastdate 30/05/2007
+// @lastdate 19/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -433,6 +433,10 @@ int network_add_node(SNetNode * pNode)
  */
 int network_add_subnet(SNetSubnet * pSubnet)
 {
+  // Check that subnet does not already exist
+  if (network_find_subnet(pSubnet->sPrefix) != NULL)
+    return NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS;
+
   return subnets_add(pTheNetwork->pSubnets, pSubnet);
 }
 
