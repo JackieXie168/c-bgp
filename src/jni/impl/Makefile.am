@@ -12,6 +12,8 @@ libjni_impl_la_SOURCES = \
 	net_Link.h \
 	net_Node.c \
 	net_Node.h \
+	net_Subnet.c \
+	net_Subnet.h \
 	net_IGPDomain.c \
 	net_IGPDomain.h \
 	bgp_Domain.c \
