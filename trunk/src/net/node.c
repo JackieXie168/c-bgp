@@ -34,7 +34,6 @@ SNetNode * node_create(net_addr_t tAddr)
   
   pNode->pLinks= net_links_create();
   pNode->pRT= rt_create();
-
 #ifdef OSPF_SUPPORT
   pNode->pOSPFAreas  = uint32_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE);
   pNode->pOspfRT     = OSPF_rt_create();
