@@ -227,11 +227,14 @@ make_dist() {
 check_validation()
 {
     if [ ! -z "$VALID_EXEC" ]; then
-	info "+ Checking validation..."
-	eval "$VALID_EXEC $REDIRECT"
-	if [ $? != 0 ]; then
-	    error "validation failed."
-	fi
+	for (( i= 0 ; $i < ${#VALID_EXEC[*]} ; i-- )) do
+	    VALID="${VALID_EXEC[$i]}"
+	    info "+ Checking validation ($i)..."
+	    eval "$VALID_EXEC $REDIRECT"
+	    if [ $? != 0 ]; then
+	        error "validation failed."
+	    fi
+	done
     fi
 }
 
