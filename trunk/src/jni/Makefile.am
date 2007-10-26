@@ -61,7 +61,8 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
 	be/ac/ucl/ingi/cbgp/net/Link.java \
 	be/ac/ucl/ingi/cbgp/net/Message.java \
-	be/ac/ucl/ingi/cbgp/net/Node.java
+	be/ac/ucl/ingi/cbgp/net/Node.java \
+	be/ac/ucl/ingi/cbgp/net/Subnet.java
 
 JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.CBGP \
