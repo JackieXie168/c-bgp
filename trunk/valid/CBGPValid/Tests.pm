@@ -101,6 +101,7 @@ sub debug($$)
 
   ($self->{'debug'}) and
     print STDERR "debug: $msg\n";
+  STDERR->flush();
 }
 
 
