@@ -4,6 +4,7 @@
 # ===================================================================
 
 declare -a CONF_OPTIONS
+declare -a VALID_EXECS
 declare -r LINE="--------------------------------\
 	-------------------------------------"
 
@@ -160,13 +161,12 @@ check_build()
 {
     local OPTIONS
     local SAVE_PWD
+    local i
 
     info "Checking build..."
-    if [ ! -z "$PREBUILD" ]; then
-	eval "$PREBUILD $REDIRECT"
-	if [ $? != 0 ]; then
-	    error "prebuild command failed."
-	fi
+    if [ $BUILD -ne 1 ]; then
+	echo "    skipped"
+	return 0
     fi
 
     SAVE_PWD=$PWD
@@ -184,8 +184,10 @@ check_build()
 	error "could not enter package directory."
     fi
 
-    for (( i= ${#CONF_OPTIONS[*]}-1 ; $i >= 0 ; i-- )) do
+    for (( i= 0 ; i < ${#CONF_OPTIONS[*]} ; i++ )) do
 	OPTIONS="${CONF_OPTIONS[$i]}"
+	let i_display=i+1
+	info "Checking build option ($i_display/${#CONF_OPTIONS[*]}):"
 	check_configure "$OPTIONS"
 	check_compilation
 	check_validation
@@ -199,13 +201,11 @@ check_configure()
 {
     local CONF_OPTIONS=$1
     info "+ Checking configure $CONF_OPTIONS..."
-    if [ $BUILD -eq 1 ]; then
-	eval "./configure $CONF_OPTIONS_COMMON $CONF_OPTIONS $REDIRECT"
-	if [ $? != 0 ]; then
-	    error "failed to configure."
-	fi
-    else
-	echo "    skipped"
+
+    eval "./configure --prefix=$BUILDROOT/local \
+        $CONF_OPTIONS_COMMON $CONF_OPTIONS $REDIRECT"
+    if [ $? != 0 ]; then
+	error "failed to configure."
     fi
 }
 
@@ -213,23 +213,30 @@ check_configure()
 check_compilation()
 {
     info "+ Checking compilation..."
-    if [ $BUILD -eq 1 ]; then
-	eval "make clean $REDIRECT"
-	if [ $? != 0 ]; then
-	    error "compilation failed (make clean)."
-	fi
-	eval "make $REDIRECT"
-	if [ $? != 0 ]; then
-	    error "compilation failed (make)."
-	fi
-    else
-	echo "    skipped"
+
+    eval "make clean $REDIRECT"
+    if [ $? != 0 ]; then
+	error "compilation failed (make clean)."
+    fi
+    eval "make $REDIRECT"
+    if [ $? != 0 ]; then
+        error "compilation failed (make)."
     fi
 }
 
 # -----[ make_dist ]-------------------------------------------------
 make_dist() {
     info "Building distribution..."
+
+    if [ ! -z "$PREBUILD" ]; then
+	eval "$PREBUILD $REDIRECT"
+	if [ $? != 0 ]; then
+	    error "prebuild command failed."
+	fi
+    fi
+
+    check_configure
+
     eval "make dist $REDIRECT"
     if [ $? != 0 ]; then
 	error "unable to build distribution (make dist)."
@@ -247,11 +254,13 @@ make_dist() {
 check_validation()
 {
     local VALID_EXEC
+    local i
 
     if [ ! -z "$VALID_EXECS" ]; then
-	for (( i= 0 ; $i < ${#VALID_EXECS[*]} ; i++ )) do
+	for (( i= 0 ; i < ${#VALID_EXECS[*]} ; i++ )) do
 	    VALID_EXEC="${VALID_EXECS[$i]}"
-	    info "+ Checking validation ($i)..."
+	    let i_display=i+1
+	    info "+ Checking validation ($i_display/${#VALID_EXECS[*]})..."
 	    eval "$VALID_EXEC $REDIRECT"
 	    if [ $? != 0 ]; then
 	        error "validation failed."
@@ -537,7 +546,6 @@ make_release()
 	    fi
 	fi
     fi
-    make_dist
 
 
     # ===================================================================
@@ -563,10 +571,11 @@ make_release()
     # ===============================================================
     # Part V. Display last recommendations
     # ===============================================================
-    echo "***** Last recommendations *****"
+    echo "***** Last recommendations ********************************"
     echo "Do not forget"
     echo "- to build the packages (.rpm, .deb, ...)"
     echo "- to send an e-mail to the mailing-list"
     echo "- do not forget to announce the new release on the web site"
-    echo "********************************"
+    echo "- to list the changes provided in this release
+    echo "***********************************************************"
 }
