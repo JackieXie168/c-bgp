@@ -1098,6 +1098,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
 jint JNI_OnLoad(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
+  void * ppEnv= &jEnv;
 
   /*fprintf(stdout, "C-BGP JNI library loaded.\n");
     fflush(stdout);*/
@@ -1109,7 +1110,7 @@ jint JNI_OnLoad(JavaVM * jVM, void *reserved)
 #endif
 
   // Get JNI environment
-  if ((*jVM)->GetEnv(jVM, (void **) &jEnv, JNI_VERSION_1_2) != JNI_OK)
+  if ((*jVM)->GetEnv(jVM, ppEnv, JNI_VERSION_1_2) != JNI_OK)
     abort();
 
   // Init locking system
@@ -1125,12 +1126,13 @@ jint JNI_OnLoad(JavaVM * jVM, void *reserved)
 void JNI_OnUnload(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
+  void * ppEnv= &jEnv;
 
   /*fprintf(stdout, "C-BGP JNI library unloaded.\n");
     fflush(stdout);*/
 
   // Get JNI environment
-  if ((*jVM)->GetEnv(jVM, (void **) &jEnv, JNI_VERSION_1_2) != JNI_OK)
+  if ((*jVM)->GetEnv(jVM, ppEnv, JNI_VERSION_1_2) != JNI_OK)
     abort();
 
   // Terminate C<->Java mappings and locking system
