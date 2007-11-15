@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 23/07/2007
+// @lastdate 12/11/2007
 // ===========================================================
 
 #ifndef __NET_LINK_H__
@@ -93,6 +93,8 @@ extern "C" {
   int net_link_get_state(SNetLink * pLink, uint8_t uFlag);
   // ----- net_link_get_capacity ------------------------------------
   net_link_load_t net_link_get_capacity(SNetLink * pLink);
+  // ----- net_link_set_capacity ------------------------------------
+  void net_link_set_capacity(SNetLink * pLink, net_link_load_t tCapacity);
   // ----- net_link_set_load ----------------------------------------
   void net_link_set_load(SNetLink * pLink, net_link_load_t tLoad);
   // ----- net_link_add_load ----------------------------------------
