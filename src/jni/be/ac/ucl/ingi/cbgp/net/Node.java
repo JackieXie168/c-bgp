@@ -192,6 +192,10 @@ public class Node extends ProxyObject
 	void addRoute(String sPrefix, String sNexthop, 
 			int iWeight)
 	    throws CBGPException;
+    
+    // -----[ loadTraffic ]------------------------------------------
+    public native synchronized void loadTraffic(String filename)
+    	throws CBGPException;
 
     // -----[ toString ]---------------------------------------------
     /**
