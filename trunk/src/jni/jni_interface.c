@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 19/10/2007
+// @lastdate 12/11/2007
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -47,6 +47,7 @@
 
 #include <net/error.h>
 #include <net/igp.h>
+#include <net/link-list.h>
 #include <net/network.h>
 #include <net/node.h>
 #include <net/prefix.h>
@@ -1070,6 +1071,46 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
   bgp_router_set_msg_listener(_bgp_msg_listener, &sBGPListener);
 
   jni_unlock(jEnv);
+}
+
+// -----[ netGetLinks ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netGetLinks
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
+  (JNIEnv * jEnv, jobject joCBGP)
+{
+  jobject joVector, joLink;
+  SEnumerator * pEnum= NULL, * pEnumLinks= NULL;
+  SNetNode * pNode;
+  SNetLink * pLink;
+
+  jni_lock(jEnv);
+
+  joVector= cbgp_jni_new_Vector(jEnv);
+    
+  pEnum= trie_get_enum(network_get()->pNodes);
+  while (enum_has_next(pEnum)) {
+    pNode= *((SNetNode **) enum_get_next(pEnum));
+    
+    pEnumLinks= net_links_get_enum(pNode->pLinks);
+    while (enum_has_next(pEnumLinks)) {
+      pLink= *((SNetLink **) enum_get_next(pEnumLinks));
+      joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, pLink);
+      if (joLink == NULL)
+	return_jni_unlock(jEnv, NULL);
+      if (cbgp_jni_Vector_add(jEnv, joVector, joLink))
+	return_jni_unlock(jEnv, NULL);
+      //(*jEnv)->DeleteLocalRef(jEnv, joLink);
+    }
+    enum_destroy(&pEnumLinks);
+
+  }
+  enum_destroy(&pEnum);
+
+  return_jni_unlock(jEnv, joVector);
 }
 
 
