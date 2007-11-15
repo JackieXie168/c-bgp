@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 29/06/2007
+// @lastdate 12/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -57,6 +57,77 @@ jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joLink, pLink);
 
   return joLink;
+}
+
+// -----[ getCapacity ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Method:    getCapacity
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getCapacity
+  (JNIEnv * jEnv, jobject joLink)
+{
+  SNetLink * pLink;
+  jlong jlCapacity= 0;
+
+  jni_lock(jEnv);
+
+  /* Get link */
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
+  if (pLink == NULL)
+    return_jni_unlock(jEnv, -1);
+
+  jlCapacity= net_link_get_capacity(pLink);
+
+  return_jni_unlock(jEnv, jlCapacity);
+}
+
+// -----[ setCapacity ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Method:    setCapacity
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setCapacity
+  (JNIEnv * jEnv, jobject joLink, jlong jlCapacity)
+{
+  SNetLink * pLink;
+
+  jni_lock(jEnv);
+
+  /* Get link */
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
+  if (pLink == NULL)
+    return_jni_unlock2(jEnv);
+
+  net_link_set_capacity(pLink, jlCapacity);
+
+  jni_unlock(jEnv);
+}
+
+// -----[ getLoad ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Method:    getLoad
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getLoad
+  (JNIEnv * jEnv, jobject joLink)
+{
+  SNetLink * pLink;
+  jlong jlLoad= 0;
+
+  jni_lock(jEnv);
+
+  /* Get link */
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
+  if (pLink == NULL)
+    return_jni_unlock(jEnv, -1);
+
+  jlLoad= net_link_get_load(pLink);
+
+  return_jni_unlock(jEnv, jlLoad);
 }
 
 // -----[ getState ]-------------------------------------------------
