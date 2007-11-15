@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 23/10/2007
+// @lastdate 29/10/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,6 +21,7 @@
 #include <jni/impl/net_Node.h>
 #include <jni/impl/bgp_Router.h>
 
+#include <net/error.h>
 #include <net/node.h>
 #include <net/record-route.h>
 
@@ -672,3 +673,35 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLongitude
   jni_unlock(jEnv);
 }
 
+// -----[ loadTraffic ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    loadTraffic
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_loadTraffic
+  (JNIEnv * jEnv, jobject joNode, jstring jsFileName)
+{
+  SNetNode * pNode;
+  const char * pcFileName;
+  uint8_t tOptions= 0;
+  int iResult;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  pNode= (SNetNode*) jni_proxy_lookup(jEnv, joNode);
+  if (pNode == NULL)
+    return_jni_unlock2(jEnv);
+
+  /* Load Netflow from file */
+  pcFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  iResult= node_load_netflow(pNode, pcFileName, tOptions);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
+  if (iResult != NET_SUCCESS) {
+    cbgp_jni_throw_CBGPException(jEnv, "could not load Netflow");
+    return_jni_unlock2(jEnv);
+  }
+
+  jni_unlock(jEnv);
+}
