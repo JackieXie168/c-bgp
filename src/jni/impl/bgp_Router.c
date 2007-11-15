@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 02/10/2007
+// @lastdate 15/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,6 +17,7 @@
 #include <jni/jni_util.h>
 #include <jni/impl/bgp_Peer.h>
 #include <jni/impl/bgp_Router.h>
+#include <jni/impl/net_Node.h>
 
 #include <bgp/as.h>
 #include <bgp/route.h>
@@ -24,9 +25,8 @@
 
 #define CLASS_BGPRouter "be/ac/ucl/ingi/cbgp/bgp/Router"
 #define CONSTR_BGPRouter "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
-                         "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                         "SLbe/ac/ucl/ingi/cbgp/IPAddress;" \
-                         "Ljava/lang/String;)V"
+                         "Lbe/ac/ucl/ingi/cbgp/net/Node;" \
+                         "SLbe/ac/ucl/ingi/cbgp/IPAddress;)V"
 
 // -----[ cbgp_jni_new_bgp_Router ]-----------------------------------
 /**
@@ -36,7 +36,7 @@
 jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
 				SBGPRouter * pRouter)
 {
-  jobject joIPAddress;
+  jobject joNode;
   jobject joRouterID;
   jobject joRouter;
 
@@ -45,8 +45,9 @@ jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
   if (joRouter != NULL)
     return joRouter;
 
-  /* Convert router attributes to Java objects */
-  if ((joIPAddress= cbgp_jni_new_IPAddress(jEnv, pRouter->pNode->tAddr)) == NULL)
+  /* Get underlying node */
+  joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, pRouter->pNode);
+  if (joNode == NULL)
     return NULL;
 
   /* Convert router attributes to Java objects */
@@ -56,16 +57,35 @@ jobject cbgp_jni_new_bgp_Router(JNIEnv * jEnv, jobject joCBGP,
   /* Create new BGPRouter object */
   if ((joRouter= cbgp_jni_new(jEnv, CLASS_BGPRouter, CONSTR_BGPRouter,
 			      joCBGP,
-			      joIPAddress,
+			      joNode,
 			      (jshort) pRouter->uNumber,
-			      joRouterID,
-			      NULL)) == NULL)
+			      joRouterID)) == NULL)
     return NULL;
 
   // Add reference into proxy repository
   jni_proxy_add(jEnv, joRouter, pRouter);
 
   return joRouter;
+}
+
+// -----[ isRouteReflector ]-----------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Router
+ * Method:    isRouteReflector
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_isRouteReflector
+  (JNIEnv * jEnv, jobject joRouter)
+{
+  SBGPRouter * pRouter;
+
+  jni_lock(jEnv);
+
+  pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
+  if (pRouter == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  return_jni_unlock(jEnv, (pRouter->iRouteReflector != 0)?JNI_TRUE:JNI_FALSE);
 }
 
 // -----[ addNetwork ]-----------------------------------------------
@@ -482,8 +502,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
  * Method:    loadRib
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
-  (JNIEnv * jEnv, jobject joRouter, jstring jsFileName)
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_loadRib
+(JNIEnv * jEnv, jobject joRouter, jstring jsFileName, jboolean jbForce)
 {
   char * cFileName;
   SBGPRouter * pRouter;
@@ -496,6 +516,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpRouterLoadRib
   pRouter= (SBGPRouter *) jni_proxy_lookup(jEnv, joRouter);
   if (pRouter == NULL)
     return_jni_unlock2(jEnv);
+
+  if (jbForce == JNI_TRUE)
+    tOptions|= BGP_ROUTER_LOAD_OPTIONS_FORCE;
+
+  tOptions|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
   cFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
   if (bgp_router_load_rib(pRouter, (char *) cFileName,
