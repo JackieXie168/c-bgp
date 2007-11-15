@@ -42,14 +42,32 @@ public class Link extends ProxyObject
 	_proxy_finalize();
     }
 
+    // -----[ getCapacity ]------------------------------------------
+    public native synchronized long getCapacity()
+    	throws CBGPException;
+    
+    // -----[ setCapacity ]------------------------------------------
+    public native synchronized void setCapacity(long capacity)
+    	throws CBGPException;
+    
     // -----[ getDelay ]---------------------------------------------
     /**
      * Return the link's propagation delay.
      */
-    public long getDelay()
-    {
-	return lDelay;
+    public long getDelay() {
+    	return lDelay;
     }
+    
+    // -----[ setDelay ]---------------------------------------------
+    
+    // -----[ getLoad ]----------------------------------------------
+    /**
+     * Return the link's traffic load.
+     */
+    public native synchronized long getLoad()
+    	throws CBGPException;
+    
+    // -----[ setLoad ]---------------------------------------------- 
 
     // -----[ getNexthopIf ]-----------------------------------------
     /**
