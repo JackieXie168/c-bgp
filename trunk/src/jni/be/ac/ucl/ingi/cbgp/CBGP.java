@@ -55,7 +55,7 @@ public class CBGP
      * Finalizes the C-BGP JNI API.
      */
     public native synchronized void destroy()
-		throws CBGPException;
+	throws CBGPException;
 
     // -----[ consoleSetOutListener ]--------------------------------
     /**
@@ -312,6 +312,10 @@ public class CBGP
      * format.
      */
     public native void netExport(String sFileName)
+    	throws CBGPException;
+    
+    // -----[ netGetLinks ]------------------------------------------
+    public native Vector<Link> netGetLinks()
     	throws CBGPException;
 
 
