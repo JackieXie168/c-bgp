@@ -2430,7 +2430,8 @@ int bgp_router_show_routes_info(SLogStream * pStream, SBGPRouter * pRouter,
 
 typedef struct {
   SBGPRouter * pTargetRouter;     // Router where routes are loaded
-  int iReturnCode;                // Code to return in case of error
+  uint8_t      uOptions;          // Options
+  int          iReturnCode;       // Code to return in case of error
   unsigned int uRoutesOk;         // Number of routes loaded without error
   unsigned int uRoutesBadTarget;  //                  with bad target
   unsigned int uRoutesBadPeer;    //                  with bad peer
@@ -2469,8 +2470,9 @@ static int _bgp_router_load_rib_handler(int iStatus,
 
   // 1). Check that the target router (addr/ASN) corresponds to the
   //     route's peer (addr/ASN). Ignored if peer addr is 0 (CISCO).
-  if ((pRouter->pNode->tAddr != tPeerAddr) ||
-      (pRouter->uNumber != uPeerAS)) {
+  if (!(pCtx->uOptions & BGP_ROUTER_LOAD_OPTIONS_FORCE) &&
+      ((pRouter->pNode->tAddr != tPeerAddr) ||
+       (pRouter->uNumber != uPeerAS))) {
     
     LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
       log_printf(pLogErr,
@@ -2488,7 +2490,8 @@ static int _bgp_router_load_rib_handler(int iStatus,
   
   // 2). Check that the target router has a peer that corresponds
   //     to the route's next-hop.
-  if ((pRouter != NULL) && (pPeer == NULL)) {
+  if (/*!(pCtx->uOptions & BGP_ROUTER_LOAD_OPTIONS_FORCE) &&*/
+      ((pRouter != NULL) && (pPeer == NULL))) {
     
     // Look for the peer in the router...
     pPeer= bgp_router_find_peer(pRouter, pRoute->pAttr->tNextHop);
@@ -2517,6 +2520,7 @@ static int _bgp_router_load_rib_handler(int iStatus,
   route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
   if (pRoute->pPeer == NULL) {
     route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 1);
+    rib_add_route(pRouter->pLocRIB, pRoute);
   } else {
     route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
 		   bgp_peer_route_eligible(pRoute->pPeer, pRoute));
@@ -2549,6 +2553,7 @@ int bgp_router_load_rib(SBGPRouter * pRouter, const char * pcFileName,
   int iResult;
   SBGP_LOAD_RIB_CTX sCtx= {
     .pTargetRouter   = pRouter,
+    .uOptions        = uOptions,
     .iReturnCode     = 0, // Ignore errors
     .uRoutesOk       = 0,
     .uRoutesBadTarget= 0,
