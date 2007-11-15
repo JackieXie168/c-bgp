@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 23/07/2007
+// @lastdate 12/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
