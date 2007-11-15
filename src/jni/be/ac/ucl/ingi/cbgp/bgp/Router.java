@@ -15,6 +15,7 @@ import be.ac.ucl.ingi.cbgp.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.IPPrefix;
 import be.ac.ucl.ingi.cbgp.ProxyObject;
+import be.ac.ucl.ingi.cbgp.net.Node;
 
 // -----[ Router ]--------------------------------------------------
 /**
@@ -24,28 +25,30 @@ public class Router extends ProxyObject
 {
 
     // -----[ protected attributes ]---------------------------------
-    protected IPAddress address;
     protected IPAddress routerID;
     protected short asn;
-    protected String name;
+    protected Node node;
 
     // -----[ Router ]----------------------------------------------
     /**
      * Router's constructor.
      *
      * @param cbgp the C-BGP instance
-     * @param address the router's identifier
+     * @param the underlying node
      * @param asn the router's AS number
      * @param routerID the router ID
-     * @param name the router name
      */
-    protected Router(CBGP cbgp, IPAddress address, short asn, IPAddress routerID, String name)
+    protected Router(CBGP cbgp, Node node, short asn, IPAddress routerID)
     {
     	super(cbgp);
-    	this.address= address;
+    	this.node= node;
     	this.asn= asn;
     	this.routerID= routerID;
-    	this.name= name;
+    }
+    
+    // -----[ getNode ]----------------------------------------------
+    public Node getNode() {
+    	return node;
     }
     
     // -----[ getAddress ]-------------------------------------------
@@ -56,7 +59,7 @@ public class Router extends ProxyObject
      */
     public IPAddress getAddress()
     {
-    	return address;
+    	return node.getAddress();
     }
     
     // -----[ getASN ]----------------------------------------------
@@ -88,9 +91,14 @@ public class Router extends ProxyObject
      * @return the router's name
      */
     public String getName()
+    	throws CBGPException
     {
-	return name;
+    	return node.getName();
     }
+    
+    // -----[ isRouteReflector ]------------------------------------
+    public native synchronized boolean isRouteReflector()
+    	throws CBGPException;
     
     // -----[ addNetwork ]------------------------------------------
     public native synchronized	IPPrefix addNetwork(String sPrefix)
@@ -122,7 +130,7 @@ public class Router extends ProxyObject
 	throws CBGPException;
 
     // -----[ loadRib ]----------------------------------------------
-    public native void loadRib(String sFileName)
+    public native void loadRib(String fileName, boolean force)
 	throws CBGPException;
 
     // -----[ rescan ]-----------------------------------------------
@@ -136,14 +144,18 @@ public class Router extends ProxyObject
      */
     public String toString()
     {
-	String s= "";
+    	String s= "";
 
-	s+= address;
-	s+= ":"+asn;
-	if (name != null)
-	    s+= " (name: \""+name+"\")";
+    	s+= getAddress(); 
+    	s+= ":"+asn;
+    	try {
+    		if (getName() != null)
+    			s+= " (name: \""+getName()+"\")";
+    	} catch (CBGPException e) {
+    		s+= " name: \"???\"";
+    	}
 
-	return s;
+    	return s;
     }
 
 }
