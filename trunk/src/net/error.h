@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 19/10/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifndef __NET_ERROR_H__
@@ -39,6 +39,8 @@
 #define NET_ERROR_MGMT_LINK_ALREADY_EXISTS   -112
 #define NET_ERROR_MGMT_LINK_LOOP             -113
 #define NET_ERROR_MGMT_INVALID_OPERATION     -114
+#define NET_ERROR_MGMT_TOO_MANY_PROTOCOLS    -115
+#define NET_ERROR_MGMT_DUPLICATE_PROTOCOL    -116
 
 #ifdef __cplusplus
 extern "C" {

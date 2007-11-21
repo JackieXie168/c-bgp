@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/05/2007
-// @lastdate 19/10/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,7 +27,7 @@ void network_perror(SLogStream * pStream, int iErrorCode)
     log_printf(pStream, "unknown error (%i)", iErrorCode);    
 }
 
-// ----- network_perror ---------------------------------------------
+// ----- network_strerror -------------------------------------------
 char * network_strerror(int iErrorCode)
 {
   switch (iErrorCode) {
@@ -75,6 +75,10 @@ char * network_strerror(int iErrorCode)
     return "link endpoints are equal";
   case NET_ERROR_MGMT_INVALID_OPERATION:
     return "invalid operation";
+  case NET_ERROR_MGMT_TOO_MANY_PROTOCOLS:
+    return "too many protocols";
+  case NET_ERROR_MGMT_DUPLICATE_PROTOCOL:
+    return "protocol already exists";
   }
   return NULL;
 }
