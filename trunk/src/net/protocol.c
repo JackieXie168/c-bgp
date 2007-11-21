@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 25/02/2004
-// @lastdate 27/01/2005
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #include <libgds/memory.h>
 #include <string.h>
 
+#include <net/error.h>
 #include <net/protocol.h>
 
 // Protocol names
@@ -97,15 +98,15 @@ int protocols_register(SNetProtocols * pProtocols,
 		       FNetNodeHandleEvent fHandleEvent)
 {
   if (uNumber >= NET_PROTOCOL_MAX)
-    return -1;
+    return NET_ERROR_MGMT_TOO_MANY_PROTOCOLS;
 
   if (pProtocols->data[uNumber] != NULL)
-    return -1;
+    return NET_ERROR_MGMT_DUPLICATE_PROTOCOL;
 
   pProtocols->data[uNumber]= protocol_create(pHandler, fDestroy,
 					     fHandleEvent);
 
-  return 0;
+  return NET_SUCCESS;
 }
 
 // ----- protocols_get ----------------------------------------------
