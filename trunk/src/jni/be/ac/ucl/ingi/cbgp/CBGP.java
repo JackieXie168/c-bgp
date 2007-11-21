@@ -257,7 +257,7 @@ public class CBGP
      * @param filename the name of a C-BGP script file.
      */
     public native synchronized void runScript(String filename)
-		throws CBGPException;
+		throws CBGPScriptException;
 
     // -----[ cliGetPrompt ]----------------------------------------
     /**
