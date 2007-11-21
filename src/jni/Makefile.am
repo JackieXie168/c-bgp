@@ -34,6 +34,7 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/BGPMsgListener.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/CBGPException.java \
+	be/ac/ucl/ingi/cbgp/CBGPScriptException.java \
 	be/ac/ucl/ingi/cbgp/CBGPTest.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
@@ -58,6 +59,7 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/bgp/MessageWithdraw.java \
 	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
 	be/ac/ucl/ingi/cbgp/bgp/Router.java \
+	be/ac/ucl/ingi/cbgp/net/Element.java \
 	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
 	be/ac/ucl/ingi/cbgp/net/Link.java \
 	be/ac/ucl/ingi/cbgp/net/Message.java \
@@ -73,7 +75,8 @@ JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.bgp.Router \
 	be.ac.ucl.ingi.cbgp.net.IGPDomain \
 	be.ac.ucl.ingi.cbgp.net.Link \
-	be.ac.ucl.ingi.cbgp.net.Node
+	be.ac.ucl.ingi.cbgp.net.Node \
+	be.ac.ucl.ingi.cbgp.net.Subnet
 
 METAFILE= META-INF/MANIFEST.MF
 
