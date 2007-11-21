@@ -93,7 +93,12 @@ METAFILE= META-INF/MANIFEST.MF
 
 #CLASSFILES = $(JAVAFILES:.java=.class)
 CLASSFILES = $(JAVAFILES:.java=.class) $(JAVATESTFILES:.java=.class)
-EXTRA_DIST = $(JAVAFILES) $(JAVATESTFILES) $(METAFILE)
+EXTRA_DIST = \
+	$(JAVAFILES) \
+	$(JAVATESTFILES) \
+	$(METAFILE) \
+	jni-test-wrapper.sh
+
 CLASSPATH = .:$(top_builddir)/lib/junit-4.4.jar
 
 # Invoke javac in order to build Java classes. In addition, invoke
