@@ -14,14 +14,12 @@ import be.ac.ucl.ingi.cbgp.CBGP;
 import be.ac.ucl.ingi.cbgp.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.IPTrace;
-import be.ac.ucl.ingi.cbgp.ProxyObject;
 
 // -----[ Node ]-----------------------------------------------------
 /**
  * This class represents a node
  */
-public class Node extends ProxyObject
-{
+public class Node extends Element {
 
     // -----[ public constants ]-------------------------------------
 	public static final String PROTOCOL_ICMP= "icmp";
@@ -36,8 +34,7 @@ public class Node extends ProxyObject
     /**
      * Node's constructor.
      */
-    public Node(CBGP cbgp, IPAddress address)
-    {
+    protected Node(CBGP cbgp, IPAddress address) {
     	super(cbgp);
     	this.address= address;
     }
@@ -46,8 +43,7 @@ public class Node extends ProxyObject
     /**
      * Returns the node's IP address.
      */
-    public IPAddress getAddress()
-    {
+    public IPAddress getAddress() {
     	return address;
     }
 
