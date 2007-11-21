@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 05/09/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifndef __PREDICATE_PARSER_H__
@@ -31,6 +31,8 @@ extern "C" {
   int predicate_parser(char * pcExpr, SFilterMatcher ** ppMatcher);
   // -----[ predicate_parser_perror ]--------------------------------
   void predicate_parser_perror(SLogStream * pStream, int iErrorCode);
+  // -----[ predicate_parser_strerror ]------------------------------
+  char * predicate_parser_strerror(int iErrorCode);
 
 #ifdef __cplusplus
 }
