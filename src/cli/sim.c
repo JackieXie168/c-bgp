@@ -3,20 +3,22 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/07/2003
-// @lastdate 13/09/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <cli/common.h>
-#include <cli/sim.h>
+#include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
+#include <libgds/str_util.h>
+
+#include <cli/common.h>
+#include <cli/sim.h>
 #include <net/network.h>
 #include <sim/simulator.h>
-#include <libgds/str_util.h>
 
 SCli * pTheCli= NULL;
 
@@ -164,8 +166,8 @@ int cli_sim_step(SCliContext * pContext, SCliCmd * pCmd)
 
   // Get number of steps
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uNumSteps)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid number of steps \"%s\".\n",
-	       tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid number of steps \"%s\".",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 

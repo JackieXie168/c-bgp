@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 15/10/2007
+// @lastdate 20/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -69,7 +69,7 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
 
   // Node address ?
   if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &tAddr)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (invalid address)\n");
+    cli_set_user_error(cli_get(), "could not add node (invalid address)");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -80,9 +80,8 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
   iResult= network_add_node(pNode);
   if (iResult != NET_SUCCESS) {
     node_destroy(&pNode);
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add node (");
-    network_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
+    cli_set_user_error(cli_get(), "could not add node (%s)",
+		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -103,16 +102,14 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
 
   // Subnet prefix
   if ((str2prefix(tokens_get_string_at(pCmd->pParamValues, 0), &sPrefix))) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not add subnet (invalid prefix)\n");
+    cli_set_user_error(cli_get(), "could not add subnet (invalid prefix)");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Check the prefix length (!= 32)
   // THE CHECK FOR PREFIX LENGTH SHOULD BE MOVED TO THE NETWORK MGMT PART.
   if (sPrefix.uMaskLen == 32) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not add subnet (invalid subnet)\n");
+    cli_set_user_error(cli_get(), "could not add subnet (invalid subnet)");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -123,7 +120,7 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
   else if (strcmp(pcType, "stub") == 0)
     uType = NET_SUBNET_TYPE_STUB;
   else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: wrong subnet type\n");
+    cli_set_user_error(cli_get(), "wrong subnet type");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -134,10 +131,8 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
   iResult= network_add_subnet(pSubnet);
   if (iResult != NET_SUCCESS) {
     subnet_destroy(&pSubnet);
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not add subnet (");
-    network_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
+    cli_set_user_error(cli_get(), "could not add subnet (%s)",
+		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -167,7 +162,7 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   if (pcValue != NULL) {
     if ((str_as_uint(pcValue, &uValue) < 0) ||
 	(uValue > NET_LINK_MAX_DEPTH)) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid depth \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "invalid depth \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
     tDepth= uValue;
@@ -177,7 +172,7 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   pcValue= cli_options_get_value(pCmd->pOptions, "bw");
   if (pcValue != NULL) {
     if (str_as_uint(pcValue, &uValue) < 0) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid capacity \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "invalid capacity \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
     tCapacity= uValue;
@@ -187,7 +182,7 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   pcNodeSrcAddr= tokens_get_string_at(pCmd->pParamValues, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
   if (pNodeSrc == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not find node \"%s\"\n", pcNodeSrcAddr);
+    cli_set_user_error(cli_get(), "could not find node \"%s\"", pcNodeSrcAddr);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -195,15 +190,14 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   pcDest= tokens_get_string_at(pCmd->pParamValues, 1);
   if ((ip_string_to_dest(pcDest, &sDest) < 0) ||
       (sDest.tType == NET_DEST_ANY)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid destination \"%s\".\n",
-	    pcDest);
+    cli_set_user_error(cli_get(), "invalid destination \"%s\".", pcDest);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   // Get delay
   if (tokens_get_uint_at(pCmd->pParamValues, 2, &uValue)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid delay %s.\n",
-	    tokens_get_string_at(pCmd->pParamValues, 2));
+    cli_set_user_error(cli_get(), "invalid delay %s.",
+		       tokens_get_string_at(pCmd->pParamValues, 2));
     return CLI_ERROR_COMMAND_FAILED;
   }
   tDelay= uValue;
@@ -211,10 +205,8 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   // Add link
   if ((iErrorCode= node_add_link(pNodeSrc, sDest, tDelay, tCapacity,
 				 tDepth))) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not add link %s -> %s (",
-	       pcNodeSrcAddr, pcDest);
-    network_perror(pLogErr, iErrorCode);
-    LOG_ERR(LOG_LEVEL_SEVERE, ")\n");
+    cli_set_user_error(cli_get(), "could not add link %s -> %s (%s)",
+		       pcNodeSrcAddr, pcDest, network_strerror(iErrorCode));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -236,21 +228,23 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   pcNodeSrcAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
   if (pNodeSrc == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find node \"%s\"\n", pcNodeSrcAddr);
+    cli_set_user_error(cli_get(), "unable to find node \"%s\"",
+		       pcNodeSrcAddr);
     return CLI_ERROR_CTX_CREATE;
   }
 
   pcVertexDstPrefix= tokens_get_string_at(pContext->pCmd->pParamValues, 1);
   if (ip_string_to_dest(pcVertexDstPrefix, &sDest) < 0 ||
       sDest.tType == NET_DEST_ANY) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: destination id is wrong \"%s\"\n", pcVertexDstPrefix);
+    cli_set_user_error(cli_get(), "destination id is wrong \"%s\"",
+		       pcVertexDstPrefix);
     return CLI_ERROR_CTX_CREATE;
   }
 
   pLink = node_find_link(pNodeSrc, sDest);
   if (pLink == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find link %s -> %s\n",
-	       pcNodeSrcAddr, pcVertexDstPrefix);
+    cli_set_user_error(cli_get(), "unable to find link %s -> %s",
+		       pcNodeSrcAddr, pcVertexDstPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -277,8 +271,8 @@ int cli_net_export(SCliContext * pContext, SCliCmd * pCmd)
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   
   if (net_export_file(pcFileName) != NET_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not export to \"%s\"\n",
-	    pcFileName);
+    cli_set_user_error(cli_get(), "could not export to \"%s\"",
+		       pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -299,8 +293,8 @@ int cli_net_ntf_load(SCliContext * pContext, SCliCmd * pCmd)
 
   // Load given NTF file
   if (ntf_load(pcFileName) != NTF_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to load NTF file \"%s\"\n",
-	       pcFileName);
+    cli_set_user_error(cli_get(), ": unable to load NTF file \"%s\"",
+		       pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -400,14 +394,14 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
   if (pcValue != NULL)
     if (!str2tos(pcValue, &tTOS) ||
 	(tTOS > net_link_get_depth(pLink))) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid TOS \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "invalid TOS \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
 
   // Check option --bidir
   if (cli_options_has_value(pCmd->pOptions, "bidir")) {
     if (pLink->uType != NET_LINK_TYPE_ROUTER) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: --bidir only works with ptp links\n");
+      cli_set_user_error(cli_get(), ": --bidir only works with ptp links");
       return CLI_ERROR_COMMAND_FAILED;
     }
     iBidir= 1;
@@ -415,8 +409,8 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 
   // Get new IGP weight
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uWeight) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid weight \"%s\"\n",
-	    tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid weight \"%s\"",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
   tWeight= (net_igp_weight_t) uWeight;
@@ -476,7 +470,7 @@ int cli_net_link_load_add(SCliContext * pContext, SCliCmd * pCmd)
   // Get load
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str_as_uint(pcValue, &uValue) < 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid load \"%s\"\n", pcValue);
+    cli_set_user_error(cli_get(), "invalid load \"%s\"", pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
   tLoad= uValue;
@@ -545,7 +539,8 @@ int cli_ctx_create_net_subnet(SCliContext * pContext, void ** ppItem)
   pSubnet = _cli_net_subnet_by_prefix(pcSubnetPfx);
   
   if (pSubnet == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find subnet \"%s\"\n", pcSubnetPfx);
+    cli_set_user_error(cli_get(), "unable to find subnet \"%s\"",
+		       pcSubnetPfx);
     return CLI_ERROR_CTX_CREATE;
   }
   *ppItem= pSubnet;
@@ -571,13 +566,13 @@ int cli_net_options_maxhops(SCliContext * pContext, SCliCmd * pCmd)
   unsigned int uMaxHops;
 
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uMaxHops)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value for max-hops (%s)\n",
-	       tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid value for max-hops (%s)",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   if (uMaxHops > 255) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: maximum number of hops is 255\n");
+    cli_set_user_error(cli_get(), "maximum number of hops is 255");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -627,10 +622,8 @@ int cli_net_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   iResult= net_tm_load(pcFileName);
   if (iResult != NET_TM_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not load traffic matrix from \"%s\"", pcFileName);
-    net_tm_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not load traffic matrix \"%s\" (%s)",
+		       pcFileName, net_tm_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -655,8 +648,8 @@ int cli_net_traffic_save(SCliContext * pContext, SCliCmd * pCmd)
     log_printf(pLogOut, "filename: %s\n", pcFileName);
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not create \"%d\"\n",
-	      pcFileName);
+      cli_set_user_error(cli_get(), "could not create \"%d\"",
+			 pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -667,7 +660,7 @@ int cli_net_traffic_save(SCliContext * pContext, SCliCmd * pCmd)
     log_destroy(&pStream);
 
   if (iResult != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not save traffic matrix\n");
+    cli_set_user_error(cli_get(), "could not save traffic matrix");
     return CLI_ERROR_COMMAND_FAILED;
   }
 

@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 15/07/2003
-// @lastdate 05/04/2005
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,7 @@ int cli_net_node_ospf_area(SCliContext * pContext, STokens * pTokens)
   // Add ospf area to node
   tokens_get_uint_at(pTokens, 1, &uArea);
   if (node_add_OSPFArea(pNode, uArea) < 0) {
-    LOG_SEVERE("Error: unexpected error\n");
+    cli_set_user_error(cli_get(), "unexpected error");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
