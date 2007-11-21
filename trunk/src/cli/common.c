@@ -3,13 +3,15 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 19/07/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -140,17 +142,16 @@ int cli_require_version(SCliContext * pContext, SCliCmd * pCmd)
   pcVersion= tokens_get_string_at(pCmd->pParamValues, 0);
 
   if (parse_version(pcVersion, &uRequiredVersion)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid version \"\".\n", pcVersion);
+    cli_set_user_error(cli_get(), "invalid version \"\".", pcVersion);
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (parse_version(PACKAGE_VERSION, &uVersion)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid version \"\".\n",
-	    PACKAGE_VERSION);
+    cli_set_user_error(cli_get(), "invalid version \"\".", PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
   if (uRequiredVersion > uVersion) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: version %s > version %s.\n",
-	    pcVersion, PACKAGE_VERSION);
+    cli_set_user_error(cli_get(), "version %s > version %s.",
+		       pcVersion, PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -164,9 +165,8 @@ int cli_set_autoflush(SCliContext * pContext, SCliCmd * pCmd)
 
   pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2boolean(pcTemp, &iOptionAutoFlush) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: invalid value \"%s\" for option \"autoflush\"\n",
-	    pcTemp);
+    cli_set_user_error(cli_get(), "invalid value \"%s\" for option autoflush",
+		       pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -180,9 +180,7 @@ int cli_set_exitonerror(SCliContext * pContext, SCliCmd * pCmd)
 
   pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2boolean(pcTemp, &iOptionExitOnError) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: invalid value \"%s\" for option \"exit-on-error\"\n",
-	    pcTemp);
+    cli_set_user_error(cli_get(), "invalid value \"%s\" for option exit-on-error", pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -196,14 +194,14 @@ int cli_set_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 
   /* Get the hash size */
   if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
-	    tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid size \"%s\"",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Set the hash size */
   if (comm_hash_set_size(ulSize) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not set comm-hash size\n");
+    cli_set_user_error(cli_get(), "could not set comm-hash size");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -220,8 +218,8 @@ int cli_show_comm_hash_content(SCliContext * pContext, SCliCmd * pCmd)
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
-	      pcFileName);
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
+			 pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -249,8 +247,8 @@ int cli_show_comm_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
-	      pcFileName);
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
+			 pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -275,9 +273,8 @@ int cli_set_debug(SCliContext * pContext, SCliCmd * pCmd)
 
   pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2boolean(pcTemp, &iOptionDebug) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: invalid value \"%s\" for option \"debug\"\n",
-	    pcTemp);
+    cli_set_user_error(cli_get(), "invalid value \"%s\" for option debug",
+		       pcTemp);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -309,7 +306,7 @@ int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
 */
   return CLI_SUCCESS;
 #else
-  LOG_ERR(LOG_LEVEL_SEVERE, "Error: compiled without bgpdump.\n");
+  cli_set_user_error(cli_get(), "compiled without bgpdump.");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -321,7 +318,7 @@ int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
   struct rlimit rlim;
 
   if (getrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    log_perror(pLogErr, "Error: getrlimit, ");
+    cli_set_user_error(cli_get(), "getrlimit failed (%s)", strerror(errno));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -342,8 +339,7 @@ int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 
   return CLI_SUCCESS;
 #else
-  LOG_ERR(LOG_LEVEL_SEVERE,
-	  "Error: getrlimit() is not supported by your system\n");
+  cli_set_user_error(cli_get(), "getrlimit is not supported by your system");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -361,8 +357,8 @@ int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
     if (!strcmp(tokens_get_string_at(pCmd->pParamValues, 0), "unlimited")) {
       tLimit= RLIM_INFINITY;
     } else {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid mem limit \"%s\"\n",
-	      tokens_get_string_at(pCmd->pParamValues, 0));
+      cli_set_user_error(cli_get(), "invalid mem limit \"%s\"",
+			 tokens_get_string_at(pCmd->pParamValues, 0));
       return CLI_ERROR_COMMAND_FAILED;
     }
   } else {
@@ -375,7 +371,7 @@ int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 
   /* Get the soft limit on the process's size of virtual memory */
   if (getrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    log_perror(pLogErr, "Error: getrlimit, ");
+    cli_set_user_error(cli_get(), "getrlimit failed (%s)", strerror(errno));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -383,14 +379,13 @@ int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 
   /* Set new soft limit on the process's size of virtual memory */
   if (setrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
-    log_perror(pLogErr, "Error: setrlimit, ");
+    cli_set_user_error(cli_get(), "setrlimit failed (%s)", strerror(errno));
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   return CLI_SUCCESS;
 #else
-  LOG_ERR(LOG_LEVEL_SEVERE,
-	  "Error: setrlimit() is not supported by your system.\n");
+  cli_set_user_error(cli_get(), "setrlimit is not supported by your system.");
   return CLI_ERROR_COMMAND_FAILED;
 #endif
 }
@@ -402,14 +397,14 @@ int cli_set_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 
   /* Get the hash size */
   if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid size \"%s\"\n",
-	    tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid size \"%s\"",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Set the hash size */
   if (path_hash_set_size(ulSize) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not set path-hash size\n");
+    cli_set_user_error(cli_get(), "could not set path-hash size");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -426,8 +421,8 @@ int cli_show_path_hash_content(SCliContext * pContext, SCliCmd * pCmd)
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
-	      pcFileName);
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
+			 pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -455,8 +450,8 @@ int cli_show_path_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
   if (strcmp("stdout", pcFileName)) {
     pStream= log_create_file(pcFileName);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create file \"%s\"\n",
-	      pcFileName);
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
+			 pcFileName);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -510,8 +505,8 @@ int cli_include(SCliContext * pContext, SCliCmd * pCmd)
     iResult= cli_execute_file(pTheCli, pFile);
     fclose(pFile);
   } else
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: Unable to load file \"%s\".\n",
-	    pcFileName);
+    cli_set_user_error(cli_get(), "unable to load file \"%s\".",
+		       pcFileName);
   return iResult;
 }
 

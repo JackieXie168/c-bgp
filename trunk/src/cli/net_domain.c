@@ -4,18 +4,22 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 15/05/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <string.h>
+
+#include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
 #include <libgds/log.h>
+
+#include <cli/common.h>
 #include <net/igp_domain.h>
-#include <assert.h>
 #include <net/ospf_deflection.h>
 
 // ----- cli_net_add_domain -----------------------------------------
@@ -33,8 +37,8 @@ int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
   /* Check domain id */
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id %s\n",
-	       tokens_get_string_at(pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid domain id %s",
+		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -46,19 +50,17 @@ int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
 #ifdef OSPF_SUPPORT 
     tType= DOMAIN_OSPF;
 #else 
-    LOG_ERR(LOG_LEVEL_SEVERE, "To use OSPF model you must compile cbgp with --enable-ospf option\n");
+    cli_set_user_error(cli_get(), "not compiled with OSPF support");
     return CLI_ERROR_COMMAND_FAILED;
 #endif    
   } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unknown domain type %s\n",
-	       pcType);
+    cli_set_user_error(cli_get(), "unknown domain type %s", pcType);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Check that a domain with the same Id does not exist */
   if (exists_igp_domain(uId)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: domain %d already exists\n",
-	       uId);
+    cli_set_user_error(cli_get(), "domain %d already exists", uId);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -82,14 +84,14 @@ int cli_ctx_create_net_domain(SCliContext * pContext, void ** ppItem)
   /* Get domain id */
   if (tokens_get_uint_at(pContext->pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid domain id \"%s\"\n",
-	       tokens_get_string_at(pContext->pCmd->pParamValues, 0));
+    cli_set_user_error(cli_get(), "invalid domain id \"%s\"",
+		       tokens_get_string_at(pContext->pCmd->pParamValues, 0));
     return CLI_ERROR_CTX_CREATE;
   }
 
   pDomain= get_igp_domain(uId);
   if (pDomain == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to find domain \"%d\"\n", uId);
+    cli_set_user_error(cli_get(), "unable to find domain \"%d\"", uId);
     return CLI_ERROR_CTX_CREATE;
   }
   *ppItem= pDomain;
@@ -122,14 +124,14 @@ int cli_net_domain_set_ecmp(SCliContext * pContext, SCliCmd * pCmd)
   } else if (!strcmp(pcState, "no")) {
     iState= 0;
   } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid value for 'ecmp': \"%s\"\n",
-	    pcState);
+    cli_set_user_error(cli_get(), "invalid value for 'ecmp': \"%s\"",
+		       pcState);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Set state
   if (igp_domain_set_ecmp(pDomain, iState)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: this model does not accept changes to 'ecmp'\n");
+    cli_set_user_error(cli_get(), "ecmp options not supported");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -199,7 +201,7 @@ int cli_net_domain_compute(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
 
   if (igp_domain_compute(pDomain) != CLI_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: IGP routes computation failed.\n");
+    cli_set_user_error(cli_get(), "IGP routes computation failed.\n");
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;

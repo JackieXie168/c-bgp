@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be), 
 // @date 30/04/2007
-// @lastdate 25/06/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,11 +41,12 @@ int cli_bgp_topology_load(SCliContext * pContext, SCliCmd * pCmd)
   if (cli_options_has_value(pCmd->pOptions, "addr-sch")) {
     pcValue= cli_options_get_value(pCmd->pOptions, "addr-sch");
     if (pcValue == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: no value for option --addr-sch\n");
+      cli_set_user_error(cli_get(), "no value for option --addr-sch");
       return CLI_ERROR_COMMAND_FAILED;
     }
     if (aslevel_str2addr_sch(pcValue, &uAddrScheme) != ASLEVEL_SUCCESS) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error= invalid addressing scheme \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "invalid addressing scheme \"%s\"",
+			 pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -54,11 +55,11 @@ int cli_bgp_topology_load(SCliContext * pContext, SCliCmd * pCmd)
   if (cli_options_has_value(pCmd->pOptions, "format")) {
     pcValue= cli_options_get_value(pCmd->pOptions, "format");
     if (pcValue == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: no value for option --format\n");
+      cli_set_user_error(cli_get(), "no value for option --format");
       return CLI_ERROR_COMMAND_FAILED;
     }
     if (aslevel_topo_str2format(pcValue, &uFormat) != ASLEVEL_SUCCESS) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid format \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "invalid format \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -67,9 +68,8 @@ int cli_bgp_topology_load(SCliContext * pContext, SCliCmd * pCmd)
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
   iResult= aslevel_topo_load(pcValue, uFormat, uAddrScheme);
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not load topology (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -93,9 +93,8 @@ int cli_bgp_topology_check(SCliContext * pContext, SCliCmd * pCmd)
 
   iResult= aslevel_topo_check(iVerbose);
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "check failed (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -117,18 +116,16 @@ int cli_bgp_topology_filter(SCliContext * pContext, SCliCmd * pCmd)
   iResult= aslevel_filter_str2filter(pcValue, &uFilter);
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not filter topology (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   // Filter topology
   iResult= aslevel_topo_filter(uFilter);
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not filter topology (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -145,9 +142,8 @@ int cli_bgp_topology_policies(SCliContext * pContext, SCliCmd * pCmd)
   int iResult= aslevel_topo_policies();
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not setup policies (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -163,9 +159,8 @@ int cli_bgp_topology_info(SCliContext * pContext, SCliCmd * pCmd)
   int iResult= aslevel_topo_info(pLogOut);
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not get topology info (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -187,7 +182,7 @@ int cli_bgp_topology_recordroute(SCliContext * pContext, SCliCmd * pCmd)
   // Destination prefix
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2prefix(pcValue, &sPrefix) < 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcValue);
+    cli_set_user_error(cli_get(), "invalid prefix \"%s\"", pcValue);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -196,7 +191,7 @@ int cli_bgp_topology_recordroute(SCliContext * pContext, SCliCmd * pCmd)
   if (pcValue != NULL) {
     pStream= log_create_file(pcValue);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "unable to create \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -204,9 +199,8 @@ int cli_bgp_topology_recordroute(SCliContext * pContext, SCliCmd * pCmd)
   // Record routes
   iResult= aslevel_topo_record_route(pStream, sPrefix);
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");    
+    cli_set_user_error(cli_get(), "could not record route (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -263,9 +257,8 @@ int cli_bgp_topology_install(SCliContext * pContext, SCliCmd * pCmd)
   int iResult= aslevel_topo_install();
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not install topology (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -281,9 +274,8 @@ int cli_bgp_topology_run(SCliContext * pContext, SCliCmd * pCmd)
   int iResult= aslevel_topo_run();
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not run topology (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -305,7 +297,7 @@ int cli_bgp_topology_dump(SCliContext * pContext, SCliCmd * pCmd)
   if (pcValue != NULL) {
     pStream= log_create_file(pcValue);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "unable to create \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
@@ -317,9 +309,8 @@ int cli_bgp_topology_dump(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   if (iResult != ASLEVEL_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: ");
-    aslevel_perror(pLogErr, iResult);
-    LOG_ERR(LOG_LEVEL_SEVERE, "\n");
+    cli_set_user_error(cli_get(), "could not dump toplogy (%s)",
+		       aslevel_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -339,7 +330,7 @@ int cli_bgp_topology_stat(SCliContext * pContext, SCliCmd * pCmd)
   char * pcValue;
 
   if (pTopo == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: no topology loaded\n");
+    cli_set_user_error(cli_get(), "no topology loaded");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -347,7 +338,7 @@ int cli_bgp_topology_stat(SCliContext * pContext, SCliCmd * pCmd)
   if (pcValue != NULL) {
     pStream= log_create_file(pcValue);
     if (pStream == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: unable to create \"%s\"\n", pcValue);
+      cli_set_user_error(cli_get(), "unable to create \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
