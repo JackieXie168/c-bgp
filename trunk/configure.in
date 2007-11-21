@@ -5,7 +5,7 @@ dnl @author Bruno Quoitin
 dnl @version 17/10/2007
 dnl =================================================================
 
-AC_INIT([cbgp], [1.4.3])
+AC_INIT([cbgp], [1.4.4])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -46,13 +46,13 @@ AC_TYPE_SIZE_T
 
 dnl Now arrange the build libtool
 AC_PROG_LIBTOOL
-AC_SUBST(CBGP_LT_RELEASE, [1.4.3])
+AC_SUBST(CBGP_LT_RELEASE, [1.4.4])
 
 
 dnl *****************************************************************
 dnl LIBGDS CHECK
 dnl *****************************************************************
-LIBGDS_VERSION="1.4.2"
+LIBGDS_VERSION="1.4.3"
 AC_SUBST(LIBGDS_VERSION, [$LIBGDS_VERSION])
 PKG_CHECK_MODULES([LIBGDS], libgds >= $LIBGDS_VERSION,[],[
   AC_MSG_ERROR([libgds >= $LIBGDS_VERSION is needed to compile cbgp])
@@ -124,6 +124,7 @@ if test "$with_jni" != "no"; then
 
    JAVA=java
    JAVAC=javac
+   AC_CHECK_CLASSPATH
    AC_PROG_JAVAC
    AC_PROG_JAVA
    AC_SUBST(JAVAC)
@@ -411,4 +412,4 @@ TESTS="src/checks/basic"
 CFLAGS="$CFLAGS -Wall -Werror -O2"
 AC_SUBST(CFLAGS)
 
-AC_OUTPUT(Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec)
+AC_OUTPUT(Makefile lib/Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec src/jni/jni-test.sh)
