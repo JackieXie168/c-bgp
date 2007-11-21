@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 12/11/2007
+// @lastdate 18/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,8 @@
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
 #include <jni/impl/net_Link.h>
+#include <jni/impl/net_Node.h>
+#include <jni/impl/net_Subnet.h>
 
 #include <net/link.h>
 
@@ -218,5 +220,65 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_setWeight
   net_link_set_weight(pLink, 0, (uint32_t) jlWeight);
 
   jni_unlock(jEnv);
+}
+
+// -----[ getHead ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Method:    getHead
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/Node;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getHead
+  (JNIEnv * jEnv, jobject joLink)
+{
+  SNetLink * pLink;
+  jobject joNode;
+
+  jni_lock(jEnv);
+
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
+  if (pLink == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  joNode= cbgp_jni_new_net_Node(jEnv,
+				jni_proxy_get_CBGP(jEnv, joLink),
+				pLink->pSrcNode);
+
+  return_jni_unlock(jEnv, joNode);
+}
+
+// -----[ getTail ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Method:    getTail
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/Element;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getTail
+  (JNIEnv * jEnv, jobject joLink)
+{
+  SNetLink * pLink;
+  jobject joElement= NULL;
+
+  jni_lock(jEnv);
+
+  pLink= (SNetLink *) jni_proxy_lookup(jEnv, joLink);
+  if (pLink == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  switch (pLink->uType) {
+  case NET_LINK_TYPE_ROUTER:
+    joElement= cbgp_jni_new_net_Node(jEnv,
+				     jni_proxy_get_CBGP(jEnv, joLink),
+				     pLink->tDest.pNode);
+    break;
+  case NET_LINK_TYPE_TRANSIT:
+  case NET_LINK_TYPE_STUB:
+    joElement= cbgp_jni_new_net_Subnet(jEnv,
+				       jni_proxy_get_CBGP(jEnv, joLink),
+				       pLink->tDest.pSubnet);
+    break;
+  }
+
+  return_jni_unlock(jEnv, joElement);
 }
 
