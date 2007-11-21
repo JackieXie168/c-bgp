@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/04/2007
-// @lastdate 16/10/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_H__
@@ -87,6 +87,8 @@ extern "C" {
 
   // -----[ aslevel_perror ]-----------------------------------------
   void aslevel_perror(SLogStream * pStream, int iErrorCode);
+  // -----[ aslevel_strerror ]---------------------------------------
+  char * aslevel_strerror(int iErrorCode);
 
 
   ///////////////////////////////////////////////////////////////////

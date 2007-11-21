@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/05/2007
-// @lastdate 15/05/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifndef __NET_NETFLOW_H__
@@ -35,6 +35,8 @@ extern "C" {
 
   // -----[ netflow_perror ]-----------------------------------------
   void netflow_perror(SLogStream * pStream, int iErrorCode);
+  // -----[ netflow_strerror ]---------------------------------------
+  char * netflow_strerror(int iErrorCode);
   // -----[ netflow_load ]-------------------------------------------
   int netflow_load(const char * pcFileName, FNetflowHandler fHandler,
 		   void * pContext);

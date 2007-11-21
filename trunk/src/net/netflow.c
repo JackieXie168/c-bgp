@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/05/2007
-// @lastdate 16/05/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -46,28 +46,35 @@ typedef FILE FILE_TYPE;
  */
 void netflow_perror(SLogStream * pStream, int iErrorCode)
 {
-#define LOG(M) log_printf(pStream, M); return;
+  char * pcError= netflow_strerror(iErrorCode);
+  if (pcError != NULL)
+    log_printf(pStream, pcError);
+  else
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
+}
+
+// -----[ netflow_strerror ]-----------------------------------------
+char * netflow_strerror(int iErrorCode)
+{
   switch (iErrorCode) {
   case NETFLOW_SUCCESS:
-    LOG("success");
+    return "success";
   case NETFLOW_ERROR_UNEXPECTED:
-    LOG("unexpected error");
+    return "unexpected error";
   case NETFLOW_ERROR_OPEN:
-    LOG("unable to open file");
+    return "unable to open file";
   case NETFLOW_ERROR_NUM_FIELDS:
-    LOG("incorrect number of fields");
+    return "incorrect number of fields";
   case NETFLOW_ERROR_INVALID_HEADER:
-    LOG("invalid (flow-print) header");
+    return "invalid (flow-print) header";
   case NETFLOW_ERROR_INVALID_SRC_ADDR:
-    LOG("invalid source address");
+    return "invalid source address";
   case NETFLOW_ERROR_INVALID_DST_ADDR:
-    LOG("invalid destination address");
+    return "invalid destination address";
   case NETFLOW_ERROR_INVALID_OCTETS:
-    LOG("invalid octets field");
-  default:
-    LOG("unknown error");
+    return "invalid octets field";
   }
-#undef LOG
+	return NULL;
 }
 
 // -----[ netflow_parser ]-------------------------------------------

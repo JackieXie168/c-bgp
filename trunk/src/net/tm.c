@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/01/2007
-// @lastdate 15/05/2007
+// @lastdate 20/11/2007
 // ==================================================================
 // TODO:
 //   - what action must be taken in case of incomplete record-route
@@ -33,28 +33,38 @@
  */
 void net_tm_perror(SLogStream * pStream, int iError)
 {
-#define LOG(M) log_printf(pStream, M); break;
+  char * pcError= net_tm_strerror(iError);
+  if (pcError != NULL)
+    log_printf(pStream, pcError);
+  else
+    log_printf(pStream, "unknown error (%d)", iError);
+}
+
+// -----[ net_tm_strerror ]--------------------------------------------
+/**
+ *
+ */
+char * net_tm_strerror(int iError)
+{
   switch (iError) {
   case NET_TM_SUCCESS:
-    LOG("success");
+    return "success";
   case NET_TM_ERROR_UNEXPECTED:
-    LOG("unexpected error");
+    return "unexpected error";
   case NET_TM_ERROR_OPEN:
-    LOG("failed to open file");
+    return "failed to open file";
   case NET_TM_ERROR_NUM_PARAMS:
-    LOG("not enough fields");
+    return "not enough fields";
   case NET_TM_ERROR_INVALID_SRC:
-    LOG("invalid source");
+    return "invalid source";
   case NET_TM_ERROR_UNKNOWN_SRC:
-    LOG("source not found");
+    return "source not found";
   case NET_TM_ERROR_INVALID_DST:
-    LOG("invalid destination");
+    return "invalid destination";
   case NET_TM_ERROR_INVALID_LOAD:
-    LOG("invalid load");
-  default:
-    log_printf(pStream, "unknown error (%d)", iError);
+    return "invalid load";
   }
-#undef LOG
+  return NULL;
 }
 
 // -----[ net_tm_parser ]--------------------------------------------

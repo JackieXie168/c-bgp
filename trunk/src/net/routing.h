@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 16/04/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -62,6 +62,8 @@ extern "C" {
 			    SNetRouteNextHop sNH2);
   // ----- rt_perror ------------------------------------------------
   void rt_perror(SLogStream * pStream, int iErrorCode);
+  // ----- rt_strerror ----------------------------------------------
+  char * rt_strerror(int iErrorCode);
   // ----- net_route_info_create --------------------------------------
   SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
 					SNetLink * pIface,

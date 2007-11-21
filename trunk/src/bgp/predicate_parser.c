@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/02/2004
-// @lastdate 05/09/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -120,24 +120,41 @@ static void _dump_op()
 // -----[ predicate_parser_perror ]--------------------------------
 void predicate_parser_perror(SLogStream * pStream, int iErrorCode)
 {
-#define LOG(M) log_printf(pStream, "column:%d,%s", sParser.uColumn, M); break;
+  char * pcError= predicate_parser_strerror(iErrorCode);
+  if (pcError != NULL)
+    log_printf(pStream, pcError);
+  else
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
+}
+
+// -----[ predicate_parser_strerror ]------------------------------
+char * predicate_parser_strerror(int iErrorCode)
+{
+#define PREDICATE_PARSER_ERROR_BUF_SIZE 1000
+  static char acBuffer[PREDICATE_PARSER_ERROR_BUF_SIZE];
+
   switch (iErrorCode) {
-  case PREDICATE_PARSER_SUCCESS: LOG("success");
-  case PREDICATE_PARSER_ERROR_UNEXPECTED: LOG("unexpected");
-  case PREDICATE_PARSER_ERROR_UNFINISHED_STRING: LOG("unterminated string");
+  case PREDICATE_PARSER_SUCCESS:
+    return "success";
+  case PREDICATE_PARSER_ERROR_UNEXPECTED:
+    return "unexpected";
+  case PREDICATE_PARSER_ERROR_UNFINISHED_STRING:
+    return "unterminated string";
   case PREDICATE_PARSER_ERROR_ATOM:
-    log_printf(pStream, "atom-parsing error [");
-    cli_perror(pStream, sParser.iAtomError);
-    log_printf(pStream, "]");
-    break;
-  case PREDICATE_PARSER_ERROR_UNEXPECTED_EOF: LOG("unexpected end-of-file");
-  case PREDICATE_PARSER_ERROR_PAR_MISMATCH: LOG("parentheses mismatch");
-  case PREDICATE_PARSER_ERROR_STATE_TOO_LARGE: LOG("state too large");
+    snprintf(acBuffer, PREDICATE_PARSER_ERROR_BUF_SIZE,
+	     "atom-parsing error [%s]",
+	     cli_strerror(sParser.iAtomError));
+    return acBuffer;
+  case PREDICATE_PARSER_ERROR_UNEXPECTED_EOF:
+    return "unexpected end-of-file";
+  case PREDICATE_PARSER_ERROR_PAR_MISMATCH:
+    return "parentheses mismatch";
+  case PREDICATE_PARSER_ERROR_STATE_TOO_LARGE:
+    return "state too large";
   case PREDICATE_PARSER_ERROR_UNARY_OP:
-    LOG("unary operation not allowed here");
-  default:
-    LOG("unknown error");
+    return "unary operation not allowed here";
   }
+  return NULL;
 }
 
 // -----[ _predicate_parser_get_atom ]-------------------------------

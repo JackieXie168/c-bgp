@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 30/04/2007
-// @lastdate 15/10/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -155,53 +155,60 @@ static inline SPtrArray * _aslevel_create_array_domains(int iRef)
 
 // -----[ aslevel_perror ]-------------------------------------------
 void aslevel_perror(SLogStream * pStream, int iErrorCode)
-#define LOG(M) log_printf(pStream, M); return;
+{
+  char * pcError= aslevel_strerror(iErrorCode);
+  if (pcError != NULL)
+    log_printf(pStream, pcError);
+  else
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
+}
+
+// -----[ aslevel_strerror ]-----------------------------------------
+char * aslevel_strerror(int iErrorCode)
 {
   switch (iErrorCode) {
   case ASLEVEL_SUCCESS:
-    LOG("success");
+    return "success";
   case ASLEVEL_ERROR_UNEXPECTED:
-    LOG("unexpected error");
+    return "unexpected error";
   case ASLEVEL_ERROR_OPEN:
-    LOG("file open error");
+    return "file open error";
   case ASLEVEL_ERROR_NUM_PARAMS:
-    LOG("invalid number of parameters");
-  case ASLEVEL_ERROR_INVALID_ASNUM:
-    LOG("invalid ASN");
+    return "invalid number of parameters";
+ case ASLEVEL_ERROR_INVALID_ASNUM:
+    return "invalid ASN";
   case ASLEVEL_ERROR_INVALID_RELATION:
-    LOG("invalid business relationship");
+    return "invalid business relationship";
   case ASLEVEL_ERROR_INVALID_DELAY:
-    LOG("invalid delay");
+    return "invalid delay";
   case ASLEVEL_ERROR_DUPLICATE_LINK:
-    LOG("duplicate link");
+    return "duplicate link";
   case ASLEVEL_ERROR_LOOP_LINK:
-    LOG("loop link");
+    return "loop link";
   case ASLEVEL_ERROR_NODE_EXISTS:
-    LOG("node already exists");
+    return "node already exists";
   case ASLEVEL_ERROR_NO_TOPOLOGY:
-    LOG("no topology loaded");
+    return "no topology loaded";
   case ASLEVEL_ERROR_TOPOLOGY_LOADED:
-    LOG("topology already loaded");
+    return "topology already loaded";
   case ASLEVEL_ERROR_UNKNOWN_FORMAT:
-    LOG("unknown topology format");
+    return "unknown topology format";
   case ASLEVEL_ERROR_CYCLE_DETECTED:
-    LOG("topology contains cycle(s)");
+    return "topology contains cycle(s)";
   case ASLEVEL_ERROR_DISCONNECTED:
-    LOG("topology is not connected");
+    return "topology is not connected";
   case ASLEVEL_ERROR_INCONSISTENT:
-    LOG("topology is not consistent");
+    return "topology is not consistent";
   case ASLEVEL_ERROR_UNKNOWN_FILTER:
-    LOG("unknown topology filter");
+    return "unknown topology filter";
   case ASLEVEL_ERROR_NOT_INSTALLED:
-    LOG("topology is not installed");
+    return "topology is not installed";
   case ASLEVEL_ERROR_ALREADY_INSTALLED:
-    LOG("topology is already installed");
+    return "topology is already installed";
   case ASLEVEL_ERROR_ALREADY_RUNNING:
-    LOG("topology is already running");
-  default:
-    LOG("unknown error");
+    return "topology is already running";
   }
-#undef LOG
+  return NULL;
 }
 
 

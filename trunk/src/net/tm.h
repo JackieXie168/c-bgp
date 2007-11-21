@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 23/01/2007
-// @lastdate 23/01/2007
+// @lastdate 20/11/2007
 // ==================================================================
 
 #ifndef __NET_TM_H__
@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+  // -----[ net_tm_strerror ]----------------------------------------
+  char * net_tm_strerror(int iError);
   // -----[ net_tm_perror ]------------------------------------------
   void net_tm_perror(SLogStream * pStream, int iError);
   // -----[ net_tm_parser ]------------------------------------------
