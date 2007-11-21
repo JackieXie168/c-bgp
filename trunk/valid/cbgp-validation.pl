@@ -3683,7 +3683,7 @@ sub cbgp_valid_bgp_add_router_dup($)
     # Check that adding the same router twice fails
     my $msg= cbgp_check_error($cbgp, "bgp add router 1 1.0.0.0");
     if (!defined($msg) ||
-	!($msg =~ m/could not register BGP protocol on node/)) {
+	!($msg =~ m/could not register BGP/)) {
       return TEST_FAILURE;
     }
 
