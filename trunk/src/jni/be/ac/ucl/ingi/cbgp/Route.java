@@ -18,41 +18,43 @@ public class Route
     // -----[ protected attributes of the route ]--------------------
     protected IPPrefix prefix= null;
     protected IPAddress nexthop= null;
+    protected IPAddress gateway= null;
     protected boolean bBest;
     protected boolean bFeasible;
 
     // -----[ Route ]------------------------------------------------
-    public Route(IPPrefix prefix, IPAddress nexthop,
-		 boolean bBest, boolean bFeasible)
-    {
-	this.prefix= prefix;
-	this.nexthop= nexthop;
-	this.bBest= bBest;
-	this.bFeasible= bFeasible;
+    public Route(IPPrefix prefix, IPAddress nexthop, IPAddress gateway,
+		 boolean bBest, boolean bFeasible) {
+    	this.prefix= prefix;
+    	this.nexthop= nexthop;
+    	this.gateway= gateway;
+    	this.bBest= bBest;
+    	this.bFeasible= bFeasible;
     }
 
     // -----[ isBest ]-----------------------------------------------
-    public boolean isBest()
-    {
-	return bBest;
+    public boolean isBest() {
+    	return bBest;
     }
 
     // -----[ isFeasible ]-------------------------------------------
-    public boolean isFeasible()
-    {
-	return bFeasible;
+    public boolean isFeasible() {
+    	return bFeasible;
     }
 
     // -----[ getNexthop ]-------------------------------------------
-    public IPAddress getNexthop()
-    {
-	return nexthop;
+    public IPAddress getNexthop() {
+    	return nexthop;
+    }
+    
+    // -----[ getGateway ]-------------------------------------------
+    public IPAddress getGateway() {
+    	return gateway;
     }
 
     // -----[ getPrefix ]--------------------------------------------
-    public IPPrefix getPrefix()
-    {
-	return prefix;
+    public IPPrefix getPrefix() {
+    	return prefix;
     }
 
 }

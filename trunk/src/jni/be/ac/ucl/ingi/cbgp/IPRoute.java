@@ -27,12 +27,12 @@ public class IPRoute extends Route
     /**
      * IPRoute's constructor.
      */
-    public IPRoute(IPPrefix prefix, IPAddress nexthop, byte bType)
-    {
-	super(prefix, nexthop, true, true);
+    public IPRoute(IPPrefix prefix, IPAddress nexthop, IPAddress gateway,
+    		byte bType) {
+    	super(prefix, nexthop, gateway, true, true);
 
-	/* Attributes */
-	this.bType= bType;
+    	/* Attributes */
+    	this.bType= bType;
     }
 
     // -----[ getType ]----------------------------------------------
