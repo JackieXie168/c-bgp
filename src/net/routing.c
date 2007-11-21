@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 24/02/2004
-// @lastdate 25/04/2007
+// @lastdate 21/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,20 +47,29 @@ int route_nexthop_compare(SNetRouteNextHop sNH1,
  */
 void rt_perror(SLogStream * pStream, int iErrorCode)
 {
+  char * pcError= rt_strerror(iErrorCode);
+  if (pcError != NULL)
+    log_printf(pStream, pcError);
+  else
+    log_printf(pStream, "unknown error (%i)", iErrorCode);
+}
+
+// ----- rt_strerror ----------------------------------------------
+char * rt_strerror(int iErrorCode)
+{
   switch (iErrorCode) {
   case NET_RT_SUCCESS:
-    log_printf(pStream, "success"); break;
+    return "success";
   case NET_RT_ERROR_NH_UNREACH:
-    log_printf(pStream, "next-hop is unreachable"); break;
+    return "next-hop is unreachable";
   case NET_RT_ERROR_IF_UNKNOWN:
-    log_printf(pStream, "interface is unknown"); break;
+    return "interface is unknown";
   case NET_RT_ERROR_ADD_DUP:
-    log_printf(pStream, "route already exists"); break;
+    return "route already exists";
   case NET_RT_ERROR_DEL_UNEXISTING:
-    log_printf(pStream, "route does not exist"); break;
-  default:
-    log_printf(pStream, "unknown error");
+    return "route does not exist";
   }
+  return NULL;
 }
 
 // ----- net_route_info_create --------------------------------------
