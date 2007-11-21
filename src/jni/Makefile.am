@@ -66,6 +66,17 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/net/Node.java \
 	be/ac/ucl/ingi/cbgp/net/Subnet.java
 
+JAVATESTFILES= \
+	be/ac/ucl/ingi/cbgp/testing/TestBGPDomain.java \
+	be/ac/ucl/ingi/cbgp/testing/TestBGPRouter.java \
+	be/ac/ucl/ingi/cbgp/testing/TestIGPDomain.java \
+	be/ac/ucl/ingi/cbgp/testing/TestLink.java \
+	be/ac/ucl/ingi/cbgp/testing/TestMisc.java \
+	be/ac/ucl/ingi/cbgp/testing/TestNode.java \
+	be/ac/ucl/ingi/cbgp/testing/TestSession.java \
+	be/ac/ucl/ingi/cbgp/testing/TestSubnet.java \
+	be/ac/ucl/ingi/cbgp/testing/AllTests.java
+
 JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.CBGP \
 	be.ac.ucl.ingi.cbgp.IPTrace \
@@ -80,13 +91,15 @@ JNICLASSFILES= \
 
 METAFILE= META-INF/MANIFEST.MF
 
-CLASSFILES = $(JAVAFILES:.java=.class)
-EXTRA_DIST = $(JAVAFILES) $(METAFILE)
+#CLASSFILES = $(JAVAFILES:.java=.class)
+CLASSFILES = $(JAVAFILES:.java=.class) $(JAVATESTFILES:.java=.class)
+EXTRA_DIST = $(JAVAFILES) $(JAVATESTFILES) $(METAFILE)
+CLASSPATH = .:$(top_builddir)/lib/junit-4.4.jar
 
 # Invoke javac in order to build Java classes. In addition, invoke
 # javah in order to build the native function headers.
 .java.class:
-	$(JAVAC) $<
+	$(JAVAC) -classpath $(CLASSPATH) $<
 
 # Old way to build JNI headers was through the generic .class -> .java
 # rule. This was not working since 'javac' sometimes not only builds
@@ -100,9 +113,10 @@ SUFFIXES= .java .class
 $(JARFILE): $(CLASSFILES)
 	@(for f in $(JNICLASSFILES); do \
 	 echo "$(JAVAH) -d headers $$f"; \
-	 $(JAVAH) -d headers $$f; \
+	 $(JAVAH) -classpath $(CLASSPATH) -d headers $$f; \
 	done)
 	(jar cvfm $@ $(METAFILE) $(CLASSFILES))
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)
 
+TESTS = jni-test-wrapper.sh
