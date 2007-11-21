@@ -73,9 +73,8 @@ public class Link extends ProxyObject
     /**
      * Return the link's nexthop interface.
      */
-    public IPAddress getNexthopIf()
-    {
-	return nexthopIf;
+    public IPAddress getNexthopIf() {
+    	return nexthopIf;
     }
 
     // -----[ getWeight ]--------------------------------------------
@@ -97,14 +96,22 @@ public class Link extends ProxyObject
      *
      */
     public native synchronized boolean getState()
-	throws CBGPException;
+    	throws CBGPException;
 
     // -----[ setState ]---------------------------------------------
     /**
      *
      */
     public native synchronized void setState(boolean state)
-	throws CBGPException;
+		throws CBGPException;
+    
+    // -----[ getHead ]---------------------------------------------
+    public native synchronized Node getHead()
+    	throws CBGPException;
+    
+    // -----[ getTail ]----------------------------------------------
+    public native synchronized Element getTail()
+    	throws CBGPException;
 
     // -----[ toString ]---------------------------------------------
     /**
