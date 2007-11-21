@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 05/09/2007
+// @lastdate 20/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,6 +26,11 @@
 #include <jni.h>
 
 #define CLASS_CBGPException "be/ac/ucl/ingi/cbgp/CBGPException"
+
+#define CLASS_CBGPScriptException \
+  "be/ac/ucl/ingi/cbgp/CBGPScriptException"
+#define CONSTR_CBGPScriptException \
+  "(Ljava/lang/String;I)V"
 
 #define CLASS_AbstractConsoleEventListener \
   "be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener"
@@ -50,10 +55,12 @@
 
 #define CLASS_IPRoute "be/ac/ucl/ingi/cbgp/IPRoute"
 #define CONSTR_IPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
-                        "Lbe/ac/ucl/ingi/cbgp/IPAddress;B)V"
+                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
+                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;B)V"
 
 #define CLASS_BGPRoute "be/ac/ucl/ingi/cbgp/bgp/Route"
 #define CONSTR_BGPRoute "(Lbe/ac/ucl/ingi/cbgp/IPPrefix;" \
+                        "Lbe/ac/ucl/ingi/cbgp/IPAddress;" \
                         "Lbe/ac/ucl/ingi/cbgp/IPAddress;JJZZB" \
                         "Lbe/ac/ucl/ingi/cbgp/bgp/ASPath;Z" \
                         "Lbe/ac/ucl/ingi/cbgp/bgp/Communities;)V"
@@ -78,13 +85,54 @@
 /**
  * Throw a CBGPException.
  */
-void cbgp_jni_throw_CBGPException(JNIEnv * env, char * pcMsg)
+void cbgp_jni_throw_CBGPException(JNIEnv * jEnv, char * pcMsg)
 {
   jclass jcException;
 
-  jcException= (*env)->FindClass(env, CLASS_CBGPException);
-  if (jcException != NULL)
-      (*env)->ThrowNew(env, jcException, pcMsg);
+  jcException= (*jEnv)->FindClass(jEnv, CLASS_CBGPException);
+  if (jcException == NULL)
+    (*jEnv)->FatalError(jEnv, "could not find class CBGPException");
+
+  if ((*jEnv)->ThrowNew(jEnv, jcException, pcMsg) != 0)
+    (*jEnv)->FatalError(jEnv, "could not throw CBGPException");
+}
+
+// -----[ cbgp_jni_throw_CBGPScriptException ]-----------------------
+/**
+ * Throw a CBGPScriptException.
+ */
+void cbgp_jni_throw_CBGPScriptException(JNIEnv * jEnv, char * pcMsg,
+					int iLineNumber)
+{
+  jclass jcException;
+  jthrowable jtException;
+  jmethodID jmException;
+  jstring jsMsg= NULL;
+
+  jcException= (*jEnv)->FindClass(jEnv, CLASS_CBGPScriptException);
+  if (jcException == NULL)
+    (*jEnv)->FatalError(jEnv, "could not find class CBGPScriptException");
+
+  jmException= (*jEnv)->GetMethodID(jEnv, jcException, "<init>",
+				    CONSTR_CBGPScriptException);
+  if (jmException == NULL)
+    (*jEnv)->FatalError(jEnv, "could not get constructor of " \
+			"CBGPScriptException");
+
+  if (pcMsg != NULL) {
+    jsMsg= cbgp_jni_new_String(jEnv, pcMsg);
+    if (jsMsg == NULL)
+      (*jEnv)->FatalError(jEnv, "could not create String");
+  }
+
+  jtException= (*jEnv)->NewObject(jEnv, jcException, jmException,
+				  jsMsg, iLineNumber);
+  if (jcException == NULL)
+    (*jEnv)->FatalError(jEnv, "could not create instance of " \
+			"CBGPScriptException");
+
+  if ((*jEnv)->Throw(jEnv, jtException) != 0)
+    (*jEnv)->FatalError(jEnv, "could not throw CBGPScriptException");
 }
 
 // -----[ cbgp_jni_new_Communities ]---------------------------------
@@ -292,35 +340,46 @@ jobject cbgp_jni_new_IPAddress(JNIEnv * env, net_addr_t tAddr)
  * This function creates a new instance of the IPRoute object from a
  * CBGP route.
  */
-jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix, SNetRouteInfo * pRoute)
+jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, SPrefix sPrefix,
+			     SNetRouteInfo * pRoute)
 {
   jclass class_IPRoute;
   jmethodID id_IPRoute;
-  jobject obj_IPRoute;
+  jobject joRoute;
+  jobject joPrefix;
+  jobject joGateway;
+  jobject joIface;
+  SPrefix sIface;
 
   /* Convert route attributes to Java objects */
-  jobject obj_IPPrefix= cbgp_jni_new_IPPrefix(env, sPrefix);
-  jobject obj_IPAddress=
-    cbgp_jni_new_IPAddress(env, net_link_get_address(pRoute->sNextHop.pIface));
+  joPrefix= cbgp_jni_new_IPPrefix(jEnv, sPrefix);
+  if (joPrefix == NULL)
+    return NULL;
 
-  /* Check that the conversion was successful */
-  if ((obj_IPPrefix == NULL) || (obj_IPAddress == NULL))
+  sIface= net_link_get_id(pRoute->sNextHop.pIface);
+  joIface=
+    cbgp_jni_new_IPAddress(jEnv, sIface.tNetwork);
+  if (joIface == NULL)
+    return NULL;
+
+  joGateway= cbgp_jni_new_IPAddress(jEnv, pRoute->sNextHop.tGateway);
+  if (joGateway == NULL)
     return NULL;
 
   /* Create new IPRoute object */
-  if ((class_IPRoute= (*env)->FindClass(env, CLASS_IPRoute)) == NULL)
+  if ((class_IPRoute= (*jEnv)->FindClass(jEnv, CLASS_IPRoute)) == NULL)
     return NULL;
 
-  if ((id_IPRoute= (*env)->GetMethodID(env, class_IPRoute, "<init>",
+  if ((id_IPRoute= (*jEnv)->GetMethodID(jEnv, class_IPRoute, "<init>",
 				   CONSTR_IPRoute)) == NULL)
     return NULL;
 
-  if ((obj_IPRoute= (*env)->NewObject(env, class_IPRoute, id_IPRoute,
-				      obj_IPPrefix, obj_IPAddress,
-				      pRoute->tType)) == NULL)
+  if ((joRoute= (*jEnv)->NewObject(jEnv, class_IPRoute, id_IPRoute,
+				   joPrefix, joIface, joGateway,
+				   pRoute->tType)) == NULL)
     return NULL;
 
-  return obj_IPRoute;
+  return joRoute;
 }
 
 // -----[ cbgp_jni_new_LinkMetrics ]---------------------------------

@@ -37,7 +37,10 @@ extern "C" {
 #endif
 
   // -----[ cbgp_jni_throw_CBGPException ]---------------------------
-  void cbgp_jni_throw_CBGPException(JNIEnv * env, char * pcMsg);
+  void cbgp_jni_throw_CBGPException(JNIEnv * jEnv, char * pcMsg);
+  // -----[ cbgp_jni_throw_CBGPScriptException ]---------------------
+  void cbgp_jni_throw_CBGPScriptException(JNIEnv * jEnv, char * pcMsg,
+					  int iLineNumber);
   // -----[ cbgp_jni_new_ConsoleEvent ]------------------------------
   jobject cbgp_jni_new_ConsoleEvent(JNIEnv * env, char * pcMessage);
   // -----[ cbgp_jni_Communities_append ]----------------------------

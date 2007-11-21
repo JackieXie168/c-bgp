@@ -898,6 +898,9 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
   (JNIEnv * jEnv, jobject joCBGP, jstring jsFileName)
 {
   char * pcFileName;
+  int iResult;
+  SCliErrorDetails sErrorDetails;
+  char * pcMsg;
 
   if (jni_check_null(jEnv, joCBGP))
     return;
@@ -905,8 +908,18 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
   jni_lock(jEnv);
 
   pcFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
-  if (libcbgp_exec_file(pcFileName) != CLI_SUCCESS)
-    cbgp_jni_throw_CBGPException(jEnv, "could not execute script");
+  if ((iResult= libcbgp_exec_file(pcFileName)) != CLI_SUCCESS) {
+    cli_get_error_details(cli_get(), &sErrorDetails);
+
+    // If there is a detailled user error message, then generate the
+    // an exception with this message. Otherwise, throw an exception
+    // with the default CLI error message.
+    if (sErrorDetails.pcUserError != NULL)
+      pcMsg= sErrorDetails.pcUserError;
+    else
+      pcMsg= cli_strerror(sErrorDetails.iErrorCode);
+    cbgp_jni_throw_CBGPScriptException(jEnv, pcMsg, sErrorDetails.iLineNumber);
+  }
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
 
   jni_unlock(jEnv);
