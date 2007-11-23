@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @lastdate 21/05/2007
-// @date 25/10/07
+// @date 23/11/07
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -837,6 +837,30 @@ static int test_bgp_attr_aspath_contains()
   return UTEST_SUCCESS;
 }
 
+// -----[ test_bgp_attr_aspath_rem_private ]-------------------------
+static int test_bgp_attr_aspath_rem_private()
+{
+  SBGPPath * pPath= NULL;
+  pPath= path_from_string("64511 64512 12 34 65535");
+  ASSERT_RETURN(pPath != NULL, "64511 64512 12 34 65535 is a valid AS-Path");
+  ASSERT_RETURN(path_length(pPath) == 5, "path length should be 5");
+  ASSERT_RETURN(path_contains(pPath, 64511), "path should contain 64511");
+  ASSERT_RETURN(path_contains(pPath, 64512), "path should contain 64512");
+  ASSERT_RETURN(path_contains(pPath, 12), "path should contain 12");
+  ASSERT_RETURN(path_contains(pPath, 34), "path should contain 34");
+  ASSERT_RETURN(path_contains(pPath, 65535), "path should contain 65535");
+  path_remove_private(pPath);
+  ASSERT_RETURN(path_length(pPath) == 3, "path length should be 3");
+  ASSERT_RETURN(path_contains(pPath, 64511), "path should contain 64511");
+  ASSERT_RETURN(path_contains(pPath, 64512) == 0,
+		"path should not contain 64512");
+  ASSERT_RETURN(path_contains(pPath, 12), "path should contain 12");
+  ASSERT_RETURN(path_contains(pPath, 34), "path should contain 34");
+  ASSERT_RETURN(path_contains(pPath, 65535) == 0,
+		"path should not contain 65535");
+  return UTEST_SUCCESS;
+}
+
 // -----[ test_bgp_attr_communities ]--------------------------------
 static int test_bgp_attr_communities()
 {
@@ -1351,7 +1375,12 @@ int test_bgp_filter_action_path_prepend_str2()
 // -----[ test_bgp_filter_action_expression_str2 ]-------------------
 int test_bgp_filter_action_expression_str2()
 {
-  return UTEST_SKIPPED;
+  SFilterAction * pAction;
+  ASSERT_RETURN(filter_parser_action("as-path prepend 2, local-pref 253",
+				     &pAction) == 0,
+		"filter_parser_action() should return 0");
+  filter_action_destroy(&pAction);
+  return UTEST_SUCCESS;
 }
 
 
@@ -1732,6 +1761,7 @@ SUnitTest TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath_set_str2, "as-path set (<- string)"},
   {test_bgp_attr_aspath_cmp, "as-path (compare)"},
   {test_bgp_attr_aspath_contains, "as-path (contains)"},
+  {test_bgp_attr_aspath_rem_private, "as-path remove private"},
   {test_bgp_attr_communities, "communities"},
   {test_bgp_attr_communities_append, "communities append"},
   {test_bgp_attr_communities_remove, "communities remove"},
