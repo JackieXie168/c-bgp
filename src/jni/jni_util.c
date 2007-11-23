@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 20/11/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -538,6 +538,33 @@ int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
 
   return iResult;
 }
+
+// -----[ ip_jstring_to_dest ]---------------------------------------
+/**
+ * Convert the destination to a SNetDest structure.
+ * 1). try IP prefix first
+ * 2). try IP address
+ */
+int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest)
+{
+  const char * cDest;
+  int iResult= 0;
+
+  if (jsDest == NULL)
+    return -1;
+
+  cDest= (*jEnv)->GetStringUTFChars(jEnv, jsDest, NULL);
+  if (ip_string_to_dest((char *)cDest, pDest) != 0) 
+    iResult= -1;
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsDest, cDest);
+
+  /* If the conversion could not be performed, throw an Exception */
+  if (iResult != 0)
+    cbgp_jni_throw_CBGPException(jEnv, "Invalid IP destination");
+
+  return iResult;
+}
+
 
 // -----[ cbgp_jni_net_node_from_string ]----------------------------
 /**
