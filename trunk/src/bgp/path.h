@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 02/12/2002
-// @lastdate 20/07/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifndef __BGP_PATH_H__
@@ -67,6 +67,8 @@ extern "C" {
   int path_str_cmp(SBGPPath * pPath1, SBGPPath * pPath2);
   // ----- path_match -----------------------------------------------
   int path_match(SBGPPath * pPath, int iArrayPathRegExPos);
+  // -----[ path_remove_private ]------------------------------------
+  void path_remove_private(SBGPPath * pPath);
 
   // -----[ _path_destroy ]------------------------------------------
   void _path_destroy();

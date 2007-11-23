@@ -425,6 +425,49 @@ int path_segment_cmp(SPathSegment * pSeg1, SPathSegment * pSeg2)
   return 0;
 }
 
+// -----[ path_segment_remove_private ]------------------------------
+/**
+ * Remove private ASNs from the segment. Private ASN are those in the
+ * range [64512, 65535].
+ */
+SPathSegment * path_segment_remove_private(SPathSegment * pSegment)
+{
+  unsigned int uIndex;
+  int iResize= 0;
+  
+  uIndex= 0;
+  while (uIndex < pSegment->uLength) {
+
+    // ASN in [64512, 65535] ?
+    if ((pSegment->auValue[uIndex] >= 64512)) {
+      memmove(&pSegment->auValue[uIndex],
+	      &pSegment->auValue[uIndex+1],
+	      sizeof(uint16_t)*(pSegment->uLength-uIndex-1));
+      pSegment->uLength--;
+      iResize= 1;
+    } else
+      uIndex++;
+
+  }
+
+  // ASNs were removed. Need to resize segment ?
+  if (iResize) {
+
+    // No more ASN in segment => free
+    if (pSegment->uLength == 0) {
+      FREE(pSegment);
+      return NULL;
+    }
+
+    // Resize
+    return (SPathSegment *) REALLOC(pSegment,
+				    sizeof(SPathSegment)+
+				    pSegment->uLength*sizeof(uint16_t));
+  }
+
+  return pSegment;
+}
+
 // -----[ _path_segment_destroy ]------------------------------------
 void _path_segment_destroy()
 {
