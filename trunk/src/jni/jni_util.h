@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 05/09/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -72,6 +72,8 @@ extern "C" {
   int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr);
   // -----[ ip_jstring_to_prefix ]-----------------------------------
   int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix);
+  // -----[ ip_jstring_to_dest ]-------------------------------------
+  int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest);
   // -----[ cbgp_jni_net_node_from_string ]--------------------------
   SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_net_link_from_string ]--------------------------

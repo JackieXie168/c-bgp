@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 29/10/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -142,10 +142,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   if (pNode == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  /* Convert the destination */
-  if (ip_jstring_to_address(jEnv, jsDestination, &sDest.uDest.tAddr) != 0)
+  /* Get the destination */
+  if (ip_jstring_to_dest(jEnv, jsDestination, &sDest) != 0)
     return_jni_unlock(jEnv, NULL);
-  sDest.tType= NET_DEST_ADDRESS;
+
+  /* "Any" destination not allowed here */
+  if (sDest.tType == NET_DEST_ANY) {
+    cbgp_jni_throw_CBGPException(jEnv, "invalid destination (*)");
+    return_jni_unlock(jEnv, NULL);
+  }
 
   /* Trace the IP-level route */
   pRRInfo= node_record_route(pNode, sDest, 0,
