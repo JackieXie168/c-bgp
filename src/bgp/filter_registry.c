@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 28/08/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -492,6 +492,18 @@ int ft_cli_action_as_path_prepend(SCliContext * pContext,
    return CLI_SUCCESS;
 }
 
+// ----- ft_cli_action_as_path_rem_private --------------------------
+int ft_cli_action_as_path_rem_private(SCliContext * pContext,
+				      SCliCmd * pCmd)
+{
+  SFilterAction ** ppAction=
+    (SFilterAction **) cli_context_get(pContext);
+
+  *ppAction= filter_action_path_rem_private();
+
+   return CLI_SUCCESS;
+}
+
 // ----- ft_cli_action_community_add --------------------------------
 int ft_cli_action_community_add(SCliContext * pContext,
 				SCliCmd * pCmd)
@@ -699,6 +711,9 @@ void ft_cli_register_action_as_path()
   cli_cmds_add(pSubCmds, cli_cmd_create("prepend",
 					ft_cli_action_as_path_prepend,
 					NULL, pParams));
+  cli_cmds_add(pSubCmds, cli_cmd_create("remove-private",
+					ft_cli_action_as_path_rem_private,
+					NULL, NULL));
   cli_register_cmd(pCli, cli_cmd_create("as-path", NULL, pSubCmds, NULL));
 }
 

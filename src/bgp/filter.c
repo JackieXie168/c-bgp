@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 28/08/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -357,6 +357,9 @@ int filter_action_apply(SFilterAction * pAction, SBGPRouter * pRouter,
     case FT_ACTION_PATH_PREPEND:
       route_path_prepend(pRoute, pRouter->uNumber,
 			 *((uint8_t *) pAction->auParams));
+      break;
+    case FT_ACTION_PATH_REM_PRIVATE:
+      route_path_rem_private(pRoute);
       break;
     case FT_ACTION_PREF_SET:
       route_localpref_set(pRoute, *((uint32_t *) pAction->auParams));
@@ -732,6 +735,15 @@ SFilterAction * filter_action_path_prepend(uint8_t uAmount)
   return pAction;
 }
 
+// ----- filter_action_path_rem_private -----------------------------
+/**
+ *
+ */
+SFilterAction * filter_action_path_rem_private()
+{
+  return filter_action_create(FT_ACTION_PATH_REM_PRIVATE, 0);
+}
+
 // ----- filter_matcher_dump ----------------------------------------
 /**
  *
@@ -770,7 +782,8 @@ void filter_matcher_dump(SLogStream * pStream, SFilterMatcher * pMatcher)
       break;
     case FT_MATCH_COMM_CONTAINS:
       memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
-      log_printf(pStream, "community is %u", tCommunity);
+      log_printf(pStream, "community is ");
+      comm_value_dump(pStream, tCommunity, COMM_DUMP_TEXT);
       break;
     case FT_MATCH_NEXTHOP_IS:
       log_printf(pStream, "next-hop is ");
@@ -810,19 +823,30 @@ void filter_action_dump(SLogStream * pStream, SFilterAction * pAction)
 {
   while (pAction != NULL) {
     switch (pAction->uCode) {
-    case FT_ACTION_ACCEPT: log_printf(pStream, "ACCEPT"); break;
-    case FT_ACTION_DENY: log_printf(pStream, "DENY"); break;
+    case FT_ACTION_ACCEPT:
+      log_printf(pStream, "ACCEPT");
+      break;
+    case FT_ACTION_DENY:
+      log_printf(pStream, "DENY");
+      break;
     case FT_ACTION_COMM_APPEND:
       log_printf(pStream, "append community ");
       comm_value_dump(pStream, *((uint32_t *) pAction->auParams),
 		      COMM_DUMP_TEXT);
       break;
-    case FT_ACTION_COMM_STRIP: log_printf(pStream, "comm strip"); break;
+    case FT_ACTION_COMM_STRIP:
+      log_printf(pStream, "comm strip");
+      break;
     case FT_ACTION_COMM_REMOVE:
-      log_printf(pStream, "remove community %u", *((uint32_t *) pAction->auParams));
+      log_printf(pStream, "remove community ");
+      comm_value_dump(pStream, *((uint32_t *) pAction->auParams),
+		      COMM_DUMP_TEXT);
       break;
     case FT_ACTION_PATH_PREPEND:
       log_printf(pStream, "prepend as-path %u", *((uint8_t *) pAction->auParams));
+      break;
+    case FT_ACTION_PATH_REM_PRIVATE:
+      log_printf(pStream, "path remove-private");
       break;
     case FT_ACTION_PREF_SET:
       log_printf(pStream, "set local-pref %u", *((uint32_t *) pAction->auParams));
