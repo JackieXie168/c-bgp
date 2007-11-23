@@ -808,6 +808,29 @@ int path_str_cmp(SBGPPath * pPath1, SBGPPath * pPath2)
   return strcmp(acPathStr1, acPathStr2);
 }
 
+// -----[ path_remove_private ]--------------------------------------
+void path_remove_private(SBGPPath * pPath)
+{
+  unsigned int uIndex;
+  SPathSegment * pSegment;
+  SPathSegment * pNewSegment;
+
+  uIndex= 0;
+  while (uIndex < path_num_segments(pPath)) {
+    pSegment= (SPathSegment *) pPath->data[uIndex];
+    pNewSegment= path_segment_remove_private(pSegment);
+    if (pSegment != pNewSegment) {
+      if (pNewSegment == NULL) {
+	ptr_array_remove_at(pPath, uIndex);
+	continue;
+      } else {
+	pPath->data[uIndex]= pNewSegment;
+      }
+    }
+    uIndex++;
+  }
+}
+
 // -----[ _path_destroy ]--------------------------------------------
 void _path_destroy()
 {
