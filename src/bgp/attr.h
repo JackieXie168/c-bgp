@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/11/2005
-// @lastdate 20/07/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifndef __BGP_ATTR_H__
@@ -34,6 +34,8 @@ extern "C" {
   // -----[ bgp_attr_path_prepend ]----------------------------------
   int bgp_attr_path_prepend(SBGPAttr ** ppAttr, uint16_t uAS,
 			    uint8_t uAmount);
+  // -----[ bgp_attr_path_rem_private ]------------------------------
+  int bgp_attr_path_rem_private(SBGPAttr ** ppAttr);
   // -----[ bgp_attr_set_comm ]--------------------------------------
   void bgp_attr_set_comm(SBGPAttr ** ppAttr, SCommunities * pCommunities);
   // -----[ bgp_attr_comm_append ]-----------------------------------

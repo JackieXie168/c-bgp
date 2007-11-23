@@ -263,6 +263,12 @@ inline int route_path_prepend(SRoute * pRoute, uint16_t uAS,
   return bgp_attr_path_prepend(&pRoute->pAttr, uAS, uAmount);
 }
 
+// -----[ route_path_rem_private ]-----------------------------------
+inline int route_path_rem_private(SRoute * pRoute)
+{
+  return bgp_attr_path_rem_private(&pRoute->pAttr);
+}
+
 // ----- route_path_contains ----------------------------------------
 /**
  * Test if the route's AS-PAth contains the given AS-number.
