@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 21/11/2005
-// @lastdate 20/07/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -145,6 +145,28 @@ int bgp_attr_path_prepend(SBGPAttr ** ppAttr, uint16_t uAS, uint8_t uAmount)
   bgp_attr_set_path(ppAttr, pPath);
 
   /*log_printf(pLogErr, "<--PATH_PREPEND [%p]\n", (*ppAttr)->pASPathRef);*/
+  return 0;
+}
+
+// -----[ bgp_attr_path_rem_private ]--------------------------------
+int bgp_attr_path_rem_private(SBGPAttr ** ppAttr)
+{
+  SBGPPath * pPath;
+
+  /*log_printf(pLogErr, "-->PATH_REM_PRIVATE [%p]\n", (*ppAttr)->pASPathRef);*/
+
+  // Create extern AS-Path copy
+  if ((*ppAttr)->pASPathRef == NULL)
+    pPath= path_create();
+  else
+    pPath= path_copy((*ppAttr)->pASPathRef);
+
+  path_remove_private(pPath);
+
+  // Intern path
+  bgp_attr_set_path(ppAttr, pPath);
+
+  /*log_printf(pLogErr, "<--PATH_REM_PRIVATE [%p]\n", (*ppAttr)->pASPathRef);*/
   return 0;
 }
 

@@ -57,6 +57,8 @@ extern "C" {
   void route_set_path(SRoute * pRoute, SBGPPath * pPath);
   // ----- route_path_prepend ---------------------------------------
   int route_path_prepend(SRoute * pRoute, uint16_t uAS, uint8_t uAmount);
+  // -----[ route_path_rem_private ]---------------------------------
+  int route_path_rem_private(SRoute * pRoute);
   // ----- route_path_contains --------------------------------------
   int route_path_contains(SRoute * pRoute, uint16_t uAS);
   // ----- route_path_length ----------------------------------------
