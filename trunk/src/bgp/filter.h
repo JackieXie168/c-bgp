@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 05/09/2007
+// @lastdate 23/11/2007
 // ==================================================================
 
 #ifndef __BGP_FILTER_H__
@@ -36,20 +36,21 @@
 #define FT_MATCH_PREFIX_IN      31
 
 // Action codes
-#define FT_ACTION_NOP             0
-#define FT_ACTION_ACCEPT          1
-#define FT_ACTION_DENY            2
-#define FT_ACTION_COMM_APPEND     10
-#define FT_ACTION_COMM_STRIP      11
-#define FT_ACTION_COMM_REMOVE     12
-#define FT_ACTION_PATH_APPEND     20
-#define FT_ACTION_PATH_PREPEND    21
-#define FT_ACTION_PREF_SET        30
-#define FT_ACTION_ECOMM_APPEND    40
-#define FT_ACTION_METRIC_SET      50
-#define FT_ACTION_METRIC_INTERNAL 51
-#define FT_ACTION_JUMP		  60
-#define FT_ACTION_CALL		  61
+#define FT_ACTION_NOP              0
+#define FT_ACTION_ACCEPT           1
+#define FT_ACTION_DENY             2
+#define FT_ACTION_COMM_APPEND      10
+#define FT_ACTION_COMM_STRIP       11
+#define FT_ACTION_COMM_REMOVE      12
+#define FT_ACTION_PATH_APPEND      20
+#define FT_ACTION_PATH_PREPEND     21
+#define FT_ACTION_PATH_REM_PRIVATE 22
+#define FT_ACTION_PREF_SET         30
+#define FT_ACTION_ECOMM_APPEND     40
+#define FT_ACTION_METRIC_SET       50
+#define FT_ACTION_METRIC_INTERNAL  51
+#define FT_ACTION_JUMP		   60
+#define FT_ACTION_CALL		   61
 
 
 #define FTM_AND(fm1, fm2) filter_match_and(fm1, fm2)
@@ -147,6 +148,8 @@ extern "C" {
   SFilterAction * filter_action_ecomm_append(SECommunity * pComm);
   // ----- filter_action_path_prepend -------------------------------
   SFilterAction * filter_action_path_prepend(uint8_t uAmount);
+  // ----- filter_action_path_rem_private ---------------------------
+  SFilterAction * filter_action_path_rem_private();
   // ----- filter_dump ----------------------------------------------
   void filter_dump(SLogStream * pStream, SFilter * pFilter);
   // ----- filter_matcher_dump --------------------------------------
