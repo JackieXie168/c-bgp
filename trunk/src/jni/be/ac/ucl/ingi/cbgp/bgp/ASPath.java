@@ -15,27 +15,24 @@ import java.util.Vector;
 /**
  * This class represents an AS-Path.
  */
-public class ASPath
-{
+public class ASPath {
     
     // -----[ protected attributes ]---------------------------------
-    protected Vector segments= null;
+    protected Vector<ASPathSegment> segments= null;
 
     // -----[ ASPath ]-----------------------------------------------
     /**
      * ASPath's constructor.
      */
-    public ASPath()
-    {
-	this.segments= new Vector();
+    public ASPath() {
+    	this.segments= new Vector<ASPathSegment>();
     }
 
     // -----[ append ]--------------------------------------------------
     /**
      * Append a new AS-path segment.
      */
-    public void append(ASPathSegment segment)
-    {
+    public void append(ASPathSegment segment) {
     	segments.add(segment);
     }
 
@@ -43,28 +40,27 @@ public class ASPath
     /**
      * Return the segment at the given position.
      */
-    public ASPathSegment getSegment(int iIndex) throws Exception
-    {
-	if ((iIndex < 0) || (iIndex >= segments.size()))
-	    throw new Exception("Invalid AS-path segment index "+iIndex);
-	return (ASPathSegment) segments.get(iIndex);
+    public ASPathSegment getSegment(int iIndex)
+    	throws Exception {
+    	if ((iIndex < 0) || (iIndex >= segments.size()))
+    		throw new Exception("Invalid AS-path segment index "+iIndex);
+    	return (ASPathSegment) segments.get(iIndex);
     }
 
     // -----[ toString ]---------------------------------------------
     /**
      * Convert the AS-Path to a String.
      */
-    public String toString()
-    {
-	String s= "";
+    public String toString() {
+    	String s= "";
 
-	for (int iIndex= segments.size(); iIndex > 0; iIndex--) {
-	    if (iIndex < segments.size()) {
-		s+= " ";
-	    }
-	    s+= segments.get(iIndex-1);
-	}
-	return s;
+    	for (int iIndex= segments.size(); iIndex > 0; iIndex--) {
+    		if (iIndex < segments.size()) {
+    			s+= " ";
+    		}
+    		s+= segments.get(iIndex-1);
+    	}
+    	return s;
     }
 
 }
