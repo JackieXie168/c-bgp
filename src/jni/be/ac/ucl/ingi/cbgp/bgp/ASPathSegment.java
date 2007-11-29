@@ -15,8 +15,7 @@ import java.util.Vector;
 /**
  * This class represents an AS-Path segment.
  */
-public class ASPathSegment
-{
+public class ASPathSegment {
 
     // -----[ constants ]--------------------------------------------
     public static final int AS_PATH_SEGMENT_SET     = 1;
@@ -24,27 +23,27 @@ public class ASPathSegment
 
     // -----[ protected attributes ]---------------------------------
     protected int iType;
-    protected Vector ases= null;
+    protected Vector<Integer> ases= null;
 
     // -----[ ASPathSegment ]----------------------------------------
     /**
      * ASPathSegment's constructor.
      */
-    public ASPathSegment(int iType) throws Exception
-    {
-	this.ases= new Vector();
-	if ((iType != AS_PATH_SEGMENT_SET) &&
-	    (iType != AS_PATH_SEGMENT_SEQUENCE))
-	    throw new Exception("Invalid AS-Path segment type "+iType);
-	this.iType= iType;
+    public ASPathSegment(int iType)
+    	throws Exception {
+    	this.ases= new Vector<Integer>();
+    	if ((iType != AS_PATH_SEGMENT_SET) &&
+    			(iType != AS_PATH_SEGMENT_SEQUENCE))
+    		throw new Exception("Invalid AS-Path segment type "+iType);
+    	this.iType= iType;
     }
 
     // -----[ append ]-----------------------------------------------
     /**
      * Append an AS-number to the AS-Path segment.
      */
-    public void append(int iAS) throws Exception
-    {
+    public void append(int iAS)
+    	throws Exception {
     	if ((iAS < 0) || (iAS > 65535))
     		throw new Exception("Invalid AS number "+iAS);
 		ases.add(new Integer(iAS));
@@ -54,8 +53,7 @@ public class ASPathSegment
     /**
      * Return the AS-Path segment element at the given position.
      */
-    public int get(int iIndex) throws Exception
-    {
+    public int get(int iIndex) throws Exception {
     	if ((iIndex < 0) || (iIndex >= ases.size()))
     		throw new Exception("Invalid AS-Path segment index "+iIndex);
     	return ((Integer) ases.get(iIndex)).intValue();
@@ -65,8 +63,7 @@ public class ASPathSegment
     /**
      * Return the AS-Path segment's type.
      */
-    public int getType()
-    {
+    public int getType() {
     	return iType;
     }
 
@@ -74,24 +71,22 @@ public class ASPathSegment
     /**
      * Convert the AS-Path segment to a String.
      */
-    public String toString()
-    {
-	String s="";
+    public String toString() {
+    	String s="";
 
-	if (iType == AS_PATH_SEGMENT_SET) {
-	    s+= "{ ";
-	}
-	for (int iIndex= ases.size(); iIndex > 0; iIndex--) {
-	    if (iIndex < ases.size()) {
-		s+= " ";
-	    }
-	    s+= ases.get(iIndex-1);
-	}
-	if (iType == AS_PATH_SEGMENT_SET) {
-	    s+= " }";
-	}
+    	if (iType == AS_PATH_SEGMENT_SET)
+    		s+= "{ ";
+    	
+    	for (int iIndex= ases.size(); iIndex > 0; iIndex--) {
+    		if (iIndex < ases.size())
+    			s+= " ";
+    		s+= ases.get(iIndex-1);
+    	}
+	
+    	if (iType == AS_PATH_SEGMENT_SET)
+    		s+= " }";
 
-	return s;
+    	return s;
     }
 
 }
