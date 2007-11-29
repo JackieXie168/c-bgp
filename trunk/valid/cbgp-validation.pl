@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bqu@info.ucl.ac.be)
-# @lastdate 16/10/2007
+# @lastdate 23/11/2007
 # ===================================================================
 # Syntax:
 #
@@ -6468,6 +6468,27 @@ sub cbgp_valid_bgp_filter_action_aspath()
     return TEST_SUCCESS;
   }
 
+# -----[ cbgp_valid_bgp_filter_action_aspath_rem_private ]-----------
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_filter_action_aspath_rem_private($)
+  {
+    my ($cbgp)= @_;
+    cbgp_topo_filter($cbgp);
+    cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in", "any", "as-path remove-private");
+    die if $cbgp->send("bgp router 1.0.0.1 peer 2.0.0.1 recv ".
+		       "\"BGP4|0|A|1.0.0.1|1|255/16|2 65535 9 64511 64512|IGP|2.0.0.1|0|0\"\n");
+    die if $cbgp->send("sim run\n");
+    my $rib;
+    $rib= cbgp_show_rib($cbgp, "1.0.0.1");
+    if (!exists($rib->{"255.0.0.0/16"})) {
+      return TEST_FAILURE;
+    }
+    if (!aspath_equals($rib->{"255.0.0.0/16"}->[CBGP_RIB_PATH], [2, 9, 64511])) {
+      return TEST_FAILURE;
+    }
+    return TEST_SUCCESS;
+  }
+
 # -----[ cbgp_valid_bgp_filter_match_nexthop ]-----------------------
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_filter_match_nexthop($)
@@ -8518,6 +8539,8 @@ $tests->register("bgp filter action med internal",
 	      "cbgp_valid_bgp_filter_action_med_internal");
 $tests->register("bgp filter action as-path",
 	      "cbgp_valid_bgp_filter_action_aspath");
+$tests->register("bgp filter action as-path remove-private",
+	      "cbgp_valid_bgp_filter_action_aspath_rem_private");
 $tests->register("bgp filter match community",
 	      "cbgp_valid_bgp_filter_match_community");
 $tests->register("bgp filter match as-path regex",
