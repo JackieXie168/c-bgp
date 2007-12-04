@@ -141,4 +141,4 @@ JAVAPACKAGES = \
 	be.ac.ucl.ingi.cbgp.net
 
 doc:
-	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $JAVAPACKAGES
+	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $(JAVAPACKAGES)
