@@ -269,19 +269,24 @@
       <!-- ***********
            DESCRIPTION
            *********** !-->
-      <xsl:text>.Sh DESCRIPTION&#xa;</xsl:text>
       <xsl:for-each select="description">
-        <xsl:apply-templates match="code" select="."/>
+        <xsl:if test="string-length() > 0">
+          <xsl:text>.Sh DESCRIPTION&#xa;</xsl:text>
+          <xsl:apply-templates match="code" select="."/>
+        </xsl:if>
       </xsl:for-each>
       <!-- ***********
-           SEE ALSO
+           SUB COMMANDS
            *********** !-->
       <xsl:for-each select="childs">
-        <xsl:text>.Sh SEE ALSO&#xa;</xsl:text>
+        <xsl:text>.Sh SUB COMMANDS&#xa;</xsl:text>
+        <xsl:text>.Bl -bullet -compact&#xa;</xsl:text>
         <xsl:for-each select="child">
-          <xsl:value-of select="id"/>
+          <xsl:text>.It&#xa;.Nm </xsl:text>
           <xsl:value-of select="name"/>
+          <xsl:text>&#xa;</xsl:text>
         </xsl:for-each>
+        <xsl:text>.El&#xa;</xsl:text>
       </xsl:for-each>
       <!-- ***********
            AUTHORS
