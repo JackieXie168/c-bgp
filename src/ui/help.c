@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 02/10/2007
+// @lastdate 04/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,7 +16,9 @@
 #include <string.h>
 
 #include <libgds/cli_ctx.h>
+#include <libgds/str_util.h>
 #include <cli/common.h>
+#include <ui/pager.h>
 
 #ifdef HAVE_LIBREADLINE
 # ifdef HAVE_READLINE_READLINE_H
@@ -24,6 +26,63 @@
 # endif
 # include <ui/rl.h>
 #endif
+
+// -----[ cli_cmd_get_path ]-----------------------------------------
+/**
+ * Return the complete command path for the given command.
+ */
+char * cli_cmd_get_path(SCliCmd * pCmd)
+{
+  char * pcPath= NULL;
+
+  while (pCmd != NULL) {
+    if (strcmp(pCmd->pcName, "")) {
+      if (pcPath == NULL)
+	pcPath= str_create(pCmd->pcName);
+      else {
+	str_prepend(&pcPath, "_");
+	str_prepend(&pcPath, pCmd->pcName);
+      }
+    }
+    pCmd= pCmd->pParent;
+  }
+  return pcPath;
+}
+
+// -----[ cli_help_cmd_topic ]---------------------------------------
+/**
+ * Run a pager (typically "less") to display the help file
+ * corresponding to the given command.
+ *
+ *
+ */
+int cli_help_cmd_topic(SCliCmd * pCmd)
+{
+  int iResult;
+  char * pcFileName= str_create(DOCDIR);
+  char * pcPath= cli_cmd_get_path(pCmd);
+
+  // Translate the command's path to a valid filename
+  str_translate(pcPath, " ", "_");
+
+  fprintf(stdout, "\n");
+
+  str_append(&pcFileName, "/txt/");
+
+  str_append(&pcFileName, pcPath);
+  str_destroy(&pcPath);
+  str_append(&pcFileName, ".txt");
+
+  iResult= pager_run(pcFileName);
+
+  str_destroy(&pcFileName);
+
+#ifdef HAVE_RL_ON_NEW_LINE
+  rl_on_new_line();
+#endif
+
+  return iResult;
+}
 
 // -----[ _cli_help_cmd ]--------------------------------------------
 /**
@@ -36,6 +95,11 @@ static void _cli_help_cmd(SCliCmd * pCmd)
   int iIndex, iIndex2;
   SCliCmd * pSubCmd;
   SCliParam * pParam;
+
+  if (pCmd->fCommand != NULL) {
+    cli_help_cmd_topic(pCmd);
+    return;
+  }
 
   fprintf(stdout, "\n");
   fprintf(stdout, "Syntax:\n");

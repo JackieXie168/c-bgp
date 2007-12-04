@@ -8,7 +8,7 @@ endif
 AM_CFLAGS = $(OPT_EXPERIMENTAL)
 
 noinst_LTLIBRARIES = libui.la
-libui_la_CFLAGS = $(LIBGDS_CFLAGS) $(READLINE_CFLAGS)
+libui_la_CFLAGS = $(LIBGDS_CFLAGS) $(READLINE_CFLAGS) -DDOCDIR=\"$(docdir)\"
 
 libui_la_SOURCES = \
 	completion.c \
@@ -17,6 +17,8 @@ libui_la_SOURCES = \
 	help.h \
 	output.c \
 	output.h \
+	pager.c \
+	pager.h \
 	rl.c \
 	rl.h
 
