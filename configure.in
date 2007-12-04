@@ -37,6 +37,7 @@ AC_CHECK_HEADER(sys/resource.h)
 AC_CHECK_FUNCS(syslog)
 AC_CHECK_HEADER(getopt.h,,[
   AC_MSG_ERROR([getopt.h is required])])
+AC_CHECK_FUNCS(execvp fork waitpid)
 
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -127,6 +128,7 @@ if test "$with_jni" != "no"; then
    AC_CHECK_CLASSPATH
    AC_PROG_JAVAC
    AC_PROG_JAVA
+   AC_PROG_JAVADOC
    AC_SUBST(JAVAC)
 
    AC_PATH_PROG(JAVAH, javah)
@@ -412,4 +414,4 @@ TESTS="src/checks/basic"
 CFLAGS="$CFLAGS -Wall -Werror -O2"
 AC_SUBST(CFLAGS)
 
-AC_OUTPUT(Makefile lib/Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec src/jni/jni-test.sh)
+AC_OUTPUT(Makefile doc/Makefile doc/txt/Makefile lib/Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec src/jni/jni-test.sh)
