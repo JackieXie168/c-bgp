@@ -91,7 +91,6 @@ JNICLASSFILES= \
 
 METAFILE= META-INF/MANIFEST.MF
 
-#CLASSFILES = $(JAVAFILES:.java=.class)
 CLASSFILES = $(JAVAFILES:.java=.class) $(JAVATESTFILES:.java=.class)
 EXTRA_DIST = \
 	$(JAVAFILES) \
@@ -124,4 +123,22 @@ $(JARFILE): $(CLASSFILES)
 
 CLEANFILES = $(JARFILE) $(CLASSFILES)
 
+
+# -------------------------------------------------------------------
+# Java tests
+# -------------------------------------------------------------------
+
 TESTS = jni-test-wrapper.sh
+
+
+# -------------------------------------------------------------------
+# Java documentation
+# -------------------------------------------------------------------
+
+JAVAPACKAGES = \
+	be.ac.ucl.ingi.cbgp \
+	be.ac.ucl.ingi.cbgp.bgp \
+	be.ac.ucl.ingi.cbgp.net
+
+doc:
+	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $JAVAPACKAGES
