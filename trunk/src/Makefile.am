@@ -120,3 +120,16 @@ install-exec-local:
 	 ;; \
 	 esac)
 endif
+
+# -------------------------------------------------------------------
+# Documentation
+# -------------------------------------------------------------------
+.PHONY: doc
+
+DOC_SUBDIRS = $(OPT_JNI_DIR)
+
+doc:
+	@(for subdir in $(DOC_SUBDIRS); do \
+	(echo "$$subdir" ; cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) doc) \
+	done)
+
