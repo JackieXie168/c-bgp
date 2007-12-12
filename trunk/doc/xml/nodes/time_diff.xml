@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>diff</name>
+  <id>time_diff</id>
+  <context>time</context>
+  <abstract>show time elapsed since last save</abstract>
+  <description></description>
+  <father>
+    <name>time</name>
+    <id>time</id>
+  </father>
+  <next>
+    <name>save</name>
+    <id>time_save</id>
+  </next>
+</command>

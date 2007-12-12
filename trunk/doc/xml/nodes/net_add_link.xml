@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<command>
+  <name>link</name>
+  <id>net_add_link</id>
+  <context>net add</context>
+  <parameters>
+    <option>
+      <name>--bw</name>
+      <description>optional bandwidth</description>
+    </option>
+    <option>
+      <name>--depth</name>
+      <description>number of IGP weights</description>
+    </option>
+    <parameter>
+      <name>addr-src</name>
+      <description>address of source node</description>
+    </parameter>
+    <parameter>
+      <name>addr-dst</name>
+      <description>address of destination node</description>
+    </parameter>
+    <parameter>
+      <name>delay</name>
+      <description>link delay</description>
+    </parameter>
+  </parameters>
+  <abstract>add a link to the topology</abstract>
+  <description>
+<p>This command adds a new link between two existing nodes whose
+addresses are <cbgp.param>addr-src</cbgp.param> and <cbgp.param>addr-dst</cbgp.param> in the topology. The new link is bidirectional. The propagation delay of the link is specified by the <cbgp.param>delay</cbgp.param> parameter. Note also that by default, the IGP-cost of the link is fixed at the same value.</p>
+  </description>
+  <father>
+    <name>add</name>
+    <id>net_add</id>
+  </father>
+  <prev>
+    <name>domain</name>
+    <id>net_add_domain</id>
+  </prev>
+  <next>
+    <name>node</name>
+    <id>net_add_node</id>
+  </next>
+</command>

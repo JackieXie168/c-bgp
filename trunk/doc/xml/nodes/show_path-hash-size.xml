@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>path-hash-size</name>
+  <id>show_path-hash-size</id>
+  <context>show</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <prev>
+    <name>path-hash-content</name>
+    <id>show_path-hash-content</id>
+  </prev>
+  <next>
+    <name>path-hash-stat</name>
+    <id>show_path-hash-stat</id>
+  </next>
+</command>

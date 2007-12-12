@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>tm</name>
+  <id>net_tm</id>
+  <context>net</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>load</name>
+      <id>net_tm_load</id>
+    </child>
+  </childs>
+  <prev>
+    <name>subnet</name>
+    <id>net_subnet</id>
+  </prev>
+</command>

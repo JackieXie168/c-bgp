@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<command>
+  <name>ping</name>
+  <id>net_node_ping</id>
+  <context>net node</context>
+  <parameters>
+    <option>
+      <name>--ttl</name>
+      <description>initial TTL of the ICMP echo-request message</description>
+    </option>
+    <parameter>
+      <name>addr</name>
+      <description>destination address</description>
+    </parameter>
+  </parameters>
+  <abstract>test the reachability of another node</abstract>
+  <description>
+<p>
+This command tests the reachability of another node by sending a probe message (like an ICMP echo-request) and waiting for an answer (ICMP echo-reply). The command will only succeed if the destination node is also able to reach the source node.
+</p>
+  </description>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <prev>
+    <name>name</name>
+    <id>net_node_name</id>
+  </prev>
+  <next>
+    <name>record-route</name>
+    <id>net_node_record-route</id>
+  </next>
+</command>

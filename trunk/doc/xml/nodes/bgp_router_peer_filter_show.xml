@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>bgp_router_peer_filter_show</id>
+  <context>bgp router peer filter</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>filter</name>
+    <id>bgp_router_peer_filter</id>
+  </father>
+  <prev>
+    <name>rule</name>
+    <id>bgp_router_peer_filter_rule</id>
+  </prev>
+</command>

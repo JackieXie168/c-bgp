@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>links</name>
+  <id>net_links</id>
+  <context>net</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>load-clear</name>
+      <id>net_links_load-clear</id>
+    </child>
+  </childs>
+  <prev>
+    <name>link</name>
+    <id>net_link</id>
+  </prev>
+  <next>
+    <name>node</name>
+    <id>net_node</id>
+  </next>
+</command>

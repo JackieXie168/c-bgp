@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<command>
+  <name>load-clear</name>
+  <id>net_links_load-clear</id>
+  <context>net links</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>links</name>
+    <id>net_links</id>
+  </father>
+</command>

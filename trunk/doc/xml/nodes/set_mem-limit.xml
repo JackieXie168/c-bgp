@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>mem-limit</name>
+  <id>set_mem-limit</id>
+  <context>set</context>
+  <parameters>
+    <parameter>
+      <name>value</name>
+      <description>new memory limit (in bytes)</description>
+    </parameter>
+  </parameters>
+  <abstract>set the memory limit of C-BGP</abstract>
+  <description>
+<p>
+This command changes the memory limit of <i>C-BGP</i> to a maximum of <i>amount</i> bytes, using the <b>setrlimit</b> system call. Normally, there is no per-process memory limitation enforced by the operating system. The memory allocation will fail when there is no more physical memory and no more virtual memory available. However, in certain situations, reaching both the physical and virtual memory limits may pose problems. Especially on some systems (on Linux for instance) where the scheduler may kill the first application that requests memory above the reached limits. Important applications may be killed even if the user who runs the simulator has no administrative privilege. We experimented such situation, so use this option with large simulations!!!
+</p>
+  </description>
+  <father>
+    <name>set</name>
+    <id>set</id>
+  </father>
+  <prev>
+    <name>exit-on-error</name>
+    <id>set_exit-on-error</id>
+  </prev>
+  <next>
+    <name>path-hash-size</name>
+    <id>set_path-hash-size</id>
+  </next>
+</command>

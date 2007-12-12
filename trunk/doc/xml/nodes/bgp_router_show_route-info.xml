@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<command>
+  <name>route-info</name>
+  <id>bgp_router_show_route-info</id>
+  <context>bgp router show</context>
+  <parameters>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description></description>
+    </parameter>
+    <vararg>
+      <name>output</name>
+      <cardinality>0-1</cardinality>
+      <description></description>
+    </vararg>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>show</name>
+    <id>bgp_router_show</id>
+  </father>
+  <prev>
+    <name>rib-out</name>
+    <id>bgp_router_show_rib-out</id>
+  </prev>
+</command>

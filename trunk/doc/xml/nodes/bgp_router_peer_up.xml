@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>up</name>
+  <id>bgp_router_peer_up</id>
+  <context>bgp router peer</context>
+  <abstract>establish a BGP session</abstract>
+  <description>
+<p>
+This command starts the establishment of one BGP session. Actually, the session is not necessarily established. The command rather sets the session as administratively active. This means that BGP OPEN messages will be temptatively sent to the corresponding neighbor. If the neighbor answers, the session will go to the ESTABLISHED state. If the neighbor does not answer, the session will remain in OPENWAIT state. Otherwise, if the OPEN message could not be sent, due to for instance a routing problem, the session will go to the ACTIVE state.
+</p>
+  </description>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <prev>
+    <name>soft-restart</name>
+    <id>bgp_router_peer_soft-restart</id>
+  </prev>
+  <next>
+    <name>virtual</name>
+    <id>bgp_router_peer_virtual</id>
+  </next>
+</command>

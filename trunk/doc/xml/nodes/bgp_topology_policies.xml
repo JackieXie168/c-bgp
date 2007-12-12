@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<command>
+  <name>policies</name>
+  <id>bgp_topology_policies</id>
+  <context>bgp topology</context>
+  <abstract>configure topology-wide route filters</abstract>
+  <description>
+<p>
+This command configures the route filters of the BGP sessions according to business policies specified in the loaded AS-level topology (see <cmd><name>bgp topology load</name><link>bgp_topology_load</link></cmd>).
+</p>
+<p>
+The filters are composed of two parts. The first part enforces the <i>valley-free</i> property. The second part enforces a preference for routes depending on the type of neighbor they are received from. Routes from customers receive the highest preference, followed by routes received from shared-cost peers and finally, routes received from providers are the less preferred. The filters are implemented using the LOCAL-PREF and COMMUNITIES.
+</p>
+  </description>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>load</name>
+    <id>bgp_topology_load</id>
+  </prev>
+  <next>
+    <name>record-route</name>
+    <id>bgp_topology_record-route</id>
+  </next>
+</command>

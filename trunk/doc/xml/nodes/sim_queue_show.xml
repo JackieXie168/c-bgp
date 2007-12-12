@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>sim_queue_show</id>
+  <context>sim queue</context>
+  <abstract>show the content of the simulation queue</abstract>
+  <description></description>
+  <father>
+    <name>queue</name>
+    <id>sim_queue</id>
+  </father>
+  <prev>
+    <name>info</name>
+    <id>sim_queue_info</id>
+  </prev>
+</command>

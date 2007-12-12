@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>step</name>
+  <id>sim_step</id>
+  <context>sim</context>
+  <parameters>
+    <parameter>
+      <name>num-steps</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract>process a single simulation event</abstract>
+  <description></description>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <prev>
+    <name>run</name>
+    <id>sim_run</id>
+  </prev>
+  <next>
+    <name>stop</name>
+    <id>sim_stop</id>
+  </next>
+</command>

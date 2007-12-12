@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>domain</name>
+  <id>net_node_domain</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>id</name>
+      <description>new node's domain ID</description>
+    </parameter>
+  </parameters>
+  <abstract>set the domain one node belongs to</abstract>
+  <description>
+<p>
+This command sets the domain one node belongs to. This command is used in combination with the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd>, to build the intradomain (IGP) routes of a domain.
+</p>
+  </description>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <next>
+    <name>ipip-enable</name>
+    <id>net_node_ipip-enable</id>
+  </next>
+</command>

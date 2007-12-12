@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<command>
+  <name>rt</name>
+  <id>net_node_show_rt</id>
+  <context>net node show</context>
+  <parameters>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description>filter for route destination</description>
+    </parameter>
+  </parameters>
+  <abstract>show one node's routing/forwarding table</abstract>
+  <description>
+<p>
+This command shows the content of the routing table of one node. The command takes one parameter to filter the output. The filter parameters can be an IP address, an IP prefix or a wildcard (*). If the filter is an IP address, the result will contain the routes that match the address (best-match). If the filter is an IP prefix, the result will only contain the routes towards this prefix (exact-match). Finally, if a wildcard is given, all the routes will be shown.
+</p>
+<p>
+Output format:
+<code>
+&lt;prefix&gt; &lt;next-hop&gt; &lt;metric&gt; &lt;type&gt;
+</code>
+where the <i>type</i> field can take one of the following values:
+<table>
+<trh><th>Value</th><th>Description</th></trh>
+<tr><td>STATIC</td><td>The route was statically installed with the <cmd><name>net node route add</name><link>net_node_route_add</link></cmd> command.</td></tr>
+<tr><td>IGP</td><td>The route was computed by the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> command.</td></tr>
+<tr><td>BGP</td><td>The route was learned by BGP and selected as best.</td></tr>
+</table>
+<p>
+</p>
+Example:
+<code>
+cbgp> net node 0.0.0.1 show rt *<br/>
+0.1.0.1/32      0.2.0.2 0       BGP<br/>
+0.2.0.1/32      0.2.0.2 0       BGP<br/>
+0.2.0.2/32      0.2.0.2 0       BGP
+</code>
+</p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>net_node_show</id>
+  </father>
+  <prev>
+    <name>links</name>
+    <id>net_node_show_links</id>
+  </prev>
+</command>
