@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/04/2006
-// @lastdate 05/10/2007
+// @lastdate 05/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,6 +17,7 @@
 #include <jni/jni_util.h>
 #include <jni/impl/bgp_Filter.h>
 #include <jni/impl/bgp_Peer.h>
+#include <jni/impl/bgp_Router.h>
 
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
@@ -56,6 +57,30 @@ jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joPeer, pPeer);
 
   return joPeer;
+}
+
+// -----[ getRouter ]------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    getRouter
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/bgp/Router;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getRouter
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  SBGPPeer * pPeer;
+  jobject joRouter;
+
+  jni_lock(jEnv);
+
+  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  if (pPeer == NULL)
+    return NULL;
+
+  joRouter= cbgp_jni_new_bgp_Router(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+				    pPeer->pLocalRouter);
+
+  return_jni_unlock(jEnv, joRouter);
 }
 
 // -----[ getRouterID ]----------------------------------------------
