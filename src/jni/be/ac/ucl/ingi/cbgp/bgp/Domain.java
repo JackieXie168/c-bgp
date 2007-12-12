@@ -44,7 +44,7 @@ public class Domain extends ProxyObject
     }
     
     // -----[ getRouters ]------------------------------------------
-    public native synchronized	Vector getRouters()
+    public native synchronized Vector<Router> getRouters()
 		throws CBGPException;
     
     //  -----[ rescan ]-------------------------------------------------
