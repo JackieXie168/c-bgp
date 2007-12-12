@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<command>
+  <name>domain</name>
+  <id>net_add_domain</id>
+  <context>net add</context>
+  <parameters>
+    <parameter>
+      <name>id</name>
+      <description>domain identifier (an integer)</description>
+    </parameter>
+    <parameter>
+      <name>type</name>
+      <description>domain type</description>
+    </parameter>
+  </parameters>
+  <abstract>create an IGP domain</abstract>
+  <description>
+<p>Create a new IGP domain identified by <i>id</i>. An IGP domain is used to group nodes that participate in an IGP protocol (for example IS-IS or OSPF). In C-BGP, the IGP protocol model is static, meaning that the IGP routes computation is done in a centralized way and without exchanging messages.</p>
+<p>C-BGP was designed to support multiple IGP domain types. There is currently a single domain <i>type</i> supported: <b>igp</b>. This domain type computes shortest-path trees between all its members according to the IGP weights assigned to the links.</p>
+<p>Use the <cmd>net node domain</cmd> command to assign a node to an IGP domain. Use the <cmd>net link igp-weight</cmd> command to assign an IGP weight to an existing link.
+</p>
+  </description>
+  <father>
+    <name>add</name>
+    <id>net_add</id>
+  </father>
+  <next>
+    <name>link</name>
+    <id>net_add_link</id>
+  </next>
+</command>

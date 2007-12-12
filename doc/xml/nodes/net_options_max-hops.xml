@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>max-hops</name>
+  <id>net_options_max-hops</id>
+  <context>net options</context>
+  <parameters>
+    <parameter>
+      <name>max-hops</name>
+      <description>maximum number of hops traversed by record-route</description>
+    </parameter>
+  </parameters>
+  <abstract>set the maximum number of hops for record-route</abstract>
+  <description>
+<p>
+This command changes the maximum number of hops used by the record-route command. The default value is 15 hops.
+</p>
+  </description>
+  <father>
+    <name>options</name>
+    <id>net_options</id>
+  </father>
+</command>

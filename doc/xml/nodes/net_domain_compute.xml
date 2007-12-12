@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<command>
+  <name>compute</name>
+  <id>net_domain_compute</id>
+  <context>net domain</context>
+  <abstract>compute the IGP routes inside this domain</abstract>
+  <description>
+<p>
+This command computes the routes between all the nodes that belong to one domain. How the computation is performed depends on the domain's type. Basically, <i>C-BGP</i> only supports one domain type for the moment and it is named <b>igp</b>. In this model, the intradomain routes are the shortest-paths according to the domain's link weights (see also <cmd><name>net link igp-weight</name><link>net_link_igp-weight</link></cmd>).
+</p>
+<p>
+Example:
+<code>
+# Create IGP domain 1 and assign nodes 0.1.0.1, 0.1.0.2<br/>
+# and 0.1.0.3 to this domain<br/>
+net add domain 1 igp<br/>
+net node 0.1.0.1 domain 1<br/>
+net node 0.1.0.2 domain 1<br/>
+net node 0.1.0.3 domain 1<br/>
+<br/>
+# Compute the shortest-paths between all the domain's nodes<br/>
+net domain 1 compute
+</code>
+</p>
+  </description>
+  <father>
+    <name>domain</name>
+    <id>net_domain</id>
+  </father>
+  <next>
+    <name>set</name>
+    <id>net_domain_set</id>
+  </next>
+</command>

@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>assert</name>
+  <id>bgp_router_assert</id>
+  <context>bgp router</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <childs>
+    <child>
+      <name>routes</name>
+      <id>bgp_router_assert_routes</id>
+    </child>
+  </childs>
+  <prev>
+    <name>add</name>
+    <id>bgp_router_add</id>
+  </prev>
+  <next>
+    <name>debug</name>
+    <id>bgp_router_debug</id>
+  </next>
+</command>

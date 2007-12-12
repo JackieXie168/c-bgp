@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>version</name>
+  <id>show_version</id>
+  <context>show</context>
+  <abstract>show version information</abstract>
+  <description>
+<p>
+This command shows the version of <i>C-BGP</i>. The version information can be used to check the compatibility with an existing script. The version information displayed by the command contains a version number composed of three numerical fields (main version/sub version/release). The numerical version is followed by informal fields which inform on compilation options. For instance the version information may be followed by <b>[experimental]</b> which means that the version has been compiled using experimental features.
+</p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <prev>
+    <name>path-hash-stat</name>
+    <id>show_path-hash-stat</id>
+  </prev>
+</command>

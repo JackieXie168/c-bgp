@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>net_node_route_add</id>
+  <context>net node route</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>destination prefix</description>
+    </parameter>
+    <parameter>
+      <name>next-hop</name>
+      <description>address of the next-hop</description>
+    </parameter>
+    <parameter>
+      <name>iface</name>
+      <description>outgoing interface</description>
+    </parameter>
+    <parameter>
+      <name>weight</name>
+      <description>weight associated with the route</description>
+    </parameter>
+  </parameters>
+  <abstract>add a static route to a node</abstract>
+  <description>
+<p>
+This command can be used to add to a node a static route towards a specific <arg>prefix</arg>.
+</p>
+<p>
+Note: It is often more convenient to use the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> which computes the shortest-path routes for each node within the specified domain.
+</p>
+  </description>
+  <father>
+    <name>route</name>
+    <id>net_node_route</id>
+  </father>
+  <next>
+    <name>del</name>
+    <id>net_node_route_del</id>
+  </next>
+</command>

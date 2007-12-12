@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>info</name>
+  <id>bgp_router_show_info</id>
+  <context>bgp router show</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>show</name>
+    <id>bgp_router_show</id>
+  </father>
+  <next>
+    <name>networks</name>
+    <id>bgp_router_show_networks</id>
+  </next>
+</command>

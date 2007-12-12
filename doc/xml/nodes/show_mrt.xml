@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<command>
+  <name>mrt</name>
+  <id>show_mrt</id>
+  <context>show</context>
+  <parameters>
+    <parameter>
+      <name>filename</name>
+      <description>name of the MRT file</description>
+    </parameter>
+    <parameter>
+      <name>predicate</name>
+      <description>route filter</description>
+    </parameter>
+  </parameters>
+  <abstract>show the content of an MRT file (binary)</abstract>
+  <description>
+<p>
+This command shows the content of a BGP routing table in MRT format. The command operates directly on MRT in binary format, using Dan Ardelean's <i>libbgpdump</i> library. Parsing MRT files directly in <i>C-BGP</i> has several advantages. First, the <i>libbgpdump</i> library runs significantly faster than the <i>route_btoa</i> tool provided with the <i>MRTd</i> routing toolkit. Second, it is possible to use filters in order to output a subset of the BGP routes. The syntax is the same as in the BGP session filters. Finally, it is possible to select the output format that will be used to dump the routes, using the <cmd><name>bgp options show-mode</name><link>bgp_options_show-mode</link></cmd> command.
+</p>
+<p>
+Example:
+<code>
+cbgp> show mrt rib.20050701.0009 any<br/>
+   0.0.0.0/0    213.140.32.148  100     0       12956   i<br/>
+   2.0.0.0/8    196.7.106.245   100     0       2905    ?<br/>
+   3.0.0.0/8    207.246.129.6   100     0       11608 2914 1239 80      i<br/>
+   3.0.0.0/8    129.250.0.85    100     10      2914 1239 80    i<br/>
+   3.0.0.0/8    129.250.0.11    100     1       2914 1239 80    i<br/>
+   3.0.0.0/8    206.186.255.223 100     0       2493 3602 1239 80       i<br/>
+   (...)<br/>
+cbgp> show mrt rib.20050701.0009 "path ^2914"<br/>
+   3.0.0.0/8    129.250.0.85    100     10      2914 1239 80    i<br/>
+   3.0.0.0/8    129.250.0.11    100     1       2914 1239 80    i<br/>
+   (...)
+</code>
+</p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <prev>
+    <name>mem-limit</name>
+    <id>show_mem-limit</id>
+  </prev>
+  <next>
+    <name>path-hash-content</name>
+    <id>show_path-hash-content</id>
+  </next>
+</command>

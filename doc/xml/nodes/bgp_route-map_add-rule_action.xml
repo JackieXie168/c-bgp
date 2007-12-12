@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>action</name>
+  <id>bgp_route-map_add-rule_action</id>
+  <context>bgp route-map add-rule</context>
+  <parameters>
+    <parameter>
+      <name>actions</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>add-rule</name>
+    <id>bgp_route-map_add-rule</id>
+  </father>
+  <next>
+    <name>match</name>
+    <id>bgp_route-map_add-rule_match</id>
+  </next>
+</command>

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>bgp_router_peer_out-filter_add</id>
+  <context>bgp router peer out-filter</context>
+  <parameters>
+    <parameter>
+      <name>filter</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>out-filter</name>
+    <id>bgp_router_peer_out-filter</id>
+  </father>
+  <next>
+    <name>set</name>
+    <id>bgp_router_peer_out-filter_set</id>
+  </next>
+</command>

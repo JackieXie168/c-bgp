@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>run</name>
+  <id>sim_run</id>
+  <context>sim</context>
+  <abstract>process the queued events</abstract>
+  <description>
+<p>
+This command starts the simulator, i.e. it starts processing the queued events until no more event is available or the simulator is stopped.
+</p>
+  </description>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <prev>
+    <name>queue</name>
+    <id>sim_queue</id>
+  </prev>
+  <next>
+    <name>step</name>
+    <id>sim_step</id>
+  </next>
+</command>

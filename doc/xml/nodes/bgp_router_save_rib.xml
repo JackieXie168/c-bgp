@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>rib</name>
+  <id>bgp_router_save_rib</id>
+  <context>bgp router save</context>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>save</name>
+    <id>bgp_router_save</id>
+  </father>
+  <next>
+    <name>rib-in</name>
+    <id>bgp_router_save_rib-in</id>
+  </next>
+</command>

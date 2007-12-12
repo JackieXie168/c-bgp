@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>in-filter</name>
+  <id>bgp_router_peer_in-filter</id>
+  <context>bgp router peer</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <childs>
+    <child>
+      <name>add</name>
+      <id>bgp_router_peer_in-filter_add</id>
+    </child>
+    <child>
+      <name>set</name>
+      <id>bgp_router_peer_in-filter_set</id>
+    </child>
+  </childs>
+  <prev>
+    <name>filter</name>
+    <id>bgp_router_peer_filter</id>
+  </prev>
+  <next>
+    <name>next-hop</name>
+    <id>bgp_router_peer_next-hop</id>
+  </next>
+</command>

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>net_show</id>
+  <context>net</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>nodes</name>
+      <id>net_show_nodes</id>
+    </child>
+    <child>
+      <name>subnets</name>
+      <id>net_show_subnets</id>
+    </child>
+  </childs>
+  <prev>
+    <name>options</name>
+    <id>net_options</id>
+  </prev>
+  <next>
+    <name>subnet</name>
+    <id>net_subnet</id>
+  </next>
+</command>

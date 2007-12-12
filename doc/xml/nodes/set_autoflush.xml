@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>autoflush</name>
+  <id>set_autoflush</id>
+  <context>set</context>
+  <parameters>
+    <parameter>
+      <name>on|off</name>
+      <description>new auto-flush state</description>
+    </parameter>
+  </parameters>
+  <abstract>enable/disable auto-flushing of the output</abstract>
+  <description>
+<p>
+This command tells <i>C-BGP</i> to flush the output stream after any commands which return information. This is important if the simulator is used by a script which waits for a response to a command. The <b>CBGP.pm</b> Perl module relies on this option.
+</p>
+  </description>
+  <father>
+    <name>set</name>
+    <id>set</id>
+  </father>
+  <next>
+    <name>comm-hash-size</name>
+    <id>set_comm-hash-size</id>
+  </next>
+</command>

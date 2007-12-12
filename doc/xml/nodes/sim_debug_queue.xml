@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<command>
+  <name>queue</name>
+  <id>sim_debug_queue</id>
+  <context>sim debug</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>debug</name>
+    <id>sim_debug</id>
+  </father>
+</command>

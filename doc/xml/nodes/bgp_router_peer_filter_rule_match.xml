@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>match</name>
+  <id>bgp_router_peer_filter_rule_match</id>
+  <context>bgp router peer filter rule</context>
+  <parameters>
+    <parameter>
+      <name>predicate</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>rule</name>
+    <id>bgp_router_peer_filter_rule</id>
+  </father>
+  <prev>
+    <name>action</name>
+    <id>bgp_router_peer_filter_rule_action</id>
+  </prev>
+</command>
