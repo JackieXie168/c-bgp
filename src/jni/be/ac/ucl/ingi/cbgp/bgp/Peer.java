@@ -34,8 +34,7 @@ public class Peer extends ProxyObject
     /**
      * Peer's constructor.
      */
-    protected Peer(CBGP cbgp, IPAddress address, int iAS)
-    {
+    protected Peer(CBGP cbgp, IPAddress address, int iAS) {
     	super(cbgp);
     	this.address= address;
     	this.iAS= iAS;
@@ -45,19 +44,24 @@ public class Peer extends ProxyObject
     /**
      * Returns the peer's IP address.
      */
-    public IPAddress getAddress()
-    {
-	return address;
+    public IPAddress getAddress() {
+    	return address;
     }
 
     // -----[ getAS ]------------------------------------------------
     /**
      * Returns the peer's AS number.
      */
-    public int getAS()
-    {
-	return iAS;
+    public int getAS() {
+    	return iAS;
     }
+    
+    // -----[ getRouter ]--------------------------------------------
+    /**
+     * Returns the BGP router where this peer is defined.
+     */
+    public native Router getRouter()
+    	throws CBGPException;
     
     // -----[ getRouterID ]------------------------------------------
     /**
