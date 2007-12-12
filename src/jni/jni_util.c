@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 07/02/2005
-// @lastdate 23/11/2007
+// @lastdate 05/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -397,30 +397,32 @@ jobject cbgp_jni_new_LinkMetrics(JNIEnv * jEnv,
  */
 jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
 {
+  jobject joPrefix;
+  jobject joNextHop;
   jobject joASPath= NULL;
   jobject joCommunities= NULL;
 
   /* Convert route attributes to Java objects */
-  jobject joIPPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
-  jobject joIPAddress= cbgp_jni_new_IPAddress(env, route_get_nexthop(pRoute));
-  
+  joPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
+  joNextHop= cbgp_jni_new_IPAddress(env, route_get_nexthop(pRoute));
+
   /* Check that the conversion was successful */
-  if ((joIPPrefix == NULL) || (joIPAddress == NULL))
+  if ((joPrefix == NULL) || (joNextHop == NULL))
     return NULL;
 
-  if (pRoute->pAttr->pASPathRef != NULL) {
+  if (pRoute->pAttr->pASPathRef != NULL)
     if ((joASPath= cbgp_jni_new_ASPath(env, pRoute->pAttr->pASPathRef)) == NULL)
       return NULL;
-  }
 
-  if (pRoute->pAttr->pCommunities != NULL) {
+  if (pRoute->pAttr->pCommunities != NULL)
     if ((joCommunities= cbgp_jni_new_Communities(env, pRoute->pAttr->pCommunities)) == NULL)
       return NULL;
-  }
 
   /* Create new BGPRoute object */
   return cbgp_jni_new(env, CLASS_BGPRoute, CONSTR_BGPRoute,
-		      joIPPrefix, joIPAddress,
+		      joPrefix,
+		      joNextHop,
+		      NULL,
 		      (jlong) route_localpref_get(pRoute),
 		      (jlong) route_med_get(pRoute),
 		      (route_flag_get(pRoute, ROUTE_FLAG_BEST))?JNI_TRUE:JNI_FALSE,
@@ -542,8 +544,6 @@ int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
 // -----[ ip_jstring_to_dest ]---------------------------------------
 /**
  * Convert the destination to a SNetDest structure.
- * 1). try IP prefix first
- * 2). try IP address
  */
 int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest)
 {
