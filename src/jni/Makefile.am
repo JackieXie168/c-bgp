@@ -35,7 +35,6 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
 	be/ac/ucl/ingi/cbgp/CBGPException.java \
 	be/ac/ucl/ingi/cbgp/CBGPScriptException.java \
-	be/ac/ucl/ingi/cbgp/CBGPTest.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
 	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
