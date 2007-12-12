@@ -1,22 +1,30 @@
-DOC_SRCES= $(wildcard ../xml/nodes/*.xml)
-DOC_FILES= $(DOC_SRCES:.xml=.txt)
+XML_PATH= ../xml/nodes
+DOC_SRCES= $(wildcard $(XML_PATH)/*.xml)
+DOC_FILES= $(patsubst $(XML_PATH)/%,%,$(DOC_SRCES:.xml=.txt))
 
-DOC_INSTALL_FILES= $(wildcard *.txt)
-
-EXTRA_DIST = $(DOC_INSTALL_FILES)
+EXTRA_DIST = $(DOC_FILES)
 
 install-data-local:
 	$(INSTALL) -d $(docdir)/txt
-	@(for f in $(DOC_INSTALL_FILES); do \
+	@(for f in $(DOC_FILES); do \
 		$(INSTALL) -m 444 $$f $(docdir)/txt/; \
 	done)
 
-SUFFIXES: .xml .txt
+SUFFIXES= .xml .txt .groff
 
-.xml.txt:
-	@(target=`echo $@ | sed -e 's/.*\///g'`; \
-	echo "generate $$target"; \
-	xsltproc node2groff.xsl $< | groff -Tascii -mdoc > $$target)
+%.groff: $(XML_PATH)/%.xml
+	xsltproc node2groff.xsl $< > $@
 
-gendoc: $(DOC_FILES)
+%.txt: %.groff
+	groff $< -Tascii -mdoc > $@
+
+gendoc: $(DOC_FILES:.txt=.groff) $(DOC_FILES)
+
+verify:
+	@(for f in $(DOC_SRCES); do \
+	RESULT=`grep '<abstract></abstract>' $$f`; \
+	if [ ! -z $$RESULT ]; then \
+	echo "verify failed for $$f"; \
+	fi \
+	done)
 
