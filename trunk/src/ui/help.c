@@ -92,14 +92,16 @@ int cli_help_cmd_topic(SCliCmd * pCmd)
 #if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_cmd(SCliCmd * pCmd)
 {
+  /*
   int iIndex, iIndex2;
   SCliCmd * pSubCmd;
   SCliParam * pParam;
+  */
 
-  if (pCmd->fCommand != NULL) {
+  /*if (pCmd->fCommand != NULL) {*/
     cli_help_cmd_topic(pCmd);
     return;
-  }
+    /*}
 
   fprintf(stdout, "\n");
   fprintf(stdout, "Syntax:\n");
@@ -126,6 +128,7 @@ static void _cli_help_cmd(SCliCmd * pCmd)
 #ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
 #endif
+    */
 }
 #endif /* HAVE_LIBREADLINE */
 
