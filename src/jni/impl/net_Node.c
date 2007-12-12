@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 23/11/2007
+// @lastdate 10/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -395,14 +395,13 @@ static int _cbgp_jni_get_rt_route(uint32_t uKey, uint8_t uKeyLen,
  * Signature: (Ljava/lang/String;)Ljava/util/Vector;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
-  (JNIEnv * jEnv, jobject joNode, jstring jsPrefix)
+  (JNIEnv * jEnv, jobject joNode, jstring jsDest)
 {
   SNetNode * pNode;
-  SPrefix sPrefix;
   jobject joVector;
-  jobject joRoute;
   SJNIContext sCtx;
   SNetRouteInfo * pRI;
+  SNetDest sDest;
 
   jni_lock(jEnv);
 
@@ -411,39 +410,43 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
   if (pNode == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  /* Convert the prefix */
-  if (jsPrefix != NULL) {
-    if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+  /* Convert the destination specifier (*|address|prefix) */
+  if (jsDest != NULL) {
+    if (ip_jstring_to_dest(jEnv, jsDest, &sDest) < 0)
       return_jni_unlock(jEnv, NULL);
-  } else {
-    sPrefix.uMaskLen= 0;
-  }
+  } else
+    sDest.tType= NET_ADDR_ANY;
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if (jsPrefix == NULL) {
+  /* Prepare JNI context */
+  sCtx.jEnv= jEnv;
+  sCtx.joVector= joVector;
 
-    sCtx.jEnv= jEnv;
-    sCtx.joVector= joVector;
+  switch (sDest.tType) {
+  case NET_DEST_ANY:
     if (rt_for_each(pNode->pRT, _cbgp_jni_get_rt_route, &sCtx) != 0)
       return_jni_unlock(jEnv, NULL);
+    break;
 
-  } else {
+  case NET_DEST_ADDRESS:
+    pRI= rt_find_best(pNode->pRT, sDest.uDest.tAddr, NET_ROUTE_ANY);
 
-    if (sPrefix.uMaskLen == 32) {
-      pRI= rt_find_best(pNode->pRT, sPrefix.tNetwork, NET_ROUTE_ANY);
-    } else {
-      pRI= rt_find_exact(pNode->pRT, sPrefix, NET_ROUTE_ANY);
-    }
-
-    if (pRI != NULL) {
-      if ((joRoute= cbgp_jni_new_IPRoute(jEnv, sPrefix, pRI)) == NULL)
+    if (pRI != NULL)
+      if (_cbgp_jni_get_rt_route(sDest.uDest.tAddr, 32, pRI, &sCtx) < 0)
 	return_jni_unlock(jEnv, NULL);
-      cbgp_jni_Vector_add(jEnv, joVector, joRoute);
-    }
-    
+    break;
+
+  case NET_DEST_PREFIX:
+    pRI= rt_find_exact(pNode->pRT, sDest.uDest.sPrefix, NET_ROUTE_ANY);
+    if (pRI != NULL)
+      if (_cbgp_jni_get_rt_route(sDest.uDest.sPrefix.tNetwork,
+				 sDest.uDest.sPrefix.uMaskLen,
+				 pRI, &sCtx) < 0)
+	return_jni_unlock(jEnv, NULL);
+    break;
   }
 
   return_jni_unlock(jEnv, joVector);
