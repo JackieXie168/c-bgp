@@ -558,6 +558,19 @@ int cli_time_save(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
+// -----[ cli_chdir ]------------------------------------------------
+int cli_chdir(SCliContext * pContext, SCliCmd * pCmd)
+{
+  
+  if (chdir(tokens_get_string_at(pCmd->pParamValues, 0)) < 0) {
+    cli_set_user_error(cli_get(), "unable to change directory: %s",
+		       strerror(errno));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+
+
 // void cli_register_set --------------------------------------------
 void cli_register_set(SCli * pCli)
 {
@@ -712,6 +725,16 @@ void cli_register_time(SCli * pCli)
 					pSubCmds, NULL));
 }
 
+// -----[ cli_register_chdir ]---------------------------------------
+void cli_register_chdir(SCli * pCli)
+{
+  SCliParams * pParams;
+  
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<dir>", NULL);
+  cli_register_cmd(pCli, cli_cmd_create("chdir", cli_chdir, NULL, pParams));
+}
+
 // ----- cli_exit_on_error ------------------------------------------
 /**
  *
@@ -745,6 +768,7 @@ SCli * cli_get()
     cli_register_set(pTheCli);
     cli_register_show(pTheCli);
     cli_register_time(pTheCli);
+    cli_register_chdir(pTheCli);
   }
   return pTheCli;
 }
