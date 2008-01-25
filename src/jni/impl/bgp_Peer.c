@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 11/04/2006
-// @lastdate 05/12/2007
+// @lastdate 18/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <jni_md.h>
 #include <jni.h>
+#include <jni/exceptions.h>
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
@@ -186,7 +187,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
 
   /* Check that the peer is virtual */
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    cbgp_jni_throw_CBGPException(jEnv, "only virtual peers can do that");
+    throw_CBGPException(jEnv, "only virtual peers can do that");
     return_jni_unlock2(jEnv);
   }
 
@@ -195,9 +196,9 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
   if ((pMsg= mrtd_msg_from_line(pPeer->pLocalRouter, pPeer,
 				(char *) cMesg)) != NULL) {
     if (bgp_peer_handle_message(pPeer, pMsg) != 0)
-      cbgp_jni_throw_CBGPException(jEnv, "could not handle message");
+      throw_CBGPException(jEnv, "could not handle message");
   } else {
-    cbgp_jni_throw_CBGPException(jEnv, "could not understand MRT message");
+    throw_CBGPException(jEnv, "could not understand MRT message");
   }
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsMesg, cMesg);
 

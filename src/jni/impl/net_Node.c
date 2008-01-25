@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 19/04/2006
-// @lastdate 10/12/2007
+// @lastdate 18/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #include <string.h>
 #include <jni_md.h>
 #include <jni.h>
+#include <jni/exceptions.h>
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
@@ -148,7 +149,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
 
   /* "Any" destination not allowed here */
   if (sDest.tType == NET_DEST_ANY) {
-    cbgp_jni_throw_CBGPException(jEnv, "invalid destination (*)");
+    throw_CBGPException(jEnv, "invalid destination (*)");
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -283,7 +284,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addLTLLink
    * params: src, dst, delay, capacity, depth, bidir */
   if (node_add_link_ptp(pNode, pNodeDst, 0, 0, 1,
 			(jbBidir == JNI_TRUE)?1:0) < 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "link already exists");
+    throw_CBGPException(jEnv, "link already exists");
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -594,7 +595,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addRoute
 
   if (node_rt_add_route(pNode, sPrefix, tNextHop, tNextHop,
 			jiWeight, NET_ROUTE_STATIC) != 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "could not add route");
+    throw_CBGPException(jEnv, "could not add route");
     return_jni_unlock2(jEnv);
   }
 
@@ -707,7 +708,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_loadTraffic
   iResult= node_load_netflow(pNode, pcFileName, tOptions);
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
   if (iResult != NET_SUCCESS) {
-    cbgp_jni_throw_CBGPException(jEnv, "could not load Netflow");
+    throw_CBGPException(jEnv, "could not load Netflow");
     return_jni_unlock2(jEnv);
   }
 

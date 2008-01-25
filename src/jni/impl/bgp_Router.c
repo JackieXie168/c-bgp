@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Router.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// @lastdate 07/12/2007
+// @lastdate 09/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <jni_md.h>
 #include <jni.h>
+#include <jni/exceptions.h>
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
@@ -111,7 +112,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addNetwork
     return_jni_unlock(jEnv, NULL);
 
   if (bgp_router_add_network(pRouter, sPrefix) != 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "coud not add network");
+    throw_CBGPException(jEnv, "coud not add network");
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -142,7 +143,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_delNetwork
     return_jni_unlock2(jEnv);
 
   if (bgp_router_del_network(pRouter, sPrefix) != 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "coud not remove network");
+    throw_CBGPException(jEnv, "coud not remove network");
     return_jni_unlock2(jEnv);
   }
 
@@ -173,7 +174,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_addPeer
     return_jni_unlock(jEnv, NULL);
 
   if (bgp_router_add_peer(pRouter, jiASNumber, tPeerAddr, &pPeer) != 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "could not add peer");
+    throw_CBGPException(jEnv, "could not add peer");
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -237,7 +238,8 @@ static int _cbgp_jni_get_rib_route(uint32_t uKey, uint8_t uKeyLen,
    SJNIContext * pCtx= (SJNIContext *) pContext;
   jobject joRoute;
 
-  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, (SRoute *) pItem)) == NULL)
+  joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, (SRoute *) pItem, NULL);
+  if (joRoute == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
@@ -391,7 +393,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getAdjRIB
     if (ip_jstring_to_address(jEnv, jsPeerAddr, &tPeerAddr) != 0)
       return_jni_unlock(jEnv, NULL);
     if ((pPeer= bgp_router_find_peer(pRouter, tPeerAddr)) == NULL) {
-      cbgp_jni_throw_CBGPException(jEnv, "unknown peer");
+      throw_CBGPException(jEnv, "unknown peer");
       return_jni_unlock(jEnv, NULL);
     }
   }
@@ -495,15 +497,17 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_loadRib
   if (pRouter == NULL)
     return_jni_unlock2(jEnv);
 
-  if (jbForce == JNI_TRUE)
+  if (jbForce == JNI_TRUE) {
     tOptions|= BGP_ROUTER_LOAD_OPTIONS_FORCE;
+    tOptions|= BGP_ROUTER_LOAD_OPTIONS_AUTOCONF;
+  }
 
   tOptions|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
   cFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
   if (bgp_router_load_rib(pRouter, (char *) cFileName,
 			  tFormat, tOptions) != 0)
-    cbgp_jni_throw_CBGPException(jEnv, "could not load RIB");
+    throw_CBGPException(jEnv, "could not load RIB");
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, cFileName);
 
   jni_unlock(jEnv);
@@ -528,7 +532,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_rescan
     return_jni_unlock2(jEnv);
 
   if (bgp_router_scan_rib(pRouter) != 0)
-    cbgp_jni_throw_CBGPException(jEnv, "could not rescan router");
+    throw_CBGPException(jEnv, "could not rescan router");
 
   jni_unlock(jEnv);
 }
