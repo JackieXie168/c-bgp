@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 14/04/2006
-// @lastdate 16/10/2007
+// @lastdate 18/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <jni_md.h>
 #include <jni.h>
+#include <jni/exceptions.h>
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
@@ -75,13 +76,13 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
     return_jni_unlock(jEnv, NULL);
 
   if ((pNode= node_create(tNetAddr)) == NULL) {
-    cbgp_jni_throw_CBGPException(jEnv, "node could not be created");
+    throw_CBGPException(jEnv, "node could not be created");
     return_jni_unlock(jEnv, NULL);
   }
 
   if (network_add_node(pNode)) {
     node_destroy(&pNode);
-    cbgp_jni_throw_CBGPException(jEnv, "node already exists");
+    throw_CBGPException(jEnv, "node already exists");
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -159,7 +160,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_compute
     return_jni_unlock2(jEnv);
 
   if (igp_domain_compute(pDomain) != 0) {
-    cbgp_jni_throw_CBGPException(jEnv, "could not compute IGP paths");
+    throw_CBGPException(jEnv, "could not compute IGP paths");
     return_jni_unlock2(jEnv);
   }
 
