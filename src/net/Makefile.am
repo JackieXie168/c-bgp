@@ -35,6 +35,8 @@ libnet_la_SOURCES = \
 	igp.h \
 	igp_domain.c \
 	igp_domain.h \
+	ip.h \
+	ip6.h \
 	ipip.c \
 	ipip.h \
 	link.c \
