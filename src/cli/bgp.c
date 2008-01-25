@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)bgp.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), 
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 21/11/2007
+// @lastdate 10/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -485,25 +485,6 @@ int cli_bgp_options_msgmonitor(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
-// ----- cli_bgp_options_nlri ---------------------------------------
-/**
- * context: {}
- * tokens: {nlri}
- */
-int cli_bgp_options_nlri(SCliContext * pContext, SCliCmd * pCmd)
-{
-  char * pcParam;
-
-  pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (!strcmp(pcParam, "be"))
-    BGP_OPTIONS_NLRI= BGP_NLRI_BE;
-  else if (!strcmp(pcParam, "qos-delay"))
-    BGP_OPTIONS_NLRI= BGP_NLRI_QOS_DELAY;
-  else
-    return CLI_ERROR_COMMAND_FAILED;
-  return CLI_SUCCESS;
-}
-
 // ----- cli_bgp_options_qosaggrlimit -------------------------------
 /**
  * context: {}
@@ -631,7 +612,7 @@ int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
  *
  * context: {router}
  * tokens: {file}
- * options: {--format,--force,--summary}
+ * options: {--autoconf,--format,--force,--summary}
  */
 int cli_bgp_router_load_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
@@ -657,6 +638,10 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
+
+  // Get option --autoconf ?
+  if (cli_options_has_value(pCmd->pOptions, "autoconf"))
+    tOptions|= BGP_ROUTER_LOAD_OPTIONS_AUTOCONF;
 
   // Get option --force ?
   if (cli_options_has_value(pCmd->pOptions, "force"))
@@ -2697,27 +2682,12 @@ int cli_register_bgp_options(SCliCmds * pCmds)
   cli_cmds_add(pSubCmds, cli_cmd_create("msg-monitor",
 					cli_bgp_options_msgmonitor,
 					NULL, pParams));
-#ifdef __EXPERIMENTAL__
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<nlri>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("nlri",
-					cli_bgp_options_nlri,
-					NULL, pParams));
-#endif
   pParams= cli_params_create();
   cli_params_add(pParams, "<cisco|mrt|custom>", NULL);
   cli_params_add_vararg(pParams, "[format]", 1, NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("show-mode",
 					cli_bgp_options_showmode,
 					NULL, pParams));
-#ifdef BGP_QOS
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<limit>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("qos-aggr-limit",
-					cli_bgp_options_qosaggrlimit,
-					NULL, pParams));
-#endif
-
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   pParams = cli_params_create();
   cli_params_add(pParams, "<on-off>", NULL);
