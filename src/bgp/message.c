@@ -40,7 +40,7 @@ SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
 				SRoute * pRoute)
 {
   SBGPMsgUpdate * pMsg= (SBGPMsgUpdate *) MALLOC(sizeof(SBGPMsgUpdate));
-  pMsg->uType= BGP_MSG_UPDATE;
+  pMsg->uType= BGP_MSG_TYPE_UPDATE;
   pMsg->uPeerAS= uPeerAS;
   pMsg->pRoute= pRoute;
   return (SBGPMsg *) pMsg;
@@ -60,7 +60,7 @@ SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 {
   SBGPMsgWithdraw * pMsg=
     (SBGPMsgWithdraw *) MALLOC(sizeof(SBGPMsgWithdraw));
-  pMsg->uType= BGP_MSG_WITHDRAW;
+  pMsg->uType= BGP_MSG_TYPE_WITHDRAW;
   pMsg->uPeerAS= uPeerAS;
   memcpy(&(pMsg->sPrefix), &sPrefix, sizeof(SPrefix));
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -101,7 +101,7 @@ SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS)
 {
   SBGPMsgClose * pMsg=
     (SBGPMsgClose *) MALLOC(sizeof(SBGPMsgClose));
-  pMsg->uType= BGP_MSG_CLOSE;
+  pMsg->uType= BGP_MSG_TYPE_CLOSE;
   pMsg->uPeerAS= uPeerAS;
   return (SBGPMsg *) pMsg;
 }
@@ -111,7 +111,7 @@ SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS, net_addr_t tRouterID)
 {
   SBGPMsgOpen * pMsg=
     (SBGPMsgOpen *) MALLOC(sizeof(SBGPMsgOpen));
-  pMsg->uType= BGP_MSG_OPEN;
+  pMsg->uType= BGP_MSG_TYPE_OPEN;
   pMsg->uPeerAS= uPeerAS;
   pMsg->tRouterID= tRouterID;
   return (SBGPMsg *) pMsg;
@@ -125,7 +125,7 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 {
   if (*ppMsg != NULL) {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    if ((*ppMsg)->uType == BGP_MSG_WITHDRAW && ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop != NULL)
+    if ((*ppMsg)->uType == BGP_MSG_TYPE_WITHDRAW && ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop != NULL)
       FREE( ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop );
 #endif
     FREE(*ppMsg);
@@ -165,7 +165,7 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
 
   // Message type
   switch (pMsg->uType) {
-  case BGP_MSG_UPDATE:
+  case BGP_MSG_TYPE_UPDATE:
     pRoute= ((SBGPMsgUpdate *) pMsg)->pRoute;
     log_printf(pStream, "|A");
     // Peer IP
@@ -182,7 +182,7 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     ip_prefix_dump(pStream, pRoute->sPrefix);
     // AS-PATH
     log_printf(pStream, "|");
-    if (pMsg->uType == BGP_MSG_UPDATE) {
+    if (pMsg->uType == BGP_MSG_TYPE_UPDATE) {
       path_dump(pStream, route_get_path(pRoute), 1);
     }
     // ORIGIN
@@ -230,7 +230,7 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     log_printf(pStream, "|");
 
     break;
-  case BGP_MSG_WITHDRAW:
+  case BGP_MSG_TYPE_WITHDRAW:
     log_printf(pStream, "|W");
     // Peer IP
     log_printf(pStream, "|");
@@ -245,7 +245,7 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
     log_printf(pStream, "|");
     ip_prefix_dump(pStream, ((SBGPMsgWithdraw *) pMsg)->sPrefix);
     break;
-  case BGP_MSG_OPEN:
+  case BGP_MSG_TYPE_OPEN:
     log_printf(pStream, "|OPEN|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);
@@ -253,7 +253,7 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
       log_printf(pStream, "?");
     }
     break;
-  case BGP_MSG_CLOSE:
+  case BGP_MSG_TYPE_CLOSE:
     log_printf(pStream, "|CLOSE|");
     if (pNode != NULL) {
       ip_address_dump(pStream, pNode->tAddr);

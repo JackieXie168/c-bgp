@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)message.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 18/09/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -17,10 +17,10 @@
 #include <bgp/route.h>
 #include <bgp/types.h>
 
-#define BGP_MSG_UPDATE   0x01
-#define BGP_MSG_WITHDRAW 0x02
-#define BGP_MSG_CLOSE    0x03
-#define BGP_MSG_OPEN     0x04
+#define BGP_MSG_TYPE_UPDATE   0x01
+#define BGP_MSG_TYPE_WITHDRAW 0x02
+#define BGP_MSG_TYPE_CLOSE    0x03
+#define BGP_MSG_TYPE_OPEN     0x04
 
 typedef struct {
   uint8_t uType;
