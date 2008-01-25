@@ -17,4 +17,6 @@ libexternal_la_SOURCES = \
 	bgpdump_lib.h \
 	bgpdump_mstream.h \
 	bgpdump_lib.c \
-	bgpdump_mstream.c
+	bgpdump_mstream.c \
+	cfile_tools.h \
+	cfile_tools.c

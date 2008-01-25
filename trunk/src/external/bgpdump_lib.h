@@ -1,7 +1,7 @@
-/* $Id: bgpdump_lib.h,v 1.2 2007-07-15 14:44:22 bqu Exp $ */
+/* $Id: bgpdump_lib.h,v 1.3 2008-01-25 11:27:33 bqu Exp $ */
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -35,18 +35,7 @@ this license is included with libbgpdump.
 
 
 /*
--------------------------------------------------------------------------------
-Module Header
-Filename          : bgdump_lib.h
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : Library frontend declarations
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
 
 
@@ -59,30 +48,26 @@ To Do             :
 #include "bgpdump.h"
 #include "bgpdump_attr.h"
 #include "bgpdump_formats.h"
-
-#include <zlib.h>
+#include "cfile_tools.h"
 
 #define BGPDUMP_MAX_FILE_LEN	1024
 #define BGPDUMP_MAX_AS_PATH_LEN	2000
 
 typedef struct struct_BGPDUMP {
-#ifdef HAVE_LIBZ
-  gzFile	*f;
-#else
-  FILE *f; 
-#endif
-  int		eof;
-  char	filename[BGPDUMP_MAX_FILE_LEN];
-  int		parsed;
-  int		parsed_ok;
+    CFRFILE	*f;
+    int		f_type;
+    int		eof;
+    char	filename[BGPDUMP_MAX_FILE_LEN];
+    int		parsed;
+    int		parsed_ok;
 } BGPDUMP;
 
 /* prototypes */
 
-BGPDUMP *bgpdump_open_dump(const char *filename);
+BGPDUMP *bgpdump_open_dump(char *filename);
 void	bgpdump_close_dump(BGPDUMP *dump);
-
 BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump);
 void	bgpdump_free_mem(BGPDUMP_ENTRY *entry);
+char	*print_asn(as_t asn);
 
 #endif

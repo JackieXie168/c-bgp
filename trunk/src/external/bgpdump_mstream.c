@@ -1,6 +1,7 @@
+static const char RCSID[] = "$Id: bgpdump_mstream.c,v 1.3 2008-01-25 11:27:19 bqu Exp $";
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -34,41 +35,17 @@ this license is included with libbgpdump.
 
 
 /*
--------------------------------------------------------------------------------
-Module Header
-Filename          : bgpdump_mstream.c
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : mstream emmulation implementation
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#else
-# if HAVE_STDINT_H
-#  include <stdint.h>
-# else
-#  error "no HAVE_INTTYPES_H or HAVE_STDINT_H"
-# endif 
-#endif
-
+#include <config.h>
 #include "bgpdump_mstream.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
 
-void mstream_init(struct mstream *s, u_char *buffer, uint32_t len) {
+void mstream_init(struct mstream *s, u_char *buffer, u_int32_t len) {
     s->start=buffer;
     s->position=0;
     s->len=len;
@@ -82,8 +59,8 @@ u_char mstream_getc(struct mstream *s, u_char *d) {
     return data;
 }
 
-uint16_t mstream_getw(struct mstream *s, uint16_t *d) {
-    uint16_t data;
+u_int16_t mstream_getw(struct mstream *s, u_int16_t *d) {
+    u_int16_t data;
 
     mstream_get(s, &data, sizeof(data));
     data=ntohs(data);
@@ -91,8 +68,8 @@ uint16_t mstream_getw(struct mstream *s, uint16_t *d) {
     return data;
 }
 
-uint32_t mstream_getl(struct mstream *s, uint32_t *d) {
-    uint32_t data;
+u_int32_t mstream_getl(struct mstream *s, u_int32_t *d) {
+    u_int32_t data;
 
     mstream_get(s, &data, sizeof(data));
     data=ntohl(data);
@@ -100,19 +77,19 @@ uint32_t mstream_getl(struct mstream *s, uint32_t *d) {
     return data;
 }
 
-uint32_t mstream_get_ipv4(struct mstream *s, uint32_t *d) {
-    uint32_t data;
+u_int32_t mstream_get_ipv4(struct mstream *s, u_int32_t *d) {
+    u_int32_t data;
 
     mstream_get(s, &data, sizeof(data));
     if(d!=NULL) memcpy(d,&data,sizeof(data));
     return data;
 }
 
-uint32_t mstream_can_read(struct mstream *s) {
+u_int32_t mstream_can_read(struct mstream *s) {
     return s->len - s->position;
 }
 
-uint32_t mstream_get (struct mstream *s, void *d, uint32_t len) {
+u_int32_t mstream_get (struct mstream *s, void *d, u_int32_t len) {
     int room = mstream_can_read(s);
 
     if(room >= len) {
