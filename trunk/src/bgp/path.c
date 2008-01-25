@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)path.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/12/2002
-// @lastdate 05/09/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -474,82 +474,28 @@ SBGPPath * path_from_string(const char * pcPath)
   return pPath;
 }
 
-extern SPtrArray * paPathExpr;
 // ----- path_match --------------------------------------------------------
 /**
  *
- *
  */
-int path_match(SBGPPath * pPath, int iArrayPathRegExPos)
+int path_match(SBGPPath * pPath, SRegEx * pRegEx)
 {
-  SPathMatch * pPathMatch = NULL; 
-  char * pcPathDump= path_dump_string(pPath, 1);
+  char acBuffer[1000];
   int iRet = 0;
 
-  ptr_array_get_at(paPathExpr, iArrayPathRegExPos, &pPathMatch);
-  if (pPathMatch != NULL) {
-    if (strcmp(pcPathDump, "null") != 0) {
-      if (regex_search(pPathMatch->pRegEx, pcPathDump) > 0)
+  if (path_to_string(pPath, 1, acBuffer, sizeof(acBuffer)) < 0)
+    abort();
+
+  if (pRegEx != NULL) {
+    if (strcmp(acBuffer, "null") != 0) {
+      if (regex_search(pRegEx, acBuffer) > 0)
         iRet = 1;
-      regex_reinit(pPathMatch->pRegEx);
+      regex_reinit(pRegEx);
     }
   }
 
-  FREE(pcPathDump);
   return iRet;
 }
-
-// ----- path_dump_string --------------------------------------------------
-/**
- * Dump the given AS-Path to the given ouput stream.
- *
- * NOTE FROM BQU: this function is DANGEROUS and must be updated in
- * order check that the AS-Path length is not too long. Otherwise,
- * anything can happen!!! I would suggest to replace any use of this
- * function by the above path_to_string() function.
- */
-char * path_dump_string(SBGPPath * pPath, uint8_t uReverse)
-{
-#ifndef __BGP_PATH_TYPE_TREE__
-  int iIndex;
-  char * cPath = MALLOC(255), * cCharTmp;
-  uint8_t icPathPtr = 0;
-
-  if (pPath == NULL) {
-    strcpy(cPath, "null");
-  } else {
-    if (uReverse) {
-      for (iIndex= path_num_segments(pPath); iIndex > 0;
-	   iIndex--) {
-	
-	cCharTmp = path_segment_dump_string((SPathSegment *) pPath->data[iIndex-1],
-			  uReverse);
-	strcpy(cPath+icPathPtr, cCharTmp);
-	icPathPtr += strlen(cCharTmp);
-	FREE(cCharTmp);
-	
-	if (iIndex > 1)
-	  strcpy(cPath+icPathPtr++, " ");
-      }
-    } else {
-      for (iIndex= 0; iIndex < path_num_segments(pPath);
-	   iIndex++) {
-	if (iIndex > 0)
-	  strcpy(cPath+icPathPtr++, " ");
-	cCharTmp = path_segment_dump_string((SPathSegment *) pPath->data[iIndex],
-			  uReverse);
-	strcpy(cPath, cCharTmp);
-	icPathPtr += strlen(cCharTmp);
-	FREE(cCharTmp);
-      }
-    }
-  }
-  return cPath;
-#else
-  abort();
-#endif
-}
-
 
 // ----- path_dump --------------------------------------------------
 /**

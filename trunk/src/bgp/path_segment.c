@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)path_segment.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 28/10/2003
-// @lastdate 05/09/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -99,11 +99,23 @@ int path_segment_to_string(SPathSegment * pSegment,
   int iIndex;
   int iWritten= 0;
 
-  assert(((pSegment->uType == AS_PATH_SEGMENT_SET) ||
-	  (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE) ||
-	  (pSegment->uType == AS_PATH_SEGMENT_CONFED_SET) ||
-	  (pSegment->uType == AS_PATH_SEGMENT_CONFED_SEQUENCE)) &&
-	 (pSegment->uLength > 0));
+  assert(pSegment->uLength > 0);
+
+  if (pSegment->uType == 0) {
+    fprintf(stderr, "\n*** plop %d ***\n", pSegment->uLength);
+    fprintf(stderr, "type:%d content:", pSegment->uType);
+    unsigned int uIndex;
+    for (uIndex= 0; uIndex < pSegment->uLength; uIndex++) {
+      fprintf(stderr, "%u ", pSegment->auValue[uIndex]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\n*** plop ***\n");
+  }
+
+  assert((pSegment->uType == AS_PATH_SEGMENT_SET) ||
+	 (pSegment->uType == AS_PATH_SEGMENT_SEQUENCE) ||
+	 (pSegment->uType == AS_PATH_SEGMENT_CONFED_SET) ||
+	 (pSegment->uType == AS_PATH_SEGMENT_CONFED_SEQUENCE));
 
   if (pSegment->uType != AS_PATH_SEGMENT_SEQUENCE) {
     iWritten= snprintf(pcDst, tDstSize, "}");
@@ -189,57 +201,6 @@ SPathSegment * path_segment_from_string(const char * pcPathSegment)
   }
   return pSegment;
 }
-
-// ----- path_segment_dump_string ------------------------------------------
-/**
- * Dump an AS-Path segment.
- */
-char * path_segment_dump_string(SPathSegment * pSegment,
-		       uint8_t uReverse)
-{
-  char * cSegment = MALLOC(255);
-  uint8_t icSegPtr = 0;
-  int iIndex;
-
-  switch (pSegment->uType) {
-  case AS_PATH_SEGMENT_SEQUENCE:
-    if (uReverse) {
-      for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
-	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex-1]);
-	if (iIndex > 1)
-	  strcpy(cSegment+icSegPtr++, " ");
-      }
-    } else {
-      for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
-	if (iIndex > 0)
-	  strcpy(cSegment+icSegPtr++, " ");
-	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex]);
-      }
-    }
-    break;
-  case AS_PATH_SEGMENT_SET:
-    strcpy(cSegment+icSegPtr++, "{");
-    if (uReverse) {
-      for (iIndex= pSegment->uLength; iIndex > 0; iIndex--) {
-	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex-1]);
-	if (iIndex > 1)
-	  strcpy(cSegment+icSegPtr++, " ");
-      }
-    } else {
-      for (iIndex= 0; iIndex < pSegment->uLength; iIndex++) {
-	if (iIndex > 0)
-	  strcpy(cSegment+icSegPtr++, " ");
-	icSegPtr += sprintf(cSegment+icSegPtr, "%u", pSegment->auValue[iIndex]);
-      }
-    }
-    strcpy(cSegment+icSegPtr++, "}");
-    break;
-  default:
-    abort();
-  }
-  return cSegment;
-}
-
 
 // ----- path_segment_dump ------------------------------------------
 /**

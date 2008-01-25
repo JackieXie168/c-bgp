@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)path.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/12/2002
-// @lastdate 23/11/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifndef __BGP_PATH_H__
@@ -15,6 +15,7 @@
 #include <libgds/types.h>
 
 #include <bgp/types.h>
+#include <util/regex.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,8 +48,6 @@ extern "C" {
 		     char * pcDst, size_t tDstSize);
   // -----[ path_from_string ]---------------------------------------
   SBGPPath * path_from_string(const char * pcPath);
-  // ----- path_dump_string -----------------------------------------
-  char * path_dump_string(SBGPPath * pPath, uint8_t uReverse);
   // ----- path_dump ------------------------------------------------
   void path_dump(SLogStream * pStream, SBGPPath * pPath, uint8_t uReverse);
   // ----- path_hash ------------------------------------------------
@@ -66,7 +65,7 @@ extern "C" {
   // -----[ path_str_cmp ]-------------------------------------------
   int path_str_cmp(SBGPPath * pPath1, SBGPPath * pPath2);
   // ----- path_match -----------------------------------------------
-  int path_match(SBGPPath * pPath, int iArrayPathRegExPos);
+  int path_match(SBGPPath * pPath, SRegEx * pRegEx);
   // -----[ path_remove_private ]------------------------------------
   void path_remove_private(SBGPPath * pPath);
 
