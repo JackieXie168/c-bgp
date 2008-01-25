@@ -10,6 +10,7 @@ package be.ac.ucl.ingi.cbgp;
 
 import java.util.Vector;
 import be.ac.ucl.ingi.cbgp.LinkMetrics;
+import be.ac.ucl.ingi.cbgp.exceptions.UnknownMetricException;
 
 // -----[ IPTrace ]--------------------------------------------------
 /**

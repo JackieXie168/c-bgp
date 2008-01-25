@@ -9,9 +9,9 @@
 package be.ac.ucl.ingi.cbgp.bgp;
 
 import be.ac.ucl.ingi.cbgp.CBGP;
-import be.ac.ucl.ingi.cbgp.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.ProxyObject;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 
 // -----[ Peer ]-----------------------------------------------------
 /**
