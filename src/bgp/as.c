@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)as.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 31/05/2007
+// @lastdate 14/01/2008
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -86,7 +86,6 @@ FDPRule DP_RULES[DP_NUM_RULES]= {
 
 // ----- options -----
 FTieBreakFunction BGP_OPTIONS_TIE_BREAK	    = TIE_BREAK_DEFAULT;
-uint8_t BGP_OPTIONS_NLRI		    = BGP_NLRI_BE;
 uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF	    = 0;
 uint8_t BGP_OPTIONS_MED_TYPE		    = BGP_MED_TYPE_DETERMINISTIC;
 uint8_t BGP_OPTIONS_SHOW_MODE		    = BGP_ROUTES_OUTPUT_CISCO;
@@ -1494,12 +1493,6 @@ int bgp_router_decision_process(SBGPRouter * pRouter,
   int iRankEBGP, iEBGPRoutesCount;
 #endif
 
-  /* BGP QoS decision process */
-#ifdef BGP_QOS
-  if (BGP_OPTIONS_NLRI == BGP_NLRI_QOS_DELAY)
-    return qos_decision_process(pRouter, pOriginPeer, sPrefix);
-#endif
-
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   pOldRoute= rib_find_one_exact(pRouter->pLocRIB, sPrefix, NULL);
 #else
@@ -2013,9 +2006,8 @@ static void _bgp_router_refresh_sessions(SBGPRouter * pRouter)
 {
   int iIndex;
 
-  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
+  for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++)
     bgp_peer_session_refresh((SBGPPeer *) pRouter->pPeers->data[iIndex]);
-  }
 }
 
 // ----- bgp_router_scan_rib ----------------------------------------
@@ -2435,7 +2427,7 @@ typedef struct {
   unsigned int uRoutesOk;         // Number of routes loaded without error
   unsigned int uRoutesBadTarget;  //                  with bad target
   unsigned int uRoutesBadPeer;    //                  with bad peer
-  unsigned int uRoutesIgnored;    //                  ignored by API
+  unsigned int uRoutesIgnored;    //                  ignored by API (ex: IP6)
 } SBGP_LOAD_RIB_CTX;
   
 // -----[ _bgp_router_load_rib_handler ]-----------------------------
@@ -2490,15 +2482,14 @@ static int _bgp_router_load_rib_handler(int iStatus,
   
   // 2). Check that the target router has a peer that corresponds
   //     to the route's next-hop.
-  if (/*!(pCtx->uOptions & BGP_ROUTER_LOAD_OPTIONS_FORCE) &&*/
-      ((pRouter != NULL) && (pPeer == NULL))) {
+  if (pPeer == NULL) {
     
     // Look for the peer in the router...
     pPeer= bgp_router_find_peer(pRouter, pRoute->pAttr->tNextHop);
     // If the peer does not exist, auto-create it if required or
     // drop an error message.
     if (pPeer == NULL) {
-      if (BGP_OPTIONS_AUTO_CREATE) {
+      if ((pCtx->uOptions & BGP_ROUTER_LOAD_OPTIONS_AUTOCONF) != 0) {
 	bgp_auto_config_session(pRouter, pRoute->pAttr->tNextHop,
 				path_last_as(pRoute->pAttr->pASPathRef), &pPeer);
       } else {
