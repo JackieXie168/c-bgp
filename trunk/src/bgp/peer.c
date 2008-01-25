@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)peer.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 31/05/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -933,13 +933,22 @@ static void _bgp_peer_seqnum_check(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
   if ((bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) == 0) &&
       (pPeer->uRecvSeqNum != pMsg->uSeqNum)) {
-    if (pMsg->uType != BGP_MSG_CLOSE) {
+    if (pMsg->uType != BGP_MSG_TYPE_CLOSE) {
       bgp_peer_dump_id(pLogErr, pPeer);
       log_printf(pLogErr, ": out-of-sequence BGP message (%d)", pMsg->uSeqNum);
       log_printf(pLogErr, " - expected (%d)", pPeer->uRecvSeqNum);
       log_printf(pLogErr,  " [state=%s]\n",
 		 SESSION_STATES[pPeer->uSessionState]);
       bgp_msg_dump(pLogErr, pPeer->pLocalRouter->pNode, pMsg);
+      log_printf(pLogErr, "\n");
+      
+      log_printf(pLogErr, "\n");
+      log_printf(pLogErr, "It is likely that this error occurs due to an "
+		 "incorrect setup of the simulation. The most common case "
+		 "for this error is when the underlying route of a BGP "
+		 "session changes during the simulation convergence (sim "
+		 "run). This might also occur with multi-hop eBGP sessions "
+		 "where the session is routed over another BGP session.");
       log_printf(pLogErr, "\n");
       abort();
     }
@@ -965,7 +974,7 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
   pPeer->uRecvSeqNum++;
 
   switch (pMsg->uType) {
-  case BGP_MSG_UPDATE:
+  case BGP_MSG_TYPE_UPDATE:
     _bgp_peer_session_update_rcvd(pPeer, pMsg);
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     _bgp_peer_process_update_walton(pPeer, pMsg);
@@ -974,7 +983,7 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 #endif
     break;
 
-  case BGP_MSG_WITHDRAW:
+  case BGP_MSG_TYPE_WITHDRAW:
     _bgp_peer_session_withdraw_rcvd(pPeer);
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     _bgp_peer_process_withdraw_walton(pPeer, pMsg);
@@ -983,10 +992,10 @@ int bgp_peer_handle_message(SBGPPeer * pPeer, SBGPMsg * pMsg)
 #endif
     break;
 
-  case BGP_MSG_CLOSE:
+  case BGP_MSG_TYPE_CLOSE:
     _bgp_peer_session_close_rcvd(pPeer); break;
 
-  case BGP_MSG_OPEN:
+  case BGP_MSG_TYPE_OPEN:
     _bgp_peer_session_open_rcvd(pPeer, pMsg); break;
 
   default:
