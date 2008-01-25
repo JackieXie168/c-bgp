@@ -126,7 +126,7 @@ fi
 # *** Run automake ***
 echo "(*) Running automake"
 automake --version | grep automake
-automake --add-missing $COPY --gnu
+automake --add-missing $COPY --gnu 
 if test $? != 0; then
   echo "Warning: automake returned with exit code $?"
   EXIT_CODE=$EXIT_FAILURE
