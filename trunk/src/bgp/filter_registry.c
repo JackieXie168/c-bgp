@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 23/11/2007
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -201,6 +201,82 @@ static int ft_cli_predicate_prefix_in(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
+// ----- ft_cli_predicate_prefix_ge ---------------------------------
+static int ft_cli_predicate_prefix_ge(SCliContext * pContext,
+				      SCliCmd * pCmd)
+{
+  SFilterMatcher ** ppMatcher=
+    (SFilterMatcher **) cli_context_get(pContext);
+  unsigned int uLength;
+  char * pcPrefix;
+  char * pcEndChar;
+  SPrefix sPrefix;
+  
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
+      (*pcEndChar != 0)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get prefix length
+  if (tokens_get_uint_at(pCmd->pParamValues, 1, &uLength) < 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix length \"%s\"\n",
+	    tokens_get_string_at(pCmd->pParamValues, 1));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  // Prefix length must not be longer than 32
+  if (uLength > 32) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: prefix length (%u) larger than 32\n",
+	    uLength);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppMatcher= filter_match_prefix_ge(sPrefix, (uint8_t) uLength);
+
+  return CLI_SUCCESS;
+}
+
+// ----- ft_cli_predicate_prefix_le ---------------------------------
+static int ft_cli_predicate_prefix_le(SCliContext * pContext,
+				      SCliCmd * pCmd)
+{
+  SFilterMatcher ** ppMatcher=
+    (SFilterMatcher **) cli_context_get(pContext);
+  unsigned int uLength;
+  char * pcPrefix;
+  char * pcEndChar;
+  SPrefix sPrefix;
+  
+  // Get prefix
+  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
+  if (ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) ||
+      (*pcEndChar != 0)) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix \"%s\"\n", pcPrefix);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get prefix length
+  if (tokens_get_uint_at(pCmd->pParamValues, 1, &uLength) < 0) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid prefix length \"%s\"\n",
+	    tokens_get_string_at(pCmd->pParamValues, 1));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  // Prefix length must not be longer than 32
+  if (uLength > 32) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: prefix length (%u) larger than 32\n",
+	    uLength);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *ppMatcher= filter_match_prefix_le(sPrefix, (uint8_t) uLength);
+
+  return CLI_SUCCESS;
+}
+
 extern SHash * pHashPathExpr;
 extern SPtrArray * paPathExpr;
 // ----- ft_cli_predicate_path ---------------------------------------
@@ -324,6 +400,18 @@ static void ft_cli_register_predicate_prefix()
   cli_params_add(pParams, "<prefix>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("in",
 					ft_cli_predicate_prefix_in,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<prefix-length>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("ge",
+					ft_cli_predicate_prefix_ge,
+					NULL, pParams));
+  pParams= cli_params_create();
+  cli_params_add(pParams, "<prefix>", NULL);
+  cli_params_add(pParams, "<prefix-length>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("le",
+					ft_cli_predicate_prefix_le,
 					NULL, pParams));
   cli_register_cmd(pCli, cli_cmd_create("prefix", NULL,
 					pSubCmds, NULL));

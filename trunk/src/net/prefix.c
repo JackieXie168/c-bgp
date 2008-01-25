@@ -1,10 +1,9 @@
 // ==================================================================
 // @(#)prefix.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/11/2002
-// @lastdate 21/07/2007
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,16 +17,6 @@
 #include <net/prefix.h>
 
 #include <string.h>
-
-// ----- ip_dotted_to_address ---------------------------------------
-/**
- *
- */
-net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
-				uint8_t uC, uint8_t uD)
-{
-  return (((((((net_addr_t) uA) << 8) + uB) << 8) + uC) << 8) + uD;
-}
 
 // -----[ ip_address_to_string ]-------------------------------------
 /**
@@ -347,6 +336,33 @@ int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
   // Warning, shift on 32-bit int is only defined if operand in [0-31]
   return ((sPrefix1.tNetwork >> (32-sPrefix2.uMaskLen)) ==
           (sPrefix2.tNetwork >> (32-sPrefix2.uMaskLen)));
+}
+
+// ----- ip_prefix_ge_prefix ----------------------------------------
+/**
+ * Test if P1 matches P2 and its prefix length is greater than or
+ * equal to L.
+ */
+int ip_prefix_ge_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+			uint8_t uMaskLen)
+{
+  if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
+    return 0;
+
+  return (sPrefix1.uMaskLen >= uMaskLen);
+}
+
+// ----- ip_prefix_le_prefix ----------------------------------------
+/**
+ * Test if P1 is less or equal than P2.
+ */
+int ip_prefix_le_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+			uint8_t uMaskLen)
+{
+  if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
+    return 0;
+
+  return (sPrefix1.uMaskLen <= uMaskLen);
 }
 
 // ----- ip_prefix_copy ---------------------------------------------

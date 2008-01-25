@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)filter.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/11/2002
-// @lastdate 23/11/2007
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifndef __BGP_FILTER_H__
@@ -34,6 +34,8 @@
 #define FT_MATCH_NEXTHOP_IN     26
 #define FT_MATCH_PREFIX_IS      30
 #define FT_MATCH_PREFIX_IN      31
+#define FT_MATCH_PREFIX_GE      32
+#define FT_MATCH_PREFIX_LE      33
 
 // Action codes
 #define FT_ACTION_NOP              0
@@ -122,6 +124,12 @@ extern "C" {
   SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
   // ----- filter_match_prefix_in -----------------------------------
   SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix);
+  // ----- filter_match_prefix_ge -----------------------------------
+  SFilterMatcher * filter_match_prefix_ge(SPrefix sPrefix,
+					  uint8_t uMaskLen);
+  // ----- filter_match_prefix_le -----------------------------------
+  SFilterMatcher * filter_match_prefix_le(SPrefix sPrefix,
+					  uint8_t uMaskLen);
   // ----- filter_math_path -----------------------------------------
   SFilterMatcher * filter_match_path(int iArrayPathRegExPos);
   // ----- filter_action_accept -------------------------------------
