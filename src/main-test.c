@@ -3,9 +3,9 @@
 //
 // Main source file for cbgp-test application.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @lastdate 21/05/2007
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/11/07
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -161,6 +161,54 @@ static int test_net_attr_prefix4_in()
 		"192.168.1/24 should not be in 192.168.2/24");
   ASSERT_RETURN(ip_prefix_in_prefix(sPrefix1, sPrefix1) != 0,
 		"192.168.1/24 should be in 192.168.1/24");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_attr_prefix4_ge ]---------------------------------
+static int test_net_attr_prefix4_ge()
+{
+  SPrefix sPrefix1= { .tNetwork= IPV4_TO_INT(192,168,0,0),
+		      .uMaskLen= 16 };
+  SPrefix sPrefix2= { .tNetwork= IPV4_TO_INT(192,168,1,0),
+		      .uMaskLen= 24 };
+  SPrefix sPrefix3= { .tNetwork= IPV4_TO_INT(192,168,0,0),
+		      .uMaskLen= 15 };
+  SPrefix sPrefix4= { .tNetwork= IPV4_TO_INT(192,169,0,0),
+		      .uMaskLen= 24 };
+  ASSERT_RETURN(ip_prefix_ge_prefix(sPrefix1, sPrefix1, 16),
+		"192.168/16 should be ge (192.168/16, 16)");
+  ASSERT_RETURN(ip_prefix_ge_prefix(sPrefix2, sPrefix1, 16),
+		"192.168.1/24 should be ge (192.168/16, 16)");
+  ASSERT_RETURN(!ip_prefix_ge_prefix(sPrefix3, sPrefix1, 16),
+		"192.168/15 should not be ge (192.168/16, 16)");
+  ASSERT_RETURN(!ip_prefix_ge_prefix(sPrefix4, sPrefix1, 16),
+		"192.169.0/24 should not be ge (192.168/16, 16)");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_attr_prefix4_le ]---------------------------------
+static int test_net_attr_prefix4_le()
+{
+  SPrefix sPrefix1= { .tNetwork= IPV4_TO_INT(192,168,0,0),
+		      .uMaskLen= 16 };
+  SPrefix sPrefix2= { .tNetwork= IPV4_TO_INT(192,168,1,0),
+		      .uMaskLen= 24 };
+  SPrefix sPrefix3= { .tNetwork= IPV4_TO_INT(192,168,1,0),
+		      .uMaskLen= 25 };
+  SPrefix sPrefix4= { .tNetwork= IPV4_TO_INT(192,169,0,0),
+		      .uMaskLen= 24 };
+  SPrefix sPrefix5= { .tNetwork= IPV4_TO_INT(192,168,0,0),
+		      .uMaskLen= 15 };
+  ASSERT_RETURN(ip_prefix_le_prefix(sPrefix2, sPrefix1, 24),
+		"192.168.1/24 should be le (192.168/16, 24)");
+  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix3, sPrefix1, 24),
+		"192.168.0.0/25 should not be le (192.168/16, 24)");
+  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix4, sPrefix1, 24),
+		"192.169/24 should not be le (192.168/16, 24)");
+  ASSERT_RETURN(ip_prefix_le_prefix(sPrefix1, sPrefix1, 24),
+		"192.168/16 should be le (192.168/16, 24)");
+  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix5, sPrefix1, 24),
+		"192.168/15 should not be le (192.168/16, 24)");
   return UTEST_SUCCESS;
 }
 
@@ -861,6 +909,24 @@ static int test_bgp_attr_aspath_rem_private()
   return UTEST_SUCCESS;
 }
 
+// -----[ test_bgp_attr_aspath_match ]-------------------------------
+static int test_bgp_attr_aspath_match()
+{
+  SRegEx * pRegEx= regex_init("^2611$", 0);
+  SBGPPath * pPath;
+  ASSERT_RETURN(pRegEx != NULL, "reg-ex should not be NULL");
+  pPath= path_from_string("2611");
+  ASSERT_RETURN(path_match(pPath, pRegEx) != 0, "path should match");
+  path_destroy(&pPath);
+  regex_reinit(pRegEx);
+  pPath= path_from_string("5511 2611");
+  ASSERT_RETURN(path_match(pPath, pRegEx) == 0, "path should not match");
+  path_destroy(&pPath);
+  regex_finalize(&pRegEx);
+  ASSERT_RETURN(pRegEx == NULL, "destroyed reg-ex should be NULL");
+  return UTEST_SUCCESS;
+}
+
 // -----[ test_bgp_attr_communities ]--------------------------------
 static int test_bgp_attr_communities()
 {
@@ -1470,19 +1536,61 @@ int test_bgp_filter_predicate_prefix_in()
   return UTEST_SUCCESS;
 }
 
+// -----[ test_bgp_filter_predicate_prefix_ge ]----------------------
+static int test_bgp_filter_predicate_prefix_ge()
+{
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(10,0,0,0),
+		     .uMaskLen= 16 };
+  SFilterMatcher * pPredicate=
+    filter_match_prefix_ge(sPrefix, 24);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_GE,
+		"Incorrect predicate code");
+  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(SPrefix))) == 24,
+		"Incorrect prefix length");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_le ]----------------------
+static int test_bgp_filter_predicate_prefix_le()
+{
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(10,0,0,0),
+		     .uMaskLen= 16 };
+  SFilterMatcher * pPredicate=
+    filter_match_prefix_le(sPrefix, 24);
+  ASSERT_RETURN(pPredicate != NULL,
+		"New predicate should not be NULL");
+  ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_LE,
+		"Incorrect predicate code");
+  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(SPrefix))) == 24,
+		"Incorrect prefix length");
+  filter_matcher_destroy(&pPredicate);
+  ASSERT_RETURN(pPredicate == NULL,
+		"Predicate should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
 // -----[ test_bgp_filter_predicate_path_regexp ]--------------------
 int test_bgp_filter_predicate_path_regexp()
 {
+  int iRegExIndex= 12345;
   SFilterMatcher * pPredicate=
-    filter_match_path(0);
+    filter_match_path(iRegExIndex);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PATH_MATCHES,
 		"Incorrect predicate code");
+  ASSERT_RETURN(memcmp(pPredicate->auParams, &iRegExIndex,
+		       sizeof(iRegExIndex)) == 0,
+		"Incorrect regexp index");
   filter_matcher_destroy(&pPredicate);
   ASSERT_RETURN(pPredicate == NULL,
 		"Predicate should be NULL when destroyed");
-  return UTEST_SKIPPED;
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_bgp_filter_predicate_and ]----------------------------
@@ -1619,6 +1727,28 @@ int test_bgp_filter_predicate_prefix_in_str2()
   return UTEST_SUCCESS;
 }
 
+// -----[ test_bgp_filter_predicate_prefix_ge_str2 ]-----------------
+static int test_bgp_filter_predicate_prefix_ge_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("prefix ge 10/8 16", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_predicate_prefix_le_str2 ]-----------------
+static int test_bgp_filter_predicate_prefix_le_str2()
+{
+  SFilterMatcher * pMatcher;
+  ASSERT_RETURN(predicate_parser("prefix le 10/8 16", &pMatcher) ==
+		PREDICATE_PARSER_SUCCESS,
+		"predicate_parser() should return 0");
+  filter_matcher_destroy(&pMatcher);
+  return UTEST_SUCCESS;
+}
+
 // -----[ test_bgp_filter_predicate_path_regexp_str2 ]---------------
 int test_bgp_filter_predicate_path_regexp_str2()
 {
@@ -1711,6 +1841,8 @@ SUnitTest TEST_NET_ATTR[]= {
   {test_net_attr_address4_str2, "IPv4 address (<- string)"},
   {test_net_attr_prefix4, "IPv4 prefix"},
   {test_net_attr_prefix4_in, "IPv4 prefix in prefix"},
+  {test_net_attr_prefix4_ge, "IPv4 prefix ge prefix"},
+  {test_net_attr_prefix4_le, "IPv4 prefix le prefix"},
   {test_net_attr_prefix4_match, "IPv4 prefix match"},
   {test_net_attr_prefix4_mask, "IPv4 prefix mask"},
   {test_net_attr_prefix4_2str, "IPv4 prefix (-> string)"},
@@ -1762,6 +1894,7 @@ SUnitTest TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath_cmp, "as-path (compare)"},
   {test_bgp_attr_aspath_contains, "as-path (contains)"},
   {test_bgp_attr_aspath_rem_private, "as-path remove private"},
+  {test_bgp_attr_aspath_match, "as-path match"},
   {test_bgp_attr_communities, "communities"},
   {test_bgp_attr_communities_append, "communities append"},
   {test_bgp_attr_communities_remove, "communities remove"},
@@ -1807,6 +1940,8 @@ SUnitTest TEST_BGP_FILTER_PRED[]= {
   {test_bgp_filter_predicate_nexthop_in, "next-hop in"},
   {test_bgp_filter_predicate_prefix_is, "prefix is"},
   {test_bgp_filter_predicate_prefix_in, "prefix in"},
+  {test_bgp_filter_predicate_prefix_ge, "prefix ge"},
+  {test_bgp_filter_predicate_prefix_le, "prefix le"},
   {test_bgp_filter_predicate_path_regexp, "path regexp"},
   {test_bgp_filter_predicate_and, "and(x,y)"},
   {test_bgp_filter_predicate_and_any, "and(any,x)"},
@@ -1819,6 +1954,8 @@ SUnitTest TEST_BGP_FILTER_PRED[]= {
   {test_bgp_filter_predicate_nexthop_in_str2, "nexthop in (string ->)"},
   {test_bgp_filter_predicate_prefix_is_str2, "prefix is (string ->)"},
   {test_bgp_filter_predicate_prefix_in_str2, "prefix in (string ->)"},
+  {test_bgp_filter_predicate_prefix_ge_str2, "prefix ge (string ->)"},
+  {test_bgp_filter_predicate_prefix_le_str2, "prefix le (string ->)"},
   {test_bgp_filter_predicate_path_regexp_str2, "path regexp (string ->)"},
   {test_bgp_filter_predicate_expr_str2, "expression (string ->)"},
 };

@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)prefix.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/12/2002
-// @lastdate 21/07/2007
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -14,34 +14,12 @@
 
 #include <stdio.h>
 
-#define IPV4_TO_INT(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
-#define NET_ADDR_ANY 0
+#include <net/ip.h>
+#include <net/ip6.h>
 
-// ----- IPv4 address -----
-typedef uint32_t net_addr_t;
-typedef uint8_t  net_mask_t;
-#define MAX_ADDR UINT32_MAX
-
-// ----- IPv4 prefix -----
-typedef struct {
-  net_addr_t tNetwork;
-  net_mask_t uMaskLen;
-} SPrefix;
-
-// ----- IPv4 destination -----
-#define NET_DEST_INVALID 0
-#define NET_DEST_ADDRESS 1
-#define NET_DEST_PREFIX  2
-#define NET_DEST_ANY     3
-typedef union {
-    SPrefix sPrefix;
-    net_addr_t tAddr;  
-} UNetDest;
-
-typedef struct {
-  uint8_t tType;
-  UNetDest uDest;
-} SNetDest;
+typedef uint8_t net_afi_t;
+#define NET_AFI_IP4 0
+#define NET_AFI_IP6 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,9 +29,6 @@ extern "C" {
   int ip_address_to_string(net_addr_t tAddr, char * pcAddr, size_t tDstSize);
   // ----- create_ip_prefix ----------------------------------------
   SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen);
-  // ----- ip_dotted_to_address ---------------------------------------
-  net_addr_t ip_dotted_to_address(uint8_t uA, uint8_t uB,
-				  uint8_t uC, uint8_t uD);
   // ----- ip_address_dump --------------------------------------------
   void ip_address_dump(SLogStream * pStream, net_addr_t tAddr);
   // ----- ip_string_to_address ---------------------------------------
@@ -82,6 +57,12 @@ extern "C" {
   int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix);
   // ----- ip_prefix_in_prefix ----------------------------------------
   int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2);
+  // ----- ip_prefix_ge_prefix ----------------------------------------
+  int ip_prefix_ge_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+			  uint8_t uMaskLen);
+  // ----- ip_prefix_le_prefix ----------------------------------------
+  int ip_prefix_le_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+			  uint8_t uMaskLen);
   // ----- ip_prefix_copy ---------------------------------------------
   SPrefix * ip_prefix_copy(SPrefix * pPrefix);
   // ----- ip_prefix_destroy ------------------------------------------

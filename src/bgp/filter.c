@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)filter.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// @lastdate 23/11/2007
+// @lastdate 16/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -275,51 +275,55 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
 			 SRoute * pRoute)
 {
   comm_t tCommunity;
+  SPathMatch * pPathMatcher;
 
   if (pMatcher != NULL) {
     switch (pMatcher->uCode) {
     case FT_MATCH_OP_AND:
-      return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pRouter, pRoute) &&
-	filter_matcher_apply((SFilterMatcher *)
-			     &pMatcher->auParams[sizeof(SFilterMatcher)+
-						pMatcher->auParams[1]],
-			     pRouter, pRoute);
-      break;
+      return (filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
+				   pRouter, pRoute) &&
+	      filter_matcher_apply((SFilterMatcher *)
+				   &pMatcher->auParams[sizeof(SFilterMatcher)+
+						       pMatcher->auParams[1]],
+				   pRouter, pRoute));
     case FT_MATCH_OP_OR:
-      return filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
-				  pRouter, pRoute) ||
-	filter_matcher_apply((SFilterMatcher *)
-			     &pMatcher->auParams[sizeof(SFilterMatcher)+
-						pMatcher->auParams[1]],
-			     pRouter, pRoute);
-      break;
+      return (filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
+				   pRouter, pRoute) ||
+	      filter_matcher_apply((SFilterMatcher *)
+				   &pMatcher->auParams[sizeof(SFilterMatcher)+
+						       pMatcher->auParams[1]],
+				   pRouter, pRoute));
     case FT_MATCH_OP_NOT:
       return !filter_matcher_apply((SFilterMatcher *) pMatcher->auParams,
 				   pRouter, pRoute);
     case FT_MATCH_COMM_CONTAINS:
       memcpy(&tCommunity, pMatcher->auParams, sizeof(tCommunity));
       return route_comm_contains(pRoute, tCommunity)?1:0;
-      break;
     case FT_MATCH_NEXTHOP_IS:
       return (pRoute->pAttr->tNextHop == *((net_addr_t *) pMatcher->auParams))?1:0;
-      break;
     case FT_MATCH_NEXTHOP_IN:
       return ip_address_in_prefix(pRoute->pAttr->tNextHop,
 				  *((SPrefix*) pMatcher->auParams))?1:0;
-      break;
     case FT_MATCH_PREFIX_IS:
       return ip_prefix_equals(pRoute->sPrefix,
 			      *((SPrefix*) pMatcher->auParams))?1:0;
-      break;
     case FT_MATCH_PREFIX_IN:
       return ip_prefix_in_prefix(pRoute->sPrefix,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
-      break;
+    case FT_MATCH_PREFIX_GE:
+      return ip_prefix_ge_prefix(pRoute->sPrefix,
+				 *((SPrefix*) pMatcher->auParams),
+				 *((uint8_t *) (pMatcher->auParams+
+						sizeof(SPrefix))))?1:0;
+    case FT_MATCH_PREFIX_LE:
+      return ip_prefix_le_prefix(pRoute->sPrefix,
+				 *((SPrefix*) pMatcher->auParams),
+				 *((uint8_t *) (pMatcher->auParams+
+						sizeof(SPrefix))))?1:0;
     case FT_MATCH_PATH_MATCHES:
-      return path_match(route_get_path(pRoute),
-			*((int *) pMatcher->auParams))?1:0;
-      break;
+      assert(ptr_array_get_at(paPathExpr, *((int *) pMatcher->auParams),
+			      &pPathMatcher) >= 0);
+      return path_match(route_get_path(pRoute), pPathMatcher->pRegEx)?1:0;
     default:
       abort();
     }
@@ -570,6 +574,34 @@ SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix)
   return pMatcher;
 }
 
+// ----- filter_match_prefix_ge -------------------------------------
+/**
+ *
+ */
+SFilterMatcher * filter_match_prefix_ge(SPrefix sPrefix, uint8_t uMaskLen)
+{
+  SFilterMatcher * pMatcher=
+    filter_matcher_create(FT_MATCH_PREFIX_GE,
+			  sizeof(SPrefix)+sizeof(uint8_t));
+  memcpy(pMatcher->auParams, &sPrefix, sizeof(SPrefix));
+  memcpy(pMatcher->auParams+sizeof(SPrefix), &uMaskLen, sizeof(uint8_t));
+  return pMatcher;
+}
+
+// ----- filter_match_prefix_le -------------------------------------
+/**
+ *
+ */
+SFilterMatcher * filter_match_prefix_le(SPrefix sPrefix, uint8_t uMaskLen)
+{
+  SFilterMatcher * pMatcher=
+    filter_matcher_create(FT_MATCH_PREFIX_LE,
+			  sizeof(SPrefix)+sizeof(uint8_t));
+  memcpy(pMatcher->auParams, &sPrefix, sizeof(SPrefix));
+  memcpy(pMatcher->auParams+sizeof(SPrefix), &uMaskLen, sizeof(uint8_t));
+  return pMatcher;
+}
+
 // ----- filter_match_comm_contains ---------------------------------
 /**
  *
@@ -592,9 +624,9 @@ SFilterMatcher * filter_match_path(int iArrayPathRegExPos)
   SFilterMatcher * pMatcher=
     filter_matcher_create(FT_MATCH_PATH_MATCHES,
 			  sizeof(int));
-
- memcpy(pMatcher->auParams, &iArrayPathRegExPos, sizeof(iArrayPathRegExPos));
- return pMatcher;
+  
+  memcpy(pMatcher->auParams, &iArrayPathRegExPos, sizeof(iArrayPathRegExPos));
+  return pMatcher;
 }
 
 // ----- filter_action_accept -----------------------------------------
