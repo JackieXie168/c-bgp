@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)as.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 21/07/2007
+// @lastdate 10/01/2008
 // ==================================================================
 
 #ifndef __BGP_ROUTER_H__
@@ -28,19 +28,12 @@
 #include <net/message.h>
 #include <net/network.h>
 
-#define BGP_NLRI_BE        0
-#define BGP_NLRI_QOS_DELAY 1
-
 // ----- BGP Router Load RIB Options -----
-#define BGP_ROUTER_LOAD_OPTIONS_SUMMARY 0x01
-#define BGP_ROUTER_LOAD_OPTIONS_FORCE   0x02
-
-/*extern unsigned long route_create_count;
-extern unsigned long route_copy_count;
-extern unsigned long route_destroy_count;*/
+#define BGP_ROUTER_LOAD_OPTIONS_SUMMARY  0x01  /* Display a summary (stderr) */
+#define BGP_ROUTER_LOAD_OPTIONS_FORCE    0x02  /* Force the route to load */
+#define BGP_ROUTER_LOAD_OPTIONS_AUTOCONF 0x04  /* Create non-existing peers */
 
 extern FTieBreakFunction BGP_OPTIONS_TIE_BREAK;
-extern uint8_t BGP_OPTIONS_NLRI;
 extern uint32_t BGP_OPTIONS_DEFAULT_LOCAL_PREF;
 extern uint8_t BGP_OPTIONS_MED_TYPE;
 extern uint8_t BGP_OPTIONS_SHOW_MODE;
