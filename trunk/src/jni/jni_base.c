@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)jni_base.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 19/10/2007
+// @lastdate 09/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -198,6 +198,18 @@ jobject cbgp_jni_new_Short(JNIEnv * jEnv, jshort jsValue)
   return cbgp_jni_new(jEnv, "java/lang/Short", "(S)V", jsValue);
 }
 
+// -----[ cbgp_jni_new_Integer ]-----------------------------------
+jobject cbgp_jni_new_Integer(JNIEnv * jEnv, jint jiValue)
+{
+  return cbgp_jni_new(jEnv, "java/lang/Integer", "(I)V", jiValue);
+}
+
+// -----[ cbgp_jni_new_Long ]--------------------------------------
+jobject cbgp_jni_new_Long(JNIEnv * jEnv, jlong jlValue)
+{
+  return cbgp_jni_new(jEnv, "java/lang/Long", "(J)V", jlValue);
+}
+
 // -----[ cbgp_jni_new_String ]--------------------------------------
 /**
  * This function returns a jstring object from a char * pointer.
@@ -247,6 +259,16 @@ jobject cbgp_jni_HashMap_put(JNIEnv * jEnv, jobject joHashMap,
 jobject cbgp_jni_new_Hashtable(JNIEnv * jEnv)
 {
   return cbgp_jni_new(jEnv, "java/util/Hashtable", "()V");
+}
+
+// -----[ cbgp_jni_Hashtable_get ]-----------------------------------
+jobject cbgp_jni_Hashtable_get(JNIEnv * jEnv, jobject joHashtable,
+			       jobject joKey)
+{
+  return cbgp_jni_call_Object(jEnv, joHashtable, "get",
+			      "(Ljava/lang/Object;)"
+			      "Ljava/lang/Object;",
+			      joKey);
 }
 
 // -----[ cbgp_jni_Hashtable_put ]-----------------------------------

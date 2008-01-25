@@ -1,15 +1,16 @@
 // ==================================================================
 // @(#)jni_util.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 05/12/2007
+// @lastdate 10/01/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <jni/exceptions.h>
 #include <jni/jni_base.h>
 #include <jni/jni_util.h>
 
@@ -24,13 +25,6 @@
 #include <net/network.h>
 #include <net/node.h>
 #include <jni.h>
-
-#define CLASS_CBGPException "be/ac/ucl/ingi/cbgp/CBGPException"
-
-#define CLASS_CBGPScriptException \
-  "be/ac/ucl/ingi/cbgp/CBGPScriptException"
-#define CONSTR_CBGPScriptException \
-  "(Ljava/lang/String;I)V"
 
 #define CLASS_AbstractConsoleEventListener \
   "be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener"
@@ -80,60 +74,6 @@
 #define CLASS_Communities "be/ac/ucl/ingi/cbgp/bgp/Communities"
 #define CONSTR_Communities "()V"
 #define METHOD_Communities_append "(I)V"
-
-// -----[ cbgp_jni_throw_CBGPException ]-----------------------------
-/**
- * Throw a CBGPException.
- */
-void cbgp_jni_throw_CBGPException(JNIEnv * jEnv, char * pcMsg)
-{
-  jclass jcException;
-
-  jcException= (*jEnv)->FindClass(jEnv, CLASS_CBGPException);
-  if (jcException == NULL)
-    (*jEnv)->FatalError(jEnv, "could not find class CBGPException");
-
-  if ((*jEnv)->ThrowNew(jEnv, jcException, pcMsg) != 0)
-    (*jEnv)->FatalError(jEnv, "could not throw CBGPException");
-}
-
-// -----[ cbgp_jni_throw_CBGPScriptException ]-----------------------
-/**
- * Throw a CBGPScriptException.
- */
-void cbgp_jni_throw_CBGPScriptException(JNIEnv * jEnv, char * pcMsg,
-					int iLineNumber)
-{
-  jclass jcException;
-  jthrowable jtException;
-  jmethodID jmException;
-  jstring jsMsg= NULL;
-
-  jcException= (*jEnv)->FindClass(jEnv, CLASS_CBGPScriptException);
-  if (jcException == NULL)
-    (*jEnv)->FatalError(jEnv, "could not find class CBGPScriptException");
-
-  jmException= (*jEnv)->GetMethodID(jEnv, jcException, "<init>",
-				    CONSTR_CBGPScriptException);
-  if (jmException == NULL)
-    (*jEnv)->FatalError(jEnv, "could not get constructor of " \
-			"CBGPScriptException");
-
-  if (pcMsg != NULL) {
-    jsMsg= cbgp_jni_new_String(jEnv, pcMsg);
-    if (jsMsg == NULL)
-      (*jEnv)->FatalError(jEnv, "could not create String");
-  }
-
-  jtException= (*jEnv)->NewObject(jEnv, jcException, jmException,
-				  jsMsg, iLineNumber);
-  if (jcException == NULL)
-    (*jEnv)->FatalError(jEnv, "could not create instance of " \
-			"CBGPScriptException");
-
-  if ((*jEnv)->Throw(jEnv, jtException) != 0)
-    (*jEnv)->FatalError(jEnv, "could not throw CBGPScriptException");
-}
 
 // -----[ cbgp_jni_new_Communities ]---------------------------------
 /**
@@ -395,31 +335,71 @@ jobject cbgp_jni_new_LinkMetrics(JNIEnv * jEnv,
  * This function creates a new instance of the BGPRoute object from a
  * CBGP route.
  */
-jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute)
+jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
+			      jobject joHashtable)
 {
   jobject joPrefix;
   jobject joNextHop;
   jobject joASPath= NULL;
   jobject joCommunities= NULL;
+  jobject joKey;
 
   /* Convert route attributes to Java objects */
-  joPrefix= cbgp_jni_new_IPPrefix(env, pRoute->sPrefix);
-  joNextHop= cbgp_jni_new_IPAddress(env, route_get_nexthop(pRoute));
+  joPrefix= cbgp_jni_new_IPPrefix(jEnv, pRoute->sPrefix);
+  joNextHop= cbgp_jni_new_IPAddress(jEnv, route_get_nexthop(pRoute));
 
   /* Check that the conversion was successful */
   if ((joPrefix == NULL) || (joNextHop == NULL))
     return NULL;
 
-  if (pRoute->pAttr->pASPathRef != NULL)
-    if ((joASPath= cbgp_jni_new_ASPath(env, pRoute->pAttr->pASPathRef)) == NULL)
-      return NULL;
+  /* Convert AS-Path or retrieve from hashtable */
+  if (pRoute->pAttr->pASPathRef != NULL) {
+    if (joHashtable != NULL) {
+#ifdef __LP64__
+      joKey= cbgp_jni_new_Long(jEnv, (jlong) pRoute->pAttr->pASPathRef);
+#else
+      joKey= cbgp_jni_new_Integer(jEnv, (jint) pRoute->pAttr->pASPathRef);
+#endif
+      joASPath= cbgp_jni_Hashtable_get(jEnv, joHashtable, joKey);
+      if (joASPath == NULL) {
+	joASPath= cbgp_jni_new_ASPath(jEnv, pRoute->pAttr->pASPathRef);
+	if (joASPath == NULL)
+	  return NULL;
+	cbgp_jni_Hashtable_put(jEnv, joHashtable, joKey, joASPath);
+      }
+    } else {
+      joASPath= cbgp_jni_new_ASPath(jEnv, pRoute->pAttr->pASPathRef);
+      if (joASPath == NULL)
+	return NULL;
+    }
+  }
 
-  if (pRoute->pAttr->pCommunities != NULL)
-    if ((joCommunities= cbgp_jni_new_Communities(env, pRoute->pAttr->pCommunities)) == NULL)
-      return NULL;
+  /* Convert Communities or retrieve from hashtable */
+  if (pRoute->pAttr->pCommunities != NULL) {
+    if (joHashtable != NULL) {
+#ifdef __LP64__
+      joKey= cbgp_jni_new_Long(jEnv, (jlong) pRoute->pAttr->pCommunities);
+#else
+      joKey= cbgp_jni_new_Integer(jEnv, (jint) pRoute->pAttr->pCommunities);
+#endif
+      joCommunities= cbgp_jni_Hashtable_get(jEnv, joHashtable, joKey);
+      if (joCommunities == NULL) {
+	joCommunities=
+	  cbgp_jni_new_Communities(jEnv, pRoute->pAttr->pCommunities);
+	if (joCommunities == NULL)
+	  return NULL;
+	cbgp_jni_Hashtable_put(jEnv, joHashtable, joKey, joCommunities);
+      }
+    } else {
+      joCommunities=
+	cbgp_jni_new_Communities(jEnv, pRoute->pAttr->pCommunities);
+      if (joCommunities == NULL)
+	return NULL;
+    }
+  }
 
   /* Create new BGPRoute object */
-  return cbgp_jni_new(env, CLASS_BGPRoute, CONSTR_BGPRoute,
+  return cbgp_jni_new(jEnv, CLASS_BGPRoute, CONSTR_BGPRoute,
 		      joPrefix,
 		      joNextHop,
 		      NULL,
@@ -454,16 +434,16 @@ jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, SNetMessage * pMessage)
     return NULL;
 
   switch (pMsg->uType) {
-  case BGP_MSG_UPDATE:
+  case BGP_MSG_TYPE_UPDATE:
     pMsgUpdate= (SBGPMsgUpdate *) pMsg;
-    if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pMsgUpdate->pRoute)) == NULL)
+    if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pMsgUpdate->pRoute, NULL)) == NULL)
       return NULL;
     joMessage= cbgp_jni_new(jEnv, CLASS_MessageUpdate,
 			    CONSTR_MessageUpdate,
 			    joFrom, joTo, joRoute);
     break;
 
-  case BGP_MSG_WITHDRAW:
+  case BGP_MSG_TYPE_WITHDRAW:
     pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
     if ((joPrefix= cbgp_jni_new_IPPrefix(jEnv, pMsgWithdraw->sPrefix)) == NULL)
       return NULL;
@@ -506,7 +486,7 @@ int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr)
 
   /* If the conversion could not be performed, throw an Exception */
   if (iResult != 0)
-    cbgp_jni_throw_CBGPException(env, "Invalid IP address");
+    throw_CBGPException(env, "Invalid IP address");
 
   return iResult;
 }
@@ -536,7 +516,7 @@ int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
 
   /* If the conversion could not be performed, throw an Exception */
   if (iResult != 0)
-    cbgp_jni_throw_CBGPException(env, "Invalid IP prefix");
+    throw_CBGPException(env, "Invalid IP prefix");
 
   return iResult;
 }
@@ -560,7 +540,7 @@ int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest)
 
   /* If the conversion could not be performed, throw an Exception */
   if (iResult != 0)
-    cbgp_jni_throw_CBGPException(jEnv, "Invalid IP destination");
+    throw_InvalidDestination(jEnv, jsDest);
 
   return iResult;
 }
@@ -584,7 +564,7 @@ SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
     return NULL;
 
   if ((pNode= network_find_node(tNetAddr)) == NULL) {
-    cbgp_jni_throw_CBGPException(env, "could not find node");
+    throw_CBGPException(env, "could not find node");
     return NULL;
   }
     
@@ -608,7 +588,7 @@ SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
     return NULL;
   
   if ((pLink= node_find_link_ptp(pNode1, pNode2->tAddr)) == NULL) {
-    cbgp_jni_throw_CBGPException(env, "could not find link");
+    throw_CBGPException(env, "could not find link");
     return NULL;
   }
 
@@ -633,7 +613,7 @@ SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
     return NULL;
 
   if (((pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP)) == NULL) || (pProtocol->pHandler == NULL)) {
-    cbgp_jni_throw_CBGPException(env, "node does not support BGP");
+    throw_CBGPException(env, "node does not support BGP");
     return NULL;
   }
 
@@ -663,7 +643,7 @@ SBGPPeer * cbgp_jni_bgp_peer_from_string(JNIEnv * env, jstring jsRouterAddr,
 
   pPeer= bgp_router_find_peer(pRouter, tPeerAddr);
   if (pPeer == NULL) {
-    cbgp_jni_throw_CBGPException(env, "peer not found");
+    throw_CBGPException(env, "peer not found");
     return NULL;
   }
 
@@ -682,13 +662,13 @@ SIGPDomain * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber)
 {
   // Check that domain ID is in the range [0, 65535]
   if ((iNumber < 0) || (iNumber > 65535)) {
-    cbgp_jni_throw_CBGPException(env, "value out of bound");
+    throw_CBGPException(env, "value out of bound");
     return NULL;
   }
 
   // Check that the domain exists
   if (!exists_igp_domain((uint16_t) iNumber)) {
-    cbgp_jni_throw_CBGPException(env, "could not find domain");
+    throw_CBGPException(env, "could not find domain");
     return NULL;
   }
 
@@ -707,13 +687,13 @@ SBGPDomain * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber)
 {
   // Check that domain ID is in the range [0, 65535]
   if ((iNumber < 0) || (iNumber > 65535)) {
-    cbgp_jni_throw_CBGPException(env, "value out of bound");
+    throw_CBGPException(env, "value out of bound");
     return NULL;
   }
 
   // Check that the domain exists
   if (!exists_bgp_domain((uint16_t) iNumber)) {
-    cbgp_jni_throw_CBGPException(env, "could not find domain");
+    throw_CBGPException(env, "could not find domain");
     return NULL;
   }
 

@@ -22,6 +22,8 @@ libjni_la_SOURCES = \
 	jni_proxies.h \
 	jni_util.c \
 	jni_util.h \
+	exceptions.c \
+	exceptions.h \
 	listener.c \
 	listener.h
 libjni_la_LIBADD = impl/libjni_impl.la
@@ -30,11 +32,18 @@ libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -Werror -O2 -g
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
 
+JAVA_PACKAGES = \
+	be.ac.ucl.ingi.cbgp \
+	be.ac.ucl.ingi.cbgp.bgp \
+	be.ac.ucl.ingi.cbgp.exceptions \
+	be.ac.ucl.ingi.cbgp.net
+
 JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/BGPMsgListener.java \
 	be/ac/ucl/ingi/cbgp/CBGP.java \
-	be/ac/ucl/ingi/cbgp/CBGPException.java \
-	be/ac/ucl/ingi/cbgp/CBGPScriptException.java \
+	be/ac/ucl/ingi/cbgp/exceptions/CBGPException.java \
+	be/ac/ucl/ingi/cbgp/exceptions/CBGPScriptException.java \
+	be/ac/ucl/ingi/cbgp/exceptions/InvalidDestinationException.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
 	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
 	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
@@ -43,7 +52,7 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
 	be/ac/ucl/ingi/cbgp/LinkMetrics.java \
-	be/ac/ucl/ingi/cbgp/UnknownMetricException.java \
+	be/ac/ucl/ingi/cbgp/exceptions/UnknownMetricException.java \
 	be/ac/ucl/ingi/cbgp/ProxyObject.java \
 	be/ac/ucl/ingi/cbgp/Route.java \
 	be/ac/ucl/ingi/cbgp/RouteInterface.java \
@@ -76,6 +85,8 @@ JAVATESTFILES= \
 	be/ac/ucl/ingi/cbgp/testing/TestSubnet.java \
 	be/ac/ucl/ingi/cbgp/testing/AllTests.java
 
+# Java classes that need to be processed by javah to produce a
+# C header file must be listed below
 JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.CBGP \
 	be.ac.ucl.ingi.cbgp.IPTrace \
@@ -127,17 +138,13 @@ CLEANFILES = $(JARFILE) $(CLASSFILES)
 # Java tests
 # -------------------------------------------------------------------
 
-TESTS = jni-test-wrapper.sh
+#TESTS = jni-test-wrapper.sh
 
 
 # -------------------------------------------------------------------
 # Java documentation
 # -------------------------------------------------------------------
 
-JAVAPACKAGES = \
-	be.ac.ucl.ingi.cbgp \
-	be.ac.ucl.ingi.cbgp.bgp \
-	be.ac.ucl.ingi.cbgp.net
-
 doc:
-	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $(JAVAPACKAGES)
+	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $(JAVA_PACKAGES)
+
