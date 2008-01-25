@@ -13,11 +13,13 @@ import java.util.ArrayList;
 import java.util.Vector;
 
 import be.ac.ucl.ingi.cbgp.bgp.Router;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPScriptException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Link;
 import be.ac.ucl.ingi.cbgp.net.Message;
 import be.ac.ucl.ingi.cbgp.net.Node;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
+import be.ac.ucl.ingi.cbgp.exceptions.*;
 
 // -----[ CBGP ]-----------------------------------------------------
 /**
@@ -301,7 +303,7 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ loadMRT ]----------------------------------------------
-    public native ArrayList loadMRT(String sFileName);
+    public native Vector<be.ac.ucl.ingi.cbgp.bgp.Route> loadMRT(String sFileName);
 
     // -----[ setBGPMsgListener ]------------------------------------
     public native void setBGPMsgListener(BGPMsgListener listener);
