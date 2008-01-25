@@ -497,15 +497,27 @@ int cli_show_version(SCliContext * pContext, SCliCmd * pCmd)
 int cli_include(SCliContext * pContext, SCliCmd * pCmd)
 {
   FILE * pFile;
+  SCliErrorDetails sDetails;
   int iResult= CLI_ERROR_COMMAND_FAILED;
   char * pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
+  int iLineNumber;
 
   pFile= fopen(pcFileName, "r");
   if (pFile != NULL) {
+    cli_get_error_details(cli_get(), &sDetails);
+    iLineNumber= sDetails.iLineNumber;
     iResult= cli_execute_file(pTheCli, pFile);
+    if (iResult != CLI_SUCCESS) {
+      cli_get_error_details(cli_get(), &sDetails);
+      cli_set_user_error(cli_get(), "in file \"%s\", line %d (%s)",
+			 pcFileName, sDetails.iLineNumber,
+			 sDetails.pcUserError);
+      // Beeeerk, I shouldn't do that...
+      cli_get()->sErrorDetails.iLineNumber= iLineNumber;
+    }
     fclose(pFile);
   } else
-    cli_set_user_error(cli_get(), "unable to load file \"%s\".",
+    cli_set_user_error(cli_get(), "unable to load file \"%s\"",
 		       pcFileName);
   return iResult;
 }
