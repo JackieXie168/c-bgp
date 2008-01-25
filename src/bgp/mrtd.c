@@ -527,6 +527,7 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
   SPathSegment * pSegment;
   void * pnt;
   void * end;
+  int asn_pos;
   struct assegment *assegment;
   int iIndex;
   int iResult= 0;
@@ -534,6 +535,12 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
   /* empty AS-path */
   if (path->length == 0)
     return NULL;
+
+  /* ASN size == 32 bits (not supported by c-bgp) */
+  if (path->asn_len != ASN16_LEN) {
+    LOG_ERR(LOG_LEVEL_SEVERE, "32-bits ASN are not supported.\n");
+    return NULL;
+  }
 
   /* Set initial pointers */
   pnt= path->data;
@@ -557,15 +564,17 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
     }
     
     /* Check the AS-path segment length. */
-    if ((pnt + (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE) > end) {
+    if ((pnt + (assegment->length * path->asn_len) + AS_HEADER_SIZE) > end) {
       iResult= -1;
       break;
     }
 
     /* Copy each AS number into the AS-path segment */
-    for (iIndex= 0; iIndex < assegment->length; iIndex++)
+    for (iIndex= 0; iIndex < assegment->length; iIndex++) {
+      asn_pos = iIndex * path->asn_len;
       pSegment->auValue[assegment->length-iIndex-1]=
-	ntohs(assegment->asval[iIndex]);
+	ntohs(*(u_int16_t *) (assegment->data + asn_pos));
+    }
 
     /* Add the segment to the AS-path */
     if (pPath == NULL)
@@ -573,7 +582,7 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
     path_add_segment(pPath, pSegment);
 
     /* Go to next segment... */
-    pnt+= (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE;
+    pnt+= (assegment->length * path->asn_len) + AS_HEADER_SIZE;
   }
 
   /* If something went wrong, clean current AS-path */
@@ -636,6 +645,21 @@ SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
     if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
       route_set_comm(pRoute, mrtd_process_community(pEntry->attr->community));
 
+    /*
+    // DEBUG 2007/12/21
+    if (ptr_array_length(pRoute->pAttr->pASPathRef) > 0) {
+      int i= 0;
+      unsigned int uIndex;
+      for (uIndex= 0; uIndex < ptr_array_length(pRoute->pAttr->pASPathRef); uIndex++) {
+	if (((SPathSegment *) pRoute->pAttr->pASPathRef->data[uIndex])->uType == 0)
+	  i= 1;
+      }
+      if (i) {
+	fprintf(stderr, "*** AS-PATH ERROR !!!\n");
+	abort();
+      }
+    }
+    */
   }
 
   return pRoute;
@@ -654,9 +678,11 @@ SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry, net_addr_t * ptPeerAddr,
   SRoute * pRoute= NULL;
 
   if (pEntry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
-      pRoute= mrtd_process_table_dump(pEntry);
-      *ptPeerAddr= ntohl(pEntry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
-      *puPeerAS= pEntry->body.mrtd_table_dump.peer_as;
+    pRoute= mrtd_process_table_dump(pEntry);
+    *ptPeerAddr= ntohl(pEntry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
+    *puPeerAS= pEntry->body.mrtd_table_dump.peer_as;
+  } else {
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: mrtd input contains an unsupported entry.\n");
   }
 
   return pRoute;
@@ -679,7 +705,7 @@ int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
   net_addr_t tPeerAddr;
   unsigned int uPeerAS;
 
-  if ((fDump= bgpdump_open_dump(pcFileName)) == NULL)
+  if ((fDump= bgpdump_open_dump((char *) pcFileName)) == NULL)
     return BGP_ROUTES_INPUT_ERROR_FILE_OPEN;
 
   do {
@@ -692,16 +718,16 @@ int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
     if (pDumpEntry != NULL) {
       pRoute= mrtd_process_entry(pDumpEntry, &tPeerAddr, &uPeerAS);
       bgpdump_free_mem(pDumpEntry);
-    }
 
-    if (pRoute == NULL)
-      iStatus= BGP_ROUTES_INPUT_STATUS_IGNORED;
-    else
-      iStatus= BGP_ROUTES_INPUT_STATUS_OK;
-
-    if (fHandler(iStatus, pRoute, tPeerAddr, uPeerAS, pContext) != 0) {
-      iError= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
-      break;
+      if (pRoute == NULL)
+	iStatus= BGP_ROUTES_INPUT_STATUS_IGNORED;
+      else
+	iStatus= BGP_ROUTES_INPUT_STATUS_OK;
+      
+      if (fHandler(iStatus, pRoute, tPeerAddr, uPeerAS, pContext) != 0) {
+	iError= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
+	break;
+      }
     }
       
   } while (fDump->eof == 0);
