@@ -1,7 +1,7 @@
-/* $Id: bgpdump.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
+/* $Id: bgpdump.h,v 1.3 2008-01-25 11:27:33 bqu Exp $ */
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -36,40 +36,18 @@ this license is included with libbgpdump.
 
 /*
 -------------------------------------------------------------------------------
-Module Header
-Filename          : bgdump.h
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : Generic header file for libbgpdump library
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
 
 #ifndef _BGPDUMP_H
 #define _BGPDUMP_H
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#else
-# if HAVE_STDINT_H
-#  include <stdint.h>
-# else
-#  error "no HAVE_INTTYPES_H or HAVE_STDINT_H"
-# endif 
-#endif
+#include <config.h>
 
 #include <sys/types.h>
 #include <netinet/in.h>
 
-typedef uint16_t as_t;
+typedef u_int32_t as_t;
 
 typedef union union_BGPDUMP_IP_ADDRESS {
     struct in_addr	v4_addr;
@@ -91,5 +69,10 @@ typedef union union_BGPDUMP_IP_ADDRESS {
 #else
 #define BGPDUMP_ADDRSTRLEN INET_ADDRSTRLEN
 #endif
+
+#define ASN16_LEN sizeof(u_int16_t)
+#define ASN32_LEN sizeof(u_int32_t)
+
+#define AS_TRAN 23456
 
 #endif

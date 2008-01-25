@@ -1,7 +1,7 @@
-/* $Id: bgpdump_attr.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
+/* $Id: bgpdump_attr.h,v 1.3 2008-01-25 11:27:33 bqu Exp $ */
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -35,18 +35,7 @@ this license is included with libbgpdump.
 
 
 /*
--------------------------------------------------------------------------------
-Module Header
-Filename          : bgdump_attr.h
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : BGP attributes header file
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
 
 #ifndef _BGPDUMP_ATTR_H
@@ -77,13 +66,14 @@ To Do             :
 #define BGP_ATTR_MP_REACH_NLRI            14
 #define BGP_ATTR_MP_UNREACH_NLRI          15
 #define BGP_ATTR_EXT_COMMUNITIES          16
+#define BGP_ATTR_NEW_AS_PATH              17
+#define BGP_ATTR_NEW_AGGREGATOR           18
 
 /* Flag macro */
 #define ATTR_FLAG_BIT(X)  (1 << ((X) - 1))
 
 /* BGP ASPATH attribute defines */
 #define AS_HEADER_SIZE        2	 
-#define AS_VALUE_SIZE         sizeof (as_t)
 
 #define AS_SET             1
 #define AS_SEQUENCE        2
@@ -122,29 +112,26 @@ To Do             :
 
 struct unknown_attr
 {
-	uint16_t	real_len;
-	uint8_t	flag;
-	uint8_t	type;
-	uint16_t	len;
+	u_int16_t	real_len;
+	u_int8_t	flag;
+	u_int8_t	type;
+	u_int16_t	len;
 	u_char *	raw;
 };
 
 struct attr
 {
-  /* Reference count of this attribute. */
-  unsigned long refcnt;
-
   /* Flag of attribute is set or not. */
-  uint32_t flag;
+  u_int32_t flag;
 
   /* Attributes. */
   u_char 		origin;
   struct in_addr 	nexthop;
-  uint32_t 		med;
-  uint32_t 		local_pref;
+  u_int32_t 		med;
+  u_int32_t 		local_pref;
   as_t 			aggregator_as;
   struct in_addr 	aggregator_addr;
-  uint32_t 		weight;
+  u_int32_t 		weight;
   struct in_addr 	originator_id;
   struct cluster_list	*cluster;
 
@@ -156,39 +143,43 @@ struct attr
   /* libbgpdump additions */
   
   struct mp_info	*mp_info;
-  uint16_t		len;
+  u_int16_t		len;
   caddr_t		data;
 
-  uint16_t		unknown_num;
+  u_int16_t		unknown_num;
   struct unknown_attr	*unknown;
 
+  /* ASN32 support */
+  struct aspath 	*new_aspath;
+  struct aspath 	*old_aspath;
+  as_t			new_aggregator_as;
+  as_t			old_aggregator_as;
+  struct in_addr 	new_aggregator_addr;
+  struct in_addr 	old_aggregator_addr;
 };
 
 struct community 
 {
-  unsigned long 	refcnt;
   int 			size;
-  uint32_t 		*val;
+  u_int32_t 		*val;
   char			*str;
 };
 
 struct cluster_list
 {
-  unsigned long		refcnt;
   int			length;
   struct in_addr 	*list;
 };
 
 struct transit
 {
-  unsigned long 	refcnt;
   int 			length;
   u_char 		*val;
 };
 
 struct aspath 
 {
-  unsigned long 	refcnt;
+  u_int8_t		asn_len;
   int 			length;
   int 			count;
   caddr_t 		data;
@@ -199,7 +190,7 @@ struct assegment
 {
   u_char type;
   u_char length;
-  as_t asval[1];
+  char data[0];
 };
 
 struct mp_info {
@@ -219,7 +210,7 @@ struct mp_nlri {
   BGPDUMP_IP_ADDRESS	nexthop;
   BGPDUMP_IP_ADDRESS 	nexthop_local;
 
-  uint16_t		prefix_count;
+  u_int16_t		prefix_count;
   struct prefix		*nlri;
 };
 

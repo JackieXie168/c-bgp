@@ -1,7 +1,7 @@
-/* $Id: bgpdump_mstream.h,v 1.2 2005-05-18 13:47:33 bqu Exp $ */
+/* $Id: bgpdump_mstream.h,v 1.3 2008-01-25 11:27:33 bqu Exp $ */
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -35,18 +35,7 @@ this license is included with libbgpdump.
 
 
 /*
--------------------------------------------------------------------------------
-Module Header
-Filename          : bgpdump_mstream.h
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : mstream emmulation frontend
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
 
 #ifndef _BGPDUMP_MSTREAM_H
@@ -57,16 +46,16 @@ To Do             :
 
 struct mstream {
     u_char	*start;
-    uint16_t	position;
-    uint32_t	len;
+    u_int16_t	position;
+    u_int32_t	len;
 };
 
-    void      mstream_init(struct mstream *s, u_char *buffer,uint32_t len);
+    void      mstream_init(struct mstream *s, u_char *buffer,u_int32_t len);
     u_char    mstream_getc(struct mstream *s, u_char *d);
-    uint16_t mstream_getw(struct mstream *s, uint16_t *d);
-    uint32_t mstream_getl(struct mstream *s, uint32_t *d);
-    uint32_t mstream_get_ipv4(struct mstream *s,  uint32_t *d);
-    uint32_t mstream_can_read(struct mstream *s);
-    uint32_t mstream_get (struct mstream *s, void *d, uint32_t len);
+    u_int16_t mstream_getw(struct mstream *s, u_int16_t *d);
+    u_int32_t mstream_getl(struct mstream *s, u_int32_t *d);
+    u_int32_t mstream_get_ipv4(struct mstream *s,  u_int32_t *d);
+    u_int32_t mstream_can_read(struct mstream *s);
+    u_int32_t mstream_get (struct mstream *s, void *d, u_int32_t len);
 
 #endif

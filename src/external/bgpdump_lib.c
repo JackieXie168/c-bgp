@@ -1,6 +1,7 @@
+static const char RCSID[] = "$Id: bgpdump_lib.c,v 1.7 2008-01-25 11:27:19 bqu Exp $";
 /*
 
-Copyright (c) 2002                      RIPE NCC
+Copyright (c) 2007                      RIPE NCC
 
 
 All Rights Reserved
@@ -34,33 +35,13 @@ this license is included with libbgpdump.
 
 
 /*
--------------------------------------------------------------------------------
-Module Header
-Filename          : bgdump_lib.c
-Author            : Dan Ardelean (dan@ripe.net)
-Date              : 02-SEP-2002
-Revision          : 
-Revised           : 
-Description       : Library implementation
-Language Version  : C
-OSs Tested        : Linux 2.2.19
-To Do             : 
--------------------------------------------------------------------------------
+Original Author: Dan Ardelean (dan@ripe.net)
 */
-
-/**
- * Updated by Bruno Quoitin (bqu@info.ucl.ac.be)
- * @lastdate 16/05/2007
- */
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
 
 #include "bgpdump_lib.h"
 #include "bgpdump_mstream.h"
+#include "cfile_tools.h"
 
-#include <assert.h>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -71,63 +52,62 @@ To Do             :
 
 #include <syslog.h>
 
-#ifdef HAVE_LIBZ
 #include <zlib.h>
-typedef gzFile FILE_TYPE;
-#define FILE_OPEN(N,A) gzopen(N,A)
-#define FILE_DOPEN(N,A) gzdopen(N,A)
-#define FILE_CLOSE(F) gzclose(F)
-#define FILE_READ(F,B,S) gzread(F, B, S)
-#else
-#include <stdio.h>
-typedef FILE FILE_TYPE;
-#define FILE_OPEN(N,A) fopen(N,A)
-#define FILE_DOPEN(N,A) fdopen(N,A)
-#define FILE_CLOSE(F) fclose(F)
-#define FILE_READ(F,B,S) fread(B, 1, S, F)
-#endif
+#include <assert.h>
 
-//static    int process_mrtd_bgp(struct mstream *s,BGPDUMP_ENTRY *entry);
+void	  bgpdump_free_attr(struct attr *attr);
 static    int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_mrtd_table_dump_v2(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_mrtd_table_dump_v2_peer_index_table(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_mrtd_table_dump_v2_ipv4_unicast(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_mrtd_table_dump_v2_ipv6_unicast(struct mstream *s,BGPDUMP_ENTRY *entry);
 static    int process_zebra_bgp(struct mstream *s,BGPDUMP_ENTRY *entry);
-static    int process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len);
     
-static    int process_zebra_bgp_message(struct mstream *s,BGPDUMP_ENTRY *entry);
-static    int process_zebra_bgp_message_update(struct mstream *s,BGPDUMP_ENTRY *entry);
-static    int process_zebra_bgp_message_open(struct mstream *s,BGPDUMP_ENTRY *entry);
+static    int process_zebra_bgp_message(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len);
+static    int process_zebra_bgp_message_update(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len);
+static    int process_zebra_bgp_message_open(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len);
 static    int process_zebra_bgp_message_notify(struct mstream *s,BGPDUMP_ENTRY *entry);
 
 static    int process_zebra_bgp_entry(struct mstream *s,BGPDUMP_ENTRY *entry);
 static    int process_zebra_bgp_snapshot(struct mstream *s,BGPDUMP_ENTRY *entry);
 
 static    void process_attr_init(BGPDUMP_ENTRY *entry);
-static    void process_attr_read(struct mstream *s,struct attr *attr, struct zebra_incomplete *incomplete);
-/* removed by bqu
+static    void process_attr_read(struct mstream *s, struct attr *attr, u_int8_t asn_len, struct zebra_incomplete *incomplete, char mp_only_nexthop);
 static    void process_attr_aspath_string(struct aspath *as);
 static    char aspath_delimiter_char (u_char type, u_char which);
-*/
 static    void process_attr_community_string(struct community *com);
 
 static    void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
+static    void process_mp_announce_only_nexthop(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
 static    void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete);
-static    uint16_t read_prefix_list(struct mstream *s, int len, uint16_t af, struct prefix **prefixarray, struct zebra_incomplete *incomplete);
+static    u_int16_t read_prefix_list(struct mstream *s, int len, u_int16_t af, struct prefix **prefixarray, struct zebra_incomplete *incomplete);
+
+static    as_t read_asn(struct mstream *s, as_t *asn, u_int8_t len);
+static    struct aspath *create_aspath(u_int16_t len, u_int8_t asn_len);
+static    void aspath_error(struct aspath *as);
+static    int check_new_aspath(struct aspath *aspath);
+static    void process_asn32_trans(struct attr *attr, u_int8_t asn_len);
+static    struct aspath *asn32_merge_paths(struct aspath *path, struct aspath *newpath);
+static    void asn32_expand_16_to_32(char *dst, char *src, int len);
+
+BGPDUMP_TABLE_DUMP_V2_PEER_INDEX_TABLE *table_dump_v2_peer_index_table = NULL;
 
 #if defined(linux)
 static    size_t strlcat(char *dst, const char *src, size_t size);
 #endif
 
-BGPDUMP *bgpdump_open_dump(const char *filename) {
+BGPDUMP *bgpdump_open_dump(char *filename) {
     BGPDUMP *this_dump=NULL;
-    FILE_TYPE *f;
+    CFRFILE *f;
 
     this_dump = malloc(sizeof(BGPDUMP));
 
+    f = cfr_open(filename);
     if((filename == NULL) || (strcmp(filename, "-") == 0)) {
-	/* dump from stdin */
-	f = FILE_DOPEN(0, "r");
 	strcpy(this_dump->filename, "[STDIN]");
-    } else {
-	f = FILE_OPEN(filename, "r");
+    } else
+    {
 	strcpy(this_dump->filename, filename);
     }
     
@@ -146,7 +126,7 @@ BGPDUMP *bgpdump_open_dump(const char *filename) {
 
 void bgpdump_close_dump(BGPDUMP *dump) {
     if(dump!=NULL) 
-	FILE_CLOSE(dump->f);
+	cfr_close(dump->f);
 }
 
 BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
@@ -158,8 +138,10 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 
     this_entry = malloc(sizeof(BGPDUMP_ENTRY));
 
-    bytes_read = FILE_READ(dump->f, this_entry, 12);
-
+    bytes_read = cfr_read_n(dump->f, &(this_entry->time), 4);
+    bytes_read += cfr_read_n(dump->f, &(this_entry->type), 2);
+    bytes_read += cfr_read_n(dump->f, &(this_entry->subtype), 2);
+    bytes_read += cfr_read_n(dump->f, &(this_entry->length), 4);
     if(bytes_read != 12) {
 	if(bytes_read > 0) {
 	    /* Malformed record */
@@ -185,21 +167,7 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
     this_entry->attr=NULL;
 
     buffer = malloc(this_entry->length);
-    /* ADDED BY BQU: we cannot rely on the length read from the
-       file. Therefore, we have to prepare to memory allocation
-       failure. */
-    if (buffer == NULL) {
-      syslog(LOG_ERR,
-	     "bgpdump_read_next: could not allocate memory "
-	     "(%d bytes read, expecting %d), "
-	     "possibly incorrect file format",
-	       bytes_read, this_entry->length);
-      free(this_entry);
-      dump->eof= 1;
-      return NULL;
-    }
-
-    bytes_read = FILE_READ(dump->f, buffer, this_entry->length);
+    bytes_read = cfr_read_n(dump->f, buffer, this_entry->length);
     if(bytes_read != this_entry->length) { 
 	syslog(LOG_ERR,
 	       "bgpdump_read_next: incomplete dump record (%d bytes read, expecting %d)",
@@ -210,6 +178,7 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 	return(NULL);
     }
         
+
     ok=0;
     mstream_init(&s,buffer,this_entry->length);
 
@@ -222,8 +191,11 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 	case BGPDUMP_TYPE_ZEBRA_BGP:
 		ok = process_zebra_bgp(&s,this_entry); 
 		break;
+	case BGPDUMP_TYPE_TABLE_DUMP_V2:
+		ok = process_mrtd_table_dump_v2(&s,this_entry); 
+		break;
     }
-
+	
     free(buffer);
     if(ok) {
 	dump->parsed_ok++;
@@ -235,8 +207,8 @@ BGPDUMP_ENTRY*	bgpdump_read_next(BGPDUMP *dump) {
 }
 
 void bgpdump_free_mp_info(struct mp_info *info) {
-    uint16_t afi;
-    uint8_t safi;
+    u_int16_t afi;
+    u_int8_t safi;
 
     for(afi = 1; afi < BGPDUMP_MAX_AFI; afi++) {
 	for(safi = 1; safi < BGPDUMP_MAX_SAFI; safi++) {
@@ -251,69 +223,46 @@ void bgpdump_free_mp_info(struct mp_info *info) {
 }
 
 void bgpdump_free_mem(BGPDUMP_ENTRY *entry) {
-    uint16_t i;
 
     if(entry!=NULL) {
-	if(entry->attr != NULL) {
-	    if(entry->attr->aspath != NULL) {
-		if(entry->attr->aspath->data != NULL)
-		    free(entry->attr->aspath->data);
 
-		if(entry->attr->aspath->str != NULL)
-		    free(entry->attr->aspath->str);
-
-		free(entry->attr->aspath);
-	    }
-	    
-	    if(entry->attr->community != NULL) {
-		if(entry->attr->community->val != NULL)
-		    free(entry->attr->community->val);
-
-		if(entry->attr->community->str != NULL)
-		    free(entry->attr->community->str);
-
-		free(entry->attr->community);
-	    }
-
-	    if(entry->attr->data != NULL)
-		free(entry->attr->data);
-
-	    if(entry->attr->mp_info != NULL)
-		bgpdump_free_mp_info(entry->attr->mp_info);
-
-	    if (entry->attr->unknown_num) {
-		for (i = 0; i < entry->attr->unknown_num; i++)
-		    free(entry->attr->unknown[i].raw);
-		free(entry->attr->unknown);
-	    }
-
-	    free(entry->attr);
-	}
-
+	bgpdump_free_attr(entry->attr);
 
 	switch(entry->type) {
-	    case BGPDUMP_TYPE_MRTD_TABLE_DUMP:	
-		break;
 	    case BGPDUMP_TYPE_ZEBRA_BGP:
 		switch(entry->subtype) {
 		    case BGPDUMP_SUBTYPE_ZEBRA_BGP_MESSAGE:
 			switch(entry->body.zebra_message.type) {
-			    case BGPDUMP_BGP_MSG_UPDATE:
+			    case BGP_MSG_UPDATE:
 				if(entry->body.zebra_message.withdraw != NULL)
 				    free(entry->body.zebra_message.withdraw);
     				if(entry->body.zebra_message.announce != NULL)
 				    free(entry->body.zebra_message.announce);
 				break;
-			    case BGPDUMP_BGP_MSG_NOTIFY:
+			    case BGP_MSG_NOTIFY:
 				if(entry->body.zebra_message.notify_data)
 				    free(entry->body.zebra_message.notify_data);
 				break;
-			    case BGPDUMP_BGP_MSG_OPEN:
+			    case BGP_MSG_OPEN:
 				if(entry->body.zebra_message.opt_data)
 				    free(entry->body.zebra_message.opt_data);
 				break;
 			}
 			break;
+		}
+		break;
+	    case BGPDUMP_TYPE_TABLE_DUMP_V2:
+		if(entry->subtype == BGPDUMP_SUBTYPE_TABLE_DUMP_V2_RIB_IPV4_UNICAST ||
+		   entry->subtype == BGPDUMP_SUBTYPE_TABLE_DUMP_V2_RIB_IPV6_UNICAST ){
+
+			BGPDUMP_TABLE_DUMP_V2_PREFIX *e;
+			e = &entry->body.mrtd_table_dump_v2_prefix;
+			int i;
+
+			for(i = 0; i < e->entry_count; i++){
+				bgpdump_free_attr(e->entries[i].attr);
+			}
+			free(e->entries);
 		}
 		break;
 	}
@@ -322,58 +271,336 @@ void bgpdump_free_mem(BGPDUMP_ENTRY *entry) {
     }
 }
 
-/*
-int process_mrtd_bgp(struct mstream *s,BGPDUMP_ENTRY *entry) {    
-    syslog(LOG_WARNING, "process_mrtd_bgp: record type not implemented");
-    return 0;
+void bgpdump_free_attr(struct attr *attr){
+	if(attr != NULL) {
+    	u_int16_t i;
+    	struct aspath *path, *pathstofree[3] = { attr->aspath, attr->old_aspath, attr->new_aspath };
+	    for(i = 0; i < sizeof(pathstofree) / sizeof(pathstofree[0]); i++) {
+	      path = pathstofree[i];
+	      if(path) {
+		if(path->data)
+		  free(path->data);
+		if(path->str)
+		  free(path->str);
+		free(path);
+	      }
+	    }
+	    
+	    if(attr->community != NULL) {
+		if(attr->community->val != NULL)
+		    free(attr->community->val);
+
+		if(attr->community->str != NULL)
+		    free(attr->community->str);
+
+		free(attr->community);
+	    }
+
+	    if(attr->data != NULL)
+		free(attr->data);
+
+	    if(attr->mp_info != NULL)
+		bgpdump_free_mp_info(attr->mp_info);
+
+	    if (attr->unknown_num) {
+		for (i = 0; i < attr->unknown_num; i++)
+		    free(attr->unknown[i].raw);
+		free(attr->unknown);
+	    }
+
+	    free(attr);
+	}
 }
-*/
 
 int process_mrtd_table_dump(struct mstream *s,BGPDUMP_ENTRY *entry) {
-  uint32_t tmp_uptime; // Added in order to avoid type-punning
-                       // (which recent GC versions don't like)
     int afi = entry->subtype;
-
+    u_int8_t asn_len;
+    u_int32_t temp_time = 0;
     mstream_getw(s,&entry->body.mrtd_table_dump.view);
     mstream_getw(s,&entry->body.mrtd_table_dump.sequence);
     switch(afi) {
-	case AFI_IP:
+	case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP:
+	case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP_32BIT_AS:
 	    mstream_get_ipv4(s, &entry->body.mrtd_table_dump.prefix.v4_addr.s_addr);
 	    break;
 #ifdef BGPDUMP_HAVE_IPV6
-	case AFI_IP6:
+	case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6:
+	case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6_32BIT_AS:
 	    mstream_get(s, &entry->body.mrtd_table_dump.prefix.v6_addr.s6_addr, 16);
 	    break;
 #endif
 	default:
 	    syslog(LOG_WARNING, "process_mrtd_table_dump: unknown AFI %d",  afi);
+	    mstream_get(s, NULL, mstream_can_read(s));
 	    return 0;
     }
     mstream_getc(s,&entry->body.mrtd_table_dump.mask);
     mstream_getc(s,&entry->body.mrtd_table_dump.status);
-    mstream_getl(s,&tmp_uptime);
-    entry->body.mrtd_table_dump.uptime= (time_t) tmp_uptime;
-    if(afi == AFI_IP)
-	mstream_get_ipv4(s, &entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
-#ifdef BGPDUMP_HAVE_IPV6
-    else if(afi == AFI_IP6)
-	mstream_get(s, &entry->body.mrtd_table_dump.peer_ip.v6_addr.s6_addr, 16);
-#endif
+    mstream_getl(s,&temp_time);
+    (entry->body).mrtd_table_dump.uptime = temp_time;
 
-    mstream_getw(s,&entry->body.mrtd_table_dump.peer_as);
+    switch(afi) {
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP:
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP_32BIT_AS:
+	mstream_get_ipv4(s, &entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
+	break;
+#ifdef BGPDUMP_HAVE_IPV6
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6:
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6_32BIT_AS:
+	mstream_get(s, &entry->body.mrtd_table_dump.peer_ip.v6_addr.s6_addr, 16);
+	break;
+#endif
+    }
+
+    switch(afi) {
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP:
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6:
+	asn_len = ASN16_LEN;
+	break;
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP_32BIT_AS:
+      case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6_32BIT_AS:
+	asn_len = ASN32_LEN;
+	break;
+      default:
+	/* Not reached. Keep compiler happy */
+	asn_len = 0;
+	break;
+    }
+
+    read_asn(s,&entry->body.mrtd_table_dump.peer_as, asn_len);
 
     process_attr_init(entry);
-    process_attr_read(s, entry->attr, NULL);
+    process_attr_read(s, entry->attr, asn_len, NULL, 0);
 
     return 1;
 }
 
+
+int process_mrtd_table_dump_v2(struct mstream *s,BGPDUMP_ENTRY *entry) {
+
+	switch(entry->subtype){
+	case BGPDUMP_SUBTYPE_TABLE_DUMP_V2_PEER_INDEX_TABLE:
+		return process_mrtd_table_dump_v2_peer_index_table(s, entry);
+	break;
+	case BGPDUMP_SUBTYPE_TABLE_DUMP_V2_RIB_IPV4_UNICAST:
+		return process_mrtd_table_dump_v2_ipv4_unicast(s, entry);
+	break;
+	case BGPDUMP_SUBTYPE_TABLE_DUMP_V2_RIB_IPV6_UNICAST:
+		return process_mrtd_table_dump_v2_ipv6_unicast(s, entry);
+	break;
+	case BGPDUMP_SUBTYPE_TABLE_DUMP_V2_RIB_GENERIC:
+		//return process_mrtd_table_dump_v2_generic(s, entry);
+	break;
+	}
+
+	return 0;
+}
+
+int process_mrtd_table_dump_v2_peer_index_table(struct mstream *s,BGPDUMP_ENTRY *entry) {
+	BGPDUMP_TABLE_DUMP_V2_PEER_INDEX_TABLE *t;
+	uint16_t i;
+	uint8_t peertype;
+	uint16_t view_name_len;
+
+	if(table_dump_v2_peer_index_table){
+		if(table_dump_v2_peer_index_table->entries)
+			free(table_dump_v2_peer_index_table->entries);
+		free(table_dump_v2_peer_index_table);
+	}
+
+	table_dump_v2_peer_index_table = malloc(sizeof(BGPDUMP_TABLE_DUMP_V2_PEER_INDEX_TABLE));
+	t = table_dump_v2_peer_index_table;
+	t->entries = NULL;
+
+    mstream_get_ipv4(s,(uint32_t *)&t->local_bgp_id);
+
+    mstream_getw(s,&view_name_len);
+	strcpy(t->view_name, "");
+
+	// view_name_len is without trailing \0
+	if(view_name_len+1 > BGPDUMP_TYPE_TABLE_DUMP_V2_MAX_VIEWNAME_LEN) {
+	    syslog(LOG_WARNING, "process_mrtd_table_dump_v2_peer_index_table: view name length more than maximum length (%d), ignoring view name", BGPDUMP_TYPE_TABLE_DUMP_V2_MAX_VIEWNAME_LEN);
+	} else {
+		mstream_get(s, t->view_name, view_name_len);
+		t->view_name[view_name_len] = 0;
+	}
+
+    mstream_getw(s,&t->peer_count);
+
+	t->entries = malloc(sizeof(BGPDUMP_TABLE_DUMP_V2_PEER_INDEX_TABLE_ENTRY) * t->peer_count);
+	if(t->entries == NULL){
+	    syslog(LOG_ERR, "process_mrtd_table_dump_v2_peer_index_table: failed to allocate memory for index table");
+		return 0;
+	}
+
+	for(i=0; i < t->peer_count; i++) {
+	  mstream_getc(s,&peertype);
+	  if(peertype & BGPDUMP_PEERTYPE_TABLE_DUMP_V2_AFI_IP6) {
+#ifdef BGPDUMP_HAVE_IPV6
+	    t->entries[i].afi = AFI_IP6;
+#else
+	    continue;
+#endif /* BGPDUMP_HAVE_IPV6 */
+	  } else
+	    t->entries[i].afi = AFI_IP;
+	  
+	  mstream_get_ipv4(s,(uint32_t *)&t->entries[i].peer_bgp_id);
+	  
+	  if(t->entries[i].afi == AFI_IP)
+	    mstream_get_ipv4(s,&t->entries[i].peer_ip.v4_addr.s_addr);
+#ifdef BGPDUMP_HAVE_IPV6
+	  else
+	    mstream_get(s, &t->entries[i].peer_ip.v6_addr.s6_addr, 16);
+#endif /* BGPDUMP_HAVE_IPV6 */
+	  
+
+	  if(peertype & BGPDUMP_PEERTYPE_TABLE_DUMP_V2_AS4)
+	    read_asn(s, &t->entries[i].peer_as, 4);
+	  else
+	    read_asn(s, &t->entries[i].peer_as, 2);
+	  
+	}
+	return 0;
+}
+
+
+int process_mrtd_table_dump_v2_ipv4_unicast(struct mstream *s, BGPDUMP_ENTRY *entry){
+	BGPDUMP_TABLE_DUMP_V2_PREFIX *prefixdata;
+	prefixdata = &entry->body.mrtd_table_dump_v2_prefix;
+	uint16_t i;
+
+	prefixdata->afi = AFI_IP;
+	prefixdata->safi = SAFI_UNICAST;
+
+	mstream_getl(s, &prefixdata->seq);
+	mstream_getc(s, &prefixdata->prefix_length);
+	bzero(&prefixdata->prefix.v4_addr.s_addr, 4);
+	mstream_get(s, &prefixdata->prefix.v4_addr.s_addr, (prefixdata->prefix_length+7)/8);
+	mstream_getw(s, &prefixdata->entry_count);
+
+	prefixdata->entries = malloc(sizeof(BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY) * prefixdata->entry_count);
+	if(prefixdata->entries == NULL){
+	    syslog(LOG_ERR, "process_mrtd_table_dump_v2_ipv4_unicast: failed to allocate memory for entry table");
+		return 0;
+	}
+
+	for(i=0; i < prefixdata->entry_count; i++){
+		BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY *e;
+		e = &prefixdata->entries[i];
+
+		mstream_getw(s, &e->peer_index);
+		e->peer = &table_dump_v2_peer_index_table->entries[e->peer_index];
+		mstream_getl(s, &e->originated_time);
+
+    	process_attr_init(entry);
+		entry->attr->len = e->attribute_length;
+		process_attr_read(s, entry->attr, 4, NULL, 0);
+		e->attr = entry->attr;
+		entry->attr = NULL;
+	}
+
+	return 1;
+}
+
+
+#ifdef BGPDUMP_HAVE_IPV6
+int process_mrtd_table_dump_v2_ipv6_unicast(struct mstream *s, BGPDUMP_ENTRY *entry){
+	BGPDUMP_TABLE_DUMP_V2_PREFIX *prefixdata;
+	prefixdata = &entry->body.mrtd_table_dump_v2_prefix;
+	uint16_t i;
+
+	prefixdata->afi = AFI_IP6;
+	prefixdata->safi = SAFI_UNICAST;
+
+	mstream_getl(s, &prefixdata->seq);
+
+	mstream_getc(s, &prefixdata->prefix_length);
+	bzero(&prefixdata->prefix.v6_addr.s6_addr, 16);
+	mstream_get(s, &prefixdata->prefix.v6_addr.s6_addr, (prefixdata->prefix_length+7)/8);
+
+	mstream_getw(s, &prefixdata->entry_count);
+
+	prefixdata->entries = malloc(sizeof(BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY) * prefixdata->entry_count);
+	if(prefixdata->entries == NULL){
+	    syslog(LOG_ERR, "process_mrtd_table_dump_v2_ipv6_unicast: failed to allocate memory for entry table");
+		return 0;
+	}
+
+	for(i=0; i < prefixdata->entry_count; i++){
+		BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY *e;
+		e = &prefixdata->entries[i];
+
+		mstream_getw(s, &e->peer_index);
+		e->peer = &table_dump_v2_peer_index_table->entries[e->peer_index];
+		mstream_getl(s, &e->originated_time);
+
+    	process_attr_init(entry);
+		entry->attr->len = e->attribute_length;
+		process_attr_read(s, entry->attr, 4, NULL, 1);
+		e->attr = entry->attr;
+		entry->attr = NULL;
+	}
+
+	return 1;
+}
+#endif /* BGPDUMP_HAVE_IPV6 */
+
+/*
+int process_mrtd_table_dump_v2_ipv6_unicast(struct mstream *s, BGPDUMP_ENTRY *entry){
+	BGPDUMP_TABLE_DUMP_V2_PREFIX *prefixdata;
+	prefixdata = &entry->body.mrtd_table_dump_v2_prefix;
+	uint16_t i;
+
+	mstream_getl(s, &prefixdata->seq);
+	mstream_getw(s, &prefixdata->afi);
+	mstream_getc(s, &prefixdata->safi);
+
+	if(prefixdata->afi != AFI_IP6 || prefixdata->safi != SAFI_UNICAST){
+	    syslog(LOG_ERR, "process_mrtd_table_dump_v2_ipv6_unicast: entry has unsupported AFI/SAFI %d/%d", prefixdata->afi, prefixdata->safi);
+		return 0;
+	}
+
+	mstream_getc(s, &prefixdata->prefix_length);
+	bzero(&prefixdata->prefix.v6_addr.s6_addr, 16);
+	mstream_get(s, &prefixdata->prefix.v6_addr.s6_addr, (prefixdata->prefix_length+7)/8);
+
+	mstream_getw(s, &prefixdata->entry_count);
+
+	prefixdata->entries = malloc(sizeof(BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY) * prefixdata->entry_count);
+	if(prefixdata->entries == NULL){
+	    syslog(LOG_ERR, "process_mrtd_table_dump_v2_ipv6_unicast: failed to allocate memory for entry table");
+		return 0;
+	}
+
+	for(i=0; i < prefixdata->entry_count; i++){
+		BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY *e;
+		e = &prefixdata->entries[i];
+
+		mstream_getw(s, &e->peer_index);
+		e->peer = &table_dump_v2_peer_index_table.entries[e->peer_index];
+		mstream_getl(s, &e->originated_time);
+
+    	process_attr_init(entry);
+		entry->attr->len = e->attribute_length;
+		process_attr_read(s, entry->attr, 4, NULL, 1);
+		e->attr = entry->attr;
+		entry->attr = NULL;
+	}
+
+	return 1;
+}*/
+
+
 int process_zebra_bgp(struct mstream *s,BGPDUMP_ENTRY *entry) {
     switch(entry->subtype) {
 	case BGPDUMP_SUBTYPE_ZEBRA_BGP_STATE_CHANGE:
-	    return process_zebra_bgp_state_change(s, entry);
+	    return process_zebra_bgp_state_change(s, entry, ASN16_LEN);
+	case BGPDUMP_SUBTYPE_ZEBRA_BGP_STATE_CHANGE_AS4:
+	    return process_zebra_bgp_state_change(s, entry, ASN32_LEN);
 	case BGPDUMP_SUBTYPE_ZEBRA_BGP_MESSAGE:
-	    return process_zebra_bgp_message(s, entry);
+	    return process_zebra_bgp_message(s, entry, ASN16_LEN);
+	case BGPDUMP_SUBTYPE_ZEBRA_BGP_MESSAGE_AS4:
+	    return process_zebra_bgp_message(s, entry, ASN32_LEN);
 	case BGPDUMP_SUBTYPE_ZEBRA_BGP_ENTRY:
 	    return process_zebra_bgp_entry(s,entry);
 	case BGPDUMP_SUBTYPE_ZEBRA_BGP_SNAPSHOT:
@@ -386,9 +613,9 @@ int process_zebra_bgp(struct mstream *s,BGPDUMP_ENTRY *entry) {
 
 
 int 
-process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry) {
-    mstream_getw(s,&entry->body.zebra_state_change.source_as);
-    mstream_getw(s,&entry->body.zebra_state_change.destination_as);
+process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len) {
+    read_asn(s, &entry->body.zebra_state_change.source_as, asn_len);
+    read_asn(s, &entry->body.zebra_state_change.destination_as, asn_len);
 
     /* Work around Zebra dump corruption.
      * N.B. I don't see this in quagga 0.96.4 any more. Is it fixed? */
@@ -413,7 +640,8 @@ process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry) {
 
     switch(entry->body.zebra_state_change.address_family) {
 	case AFI_IP:
-	    if(entry->length != 20) {
+	    // length could be 20 or 24 (asn16 vs asn32)
+	    if(entry->length != 20 && entry->length != 24) {
 		syslog(LOG_WARNING, "process_zebra_bgp_state_change: bad length %d",
 		       entry->length);
 		return 0;
@@ -424,7 +652,8 @@ process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry) {
 	    break;
 #ifdef BGPDUMP_HAVE_IPV6
 	case AFI_IP6:
-	    if(entry->length != 44) {
+	    // length could be 44 or 48 (asn16 vs asn32)
+	    if(entry->length != 44 && entry->length != 48) {
 		syslog(LOG_WARNING, "process_zebra_bgp_state_change: bad length %d",
 		       entry->length);
 		return 0;
@@ -445,11 +674,11 @@ process_zebra_bgp_state_change(struct mstream *s,BGPDUMP_ENTRY *entry) {
     return 1;
 }
 
-int process_zebra_bgp_message(struct mstream *s,BGPDUMP_ENTRY *entry) {
+int process_zebra_bgp_message(struct mstream *s,BGPDUMP_ENTRY *entry, u_int8_t asn_len) {
     u_char marker[16]; /* BGP marker */
 
-    mstream_getw(s,&entry->body.zebra_message.source_as);
-    mstream_getw(s,&entry->body.zebra_message.destination_as);
+    read_asn(s, &entry->body.zebra_message.source_as, asn_len);
+    read_asn(s, &entry->body.zebra_message.destination_as, asn_len);
     mstream_getw(s,&entry->body.zebra_message.interface_index);
     mstream_getw(s,&entry->body.zebra_message.address_family);
 
@@ -512,20 +741,20 @@ int process_zebra_bgp_message(struct mstream *s,BGPDUMP_ENTRY *entry) {
     entry->body.zebra_message.cut_bytes = entry->body.zebra_message.size - 19 - mstream_can_read(s);
     
     switch(entry->body.zebra_message.type) {    
-	case BGPDUMP_BGP_MSG_OPEN:
-	    return process_zebra_bgp_message_open(s,entry);
-	case BGPDUMP_BGP_MSG_UPDATE:
-	    return process_zebra_bgp_message_update(s,entry);
-	case BGPDUMP_BGP_MSG_NOTIFY:
+	case BGP_MSG_OPEN:
+	    return process_zebra_bgp_message_open(s,entry, asn_len);
+	case BGP_MSG_UPDATE:
+	    return process_zebra_bgp_message_update(s,entry, asn_len);
+	case BGP_MSG_NOTIFY:
 	    return process_zebra_bgp_message_notify(s,entry);
-	case BGPDUMP_BGP_MSG_KEEPALIVE:
+	case BGP_MSG_KEEPALIVE:
 	    /* Nothing to do */
 	    return 1;
-	case BGPDUMP_BGP_MSG_ROUTE_REFRESH_01:
+	case BGP_MSG_ROUTE_REFRESH_01:
 	    /* Not implemented yet */
 	    syslog(LOG_WARNING, "bgp_message: MSG_ROUTE_REFRESH_01 not implemented yet");
 	    return 0;
-	case BGPDUMP_BGP_MSG_ROUTE_REFRESH:
+	case BGP_MSG_ROUTE_REFRESH:
 	    /* Not implemented yet */
 	    syslog(LOG_WARNING, "bgp_message: MSG_ROUTE_REFRESH not implemented yet");
 	    return 0;
@@ -549,9 +778,9 @@ int process_zebra_bgp_message_notify(struct mstream *s, BGPDUMP_ENTRY *entry) {
     return 1;
 }
 
-int process_zebra_bgp_message_open(struct mstream *s, BGPDUMP_ENTRY *entry) {
+int process_zebra_bgp_message_open(struct mstream *s, BGPDUMP_ENTRY *entry, u_int8_t asn_len) {
     mstream_getc(s, &entry->body.zebra_message.version);
-    mstream_getw(s, &entry->body.zebra_message.my_as);
+    read_asn(s, &entry->body.zebra_message.my_as, asn_len);
     mstream_getw(s, &entry->body.zebra_message.hold_time);
     mstream_get_ipv4(s, &entry->body.zebra_message.bgp_id.s_addr);
     mstream_getc(s, &entry->body.zebra_message.opt_len);
@@ -564,7 +793,7 @@ int process_zebra_bgp_message_open(struct mstream *s, BGPDUMP_ENTRY *entry) {
     return 1;
 }
 
-int process_zebra_bgp_message_update(struct mstream *s, BGPDUMP_ENTRY *entry) {
+int process_zebra_bgp_message_update(struct mstream *s, BGPDUMP_ENTRY *entry, u_int8_t asn_len) {
     int withdraw_len;
     int announce_len;
     int attr_pos;
@@ -580,7 +809,7 @@ int process_zebra_bgp_message_update(struct mstream *s, BGPDUMP_ENTRY *entry) {
     attr_pos = s->position;
 
     process_attr_init(entry);
-    process_attr_read(s, entry->attr, &entry->body.zebra_message.incomplete);
+    process_attr_read(s, entry->attr, asn_len, &entry->body.zebra_message.incomplete, 0);
 
     /* Get back in sync in case there are malformed attributes */
     s->position = attr_pos + entry->attr->len + 2;
@@ -608,7 +837,6 @@ void process_attr_init(BGPDUMP_ENTRY *entry) {
 
     entry->attr = malloc(sizeof(struct attr));
     
-    entry->attr->refcnt			= 0;
     entry->attr->flag			= 0;
     entry->attr->origin			= -1;
     entry->attr->nexthop.s_addr		= -1;
@@ -629,16 +857,24 @@ void process_attr_init(BGPDUMP_ENTRY *entry) {
 
     entry->attr->unknown_num = 0;
     entry->attr->unknown = NULL;
+
+    entry->attr->new_aspath		= NULL;
+    entry->attr->old_aspath		= NULL;
+    entry->attr->new_aggregator_as	= -1;
+    entry->attr->new_aggregator_addr.s_addr = -1;
 }
 
-void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomplete *incomplete) {
+void process_attr_read(struct mstream *s, struct attr *attr, u_int8_t asn_len, struct zebra_incomplete *incomplete, char mp_only_nexthop) {
     u_char	flag;
     u_char	type;
-    uint32_t	len, end;
-    uint32_t	truelen;
+    u_int32_t	len, end;
+    u_int32_t	truelen;
     struct unknown_attr *unknown;
     
     mstream_getw(s, &attr->len);
+    if(attr->len == 0)
+      return;
+
     attr->data=malloc(attr->len);
 
     /* Check the attributes are not truncated */
@@ -661,48 +897,36 @@ void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomp
 	else
 	    len=mstream_getc(s,NULL);
 	
+	/* Take note of all attributes, including unknown ones */
+	if(type <= sizeof(attr->flag) * 8)
+	  attr->flag = attr->flag | ATTR_FLAG_BIT (type);
+
 	switch(type) {
 	    case BGP_ATTR_ORIGIN:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_ORIGIN);
 		mstream_getc(s,&attr->origin);
 		break;	    
 	    case BGP_ATTR_AS_PATH:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_AS_PATH);
-		attr->aspath		= malloc(sizeof(struct aspath));
-		attr->aspath->refcnt	= 0;
-		attr->aspath->length	= len;
-		attr->aspath->count	= 0;
-		attr->aspath->data	= malloc(len);
+		attr->aspath = create_aspath(len, asn_len);
 		mstream_get(s,attr->aspath->data,len);
-		attr->aspath->str	= NULL;
-		/* disabled by bqu (no conversion to string is required here)
-		  process_attr_aspath_string(attr->aspath);
-		*/
+		process_attr_aspath_string(attr->aspath);
 		break;
 	    case BGP_ATTR_NEXT_HOP:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_NEXT_HOP);
 		mstream_get_ipv4(s,&attr->nexthop.s_addr);
 		break;
 	    case BGP_ATTR_MULTI_EXIT_DISC:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_MULTI_EXIT_DISC);
 		mstream_getl(s,&attr->med);
 		break;
 	    case BGP_ATTR_LOCAL_PREF:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_LOCAL_PREF);
 		mstream_getl(s,&attr->local_pref);
 		break;
 	    case BGP_ATTR_ATOMIC_AGGREGATE:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_ATOMIC_AGGREGATE);
 		break;
 	    case BGP_ATTR_AGGREGATOR:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_AGGREGATOR);
-		mstream_getw(s,&attr->aggregator_as);
+		read_asn(s, &attr->aggregator_as, asn_len);
 		mstream_get_ipv4(s,&attr->aggregator_addr.s_addr);
 		break;
 	    case BGP_ATTR_COMMUNITIES:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_COMMUNITIES);
 		attr->community		= malloc(sizeof(struct community));
-		attr->community->refcnt = 0;
 		attr->community->size	= len / 4;
 		attr->community->val	= malloc(len);
 		mstream_get(s,attr->community->val,len);
@@ -710,20 +934,31 @@ void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomp
 		process_attr_community_string(attr->community);
 		break;
 	    case BGP_ATTR_MP_REACH_NLRI:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_MP_REACH_NLRI);
 		if(attr->mp_info == NULL) {
 		    attr->mp_info = malloc(sizeof(struct mp_info));
 		    memset(attr->mp_info, 0, sizeof(struct mp_info));
 		}
-		process_mp_announce(s, attr->mp_info, len, incomplete);
+		if(mp_only_nexthop)
+			process_mp_announce_only_nexthop(s, attr->mp_info, len, incomplete);
+		else
+			process_mp_announce(s, attr->mp_info, len, incomplete);
 		break;
 	    case BGP_ATTR_MP_UNREACH_NLRI:
-		attr->flag = attr->flag | ATTR_FLAG_BIT (BGP_ATTR_MP_UNREACH_NLRI);
 		if(attr->mp_info == NULL) {
 		    attr->mp_info = malloc(sizeof(struct mp_info));
 		    memset(attr->mp_info, 0, sizeof(struct mp_info));
 		}
 		process_mp_withdraw(s, attr->mp_info, len, incomplete);
+	    case BGP_ATTR_NEW_AS_PATH:
+		attr->new_aspath = create_aspath(len, ASN32_LEN);
+		mstream_get(s,attr->new_aspath->data,len);
+		process_attr_aspath_string(attr->new_aspath);
+                /* AS_CONFED_SEQUENCE and AS_CONFED_SET segments invalid in NEW_AS_PATH */
+                check_new_aspath(attr->new_aspath);
+		break;
+	    case BGP_ATTR_NEW_AGGREGATOR:
+		read_asn(s, &attr->new_aggregator_as, ASN32_LEN);
+		mstream_get_ipv4(s,&attr->new_aggregator_addr.s_addr);
 		break;
 	    default:
 		/* Unknown attribute. Save as is */
@@ -759,9 +994,40 @@ void process_attr_read(struct mstream *s, struct attr *attr, struct zebra_incomp
 		break;
 	}
     }
+    /* Once all attributes have been read, take care of ASN32 transition */
+    process_asn32_trans(attr, asn_len);
 }
 
-#ifdef BQU_COMMENT
+struct aspath *create_aspath(u_int16_t len, u_int8_t asn_len) {
+  struct aspath *aspath = malloc(sizeof(struct aspath));
+  if(aspath) {
+    aspath->asn_len	= asn_len;
+    aspath->length	= len;
+    aspath->count	= 0;
+    aspath->str		= NULL;
+    if(len > 0)
+       aspath->data	= malloc(len);
+    else
+       aspath->data	= NULL;
+  }
+  return aspath;
+}
+
+void aspath_error(struct aspath *as) {
+  as->count = 0;
+
+  if(as->str) {
+    free(as->str);
+    as->str = NULL;
+  }
+
+  as->str = malloc(strlen(ASPATH_STR_ERROR) + 1);
+  if(as->str)
+    strcpy(as->str, ASPATH_STR_ERROR);
+  else
+    syslog(LOG_CRIT, "aspath_error: malloc failed");
+}
+
 void process_attr_aspath_string(struct aspath *as) {
   int space;
   u_char type;
@@ -770,7 +1036,7 @@ void process_attr_aspath_string(struct aspath *as) {
   struct assegment *assegment;
   int str_size = ASPATH_STR_DEFAULT_LEN;
   int str_pnt;
-  u_char *str_buf;
+  char *str_buf;
   int count = 0;
 
   /* Empty aspath. */
@@ -811,26 +1077,26 @@ void process_attr_aspath_string(struct aspath *as) {
 	  (assegment->type != AS_CONFED_SEQUENCE))
 	{
 	  free(str_buf);
-	  str_buf=malloc(strlen(ASPATH_STR_ERROR)+1);
-	  strcpy(str_buf,ASPATH_STR_ERROR);
-	  as->count=0;
-	  as->str = str_buf;
+	  aspath_error(as);
 	  return;
 	}
 
       /* Check AS length. */
-      if ((pnt + (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE) > end)
+      if ((pnt + (assegment->length * as->asn_len) + AS_HEADER_SIZE) > end)
 	{
 	  free(str_buf);
-	  str_buf=malloc(strlen(ASPATH_STR_ERROR)+1);
-	  strcpy(str_buf,ASPATH_STR_ERROR);
-	  as->count=0;
-	  as->str = str_buf;
+	  aspath_error(as);
 	  return;
 	}
 
       /* Buffer length check. */
-      estimate_len = ((assegment->length * 6) + 4);
+      switch(as->asn_len) {
+        case ASN16_LEN:
+          estimate_len = ((assegment->length * 6) + 4);
+          break;
+        default:
+          estimate_len = ((assegment->length * 12) + 4);
+      }
       
       /* String length check. */
       while (str_pnt + estimate_len >= str_size)
@@ -851,19 +1117,22 @@ void process_attr_aspath_string(struct aspath *as) {
 
       space = 0;
 
-      /* Increment count - ignoring CONFED SETS/SEQUENCES */
-      if (assegment->type != AS_CONFED_SEQUENCE
-	  && assegment->type != AS_CONFED_SET)
-	{
-	  if (assegment->type == AS_SEQUENCE)
-	    count += assegment->length;
-	  else if (assegment->type == AS_SET)
-	    count++;
-	}
+      /* Increment count - NOT ignoring CONFED_SETS/SEQUENCES any more.
+         I doubt anybody was relying on this behaviour anyway. */
+      switch(assegment->type) {
+	case AS_SEQUENCE:
+	case AS_CONFED_SEQUENCE:
+	  count += assegment->length;
+	case AS_SET:
+	case AS_CONFED_SET:
+	  count += 1;
+      }
 
       for (i = 0; i < assegment->length; i++)
 	{
 	  int len;
+	  as_t asn;
+	  int asn_pos;
 
 	  if (space)
 	    {
@@ -876,12 +1145,26 @@ void process_attr_aspath_string(struct aspath *as) {
 	  else
 	    space = 1;
 
-	  len = sprintf (str_buf + str_pnt, "%d", ntohs (assegment->asval[i]));
+	  asn_pos = i * as->asn_len;
+	  switch(as->asn_len) {
+	    case ASN16_LEN:
+	      asn = ntohs (*(u_int16_t *) (assegment->data + asn_pos));
+	      break;
+	    case ASN32_LEN:
+	      asn = ntohl (*(u_int32_t *) (assegment->data + asn_pos));
+	      break;
+	    default:
+	      /* Not reached. Keep compiler happy*/
+	      asn = 0;
+	      break;
+	  }
+
+	  len = sprintf (str_buf + str_pnt, "%s", print_asn(asn));
 	  str_pnt += len;
 	}
 
       type = assegment->type;
-      pnt += (assegment->length * AS_VALUE_SIZE) + AS_HEADER_SIZE;
+      pnt += (assegment->length * as->asn_len) + AS_HEADER_SIZE;
     }
 
   if (assegment->type != AS_SEQUENCE)
@@ -923,21 +1206,21 @@ char aspath_delimiter_char (u_char type, u_char which) {
     }
   return ' ';
 }
-#endif
+
 
 void process_attr_community_string(struct community *com) {
 
   char buf[BUFSIZ];
   int i;
-  uint32_t comval;
-  uint16_t as;
-  uint16_t val;
+  u_int32_t comval;
+  u_int16_t as;
+  u_int16_t val;
 
   memset (buf, 0, BUFSIZ);
 
   for (i = 0; i < com->size; i++) 
     {
-      memcpy (&comval, com_nthval (com, i), sizeof (uint32_t));
+      memcpy (&comval, com_nthval (com, i), sizeof (u_int32_t));
       comval = ntohl (comval);
       switch (comval) 
 	{
@@ -964,10 +1247,10 @@ void process_attr_community_string(struct community *com) {
 }
 
 void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete) {
-	uint16_t afi;
-	uint8_t safi;
-	uint8_t num_snpa;
-	uint8_t snpa_len;
+	u_int16_t afi;
+	u_int8_t safi;
+	u_int8_t num_snpa;
+	u_int8_t snpa_len;
 	struct mp_nlri *mp_nlri;
 
 	mstream_getw(s, &afi);
@@ -1042,9 +1325,59 @@ void process_mp_announce(struct mstream *s, struct mp_info *info, int len, struc
 	mp_nlri->prefix_count = read_prefix_list(s, len, afi, &mp_nlri->nlri, incomplete);
 }
 
+void process_mp_announce_only_nexthop(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete) {
+	u_int16_t afi;
+	u_int8_t safi;
+	struct mp_nlri *mp_nlri;
+
+	afi = AFI_IP6;
+	safi = SAFI_UNICAST;
+
+	/* If there are 2 NLRI's for the same protocol, fail but don't burn and die */
+	if(info->announce[afi][safi] != NULL) {
+		syslog(LOG_WARNING,
+		       "process_mp_announce: update contains more than one MP_NLRI with AFI,SAFI %d,%d!",
+		       afi, safi);
+		mstream_get(s, NULL, len);
+		return;
+	}
+
+	/* Allocate structure */
+	mp_nlri = malloc(sizeof(struct mp_nlri));
+	memset(mp_nlri, 0, sizeof(struct mp_nlri));
+	info->announce[afi][safi] = mp_nlri;
+
+	/* Get next hop */
+	mstream_getc(s, &mp_nlri->nexthop_len);
+	len--;
+
+	switch(afi) {
+		case AFI_IP:
+		    mstream_get_ipv4(s, &mp_nlri->nexthop.v4_addr.s_addr);
+		    mstream_get(s, NULL, mp_nlri->nexthop_len - 4);
+		    break;
+#ifdef BGPDUMP_HAVE_IPV6
+		case AFI_IP6:
+		    if(mp_nlri->nexthop_len != 32 && mp_nlri->nexthop_len != 16) {
+			syslog(LOG_WARNING, "process_mp_announce: unknown MP nexthop length %d",
+			       mp_nlri->nexthop_len);
+			mstream_get(s, NULL, len);
+			return;
+		    }
+		    /* Get global nexthop */
+		    mstream_get(s, &mp_nlri->nexthop.v6_addr, 16);
+		    /* Is there also a link-local address? */
+		    if(mp_nlri->nexthop_len == 32)
+			mstream_get(s, &mp_nlri->nexthop_local.v6_addr.s6_addr, 16);
+		    break;
+#endif
+	}
+	len -= mp_nlri->nexthop_len;
+}
+
 void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struct zebra_incomplete *incomplete) {
-	uint16_t afi;
-	uint8_t safi;
+	u_int16_t afi;
+	u_int8_t safi;
 	struct mp_nlri *mp_nlri;
 
 	mstream_getw(s, &afi);
@@ -1076,11 +1409,11 @@ void process_mp_withdraw(struct mstream *s, struct mp_info *info, int len, struc
 	mp_nlri->prefix_count = read_prefix_list(s, len, afi, &mp_nlri->nlri, incomplete);
 }
 
-uint16_t read_prefix_list(struct mstream *s, int len, uint16_t afi,
+u_int16_t read_prefix_list(struct mstream *s, int len, u_int16_t afi,
                            struct prefix **prefixarray, struct zebra_incomplete *incomplete) {
-	uint8_t p_len;
-	uint8_t p_bytes;
-	uint16_t count = 0;
+	u_int8_t p_len;
+	u_int8_t p_bytes;
+	u_int16_t count = 0;
 	struct prefix *prefixes = *prefixarray;
 
 	if(afi > BGPDUMP_MAX_AFI) {
@@ -1128,6 +1461,157 @@ uint16_t read_prefix_list(struct mstream *s, int len, uint16_t afi,
 	}
 	*prefixarray = prefixes;
 	return count;
+}
+
+static as_t read_asn(struct mstream *s, as_t *asn, u_int8_t len) {
+  u_int16_t asn16;
+
+  assert(len == sizeof(u_int32_t) || len == sizeof(u_int16_t));
+  switch(len) {
+    case sizeof(u_int32_t):
+      return mstream_getl(s, asn);
+    case sizeof(u_int16_t):
+      mstream_getw(s, &asn16);
+      if(asn)
+	*asn = asn16;
+	return asn16;
+    default:
+      /* Not reached. Avoid compiler warning */
+      return 0;
+  }
+}
+
+char *print_asn(as_t asn) {
+  /* This function is here because we don't yet know what the final
+     presentation format for 32-bit ASNs will be. If in the end it turns out to
+     be a 32-bit integer, it can simply be removed. */
+	static char asn_str[strlen("65535.65535") + 1];
+	if(asn >> 16) {
+		sprintf(asn_str, "%d.%d", (asn >> 16) & 0xFFFF, asn & 0xFFFF);
+	} else {
+		sprintf(asn_str, "%d", asn);
+	}
+	return asn_str;
+}
+
+int check_new_aspath(struct aspath *aspath) {
+  struct assegment *segment;
+  for(segment = (struct assegment *) aspath->data;
+      segment < (struct assegment *) (aspath->data + aspath->length);
+      segment = (struct assegment *) ((char *) segment + sizeof(*segment) + segment->length * ASN32_LEN)) {
+    if(segment->type == AS_CONFED_SEQUENCE || segment->type == AS_CONFED_SET) {
+      syslog(LOG_WARNING, "check_new_aspath: invalid segment of type AS_CONFED_%s in NEW_AS_PATH",
+	     segment->type == AS_CONFED_SET ? "SET" : "SEQUENCE");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+void process_asn32_trans(struct attr *attr, u_int8_t asn_len) {
+  if(asn_len == ASN32_LEN) {
+    /* These attributes "SHOULD NOT" be used with ASN32. */
+    if(attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEW_AS_PATH))
+      syslog(LOG_WARNING, "process_asn32_trans: ASN32 message contains NEW_AS_PATH attribute");
+
+    if(attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEW_AGGREGATOR))
+      syslog(LOG_WARNING, "process_asn32_trans: ASN32 message contains NEW_AGGREGATOR attribute");
+
+    /* Don't compute anything, just leave AS_PATH and AGGREGATOR as they are */
+    return;
+  }
+
+  /* Process NEW_AGGREGATOR */
+  if(attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AGGREGATOR) &&
+     attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEW_AGGREGATOR)) {
+      /* Both AGGREGATOR and NEW_AGGREGATOR present, merge */
+      if(attr->aggregator_as != AS_TRAN) {
+	/* Don't do anything */
+	return;
+      } else {
+	attr->old_aggregator_as = attr->aggregator_as;
+	attr->old_aggregator_addr = attr->aggregator_addr;
+	attr->aggregator_as = attr->new_aggregator_as;
+	attr->aggregator_addr = attr->new_aggregator_addr;
+      }
+  }
+
+  /* Process NEW_AS_PATH */
+  if(! (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEW_AS_PATH)))
+    return;
+
+  // attr->aspath may be NULL, at least in case of MP_UNREACH_NLRI
+  if(attr->aspath == NULL) return;
+  if(attr->aspath->count < attr->new_aspath->count) {
+    return;
+  }
+
+  /* Merge paths */
+  attr->old_aspath = attr->aspath;
+  attr->aspath = asn32_merge_paths(attr->old_aspath, attr->new_aspath);
+  if(attr->aspath) {
+    process_attr_aspath_string(attr->aspath);
+  }
+}
+
+struct aspath *asn32_merge_paths(struct aspath *path, struct aspath *newpath) {
+  struct aspath *mergedpath = create_aspath(0, ASN32_LEN);
+  struct assegment *segment, *mergedsegment;
+  int newlen;
+
+  /* Keep copying segments from AS_PATH until our path is as long as AS_PATH - NEW_AS_PATH. */
+  segment = (struct assegment *) (path->data);
+  while(mergedpath->count < path->count - newpath->count) {
+    /* Make room */
+    newlen = mergedpath->length + sizeof(struct assegment) + segment->length * ASN32_LEN;
+    mergedpath->data = realloc(mergedpath->data, newlen);
+    if(mergedpath->data == NULL) {
+      syslog(LOG_CRIT, "asn32_merge_paths: malloc failed");
+      return NULL;
+    }
+
+    /* Create a new AS-path segment */
+    mergedsegment = (struct assegment *) (mergedpath->data + mergedpath->length);
+
+    /* Copy segment over. AS_PATH contains 16-bit ASes, so expand */
+    mergedsegment->type = segment->type;
+    mergedsegment->length = segment->length;
+    asn32_expand_16_to_32(mergedsegment->data, segment->data, segment->length);
+
+    /* Update length */
+    mergedpath->length = newlen;
+    if(segment->type == AS_SET || segment->type == AS_CONFED_SET) {
+      mergedpath->count += 1;
+    } else {
+      mergedpath->count += segment->length;
+      /* Did we copy too many ASes over? */
+      if(mergedpath->count > path->count - newpath->count) {
+	mergedsegment->length -= mergedpath->count - (path->count - newpath->count);
+	mergedpath->length -= (mergedpath->count - (path->count - newpath->count)) * ASN32_LEN;
+      }
+    }
+  }
+
+  /* Append NEW_AS_PATH to merged path */
+  mergedpath->data = realloc(mergedpath->data, mergedpath->length + newpath->length);
+  if(mergedpath->data == NULL) {
+    syslog(LOG_CRIT, "asn32_merge_paths: malloc failed");
+    return NULL;
+  }
+  memcpy(mergedpath->data + mergedpath->length, newpath->data, newpath->length);
+  mergedpath->length += newpath->length;
+
+  return mergedpath;
+}
+
+void asn32_expand_16_to_32(char *dst, char *src, int len) {
+  u_int32_t *dstarray = (u_int32_t *) dst;
+  u_int16_t *srcarray = (u_int16_t *) src;
+  int i;
+
+  for(i = 0; i < len; i++) {
+    dstarray[i] = htonl(ntohs(srcarray[i]));
+  }
 }
 
 #if defined(linux)
