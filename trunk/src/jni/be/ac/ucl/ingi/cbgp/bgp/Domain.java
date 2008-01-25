@@ -11,8 +11,8 @@ package be.ac.ucl.ingi.cbgp.bgp;
 import java.util.Vector;
 
 import be.ac.ucl.ingi.cbgp.CBGP;
-import be.ac.ucl.ingi.cbgp.CBGPException;
 import be.ac.ucl.ingi.cbgp.ProxyObject;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 
 // -----[ BGPDomain ]------------------------------------------------
 /**

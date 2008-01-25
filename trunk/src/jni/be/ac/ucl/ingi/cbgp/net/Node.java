@@ -11,7 +11,7 @@ package be.ac.ucl.ingi.cbgp.net;
 import java.util.Vector;
 
 import be.ac.ucl.ingi.cbgp.CBGP;
-import be.ac.ucl.ingi.cbgp.CBGPException;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.IPTrace;
 

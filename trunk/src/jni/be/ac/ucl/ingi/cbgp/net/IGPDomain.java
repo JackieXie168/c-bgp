@@ -11,6 +11,7 @@ package be.ac.ucl.ingi.cbgp.net;
 import java.util.Vector;
 
 import be.ac.ucl.ingi.cbgp.*;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 
 // -----[ IGPDomain ]------------------------------------------------
 /**

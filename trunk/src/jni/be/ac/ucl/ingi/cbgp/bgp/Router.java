@@ -11,10 +11,11 @@ package be.ac.ucl.ingi.cbgp.bgp;
 import java.util.Vector;
 
 import be.ac.ucl.ingi.cbgp.CBGP;
-import be.ac.ucl.ingi.cbgp.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.IPPrefix;
 import be.ac.ucl.ingi.cbgp.ProxyObject;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
+import be.ac.ucl.ingi.cbgp.exceptions.InvalidDestinationException;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
 // -----[ Router ]--------------------------------------------------
@@ -122,12 +123,12 @@ public class Router extends ProxyObject
     
     // -----[ getRIB ]----------------------------------------------
     public native Vector<Route> getRIB(String prefix)
-	throws CBGPException;
+		throws CBGPException, InvalidDestinationException;
 
     // -----[ getAdjRIB ]-------------------------------------------
     public native Vector<Route> getAdjRIB(String peer, String prefix,
-					  boolean in)
-	throws CBGPException;
+		boolean in)
+		throws CBGPException, InvalidDestinationException;
 
     // -----[ loadRib ]----------------------------------------------
     public native void loadRib(String fileName, boolean force)
