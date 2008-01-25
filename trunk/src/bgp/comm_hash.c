@@ -37,8 +37,7 @@ static FHashCompute fCommHashCompute= _comm_hash_item_compute;
 // -----[ _comm_hash_item_compute ]----------------------------------
 /**
  * This is a helper function that computes the hash key of an
- * Communities attribute. The function relies on a static buffer in
- * order to avoid frequent memory allocation.
+ * Communities attribute.
  */
 #define AS_COMM_STR_SIZE 1024
 static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize)
