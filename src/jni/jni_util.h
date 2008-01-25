@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)jni_util.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 23/11/2007
+// @lastdate 09/01/2008
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -26,6 +26,7 @@ typedef struct {
   union {
     SNetNode * pNode;
     SBGPRouter * pRouter;
+    jobject joHashtable;
   };
   jobject joVector;
   jobject joCBGP;
@@ -36,11 +37,6 @@ typedef struct {
 extern "C" {
 #endif
 
-  // -----[ cbgp_jni_throw_CBGPException ]---------------------------
-  void cbgp_jni_throw_CBGPException(JNIEnv * jEnv, char * pcMsg);
-  // -----[ cbgp_jni_throw_CBGPScriptException ]---------------------
-  void cbgp_jni_throw_CBGPScriptException(JNIEnv * jEnv, char * pcMsg,
-					  int iLineNumber);
   // -----[ cbgp_jni_new_ConsoleEvent ]------------------------------
   jobject cbgp_jni_new_ConsoleEvent(JNIEnv * env, char * pcMessage);
   // -----[ cbgp_jni_Communities_append ]----------------------------
@@ -65,7 +61,8 @@ extern "C" {
   jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix,
 			       SNetRouteInfo * pRoute);
   // -----[ cbgp_jni_new_BGPRoute ]----------------------------------
-  jobject cbgp_jni_new_BGPRoute(JNIEnv * env, SRoute * pRoute);
+  jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
+				jobject joHashtable);
   // -----[ cbgp_jni_new_BGPMessage ]----------------------------------
   jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, SNetMessage * pMessage);
   // -----[ ip_jstring_to_address ]----------------------------------

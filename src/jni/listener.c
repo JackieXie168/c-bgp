@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/06/2007
-// @lastdate 29/06/2007
+// @lastdate 18/12/2007
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <jni/exceptions.h>
 #include <jni/listener.h>
 #include <jni/jni_util.h>
 
@@ -29,7 +30,7 @@ void jni_listener_set(SJNIListener * pListener, JNIEnv * jEnv,
   // Get reference to Java Virtual Machine (required by the JNI callback)
   if (pListener->jVM == NULL)
     if ((*jEnv)->GetJavaVM(jEnv, &pListener->jVM) != JNI_OK) {
-      cbgp_jni_throw_CBGPException(jEnv, "could not get reference to Java VM");
+      throw_CBGPException(jEnv, "could not get reference to Java VM");
       return;
     }
 

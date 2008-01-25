@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)jni_base.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 19/10/2007
+// @lastdate 09/01/2008
 // ==================================================================
 
 #ifndef __JNI_BASE_H__
@@ -44,6 +44,10 @@ extern "C" {
   
   // -----[ cbgp_jni_new_Short ]-------------------------------------
   jobject cbgp_jni_new_Short(JNIEnv * jEnv, jshort jsValue);
+  // -----[ cbgp_jni_new_Integer ]-----------------------------------
+  jobject cbgp_jni_new_Integer(JNIEnv * jEnv, jint jiValue);
+  // -----[ cbgp_jni_new_Long ]--------------------------------------
+  jobject cbgp_jni_new_Long(JNIEnv * jEnv, jlong jlValue);
   // -----[ cbgp_jni_new_String ]------------------------------------
   jstring cbgp_jni_new_String(JNIEnv * jEnv, const char * pcString);
   // -----[ cbgp_jni_new_Vector ]------------------------------------
@@ -60,6 +64,9 @@ extern "C" {
   */
   // -----[ cbgp_jni_new_Hashtable ]---------------------------------
   jobject cbgp_jni_new_Hashtable(JNIEnv * jEnv);
+  // -----[ cbgp_jni_Hashtable_get ]---------------------------------
+  jobject cbgp_jni_Hashtable_get(JNIEnv * jEnv, jobject joHashMap,
+				 jobject joKey);
   // -----[ cbgp_jni_Hashtable_put ]---------------------------------
   jobject cbgp_jni_Hashtable_put(JNIEnv * jEnv, jobject joHashMap,
 				 jobject joKey, jobject joValue);
