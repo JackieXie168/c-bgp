@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)path_segment.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 28/10/2003
-// @lastdate 23/11/2007
+// @lastdate 03/01/2008
 // ==================================================================
 
 #ifndef __BGP_PATH_SEGMENT_H__
@@ -40,9 +40,6 @@ extern "C" {
 				  size_t tDstSize);
   // -----[ path_segment_from_string ]-------------------------------
   SPathSegment * path_segment_from_string(const char * pcPathSegment);
-  // ---- path_segment_dump_string ---------------------------------
-  char * path_segment_dump_string(SPathSegment * pSegment,
-				  uint8_t uReverse);
   // ----- path_segment_dump ----------------------------------------
   void path_segment_dump(SLogStream * pStream,
 			 SPathSegment * pSegment,
