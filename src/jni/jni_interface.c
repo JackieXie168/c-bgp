@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 09/01/2008
+// @lastdate 29/02/2008
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -271,7 +271,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetLevel
  * Signature: (I)Lbe/ac/ucl/ingi/cbgp/net/IGPDomain;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
-(JNIEnv * jEnv, jobject joCBGP, jint iDomain)
+(JNIEnv * jEnv, jobject joCBGP, jint jiDomain)
 {
   SIGPDomain * pDomain= NULL;
   jobject joDomain;
@@ -281,21 +281,51 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
 
   jni_lock(jEnv);
 
-  if ((iDomain < 0) || (iDomain > 65535)) {
-    throw_CBGPException(jEnv, "invalid domain number");
+  if ((jiDomain < 0) || (jiDomain > 65535)) {
+    throw_CBGPException(jEnv, "invalid domain number %i", jiDomain);
     return_jni_unlock(jEnv, NULL);
   }
 
-  if (exists_igp_domain((uint16_t) iDomain)) {
-    throw_CBGPException(jEnv, "domain already exists");
+  if (exists_igp_domain((uint16_t) jiDomain)) {
+    throw_CBGPException(jEnv, "domain already exists %i", jiDomain);
     return_jni_unlock(jEnv, NULL);
   }
 
-  pDomain= igp_domain_create((uint16_t) iDomain, DOMAIN_IGP);
+  pDomain= igp_domain_create((uint16_t) jiDomain, DOMAIN_IGP);
   register_igp_domain(pDomain);
 
   joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, pDomain);
 
+  return_jni_unlock(jEnv, joDomain);
+}
+
+// -----[ netGetDomain ]---------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    netGetDomain
+ * Signature: (I)Lbe/ac/ucl/ingi/cbgp/net/IGPDomain;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomain
+  (JNIEnv * jEnv, jobject joCBGP, jint jiDomain)
+{
+  SIGPDomain * pDomain;
+  jobject joDomain;
+
+  if (jni_check_null(jEnv, joCBGP))
+    return NULL;
+
+  jni_lock(jEnv);
+
+  if ((jiDomain < 0) || (jiDomain > 65535)) {
+    throw_CBGPException(jEnv, "invalid domain number %i", jiDomain);
+    return_jni_unlock(jEnv, NULL);
+  }
+
+  pDomain= get_igp_domain((uint16_t) jiDomain);
+  if (pDomain == NULL)
+    return NULL;
+
+  joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, pDomain);
   return_jni_unlock(jEnv, joDomain);
 }
 
@@ -531,8 +561,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
    jint jiWeight)
 {
   SNetNode * pNodeSrc, * pNodeDst;
-  SNetLink * pLink;
-  jobject joLink;
+  SNetIface * pIface;
+  jobject joIface;
+  int iResult;
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
@@ -545,15 +576,23 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   if ((pNodeDst= cbgp_jni_net_node_from_string(jEnv, jsDstAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if (node_add_link_ptp(pNodeSrc, pNodeDst, jiWeight, 0, 1, 1) < 0) {
-    throw_CBGPException(jEnv, "link already exists");
+  iResult= net_link_create_rtr(pNodeSrc, pNodeDst, BIDIR, &pIface);
+  if (iResult != NET_SUCCESS) {
+    throw_CBGPException(jEnv, "could not create link (%s)",
+			network_strerror(iResult));
     return_jni_unlock(jEnv, NULL);
   }
 
-  pLink= node_find_link_ptp(pNodeSrc, pNodeDst->tAddr);
-  joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, pLink);
+  iResult= net_iface_set_metric(pIface, 0, jiWeight, BIDIR);
+  if (iResult != NET_SUCCESS) {
+    throw_CBGPException(jEnv, "could not set link metric (%s)",
+			network_strerror(iResult));
+    return_jni_unlock(jEnv, NULL);
+  }
+  
+  joIface= cbgp_jni_new_net_Link(jEnv, joCBGP, pIface);
 
-  return_jni_unlock(jEnv, joLink);
+  return_jni_unlock(jEnv, joIface);
 }
 
 
@@ -794,6 +833,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv * jEnv, jobject joCBGP, jstring jsCommand)
 {
   char * cCommand;
+  SCliErrorDetails sErrorDetails;
+  char * pcMsg;
 
   if (jni_check_null(jEnv, joCBGP))
     return;
@@ -804,8 +845,19 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   jni_lock(jEnv);
 
   cCommand= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsCommand, NULL);
-  if (libcbgp_exec_cmd(cCommand) != CLI_SUCCESS)
-    throw_CBGPException(jEnv, "could not execute command");
+  if (libcbgp_exec_cmd(cCommand) != CLI_SUCCESS) {
+    cli_get_error_details(cli_get(), &sErrorDetails);
+
+    // If there is a detailled user error message, then generate the
+    // an exception with this message. Otherwise, throw an exception
+    // with the default CLI error message.
+    if (sErrorDetails.pcUserError != NULL)
+      pcMsg= sErrorDetails.pcUserError;
+    else
+      pcMsg= cli_strerror(sErrorDetails.iErrorCode);
+    throw_CBGPScriptException(jEnv, pcMsg, NULL,
+			      sErrorDetails.iLineNumber);
+  }
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsCommand, cCommand);
 
   jni_unlock(jEnv);
@@ -1024,8 +1076,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
 
   jni_lock(jEnv);
 
-  jni_listener_set(&sBGPListener, jEnv, joListener);
-  bgp_router_set_msg_listener(_bgp_msg_listener, &sBGPListener);
+  if (joListener != NULL) {
+    jni_listener_set(&sBGPListener, jEnv, joListener);
+    bgp_router_set_msg_listener(_bgp_msg_listener, &sBGPListener);
+  } else {
+    jni_listener_unset(&sBGPListener, jEnv);
+    bgp_router_set_msg_listener(NULL, NULL);
+  }
 
   jni_unlock(jEnv);
 }
