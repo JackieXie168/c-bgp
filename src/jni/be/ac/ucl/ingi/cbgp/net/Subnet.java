@@ -22,9 +22,20 @@ public class Subnet extends Element {
 		this.prefix= prefix;
 	}
 	
+	// -----[ getId ]-----------------------------------------------
+	@Override
+	public String getId() {
+		return prefix.toString();
+	}
+	
 	// -----[ getPrefix ]-------------------------------------------
 	public IPPrefix getPrefix() {
 		return prefix;
+	}
+	
+	// -----[ toString ]--------------------------------------------
+	public String toString() {
+		return prefix.toString();
 	}
 
 }
