@@ -29,7 +29,6 @@ public class Router extends ProxyObject
     protected IPAddress routerID;
     protected short asn;
     protected Node node;
-
     // -----[ Router ]----------------------------------------------
     /**
      * Router's constructor.

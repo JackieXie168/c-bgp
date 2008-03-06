@@ -9,8 +9,7 @@
 package be.ac.ucl.ingi.cbgp; 
 
 // -----[ ProxyObject ]----------------------------------------------
-public class ProxyObject extends Object
-{
+public class ProxyObject extends Object {
 
     protected CBGP cbgp;
 
@@ -23,20 +22,17 @@ public class ProxyObject extends Object
 	private long objectId;
 	
     // -----[ ProxyObject ]------------------------------------------
-    protected ProxyObject(CBGP cbgp)
-    {
+    protected ProxyObject(CBGP cbgp) {
     	this.cbgp= cbgp;
     }
 	
     // -----[ getCBGP ]----------------------------------------------
-    public CBGP getCBGP()
-    {
+    public CBGP getCBGP() {
     	return cbgp;
     }
 	
     // -----[ finalize ]---------------------------------------------
-    protected void finalize()
-    {
+    protected void finalize() {
     	_jni_unregister();
     }
 	
