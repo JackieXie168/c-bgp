@@ -27,7 +27,7 @@ extern "C" {
 			char * pcLine, int iLine);
 
   // -----[ jni_proxy_get_CBGP ]-------------------------------------
-  jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject);
+  //jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject);
 
   // -----[ jni_lock ]-----------------------------------------------
   void jni_lock(JNIEnv * jEnv);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 27/03/2006
-// @lastdate 19/10/2007
+// @lastdate 15/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,18 +47,6 @@ typedef struct {
 
 } SHashCodeObject;
 typedef SHashCodeObject SJNIProxy;
-
-// -----[ jni_abort ]------------------------------------------------
-void jni_abort(JNIEnv * jEnv, char * pcMsg)
-{
-  if ((*jEnv)->ExceptionOccurred(jEnv)) {
-    (*jEnv)->ExceptionDescribe(jEnv); 
-    (*jEnv)->ExceptionClear(jEnv);
-    fflush(stderr);
-  }
-  fprintf(stderr, "C-BGP JNI: %s\n", pcMsg);
-  (*jEnv)->FatalError(jEnv, "C-BGP JNI fatal error");
-}
 
 // -----[ get_class_name ]-------------------------------------------
 //#if defined(DEBUG_PROXIES)
@@ -415,11 +403,11 @@ jobject jni_proxy_get2(JNIEnv * jEnv, void * pObject,
 /**
  *
  */
-inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
+/*inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
 {
   return cbgp_jni_call_Object(jEnv, joObject, "getCBGP",
 			       METHOD_ProxyObject_getCBGP);
-}
+			       }*/
 
 // -----[ _jni_unregister ]------------------------------------------
 /**
