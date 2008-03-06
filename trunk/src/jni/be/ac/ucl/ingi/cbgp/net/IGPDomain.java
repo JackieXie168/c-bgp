@@ -32,8 +32,7 @@ public class IGPDomain extends ProxyObject
     /**
      * IGPDomain's constructor.
      */
-    public IGPDomain(CBGP cbgp, int id, int type)
-    {
+    public IGPDomain(CBGP cbgp, int id, int type) {
     	super(cbgp);
     	this.id= id;
     	this.type= type;
@@ -43,18 +42,16 @@ public class IGPDomain extends ProxyObject
     /**
      * Returns the domain's ID.
      */
-    public int getID()
-    {
-	return id;
+    public int getID() {
+    	return id;
     }
 
     // -----[ getType ]----------------------------------------------
     /**
      * Returns the domain's type.
      */
-    public int getType()
-    {
-	return type;
+    public int getType() {
+    	return type;
     }
     
     // -----[ addNode ]---------------------------------------------
@@ -62,7 +59,7 @@ public class IGPDomain extends ProxyObject
     	throws CBGPException;
     
     // -----[ getNodes ]--------------------------------------------
-    public native synchronized Vector getNodes()
+    public native synchronized Vector<Node> getNodes()
 		throws CBGPException;
     
     // -----[ compute ]---------------------------------------------
@@ -73,31 +70,25 @@ public class IGPDomain extends ProxyObject
     /**
      * Convert an IGP domain type to a String.
      */
-    public static String typeToString(int type)
-    {
-	String s;
-	switch (type) {
-	case DOMAIN_IGP:
-	    s= "IGP"; break;
-	case DOMAIN_OSPF:
-	    s= "OSPF"; break;
-	default:
-	    s= "?";
-	}
-	return s;
+    public static String typeToString(int type) {
+    	String s;
+    	switch (type) {
+    	case DOMAIN_IGP:
+    		s= "IGP"; break;
+    	case DOMAIN_OSPF:
+    		s= "OSPF"; break;
+    	default:
+    		s= "?";
+    	}
+    	return s;
     }
 
     // -----[ toString ]---------------------------------------------
     /**
      * Converts this IGPDomain to a String.
      */
-    public String toString()
-    {
-	String s= "";
-
-	s+= "Domain "+id+" (type:"+typeToString(type)+")";
-
-	return s;
+    public String toString() {
+    	return "Domain "+id+" (type:"+typeToString(type)+")";
     }
 
 }
