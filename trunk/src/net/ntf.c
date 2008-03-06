@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ntf.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/03/2005
-// @lastdate 28/08/2007
+// @lastdate 25/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -39,7 +39,7 @@ int ntf_load(char * pcFileName)
   unsigned int uDelay;
   net_link_delay_t tDelay;
   SNetNode * pNode1, * pNode2;
-  SNetLink * pLink;
+  SNetIface * pIface;
 
   pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
 
@@ -117,14 +117,10 @@ int ntf_load(char * pcFileName)
 	network_add_node(pNode2);
       }
 
-      node_add_link_ptp(pNode1, pNode2, tDelay, 0,
-			NET_LINK_DEFAULT_DEPTH,
-			NET_LINK_BIDIR);
-      assert((pLink= node_find_link_ptp(pNode1, tNode2)) != NULL);
-      net_link_set_weight(pLink, 0, uWeight);
-      assert((pLink= node_find_link_ptp(pNode2, tNode1)) != NULL);
-      net_link_set_weight(pLink, 0, uWeight);
-
+      assert(net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface)
+	     == NET_SUCCESS);
+      assert(net_link_set_phys_attr(pIface, tDelay, 0, BIDIR) == NET_SUCCESS);
+      assert(net_iface_set_metric(pIface, 0, uWeight, BIDIR) == NET_SUCCESS);
     }
 
     fclose(pFile);

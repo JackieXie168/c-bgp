@@ -6,9 +6,9 @@
 // AS-level topologies inferred by Subramanian et al, by CAIDA and
 // by Meulle et al.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// @lastdate 21/11/2007
+// @lastdate 25/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -31,6 +31,7 @@
 #include <bgp/record-route.h>
 #include <bgp/rexford.h>
 #include <bgp/peer_t.h>
+#include <net/iface.h>
 #include <net/node.h>
 
 // ----- Load AS-level topology -----
@@ -748,36 +749,30 @@ static inline int _aslevel_build_bgp_session(SBGPRouter * pRouter1,
   SNetNode * pNode1= pRouter1->pNode;
   SNetNode * pNode2= pRouter2->pNode;
   SPrefix sPrefix;
-  SNetLink * pLink;
-  net_link_delay_t tDelay= 0;
+  SNetIface * pIface;
+  net_igp_weight_t tWeight= 0;
+  int iResult;
 
   // Add the link and check if it did not already exist
-  if (node_add_link_ptp(pNode1, pNode2, tDelay, 0, 1, 1) < 0)
-    return -1;
+  iResult= net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface);
+  if (iResult != NET_SUCCESS)
+    return iResult;
 
   // Configure IGP weight in forward direction
-  pLink= node_find_link_ptp(pNode1, pNode2->tAddr);
-  assert(pLink != NULL);
-  net_link_set_weight(pLink, 0, tDelay);
-      
-  // Configure IGP weight in reverse direction
-  pLink= node_find_link_ptp(pNode2, pNode1->tAddr);
-  assert(pLink != NULL);
-  net_link_set_weight(pLink, 0, tDelay);
+  assert(pIface != NULL);
+  assert(net_iface_set_metric(pIface, 0, tWeight, BIDIR) == NET_SUCCESS);
       
   // Add static route in forward direction
   sPrefix.tNetwork= pNode2->tAddr;
   sPrefix.uMaskLen= 32;
-  assert(!node_rt_add_route(pNode1, sPrefix,
-			    pNode2->tAddr, pNode2->tAddr,
-			    tDelay, NET_ROUTE_STATIC));
+  assert(!node_rt_add_route(pNode1, sPrefix, net_iface_id_rtr(pNode2),
+			    pNode2->tAddr, tWeight, NET_ROUTE_STATIC));
 
   // Add static route in reverse direction
   sPrefix.tNetwork= pNode1->tAddr;
   sPrefix.uMaskLen= 32;
-  assert(!node_rt_add_route(pNode2, sPrefix,
-			    pNode1->tAddr, pNode1->tAddr,
-			    tDelay, NET_ROUTE_STATIC));
+  assert(!node_rt_add_route(pNode2, sPrefix, net_iface_id_rtr(pNode1),
+			    pNode1->tAddr, tWeight, NET_ROUTE_STATIC));
   
   // Setup peering relations in both directions
   if (bgp_router_add_peer(pRouter1, pRouter2->uNumber, pNode2->tAddr, NULL) != 0)

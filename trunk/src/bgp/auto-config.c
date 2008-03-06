@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)auto-config.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// @lastdate 31/05/2007
+// @lastdate 25/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,6 +18,7 @@
 
 #include <bgp/as.h>
 #include <bgp/peer.h>
+#include <net/iface.h>
 #include <net/network.h>
 #include <net/node.h>
 
@@ -57,7 +58,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
 			    SBGPPeer ** ppPeer)
 {
   SNetNode * pNode;
-  SNetLink * pLink;
+  SNetIface * pIface;
   SPrefix sPrefix;
   int iUseNextHopSelf= 0;
   SBGPPeer * pPeer;
@@ -83,18 +84,17 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   // RIB dump and the neighbors are supposed to be connected over
   // single-hop eBGP sessions.
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (2) CHECK LINK EXISTENCE\n");
-  pLink= node_find_link_ptp(pRouter->pNode, tRemoteAddr);
-  if (pLink == NULL) {
+  pIface= node_find_iface(pRouter->pNode, net_iface_id_rtr(pNode));
+  if (pIface == NULL) {
     
     // Create the link in one direction only. IGP weight is set
     // to AUTO_CONFIG_LINK_WEIGHT. The IGP_ADV flag is also removed
     // from the new link.
-    assert(node_add_link_ptp(pRouter->pNode, pNode, 0, 0, 1, 1) >= 0);
-    pLink= node_find_link_ptp(pRouter->pNode, tRemoteAddr);
-    assert(pLink != NULL);
-    net_link_set_weight(pLink, 0, AUTO_CONFIG_LINK_WEIGHT);
-    net_link_set_state(pLink, NET_LINK_FLAG_IGP_ADV, 0);
-  }    
+    assert(net_link_create_rtr(pRouter->pNode, pNode, UNIDIR, &pIface)
+	   == NET_SUCCESS);
+    assert(net_iface_set_metric(pIface, 0, AUTO_CONFIG_LINK_WEIGHT, UNIDIR)
+	   == NET_SUCCESS);
+  }
 
   // (3). Check if there is a route towards the remote node.
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (3) CHECK ROUTE EXISTENCE\n");
@@ -105,7 +105,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
     // therefore not advertised within the IGP domain.
     sPrefix.tNetwork= tRemoteAddr;
     sPrefix.uMaskLen= 32;
-    assert(node_rt_add_route_link(pRouter->pNode, sPrefix, pLink,
+    assert(node_rt_add_route_link(pRouter->pNode, sPrefix, pIface,
 				  tRemoteAddr, AUTO_CONFIG_LINK_WEIGHT,
 				  NET_ROUTE_STATIC) == 0);
     iUseNextHopSelf= 1;
