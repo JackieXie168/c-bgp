@@ -289,16 +289,16 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, SPrefix sPrefix,
   jobject joPrefix;
   jobject joGateway;
   jobject joIface;
-  SPrefix sIface;
+  net_iface_id_t tIfaceID;
 
   /* Convert route attributes to Java objects */
   joPrefix= cbgp_jni_new_IPPrefix(jEnv, sPrefix);
   if (joPrefix == NULL)
     return NULL;
 
-  sIface= net_link_get_id(pRoute->sNextHop.pIface);
+  tIfaceID= net_iface_id(pRoute->sNextHop.pIface);
   joIface=
-    cbgp_jni_new_IPAddress(jEnv, sIface.tNetwork);
+    cbgp_jni_new_IPAddress(jEnv, tIfaceID.tNetwork);
   if (joIface == NULL)
     return NULL;
 
@@ -536,6 +536,7 @@ int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest)
   cDest= (*jEnv)->GetStringUTFChars(jEnv, jsDest, NULL);
   if (ip_string_to_dest((char *)cDest, pDest) != 0) 
     iResult= -1;
+
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsDest, cDest);
 
   /* If the conversion could not be performed, throw an Exception */
@@ -569,30 +570,6 @@ SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
   }
     
   return pNode;
-}
-
-// -----[ cbgp_jni_net_link_from_string ]----------------------------
-/**
- * Get the link identified by the Strings that contain the source and
- * destination nodes' IP addresses.
- */
-SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
-					 jstring jsDstAddr)
-{
-  SNetNode * pNode1, * pNode2;
-  SNetLink * pLink;
-
-  if ((pNode1= cbgp_jni_net_node_from_string(env, jsSrcAddr)) == NULL)
-    return NULL;
-  if ((pNode2= cbgp_jni_net_node_from_string(env, jsDstAddr)) == NULL)
-    return NULL;
-  
-  if ((pLink= node_find_link_ptp(pNode1, pNode2->tAddr)) == NULL) {
-    throw_CBGPException(env, "could not find link");
-    return NULL;
-  }
-
-  return pLink;
 }
 
 // -----[ cbgp_jni_bgp_router_from_string ]--------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 09/01/2008
+// @lastdate 18/02/2008
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -73,9 +73,6 @@ extern "C" {
   int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest);
   // -----[ cbgp_jni_net_node_from_string ]--------------------------
   SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
-  // -----[ cbgp_jni_net_link_from_string ]--------------------------
-  SNetLink * cbgp_jni_net_link_from_string(JNIEnv * env, jstring jsSrcAddr,
-					   jstring jsDstAddr);
   // -----[ cbgp_jni_bgp_router_from_string ]------------------------
   SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_bgp_peer_from_string ]--------------------------
