@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)network.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// @lastdate 25/10/2007
+// @lastdate 05/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -38,21 +38,41 @@
 #include <ui/output.h>
 
 SNetwork * pTheNetwork= NULL;
+static SSimulator * pThreadSimulator;
 
 // ----- options -----
 uint8_t NET_OPTIONS_MAX_HOPS= 30;
-uint8_t NET_OPTIONS_IGP_INTER= 0;
 
 // ----- Forward declarations ---------------------------------------
-static SNetSendContext * _network_send_context_create(SNetNode * pNode,
-						      SNetMessage * pMessage);
+static inline SNetSendContext *
+_network_send_context_create(SNetIface * pIface, SNetMessage * pMessage);
 static void _network_send_context_destroy(void * pContext);
 static int _network_send_callback(SSimulator * pSimulator,
 				  void * pContext);
 static void _network_send_dump(SLogStream * pStream, void * pContext);
-static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
-			    net_addr_t tNextHop, SNetMessage * pMessage,
-			    SSimulator * pSimulator);
+static int _network_forward(SNetwork * pNetwork, SNetIface * pIface,
+			    net_addr_t tNextHop, SNetMessage * pMessage);
+
+// -----[ _thread_set_simulator ]------------------------------------
+/**
+ * Set the current thread's simulator context. This function
+ * currently supports a single thread.
+ */
+static inline void _thread_set_simulator(SSimulator * pSimulator)
+{
+  pThreadSimulator= pSimulator;
+}
+
+// -----[ _thread_get_simulator ]------------------------------------
+/**
+ * Return the current thread's simulator context. This function
+ * currently supports a single thread.
+ */
+static inline SSimulator * _thread_get_simulator()
+{
+  assert(pThreadSimulator != NULL);
+  return pThreadSimulator;
+}
 
 // -----[ network_get_simulator ]------------------------------------
 SSimulator * network_get_simulator()
@@ -62,7 +82,7 @@ SSimulator * network_get_simulator()
   return pTheNetwork->pSimulator;
 }
 
-// ----- node_add_tunnel --------------------------------------------
+// -----[ node_add_tunnel ]------------------------------------------
 /**
  * Add a tunnel interface on this node.
  *
@@ -76,26 +96,28 @@ SSimulator * network_get_simulator()
 int node_add_tunnel(SNetNode * pNode,
 		    net_addr_t tDstPoint,
 		    net_addr_t tAddr,
-		    SNetDest * pOutIfaceDest,
+		    net_iface_id_t * ptOutIfaceID,
 		    net_addr_t tSrcAddr)
 {
-  SNetLink * pOutIface= NULL;
+  SNetIface * pOutIface= NULL;
   SNetLink * pLink;
   int iResult;
 
   // If an outgoing interface is specified, check that it exists
-  if (pOutIfaceDest != NULL) {
-    pOutIface= node_find_iface(pNode, *pOutIfaceDest);
+  if (ptOutIfaceID != NULL) {
+    pOutIface= node_find_iface(pNode, *ptOutIfaceID);
     if (pOutIface == NULL)
       return NET_ERROR_IF_UNKNOWN;
   }
 
+  // Create tunnel
   iResult= ipip_link_create(pNode, tDstPoint, tAddr,
 			    pOutIface, tSrcAddr,
 			    &pLink);
   if (iResult != NET_SUCCESS)
     return iResult;
 
+  // Add interface
   if (net_links_add(pNode->pLinks, pLink) < 0) {
     net_link_destroy(&pLink);
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
@@ -119,9 +141,11 @@ int node_del_tunnel(SNetNode * pNode, net_addr_t tAddr)
  */
 int node_ipip_enable(SNetNode * pNode)
 {
+  return 0;
+  /*
   return node_register_protocol(pNode, NET_PROTOCOL_IPIP,
 				pNode, NULL,
-				ipip_event_handler);
+				ipip_event_handler);*/
 }
 
 // ----- node_igp_domain_add -------------------------------------------
@@ -164,18 +188,6 @@ int node_links_for_each(SNetNode * pNode, FArrayForEach fForEach,
   return _array_for_each((SArray *) pNode->pLinks, fForEach, pContext);
 }
 
-// ----- node_rt_dump -----------------------------------------------
-/**
- * Dump the node's routing table.
- */
-void node_rt_dump(SLogStream * pStream, SNetNode * pNode, SNetDest sDest)
-{
-  if (pNode->pRT != NULL)
-    rt_dump(pStream, pNode->pRT, sDest);
-
-  log_flush(pStream);
-}
-
 // ----- node_rt_lookup ---------------------------------------------
 /**
  * This function looks for the next-hop that must be used to reach a
@@ -198,7 +210,7 @@ SNetRouteNextHop * node_rt_lookup(SNetNode * pNode, net_addr_t tDstAddr)
 }
 
 // -----[ _node_error_dump ]-----------------------------------------
-static void _node_error_dump(int iErrorCode)
+static inline void _node_error_dump(int iErrorCode)
 {
   /*LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
     log_printf(pLogErr, "@");
@@ -212,22 +224,29 @@ static void _node_error_dump(int iErrorCode)
 }
 
 // -----[ _node_fwd_error ]------------------------------------------
-static int _node_fwd_error(SNetNode * pNode,
-			   SNetMessage * pMessage,
-			   SSimulator * pSimulator,
-			   int iErrorCode, uint8_t uICMPError)
+static inline int _node_fwd_error(SNetNode * pNode,
+				  SNetMessage * pMessage,
+				  int iErrorCode,
+				  uint8_t uICMPError)
 {
   _node_error_dump(iErrorCode);
   if ((uICMPError != 0) && !is_icmp_error(pMessage))
     icmp_send_error(pNode, NET_ADDR_ANY, pMessage->tSrcAddr,
-		    uICMPError, pSimulator);
+		    uICMPError, _thread_get_simulator());
   message_destroy(&pMessage);
   return iErrorCode;
 }
 
 // -----[ _node_process_msg ]----------------------------------------
-int _node_process_msg(SNetNode * pNode, SNetMessage * pMessage,
-		      SSimulator * pSimulator)
+/**
+ * This function is responsible for handling messages that are
+ * addressed locally.
+ *
+ * If there is no protocol handler for the message, an ICMP error
+ * with type "protocol-unreachable" is sent to the source.
+ */
+static inline int _node_process_msg(SNetNode * pNode,
+				    SNetMessage * pMessage)
 {
   SNetProtocol * pProtocol;
   int iResult;
@@ -235,15 +254,15 @@ int _node_process_msg(SNetNode * pNode, SNetMessage * pMessage,
   assert(pNode->pProtocols != NULL);
   pProtocol= protocols_get(pNode->pProtocols, pMessage->uProtocol);
   if (pProtocol == NULL)
-    return _node_fwd_error(pNode, pMessage, pSimulator,
+    return _node_fwd_error(pNode, pMessage,
 			   NET_ERROR_PROTO_UNREACH,
 			   ICMP_ERROR_PROTO_UNREACH);
     
-  iResult= pProtocol->fHandleEvent(pSimulator, 
+  iResult= pProtocol->fHandleEvent(_thread_get_simulator(),
 				   pProtocol->pHandler,
 				   pMessage);
     
-  // Free only the message. Dealing with the payload is now the
+  // Free only the message. Dealing with the payload was the
   // responsability of the protocol handler.
   pMessage->pPayLoad= NULL;
   message_destroy(&pMessage);
@@ -257,36 +276,50 @@ int _node_process_msg(SNetNode * pNode, SNetMessage * pMessage,
  * the function looks up if it has a route towards the destination
  * and, if so, the function forwards the message to the next-hop.
  *
- * Important: this function is responsible for freeing the message in
- * case it is delivered or in case it can not be forwarded.
+ * Important: this function (or any of its delegates) is responsible
+ * for freeing the message in case it is delivered or in case it can
+ * not be forwarded.
  *
  * Note: the function also decreases the TTL of the message. If the
  * message is not delivered locally and if the TTL is 0, the message
  * is discarded.
  */
-int node_recv_msg(SNetNode * pNode, SNetMessage * pMessage,
-		  SSimulator * pSimulator)
+int node_recv_msg(SNetNode * pNode,
+		  SNetIface * pIface,
+		  SNetMessage * pMessage)
 {
   SNetRouteNextHop * pNextHop;
   int iResult;
 
+  // A node should never receive an IP datagram with a TTL of 0
   assert(pMessage->uTTL > 0);
 
-  // Local delivery ?
-  if (node_has_address(pNode, pMessage->tDstAddr))
-    return _node_process_msg(pNode, pMessage, pSimulator);
+  /**
+   * Local delivery ?
+   */
 
-  // Time-To-Live expired ?
-  pMessage->uTTL--;
-  if (pMessage->uTTL == 0)
-    return _node_fwd_error(pNode, pMessage, pSimulator,
+  // Check list of interface addresses to see if the packet
+  // is for this node.
+  if (node_has_address(pNode, pMessage->tDstAddr))
+    return _node_process_msg(pNode, pMessage);
+
+  /**
+   * IP Forwarding part
+   */
+
+  // Decrement TTL (if TTL is less than or equal to 1,
+  // discard and raise ICMP time exceeded message)
+  if (pMessage->uTTL <= 1)
+    return _node_fwd_error(pNode, pMessage,
 			   NET_ERROR_TIME_EXCEEDED,
 			   ICMP_ERROR_TIME_EXCEEDED);
+  pMessage->uTTL--;
 
-  // Find route to destination
+  // Find route to destination (if no route is found,
+  // discard and raise ICMP host unreachable message)
   pNextHop= node_rt_lookup(pNode, pMessage->tDstAddr);
   if (pNextHop == NULL)
-    return _node_fwd_error(pNode, pMessage, pSimulator,
+    return _node_fwd_error(pNode, pMessage,
 			   NET_ERROR_NET_UNREACH,
 			   ICMP_ERROR_NET_UNREACH);
 
@@ -298,10 +331,9 @@ int node_recv_msg(SNetNode * pNode, SNetMessage * pMessage,
   iResult= _network_forward(pNode->pNetwork,
 			    pNextHop->pIface,
 			    pNextHop->tGateway,
-			    pMessage,
-			    pSimulator);
+			    pMessage);
   if (iResult == NET_ERROR_HOST_UNREACH) {
-    return _node_fwd_error(pNode, pMessage, pSimulator,
+    return _node_fwd_error(pNode, pMessage,
 			   NET_ERROR_HOST_UNREACH,
 			   ICMP_ERROR_HOST_UNREACH);
   }
@@ -323,6 +355,9 @@ int node_send_msg(SNetNode * pNode, net_addr_t tSrcAddr,
   SNetRouteNextHop * pNextHop;
   SNetMessage * pMessage;
 
+  if (pSimulator != NULL)
+    _thread_set_simulator(pSimulator);
+
   if (uTTL == 0)
     uTTL= 255;
 
@@ -336,28 +371,24 @@ int node_send_msg(SNetNode * pNode, net_addr_t tSrcAddr,
     // Set source address as the node's loopback address (if unspecified)
     if (pMessage->tSrcAddr == NET_ADDR_ANY)
       pMessage->tSrcAddr= pNode->tAddr;
-    return _node_process_msg(pNode, pMessage, pSimulator);
+    return _node_process_msg(pNode, pMessage);
   }
   
   // Find outgoing interface & next-hop
   pNextHop= node_rt_lookup(pNode, tDstAddr);
   if (pNextHop == NULL)
-    return _node_fwd_error(pNode, pMessage, pSimulator,
+    return _node_fwd_error(pNode, pMessage,
 			   NET_ERROR_NET_UNREACH, 0);
 
-  if (pMessage->tSrcAddr == 0) {
-    if (pNextHop->pIface->tIfaceAddr != 0)
-      pMessage->tSrcAddr= pNextHop->pIface->tIfaceAddr;
-    else
-      pMessage->tSrcAddr= pNode->tAddr;
-  }
+  // Fix source address (if not set)
+  if (pMessage->tSrcAddr == NET_ADDR_ANY)
+    pMessage->tSrcAddr= net_iface_src_address(pNextHop->pIface);
 
   // Forward
   return _network_forward(pNode->pNetwork,
 			  pNextHop->pIface,
 			  pNextHop->tGateway,
-			  pMessage,
-			  pSimulator);
+			  pMessage);
 }
 
 
@@ -481,19 +512,17 @@ static void _network_drop(SNetMessage * pMsg)
 /**
  * This function forwards a message through the given link.
  */
-static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
-			    net_addr_t tNextHop, SNetMessage * pMsg,
-			    SSimulator * pSimulator)
+static int _network_forward(SNetwork * pNetwork, SNetIface * pIface,
+			    net_addr_t tNextHop, SNetMessage * pMsg)
 {
-  SNetNode * pNextHop= NULL;
+  SNetIface * pDstIface= NULL;
   int iResult;
 
   if (tNextHop == 0)
     tNextHop= pMsg->tDstAddr;
 
   // Forward along this link...
-  assert(pLink->fForward != NULL);
-  iResult= pLink->fForward(tNextHop, pLink->pContext, &pNextHop, &pMsg);
+  iResult= net_iface_send(pIface, &pDstIface, tNextHop, &pMsg);
 
   // If destination is unreachable
   if (iResult == NET_ERROR_HOST_UNREACH)
@@ -507,16 +536,12 @@ static int _network_forward(SNetwork * pNetwork, SNetLink * pLink,
 
   // Forward to node...
   if (iResult == NET_SUCCESS) {
-    assert(pNextHop != NULL);
-
-    if (pSimulator == NULL)
-      pSimulator= network_get_simulator();
-
-    assert(!simulator_post_event(pSimulator,
+    assert(pDstIface != NULL);
+    assert(!simulator_post_event(_thread_get_simulator(),
 				 _network_send_callback,
 				 _network_send_dump,
 				 _network_send_context_destroy,
-				 _network_send_context_create(pNextHop,
+				 _network_send_context_create(pDstIface,
 							      pMsg),
 				 0, RELATIVE_TIME));
   }
@@ -592,11 +617,11 @@ void network_dump_subnets(SLogStream * pStream, SNetwork *pNetwork)
     }*/
 }
 
-// ----- network_links_clear ----------------------------------------
+// -----[ network_ifaces_load_clear ]----------------------------------
 /**
  * Clear the load of all links in the topology.
  */
-void network_links_clear()
+void network_ifaces_load_clear()
 {
   SEnumerator * pEnum= NULL;
   SNetNode * pNode;
@@ -604,7 +629,7 @@ void network_links_clear()
   pEnum= trie_get_enum(pTheNetwork->pNodes);
   while (enum_has_next(pEnum)) {
     pNode= *((SNetNode **) enum_get_next(pEnum));
-    node_links_clear(pNode);
+    node_ifaces_load_clear(pNode);
   }
   enum_destroy(&pEnum);
 }
@@ -645,10 +670,11 @@ static int _network_send_callback(SSimulator * pSimulator,
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
   int iResult;
 
-  // Deliver message to next-hop which will use the message localy or
-  // forward it...
-  iResult= node_recv_msg(pSendContext->pNode, pSendContext->pMessage,
-			 pSimulator);
+  // Deliver message to the destination interface
+  _thread_set_simulator(pSimulator);
+  assert(pSendContext->pIface != NULL);
+  iResult= net_iface_recv(pSendContext->pIface, pSendContext->pMessage);
+  _thread_set_simulator(NULL);
 
   // Free the message context. The message MUST be freed by
   // node_recv_msg() if the message has been delivered or in case
@@ -667,7 +693,7 @@ static void _network_send_dump(SLogStream * pStream, void * pContext)
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
 
   log_printf(pStream, "net-msg n-h:");
-  ip_address_dump(pStream, pSendContext->pNode->tAddr);
+  ip_address_dump(pStream, pSendContext->pIface->pSrcNode->tAddr);
   log_printf(pStream, " [");
   message_dump(pStream, pSendContext->pMessage);
   log_printf(pStream, "]");
@@ -682,13 +708,14 @@ static void _network_send_dump(SLogStream * pStream, void * pContext)
  * simulator's events queue. The context contains the message and the
  * destination node.
  */
-static SNetSendContext * _network_send_context_create(SNetNode * pNode,
-						      SNetMessage * pMessage)
+static inline SNetSendContext *
+_network_send_context_create(SNetIface * pIface,
+			     SNetMessage * pMessage)
 {
   SNetSendContext * pSendContext=
     (SNetSendContext *) MALLOC(sizeof(SNetSendContext));
   
-  pSendContext->pNode= pNode;
+  pSendContext->pIface= pIface;
   pSendContext->pMessage= pMessage;
   return pSendContext;
   }
@@ -701,7 +728,6 @@ static SNetSendContext * _network_send_context_create(SNetNode * pNode,
 static void _network_send_context_destroy(void * pContext)
 {
   SNetSendContext * pSendContext= (SNetSendContext *) pContext;
-
   message_destroy(&pSendContext->pMessage);
   FREE(pSendContext);
 }
@@ -726,94 +752,5 @@ void _network_destroy()
 {
   if (pTheNetwork != NULL)
     network_destroy(&pTheNetwork);
-}
-
-
-/////////////////////////////////////////////////////////////////////
-//
-// TESTS
-//
-/////////////////////////////////////////////////////////////////////
-
-// -----[ _test_node_handle_event ]----------------------------------
-static int _test_node_handle_event(SSimulator * pSimulator,
-				   void * pHandler,
-				   SNetMessage * pMessage)
-{
-  SNetNode * pNode= (SNetNode *) pHandler;
-  int iPayLoad= (int) (long) pMessage->pPayLoad;
-
-  printf("node_event[");
-  ip_address_dump(pLogOut, pNode->tAddr);
-  printf("]: from ");
-  ip_address_dump(pLogOut, pMessage->tSrcAddr);
-  printf(", %d", iPayLoad);
-
-  return 0;
-}
-
-// ----- _network_test ----------------------------------------------
-void _network_test()
-{
-  SNetwork * pNetwork= network_create();
-  SNetNode * pNodeA0= node_create(0);
-  SNetNode * pNodeA1= node_create(1);
-  SNetNode * pNodeB0= node_create(65536);
-  SNetNode * pNodeB1= node_create(65537);
-  SNetNode * pNodeC0= node_create(131072);
-  SLogStream * pNetStream;
-
-  node_register_protocol(pNodeA0, NET_PROTOCOL_ICMP, pNodeA0, NULL,
-			 _test_node_handle_event);
-  node_register_protocol(pNodeA1, NET_PROTOCOL_ICMP, pNodeA1, NULL,
-			 _test_node_handle_event);
-  node_register_protocol(pNodeB0, NET_PROTOCOL_ICMP, pNodeB0, NULL,
-			 _test_node_handle_event);
-  node_register_protocol(pNodeB1, NET_PROTOCOL_ICMP, pNodeB1, NULL,
-			 _test_node_handle_event);
-
-  assert(!network_add_node(pNodeA0));
-  assert(!network_add_node(pNodeA1));
-  assert(!network_add_node(pNodeB0));
-  assert(!network_add_node(pNodeB1));
-  assert(!network_add_node(pNodeC0));
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "nodes attached.\n");
-
-  assert(node_add_link_ptp(pNodeA0, pNodeA1, 100, 0, 1, 1) >= 0);
-  assert(node_add_link_ptp(pNodeA1, pNodeB0, 1000, 0, 1, 1) >= 0);
-  assert(node_add_link_ptp(pNodeB0, pNodeB1, 100, 0, 1, 1) >= 0);
-  assert(node_add_link_ptp(pNodeA1, pNodeC0, 400, 0, 1, 1) >= 0);
-  assert(node_add_link_ptp(pNodeC0, pNodeB0, 400, 0, 1, 1) >= 0);
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "links attached.\n");
-
-  pNetStream= log_create_file("net-file");
-  assert(pNetStream != NULL);
-  assert(!network_to_file(pNetStream, pNetwork));
-  log_destroy(&pNetStream);
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "network to file.\n");
-
-  assert(!node_send_msg(pNodeA0, 0, 1, 0, 255, (void *) 5, NULL, NULL));
-  simulator_run(network_get_simulator());
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "message sent.\n");
-
-  network_destroy(&pNetwork);
-
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "network done.\n");
-
-  /*
-  pNetFile= fopen("net-file", "r");
-  assert(pNetFile != NULL);
-  pNetwork= network_from_file(pNetFile);
-  assert(pNetwork != NULL);
-  fclose(pNetFile);
-
-  LOG_DEBUG("network from file.\n");
-  */
-
-  exit(EXIT_SUCCESS);
 }
 
