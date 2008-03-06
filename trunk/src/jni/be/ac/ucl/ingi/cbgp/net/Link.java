@@ -15,11 +15,12 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 /**
  * This class is a container for a link.
  */
-public class Link extends ProxyObject
-{
+public class Link extends ProxyObject {
+	
+	public static final long MAX_METRIC= 4294967295l;
 
     // -----[ protected attributes ]---------------------------------
-    protected IPAddress nexthopIf;
+    protected IPPrefix id; // Interface address / mask
     protected long lDelay;
 
     // -----[ Proxy management native methods ]----------------------
@@ -29,18 +30,15 @@ public class Link extends ProxyObject
     /**
      * Link's constructor.
      */
-    protected Link(CBGP cbgp, IPAddress nexthopIf, long lDelay)
-    {
+    protected Link(CBGP cbgp, IPPrefix id, long lDelay) {
     	super(cbgp);
-    	/* Attributes */
-    	this.nexthopIf= nexthopIf;
+    	this.id= id;
     	this.lDelay= lDelay;
     }
 
     // -----[ finalize ]---------------------------------------------
-    protected void finalize()
-    {
-	_proxy_finalize();
+    protected void finalize() {
+    	_proxy_finalize();
     }
 
     // -----[ getCapacity ]------------------------------------------
@@ -70,14 +68,14 @@ public class Link extends ProxyObject
     
     // -----[ setLoad ]---------------------------------------------- 
 
-    // -----[ getNexthopIf ]-----------------------------------------
+    // -----[ getId ]-----------------------------------------------
     /**
-     * Return the link's nexthop interface.
+     * Return the interface's ID (address / mask).
      */
-    public IPAddress getNexthopIf() {
-    	return nexthopIf;
+    public IPPrefix getId() {
+    	return id;
     }
-
+    
     // -----[ getWeight ]--------------------------------------------
     /**
      * Return the link's IGP weight.
@@ -123,7 +121,7 @@ public class Link extends ProxyObject
 	String s= "";
 
 	/* Attributes */
-	s+= nexthopIf;
+	s+= id.address+"/"+id.bMask;
 	s+= "\t";
 	s+= lDelay;
 	s+= "\t";
