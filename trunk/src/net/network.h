@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)network.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// @lastdate 23/07/2007
+// @lastdate 22/02/2008
 // ==================================================================
 
 #ifndef __NET_NETWORK_H__
@@ -16,6 +16,7 @@
 #include <libgds/patricia-tree.h>
 #include <libgds/types.h>
 
+#include <net/iface.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/message.h>
@@ -49,17 +50,14 @@ extern "C" {
   // ----- node_rt_lookup -------------------------------------------
   SNetRouteNextHop * node_rt_lookup(SNetNode * pNode,
 				    net_addr_t tDstAddr);
-  // ----- node_rt_dump ---------------------------------------------
-  void node_rt_dump(SLogStream * pStream, SNetNode * pNode,
-			   SNetDest sDest);
   // ----- node_send_msg --------------------------------------------
   int node_send_msg(SNetNode * pNode, net_addr_t tSrcAddr,
 		    net_addr_t tDstAddr, uint8_t uProtocol, uint8_t uTTL,
 		    void * pPayLoad, FPayLoadDestroy fDestroy,
 		    SSimulator * pSimulator);
   // ----- node_recv_msg --------------------------------------------
-  int node_recv_msg(SNetNode * pNode, SNetMessage * pMessage,
-		    SSimulator * pSimulator);
+  int node_recv_msg(SNetNode * pNode, SNetIface * pIface,
+		    SNetMessage * pMessage);
   // ----- node_ipip_enable -----------------------------------------
   int node_ipip_enable(SNetNode * pNode);
   // ----- node_igp_domain_add --------------------------------------
@@ -69,7 +67,7 @@ extern "C" {
 					uint16_t uDomainNumber);
   // ----- node_add_tunnel ------------------------------------------
   int node_add_tunnel(SNetNode * pNode, net_addr_t tDstPoint,
-		      net_addr_t tAddr, SNetDest * pOutIfaceDest,
+		      net_addr_t tAddr, net_iface_id_t * ptOutIfaceID,
 		      net_addr_t tSrcAddr);
   // ----- node_destroy ---------------------------------------------
   void node_destroy(SNetNode ** ppNode);
@@ -109,8 +107,8 @@ extern "C" {
   // FUNCTIONS FOR GLOBAL TOPOLOGY MANAGEMENT
   ///////////////////////////////////////////////////////////////////
 
-  // ----- network_links_clear --------------------------------------
-  void network_links_clear();
+  // -----[ network_ifaces_load_clear ]------------------------------
+  void network_ifaces_load_clear();
   // ----- network_links_save ---------------------------------------
   int network_links_save(SLogStream * pStream);
 
