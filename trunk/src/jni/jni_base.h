@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 09/01/2008
+// @lastdate 03/03/2008
 // ==================================================================
 
 #ifndef __JNI_BASE_H__
@@ -14,6 +14,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  // -----[ jni_abort ]----------------------------------------------
+  void jni_abort(JNIEnv * jEnv, char * pcMsg, ...);
 
   ///////////////////////////////////////////////////////////////////
   // Helper functions for Java objects creation and method calls

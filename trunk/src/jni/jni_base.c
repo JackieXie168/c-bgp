@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 09/01/2008
+// @lastdate 03/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,24 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <jni/jni_base.h>
+
+
+// -----[ jni_abort ]------------------------------------------------
+void jni_abort(JNIEnv * jEnv, char * pcMsg, ...)
+{
+  va_list ap;
+
+  va_start(ap, pcMsg);
+
+  if ((*jEnv)->ExceptionOccurred(jEnv)) {
+    (*jEnv)->ExceptionDescribe(jEnv); 
+    (*jEnv)->ExceptionClear(jEnv);
+    fflush(stderr);
+  }
+  fprintf(stderr, "C-BGP JNI: ");
+  vfprintf(stderr, pcMsg, ap);
+  (*jEnv)->FatalError(jEnv, "C-BGP JNI fatal error");
+}
 
 /////////////////////////////////////////////////////////////////////
 // Helper functions for Java objects creation and method calls
@@ -63,10 +81,10 @@ int jni_check_null(JNIEnv * jEnv, jobject joObject)
  * Note: the function does not check if an exception is thrown. It
  * will rather rely on the return value of each function call
  * (FindClass, GetMethodID and NewObjectV). In case a value of NULL is
- * returned by any of these functions, 'cbgp_jni_new' will stop with a
+ * returned by any of these functions, 'jni_new' will stop with a
  * return value of NULL.
  */
-jobject cbgp_jni_new(JNIEnv * env,
+jobject cbgp_jni_new(JNIEnv * jEnv,
 		     const char * pcClass,
 		     const char * pcConstr,
 		     ...)
@@ -74,20 +92,26 @@ jobject cbgp_jni_new(JNIEnv * env,
   va_list ap;
   jclass jcObject;
   jmethodID jmObject;
+  jobject joNew;
 
   va_start(ap, pcConstr);
 
   /* Get the object's class */
-  if ((jcObject= (*env)->FindClass(env, pcClass)) == NULL)
-    return NULL;
+  if ((jcObject= (*jEnv)->FindClass(jEnv, pcClass)) == NULL)
+    jni_abort(jEnv, "Could not find class \"%s\"", pcClass);
 
   /* Get the constructor's method ID */
-  if ((jmObject= (*env)->GetMethodID(env, jcObject,
-				     "<init>", pcConstr)) == NULL)
-    return NULL;
+  if ((jmObject= (*jEnv)->GetMethodID(jEnv, jcObject,
+				      "<init>", pcConstr)) == NULL)
+    jni_abort(jEnv, "Could not get method ID \"%s\" in class \"%s\"",
+	      pcConstr, pcClass);
 
   /* Build new object... */
-  return (*env)->NewObjectV(env, jcObject, jmObject, ap);
+  joNew= (*jEnv)->NewObjectV(jEnv, jcObject, jmObject, ap);
+  if (joNew == NULL)
+    jni_abort(jEnv, "Could not instantiate \"%s\"", pcClass);
+
+  return joNew;
 }
 
 // -----[ cbgp_jni_get_object_method ]-------------------------------
