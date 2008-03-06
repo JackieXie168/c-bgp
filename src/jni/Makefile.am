@@ -52,8 +52,8 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/IPRoute.java \
 	be/ac/ucl/ingi/cbgp/IPTrace.java \
 	be/ac/ucl/ingi/cbgp/IPTraceElement.java \
-	be/ac/ucl/ingi/cbgp/IPTraceElementNode.java \
-	be/ac/ucl/ingi/cbgp/IPTraceElementSubnet.java \
+	be/ac/ucl/ingi/cbgp/IPTraceNode.java \
+	be/ac/ucl/ingi/cbgp/IPTraceSubnet.java \
 	be/ac/ucl/ingi/cbgp/LinkMetrics.java \
 	be/ac/ucl/ingi/cbgp/exceptions/UnknownMetricException.java \
 	be/ac/ucl/ingi/cbgp/ProxyObject.java \
