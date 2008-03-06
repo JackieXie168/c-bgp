@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)route.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/11/2002
-// @lastdate 22/07/2007
+// @lastdate 22/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,6 +23,7 @@
 #include <bgp/path_hash.h>
 #include <bgp/qos.h>
 #include <bgp/route.h>
+#include <util/str_format.h>
 
 // -----[ Forward prototypes declaration ]---------------------------
 /* Note: functions starting with underscore (_) are intended to be
@@ -636,8 +637,11 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
   }
 #endif
 
-  if ((ip_prefix_equals(pRoute1->sPrefix, pRoute2->sPrefix)) &&
-      (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr))) {
+  // Compare destination prefixes
+  if (ip_prefix_cmp(&pRoute1->sPrefix, &pRoute2->sPrefix))
+    return 0;
+
+  if (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr)) {
     return 1;
   }
   return 0;
@@ -920,92 +924,83 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
  * %C             | Cluster-ID-List
  * %A             | origin AS
  */
+static int _route_dump_custom(SLogStream * pStream, void * pContext,
+			      char cFormat)
+{
+  SRoute * pRoute= (SRoute *) pContext;
+  int iASN;
+  switch (cFormat) {
+  case 'i':
+    if (pRoute->pPeer != NULL)
+      ip_address_dump(pStream, pRoute->pPeer->tAddr);
+    else
+      log_printf(pStream, "LOCAL");
+    break;
+  case 'a':
+    if (pRoute->pPeer != NULL)
+      log_printf(pStream, "%u", pRoute->pPeer->uRemoteAS);
+    else
+      log_printf(pStream, "LOCAL");
+    break;
+  case 'p':
+    ip_prefix_dump(pStream, pRoute->sPrefix);
+    break;
+  case 'l':
+    log_printf(pStream, "%u", pRoute->pAttr->uLocalPref);
+    break;
+  case 'P':
+    path_dump(pStream, pRoute->pAttr->pASPathRef, 1);
+    break;
+  case 'o':
+    switch (pRoute->pAttr->tOrigin) {
+    case ROUTE_ORIGIN_IGP: log_printf(pStream, "IGP"); break;
+    case ROUTE_ORIGIN_EGP: log_printf(pStream, "EGP"); break;
+    case ROUTE_ORIGIN_INCOMPLETE: log_printf(pStream, "INCOMPLETE"); break;
+    default:
+      log_printf(pStream, "???");
+    }
+    break;
+  case 'm':
+    log_printf(pStream, "%u", pRoute->pAttr->uMED);
+    break;
+  case 'n':
+    ip_address_dump(pStream, pRoute->pAttr->tNextHop);
+    break;
+  case 'c':
+    if (pRoute->pAttr->pCommunities != NULL)
+      comm_dump(pStream, pRoute->pAttr->pCommunities, COMM_DUMP_RAW);
+    break;
+  case 'e':
+    if (pRoute->pAttr->pECommunities != NULL)
+      ecomm_dump(pStream, pRoute->pAttr->pECommunities, ECOMM_DUMP_RAW);
+    break;
+  case 'O':
+    if (pRoute->pAttr->pOriginator != NULL)
+      ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
+    break;
+  case 'C':
+    if (pRoute->pAttr->pClusterList != NULL)
+      cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
+    break;
+  case 'A':
+    iASN= path_first_as(pRoute->pAttr->pASPathRef);
+    if (iASN >= 0) {
+      log_printf(pStream, "%u", iASN);
+    } else {
+      log_printf(pStream, "*");
+    }
+    break;
+  default:
+    return -1;
+  }
+  return 0;
+}
+
 void route_dump_custom(SLogStream * pStream, SRoute * pRoute,
 		       const char * pcFormat)
 {
-  const char * pPos= pcFormat;
-  int iState= 0; /* 0: normal, 1: escaped */
-  int iASN;
-
-  while ((pPos != NULL) && (*pPos != 0)) {
-    if (iState == 0) {
-      if (*pPos == '%') {
-	iState= 1;
-      } else {
-	log_printf(pStream, "%c", *pPos);
-      }
-      pPos++;
-    } else {
-      switch (*pPos) {
-      case '%':
-	log_printf(pStream, "%");
-	break;
-      case 'i':
-	if (pRoute->pPeer != NULL)
-	  ip_address_dump(pStream, pRoute->pPeer->tAddr);
-	else
-	  log_printf(pStream, "LOCAL");
-	break;
-      case 'a':
-	if (pRoute->pPeer != NULL)
-	  log_printf(pStream, "%u", pRoute->pPeer->uRemoteAS);
-	else
-	  log_printf(pStream, "LOCAL");
-	break;
-      case 'p':
-	ip_prefix_dump(pStream, pRoute->sPrefix);
-	break;
-      case 'l':
-	log_printf(pStream, "%u", pRoute->pAttr->uLocalPref);
-	break;
-      case 'P':
-	path_dump(pStream, pRoute->pAttr->pASPathRef, 1);
-	break;
-      case 'o':
-	switch (pRoute->pAttr->tOrigin) {
-	case ROUTE_ORIGIN_IGP: log_printf(pStream, "IGP"); break;
-	case ROUTE_ORIGIN_EGP: log_printf(pStream, "EGP"); break;
-	case ROUTE_ORIGIN_INCOMPLETE: log_printf(pStream, "INCOMPLETE"); break;
-	default:
-	  log_printf(pStream, "???");
-	}
-	break;
-      case 'm':
-	log_printf(pStream, "%u", pRoute->pAttr->uMED);
-	break;
-      case 'n':
-	ip_address_dump(pStream, pRoute->pAttr->tNextHop);
-	break;
-      case 'c':
-	if (pRoute->pAttr->pCommunities != NULL)
-	  comm_dump(pStream, pRoute->pAttr->pCommunities, COMM_DUMP_RAW);
-	break;
-      case 'e':
-	if (pRoute->pAttr->pECommunities != NULL)
-	  ecomm_dump(pStream, pRoute->pAttr->pECommunities, ECOMM_DUMP_RAW);
-	break;
-      case 'O':
-	if (pRoute->pAttr->pOriginator != NULL)
-	  ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
-	break;
-      case 'C':
-	if (pRoute->pAttr->pClusterList != NULL)
-	  cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
-	break;
-      case 'A':
-	iASN= path_first_as(pRoute->pAttr->pASPathRef);
-	if (iASN >= 0) {
-	  log_printf(pStream, "%u", iASN);
-	} else {
-	  log_printf(pStream, "*");
-	}
-	break;
-      default:
-	log_printf(pStream, "?unknown?");
-      }
-      pPos++;
-      iState= 0;
-    }
-  }
+  int iResult;
+  iResult= str_format_for_each(pStream, _route_dump_custom, pRoute, pcFormat);
+  assert(iResult == 0);
 }
 
