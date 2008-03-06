@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)routing.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// @lastdate 21/11/2007
+// @lastdate 05/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,19 +23,18 @@
 /**
  *
  */
-int route_nexthop_compare(SNetRouteNextHop sNH1,
-			  SNetRouteNextHop sNH2)
+int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2)
 {
   if (sNH1.tGateway > sNH2.tGateway)
     return 1;
   if (sNH1.tGateway < sNH2.tGateway)
     return -1;
   
-  if (net_link_get_address(sNH1.pIface) >
-      net_link_get_address(sNH2.pIface))
+  if (sNH1.pIface->tIfaceAddr >
+      sNH2.pIface->tIfaceAddr)
     return 1;
-  if (net_link_get_address(sNH1.pIface) <
-      net_link_get_address(sNH2.pIface))
+  if (sNH1.pIface->tIfaceAddr <
+      sNH2.pIface->tIfaceAddr)
     return -1;
 
   return 0;
@@ -208,7 +207,7 @@ typedef struct {
   SPtrArray * pRemovalList;
 } SNetRouteInfoFilter;
 
-// ----- net_route_info_matches_filter ------------------------------
+// ----- _net_route_info_matches_filter -----------------------------
 /**
  * Check if the given route-info matches the given filter. The
  * following fields are checked:
@@ -220,8 +219,9 @@ typedef struct {
  * 0 if the route does not match filter
  * 1 if the route matches the filter
  */
-int net_route_info_matches_filter(SNetRouteInfo * pRI,
-				  SNetRouteInfoFilter * pRIFilter)
+static inline
+int _net_route_info_matches_filter(SNetRouteInfo * pRI,
+				   SNetRouteInfoFilter * pRIFilter)
 {
   
   if ((pRIFilter->pIface != NULL) &&
@@ -260,7 +260,8 @@ void net_route_info_dump_filter(SLogStream * pStream,
   // Next-hop interface
   log_printf(pStream, ", iface   : ");
   if (pRIFilter->pIface != NULL)
-    link_dst_dump(pStream, pRIFilter->pIface);
+    ip_address_dump(pStream, pRIFilter->pIface->tIfaceAddr);
+    //net_iface_dump_id(pStream, pRIFilter->pIface);
   else
     log_printf(pStream, "*");
 
@@ -342,7 +343,7 @@ int rt_info_list_del(SNetRouteInfoList * pRouteInfoList,
   while (uIndex < ptr_array_length((SPtrArray *) pRouteInfoList)) {
     pRI= (SNetRouteInfo *) pRouteInfoList->data[uIndex];
 
-    if (net_route_info_matches_filter(pRI, pRIFilter)) {
+    if (_net_route_info_matches_filter(pRI, pRIFilter)) {
       ptr_array_remove_at((SPtrArray *) pRouteInfoList, uIndex);
       uRemovedCount++;
     } else {
@@ -361,17 +362,17 @@ int rt_info_list_del(SNetRouteInfoList * pRouteInfoList,
   return iResult;
 }
 
-// ----- rt_info_list_get -------------------------------------------
-SNetRouteInfo * rt_info_list_get(SNetRouteInfoList * pRouteInfoList,
-				 int iIndex)
+// ----- _rt_info_list_get -------------------------------------------
+static inline SNetRouteInfo *
+_rt_info_list_get(SNetRouteInfoList * pRouteInfoList, int iIndex)
 {
   if (iIndex < ptr_array_length((SPtrArray *) pRouteInfoList))
     return pRouteInfoList->data[iIndex];
   return NULL;
 }
 
-// ----- rt_il_dst --------------------------------------------------
-void rt_il_dst(void ** ppItem)
+// ----- _rt_il_dst -------------------------------------------------
+static void _rt_il_dst(void ** ppItem)
 {
   rt_info_list_destroy((SNetRouteInfoList **) ppItem);
 }
@@ -382,7 +383,7 @@ void rt_il_dst(void ** ppItem)
  */
 SNetRT * rt_create()
 {
-  return (SNetRT *) trie_create(rt_il_dst);
+  return (SNetRT *) trie_create(_rt_il_dst);
 }
 
 // ----- rt_destroy -------------------------------------------------
@@ -445,7 +446,7 @@ SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
     assert(rt_info_list_length(pRIList) != 0);
 
     for (iIndex= 0; iIndex < ptr_array_length(pRIList); iIndex++) {
-      pRouteInfo= rt_info_list_get(pRIList, iIndex);
+      pRouteInfo= _rt_info_list_get(pRIList, iIndex);
       if (pRouteInfo->tType & tType)
 	return pRouteInfo;
     }
@@ -484,7 +485,7 @@ SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
     assert(rt_info_list_length(pRIList) != 0);
 
     for (iIndex= 0; iIndex < ptr_array_length(pRIList); iIndex++) {
-      pRouteInfo= rt_info_list_get(pRIList, iIndex);
+      pRouteInfo= _rt_info_list_get(pRIList, iIndex);
       if (pRouteInfo->tType & tType)
 	return pRouteInfo;
     }
@@ -608,14 +609,14 @@ typedef struct {
   void * pContext;
 } SRTForEachCtx;
 
-// ----- rt_for_each_function ----------------------------------------------
+// ----- _rt_for_each_function --------------------------------------
 /**
  * Helper function for the 'rt_for_each' function. This function
  * execute the callback function for each entry in the info-list of
  * the current prefix.
  */
-int rt_for_each_function(uint32_t uKey, uint8_t uKeyLen,
-			 void * pItem, void * pContext)
+static int _rt_for_each_function(uint32_t uKey, uint8_t uKeyLen,
+				 void * pItem, void * pContext)
 {
   SRTForEachCtx * pCtx= (SRTForEachCtx *) pContext;
   SNetRouteInfoList * pInfoList= (SNetRouteInfoList *) pItem;
@@ -630,19 +631,20 @@ int rt_for_each_function(uint32_t uKey, uint8_t uKeyLen,
   return 0;
 }
 
-// ----- rt_for_each -------------------------------------------------------
+// ----- rt_for_each ------------------------------------------------
 /**
  * Execute the given function for each entry (prefix, type) in the
  * routing table.
  */
-int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach, void * pContext)
+int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
+		void * pContext)
 {
   SRTForEachCtx sCtx;
 
   sCtx.fForEach= fForEach;
   sCtx.pContext= pContext;
 
-  return trie_for_each((STrie *) pRT, rt_for_each_function, &sCtx);
+  return trie_for_each((STrie *) pRT, _rt_for_each_function, &sCtx);
 }
 
 
@@ -660,7 +662,8 @@ void route_nexthop_dump(SLogStream * pStream, SNetRouteNextHop sNextHop)
 {
   ip_address_dump(pStream, sNextHop.tGateway);
   log_printf(pStream, "\t");
-  link_dst_dump(pStream, sNextHop.pIface);
+  ip_address_dump(pStream, sNextHop.pIface->tIfaceAddr);
+  //net_iface_dump_id(pStream, sNextHop.pIface);
 }
 
 // ----- net_route_type_dump ----------------------------------------
@@ -696,7 +699,7 @@ void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo)
   route_nexthop_dump(pStream, pRouteInfo->sNextHop);
   log_printf(pStream, "\t%u\t", pRouteInfo->uWeight);
   net_route_type_dump(pStream, pRouteInfo->tType);
-  if (!net_link_get_state(pRouteInfo->sNextHop.pIface, NET_LINK_FLAG_UP)) {
+  if (!net_iface_is_enabled(pRouteInfo->sNextHop.pIface)) {
     log_printf(pStream, "\t[DOWN]");
   }
 }
