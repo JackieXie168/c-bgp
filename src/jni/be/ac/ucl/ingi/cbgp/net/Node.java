@@ -13,6 +13,7 @@ import java.util.Vector;
 import be.ac.ucl.ingi.cbgp.CBGP;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.IPAddress;
+import be.ac.ucl.ingi.cbgp.IPRoute;
 import be.ac.ucl.ingi.cbgp.IPTrace;
 
 // -----[ Node ]-----------------------------------------------------
@@ -37,6 +38,12 @@ public class Node extends Element {
     protected Node(CBGP cbgp, IPAddress address) {
     	super(cbgp);
     	this.address= address;
+    }
+    
+    // -----[ getId ]------------------------------------------------
+    @Override
+    public String getId() {
+    	return address.toString();
     }
 
     // -----[ getAddress ]-------------------------------------------
@@ -135,7 +142,7 @@ public class Node extends Element {
     /**
      * Returns the list of addresses supported by this node.
      */
-    public native synchronized Vector getAddresses()
+    public native synchronized Vector<IPAddress> getAddresses()
     	throws CBGPException;
     
     // -----[ addLTLLink ]------------------------------------------
@@ -165,7 +172,7 @@ public class Node extends Element {
     /**
      * Returns the list of links departing from this node.
      */
-    public native synchronized Vector getLinks()
+    public native synchronized Vector<Link> getLinks()
 		throws CBGPException;
     
     // -----[ getRT ]------------------------------------------------
@@ -173,7 +180,7 @@ public class Node extends Element {
      * Returns the list of routes installed in the routing table
      * of this node.
      */
-    public native synchronized Vector getRT(String sPrefix)
+    public native synchronized Vector<IPRoute> getRT(String sPrefix)
 		throws CBGPException;
 
     // -----[ addRoute ]---------------------------------------------
@@ -197,20 +204,15 @@ public class Node extends Element {
     /**
      * Converts this node to a String.
      */
-    public String toString()
-    {
+    public String toString() {
     	String s= "";
     	String name= null;
-
     	s+= address;
-	
     	try {
     		name= getName();
     	} catch (CBGPException e) {}
-		
     	if (name != null)
 			s+= " (name: \""+name+"\")";
-		
 		return s;
     }
 
