@@ -1,14 +1,15 @@
 // ==================================================================
 // @(#)icmp.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 30/05/2007
+// @lastdate 02/03/2008
 // ==================================================================
 
 #ifndef __NET_ICMP_H__
 #define __NET_ICMP_H__
 
+#include <net/ip_trace.h>
 #include <net/prefix.h>
 #include <net/message.h>
 #include <net/network.h>
@@ -52,7 +53,7 @@ extern "C" {
   int icmp_trace_route(SLogStream * pStream,
 		       SNetNode * pSrcNode, net_addr_t tSrcAddr,
 		       net_addr_t tDstAddr, uint8_t uMaxTTL,
-		       SNetPath * pPath);
+		       SIPTrace * pTrace);
   
 #ifdef __cplusplus
 }
