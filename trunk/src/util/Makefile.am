@@ -12,6 +12,8 @@ libutil_la_CFLAGS = $(LIBGDS_CFLAGS) $(PCRE_CFLAGS)
 
 libutil_la_SOURCES = \
 	regex.c \
-	regex.h
+	regex.h \
+	str_format.c \
+	str_format.h
 
 
