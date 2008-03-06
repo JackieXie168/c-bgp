@@ -83,7 +83,7 @@ void ospf_next_hop_dump(FILE* pStream, SOSPFNextHop * pNH, int iPathType) {
   char cAddr[20], * pcAddr = cAddr; 
    
   fprintf(pStream, "IF ");
-  ip_address_to_string(pcAddr, link_get_iface(pNH->pLink)); 
+  ip_prefix_to_string(pcAddr, net_iface_id(pNH->pLink));
   fprintf(pStream, "%s\tNH ", pcAddr);
   if (pNH->tAddr != OSPF_NO_IP_NEXT_HOP)
     ip_address_dump(pStream, pNH->tAddr);

@@ -3,9 +3,9 @@
 //
 // List of error codes.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 21/11/2007
+// @lastdate 15/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -79,6 +79,20 @@ char * network_strerror(int iErrorCode)
     return "too many protocols";
   case NET_ERROR_MGMT_DUPLICATE_PROTOCOL:
     return "protocol already exists";
+  case NET_ERROR_MGMT_DUPLICATE_IFACE:
+    return "interface already exists";
+  case NET_ERROR_MGMT_INVALID_IFACE_ID:
+    return "invalid interface ID";
+  case NET_ERROR_MGMT_INVALID_IFACE_TYPE:
+    return "invalid interface type";
+  case NET_ERROR_MGMT_IFACE_NOT_SUPPORTED:
+    return "operation not supported by interface";
+  case NET_ERROR_MGMT_IFACE_INCOMPATIBLE:
+    return "incompatbile interface";
+  case NET_ERROR_MGMT_IFACE_CONNECTED:
+    return "interface is connected";
+  case NET_ERROR_MGMT_IFACE_NOT_CONNECTED:
+    return "interface is not connected";
   }
   return NULL;
 }
