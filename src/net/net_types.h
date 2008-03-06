@@ -2,9 +2,9 @@
 // @(#)net_types.h
 //
 // @author Stefano Iasi (stefanoia@tin.it)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/06/2005
-// @lastdate 23/07/2007
+// @lastdate 15/02/2008
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -83,8 +83,8 @@ typedef struct {
 //////////////////////////////////////////////////////////////////////
 
 typedef struct {
-  STrie * pNodes;
-  SNetSubnets  * pSubnets;
+  STrie * pNodes;            // Used to index all nodes (key=IP address)
+  SNetSubnets  * pSubnets;   // Used to index all subnets (key=IP prefix)
   SSimulator * pSimulator;
 } SNetwork;
 
@@ -155,13 +155,13 @@ typedef struct {
   SNetRT * pRT;
 #ifdef OSPF_SUPPORT
   SUInt32Array  * pOSPFAreas; 
-  SOSPFRT       * pOspfRT;     //OSPF routing table
+  SOSPFRT       * pOspfRT;     // OSPF routing table
 //  net_addr_t      ospf_id;
 #endif
-  SUInt16Array  * pIGPDomains; //TODO define type for list of domains numbers
-  SNetProtocols * pProtocols;
+  SUInt16Array  * pIGPDomains; // TODO define type for list of domains numbers
+  SNetProtocols * pProtocols;  // Supported protocol handlers
   SIGPDomain    * pDomain;
-  float           fLatitude;
+  float           fLatitude;   // Geographical coordinates
   float           fLongitude;
 } SNetNode;
 
@@ -180,8 +180,10 @@ typedef struct {
 typedef struct {
   SPrefix     sPrefix;
   uint8_t     uType;
-  ospf_area_t uOSPFArea; /* we have only an area for a network */
   SNetLinks * pLinks;    /* links towards routers */
+#ifdef OSPF_SUPPORT
+  ospf_area_t uOSPFArea; /* a subnetwork belongs to a single area */
+#endif
 } SNetSubnet;
 
 
@@ -191,27 +193,39 @@ typedef struct {
 //
 //////////////////////////////////////////////////////////////////////
 
-// ----- FNetLinkForward --------------------------------------------
+// ----- Interface types -----
+typedef enum {
+  NET_IFACE_LOOPBACK,
+  NET_IFACE_RTR,
+  NET_IFACE_PTP,
+  NET_IFACE_PTMP,
+  NET_IFACE_VIRTUAL,
+  NET_IFACE_UNKNOWN
+} net_iface_type_t;
+
+// -----[ FNetIfaceSend ]--------------------------------------------
 /**
  * This type defines a callback that is used to forward messages along
  * links of different types.
- * - point-to-point links use 'link_forward'
- * - subnets use 'subnet_forward'
- * - tunnels use 'ipip_forward'
+ * - RTR and PTP ifaces
+ * - PTMP ifaces
+ * - VIRTUAL ifaces (tunnels)
  *
- * The arguments of FNetLinkForward are as follows:
+ * The arguments of FNetIfaceSend are as follows:
  *   tPhysAddr: physical address of the next-hop on the link (only used
  *              on point-to-multipoint links)
  *   pContext : the link context
- *   ppNextHop: the node to which the message shall be forwarded
+ *   ppDstIface: the destination's interface
  */
-typedef int (*FNetLinkForward)(net_addr_t tPhysAddr,
-			       void * pContext,
-			       SNetNode ** ppNextHop,
-			       SNetMessage ** ppMsg);
+struct TNetIface;
+typedef int (*FNetIfaceSend)(net_addr_t tPhysAddr,
+			     void * pContext,
+			     struct TNetIface ** pDstIface,
+			     SNetMessage ** ppMsg);
 
-// ----- FNetLinkHandle ---------------------------------------------
-typedef void (*FNetLinkHandle)();
+// -----[ FNetIfaceRecv ]--------------------------------------------
+typedef int (*FNetIfaceRecv)(struct TNetIface * pIface,
+			     SNetMessage * pMsg);
 
 // -----[ FNetLinkDestroy ]------------------------------------------
 /**
@@ -220,31 +234,28 @@ typedef void (*FNetLinkHandle)();
  */
 typedef void (*FNetLinkDestroy)(void * pContext);
 
-// --- link destination type ---
+// ---[ Interface destination types ]---
 /**
  * A link can bind a node to another node or a to a subnet. In the
  * first case, the link's destination is an IP address. In the second
  * case, the destination is a pointer to the subnet.
  */
 typedef union {
-  SNetNode * pNode;      // ptp links
-  SNetSubnet * pSubnet;  // ptmp links
-  net_addr_t tEndPoint;  // tunnels
-} net_link_dst_t;
+  struct TNetIface * pIface; // rtr, ptp links
+  SNetSubnet * pSubnet;     // ptmp links
+  net_addr_t tEndPoint;     // tunnels
+} net_iface_dst_t;
 
-// ----- SNetLink --------------------------------------------
+// -----[ SNetIface ]------------------------------------------------
 /**
  * This type defines a link object. A link is attached to a
  * source node. On this node, the link is identified by the
  * interface IP address (tIfaceAddr) and by the length of the
  * mask.
  */
-typedef struct {
-  uint8_t            uType;      // Type of link
-                                 //   ptp : NET_LINK_TYPE_ROUTER
-                                 //   tun : NET_LINK_TYPE_TUNNEL
-                                 //   ptmp: NET_LINK_TYPE_TRANSIT/STUB
-
+typedef struct TNetIface {
+  net_iface_type_t   tType;      // Type of interface
+  
   // --- Identification of source ---
   SNetNode         * pSrcNode;   // Node to which the link is attached
   net_addr_t         tIfaceAddr; // Local interface address:
@@ -254,11 +265,10 @@ typedef struct {
   net_mask_t         tIfaceMask; // Local interface mask
                                  //   ptp,tun: 32
                                  //   ptmp: <32
+  uint8_t            uConnected; // Tells if the interface is connected
 
   // --- Identification of destination ---
-  net_link_dst_t     tDest;      // Depends on uType
-                                 //   ptp,tun: addr
-                                 //   ptmp: pointer to subnet
+  net_iface_dst_t    tDest;      // Depends on tType
 
   // --- Physical attributes ---
   net_link_delay_t   tDelay;     // Propagation delay
@@ -271,14 +281,15 @@ typedef struct {
 
   // --- Context and methods ---
   void             * pContext;
-  FNetLinkForward    fForward;   // Send message function
-  FNetLinkHandle     fHandle;    // Recv message function
+  FNetIfaceSend      fSend;      // Send message function
+  FNetIfaceRecv      fRecv;      // Recv message function
   FNetLinkDestroy    fDestroy;
 
 #ifdef OSPF_SUPPORT
   ospf_area_t      tArea;  
 #endif
-} SNetLink;
+} SNetIface;
+typedef SNetIface SNetLink;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -296,7 +307,7 @@ typedef struct {
  * recorded node as context.
  */
 typedef struct {
-  SNetNode * pNode;
+  SNetIface * pIface;
   SNetMessage * pMessage;
 } SNetSendContext;
 
