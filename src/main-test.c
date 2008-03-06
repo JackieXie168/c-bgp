@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/11/07
-// @lastdate 16/01/2008
+// @lastdate 27/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,13 +30,19 @@
 #include <bgp/path.h>
 #include <bgp/path_hash.h>
 #include <bgp/path_segment.h>
+#include <bgp/peer.h>
 #include <bgp/predicate_parser.h>
 #include <bgp/route.h>
 #include <bgp/route-input.h>
 #include <net/error.h>
+#include <net/igp_domain.h>
+#include <net/iface.h>
+//#include <net/ifaces_list.h>
+#include <net/link-list.h>
 #include <net/ipip.h>
 #include <net/node.h>
 #include <net/prefix.h>
+#include <net/record-route.h>
 #include <net/subnet.h>
 
 
@@ -114,6 +120,9 @@ static int test_net_attr_address4_str2()
 		"address \"255.255.0.0.255\" should be invalid");
   ASSERT_RETURN(ip_string_to_address("255..255.0", &pcEndPtr, &tAddress) < 0,
 		"address \"255..255.0\" should be invalid");
+  ASSERT_RETURN((ip_string_to_address("1.2.3.4.5", &pcEndPtr, &tAddress) == 0) &&
+		(*pcEndPtr == '.'),
+		"address \"1.2.3.4.5\" should be invalid");
   return UTEST_SUCCESS;
 }
 
@@ -326,6 +335,8 @@ static int test_net_attr_prefix4_str2()
 		"prefix should be invalid");
   ASSERT_RETURN((ip_string_to_prefix("255.255./16", &pcEndPtr, &sPrefix) < 0),
 		"prefix should be invalid");
+  ASSERT_RETURN((ip_string_to_prefix("1.2.3.4.5", &pcEndPtr, &sPrefix) < 0),
+		"prefix \"1.2.3.4.5\" should be invalid");
   return UTEST_SUCCESS;
 }
 
@@ -333,17 +344,55 @@ static int test_net_attr_prefix4_str2()
 static int test_net_attr_prefix4_cmp()
 {
   SPrefix sPrefix1= { .tNetwork= IPV4_TO_INT(1,2,3,4),
-		      .uMaskLen= 5 };
+		      .uMaskLen= 24 };
   SPrefix sPrefix2= sPrefix1;
   ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 0,
-		"prefixes should be considered equal");
-  sPrefix2.tNetwork= IPV4_TO_INT(1,2,3,3);
+		"1.2.3.4/24 should be equal to 1.2.3.4.24");
+  sPrefix2.tNetwork= IPV4_TO_INT(1,2,2,4);
   ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 1,
-		"equal mask, higher network should be considered better");
+		"1.2.3.4/24 should be > than 1.2.2.4/24");
   sPrefix2.tNetwork= sPrefix1.tNetwork;
-  sPrefix2.uMaskLen= 6;
+  sPrefix2.uMaskLen= 25;
   ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == -1,
-		"longest mask should be considered better");
+		"1.2.3.4/24 should be > than 1.2.3.4/25");
+  sPrefix1.tNetwork= IPV4_TO_INT(1,2,3,1);
+  sPrefix1.uMaskLen= 24;
+  sPrefix2.tNetwork= IPV4_TO_INT(1,2,3,0);
+  sPrefix2.uMaskLen= 24;
+  ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 0,
+		"1.2.3.1/24 should be > than 1.2.3.0/24");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_attr_dest ]---------------------------------------
+static int test_net_attr_dest()
+{
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_attr_dest_str2 ]----------------------------------
+static int test_net_attr_dest_str2()
+{
+  SNetDest sDest;
+  ASSERT_RETURN(ip_string_to_dest("*", &sDest) == 0,
+		"destination should be valid");
+  ASSERT_RETURN(sDest.tType == NET_DEST_ANY,
+		"conversion is invalid");
+  ASSERT_RETURN(ip_string_to_dest("1.2.3.4", &sDest) == 0,
+		"destination should be valid"); 
+  ASSERT_RETURN((sDest.tType == NET_DEST_ADDRESS) &&
+		(sDest.uDest.tAddr == IPV4_TO_INT(1,2,3,4)),
+		"conversion is invalid");
+  ASSERT_RETURN(ip_string_to_dest("1.2.3.4/25", &sDest) == 0,
+		"destination should be valid"); 
+  ASSERT_RETURN((sDest.tType == NET_DEST_PREFIX) &&
+		(sDest.uDest.sPrefix.tNetwork == IPV4_TO_INT(1,2,3,4)) &&
+		(sDest.uDest.sPrefix.uMaskLen == 25),
+		"conversion is invalid");
+  ASSERT_RETURN(ip_string_to_dest("1.2.3.4/33", &sDest) < 0,
+		"destination should be invalid");
+  ASSERT_RETURN(ip_string_to_dest("1.2.3.4.5", &sDest) < 0,
+		"destination should be invalid");
   return UTEST_SUCCESS;
 }
 
@@ -384,8 +433,31 @@ static int test_net_node()
 {
   SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,0));
   ASSERT_RETURN(pNode != NULL, "node creation should succeed");
+  ASSERT_RETURN(pNode->tAddr == IPV4_TO_INT(1,0,0,0),
+		"incorrect node address (ID)");
+  ASSERT_RETURN(pNode->pLinks != NULL,
+		"interfaces list should be created");
+  ASSERT_RETURN(pNode->pProtocols != NULL,
+		"protocols list should be created");
+  ASSERT_RETURN(pNode->pRT != NULL,
+		"forwarding table should be created");
   node_destroy(&pNode);
   ASSERT_RETURN(pNode == NULL, "destroyed node should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_node_name ]---------------------------------------
+static int test_net_node_name()
+{
+  SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,0));
+  ASSERT_RETURN(node_get_name(pNode) == NULL,
+		"node should not have a default name");
+  node_set_name(pNode, "NODE 1");
+  ASSERT_RETURN(!strcmp(node_get_name(pNode), "NODE 1"),
+		"node should have name \"NODE 1\"");
+  node_set_name(pNode, NULL);
+  ASSERT_RETURN(node_get_name(pNode) == NULL,
+		"node should not have a name");
   return UTEST_SUCCESS;
 }
 
@@ -410,6 +482,206 @@ static int test_net_subnet()
 
 /////////////////////////////////////////////////////////////////////
 //
+// NET INTERFACES
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_iface_lo ]----------------------------------------
+static int test_net_iface_lo()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  net_addr_t tAddr= IPV4_TO_INT(172,0,0,1);
+  SNetIface * pIface= NULL;
+  ASSERT_RETURN(net_iface_factory(pNode1, net_iface_id_addr(tAddr),
+				  NET_IFACE_LOOPBACK, &pIface) == NET_SUCCESS,
+		"should be able to create loopback interface");
+  ASSERT_RETURN(pIface->tType == NET_IFACE_LOOPBACK,
+		"interface type should be LOOPBACK");
+  ASSERT_RETURN(pIface->tIfaceAddr == tAddr,
+		"incorrect interface address");
+  ASSERT_RETURN(pIface->tIfaceMask == 32,
+		"incorrect interface mask");
+  ASSERT_RETURN(!net_iface_is_connected(pIface),
+		"interface should not be connected");
+  net_iface_destroy(&pIface);
+  ASSERT_RETURN(pIface == NULL,
+		"destroyed interface should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_rtr ]---------------------------------------
+static int test_net_iface_rtr()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(1,0,0,2));
+  SNetIface * pIface= NULL;
+  ASSERT_RETURN(net_iface_factory(pNode1, net_iface_id_rtr(pNode2),
+				  NET_IFACE_RTR, &pIface) == NET_SUCCESS,
+		"should be able to create rtr interface");
+  ASSERT_RETURN(pIface != NULL,
+		"should return non-null interface");
+  ASSERT_RETURN(pIface->tType == NET_IFACE_RTR,
+		"interface type should be RTR");
+  ASSERT_RETURN(pIface->tIfaceAddr == pNode2->tAddr,
+		"incorrect interface address");
+  ASSERT_RETURN(pIface->tIfaceMask == 32,
+		"incorrect interface mask");
+  ASSERT_RETURN(!net_iface_is_connected(pIface),
+		"interface should not be connected");
+  net_iface_destroy(&pIface);
+  ASSERT_RETURN(pIface == NULL,
+		"destroyed interface should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_ptp ]---------------------------------------
+static int test_net_iface_ptp()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetIface * pIface= NULL;
+  net_iface_id_t tIfaceID= net_iface_id_pfx(IPV4_TO_INT(192,168,0,1), 24);
+  ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID, NET_IFACE_PTP,
+				  &pIface) == NET_SUCCESS,
+		"should be able to create ptp interface");
+  ASSERT_RETURN(pIface != NULL,
+		"should return non-null interface");
+  ASSERT_RETURN(pIface->tType == NET_IFACE_PTP,
+		"interface type should be PTP");
+  ASSERT_RETURN(pIface->tIfaceAddr == IPV4_TO_INT(192,168,0,1),
+		"incorrect interface address");
+  ASSERT_RETURN(pIface->tIfaceMask == 24,
+		"incorrect interface mask");
+  ASSERT_RETURN(!net_iface_is_connected(pIface),
+		"interface should not be connected");
+  net_iface_destroy(&pIface);
+  ASSERT_RETURN(pIface == NULL,
+		"destroyed interface should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_ptmp ]--------------------------------------
+static int test_net_iface_ptmp()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetIface * pIface= NULL;
+  net_iface_id_t tIfaceID= net_iface_id_pfx(IPV4_TO_INT(192,168,0,1), 24);
+  SPrefix sPrefix= { .tNetwork= IPV4_TO_INT(192,168,0,0), .uMaskLen=24 };
+  ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID, NET_IFACE_PTMP,
+				  &pIface) == NET_SUCCESS,
+		"should be able to create ptmp interface");
+  ASSERT_RETURN(pIface != NULL,
+		"should return non-null interface");
+  ASSERT_RETURN(pIface->tType == NET_IFACE_PTMP,
+		"interface type should be PTMP");
+  ASSERT_RETURN(pIface->tIfaceAddr == IPV4_TO_INT(192,168,0,1),
+		"incorrect interface address");
+  ASSERT_RETURN(pIface->tIfaceMask == 24,
+		"incorrect interface mask");
+  ASSERT_RETURN(!net_iface_is_connected(pIface),
+		"interface should not be connected");
+  ASSERT_RETURN(net_iface_has_prefix(pIface, sPrefix),
+		"interface should have prefix");
+  net_iface_destroy(&pIface);
+  ASSERT_RETURN(pIface == NULL,
+		"destroyed interface should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_virtual ]-----------------------------------
+static int test_net_iface_virtual()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetIface * pIface= NULL;
+  net_addr_t tAddr= IPV4_TO_INT(172,0,0,1);
+  net_iface_id_t tIfaceID= net_iface_id_addr(tAddr);
+  ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID,
+				  NET_IFACE_VIRTUAL,
+				  &pIface) == NET_SUCCESS,
+		"should be able to create virtual interface");
+  ASSERT_RETURN(pIface != NULL,
+		"should return non-null interface");
+  ASSERT_RETURN(pIface->tType == NET_IFACE_VIRTUAL,
+		"interface type should be VIRTUAL");
+  ASSERT_RETURN(pIface->tIfaceAddr == tAddr,
+		"incorrect interface address");
+  ASSERT_RETURN(pIface->tIfaceMask == 32,
+		"incorrect interface mask");
+  ASSERT_RETURN(!net_iface_is_connected(pIface),
+		"interface should not be connected");
+  net_iface_destroy(&pIface);
+  ASSERT_RETURN(pIface == NULL,
+		"destroyed interface should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_str2type ]----------------------------------
+static int test_net_iface_str2type()
+{
+  ASSERT_RETURN(net_iface_str2type("loopback") == NET_IFACE_LOOPBACK,
+		"bad conversion for loopback type");
+  ASSERT_RETURN(net_iface_str2type("router-to-router") == NET_IFACE_RTR,
+		"bad conversion for router-to-router type");
+  ASSERT_RETURN(net_iface_str2type("point-to-point") == NET_IFACE_PTP,
+		"bad conversion for point-to-point type");
+  ASSERT_RETURN(net_iface_str2type("point-to-multipoint") == NET_IFACE_PTMP,
+		"bad conversion for point-to-multipoint type");
+  ASSERT_RETURN(net_iface_str2type("virtual") == NET_IFACE_VIRTUAL,
+		"bad conversion for virtual type");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_list ]--------------------------------------
+static int test_net_iface_list()
+{
+  SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetLinks * pIfaces= net_links_create();
+  SNetIface * pIface1= NULL;
+  SNetIface * pIface2= NULL;
+  net_addr_t tAddr1= IPV4_TO_INT(1,0,0,2);
+  net_addr_t tAddr2= IPV4_TO_INT(1,0,0,3);
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr1),
+				  NET_IFACE_RTR, &pIface1) == NET_SUCCESS,
+		"should be able to create interface");
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr2),
+				  NET_IFACE_RTR, &pIface2) == NET_SUCCESS,
+		"should be able to create interface");
+  ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
+		"should be able to add interface");
+  ASSERT_RETURN(net_links_add(pIfaces, pIface2) >= 0,
+		"should be able to add interface");
+  net_links_destroy(&pIfaces);
+  ASSERT_RETURN(pIfaces == NULL,
+		"destroyed interface list should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_iface_list_duplicate ]----------------------------
+static int test_net_iface_list_duplicate()
+{
+  SNetNode * pNode= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetLinks * pIfaces= net_links_create();
+  SNetIface * pIface1= NULL;
+  SNetIface * pIface2= NULL;
+  net_addr_t tAddr= IPV4_TO_INT(1,0,0,2);
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr),
+				  NET_IFACE_RTR, &pIface1) == NET_SUCCESS,
+		"should be able to create interface");
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr),
+				  NET_IFACE_RTR, &pIface2) == NET_SUCCESS,
+		"should be able to create interface");
+  ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
+		"should be able to add interface");
+  ASSERT_RETURN(net_links_add(pIfaces, pIface2) < 0,
+		"should not be able to add interface with same ID");
+  net_links_destroy(&pIfaces);
+  ASSERT_RETURN(pIfaces == NULL,
+		"destroyed interface list should be NULL");
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // NET LINKS
 //
 /////////////////////////////////////////////////////////////////////
@@ -420,25 +692,28 @@ static int test_net_link()
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
   SNetLink * pLink= NULL;
-  ASSERT_RETURN((net_link_create_ptp(pNode1, pNode2, 10, 20, 1, &pLink)
+  net_iface_id_t tIfaceID;
+  ASSERT_RETURN((net_link_create_rtr(pNode1, pNode2, BIDIR, &pLink)
 		 == NET_SUCCESS) &&
 		(pLink != NULL),
 		"link creation should succeed");
-  ASSERT_RETURN(pLink->uType == NET_LINK_TYPE_ROUTER,
+  tIfaceID= net_iface_id(pLink);
+  ASSERT_RETURN((tIfaceID.tNetwork == pLink->tIfaceAddr) &&
+		(tIfaceID.uMaskLen == pLink->tIfaceMask),
+		"link identifier is incorrect");
+  ASSERT_RETURN(pLink->tType == NET_IFACE_RTR,
 		"link type is not correct");
   ASSERT_RETURN(pLink->pSrcNode == pNode1,
 		"source node is not correct");
-  ASSERT_RETURN(pLink->tDest.pNode == pNode2,
+  ASSERT_RETURN((pLink->tDest.pIface != NULL) &&
+		(pLink->tDest.pIface->pSrcNode == pNode2),
 		"destination node is not correct");
-  ASSERT_RETURN(net_link_get_state(pLink, NET_LINK_FLAG_UP) != 0,
+  ASSERT_RETURN(net_iface_is_enabled(pLink) != 0,
 		"link should be up");
-  ASSERT_RETURN((net_link_get_delay(pLink) == 10) &&
-		(net_link_get_capacity(pLink) == 20) &&
-		(net_link_get_load(pLink) == 0),
+  ASSERT_RETURN((net_iface_get_delay(pLink) == 0) &&
+		(net_iface_get_capacity(pLink) == 0) &&
+		(net_iface_get_load(pLink) == 0),
 		"link attributes are not correct");
-  net_link_destroy(&pLink);
-  ASSERT_RETURN(pLink == NULL,
-		"destroyed link should be NULL");
   node_destroy(&pNode1);
   node_destroy(&pNode2);
   return UTEST_SUCCESS;
@@ -449,19 +724,18 @@ static int test_net_link_forward()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
-  SNetNode * pNextHop;
   SNetMessage * pMsg= (SNetMessage *) 12345;
   SNetLink * pLink= NULL;
-  ASSERT_RETURN(net_link_create_ptp(pNode1, pNode2, 0, 0, 1, &pLink)
+  SNetIface * pDstIface;
+  ASSERT_RETURN(net_link_create_rtr(pNode1, pNode2, BIDIR, &pLink)
 		== NET_SUCCESS,
 		"link creation should succeed");
-  ASSERT_RETURN(pLink->fForward(0, pLink, &pNextHop, &pMsg) == NET_SUCCESS,
+  ASSERT_RETURN(pLink->fSend(0, pLink, &pDstIface, &pMsg) == NET_SUCCESS,
 		"link forward should succeed");
-  ASSERT_RETURN(pNextHop == pNode2,
+  ASSERT_RETURN((pDstIface != NULL) && (pDstIface->pSrcNode == pNode2),
 		"link target is incorrect");
   ASSERT_RETURN(pMsg == (SNetMessage *) 12345,
 		"message content should not have changed");
-  net_link_destroy(&pLink);
   node_destroy(&pNode1);
   node_destroy(&pNode2);
   return UTEST_SUCCESS;
@@ -472,38 +746,125 @@ static int test_net_link_forward_down()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
-  SNetNode * pNextHop= NULL;
+  SNetIface * pDstIface= NULL;
   SNetMessage * pMsg= (SNetMessage *) 12345;
   SNetLink * pLink= NULL;
-  ASSERT_RETURN(net_link_create_ptp(pNode1, pNode2, 0, 0, 1, &pLink)
+  ASSERT_RETURN(net_link_create_rtr(pNode1, pNode2, BIDIR, &pLink)
 		== NET_SUCCESS,
 		"link creation should succeed");
-  net_link_set_state(pLink, NET_LINK_FLAG_UP, 0);
-  ASSERT_RETURN(pLink->fForward(0, pLink, &pNextHop, &pMsg)
+  net_iface_set_enabled(pLink, 0);
+  ASSERT_RETURN(pLink->fSend(0, pLink, &pDstIface, &pMsg)
 		== NET_ERROR_LINK_DOWN,
 		"link forward should fail");
-  ASSERT_RETURN(pNextHop == NULL,
+  ASSERT_RETURN(pDstIface == NULL,
 		"link target should be unchanged (NULL)");
   ASSERT_RETURN(pMsg == (SNetMessage *) 12345,
 		"message content should not have changed");
-  net_link_destroy(&pLink);
   node_destroy(&pNode1);
   node_destroy(&pNode2);
   return UTEST_SUCCESS;
 }
 
-// -----[ test_net_link_subnet ]-------------------------------------
-static int test_net_link_subnet()
+// -----[ test_net_link_ptp ]----------------------------------------
+static int test_net_link_ptp()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
+  net_addr_t tAddr1= IPV4_TO_INT(192,168,0,1);
+  net_addr_t tAddr2= IPV4_TO_INT(192,168,0,2);
+  SNetLink * pLink= NULL;
+  ASSERT_RETURN(net_link_create_ptp(pNode1, net_iface_id_pfx(tAddr1, 30),
+				    pNode2, net_iface_id_pfx(tAddr2, 30),
+				    BIDIR, &pLink)
+		== NET_SUCCESS,
+		"link creation should succeed");
+  ASSERT_RETURN(pLink != NULL,
+		"return link should not be NULL");
+  ASSERT_RETURN(pLink->tType == NET_IFACE_PTP,
+		"interface type is incorrect");
+  ASSERT_RETURN(pLink->pSrcNode == pNode1,
+		"source node is not correct");
+  ASSERT_RETURN(pLink->tIfaceAddr == tAddr1,
+		"interface address is incorrect");
+  ASSERT_RETURN(pLink->tIfaceMask == 30,
+		"interface mask is incorrect");
+  ASSERT_RETURN((pLink->tDest.pIface != NULL) &&
+		(pLink->tDest.pIface->pSrcNode == pNode2),
+		"destination node is incorrect");
+  ASSERT_RETURN((net_iface_get_delay(pLink) == 0) &&
+		(net_iface_get_capacity(pLink) == 0) &&
+		(net_iface_get_load(pLink) == 0),
+		"link attributes are not correct");
+  node_destroy(&pNode1);
+  node_destroy(&pNode2);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_link_ptp_forward ]--------------------------------
+static int test_net_link_ptp_forward()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
+  net_addr_t tAddr1= IPV4_TO_INT(192,168,0,1);
+  net_addr_t tAddr2= IPV4_TO_INT(192,168,0,2);
+  SNetLink * pLink= NULL;
+  SNetIface * pDstIface;
+  SNetMessage * pMsg= (SNetMessage *) 12345;
+  ASSERT_RETURN(net_link_create_ptp(pNode1, net_iface_id_pfx(tAddr1, 30),
+				    pNode2, net_iface_id_pfx(tAddr2, 30),
+				    BIDIR, &pLink)
+		== NET_SUCCESS,
+		"link creation should succeed");
+  ASSERT_RETURN(pLink != NULL,
+		"return link should not be NULL");
+  ASSERT_RETURN(pLink->tType == NET_IFACE_PTP,
+		"interface type is incorrect");
+  ASSERT_RETURN(pLink->pSrcNode == pNode1,
+		"source node is not correct");
+  ASSERT_RETURN(pLink->tIfaceAddr == tAddr1,
+		"interface address is incorrect");
+  ASSERT_RETURN(pLink->tIfaceMask == 30,
+		"interface mask is incorrect");
+  ASSERT_RETURN((pLink->tDest.pIface != NULL) &&
+		(pLink->tDest.pIface->pSrcNode == pNode2),
+		"destination node is incorrect");
+  ASSERT_RETURN(pLink->fSend(0, pLink, &pDstIface, &pMsg)
+		== NET_SUCCESS,
+		"link forward should succeed");
+  ASSERT_RETURN((pDstIface != NULL) && (pDstIface->pSrcNode == pNode2),
+		"link target is incorrect");
+  ASSERT_RETURN(pMsg == (SNetMessage *) 12345,
+		"message content should not have changed");
+  net_link_destroy(&pLink);
+  ASSERT_RETURN(pLink == NULL,
+		"destroyed link should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_link_ptp_forward_down ]---------------------------
+static int test_net_link_ptp_forward_down()
+{
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_net_link_ptmp ]---------------------------------------
+static int test_net_link_ptmp()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetSubnet * pSubnet= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
 				      NET_SUBNET_TYPE_TRANSIT);
   SNetLink * pLink= NULL;
-  ASSERT_RETURN((net_link_create_mtp(pNode1, pSubnet, IPV4_TO_INT(192,168,0,1),
-				     10, 20, 1, &pLink) == NET_SUCCESS) &&
+  SPrefix sIfaceID;
+  ASSERT_RETURN((net_link_create_ptmp(pNode1, pSubnet,
+				      IPV4_TO_INT(192,168,0,1),
+				      &pLink) == NET_SUCCESS) &&
 		(pLink != NULL),
 		"link creation should succeed");
-  ASSERT_RETURN(pLink->uType == NET_LINK_TYPE_TRANSIT,
+  sIfaceID= net_iface_id(pLink);
+  ASSERT_RETURN((sIfaceID.tNetwork == pLink->tIfaceAddr) &&
+		(sIfaceID.uMaskLen == pLink->tIfaceMask),
+		"link identifier is incorrect");
+  ASSERT_RETURN(pLink->tType == NET_IFACE_PTMP,
 		"link type is not correct");
   ASSERT_RETURN(pLink->pSrcNode == pNode1,
 		"source node is not correct");
@@ -511,15 +872,12 @@ static int test_net_link_subnet()
 		"destination subnet is not correct");
   ASSERT_RETURN(pLink->tIfaceAddr == IPV4_TO_INT(192,168,0,1),
 		"interface address is not correct");
-  ASSERT_RETURN(net_link_get_state(pLink, NET_LINK_FLAG_UP) != 0,
+  ASSERT_RETURN(net_iface_is_enabled(pLink) != 0,
 		"link should be up");
-  ASSERT_RETURN((net_link_get_delay(pLink) == 10) &&
-		(net_link_get_capacity(pLink) == 20) &&
-		(net_link_get_load(pLink) == 0),
+  ASSERT_RETURN((net_iface_get_delay(pLink) == 0) &&
+		(net_iface_get_capacity(pLink) == 0) &&
+		(net_iface_get_load(pLink) == 0),
 		"link attributes are not correct");
-  net_link_destroy(&pLink);
-  ASSERT_RETURN(pLink == NULL,
-		"destroyed link should be NULL");
   subnet_destroy(&pSubnet);
   ASSERT_RETURN(pSubnet == NULL,
 		"destroyed subnet should be NULL");
@@ -527,8 +885,8 @@ static int test_net_link_subnet()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_net_link_subnet_forward ]-----------------------------
-static int test_net_link_subnet_forward()
+// -----[ test_net_link_ptmp_forward ]-------------------------------
+static int test_net_link_ptmp_forward()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
@@ -536,34 +894,32 @@ static int test_net_link_subnet_forward()
 				      NET_SUBNET_TYPE_TRANSIT);
   SNetLink * pLink1= NULL;
   SNetLink * pLink2= NULL;
-  SNetNode * pNextHop= NULL;
+  SNetIface * pDstIface;
   SNetMessage * pMsg= (SNetMessage *) 12345;
-  ASSERT_RETURN(net_link_create_mtp(pNode1, pSubnet, IPV4_TO_INT(192,168,0,1),
-				    10, 20, 1, &pLink1) == NET_SUCCESS,
+  ASSERT_RETURN(net_link_create_ptmp(pNode1, pSubnet,
+				     IPV4_TO_INT(192,168,0,1),
+				     &pLink1)
+		== NET_SUCCESS,
 		"link creation should succeed");
-  ASSERT_RETURN(subnet_add_link(pSubnet, pLink1) == NET_SUCCESS,
-		"addition of link to subnet should succeed");
-  ASSERT_RETURN(net_link_create_mtp(pNode2, pSubnet, IPV4_TO_INT(192,168,0,2),
-				    10, 20, 1, &pLink2) == NET_SUCCESS,
+  ASSERT_RETURN(net_link_create_ptmp(pNode2, pSubnet,
+				     IPV4_TO_INT(192,168,0,2),
+				     &pLink2) == NET_SUCCESS,
 		"link creation should succeed");
-  ASSERT_RETURN(subnet_add_link(pSubnet, pLink2) == NET_SUCCESS,
-		"addition of link to subnet should succeed");
-  ASSERT_RETURN(pLink1->fForward(IPV4_TO_INT(192,168,0,2), pLink1,
-				  &pNextHop, &pMsg) == NET_SUCCESS,
+  ASSERT_RETURN(pLink1->fSend(IPV4_TO_INT(192,168,0,2), pLink1,
+			      &pDstIface, &pMsg)
+		== NET_SUCCESS,
 		"link forward should succeed");
-  ASSERT_RETURN(pNextHop == pNode2,
+  ASSERT_RETURN((pDstIface != NULL) && (pDstIface->pSrcNode == pNode2),
 		"link target is incorrect");
   ASSERT_RETURN(pMsg == (SNetMessage *) 12345,
 		"message content should not have changed");
-  net_link_destroy(&pLink1);
-  net_link_destroy(&pLink2);
   subnet_destroy(&pSubnet);
   node_destroy(&pNode1);
   return UTEST_SUCCESS;
 }
 
-// -----[ test_net_link_subnet_forward_unreach ]---------------------
-static int test_net_link_subnet_forward_unreach()
+// -----[ test_net_link_ptmp_forward_unreach ]-----------------------
+static int test_net_link_ptmp_forward_unreach()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetSubnet * pSubnet= subnet_create(IPV4_TO_INT(192,168,0,0), 16,
@@ -571,16 +927,14 @@ static int test_net_link_subnet_forward_unreach()
   SNetLink * pLink1= NULL;
   SNetNode * pNextHop= NULL;
   SNetMessage * pMsg= (SNetMessage *) 12345;
-  ASSERT_RETURN(net_link_create_mtp(pNode1, pSubnet, IPV4_TO_INT(192,168,0,1),
-				    10, 20, 1, &pLink1) == NET_SUCCESS,
+  ASSERT_RETURN(net_link_create_ptmp(pNode1, pSubnet,
+				     IPV4_TO_INT(192,168,0,1),
+				     &pLink1) == NET_SUCCESS,
 		"link creation should succeed");
-  ASSERT_RETURN(subnet_add_link(pSubnet, pLink1) == NET_SUCCESS,
-		"addition of link to subnet should succeed");
   ASSERT_RETURN(pNextHop == NULL,
 		"link target should be unchanged (NULL)");
   ASSERT_RETURN(pMsg == (SNetMessage *) 12345,
 		"message content should not have changed");  
-  net_link_destroy(&pLink1);
   subnet_destroy(&pSubnet);
   node_destroy(&pNode1);
   return UTEST_SUCCESS;
@@ -591,33 +945,32 @@ static int test_net_link_tunnel()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
-  SNetLink * pLink= NULL;
+  SNetIface * pIface= NULL;
   SNetLink * pTunnel= NULL;
-  ASSERT_RETURN(node_add_link_ptp(pNode1, pNode2, 10, 20, 1, 1)
+  ASSERT_RETURN(net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface)
 		== NET_SUCCESS,
-		"node_add_link_ptp() should succeed");
-  pLink= node_find_link_ptp(pNode1, pNode2->tAddr);
-  ASSERT_RETURN(pLink != NULL,
-		"node_find_link_ptp() should not return NULL");
+		"node_add_link_rtr() should succeed");
+  ASSERT_RETURN(pIface != NULL,
+		"node_find_iface() should not return NULL");
   ASSERT_RETURN((ipip_link_create(pNode1, IPV4_TO_INT(2,0,0,0),
 				  IPV4_TO_INT(127,0,0,1),
-				  pLink,
+				  pIface,
 				  NET_ADDR_ANY,
 				  &pTunnel) == NET_SUCCESS) &&
 		(pTunnel != NULL),
 		"ipip_link_create() should succeed");
-  ASSERT_RETURN(pTunnel->uType == NET_LINK_TYPE_TUNNEL,
+  ASSERT_RETURN(pTunnel->tType == NET_IFACE_VIRTUAL,
 		"link type is incorrect");
-  ASSERT_RETURN(pLink->pSrcNode == pNode1,
+  ASSERT_RETURN(pIface->pSrcNode == pNode1,
 		"source node is not correct");
   ASSERT_RETURN(pTunnel->tDest.tEndPoint == pNode2->tAddr,
 		"tunnel endpoint is incorrect");
   ASSERT_RETURN(pTunnel->tIfaceAddr == IPV4_TO_INT(127,0,0,1),
 		"interface address is incorrect");
-  ASSERT_RETURN(net_link_get_state(pLink, NET_LINK_FLAG_UP) != 0,
+  ASSERT_RETURN(net_iface_is_enabled(pTunnel) != 0,
 		"link should be up");
-  net_link_destroy(&pLink);
-  ASSERT_RETURN(pLink == NULL,
+  net_link_destroy(&pTunnel);
+  ASSERT_RETURN(pTunnel == NULL,
 		"destroyed link should be NULL");
   return UTEST_SUCCESS;
 }
@@ -627,35 +980,34 @@ static int test_net_link_tunnel_forward()
 {
   SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,0));
   SNetNode * pNode2= node_create(IPV4_TO_INT(2,0,0,0));
-  SNetLink * pLink= NULL;
+  SNetIface * pIface= NULL;
   SNetLink * pTunnel= NULL;
   SNetMessage * pMsg= (SNetMessage *) 12345;
-  SNetNode * pNextHop= NULL;
-  ASSERT_RETURN(node_add_link_ptp(pNode1, pNode2, 10, 20, 1, 1)
+  SNetIface * pDstIface;
+  ASSERT_RETURN(net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface)
 		== NET_SUCCESS,
-		"node_add_link_ptp() should succeed");
-  pLink= node_find_link_ptp(pNode1, pNode2->tAddr);
-  ASSERT_RETURN(pLink != NULL,
-		"node_find_link_ptp() should not return NULL");
+		"node_add_link_rtr() should succeed");
+  ASSERT_RETURN(pIface != NULL,
+		"node_find_iface() should not return NULL");
   ASSERT_RETURN((ipip_link_create(pNode1, IPV4_TO_INT(2,0,0,0),
 				 IPV4_TO_INT(127,0,0,1),
-				 pLink,
+				 pIface,
 				 NET_ADDR_ANY,
 				  &pTunnel) == NET_SUCCESS) &&
 		(pTunnel != NULL),
 		"ipip_link_create() should succeed");
   ASSERT_RETURN(pTunnel != NULL,
 		"");
-  ASSERT_RETURN(pTunnel->fForward(NET_ADDR_ANY, pTunnel->pContext,
-				  &pNextHop, &pMsg) == NET_SUCCESS,
+  ASSERT_RETURN(pTunnel->fSend(NET_ADDR_ANY, pTunnel->pContext,
+			       &pDstIface, &pMsg) == NET_SUCCESS,
 		"tunnel forward should succeed");
-  ASSERT_RETURN(pNextHop == pNode2,
+  ASSERT_RETURN((pDstIface != NULL) && (pDstIface->pSrcNode == pNode2),
 		"link target is incorrect");
   ASSERT_RETURN((pMsg != (SNetMessage *) 12345) &&
 		(pMsg->pPayLoad == (void *) 12345),
 		"initial message should be encapsulated");
-  net_link_destroy(&pLink);
-  ASSERT_RETURN(pLink == NULL,
+  net_link_destroy(&pTunnel);
+  ASSERT_RETURN(pTunnel == NULL,
 		"destroyed link should be NULL");
   return UTEST_SUCCESS;
 }
@@ -729,6 +1081,151 @@ static int test_net_network_add_subnet_dup()
 		== NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS,
 		"duplicate subnet addision should fail");
   network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NET IGP
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_igp_domain ]--------------------------------------
+static int test_net_igp_domain()
+{
+  SIGPDomain * pDomain= igp_domain_create(11537, DOMAIN_IGP);
+  ASSERT_RETURN(pDomain != NULL,
+		"igp_domain_create() should succeed");
+  igp_domain_destroy(&pDomain);
+  ASSERT_RETURN(pDomain == NULL,
+		"destroyed domain should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_igp_compute ]-------------------------------------
+static int test_net_igp_compute()
+{
+  SNetwork * pNetwork= network_create();
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(1,0,0,2));
+  SNetNode * pNode3= node_create(IPV4_TO_INT(1,0,0,3));
+  net_addr_t tIfaceAddr12= IPV4_TO_INT(192,168,0,1);
+  net_addr_t tIfaceAddr21= IPV4_TO_INT(192,168,0,2);
+  net_addr_t tIfaceAddr23= IPV4_TO_INT(192,168,0,5);
+  net_addr_t tIfaceAddr32= IPV4_TO_INT(192,168,0,6);
+  SIGPDomain * pDomain= igp_domain_create(1, DOMAIN_IGP);
+  SNetLink * pLink;
+  
+  network_add_node(pNode1);
+  network_add_node(pNode2);
+  network_add_node(pNode3);
+  ASSERT_RETURN(net_link_create_ptp(pNode1,
+				    net_iface_id_pfx(tIfaceAddr12, 30),
+				    pNode2,
+				    net_iface_id_pfx(tIfaceAddr21, 30),
+				    BIDIR, &pLink)
+		== NET_SUCCESS,
+		"ptp-link creation should succeed");
+  ASSERT_RETURN(net_iface_set_metric(pLink, 0, 1, 1) == NET_SUCCESS,
+		"should be able to set interface metric");
+  ASSERT_RETURN(net_link_create_ptp(pNode2,
+				    net_iface_id_pfx(tIfaceAddr23, 30),
+				    pNode3,
+				    net_iface_id_pfx(tIfaceAddr32, 30),
+				    BIDIR, &pLink)
+		== NET_SUCCESS,
+		"ptp-link creation should succeed");
+  ASSERT_RETURN(net_iface_set_metric(pLink, 0, 10, 1) == NET_SUCCESS,
+		"should be able to set interface metric");
+  igp_domain_add_router(pDomain, pNode1);
+  igp_domain_add_router(pDomain, pNode2);
+  igp_domain_add_router(pDomain, pNode3);
+  igp_domain_compute(pDomain);
+  network_destroy(&pNetwork);
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NET TRACES
+//
+/////////////////////////////////////////////////////////////////////
+
+static inline int __test_net_traces_before()
+{
+  SNetNode * pNode1= node_create(IPV4_TO_INT(1,0,0,1));
+  SNetNode * pNode2= node_create(IPV4_TO_INT(1,0,0,2));
+  SNetNode * pNode3= node_create(IPV4_TO_INT(1,0,0,3));
+  SIGPDomain * pDomain= igp_domain_create(1, DOMAIN_IGP);
+  SNetLink * pLink;
+  network_add_node(pNode1);
+  network_add_node(pNode2);
+  network_add_node(pNode3);
+  ASSERT_RETURN(net_link_create_rtr(pNode1, pNode2, BIDIR, &pLink)
+		== NET_SUCCESS,
+		"rtr-link creation should succeed");
+  net_iface_set_metric(pLink, 0, 10, 1);
+  ASSERT_RETURN(net_link_create_rtr(pNode2, pNode3, BIDIR, &pLink)
+		== NET_SUCCESS,
+		"rtr-link creation should succeed");
+  net_iface_set_metric(pLink, 0, 5, 1);
+  igp_domain_add_router(pDomain, pNode1);
+  igp_domain_add_router(pDomain, pNode2);
+  igp_domain_add_router(pDomain, pNode3);
+  igp_domain_compute(pDomain);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_traces_ping ]-------------------------------------
+static int test_net_traces_ping()
+{
+  SNetNode * pNode;
+  __test_net_traces_before();
+  pNode= network_find_node(IPV4_TO_INT(1,0,0,1));
+  ASSERT_RETURN(icmp_ping_send_recv(pNode, NET_ADDR_ANY,
+				    IPV4_TO_INT(1,0,0,2), 255) == NET_SUCCESS,
+		"ping from 1.0.0.1 to 1.0.0.2 should succeed");
+  ASSERT_RETURN(icmp_ping_send_recv(pNode, NET_ADDR_ANY,
+				    IPV4_TO_INT(1,0,0,3), 255) == NET_SUCCESS,
+		"ping from 1.0.0.1 to 1.0.0.3 should succeed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_traces_traceroute ]-------------------------------
+static int test_net_traces_traceroute()
+{
+  SNetNode * pNode;
+  __test_net_traces_before();
+  pNode= network_find_node(IPV4_TO_INT(1,0,0,1));
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_net_traces_recordroute ]------------------------------
+static int test_net_traces_recordroute()
+{
+  SNetNode * pNode;
+  SNetRecordRouteInfo * pInfo;
+  SNetDest sDest= { .tType= NET_DEST_ADDRESS,
+		    .uDest.tAddr= IPV4_TO_INT(1,0,0,3) };
+  __test_net_traces_before();
+  pNode= network_find_node(IPV4_TO_INT(1,0,0,1));
+  pInfo= node_record_route(pNode, sDest, 0, 0, 0);
+  ASSERT_RETURN(pInfo != NULL,
+		"record-route info should not be NULL");
+  ASSERT_RETURN(pInfo->iResult == NET_SUCCESS,
+		"record-route should succeed");
+  ASSERT_RETURN(pInfo->pTrace != NULL,
+		"record-route path should not be NULL");
+  ASSERT_RETURN(ip_trace_length(pInfo->pTrace) == 3,
+		"record-route path's length should be 3");
+  ASSERT_RETURN((ip_trace_item_at(pInfo->pTrace, 0)->uItem.pNode == pNode) &&
+		(ip_trace_item_at(pInfo->pTrace, 1)->uItem.pNode->tAddr ==
+		 IPV4_TO_INT(1,0,0,2)) &&
+		(ip_trace_item_at(pInfo->pTrace, 2)->uItem.pNode->tAddr ==
+		 IPV4_TO_INT(1,0,0,3)),
+		"record-route path content is not correct");
   return UTEST_SUCCESS;
 }
 
@@ -1815,6 +2312,40 @@ int test_bgp_filter_predicate_expr_str2()
 
 /////////////////////////////////////////////////////////////////////
 //
+// BGP PEER
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_bgp_peer ]--------------------------------------------
+static int test_bgp_peer()
+{
+  net_addr_t tPeerAddr= IPV4_TO_INT(1,2,3,4);
+  SBGPPeer * pPeer= bgp_peer_create(1234, tPeerAddr, NULL);
+  ASSERT_RETURN(pPeer != NULL,
+		"bgp peer creation should succeed");
+  ASSERT_RETURN(pPeer->tAddr == tPeerAddr,
+		"peer address is incorrect");
+  ASSERT_RETURN(pPeer->tSrcAddr == NET_ADDR_ANY,
+		"default source address should be 0.0.0.0"); 
+  ASSERT_RETURN(pPeer->tNextHop == NET_ADDR_ANY,
+		"default next-hop address should be 0.0.0.0");
+  ASSERT_RETURN(pPeer->uSessionState == SESSION_STATE_IDLE,
+		"session state should be IDLE");
+  ASSERT_RETURN((pPeer->pInFilter == NULL) &&
+		(pPeer->pOutFilter == NULL),
+		"default in/out-filters should be NULL (accept any)");
+  ASSERT_RETURN((pPeer->pAdjRIBIn != NULL) &&
+		(pPeer->pAdjRIBOut != NULL),
+		"Adj-RIB-in/out is not initialized");
+  bgp_peer_destroy(&pPeer);
+  ASSERT_RETURN(pPeer == NULL,
+		"destroyed peer should be NULL");
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // MAIN PART
 //
 /////////////////////////////////////////////////////////////////////
@@ -1848,6 +2379,8 @@ SUnitTest TEST_NET_ATTR[]= {
   {test_net_attr_prefix4_2str, "IPv4 prefix (-> string)"},
   {test_net_attr_prefix4_str2, "IPv4 prefix (<- string)"},
   {test_net_attr_prefix4_cmp, "IPv4 prefix (compare)"},
+  {test_net_attr_dest, "IPv4 destination"},
+  {test_net_attr_dest_str2, "IPv4 destination (<- string)"},
   {test_net_attr_igpweight, "IGP weight"},
   {test_net_attr_igpweight_add, "IGP weight add"},
 };
@@ -1855,6 +2388,7 @@ SUnitTest TEST_NET_ATTR[]= {
 
 SUnitTest TEST_NET_NODE[]= {
   {test_net_node, "node"},
+  {test_net_node_name, "node name"},
 };
 #define TEST_NET_NODE_SIZE ARRAY_SIZE(TEST_NET_NODE)
 
@@ -1863,13 +2397,28 @@ SUnitTest TEST_NET_SUBNET[]= {
 };
 #define TEST_NET_SUBNET_SIZE ARRAY_SIZE(TEST_NET_SUBNET)
 
+SUnitTest TEST_NET_IFACE[]= {
+  {test_net_iface_lo, "interface lo"},
+  {test_net_iface_rtr, "interface rtr"},
+  {test_net_iface_ptp, "interface ptp"},
+  {test_net_iface_ptmp, "interface ptmp"},
+  {test_net_iface_virtual, "interface virtual"},
+  {test_net_iface_str2type, "interface (string -> type)"},
+  {test_net_iface_list, "interface-list"},
+  {test_net_iface_list_duplicate, "interface-list (duplicate)"},
+};
+#define TEST_NET_IFACE_SIZE ARRAY_SIZE(TEST_NET_IFACE)
+
 SUnitTest TEST_NET_LINK[]= {
   {test_net_link, "link"},
   {test_net_link_forward, "link forward"},
   {test_net_link_forward_down, "link forward (down)"},
-  {test_net_link_subnet, "subnet"},
-  {test_net_link_subnet_forward, "subnet forward"},
-  {test_net_link_subnet_forward_unreach, "subnet forward (unreach)"},
+  {test_net_link_ptp, "ptp"},
+  {test_net_link_ptp_forward, "ptp forward"},
+  {test_net_link_ptp_forward_down, "ptp forward (down)"},
+  {test_net_link_ptmp, "ptmp"},
+  {test_net_link_ptmp_forward, "ptmp forward"},
+  {test_net_link_ptmp_forward_unreach, "ptmp forward (unreach)"},
   {test_net_link_tunnel, "tunnel"},
   {test_net_link_tunnel_forward, "tunnel forward"},
 };
@@ -1883,6 +2432,19 @@ SUnitTest TEST_NET_NETWORK[]= {
   {test_net_network_add_subnet_dup, "network add subnet (duplicate)"},
 };
 #define TEST_NET_NETWORK_SIZE ARRAY_SIZE(TEST_NET_NETWORK)
+
+SUnitTest TEST_NET_IGP[]= {
+  {test_net_igp_domain, "igp domain"},
+  {test_net_igp_compute, "igp compute"},
+};
+#define TEST_NET_IGP_SIZE ARRAY_SIZE(TEST_NET_IGP)
+
+SUnitTest TEST_NET_TRACES[]= {
+  {test_net_traces_ping, "ping"},
+  {test_net_traces_traceroute, "traceroute"},
+  {test_net_traces_recordroute, "recordroute"},
+};
+#define TEST_NET_TRACES_SIZE ARRAY_SIZE(TEST_NET_TRACES)
 
 SUnitTest TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath, "as-path"},
@@ -1961,16 +2523,25 @@ SUnitTest TEST_BGP_FILTER_PRED[]= {
 };
 #define TEST_BGP_FILTER_PRED_SIZE ARRAY_SIZE(TEST_BGP_FILTER_PRED)
 
+SUnitTest TEST_BGP_PEER[]= {
+  {test_bgp_peer, "create"},
+};
+#define TEST_BGP_PEER_SIZE ARRAY_SIZE(TEST_BGP_PEER)
+
 SUnitTestSuite TEST_SUITES[]= {
   {"Net Attributes", TEST_NET_ATTR_SIZE, TEST_NET_ATTR},
   {"Net Nodes", TEST_NET_NODE_SIZE, TEST_NET_NODE},
   {"Net Subnets", TEST_NET_SUBNET_SIZE, TEST_NET_SUBNET},
+  {"Net Interfaces", TEST_NET_IFACE_SIZE, TEST_NET_IFACE},
   {"Net Links", TEST_NET_LINK_SIZE, TEST_NET_LINK},
   {"Net Network", TEST_NET_NETWORK_SIZE, TEST_NET_NETWORK},
+  {"Net IGP", TEST_NET_IGP_SIZE, TEST_NET_IGP},
+  {"Net Traces", TEST_NET_TRACES_SIZE, TEST_NET_TRACES},
   {"BGP Attributes", TEST_BGP_ATTR_SIZE, TEST_BGP_ATTR},
   {"BGP Routes", TEST_BGP_ROUTE_SIZE, TEST_BGP_ROUTE},
   {"BGP Filter Actions", TEST_BGP_FILTER_ACTION_SIZE, TEST_BGP_FILTER_ACTION},
   {"BGP Filter Predicates", TEST_BGP_FILTER_PRED_SIZE, TEST_BGP_FILTER_PRED},
+  {"BGP Peer", TEST_BGP_PEER_SIZE, TEST_BGP_PEER},
 };
 #define TEST_SUITES_SIZE ARRAY_SIZE(TEST_SUITES)
 
