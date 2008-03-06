@@ -33,6 +33,10 @@ INCLUDES = -I..
 libcli_la_SOURCES = \
 	bgp.c \
 	bgp.h \
+	bgp_filter.c \
+	bgp_filter.h \
+	bgp_router_peer.c \
+	bgp_router_peer.h \
 	bgp_topology.c \
 	bgp_topology.h \
 	common.c \
@@ -45,6 +49,8 @@ libcli_la_SOURCES = \
 	net_domain.h \
 	net_node.c \
 	net_node.h \
+	net_node_iface.c \
+	net_node_iface.h \
 	net_ospf.c \
 	net_ospf.h \
 	sim.c \
