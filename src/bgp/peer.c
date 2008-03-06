@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 03/01/2008
+// @lastdate 27/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -55,6 +55,7 @@ SBGPPeer * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
   SBGPPeer * pPeer= (SBGPPeer *) MALLOC(sizeof(SBGPPeer));
   pPeer->uRemoteAS= uRemoteAS;
   pPeer->tAddr= tAddr;
+  pPeer->tSrcAddr= NET_ADDR_ANY;
   pPeer->tRouterID= 0;
   pPeer->pLocalRouter= pLocalRouter;
   pPeer->pInFilter= NULL; // Default = ACCEPT ANY
@@ -126,6 +127,14 @@ int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop)
     return -1;
 
   pPeer->tNextHop= tNextHop;
+
+  return 0;
+}
+
+// -----[ bgp_peer_set_source ]--------------------------------------
+int bgp_peer_set_source(SBGPPeer * pPeer, net_addr_t tSrcAddr)
+{
+  pPeer->tSrcAddr= tSrcAddr;
 
   return 0;
 }
@@ -929,7 +938,7 @@ static void _bgp_peer_process_withdraw(SBGPPeer * pPeer, SBGPMsg * pMsg)
  *     virtual peering
  *   
  */
-static void _bgp_peer_seqnum_check(SBGPPeer * pPeer, SBGPMsg * pMsg)
+static inline void _bgp_peer_seqnum_check(SBGPPeer * pPeer, SBGPMsg * pMsg)
 {
   if ((bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) == 0) &&
       (pPeer->uRecvSeqNum != pMsg->uSeqNum)) {
@@ -1032,6 +1041,7 @@ int bgp_peer_send(SBGPPeer * pPeer, SBGPMsg * pMsg)
   // Send the message
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
     return bgp_msg_send(pPeer->pLocalRouter->pNode,
+			pPeer->tSrcAddr,
 			pPeer->tAddr, pMsg);
   } else {
     bgp_msg_destroy(&pMsg);

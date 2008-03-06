@@ -5,7 +5,7 @@
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 24/11/2002
-// @lastdate 30/04/2007
+// @lastdate 27/02/2008
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -21,10 +21,11 @@
 
 struct TBGPPeer {
   net_addr_t tAddr;           // IP address that is used to reach the neighbor
+  net_addr_t tSrcAddr;        // Source IP address
   net_addr_t tRouterID;       // ROUTER-ID of the neighbor. The
 			      // ROUTER-ID is initialy 0. It is set
 			      // when an OPEN message is received. For
-			      // virtual peers is it set to the peer's
+			      // virtual peers it is set to the peer's
 			      // IP address when the session is
 			      // opened.
   uint16_t uRemoteAS;         // AS-number of the neighbor.
@@ -62,6 +63,8 @@ extern "C" {
   int bgp_peer_flag_get(SBGPPeer * pPeer, uint8_t uFlag);
   // ----- bgp_peer_set_nexthop -------------------------------------
   int bgp_peer_set_nexthop(SBGPPeer * pPeer, net_addr_t tNextHop);
+  // -----[ bgp_peer_set_source ]------------------------------------
+  int bgp_peer_set_source(SBGPPeer * pPeer, net_addr_t tSrcAddr);
 
   ///////////////////////////////////////////////////////////////////
   // BGP FILTERS
