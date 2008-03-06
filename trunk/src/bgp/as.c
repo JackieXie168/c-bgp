@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 14/01/2008
+// @lastdate 15/02/2008
 // ==================================================================
 // TO-DO LIST:
 // - change pLocalNetworks's type to SRoutes (routes_list.h)
@@ -327,13 +327,12 @@ int bgp_router_del_network(SBGPRouter * pRouter, SPrefix sPrefix)
   for (iIndex= 0; iIndex < ptr_array_length((SPtrArray *)
 	pRouter->pLocalNetworks);
       iIndex++) {
-    if (ip_prefix_equals(((SRoute *)
-	    pRouter->pLocalNetworks->data[iIndex])->sPrefix,
-	  sPrefix)) {
-      pRoute= (SRoute *) pRouter->pLocalNetworks->data[iIndex];
+    pRoute= (SRoute *) pRouter->pLocalNetworks->data[iIndex];
+    if (!ip_prefix_cmp(&pRoute->sPrefix, &sPrefix)) {
       route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 0);
       break;
     }
+    pRoute= NULL;
   }
 
   // If the network exists:
@@ -2411,6 +2410,8 @@ int bgp_router_show_routes_info(SLogStream * pStream, SBGPRouter * pRouter,
     bgp_router_show_route_info(pStream, pRouter, pRoute);
     return 0;
     break;
+  default:
+    return -1;
   }
   return -1;
 }
