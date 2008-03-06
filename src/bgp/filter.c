@@ -305,8 +305,8 @@ int filter_matcher_apply(SFilterMatcher * pMatcher, SBGPRouter * pRouter,
       return ip_address_in_prefix(pRoute->pAttr->tNextHop,
 				  *((SPrefix*) pMatcher->auParams))?1:0;
     case FT_MATCH_PREFIX_IS:
-      return ip_prefix_equals(pRoute->sPrefix,
-			      *((SPrefix*) pMatcher->auParams))?1:0;
+      return ip_prefix_cmp(&pRoute->sPrefix,
+			    ((SPrefix*) pMatcher->auParams))?0:1;
     case FT_MATCH_PREFIX_IN:
       return ip_prefix_in_prefix(pRoute->sPrefix,
 				 *((SPrefix*) pMatcher->auParams))?1:0;
