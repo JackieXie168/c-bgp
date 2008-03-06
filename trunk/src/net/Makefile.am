@@ -31,6 +31,12 @@ libnet_la_SOURCES = \
 	icmp.h \
 	iface.c \
 	iface.h \
+	iface_ptmp.c \
+	iface_ptmp.h \
+	iface_ptp.c \
+	iface_ptp.h \
+	iface_rtr.c \
+	iface_rtr.h \
 	igp.c \
 	igp.h \
 	igp_domain.c \
@@ -39,6 +45,8 @@ libnet_la_SOURCES = \
 	ip6.h \
 	ipip.c \
 	ipip.h \
+	ip_trace.c \
+	ip_trace.h \
 	link.c \
 	link.h \
 	link_attr.c \
