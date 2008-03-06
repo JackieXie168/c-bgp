@@ -8,20 +8,21 @@
 
 package be.ac.ucl.ingi.cbgp; 
 
+import java.util.Collection;
 import java.util.Vector;
 import be.ac.ucl.ingi.cbgp.LinkMetrics;
 import be.ac.ucl.ingi.cbgp.exceptions.UnknownMetricException;
+import be.ac.ucl.ingi.cbgp.net.Node;
 
 // -----[ IPTrace ]--------------------------------------------------
 /**
  * This class represents the result of an IP record-route or IP
  * traceroute.
  */
-public class IPTrace
-{
+public class IPTrace {
 
     // -----[ error code constants ]---------------------------------
-    public static final int IP_TRACE_SUCCESS           = 0;
+    public static final int IP_TRACE_SUCCESS           =  0;
     public static final int IP_TRACE_UNKNOWN           = -1;
     public static final int IP_TRACE_TOO_LONG          = -2;
     public static final int IP_TRACE_UNREACH           = -3;
@@ -33,183 +34,166 @@ public class IPTrace
     public static final int IP_TRACE_ICMP_NET_UNREACH  = -9;
 
     // -----[ protected attributes ]---------------------------------
-    protected IPAddress src;
+    protected Node src;
     protected IPAddress dst;
     protected int iStatus;
-    protected LinkMetrics metrics;
-    protected Vector<IPAddress> hops;
-    protected Vector<LinkMetrics> hopsMetrics;
+    protected Vector<IPTraceElement> elements;
 
     // -----[ IPTrace ]----------------------------------------------
     /**
      * IPTrace's constructor.
      */
-    public IPTrace(IPAddress src, IPAddress dst, int iStatus,
-		   LinkMetrics metrics)
-    {
+    private IPTrace(Node src, IPAddress dst, int iStatus) {
 	this.src= src;
 	this.dst= dst;
 	this.iStatus= iStatus;
-	this.metrics= metrics;
-	this.hops= new Vector<IPAddress>();
-	this.hopsMetrics= null;
+	elements= new Vector<IPTraceElement>();
     }
 
     // -----[ append ]-----------------------------------------------
     /**
-     *
+     * Add an element to the trace. This method is privately used by
+     * the JNI.
      */
-    public void append(IPAddress hop)
-    {
-    	hops.add(hop);
+    @SuppressWarnings("unused")
+	private void append(IPTraceElement element) {
+    	elements.add(element);
     }
 
     // -----[ appendWithInfo ]---------------------------------------
     /**
-     *
+     * Add an element to the trace. This methid is privately used by
+     * the JNI.
      */
-    public void appendWithInfo(IPAddress hop, LinkMetrics metrics,
-			       int iStatus)
-    {
-    	hops.add(hop);
+    private void appendWithInfo(IPTraceElement element, LinkMetrics metrics,
+			       int iStatus) {
+    	elements.add(element);
 
-	// Add hop metrics
-	if (hopsMetrics == null)
-	    hopsMetrics= new Vector<LinkMetrics>();
-	metrics.setMetric("status", new Integer(iStatus));
-	hopsMetrics.add(metrics);
+    	// Add hop metrics
+    	/*
+    	if (hopsMetrics == null)
+    		hopsMetrics= new Vector<LinkMetrics>();
+    	metrics.setMetric("status", new Integer(iStatus));
+    	hopsMetrics.add(metrics);*/
     }
 
-    // -----[ getHop ]-----------------------------------------------
+    // -----[ getElementAt ]----------------------------------------
     /**
-     * Returns the IP address at the given position in the trace.
+     * Returns the IP trace element at the given index.
      */
-    public IPAddress getHop(int iIndex)
-    {
-    	return (IPAddress) hops.get(iIndex);
+    public IPTraceElement getElementAt(int index) {
+    	return elements.get(index);
     }
     
-    // -----[ getHopCount ]-----------------------------------------
+    // -----[ getElementsCount ]------------------------------------
     /**
      * Returns the number of hops in the trace.
      */
-    public int getHopCount()
-    {
-    	return hops.size();
+    public int getElementsCount() {
+    	return elements.size();
+    }
+    
+    // -----[ getElements ]------------------------------------------
+    public Collection<IPTraceElement> getElements() {
+    	return elements;
     }
 
     // -----[ getStatus ]--------------------------------------------
     /**
      * Returns the trace's status.
      */
-    public int getStatus()
-    {
-	return iStatus;
+    public int getStatus() {
+    	return iStatus;
     }
 
     // -----[ getCapacity ]------------------------------------------
     /**
      * Returns the trace's capacity.
      */
-    public int getCapacity() throws UnknownMetricException
-    {
-	if (metrics == null)
-	    throw new UnknownMetricException();
-	return metrics.getCapacity();
-    }
+    /*public int getCapacity() throws UnknownMetricException {
+    	if (metrics == null)
+    		throw new UnknownMetricException();
+    	return metrics.getCapacity();
+    }*/
 
     // -----[ getDelay ]---------------------------------------------
     /**
      * Returns the trace's delay.
      */
-    public int getDelay() throws UnknownMetricException
-    {
-	if (metrics == null)
-	    throw new UnknownMetricException();
-	return metrics.getDelay();
-    }
+    /*public int getDelay() throws UnknownMetricException {
+    	if (metrics == null)
+    		throw new UnknownMetricException();
+    	return metrics.getDelay();
+    }*/
 
     // -----[ getWeight ]--------------------------------------------
     /**
      * Returns the trace's weight.
      */
-    public int getWeight() throws UnknownMetricException
-    {
-	if (metrics == null)
-	    throw new UnknownMetricException();
-	return metrics.getWeight();
-    }
+    /*public int getWeight() throws UnknownMetricException {
+    	if (metrics == null)
+    		throw new UnknownMetricException();
+    	return metrics.getWeight();
+    }*/
 
     // -----[ statusToString ]---------------------------------------
     /**
      *
      */
-    public static String statusToString(int iStatus)
-    {
-	switch (iStatus) {
-	case IP_TRACE_SUCCESS:
-	    return "SUCCESS";
-	case IP_TRACE_TOO_LONG:
-	    return "TOO_LONG";
-	case IP_TRACE_UNREACH:
-	    return "UNREACH";
-	case IP_TRACE_DOWN:
-	    return "DOWN";
-	case IP_TRACE_TUNNEL_UNREACH:
-	    return "TUNNEL_UNREACH";
-	case IP_TRACE_TUNNEL_BROKEN:
-	    return "TUNNEL_BROKEN";
-	case IP_TRACE_ICMP_TIME_EXP:
-	    return "ICMP error (time-expired)";
-	case IP_TRACE_ICMP_HOST_UNREACH:
-	    return "ICMP error (host-unreachable)";
-	case IP_TRACE_ICMP_NET_UNREACH:
-	    return "ICMP error (network-unreachable)";
-	default:
-	    return "UNKNOWN";
-	}
+    public static String statusToString(int iStatus) {
+    	switch (iStatus) {
+    	case IP_TRACE_SUCCESS:
+    		return "SUCCESS";
+    	case IP_TRACE_TOO_LONG:
+    		return "TOO_LONG";
+    	case IP_TRACE_UNREACH:
+    		return "UNREACH";
+    	case IP_TRACE_DOWN:
+    		return "DOWN";
+    	case IP_TRACE_TUNNEL_UNREACH:
+    		return "TUNNEL_UNREACH";
+    	case IP_TRACE_TUNNEL_BROKEN:
+    		return "TUNNEL_BROKEN";
+    	case IP_TRACE_ICMP_TIME_EXP:
+    		return "ICMP error (time-expired)";
+    	case IP_TRACE_ICMP_HOST_UNREACH:
+    		return "ICMP error (host-unreachable)";
+    	case IP_TRACE_ICMP_NET_UNREACH:
+    		return "ICMP error (network-unreachable)";
+    	default:
+    		return "UNKNOWN";
+    	}
     }
 
     // -----[ toString ]---------------------------------------------
     /**
      * Convert the trace to a String.
      */
-    public String toString()
-    {
-	String s= "";
-	IPAddress addr;
+    public String toString() {
+    	String s= src.getAddress().toString();
+    	s+= "\t";
+    	s+= dst;
+    	s+= "\t";
+    	s+= statusToString(iStatus);
+    	s+= "\t";
+    	for (IPTraceElement el: elements) {
+    		s+= el.toString();
+    		s+= " ";
+    	}
 
-	s+= src;
-	s+= "\t";
-	s+= dst;
-	s+= "\t";
-	s+= statusToString(iStatus);
-	s+= "\t";
-	for (int iIndex= 0; iIndex < hops.size(); iIndex++) {
-	    if (iIndex > 0) {
-		s+= " ";
-	    }
-	    addr= hops.get(iIndex);
-	    if (addr != null)
-		s+= addr;
-	    else
-		s+= "*";
-	}
+    	// Show available metrics
+    	/*if (metrics != null) {
+    		try {
+    			if (metrics.hasMetric(LinkMetrics.DELAY))
+    				s+= "\tdelay:" + metrics.getDelay();
+    			if (metrics.hasMetric(LinkMetrics.WEIGHT))
+    				s+= "\tweight:" + metrics.getWeight();
+    			if (metrics.hasMetric(LinkMetrics.CAPACITY))
+    				s+= "\tcapacity:" + metrics.getCapacity();
+    		} catch (UnknownMetricException e) { }
+    	}*/
 
-	// Show available metrics
-	if (metrics != null) {
-	    try {
-		if (metrics.hasMetric(LinkMetrics.DELAY))
-		    s+= "\tdelay:" + metrics.getDelay();
-		if (metrics.hasMetric(LinkMetrics.WEIGHT))
-		    s+= "\tweight:" + metrics.getWeight();
-		if (metrics.hasMetric(LinkMetrics.CAPACITY))
-		    s+= "\tcapacity:" + metrics.getCapacity();
-	    } catch (UnknownMetricException e) {
-	    }
-	}
-
-	return s;
+    	return s;
     }
 
 }
