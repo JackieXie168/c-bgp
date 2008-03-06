@@ -5,9 +5,9 @@
 // the node's routing table when BGP routes are installed, removed or
 // updated.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/01/2007
-// @lastdate 16/04/2007
+// @lastdate 18/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,7 @@ static void _bgp_router_rt_add_route_error(SBGPRouter * pRouter,
     log_printf(pLogErr, "  RT entry : nh:");
     ip_address_dump(pLogErr, pNextHop->tGateway);
     log_printf(pLogErr, ", if:");
-    ip_prefix_dump(pLogErr, net_link_get_id(pNextHop->pIface));
+    net_iface_dump_id(pLogErr, pNextHop->pIface);
     log_printf(pLogErr, ")\n");
     log_printf(pLogErr, "  reason   : ");
     rt_perror(pLogErr, iErrorCode);
@@ -80,8 +80,7 @@ void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute)
   
   // Insert the route
   tGateway= pNextHop->tGateway;
-  if ((pNextHop->pIface->uType == NET_LINK_TYPE_TRANSIT) ||
-      (pNextHop->pIface->uType == NET_LINK_TYPE_STUB))
+  if (pNextHop->pIface->tType == NET_IFACE_PTMP)
     tGateway= pRoute->pAttr->tNextHop;
 
   iResult= node_rt_add_route_link(pRouter->pNode, pRoute->sPrefix,
