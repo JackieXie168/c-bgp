@@ -79,17 +79,16 @@ SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink,
     pVertex = spt_vertex_create_byRouter(pLink->pSrcNode, 
 		                         pVFather->uIGPweight);
   }
-  else if (pLink->uDestinationType == NET_LINK_TYPE_ROUTER){
+  else if (pLink->tType == NET_IFACE_RTR){
     SNetNode * pNode;
     pNode = network_find_node(link_get_address(pLink));
     assert(pNode != NULL);
     pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + 
 		                                pLink->uIGPweight);
   }
-  else if (pLink->uDestinationType == NET_LINK_TYPE_TRANSIT ||
-           pLink->uDestinationType == NET_LINK_TYPE_STUB){
+  else if (pLink->tType == NET_IFACE_PTMP) {
     SNetSubnet * pSubnet;
-    pSubnet = link_get_subnet(pLink);
+    pSubnet = pLink->tDest.pSubnet;
     pVertex = spt_vertex_create_bySubnet(pSubnet, pVFather->uIGPweight + 
 		                                  pLink->uIGPweight);
   }

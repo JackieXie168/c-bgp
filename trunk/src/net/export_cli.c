@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/07
-// @lastdate 15/10/07
+// @lastdate 22/02/08
 // ==================================================================
 // Note:
 //   - tunnels and tunnel-based routes are not suppported
@@ -99,22 +99,27 @@ static void _net_export_cli_phys(SLogStream * pStream,
     while (enum_has_next(pEnumLinks)) {
       pLink= *(SNetLink **) enum_get_next(pEnumLinks);
 
-      if ((pLink->uType == NET_LINK_TYPE_TUNNEL) ||
-	  ((pLink->uType == NET_LINK_TYPE_ROUTER) &&
-	   (pLink->tDest.pNode->tAddr < pNode->tAddr)))
+      if ((pLink->tType == NET_IFACE_VIRTUAL) ||
+	  ((pLink->tType == NET_IFACE_RTR) &&
+	   (pLink->tDest.pIface->pSrcNode->tAddr < pNode->tAddr)))
 	continue;
 
       log_printf(pStream, "net add link ");
       ip_address_dump(pStream, pNode->tAddr);
       log_printf(pStream, " ");
-      switch (pLink->uType) {
-      case NET_LINK_TYPE_ROUTER:
-	ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
+      switch (pLink->tType) {
+      case NET_IFACE_RTR:
+	ip_address_dump(pStream, pLink->tDest.pIface->pSrcNode->tAddr);
 	break;
-      case NET_LINK_TYPE_TRANSIT:
-      case NET_LINK_TYPE_STUB:
+      case NET_IFACE_PTP:
+      case NET_IFACE_PTMP:
 	ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
 	break;
+      case NET_IFACE_VIRTUAL:
+	abort();
+	break;
+      default:
+	abort();
       }
       log_printf(pStream, " %u\n", pLink->tDelay);
     }
@@ -151,7 +156,7 @@ static void _net_export_cli_static(SLogStream * pStream,
 	// - Only static routes
 	// - Static routes based on tunnel interfaces not supported
 	if ((pRI->tType != NET_ROUTE_STATIC) ||
-	    (pRI->sNextHop.pIface->uType == NET_LINK_TYPE_TUNNEL))
+	    (pRI->sNextHop.pIface->tType == NET_IFACE_VIRTUAL))
 	  continue;
 
 	log_printf(pStream, "net node ");
@@ -170,14 +175,17 @@ static void _net_export_cli_static(SLogStream * pStream,
 
 	// Outgoing interface
 	log_printf(pStream, " ");
-	switch (pRI->sNextHop.pIface->uType) {
-	case NET_LINK_TYPE_ROUTER:
-	  ip_address_dump(pStream, pRI->sNextHop.pIface->tDest.pNode->tAddr);
+	switch (pRI->sNextHop.pIface->tType) {
+	case NET_IFACE_LOOPBACK:
+	case NET_IFACE_RTR:
+	case NET_IFACE_VIRTUAL:
+	  ip_address_dump(pStream, pRI->sNextHop.pIface->tDest.pIface->pSrcNode->tAddr);
 	  break;
-	case NET_LINK_TYPE_TRANSIT:
-	case NET_LINK_TYPE_STUB:
+	case NET_IFACE_PTMP:
 	  ip_prefix_dump(pStream, pRI->sNextHop.pIface->tDest.pSubnet->sPrefix);
 	  break;
+	default:
+	  abort();
 	}
 
 	// Metric
@@ -220,22 +228,25 @@ static int _igp_domain_fe(SIGPDomain * pDomain, void * pContext)
     while (enum_has_next(pEnumLinks)) {
       pLink= *(SNetLink **) enum_get_next(pEnumLinks);
       
-      if (pLink->uType == NET_LINK_TYPE_TUNNEL)
+      if (pLink->tType == NET_IFACE_VIRTUAL)
 	continue;
       
       log_printf(pStream, "net link ");
       ip_address_dump(pStream, pRouter->tAddr);
       log_printf(pStream, " ");
-      switch (pLink->uType) {
-      case NET_LINK_TYPE_ROUTER:
-	ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
+      switch (pLink->tType) {
+      case NET_IFACE_LOOPBACK:
+      case NET_IFACE_RTR:
+      case NET_IFACE_VIRTUAL:
+	ip_address_dump(pStream, pLink->tDest.pIface->pSrcNode->tAddr);
 	break;
-      case NET_LINK_TYPE_TRANSIT:
-      case NET_LINK_TYPE_STUB:
+      case NET_IFACE_PTMP:
 	ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
 	break;
+      default:
+	abort();
       }
-      log_printf(pStream, " igp-weight %u\n", net_link_get_weight(pLink, 0));
+      log_printf(pStream, " igp-weight %u\n", net_iface_get_metric(pLink, 0));
     }
     enum_destroy(&pEnumLinks);
 

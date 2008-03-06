@@ -3,9 +3,9 @@
 //
 // List of error codes.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 21/11/2007
+// @lastdate 15/02/2008
 // ==================================================================
 
 #ifndef __NET_ERROR_H__
@@ -41,6 +41,13 @@
 #define NET_ERROR_MGMT_INVALID_OPERATION     -114
 #define NET_ERROR_MGMT_TOO_MANY_PROTOCOLS    -115
 #define NET_ERROR_MGMT_DUPLICATE_PROTOCOL    -116
+#define NET_ERROR_MGMT_DUPLICATE_IFACE       -117
+#define NET_ERROR_MGMT_INVALID_IFACE_ID      -118
+#define NET_ERROR_MGMT_INVALID_IFACE_TYPE    -119
+#define NET_ERROR_MGMT_IFACE_NOT_SUPPORTED   -120
+#define NET_ERROR_MGMT_IFACE_INCOMPATIBLE    -121
+#define NET_ERROR_MGMT_IFACE_CONNECTED       -122
+#define NET_ERROR_MGMT_IFACE_NOT_CONNECTED   -123
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,7 +57,6 @@ extern "C" {
   void network_perror(SLogStream * pStream, int iErrorCode);
   // ----- network_strerror -----------------------------------------
   char * network_strerror(int iErrorCode);
-
 
 #ifdef __cplusplus
 }

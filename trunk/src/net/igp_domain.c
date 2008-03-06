@@ -2,9 +2,9 @@
 // @(#)igp_domain.c
 //
 // @author Stefano Iasi (stefanoia@tin.it)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 5/07/2005
-// @lastdate 15/10/2007
+// @lastdate 29/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -118,11 +118,6 @@ int exists_igp_domain(uint16_t uNumber)
  */
 SIGPDomain * get_igp_domain(uint16_t uNumber)
 {
-  /* Remove implicit domain creation (since we need to know the
-     domain's type)
-  if (apIGPDomains[uNumber] == NULL)
-    apIGPDomains[uNumber]= igp_domain_create(uNumber);
-  */
   return apIGPDomains[uNumber];
 }
 

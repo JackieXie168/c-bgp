@@ -199,7 +199,7 @@ int link_set_ospf_area(SNetLink * pLinkToPeer, ospf_area_t tArea)
   else 
   {
     SNetSubnet * pPeer;
-    pPeer = link_get_subnet(pLinkToPeer);
+    pPeer= pLinkToPeer->tDest.pSubnet;
     assert(pPeer != NULL);
     
     if (!subnet_belongs_to_area(pPeer, tArea))
