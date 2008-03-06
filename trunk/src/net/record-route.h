@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)record-route.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 20/03/2007
+// @lastdate 05/03/2008
 // ==================================================================
 
 #ifndef __NET_RECORD_ROUTE_H__
@@ -14,6 +14,7 @@
 
 #include <libgds/log.h>
 
+#include <net/ip_trace.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/net_path.h>
@@ -48,11 +49,12 @@
 typedef struct {
   int              iResult;
   uint8_t          uOptions;
-  SNetPath *       pPath;
-  // Link path performance metrics
-  net_link_delay_t tDelay;
-  net_igp_weight_t tWeight;
-  net_link_load_t  tCapacity;
+  SIPTrace *       pTrace;
+  net_link_delay_t tDelay;    /* QoS info: delay */
+  net_igp_weight_t tWeight;   /* QoS info: IGP weight */
+  net_link_load_t  tCapacity; /* QoS info: max capacity */
+  net_link_load_t  tLoad;     /* Traffic volume to load */
+  net_tos_t        tTOS;      /* Type-Of-Service (topology) */
   SNetPath *       pDeflectedPath;
 } SNetRecordRouteInfo;
 

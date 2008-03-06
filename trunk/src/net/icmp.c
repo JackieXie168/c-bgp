@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)icmp.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 06/09/2007
+// @lastdate 03/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -166,6 +166,14 @@ int icmp_event_handler(SSimulator * pSimulator,
 
   switch (sICMPRecv.sMsg.uType) {
   case ICMP_ECHO_REQUEST:
+    /*
+    ip_address_dump(pLogErr, pNode->tAddr);
+    log_printf(pLogErr, "recv(icmp-echo-request): src=");
+    ip_address_dump(pLogErr, pMessage->tSrcAddr);
+    log_printf(pLogErr, ", dst=");
+    ip_address_dump(pLogErr, pMessage->tDstAddr);
+    log_printf(pLogErr, "\n");
+    */
     icmp_send_echo_reply(pNode, pMessage->tDstAddr, pMessage->tSrcAddr,
 			 255, pSimulator);
     break;
@@ -291,13 +299,17 @@ int icmp_ping(SLogStream * pStream,
 int icmp_trace_route(SLogStream * pStream,
 		     SNetNode * pSrcNode, net_addr_t tSrcAddr,
 		     net_addr_t tDstAddr, uint8_t uMaxTTL,
-		     SNetPath * pPath)
+		     SIPTrace * pTrace)
 {
   int iResult= NET_ERROR_UNEXPECTED;
   uint8_t uTTL= 1;
 
   if (uMaxTTL == 0)
     uMaxTTL= 255;
+
+  if (pTrace != NULL)
+    ip_trace_add(pTrace,
+		 ip_trace_item_node(pSrcNode, NET_ADDR_ANY, NET_ADDR_ANY));
 
   while (uTTL <= uMaxTTL) {
 
@@ -313,18 +325,22 @@ int icmp_trace_route(SLogStream * pStream,
     case NET_ERROR_ICMP_TIME_EXCEEDED:
       if (pStream != NULL) {
 	ip_address_dump(pStream, sICMPRecv.tSrcAddr);
-	/*log_printf(pStream, " (");
+	log_printf(pStream, " (");
 	ip_address_dump(pStream, sICMPRecv.sMsg.pNode->tAddr);
-	log_printf(pStream, ")");*/
+	log_printf(pStream, ")");
       }
-      if (pPath != NULL)
-	net_path_append(pPath, sICMPRecv.tSrcAddr);
+      if (pTrace != NULL)
+	ip_trace_add(pTrace,
+		     ip_trace_item_node(sICMPRecv.sMsg.pNode,
+					sICMPRecv.tSrcAddr,
+					NET_ADDR_ANY));
       break;
     default:
       if (pStream != NULL)
-	log_printf(pStream, "*");
-      if (pPath != NULL)
-	net_path_append(pPath, NET_ADDR_ANY);
+	log_printf(pStream, "* (*)");
+      if (pTrace != NULL)
+	ip_trace_add(pTrace, ip_trace_item_node(NULL, NET_ADDR_ANY,
+						NET_ADDR_ANY));
     }
 
     if (pStream != NULL) {
