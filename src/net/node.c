@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)node.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// @lastdate 23/07/2007
+// @lastdate 22/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -142,15 +142,113 @@ void node_info(SLogStream * pStream, SNetNode * pNode)
 
 /////////////////////////////////////////////////////////////////////
 //
+// NODE INTERFACES FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ node_add_iface ]-------------------------------------------
+/**
+ * This function adds an interface to the node. The interface
+ * identifier is an IP address or an IP prefix. The interface type
+ * is one of router-to-router (RTR), point-to-point (PTP),
+ * point-to-multipoint (PTMP) or virtual.
+ *
+ * If the identifier is incorrect or an interface with the same
+ * identifier already exists, the function fails with error:
+ *   NET_ERROR_MGMT_INVALID_IFACE_ID
+ *
+ * Otherwise, the function should return
+ *   NET_SUCCESS
+ */
+int node_add_iface(SNetNode * pNode, net_iface_id_t tIfaceID,
+		   net_iface_type_t tIfaceType)
+{
+  SNetIface * pIface;
+  int iResult;
+
+  // Create interface
+  iResult= net_iface_factory(pNode, tIfaceID, tIfaceType, &pIface);
+  if (iResult != NET_SUCCESS)
+    return iResult;
+
+  return node_add_iface2(pNode, pIface);
+}
+
+// -----[ node_add_iface2 ]------------------------------------------
+/**
+ * Attach an interface to the node.
+ *
+ * If an interface with the same identifier already exists, the
+ * function fails with error
+ *   NET_ERROR_MGMT_DUPLICATE_IFACE
+ */
+int node_add_iface2(SNetNode * pNode, SNetIface * pIface)
+{
+  if (net_links_add(pNode->pLinks, pIface) < 0) {
+    net_iface_destroy(&pIface);
+    return NET_ERROR_MGMT_DUPLICATE_IFACE;
+  }
+
+  return NET_SUCCESS;
+}
+
+// -----[ node_find_iface ]------------------------------------------
+/**
+ * Find an interface link based on its identifier.
+ */
+SNetIface * node_find_iface(SNetNode * pNode, net_iface_id_t tIfaceID)
+{
+  return net_links_find(pNode->pLinks, tIfaceID);
+}
+
+// -----[ node_ifaces_dump ]-----------------------------------------
+/**
+ * This function shows the list of interfaces of a given node's, along
+ * with their type.
+ */
+void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
+{
+  unsigned int uIndex;
+  SNetIface * pIface;
+
+  // Show loobpack interface
+  log_printf(pStream, "lo\t");
+  ip_address_dump(pStream, pNode->tAddr);
+  log_printf(pStream, "/32\n");
+
+  // Show link interfaces
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pIface= (SNetIface *) pNode->pLinks->data[uIndex];
+    net_iface_dump(pStream, pIface, 0);
+    log_printf(pStream, "\n");
+  }
+}
+
+// -----[ node_ifaces_load_clear ]-----------------------------------
+void node_ifaces_load_clear(SNetNode * pNode)
+{
+  SEnumerator * pEnum= net_links_get_enum(pNode->pLinks);
+  SNetIface * pIface;
+
+  while (enum_has_next(pEnum)) {
+    pIface= *((SNetIface **) enum_get_next(pEnum));
+    net_iface_set_load(pIface, 0);
+  }
+  enum_destroy(&pEnum);
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // NODE LINKS FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
 
-// ----- node_add_link_ptp ------------------------------------------
+// -----[ node_add_link_rtr ]----------------------------------------
 /**
- * Helper function to add a point-to-point link to a node.
+ * Helper function to add a router-to-router (RTR) link to a node.
  */
-int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB, 
+/*int node_add_link_rtr(SNetNode * pNodeA, SNetNode * pNodeB, 
 		      net_link_delay_t tDelay,
 		      net_link_load_t tCapacity,
 		      uint8_t tDepth,
@@ -159,7 +257,7 @@ int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB,
   SNetLink * pLink;
   int iResult;
 
-  iResult= net_link_create_ptp(pNodeA, pNodeB, tDelay, tCapacity,
+  iResult= net_link_create_rtr(pNodeA, pNodeB, tDelay, tCapacity,
 			       tDepth, &pLink);
   if (iResult != NET_SUCCESS)
     return iResult;
@@ -167,7 +265,7 @@ int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB,
   if (iMutual) {
     // If link has to be created in both directions, perform
     // recursive call with reverse source and destination.
-    iResult= node_add_link_ptp(pNodeB, pNodeA, tDelay, tCapacity,
+    iResult= node_add_link_rtr(pNodeB, pNodeA, tDelay, tCapacity,
 			       tDepth, 0);
     if (iResult)
       return iResult;
@@ -177,24 +275,25 @@ int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB,
     return NET_ERROR_MGMT_LINK_ALREADY_EXISTS;
 
   return NET_SUCCESS;
-}
+  }*/
 
-// ----- node_add_link_mtp ------------------------------------------
+// -----[ node_add_link_ptmp ]---------------------------------------
 /**
  *
  */
-static inline int node_add_link_mtp(SNetNode * pNode,
-				    SNetSubnet * pSubnet,
-				    net_addr_t tIfaceAddr,
-				    net_link_delay_t tDelay,
-				    net_link_load_t tCapacity,
-				    uint8_t tDepth)
+/*
+static inline int node_add_link_ptmp(SNetNode * pNode,
+				     SNetSubnet * pSubnet,
+				     net_addr_t tIfaceAddr,
+				     net_link_delay_t tDelay,
+				     net_link_load_t tCapacity,
+				     uint8_t tDepth)
 {
   SNetLink * pLink;
   int iResult;
 
-  iResult= net_link_create_mtp(pNode, pSubnet, tIfaceAddr,
-			       tDelay, tCapacity, tDepth, &pLink);
+  iResult= net_link_create_ptmp(pNode, pSubnet, tIfaceAddr,
+				tDelay, tCapacity, tDepth, &pLink);
   if (iResult != NET_SUCCESS)
     return iResult;
 
@@ -203,6 +302,7 @@ static inline int node_add_link_mtp(SNetNode * pNode,
 
   return subnet_add_link(pSubnet, pLink);
 }
+*/
 
 // ----- node_add_link ----------------------------------------------
 /**
@@ -210,6 +310,7 @@ static inline int node_add_link_mtp(SNetNode * pNode,
  * point-to-point link is created. If the destination is an IP prefix,
  * a link to a subnet is created.
  */
+/*
 int node_add_link(SNetNode * pNode, SNetDest sDest,
 		  net_link_delay_t tDelay, net_link_load_t tCapacity,
 		  uint8_t tDepth)
@@ -224,72 +325,22 @@ int node_add_link(SNetNode * pNode, SNetDest sDest,
     pDestNode= network_find_node(sDest.uDest.tAddr);
     if (pDestNode == NULL)
       return NET_ERROR_MGMT_INVALID_NODE;
-    return node_add_link_ptp(pNode, pDestNode, tDelay, tCapacity, tDepth, 1);
+    return node_add_link_rtr(pNode, pDestNode, tDelay, tCapacity, tDepth, 1);
 
   case NET_DEST_PREFIX:
     // Find destination subnet
     pDestSubnet= network_find_subnet(sDest.uDest.sPrefix);
     if (pDestSubnet == NULL)
       return NET_ERROR_MGMT_INVALID_SUBNET;
-    return node_add_link_mtp(pNode, pDestSubnet,
-			     sDest.uDest.sPrefix.tNetwork, tDelay, tCapacity,
-			     tDepth);
+    return node_add_link_ptmp(pNode, pDestSubnet,
+			      sDest.uDest.sPrefix.tNetwork, tDelay, tCapacity,
+			      tDepth);
 
   default:
     return NET_ERROR_MGMT_INVALID_OPERATION;
   }
   return 0;
-}
-
-// ----- node_find_link_ptp -----------------------------------------
-SNetLink * node_find_link_ptp(SNetNode * pNode,
-			      net_addr_t tAddr)
-{
-  return net_links_find_ptp(pNode->pLinks, tAddr);
-}
-
-// ----- _node_find_link_mtp ----------------------------------------
-static SNetLink * _node_find_link_mtp(SNetNode * pNode,
-				      net_addr_t tIfaceAddr,
-				      uint8_t uMaskLen)
-{
-  return net_links_find_mtp(pNode->pLinks, tIfaceAddr, uMaskLen);
-}
-
-// ----- node_find_link ---------------------------------------------
-/**
- * Find a link based on the destination address / prefix.
- */
-SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest)
-{
-  switch (sDest.tType) {
-  case NET_DEST_ADDRESS:
-    return node_find_link_ptp(pNode, sDest.uDest.tAddr);
-  case NET_DEST_PREFIX:
-    return _node_find_link_mtp(pNode,
-			       sDest.uDest.sPrefix.tNetwork,
-			       sDest.uDest.sPrefix.uMaskLen);
-  default:
-    return NULL;
-  }
-}
-
-// -----[ node_find_iface ]------------------------------------------
-/**
- * Find a link based on the local address.
- */
-SNetLink * node_find_iface(SNetNode * pNode, SNetDest sDest)
-{
-  switch (sDest.tType) {
-  case NET_DEST_ADDRESS:
-    return net_links_find_iface(pNode->pLinks, sDest.uDest.tAddr);
-  case NET_DEST_PREFIX:
-    return _node_find_link_mtp(pNode, sDest.uDest.sPrefix.tNetwork,
-			       sDest.uDest.sPrefix.uMaskLen);
-  default:
-    return NULL;
-  }
-}
+  }*/
 
 // ----- node_links_enum --------------------------------------------
 SNetLink * node_links_enum(SNetNode * pNode, int state)
@@ -307,19 +358,6 @@ SNetLink * node_links_enum(SNetNode * pNode, int state)
   return NULL;
 }
 
-// ----- node_links_clear -------------------------------------------
-void node_links_clear(SNetNode * pNode)
-{
-  SEnumerator * pEnum= net_links_get_enum(pNode->pLinks);
-  SNetLink * pLink;
-
-  while (enum_has_next(pEnum)) {
-    pLink= *((SNetLink **) enum_get_next(pEnum));
-    net_link_set_load(pLink, 0);
-  }
-  enum_destroy(&pEnum);
-}
-
 // ----- node_links_save --------------------------------------------
 void node_links_save(SLogStream * pStream, SNetNode * pNode)
 {
@@ -330,25 +368,24 @@ void node_links_save(SLogStream * pStream, SNetNode * pNode)
     pLink= *((SNetLink **) enum_get_next(pEnum));
   
     // Skip tunnels
-    if (pLink->uType == NET_LINK_TYPE_TUNNEL)
+    if (pLink->tType == NET_IFACE_VIRTUAL)
       continue;
   
     // This side of the link
     ip_address_dump(pStream, pNode->tAddr);
     log_printf(pStream, "\t");
-    ip_prefix_dump(pStream, net_link_get_id(pLink));
+    net_iface_dump_id(pStream, pLink);
     log_printf(pStream, "\t");
 
     // Other side of the link
-    switch (pLink->uType) {
-    case NET_LINK_TYPE_ROUTER:
-      ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
+    switch (pLink->tType) {
+    case NET_IFACE_RTR:
+      ip_address_dump(pStream, pLink->tDest.pIface->pSrcNode->tAddr);
       log_printf(pStream, "\t");
       ip_address_dump(pStream, pNode->tAddr);
       log_printf(pStream, "/32");
       break;
-    case NET_LINK_TYPE_TRANSIT:
-    case NET_LINK_TYPE_STUB:
+    case NET_IFACE_PTMP:
       ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
       log_printf(pStream, "\t---");
       break;
@@ -363,7 +400,7 @@ void node_links_save(SLogStream * pStream, SNetNode * pNode)
   enum_destroy(&pEnum);
 }
 
-// ----- node_has_address -------------------------------------------
+// -----[ node_has_address ]-----------------------------------------
 /**
  * This function checks if the node has the given address. The
  * function first checks the loopback address (that identifies the
@@ -377,7 +414,7 @@ void node_links_save(SLogStream * pStream, SNetNode * pNode)
 int node_has_address(SNetNode * pNode, net_addr_t tAddress)
 {
   unsigned int uIndex;
-  SNetLink * pLink;
+  SNetIface * pIface;
 
   // Check loopback address
   if (pNode->tAddr == tAddress)
@@ -385,11 +422,25 @@ int node_has_address(SNetNode * pNode, net_addr_t tAddress)
 
   // Check interface addresses
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->tIfaceAddr == tAddress)
+    pIface= (SNetLink *) pNode->pLinks->data[uIndex];
+    if (net_iface_has_address(pIface, tAddress))
       return 1;
   }
 
+  return 0;
+}
+
+// -----[ node_has_prefix ]------------------------------------------
+int node_has_prefix(SNetNode * pNode, SPrefix sPrefix)
+{
+  unsigned int uIndex;
+  SNetIface * pIface;
+  
+  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
+    pIface= (SNetIface *) pNode->pLinks->data[uIndex];
+    if (net_iface_has_prefix(pIface, sPrefix))
+      return 1;
+  }
   return 0;
 }
 
@@ -415,7 +466,7 @@ int node_addresses_for_each(SNetNode * pNode, FArrayForEach fForEach,
   // Other interfaces
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->uType == NET_LINK_TYPE_ROUTER)
+    if (pLink->tType == NET_IFACE_RTR)
       continue;
     if ((iResult= fForEach(&pLink->tIfaceAddr, pContext)) != 0)
       return iResult;
@@ -442,48 +493,11 @@ void node_addresses_dump(SLogStream * pStream, SNetNode * pNode)
   // Show interface addresses
   for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
     pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if (pLink->uType == NET_LINK_TYPE_ROUTER)
+    if (pLink->tType == NET_IFACE_RTR)
       continue;
 
     log_printf(pStream, " ");
     ip_address_dump(pStream, pLink->tIfaceAddr);
-  }
-}
-
-// -----[ node_ifaces_dump ]-----------------------------------------
-/**
- * This function shows the list of interfaces of a given node's, along
- * with their type.
- */
-void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
-{
-  unsigned int uIndex;
-  SNetLink * pLink;
-
-  // Show loobpack interface
-  log_printf(pStream, "lo\t");
-  ip_address_dump(pStream, pNode->tAddr);
-  log_printf(pStream, "\n");
-
-  // Show link interfaces
-  for (uIndex= 0; uIndex < ptr_array_length(pNode->pLinks); uIndex++) {
-    pLink= (SNetLink *) pNode->pLinks->data[uIndex];
-    if ((pLink->uType == NET_LINK_TYPE_TRANSIT) ||
-	(pLink->uType == NET_LINK_TYPE_STUB)) {
-      log_printf(pStream, "ptmp\t");
-      ip_address_dump(pStream, pLink->tIfaceAddr);
-      log_printf(pStream, "\t");
-      ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
-    } else {
-      if (pLink->uType == NET_LINK_TYPE_ROUTER)
-	log_printf(pStream, "ptp\t");
-      else
-	log_printf(pStream, "tun\t");
-      ip_address_dump(pStream, pLink->tIfaceAddr);
-      log_printf(pStream, "\t");
-      ip_address_dump(pStream, pLink->tDest.pNode->tAddr);
-    }
-    log_printf(pStream, "\n");
   }
 }
 
@@ -502,37 +516,14 @@ void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode)
  * outgoing link's weight.
  */
 int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
-		      net_addr_t tNextHopIface, net_addr_t tNextHop,
+		      net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
 		      uint32_t uWeight, uint8_t uType)
 {
   SNetLink * pIface;
 
   // Lookup the next-hop's interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  pIface= node_find_link_ptp(pNode, tNextHopIface);
-  if (pIface == NULL)
-    return NET_RT_ERROR_IF_UNKNOWN;
-
-  return node_rt_add_route_link(pNode, sPrefix, pIface, tNextHop,
-				uWeight, uType);
-}
-
-// ----- node_rt_add_route_dest -------------------------------------
-/**
- * Add a route to the given prefix into the given node. The node must
- * have a direct link towards the given next-hop address. The weight
- * of the route can be specified as it can be different from the
- * outgoing link's weight.
- */
-int node_rt_add_route_dest(SNetNode * pNode, SPrefix sPrefix,
-			   SNetDest sIfaceDest, net_addr_t tNextHop,
-			   uint32_t uWeight, uint8_t uType)
-{
-  SNetLink * pIface;
-
-  // Lookup the outgoing interface (no recursive lookup is allowed,
-  // it must be a direct link !)
-  pIface= node_find_iface(pNode, sIfaceDest);
+  pIface= node_find_iface(pNode, tOutIfaceID);
   if (pIface == NULL)
     return NET_RT_ERROR_IF_UNKNOWN;
 
@@ -549,7 +540,7 @@ int node_rt_add_route_dest(SNetNode * pNode, SPrefix sPrefix,
  * Pre: the outgoing link (next-hop interface) must exist in the node.
  */
 int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
-			   SNetLink * pIface, net_addr_t tNextHop,
+			   SNetIface * pIface, net_addr_t tNextHop,
 			   uint32_t uWeight, uint8_t uType)
 {
   SNetRouteInfo * pRouteInfo;
@@ -558,13 +549,22 @@ int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
   // If a next-hop has been specified, check that it is reachable
   // through the given interface.
   if (tNextHop != 0) {
-    if (pIface->uType == NET_LINK_TYPE_ROUTER) {
-      if (pIface->tDest.pNode->tAddr != tNextHop)
+    switch (pIface->tType) {
+    case NET_IFACE_RTR:
+      if (pIface->tDest.pIface->pSrcNode->tAddr != tNextHop)
 	return NET_RT_ERROR_NH_UNREACH;
-    } else {
-      pSubLink= subnet_find_link(pIface->tDest.pSubnet, tNextHop);
+      break;
+    case NET_IFACE_PTP:
+      if (!node_has_address(pIface->tDest.pIface->pSrcNode, tNextHop))
+	return NET_RT_ERROR_NH_UNREACH;
+      break;
+    case NET_IFACE_PTMP:
+      pSubLink= net_subnet_find_link(pIface->tDest.pSubnet, tNextHop);
       if ((pSubLink == NULL) || (pSubLink->tIfaceAddr == pIface->tIfaceAddr))
 	return NET_RT_ERROR_NH_UNREACH;
+      break;
+    default:
+      abort();
     }
   }
 
@@ -585,17 +585,29 @@ int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
  * other parameters will be removed whatever the next-hop is.
  */
 int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
-		      SNetDest * psIface, net_addr_t * ptNextHop,
+		      net_iface_id_t * ptIface, net_addr_t * ptNextHop,
 		      uint8_t uType)
 {
   SNetLink * pIface= NULL;
 
   // Lookup the outgoing interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  if (psIface != NULL)
-    pIface= node_find_link(pNode, *psIface);
+  if (ptIface != NULL)
+    pIface= node_find_iface(pNode, *ptIface);
 
   return rt_del_route(pNode->pRT, pPrefix, pIface, ptNextHop, uType);
+}
+
+// ----- node_rt_dump -----------------------------------------------
+/**
+ * Dump the node's routing table.
+ */
+void node_rt_dump(SLogStream * pStream, SNetNode * pNode, SNetDest sDest)
+{
+  if (pNode->pRT != NULL)
+    rt_dump(pStream, pNode->pRT, sDest);
+
+  log_flush(pStream);
 }
 
 

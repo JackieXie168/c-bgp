@@ -1,15 +1,16 @@
 // ==================================================================
 // @(#)node.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// @lastdate 23/07/2007
+// @lastdate 22/02/2008
 // ==================================================================
 
 #ifndef __NET_NODE_H__
 #define __NET_NODE_H__
 
 #include <net/icmp.h>
+#include <net/iface.h>
 #include <net/net_types.h>
 #include <net/protocol.h>
 
@@ -37,34 +38,40 @@ extern "C" {
   
   
   ///////////////////////////////////////////////////////////////////
+  // NODE INTERFACES FUNCTIONS
+  ///////////////////////////////////////////////////////////////////
+
+  // -----[ node_add_iface ]-----------------------------------------
+  int node_add_iface(SNetNode * pNode, net_iface_id_t tIfaceID,
+		     net_iface_type_t tIfaceType);
+  // -----[ node_add_iface2 ]----------------------------------------
+  int node_add_iface2(SNetNode * pNode, SNetIface * pIface);
+  // -----[ node_find_iface ]----------------------------------------
+  SNetIface * node_find_iface(SNetNode * pNode, net_iface_id_t tIfaceID);
+  // -----[ node_ifaces_load_clear ]---------------------------------
+  void node_ifaces_load_clear(SNetNode * pNode);
+
+
+  ///////////////////////////////////////////////////////////////////
   // NODE LINKS FUNCTIONS
   ///////////////////////////////////////////////////////////////////
 
   // ----- node_add_link --------------------------------------------
+  /*
   int node_add_link(SNetNode * pNode, SNetDest sDest,
 		    net_link_delay_t tDelay, net_link_load_t tCapacity,
-		    uint8_t tDepth);
-  // ----- node_add_link_ptp ----------------------------------------
-  int node_add_link_ptp(SNetNode * pNodeA, SNetNode * pNodeB,
+		    uint8_t tDepth);*/
+  // ----- node_add_link_rtr ----------------------------------------
+  /*int node_add_link_rtr(SNetNode * pNodeA, SNetNode * pNodeB,
 			net_link_delay_t tDelay, net_link_load_t tCapacity,
-			uint8_t tDepth, int iMutual);
-  // ----- node_find_link -------------------------------------------
-  SNetLink * node_find_link(SNetNode * pNode, SNetDest sDest);
-  // ----- node_find_link_ptp ---------------------------------------
-  SNetLink * node_find_link_ptp(SNetNode * pNode, net_addr_t tAddr);
-  // ----- node_find_link_mtp ---------------------------------------
-  SNetLink * node_find_link_mtp(SNetNode * pNode, SNetSubnet * pSubnet,
-				net_addr_t tIfaceAddr);
-  // -----[ node_find_iface ]----------------------------------------
-  SNetLink * node_find_iface(SNetNode * pNode, SNetDest sDest);
-
-  // ----- node_links_clear -----------------------------------------
-  void node_links_clear(SNetNode * pNode);
+			uint8_t tDepth, int iMutual);*/
   // ----- node_links_save ------------------------------------------
   void node_links_save(SLogStream * pStream, SNetNode * pNode);
 
-  // ----- node_has_address -----------------------------------------
+  // -----[ node_has_address ]---------------------------------------
   int node_has_address(SNetNode * pNode, net_addr_t tAddress);
+  // -----[ node_has_prefix ]----------------------------------------
+  int node_has_prefix(SNetNode * pNode, SPrefix sPrefix);
   // ----- node_addresses_for_each ----------------------------------
   int node_addresses_for_each(SNetNode * pNode,
 				     FArrayForEach fForEach,
@@ -81,20 +88,19 @@ extern "C" {
   
   // ----- node_rt_add_route ----------------------------------------
   int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
-			net_addr_t tNextHopIface, net_addr_t tNextHop,
+			net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
 			uint32_t uWeight, uint8_t uType);
-  // ----- node_rt_add_route_dest -----------------------------------
-  int node_rt_add_route_dest(SNetNode * pNode, SPrefix sPrefix,
-			     SNetDest sDestIface, net_addr_t tNextHop,
-			     uint32_t uWeight, uint8_t uType);
   // ----- node_rt_add_route_link -----------------------------------
   int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
 			     SNetLink * pIface, net_addr_t tNextHop,
 			     uint32_t uWeight, uint8_t uType);
   // ----- node_rt_del_route ----------------------------------------
   int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
-			SNetDest * pIface, net_addr_t * ptNextHop,
+			net_iface_id_t * ptIfaceID, net_addr_t * ptNextHop,
 			uint8_t uType);
+  // ----- node_rt_dump ---------------------------------------------
+  void node_rt_dump(SLogStream * pStream, SNetNode * pNode,
+		    SNetDest sDest);
   
   
   ///////////////////////////////////////////////////////////////////
