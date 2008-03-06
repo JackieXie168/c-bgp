@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 29/06/2007
-// @lastdate 18/12/2007
+// @lastdate 15/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <jni/exceptions.h>
 #include <jni/listener.h>
+#include <jni/jni_base.h>
 #include <jni/jni_util.h>
 
 // -----[ jni_listener_init ]----------------------------------------
@@ -37,10 +38,8 @@ void jni_listener_set(SJNIListener * pListener, JNIEnv * jEnv,
   // Add a global reference to the listener object (returns NULL if
   // system has run out of memory)
   pListener->joListener= (*jEnv)->NewGlobalRef(jEnv, joListener);
-  if (pListener->joListener == NULL) {
-    fprintf(stderr, "ERROR: NewGlobalRef returned NULL in consoleSetOutListener");
-    return;
-  }
+  if (pListener->joListener == NULL)
+    jni_abort(jEnv, "Could not obtain global reference in jni_set_listener()");
 }
 
 // -----[ jni_listener_unset ]---------------------------------------
