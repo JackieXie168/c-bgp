@@ -2,9 +2,9 @@
 // @(#)subnet.c
 //
 // @author Stefano Iasi (stefanoia@tin.it)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/06/2005
-// @lastdate 23/07/2007
+// @lastdate 18/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -86,8 +86,10 @@ void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet)
   
   log_printf(pStream, "SUBNET PREFIX <");
   ip_prefix_dump(pStream, pSubnet->sPrefix);
+#ifdef OSPF_SUPPORT
   log_printf(pStream, ">\tOSPF AREA  <%u>\t",
 	     (unsigned int) pSubnet->uOSPFArea);
+#endif
   switch (pSubnet->uType) {
   case NET_SUBNET_TYPE_TRANSIT : 
     log_printf(pStream, "TRANSIT\t");
@@ -138,7 +140,7 @@ int subnet_is_stub(SNetSubnet * pSubnet) {
 /**
  * Find a link based on its interface address.
  */
-SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
+SNetLink * net_subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
 {
   SNetLink sWrapLink= { .tIfaceAddr= tDstAddr };
   SNetLink * pLink= NULL;
@@ -151,35 +153,6 @@ SNetLink * subnet_find_link(SNetSubnet * pSubnet, net_addr_t tDstAddr)
   return pLink;
 }
 
-// ----- _subnet_forward --------------------------------------------
-int _subnet_forward(net_addr_t tPhysAddr, void * pContext,
-		    SNetNode ** ppNextHop, SNetMessage ** ppMsg)
-{
-  SNetLink * pLink= (SNetLink *) pContext;
-  SNetSubnet * pSubnet;
-  SNetLink * pSubLink;
-
-  assert((pLink->uType == NET_LINK_TYPE_STUB) ||
-	 (pLink->uType == NET_LINK_TYPE_TRANSIT));
-
-  pSubnet= pLink->tDest.pSubnet;
-
-  // Forward along link from node -> subnet ...
-  if (!net_link_get_state(pLink, NET_LINK_FLAG_UP))
-    return NET_ERROR_LINK_DOWN;
-
-  // Find destination node (based on "physical address")
-  pSubLink= subnet_find_link(pSubnet, tPhysAddr);
-  if (pSubLink == NULL)
-    return NET_ERROR_HOST_UNREACH;
-
-  // Forward along link from subnet -> node ...
-  if (!net_link_get_state(pSubLink, NET_LINK_FLAG_UP))
-    return NET_ERROR_LINK_DOWN;
-
-  *ppNextHop= pSubLink->pSrcNode;
-  return NET_SUCCESS;
-}
 
 /////////////////////////////////////////////////////////////////////
 //
