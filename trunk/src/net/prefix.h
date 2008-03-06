@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/12/2002
-// @lastdate 16/01/2008
+// @lastdate 06/03/2008
 // ==================================================================
 
 #ifndef __PREFIX_H__
@@ -47,10 +47,6 @@ extern "C" {
   int ip_string_to_dest(char * pcPrefix, SNetDest * psDest);
   // ----- ip_dest_dump -----------------------------------------------
   void ip_dest_dump(SLogStream * pLogStream, SNetDest sDest);
-  // ----- ip_prefix_masked -------------------------------------------
-  SPrefix ip_prefix_masked(const SPrefix * pPrefix);
-  // ----- ip_prefix_equals -------------------------------------------
-  int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2);
   // -----[ ip_prefix_cmp ]--------------------------------------------
   int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2);
   // ----- ip_address_in_prefix ---------------------------------------

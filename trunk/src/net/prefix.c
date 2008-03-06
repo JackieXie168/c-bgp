@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/11/2002
-// @lastdate 16/01/2008
+// @lastdate 06/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -69,6 +69,42 @@ int ip_string_to_address(char * pcString, char ** ppcEndPtr,
     *ptAddr= (*ptAddr << 8)+ulDigit;
   }
   return 0;
+}
+
+// -----[ ip_address_cmp ]-------------------------------------------
+/**
+ * Compare 2 IPv4 addresses.
+ *
+ * Return:
+ *   1 if A1 > A2
+ *   0 if A1 == A2
+ *  -1 if A1 < A2
+ */
+static inline
+int _ip_address_cmp(net_addr_t tAddr1, net_addr_t tAddr2)
+{
+  if (tAddr1 > tAddr2)
+    return 1;
+  if (tAddr1 < tAddr2)
+    return -1;
+  return 0;
+}
+
+// -----[ _ip_address_mask ]------------------------------------------
+/**
+ * Create a network mask based on a mask length.
+ *
+ * Pre: mask length in range [0,32]
+ */
+static inline
+net_addr_t _ip_address_mask(net_mask_t tMaskLen)
+{
+  assert(tMaskLen <= 32);
+  // Warning, shift on 32-bit int is only defined if operand in [0-31]
+  // Thus, special case for mask-length value of 0
+  if (tMaskLen == 0)
+    return 0;
+  return (0xffffffff << (32-tMaskLen));
 }
 
 // ----- uint32_to_prefix -------------------------------------------
@@ -145,6 +181,8 @@ int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
     if (**ppcEndPtr != '.')
       return -1;
   }
+  if (**ppcEndPtr != '/')
+    return -1;
   while (uNumDigits-- > 0)
     pPrefix->tNetwork<<= 8;
   ulDigit= strtoul(pcString, ppcEndPtr, 10);
@@ -174,28 +212,20 @@ int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
   char * pcEndChar;
 
   if (!strcmp(pcPrefix, "*")) {
-
     psDest->tType= NET_DEST_ANY;
     psDest->uDest.sPrefix.uMaskLen= 0;
-
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &psDest->uDest.sPrefix) &&
+  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar,
+				  &psDest->uDest.sPrefix) &&
 	     (*pcEndChar == 0)) {
-
     psDest->tType= NET_DEST_PREFIX;
-
   } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
 				   &psDest->uDest.sPrefix.tNetwork) &&
 	     (*pcEndChar == 0)) {
-
     psDest->tType= NET_DEST_ADDRESS;
-
   } else {
-
     psDest->tType= NET_DEST_INVALID;
     return -1;
-
   }
-
   return 0;
 }
 
@@ -247,7 +277,8 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
 
 // -----[ ip_prefix_cmp ]--------------------------------------------
 /**
- * Compare two prefixes.
+ * Compare two prefixes. The function makes sure that the network
+ * part is masked before the comparison is done.
  *
  * Return value:
  *   -1  if P1 < P2
@@ -256,6 +287,8 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
  */
 int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2)
 {
+  net_addr_t tMask;
+
   // Pointers are equal ?
   if (pPrefix1 == pPrefix2)
     return 0;
@@ -266,27 +299,10 @@ int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2)
   else if (pPrefix1->uMaskLen > pPrefix2->uMaskLen)
     return  1;
 
-  // Prefixes are equal ?
-  if (pPrefix1->tNetwork < pPrefix2->tNetwork)
-    return -1;
-  else if (pPrefix1->tNetwork > pPrefix2->tNetwork)
-    return  1;
-
-  return 0;
-}
-
-// ----- ip_prefix_equals -------------------------------------------
-/**
- * Test if two prefixes are equal.
- *
- * Return value:
- *   != 0  if prefixes are equal
- *   0     otherwise
- */
-int ip_prefix_equals(SPrefix sPrefix1, SPrefix sPrefix2)
-{
-  return ((sPrefix1.tNetwork == sPrefix2.tNetwork) &&
-	  (sPrefix1.uMaskLen == sPrefix2.uMaskLen));
+  // Compare masked network part
+  tMask= _ip_address_mask(pPrefix1->uMaskLen);
+  return _ip_address_cmp(pPrefix1->tNetwork & tMask,
+			 pPrefix2->tNetwork & tMask);
 }
 
 // ----- ip_address_in_prefix ---------------------------------------
@@ -388,39 +404,12 @@ void ip_prefix_destroy(SPrefix ** ppPrefix)
   }
 }
 
-// ----- ip_build_mask ----------------------------------------------
-/**
- * This function returns a mask of the given prefix length.
- *
- * Precondition:
- * - the given prefix length must be in the range [0-32].
- */
-inline net_addr_t ip_build_mask(uint8_t tMaskLen)
-{
-  assert(tMaskLen <= 32);
-
-  // Warning, shift on 32-bit int is only defined if operand in [0-31]
-  // Thus, special case for 0 mask-length
-  if (tMaskLen == 0)
-    return 0;
-
-  return (0xffffffff << (32-tMaskLen));
-}
-
 // ----- ip_prefix_mask ---------------------------------------------
 /**
  * This function masks the remaining bits of the prefix's address.
  */
 void ip_prefix_mask(SPrefix * pPrefix)
 {
-  pPrefix->tNetwork&= ip_build_mask(pPrefix->uMaskLen);
-}
-
-// ----- ip_prefix_masked -------------------------------------------
-SPrefix ip_prefix_masked(const SPrefix * pPrefix)
-{
-  SPrefix sPrefix= *pPrefix;
-  ip_prefix_mask(&sPrefix);
-  return sPrefix;
+  pPrefix->tNetwork&= _ip_address_mask(pPrefix->uMaskLen);
 }
 
