@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 03/01/2008
+// @lastdate 27/02/2008
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__
@@ -90,7 +90,7 @@ extern "C" {
   // ----- bgp_msg_destroy ------------------------------------------
   void bgp_msg_destroy(SBGPMsg ** ppMsg);
   // ----- bgp_msg_send ---------------------------------------------
-  int bgp_msg_send(SNetNode * pNode,
+  int bgp_msg_send(SNetNode * pNode, net_addr_t tSrcAddr,
 		   net_addr_t tAddr, SBGPMsg * pMsg);
   // ----- bgp_msg_dump ---------------------------------------------
   void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg);
