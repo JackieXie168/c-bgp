@@ -1,33 +1,28 @@
-// ==================================================================
-// @(#)CBGP.java
-//
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @date 27/10/2004
-// @lastdate 16/10/2007
-// ==================================================================
-
 package be.ac.ucl.ingi.cbgp; 
 
-import java.util.ArrayList;
 import java.util.Vector;
 
+import be.ac.ucl.ingi.cbgp.bgp.Domain;
 import be.ac.ucl.ingi.cbgp.bgp.Router;
+import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPScriptException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Link;
 import be.ac.ucl.ingi.cbgp.net.Message;
 import be.ac.ucl.ingi.cbgp.net.Node;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
-import be.ac.ucl.ingi.cbgp.exceptions.*;
 
 // -----[ CBGP ]-----------------------------------------------------
 /**
  * This is C-BGP's Java Native Interface (JNI). This class is only a
  * wrapper to C functions contained in the csim library (libcsim).
+ * 
+ * @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+ * @author Sebastien Tandel (standel@info.ucl.ac.be)
+ * @date 27/10/2004
+ * @lastdate 16/10/2007
  */
-public class CBGP
-{
+public class CBGP {
 
     // -----[ Console log levels ]-----------------------------------
     public static final int LOG_LEVEL_EVERYTHING= 0;
@@ -106,13 +101,24 @@ public class CBGP
     public native synchronized IGPDomain netAddDomain(int iDomain)
 		throws CBGPException;
 
+    // -----[ netGetDomain ]-----------------------------------------
+    /**
+     * Get one IGP domain
+     * 
+     * @param iDomain is the domain identifier
+     * @return the requested IGP domain if it exists, null if it does
+     *         not exist.
+     */
+    public native synchronized IGPDomain netGetDomain(int iDomain)
+    	throws CBGPException;
+    
     // -----[ netGetDomains ]----------------------------------------
     /**
      * Get the list of all IGP domains.
      *
      * @return a Vector of IGPDomain's
      */
-    public native synchronized Vector netGetDomains()
+    public native synchronized Vector<IGPDomain> netGetDomains()
 		throws CBGPException;
 
 
@@ -167,7 +173,7 @@ public class CBGP
      *
      * @return a Vector of Domains
      */
-    public native synchronized Vector bgpGetDomains()
+    public native synchronized Vector<Domain> bgpGetDomains()
 		throws CBGPException;
 
 
@@ -250,7 +256,7 @@ public class CBGP
      * @param line a C-BGP command
      */
     public native synchronized void runCmd(String line)
-    	throws CBGPException;
+    	throws CBGPScriptException;
 
     // -----[ runScript ]--------------------------------------------
     /**
@@ -303,20 +309,31 @@ public class CBGP
     /////////////////////////////////////////////////////////////////
 
     // -----[ loadMRT ]----------------------------------------------
+    /**
+     * This is an experimental method. Use at your own risk.
+     */
     public native Vector<be.ac.ucl.ingi.cbgp.bgp.Route> loadMRT(String sFileName);
 
     // -----[ setBGPMsgListener ]------------------------------------
+    /**
+     * This is an experimental method. Use at your own risk.
+     */
     public native void setBGPMsgListener(BGPMsgListener listener);
     
     // -----[ netExport ]--------------------------------------------
     /**
      * Export the current topology and routing setup to a file in CLI
      * format.
+     * 
+     * This is an experimental method. Use at your own risk.
      */
     public native void netExport(String sFileName)
     	throws CBGPException;
     
     // -----[ netGetLinks ]------------------------------------------
+    /**
+     * This is an experimental method. Use at your own risk.
+     */
     public native Vector<Link> netGetLinks()
     	throws CBGPException;
 
