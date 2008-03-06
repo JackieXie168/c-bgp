@@ -18,8 +18,7 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 /**
  * This class represents an AS (BGP domain).
  */
-public class Domain extends ProxyObject
-{
+public class Domain extends ProxyObject {
 
     // -----[ protected attributes ]---------------------------------
     protected int id;
@@ -28,8 +27,7 @@ public class Domain extends ProxyObject
     /**
      * BGPDomain's constructor.
      */
-    protected Domain(CBGP cbgp, int id)
-    {
+    protected Domain(CBGP cbgp, int id) {
     	super(cbgp);
     	this.id= id;
     }
@@ -38,9 +36,8 @@ public class Domain extends ProxyObject
     /**
      * Returns the domain's ID.
      */
-    public int getID()
-    {
-	return id;
+    public int getID() {
+    	return id;
     }
     
     // -----[ getRouters ]------------------------------------------
@@ -55,13 +52,8 @@ public class Domain extends ProxyObject
     /**
      * Converts this BGPDomain to a String.
      */
-    public String toString()
-    {
-	String s= "";
-
-	s+= "AS "+id;
-
-	return s;
+    public String toString() {
+    	return "AS "+id;
     }
 
 }
