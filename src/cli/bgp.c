@@ -4,12 +4,14 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 10/01/2008
+// @lastdate 27/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include <assert.h>
 
 #include <bgp/as.h>
 #include <bgp/bgp_assert.h>
@@ -28,6 +30,8 @@
 #include <bgp/tie_breaks.h>
 
 #include <cli/bgp.h>
+#include <cli/bgp_filter.h>
+#include <cli/bgp_router_peer.h>
 #include <cli/bgp_topology.h>
 #include <cli/common.h>
 #include <cli/enum.h>
@@ -43,6 +47,20 @@
 #include <net/record-route.h>
 #include <net/util.h>
 #include <string.h>
+
+static inline SBGPDomain * _domain_from_context(SCliContext * pContext) {
+  SBGPDomain * pDomain=
+    (SBGPDomain *) cli_context_get_item_at_top(pContext);
+  assert(pDomain != NULL);
+  return pDomain;
+}
+
+static inline SBGPRouter * _router_from_context(SCliContext * pContext) {
+  SBGPRouter * pRouter=
+    (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  assert(pRouter != NULL);
+  return pRouter;
+}
 
 // ----- cli_bgp_add_router -----------------------------------------
 /**
@@ -172,10 +190,7 @@ void cli_ctx_destroy_bgp_domain(void ** ppItem)
  */
 int cli_bgp_domain_full_mesh(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain;
-
-  /* Get the domain from the context. */
-  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
+  SBGPDomain * pDomain= _domain_from_context(pContext);
 
   /* Generate the full-mesh of iBGP sessions */
   bgp_domain_full_mesh(pDomain);
@@ -192,10 +207,7 @@ int cli_bgp_domain_full_mesh(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_domain_rescan(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain;
-
-  /* Get the domain from the context. */
-  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
+  SBGPDomain * pDomain= _domain_from_context(pContext);
 
   /* Rescan all the routers in the domain. */
   bgp_domain_rescan(pDomain);
@@ -211,15 +223,10 @@ int cli_bgp_domain_rescan(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_domain_recordroute(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain;
+  SBGPDomain * pDomain= _domain_from_context(pContext);
   char * pcDest;
   SNetDest sDest;
   uint8_t uOptions= 0;
-
- // Get node from the CLI'scontext
-  pDomain= (SBGPDomain *) cli_context_get_item_at_top(pContext);
-  if (pDomain == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
 
   // Optional deflection ?
   if (cli_options_has_value(pCmd->pOptions, "deflection"))
@@ -586,12 +593,9 @@ int cli_bgp_router_set_clusterid(SCliContext * pContext,
  */
 int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
-
-  // Get the BGP router from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -617,14 +621,11 @@ int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_router_load_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcFileName;
   char * pcValue;
-  SBGPRouter * pRouter;
   uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
   uint8_t tOptions= 0;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the MRTD file name
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -704,11 +705,8 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
 int cli_bgp_router_save_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcFileName;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the file name
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -746,10 +744,7 @@ int cli_bgp_router_save_ribin(SCliContext * pContext,
 int cli_bgp_router_show_info(SCliContext * pContext,
 			     SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   // Show information
   bgp_router_info(pLogOut, pRouter);
@@ -768,10 +763,7 @@ int cli_bgp_router_show_info(SCliContext * pContext,
 int cli_bgp_router_show_networks(SCliContext * pContext,
 				 SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   bgp_router_dump_networks(pLogOut, pRouter);
 
@@ -786,10 +778,7 @@ int cli_bgp_router_show_networks(SCliContext * pContext,
 int cli_bgp_router_show_peers(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   // Dump peers
   bgp_router_dump_peers(pLogOut, pRouter);
@@ -813,13 +802,10 @@ int cli_bgp_router_show_peers(SCliContext * pContext,
 int cli_bgp_router_show_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the prefix/address/*
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -862,16 +848,13 @@ int cli_bgp_router_show_rib(SCliContext * pContext,
 int cli_bgp_router_show_ribin(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
   SBGPPeer * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the peer/*
   pcPeerAddr= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -918,16 +901,13 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 int cli_bgp_router_show_ribout(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
   SBGPPeer * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the peer/*
   pcPeerAddr= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -978,14 +958,11 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
 int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcDest;
   SNetDest sDest;
   char * pcOutput;
   SLogStream * pStream= pLogOut;
-
-  // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the destination
   pcDest= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1025,8 +1002,7 @@ int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 int cli_bgp_router_show_stats(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter=
-    (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   bgp_router_show_stats(pLogOut, pRouter);
 
@@ -1041,14 +1017,11 @@ int cli_bgp_router_show_stats(SCliContext * pContext,
 int cli_bgp_router_recordroute(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
   int iResult;
   SBGPPath * pPath= NULL;
-
-  // Get BGP instance
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get prefix
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1075,10 +1048,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
  */
 int cli_bgp_router_rescan(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   if (bgp_router_scan_rib(pRouter)) {
     cli_set_user_error(cli_get(), "RIB scan failed");
@@ -1095,13 +1065,10 @@ int cli_bgp_router_rescan(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_rerun(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   /* Get prefix */
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1133,10 +1100,7 @@ int cli_bgp_router_rerun(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_reset(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   // Reset the router
   if (bgp_router_reset(pRouter)) {
@@ -1156,10 +1120,7 @@ int cli_bgp_router_reset(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_start(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   // Start the router
   if (bgp_router_start(pRouter)) {
@@ -1179,10 +1140,7 @@ int cli_bgp_router_start(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_stop(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  SBGPRouter * pRouter= _router_from_context(pContext);
 
   // Stop the router
   if (bgp_router_stop(pRouter)) {
@@ -1200,13 +1158,10 @@ int cli_bgp_router_stop(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_add_peer(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   unsigned int uASNum;
   char * pcAddr;
   net_addr_t tAddr;
-
-  // Get BGP router from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the new peer's AS number
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uASNum)
@@ -1240,12 +1195,9 @@ int cli_bgp_router_add_peer(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_add_network(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
-
-  // Get the BGP instance
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1271,12 +1223,9 @@ int cli_bgp_router_add_network(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_router_del_network(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1300,14 +1249,9 @@ int cli_bgp_router_del_network(SCliContext * pContext,
 #ifdef BGP_QOS
 int cli_bgp_router_add_qosnetwork(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   SPrefix sPrefix;
   unsigned int uDelay;
-
-  /*LOG_DEBUG("bgp router %s add network %s\n",
-	    tokens_get_string_at(pTokens, 0),
-	    tokens_get_string_at(pTokens, 1));*/
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   if (str2prefix(tokens_get_string_at(pTokens, 0), &sPrefix) < 0)
     return CLI_ERROR_COMMAND_FAILED;
@@ -1392,14 +1336,11 @@ int cli_bgp_router_assert_routes_show(SCliContext * pContext,
 int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
 					    void ** ppItem)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcType;
   SPrefix sPrefix;
   SRoutes * pRoutes;
-
-  // Get BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
@@ -1444,275 +1385,6 @@ void cli_ctx_destroy_bgp_router_assert_routes(void ** ppItem)
   routes_list_destroy((SRoutes **) ppItem);
 }
 
-// ----- cli_ctx_create_bgp_router_peer -----------------------------
-/**
- * context: {router} -> {router, peer}
- * tokens: {addr}
- */
-int cli_ctx_create_bgp_router_peer(SCliContext * pContext,
-				   void ** ppItem)
-{
-  SBGPRouter * pRouter;
-  SBGPPeer * pPeer;
-  char * pcPeerAddr;
-  net_addr_t tAddr;
-
-  // Get the BGP instance from context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
-
-  // Get the peer address
-  pcPeerAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (str2address(pcPeerAddr, &tAddr) < 0) {
-    cli_set_user_error(cli_get(), "invalid peer address \"%s\"",
-		       pcPeerAddr);
-    return CLI_ERROR_CTX_CREATE;
-  }
-
-  // Get the peer
-  pPeer= bgp_router_find_peer(pRouter, tAddr);
-  if (pPeer == NULL) {
-    cli_set_user_error(cli_get(), "unknown peer");
-    return CLI_ERROR_CTX_CREATE;
-  }
-
-  *ppItem= pPeer;
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_destroy_bgp_router_peer ----------------------------
-void cli_ctx_destroy_bgp_router_peer(void ** ppItem)
-{
-} 
-
-// ----- cli_ctx_create_bgp_router_peer_filter ----------------------
-/**
- * context: {router, peer}
- * tokens: {in|out}
- */
-int cli_ctx_create_bgp_router_peer_filter(SCliContext * pContext,
-					  void ** ppItem)
-{
-  SBGPPeer * pPeer;
-  char * pcFilter;
-
-  // Get Peer instance
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Create filter context
-  pcFilter= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (!strcmp("in", pcFilter))
-    *ppItem= &(pPeer->pInFilter);
-  else if (!strcmp("out", pcFilter))
-    *ppItem= &(pPeer->pOutFilter);
-  else {
-    cli_set_user_error(cli_get(), "invalid filter type \"%s\"", pcFilter);
-    return CLI_ERROR_CTX_CREATE;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_destroy_bgp_router_peer_filter ---------------------
-void cli_ctx_destroy_bgp_router_peer_filter(void ** ppItem)
-{
-}
-
-// ----- cli_bgp_filter_rule_match ----------------------------------
-/**
- * context: {?, rule}
- * tokens: {?, predicate}
- */
-int cli_bgp_filter_rule_match(SCliContext * pContext,
-			      SCliCmd * pCmd)
-{
-  SFilterRule * pRule;
-  char * pcPredicate;
-  SFilterMatcher * pMatcher;
-  int iResult;
-
-  // Get rule from context
-  pRule= (SFilterRule *) cli_context_get_item_at_top(pContext);
-
-  // Parse predicate
-  pcPredicate= tokens_get_string_at(pCmd->pParamValues,
-				    tokens_get_num(pCmd->pParamValues)-1);
-  iResult= predicate_parser(pcPredicate, &pMatcher);
-  if (iResult != PREDICATE_PARSER_SUCCESS) {
-    cli_set_user_error(cli_get(), "invalid predicate \"%s\" (%s)",
-		       pcPredicate, predicate_parser_strerror(iResult));
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  if (pRule->pMatcher != NULL)
-    filter_matcher_destroy(&pRule->pMatcher);
-  pRule->pMatcher= pMatcher;
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_filter_rule_action ----------------------------------
-/**
- * context: {?, rule}
- * tokens: {?, action}
- */
-int cli_bgp_filter_rule_action(SCliContext * pContext,
-			       SCliCmd * pCmd)
-{
-  SFilterRule * pRule;
-  char * pcAction;
-  SFilterAction * pAction;
-
-  // Get rule from context
-  pRule= (SFilterRule *) cli_context_get_item_at_top(pContext);
-
-  // Parse predicate
-  pcAction= tokens_get_string_at(pCmd->pParamValues,
-				 tokens_get_num(pCmd->pParamValues)-1);
-  if (filter_parser_action(pcAction, &pAction)) {
-    cli_set_user_error(cli_get(), "invalid action \"%s\"", pcAction);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  if (pRule->pAction != NULL)
-    filter_action_destroy(&pRule->pAction);
-  pRule->pAction= pAction;
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_create_bgp_filter_add_rule -------------------------
-/**
- * context: {?, &filter}
- * tokens: {?}
- */
-int cli_ctx_create_bgp_filter_add_rule(SCliContext * pContext,
-				       void ** ppItem)
-{
-  SFilter ** ppFilter;
-  SFilterRule * pRule;
-
-  // Get current filter from context
-  ppFilter= (SFilter **) cli_context_get_item_at_top(pContext);
-
-  // If the filter is empty, create it
-  if (*ppFilter == NULL)
-    *ppFilter= filter_create();
-
-  // Create rule and put it on the context
-  pRule= filter_rule_create(NULL, NULL);
-  filter_add_rule2(*ppFilter, pRule);
-
-  *ppItem= pRule;
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_create_bgp_filter_insert_rule ----------------------
-/**
- * context: {?, &filter}
- * tokens: {?, pos}
- */
-int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
-					  void ** ppItem)
-{
-  SFilter ** ppFilter;
-  SFilterRule * pRule;
-  unsigned int uIndex;
-
-  // Get current filter from context
-  ppFilter= (SFilter **) cli_context_get_item_at_top(pContext);
-
-  // Get insertion position
-  if (tokens_get_uint_at(pContext->pCmd->pParamValues,
-			 tokens_get_num(pContext->pCmd->pParamValues)-1,
-			 &uIndex)) {
-    cli_set_user_error(cli_get(), "invalid index");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  // If the filter is empty, create it
-  if (*ppFilter == NULL)
-    *ppFilter= filter_create();
-
-  // Create rule and put it on the context
-  pRule= filter_rule_create(NULL, NULL);
-  filter_insert_rule(*ppFilter, uIndex, pRule);
-
-  *ppItem= pRule;
-
-  return CLI_SUCCESS;
-  return CLI_ERROR_CTX_CREATE;
-}
-
-// ----- cli_bgp_filter_remove_rule ---------------------------------
-/**
- * context: {?, &filter}
- * tokens: {?, pos}
- */
-int cli_bgp_filter_remove_rule(SCliContext * pContext,
-			       SCliCmd * pCmd)
-{
-  SFilter ** ppFilter=
-    (SFilter **) cli_context_get_item_at_top(pContext);
-  unsigned int uIndex;
-
-  if (*ppFilter == NULL) {
-    cli_set_user_error(cli_get(), "filter contains no rule");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-  
-  // Get index of rule to be removed
-  if (tokens_get_uint_at(pCmd->pParamValues,
-			 tokens_get_num(pCmd->pParamValues)-1,
-			 &uIndex)) {
-    cli_set_user_error(cli_get(), "invalid index");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  // Remove rule
-  if (filter_remove_rule(*ppFilter, uIndex)) {
-    cli_set_user_error(cli_get(), "could not remove rule %u", uIndex);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_create_bgp_filter_rule -----------------------------
-/**
- * context: {?, &filter}
- * tokens: {?}
- */
-int cli_ctx_create_bgp_filter_rule(SCliContext * pContext,
-				   void ** ppItem)
-{
-  cli_set_user_error(cli_get(), "not yet implemented, sorry.");
-  return CLI_ERROR_CTX_CREATE;
-}
-
-// ----- cli_ctx_destroy_bgp_filter_rule ----------------------------
-/**
- *
- */
-void cli_ctx_destroy_bgp_filter_rule(void ** ppItem)
-{
-}
-
-// ----- cli_bgp_filter_show-----------------------------------------
-/**
- * context: {?, &filter}
- * tokens: {?}
- */
-int cli_bgp_filter_show(SCliContext * pContext,
-			SCliCmd * pCmd)
-{
-  SFilter ** ppFilter= (SFilter **) cli_context_get_item_at_top(pContext);
-
-  filter_dump(pLogOut, *ppFilter);
-
-  return CLI_SUCCESS;
-}
-
 // ----- cli_bgp_route_map_filter_add --------------------------------
 /**
  * context: {route-map name}
@@ -1741,280 +1413,6 @@ int cli_bgp_route_map_filter_add(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
-// ----- cli_bgp_router_peer_infilter_set ---------------------------
-/**
- * context: {router, peer}
- * tokens: {addr, addr, filter}
- */
-int cli_bgp_router_peer_infilter_set(SCliContext * pContext,
-				     SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  SFilter * pFilter= NULL;
-
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-  /*
-  if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
-      FILTER_PARSER_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid filter\n");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-  */
-
-  bgp_peer_set_in_filter(pPeer, pFilter);
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_infilter_add ---------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
-int cli_bgp_router_peer_infilter_add(SCliContext * pContext,
-				     SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  SFilterRule * pRule;
-  SFilter * pFilter;
-
-  /*LOG_DEBUG("bgp router %s peer %s in-filter \"%s\"\n",
-	    tokens_get_string_at(pTokens, 0),
-	    tokens_get_string_at(pTokens, 1),
-	    tokens_get_string_at(pTokens, 2));*/
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  if (filter_parser_rule(tokens_get_string_at(pCmd->pParamValues, 0), &pRule) !=
-      FILTER_PARSER_SUCCESS)
-    return CLI_ERROR_COMMAND_FAILED;
-  pFilter= bgp_peer_in_filter_get(pPeer);
-  if (pFilter == NULL) {
-    pFilter= filter_create();
-    bgp_peer_set_in_filter(pPeer, pFilter);
-  }
-  filter_add_rule2(pFilter, pRule);
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_outfilter_set --------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
-int cli_bgp_router_peer_outfilter_set(SCliContext * pContext,
-				      SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  SFilter * pFilter= NULL;
-
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-  /*
-  if (filter_parser_run(tokens_get_string_at(pTokens, 2), &pFilter) !=
-      FILTER_PARSER_SUCCESS)
-    return CLI_ERROR_COMMAND_FAILED;
-  */
-  bgp_peer_set_out_filter(pPeer, pFilter);
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_outfilter_add --------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
-int cli_bgp_router_peer_outfilter_add(SCliContext * pContext,
-				      SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  SFilterRule * pRule;
-  SFilter * pFilter;
-
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  if (filter_parser_rule(tokens_get_string_at(pCmd->pParamValues, 0), &pRule) !=
-      FILTER_PARSER_SUCCESS)
-    return CLI_ERROR_COMMAND_FAILED;
-  pFilter= bgp_peer_out_filter_get(pPeer);
-  if (pFilter == NULL) {
-    pFilter= filter_create();
-    bgp_peer_set_out_filter(pPeer, pFilter);
-  }
-  filter_add_rule2(pFilter, pRule);
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_show_filter ----------------------------
-/**
- * context: {router, peer}
- * tokens: {in|out}
- */
-int cli_bgp_router_peer_show_filter(SCliContext * pContext,
-				    SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  char * pcFilter;
-
-  // Get BGP peer
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Create filter context
-  pcFilter= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (!strcmp(pcFilter, "in"))
-    bgp_peer_dump_in_filters(pLogOut, pPeer);
-  else if (!strcmp(pcFilter, "out"))
-    bgp_peer_dump_out_filters(pLogOut, pPeer);
-  else {
-    cli_set_user_error(cli_get(), "invalid filter type \"%s\"", pcFilter);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_rrclient -------------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_rrclient(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPRouter * pRouter;
-  SBGPPeer * pPeer;
-
-  pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
-  pRouter->iRouteReflector= 1;
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-  bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_nexthop --------------------------------
-/**
- * context: {router, peer}
- * tokens: {addr}
- */
-int cli_bgp_router_peer_nexthop(SCliContext * pContext,
-				SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  char * pcNextHop;
-  net_addr_t tNextHop;
-  char * pcEndChar;
-
-  // Get peer from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Get next-hop address
-  pcNextHop= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
-      (*pcEndChar != 0)) {
-    cli_set_user_error(cli_get(), "invalid next-hop \"%s\".", pcNextHop);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  // Set the next-hop to be used for routes advertised to this peer
-  if (bgp_peer_set_nexthop(pPeer, tNextHop)) {
-    cli_set_user_error(cli_get(), "could not change next-hop");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_nexthopself ----------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_nexthopself(SCliContext * pContext,
-				    SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
-  return CLI_SUCCESS;
-}
-
-// -----[ cli_bgp_router_peer_record ]-------------------------------
-/**
- * context: {router, peer}
- * tokens: {file|-}
- */
-int cli_bgp_router_peer_record(SCliContext * pContext,
-			       SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  char * pcFileName;
-  SLogStream * pStream;
-  
-  /* Get the peer instance from context */
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  /* Get filename */
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp(pcFileName, "-") == 0) {
-    bgp_peer_set_record_stream(pPeer, NULL);
-  } else {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "could not open \"%s\" for writing",
-			 pcFileName);
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-    if (bgp_peer_set_record_stream(pPeer, pStream) < 0) {
-      log_destroy(&pStream);
-      cli_set_user_error(cli_get(), "could not set the peer record stream");
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_recv -----------------------------------
-/**
- * context: {router, peer}
- * tokens: {mrt-record}
- */
-int cli_bgp_router_peer_recv(SCliContext * pContext,
-			     SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  SBGPRouter * pRouter;
-  char * pcRecord;
-  SBGPMsg * pMsg;
-
-  /* Get the peer instance from context */
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  /* Check that the peer is virtual */
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    cli_set_user_error(cli_get(), "only virtual peers can do that");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  /* Get the router instance from context */
-  pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
-
-  /* Get the MRT-record */
-  pcRecord= tokens_get_string_at(pCmd->pParamValues, 0);
-
-  /* Build a message from the MRT-record */
-  pMsg= mrtd_msg_from_line(pRouter, pPeer, pcRecord);
-
-  if (pMsg == NULL) {
-    cli_set_user_error(cli_get(), "could not build message from input");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  bgp_peer_handle_message(pPeer, pMsg);
-
-  return CLI_SUCCESS;
-}
-
 #ifdef __EXPERIMENTAL__
 // ----- cli_bgp_router_load_ribs_in --------------------------------
 /**
@@ -2026,11 +1424,8 @@ int cli_bgp_router_peer_recv(SCliContext * pContext,
 int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  SBGPRouter * pRouter= _router_from_context(pContext);
   char * pcFileName;
-
-
-  pRouter = (SBGPRouter *) cli_context_get_item_at(pContext, 0);
 
   pcFileName = tokens_get_string_at(pCmd->pParamValues, 0);
   
@@ -2040,178 +1435,6 @@ int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 }
 #endif /* COMMENT_BQU */
 #endif /* __EXPERIMENTAL__ */
-
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-// ----- cli_bgp_router_peer_walton_limit ----------------------------
-/**
- * context: {router, peer}
- * tokens: {announce-limit}
- */
-int cli_bgp_router_peer_walton_limit(SCliContext * pContext, 
-						  SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-  unsigned int uWaltonLimit;
-
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uWaltonLimit)) {
-    cli_set_user_error(cli_get(), "invalid walton limitation");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-  peer_set_walton_limit(pPeer, uWaltonLimit);
-
-  return CLI_SUCCESS;
-
-  
-}
-#endif
-
-// ----- cli_bgp_router_peer_up -------------------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_up(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer instance from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Try to open session
-  if (bgp_peer_open_session(pPeer)) {
-    cli_set_user_error(cli_get(), "could not open session");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-    
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_softrestart ----------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_softrestart(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer instance from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Set the virtual flag of this peer
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    cli_set_user_error(cli_get(), "soft-restart option only available to virtual peers");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-  bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
-    
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_virtual --------------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_virtual(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer instance from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Set the virtual flag of this peer
-  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
-    
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_down -----------------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_down(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Try to close session
-  if (bgp_peer_close_session(pPeer)) {
-    cli_set_user_error(cli_get(), "could not close session");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// -----[ cli_bgp_router_peer_readv ]--------------------------------
-/**
- * context: {router, peer}
- * tokens: {prefix|*}
- */
-int cli_bgp_router_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPRouter * pRouter;
-  SBGPPeer * pPeer;
-  char * pcPrefix;
-  char * pcEndChar;
-  SPrefix sPrefix;
-
-  /* Get router and peer from context */
-  pRouter= (SBGPRouter *) cli_context_get_item_at(pContext, 0);
-  pPeer= (SBGPPeer *) cli_context_get_item_at(pContext, 1);
-
-  /* Get prefix */
-  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (!strcmp(pcPrefix, "*")) {
-    sPrefix.uMaskLen= 0;
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
-	     (*pcEndChar == 0)) {
-  } else {
-    cli_set_user_error(cli_get(), "invalid prefix|* \"%s\"", pcPrefix);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  /* Re-advertise */
-  if (bgp_router_peer_readv_prefix(pRouter, pPeer, sPrefix)) {
-    cli_set_user_error(cli_get(), "could not re-advertise");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_peer_reset ----------------------------------
-/**
- * context: {router, peer}
- * tokens: {}
- */
-int cli_bgp_router_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SBGPPeer * pPeer;
-
-  // Get peer from context
-  pPeer= (SBGPPeer *) cli_context_get_item_at_top(pContext);
-
-  // Try to close session
-  if (bgp_peer_close_session(pPeer)) {
-    cli_set_user_error(cli_get(), "could not close session");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  // Try to open session
-  if (bgp_peer_open_session(pPeer)) {
-    cli_set_user_error(cli_get(), "could not close session");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
 
 // ----- cli_bgp_show_routers ---------------------------------------
 /**
@@ -2432,79 +1655,6 @@ int cli_register_bgp_router_del(SCliCmds * pCmds)
   return cli_cmds_add(pCmds, cli_cmd_create("del", NULL, pSubCmds, NULL));
 }
 
-// ----- cli_register_bgp_filter_rule -------------------------------
-SCliCmds * cli_register_bgp_filter_rule()
-{
-  SCliCmds * pCmds= cli_cmds_create();
-  SCliParams * pParams;
-
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<predicate>", NULL);
-  cli_cmds_add(pCmds, cli_cmd_create("match",
-				     cli_bgp_filter_rule_match,
-				     NULL,
-				     pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<actions>", NULL);
-  cli_cmds_add(pCmds, cli_cmd_create("action",
-				     cli_bgp_filter_rule_action,
-				     NULL,
-				     pParams));
-  return pCmds;
-}
-
-// ----- cli_register_bgp_router_peer_filter ------------------------
-/**
- * filter add
- * filter insert <pos>
- * filter remove <pos>
- *
- * filter X
- *   match ""
- *   action ""
- *   (...)
- */
-int cli_register_bgp_router_peer_filter(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("add-rule",
-					    cli_ctx_create_bgp_filter_add_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(), NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("insert-rule",
-					    cli_ctx_create_bgp_filter_insert_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(),
-					    pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("remove-rule",
-					cli_bgp_filter_remove_rule,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("rule",
-					    cli_ctx_create_bgp_filter_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(),
-					    pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show",
-					cli_bgp_filter_show,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<in|out>", NULL);
-  return cli_cmds_add(pCmds,
-		      cli_cmd_create_ctx("filter",
-					 cli_ctx_create_bgp_router_peer_filter,
-					 cli_ctx_destroy_bgp_router_peer_filter,
-					 pSubCmds, pParams));
-}
-
 // ----- cli_register_route_map_filters ------------------------------
 /**
  *
@@ -2516,56 +1666,6 @@ int cli_register_bgp_route_map_filters(SCliCmds * pCmds)
 					    cli_ctx_create_bgp_filter_add_rule,
 					    cli_ctx_destroy_bgp_filter_rule,
 					    cli_register_bgp_filter_rule(), NULL));
-}
-
-// ----- cli_register_bgp_router_peer_filters -----------------------
-int cli_register_bgp_router_peer_filters(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("set",
-					cli_bgp_router_peer_infilter_set,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add",
-					cli_bgp_router_peer_infilter_add,
-					NULL, pParams));
-  cli_cmds_add(pCmds, cli_cmd_create("in-filter", NULL,
-				     pSubCmds, NULL));
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("set",
-					cli_bgp_router_peer_outfilter_set,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add",
-					cli_bgp_router_peer_outfilter_add,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("out-filter", NULL,
-					    pSubCmds, NULL));
-}
-
-// ----- cli_register_bgp_router_peer_show --------------------------
-int cli_register_bgp_router_peer_show(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-  
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<in|out>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("filter",
-					cli_bgp_router_peer_show_filter,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
-					    pSubCmds, NULL));
 }
 
 // ----- bgp_route_map -----------------------------------------------
@@ -2589,71 +1689,6 @@ int cli_register_bgp_route_map(SCliCmds * pCmds)
 					  cli_ctx_create_bgp_route_map, 
 					  cli_ctx_destroy_bgp_route_map,
 					  pSubCmds, pParams));
-}
-
-// ----- cli_register_bgp_router_peer -------------------------------
-int cli_register_bgp_router_peer(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  cli_register_bgp_router_peer_filter(pSubCmds);
-  cli_register_bgp_router_peer_filters(pSubCmds);
-  cli_register_bgp_router_peer_show(pSubCmds);
-  cli_cmds_add(pSubCmds, cli_cmd_create("down", cli_bgp_router_peer_down,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<next-hop>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("next-hop",
-					cli_bgp_router_peer_nexthop,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
-					cli_bgp_router_peer_nexthopself,
-					NULL, NULL));
-#ifdef __EXPERIMENTAL__
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix|*>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("re-adv",
-					cli_bgp_router_peer_readv,
-					NULL, pParams));
-#endif
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<file>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("record",
-					cli_bgp_router_peer_record,
-					NULL, pParams));
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pParams = cli_params_create();
-  cli_params_add(pParams, "<announce-limit>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("walton-limit", 
-					cli_bgp_router_peer_walton_limit,
-					NULL, pParams));
-#endif
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<mrt-record>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("recv",
-					cli_bgp_router_peer_recv,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("reset", cli_bgp_router_peer_reset,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("rr-client",
-					cli_bgp_router_peer_rrclient,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("soft-restart",
-					cli_bgp_router_peer_softrestart,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("up", cli_bgp_router_peer_up,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("virtual",
-					cli_bgp_router_peer_virtual,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_routers_addr);
-  return cli_cmds_add(pCmds, cli_cmd_create_ctx("peer",
-						cli_ctx_create_bgp_router_peer,
-						cli_ctx_destroy_bgp_router_peer,
-						pSubCmds, pParams));
 }
 
 // ----- cli_register_bgp_options -----------------------------------
@@ -2724,6 +1759,7 @@ int cli_register_bgp_router_load(SCliCmds * pCmds)
   pParams= cli_params_create();
   cli_params_add_file(pParams, "<file>", NULL);
   pCmd= cli_cmd_create("rib", cli_bgp_router_load_rib, NULL, pParams);
+  cli_cmd_add_option(pCmd, "autoconf", NULL);
   cli_cmd_add_option(pCmd, "force", NULL);
   cli_cmd_add_option(pCmd, "format", NULL);
   cli_cmd_add_option(pCmd, "summary", NULL);

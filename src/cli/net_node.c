@@ -1,14 +1,16 @@
 // ==================================================================
 // @(#)net_node.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// @lastdate 21/11/2007
+// @lastdate 22/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <assert.h>
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
@@ -16,6 +18,7 @@
 
 #include <cli/common.h>
 #include <cli/enum.h>
+#include <cli/net_node_iface.h>
 #include <net/error.h>
 #include <net/icmp.h>
 #include <net/igp_domain.h>
@@ -26,6 +29,14 @@
 #include <net/util.h>
 
 
+// -----[ _node_from_context ]---------------------------------------
+static inline SNetNode * _node_from_context(SCliContext * pContext)
+{
+  SNetNode * pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  assert(pNode != NULL);
+  return pNode;
+}
+
 /////////////////////////////////////////////////////////////////////
 //
 // CONTEXT CREATION/DESTRUCTION
@@ -33,7 +44,7 @@
 /////////////////////////////////////////////////////////////////////
 
 // ----- cli_ctx_create_net_node ------------------------------------
-int cli_ctx_create_net_node(SCliContext * pContext, void ** ppItem)
+static int cli_ctx_create_net_node(SCliContext * pContext, void ** ppItem)
 {
   char * pcNodeAddr;
   SNetNode * pNode;
@@ -49,47 +60,7 @@ int cli_ctx_create_net_node(SCliContext * pContext, void ** ppItem)
 }
 
 // ----- cli_ctx_destroy_net_node -----------------------------------
-void cli_ctx_destroy_net_node(void ** ppItem)
-{
-  // Nothing to do (context is only a reference)
-}
-
-// ----- cli_ctx_create_net_node_link ------------------------------------
-/**
- * context: {node}
- * tokens: {prefix|address|*}
- */
-int cli_ctx_create_net_node_link(SCliContext * pContext, void ** ppItem)
-{
-   char * pcPrefix;
-  SNetLink * pLink = NULL;
-  SNetDest sDest;
-  
-  SNetNode * pNodeSource = (SNetNode *) cli_context_get_item_at_top(pContext);
-
-  pcPrefix = tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (ip_string_to_dest(pcPrefix, &sDest) ||
-      (sDest.tType == NET_DEST_ANY)) {
-    cli_set_user_error(cli_get(), "invalid destination prefix|address \"%s\"",
-		       pcPrefix);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  if (sDest.tType == NET_DEST_ADDRESS)
-    (sDest.uDest).sPrefix.uMaskLen= 32;
-  
-  pLink= node_find_link(pNodeSource, sDest);
-  if (pLink == NULL) {
-    cli_set_user_error(cli_get(), "unable to find link \"%s\"", pcPrefix);
-    return CLI_ERROR_CTX_CREATE;
-  }
-
-  *ppItem= pLink;
-  return CLI_SUCCESS;
-}
-
-// ----- cli_ctx_destroy_net_node_link -----------------------------------
-void cli_ctx_destroy_net_node_link(void ** ppItem)
+static void cli_ctx_destroy_net_node(void ** ppItem)
 {
   // Nothing to do (context is only a reference)
 }
@@ -106,14 +77,11 @@ void cli_ctx_destroy_net_node_link(void ** ppItem)
  * context: {node}
  * tokens: {latitude,longitude}
  */
-int cli_net_node_coord(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_coord(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   double dTmp;
 
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  
   // Get latitude
   if (tokens_get_double_at(pCmd->pParamValues, 0, &dTmp)) {
     cli_set_user_error(cli_get(), "invalid latitude \"%s\"",
@@ -138,15 +106,12 @@ int cli_net_node_coord(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {id}
  */
-int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   unsigned int uId;
   SIGPDomain * pDomain;
 
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  
   // Get domain ID
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||
       (uId > 65535)) {
@@ -177,13 +142,10 @@ int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {}
  */
-int cli_net_node_ipip_enable(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_ipip_enable(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   int iResult;
-
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
 
   // Enable IP-in-IP
   iResult= node_ipip_enable(pNode);
@@ -201,12 +163,9 @@ int cli_net_node_ipip_enable(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {string}
  */
-int cli_net_node_name(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_name(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
-
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  SNetNode * pNode= _node_from_context(pContext);
 
   node_set_name(pNode, tokens_get_string_at(pCmd->pParamValues, 0));
 
@@ -219,19 +178,14 @@ int cli_net_node_name(SCliContext * pContext, SCliCmd * pCmd)
  * tokens : {addr}
  * options: ttl=TTL
  */
-int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcValue;
   net_addr_t tDstAddr;
   int iErrorCode;
   unsigned int uValue;
   uint8_t uTTL= 0;
-
- // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
 
   // Get destination address
   pcValue= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
@@ -272,9 +226,9 @@ int cli_net_node_ping(SCliContext * pContext, SCliCmd * pCmd)
  *          [--weight]
  * tokens: {prefix|address|*}
  */
-int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcDest;
   SNetDest sDest;
   net_tos_t tTOS= 0;
@@ -282,11 +236,6 @@ int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
   char * pcValue;
   unsigned int uValue;
   net_link_load_t tLoad= 0;
-
- // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
 
   // Optional capacity ?
   if (cli_options_has_value(pCmd->pOptions, "capacity"))
@@ -351,17 +300,12 @@ int cli_net_node_recordroute(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens : {addr}
  */
-int cli_net_node_traceroute(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_traceroute(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcValue;
   net_addr_t tDstAddr;
   int iErrorCode;
-
- // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
 
   // Get destination address
   pcValue= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
@@ -383,21 +327,17 @@ int cli_net_node_traceroute(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {prefix, addr|*, addr|prefix, weight, iface, weight}
  */
-int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   SPrefix sPrefix;
   char * pcValue;
   net_addr_t tGateway;
-  SNetDest sDest, sIface;
+  SNetDest sDest;
   unsigned long ulWeight;
-  int iErrorCode;
+  net_iface_id_t tOutIfaceID;
+  int iResult;
 
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-  
   // Get the route's prefix
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2prefix(pcValue, &sPrefix) != 0) {
@@ -422,11 +362,12 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
     abort();
   }
   
-  // Get the outgoing link identifier (address/prefix)
+  // Get the outgoing interface identifier (address/prefix)
   pcValue= tokens_get_string_at(pCmd->pParamValues, 2);
-  if (ip_string_to_dest(pcValue, &sIface) ||
-      (sIface.tType == NET_DEST_ANY)) {
-    cli_set_user_error(cli_get(), "invalid interface \"%s\"", pcValue);
+  iResult= net_iface_str2id(pcValue, &tOutIfaceID);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "invalid interface \"%s\" (%s)", pcValue,
+		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -437,10 +378,11 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add the route
-  if ((iErrorCode= node_rt_add_route_dest(pNode, sPrefix, sIface, tGateway,
-					  ulWeight, NET_ROUTE_STATIC))) {
+  iResult= node_rt_add_route(pNode, sPrefix, tOutIfaceID, tGateway,
+			     ulWeight, NET_ROUTE_STATIC);
+  if (iResult != NET_SUCCESS) {
     cli_set_user_error(cli_get(), "could not add static route (%s)",
-		       rt_strerror(iErrorCode));
+		       rt_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -454,20 +396,17 @@ int cli_net_node_route_add(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {prefix, addr|*, addr|prefix|*, iface}
  */
-int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcValue;
   SPrefix sPrefix;
   SNetDest sDest;
   net_addr_t tGateway;
-  SNetDest sIface;
+  net_iface_id_t tOutIfaceID;
+  net_iface_id_t * ptOutIfaceID= &tOutIfaceID;
+  int iResult;
 
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-  
   // Get the route's prefix
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
   if (str2prefix(pcValue, &sPrefix) != 0) {
@@ -493,13 +432,19 @@ int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
 
   // Get the outgoing link identifier (address/prefix)
   pcValue= tokens_get_string_at(pCmd->pParamValues, 2);
-  if (ip_string_to_dest(pcValue, &sIface)) {
-    cli_set_user_error(cli_get(), "invalid gateway address \"%s\"", pcValue);
-    return CLI_ERROR_COMMAND_FAILED;
+  if (!strcmp(pcValue, "*")) {
+    ptOutIfaceID= NULL;
+  } else {
+    iResult= net_iface_str2id(pcValue, ptOutIfaceID);
+    if (iResult != NET_SUCCESS) {
+      cli_set_user_error(cli_get(), "invalid interface \"%s\" (%s)", pcValue,
+			 network_strerror(iResult));
+      return CLI_ERROR_COMMAND_FAILED;
+    }
   }
 
   // Remove the route
-  if (node_rt_del_route(pNode, &sPrefix, &sIface, &tGateway,
+  if (node_rt_del_route(pNode, &sPrefix, ptOutIfaceID, &tGateway,
 			NET_ROUTE_STATIC)) {
     cli_set_user_error(cli_get(), "could not remove static route");
     return CLI_ERROR_COMMAND_FAILED;
@@ -513,16 +458,12 @@ int cli_net_node_route_del(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {}
  */
-int cli_net_node_show_ifaces(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_show_ifaces(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
-
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  SNetNode * pNode= _node_from_context(pContext);
 
   node_ifaces_dump(pLogOut, pNode);
+
   return CLI_SUCCESS;
 }
 
@@ -531,16 +472,12 @@ int cli_net_node_show_ifaces(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {}
  */
-int cli_net_node_show_info(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_show_info(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
-
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  SNetNode * pNode= _node_from_context(pContext);
 
   node_info(pLogOut, pNode);
+
   return CLI_SUCCESS;
 }
 
@@ -549,14 +486,9 @@ int cli_net_node_show_info(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {}
  */
-int cli_net_node_show_links(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_show_links(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
-
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  SNetNode * pNode= _node_from_context(pContext);
 
   // Dump list of direct links
   node_links_dump(pLogOut, pNode);
@@ -569,16 +501,11 @@ int cli_net_node_show_links(SCliContext * pContext, SCliCmd * pCmd)
  * context: {node}
  * tokens: {prefix|address|*}
  */
-int cli_net_node_show_rt(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_show_rt(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcPrefix;
   SNetDest sDest;
-
-  // Get node from the CLI'scontext
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
-  if (pNode == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
 
   // Get the prefix/address/*
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -604,19 +531,16 @@ int cli_net_node_show_rt(SCliContext * pContext, SCliCmd * pCmd)
  * tokens: {end-point, if-addr}
  * option: oif=<addr>, src=<addr>
  */
-int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcValue;
   net_addr_t tEndPointAddr;
   net_addr_t tAddr;
-  SNetDest sDest;
-  SNetDest * pDest= NULL;
+  net_iface_id_t tOutIfaceID;
+  net_iface_id_t * ptOutIfaceID= &tOutIfaceID;
   net_addr_t tSrcAddr= 0;
   int iResult;
-
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
 
   // Get tunnel end-point (remote)
   pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -635,13 +559,14 @@ int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
   // get optional outgoing interface
   pcValue= cli_options_get_value(pCmd->pOptions, "oif");
   if (pcValue != NULL) {
-    if (ip_string_to_dest(pcValue, &sDest) < 0) {
-      cli_set_user_error(cli_get(), "invalid outgoing interface \"%s\"",
-			 pcValue);
+    iResult= net_iface_str2id(pcValue, ptOutIfaceID);
+    if (iResult != NET_SUCCESS) {
+      cli_set_user_error(cli_get(), "invalid outgoing interface \"%s\" (%s)",
+			 pcValue, network_strerror(iResult));
       return CLI_ERROR_COMMAND_FAILED;
     }
-    pDest= &sDest;
-  }
+  } else
+    ptOutIfaceID= NULL;
 
   // get optional source address
   pcValue= cli_options_get_value(pCmd->pOptions, "src");
@@ -653,7 +578,7 @@ int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add tunnel
-  iResult= node_add_tunnel(pNode, tEndPointAddr, tAddr, pDest, tSrcAddr);
+  iResult= node_add_tunnel(pNode, tEndPointAddr, tAddr, ptOutIfaceID, tSrcAddr);
   if (iResult != NET_SUCCESS) {
     cli_set_user_error(cli_get(), "could not add tunnel (%s)",
 		       network_strerror(iResult));
@@ -669,15 +594,12 @@ int cli_net_node_tunnel_add(SCliContext * pContext, SCliCmd * pCmd)
  * tokens: {<filename>}
  * option: --summary, --details
  */
-int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
 {
+  SNetNode * pNode= _node_from_context(pContext);
   char * pcFileName;
-  SNetNode * pNode;
   int iResult;
   uint8_t tOptions= 0;
-
-  // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
 
   // Get option "--summary" ?
   if (cli_options_has_value(pCmd->pOptions, "summary"))
@@ -706,8 +628,17 @@ int cli_net_node_traffic_load(SCliContext * pContext, SCliCmd * pCmd)
 //
 /////////////////////////////////////////////////////////////////////
 
+// -----[ cli_register_net_node_add ]--------------------------------
+static int cli_register_net_node_add(SCliCmds * pCmds)
+{
+  SCliCmds * pSubCmds= cli_cmds_create();
+
+  cli_register_net_node_add_iface(pSubCmds);
+  return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
+}
+
 // ----- cli_register_net_node_traffic ------------------------------
-int cli_register_net_node_traffic(SCliCmds * pCmds)
+static int cli_register_net_node_traffic(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
   SCliParams * pParams;
@@ -724,7 +655,7 @@ int cli_register_net_node_traffic(SCliCmds * pCmds)
 }
 
 // ----- cli_register_net_node_show ---------------------------------
-int cli_register_net_node_show(SCliCmds * pCmds)
+static int cli_register_net_node_show(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds;
   SCliParams * pParams;
@@ -749,7 +680,7 @@ int cli_register_net_node_show(SCliCmds * pCmds)
 }
 
 // ----- cli_register_net_node_route --------------------------------
-void cli_register_net_node_route(SCliCmds * pCmds)
+static void cli_register_net_node_route(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
@@ -772,26 +703,8 @@ void cli_register_net_node_route(SCliCmds * pCmds)
   cli_cmds_add(pCmds, cli_cmd_create("route", NULL, pSubCmds, NULL));
 }
 
-// ----- cli_register_net_node_link --------------------------------
-int cli_register_net_node_link(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds= cli_cmds_create();
-  SCliParams * pParams;
-  
-#ifdef OSPF_SUPPORT
-  cli_register_net_node_link_ospf(pSubCmds);
-#endif  
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix>", NULL);			
-//   cli_cmds_add(pCmds, cli_cmd_create("link", NULL, pSubCmds, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create_ctx("link",
-						cli_ctx_create_net_node_link,
-						cli_ctx_destroy_net_node_link,
-						pSubCmds, pParams));
-}
-
 // ----- cli_register_net_node_tunnel -------------------------------
-int cli_register_net_node_tunnel(SCliCmds * pCmds)
+static int cli_register_net_node_tunnel(SCliCmds * pCmds)
 {
   SCliCmds * pSubCmds= cli_cmds_create();
   SCliParams * pParams;
@@ -816,8 +729,9 @@ int cli_register_net_node(SCliCmds * pCmds)
   SCliCmd * pCmd;
 
   pSubCmds= cli_cmds_create();
-  
-    cli_register_net_node_link(pSubCmds);
+
+  cli_register_net_node_add(pSubCmds);  
+  cli_register_net_node_iface(pSubCmds);
   cli_register_net_node_route(pSubCmds);
   pParams= cli_params_create();
   cli_params_add(pParams, "<latitude>", NULL);

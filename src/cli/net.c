@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 20/11/2007
+// @lastdate 25/02/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,6 +47,14 @@ static inline SNetSubnet * _cli_net_subnet_by_prefix(char * pcAddr)
   if (str2prefix(pcAddr, &sPrefix))
     return NULL;
   return network_find_subnet(sPrefix);
+}
+
+// -----[ _link_from_context ]---------------------------------------
+static inline SNetLink * _link_from_context(SCliContext * pContext)
+{
+  SNetLink * pLink= cli_context_get_item_at_top(pContext);
+  assert(pLink != NULL);
+  return pLink;
 }
 
 
@@ -143,7 +151,7 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
 /**
  * context: {}
  * tokens: {addr-src, prefix-dst, delay}
- * options: [--depth]
+ * options: [--depth, --capacity]
  */
 int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
 {
@@ -151,11 +159,13 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   unsigned int uValue;
   char * pcNodeSrcAddr, * pcDest;
   SNetDest sDest;
-  int iErrorCode;
+  int iResult;
   char * pcValue;
   net_link_delay_t tDelay= 0;
   uint8_t tDepth= 1;
   net_link_load_t tCapacity= 0;
+  SNetIface * pIface;
+  EIfaceDir eDir;
 
   // Get optional link depth
   pcValue= cli_options_get_value(pCmd->pOptions, "depth");
@@ -202,16 +212,107 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   }
   tDelay= uValue;
   
-  // Add link
-  if ((iErrorCode= node_add_link(pNodeSrc, sDest, tDelay, tCapacity,
-				 tDepth))) {
+  // Add link (RTR / PTMP)
+  if (sDest.tType == NET_DEST_ADDRESS) {
+    SNetNode * pNodeDst= network_find_node(sDest.uDest.tAddr);
+    if (pNodeDst == NULL) {
+      cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.", pcDest);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    eDir= BIDIR;
+    iResult= net_link_create_rtr(pNodeSrc, pNodeDst, eDir, &pIface);
+  } else {
+    SNetSubnet * pSubnet= network_find_subnet(sDest.uDest.sPrefix);
+    if (pSubnet == NULL) {
+      cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.", pcDest);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+    eDir= UNIDIR;
+    iResult= net_link_create_ptmp(pNodeSrc, pSubnet,
+				  sDest.uDest.sPrefix.tNetwork,
+				  &pIface);
+  }
+  if (iResult != NET_SUCCESS) {
     cli_set_user_error(cli_get(), "could not add link %s -> %s (%s)",
-		       pcNodeSrcAddr, pcDest, network_strerror(iErrorCode));
+		       pcNodeSrcAddr, pcDest, network_strerror(iResult));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  iResult= net_link_set_phys_attr(pIface, tDelay, tCapacity, eDir);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "could not set physical attributes (%s)",
+		       network_strerror(iResult));
+    return CLI_ERROR_COMMAND_FAILED;
+  }  
+
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_net_add_linkptp ]--------------------------------------
+/**
+ * context: {}
+ * tokens: {src-addr, src-iface-id, dst-addr, dst-iface-id}
+ */
+int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
+{
+  SNetNode * pSrcNode;
+  SNetNode * pDstNode;
+  net_iface_id_t tSrcIfaceID;
+  net_iface_id_t tDstIfaceID;
+  char * pcTmp;
+  int iResult;
+  SNetIface * pIface;
+
+  // Get source node
+  pcTmp= tokens_get_string_at(pCmd->pParamValues, 0);
+  pSrcNode= cli_net_node_by_addr(pcTmp);
+  if (pSrcNode == NULL) {
+    cli_set_user_error(cli_get(), "could not find node \"%s\"", pcTmp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get source address
+  pcTmp= tokens_get_string_at(pCmd->pParamValues, 1);
+  iResult= net_iface_str2id(pcTmp, &tSrcIfaceID);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "invalid interface id \"%\"", pcTmp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Get destination node
+  pcTmp= tokens_get_string_at(pCmd->pParamValues, 2);
+  pDstNode= cli_net_node_by_addr(pcTmp);
+  if (pDstNode == NULL) {
+    cli_set_user_error(cli_get(), "could not find node \"%s\"", pcTmp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // get destination address
+  pcTmp= tokens_get_string_at(pCmd->pParamValues, 3);
+  iResult= net_iface_str2id(pcTmp, &tDstIfaceID);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "invalid interface id \"%\"", pcTmp);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  
+  // Create link
+  iResult= net_link_create_ptp(pSrcNode, tSrcIfaceID,
+			       pDstNode, tDstIfaceID,
+			       BIDIR, &pIface);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "could not create ptp link "
+		       "from %s (%s) to %s (%s) (%s)",
+		       tokens_get_string_at(pCmd->pParamValues, 0),
+		       tokens_get_string_at(pCmd->pParamValues, 1),
+		       tokens_get_string_at(pCmd->pParamValues, 2),
+		       tokens_get_string_at(pCmd->pParamValues, 3),
+		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   return CLI_SUCCESS;
 }
+
 
 // ----- cli_ctx_create_net_link ------------------------------------
 /**
@@ -223,7 +324,7 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
   SNetNode * pNodeSrc;
   SNetDest sDest;
   char     * pcNodeSrcAddr, * pcVertexDstPrefix; 
-  SNetLink * pLink = NULL;
+  SNetIface * pIface = NULL;
 
   pcNodeSrcAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
@@ -241,14 +342,14 @@ int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
     return CLI_ERROR_CTX_CREATE;
   }
 
-  pLink = node_find_link(pNodeSrc, sDest);
-  if (pLink == NULL) {
+  pIface= node_find_iface(pNodeSrc, net_dest_to_prefix(sDest));
+  if (pIface == NULL) {
     cli_set_user_error(cli_get(), "unable to find link %s -> %s",
 		       pcNodeSrcAddr, pcVertexDstPrefix);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  *ppItem= pLink;
+  *ppItem= pIface;
 
   return CLI_SUCCESS;
 }
@@ -308,13 +409,10 @@ int cli_net_ntf_load(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_up(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink;
+  SNetLink * pLink= _link_from_context(pContext);
 
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  net_iface_set_enabled(pLink, 1);
 
-  net_link_set_state(pLink, NET_LINK_FLAG_UP, 1);
   return CLI_SUCCESS;
 }
 
@@ -325,13 +423,10 @@ int cli_net_link_up(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_down(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink;
+  SNetLink * pLink= _link_from_context(pContext);
 
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  net_iface_set_enabled(pLink, 0);
 
-  net_link_set_state(pLink, NET_LINK_FLAG_UP, 0);
   return CLI_SUCCESS;
 }
 
@@ -376,31 +471,26 @@ int cli_net_link_ipprefix(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNode;
-  SNetLink * pLink;
+  SNetLink * pLink= _link_from_context(pContext);
+  //SNetNode * pNode;
   unsigned int uWeight;
   net_igp_weight_t tWeight;
   net_tos_t tTOS= 0;
   char * pcValue;
   int iBidir= 0;
-
-  // Get link from context
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  int iResult;
 
   // Get optional TOS
   pcValue= cli_options_get_value(pCmd->pOptions, "tos");
   if (pcValue != NULL)
-    if (!str2tos(pcValue, &tTOS) ||
-	(tTOS > net_link_get_depth(pLink))) {
+    if (!str2tos(pcValue, &tTOS)) {
       cli_set_user_error(cli_get(), "invalid TOS \"%s\"", pcValue);
       return CLI_ERROR_COMMAND_FAILED;
     }
 
   // Check option --bidir
   if (cli_options_has_value(pCmd->pOptions, "bidir")) {
-    if (pLink->uType != NET_LINK_TYPE_ROUTER) {
+    if (pLink->tType != NET_IFACE_RTR) {
       cli_set_user_error(cli_get(), ": --bidir only works with ptp links");
       return CLI_ERROR_COMMAND_FAILED;
     }
@@ -415,86 +505,13 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
   }
   tWeight= (net_igp_weight_t) uWeight;
 
-  // Change link weight in forward direction
-  net_link_set_weight(pLink, tTOS, tWeight);
-
-  // Change link weight in backward direction (if requested)
-  if (iBidir) {
-    pNode= pLink->tDest.pNode;
-    /*network_find_node(pLink->tDest.tAddr);*/
-    assert(pNode != NULL);
-    pLink= node_find_link_ptp(pNode, pLink->pSrcNode->tAddr);
-    assert(pLink != NULL);
-    net_link_set_weight(pLink, tTOS, tWeight);
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_net_link_load_clear ------------------------------------
-/**
- * context: {link}
- * tokens: {}
- */
-int cli_net_link_load_clear(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SNetLink * pLink;
-
-  // Get link from context
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  net_link_set_load(pLink, 0);
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_net_link_load_add --------------------------------------
-/**
- * context: {link}
- * tokens: {load}
- */
-int cli_net_link_load_add(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SNetLink * pLink;
-  char * pcValue;
-  unsigned int uValue;
-  net_link_load_t tLoad;
-
-  // Get link from context
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  // Get load
-  pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str_as_uint(pcValue, &uValue) < 0) {
-    cli_set_user_error(cli_get(), "invalid load \"%s\"", pcValue);
+  // Change link weight
+  iResult= net_iface_set_metric(pLink, tTOS, tWeight, iBidir);
+  if (iResult != NET_SUCCESS) {
+    cli_set_user_error(cli_get(), "cannot set metric (%s)",
+		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
-  tLoad= uValue;
-
-  net_link_set_load(pLink, tLoad);
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_net_link_load_show -------------------------------------
-/**
- * context: {link}
- * tokens: {}
- */
-int cli_net_link_load_show(SCliContext * pContext, SCliCmd * pCmd)
-{
-  SNetLink * pLink;
-
-  // Get link from context
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
-
-  net_link_dump_load(pLogOut, pLink);
 
   return CLI_SUCCESS;
 }
@@ -506,12 +523,7 @@ int cli_net_link_load_show(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_show_info(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink;
-
-  // Get link from context
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
-  if (pLink == NULL)
-    return CLI_ERROR_COMMAND_FAILED;
+  SNetLink * pLink= _link_from_context(pContext);
 
   net_link_dump_info(pLogOut, pLink);
 
@@ -525,7 +537,7 @@ int cli_net_link_show_info(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_links_load_clear(SCliContext * pContext, SCliCmd * pCmd)
 {
-  network_links_clear();
+  network_ifaces_load_clear();
   return CLI_SUCCESS;
 }
 
@@ -704,6 +716,15 @@ int cli_register_net_add(SCliCmds * pCmds)
   cli_cmd_add_option(pCmd, "bw", NULL);
   cli_cmd_add_option(pCmd, "depth", NULL);
   cli_cmds_add(pSubCmds, pCmd);
+
+  pParams= cli_params_create();
+  cli_params_add2(pParams, "<addr-src>", NULL, cli_enum_net_nodes_addr);
+  cli_params_add(pParams, "<iface-id>", NULL);
+  cli_params_add2(pParams, "<addr-dst>", NULL, cli_enum_net_nodes_addr);
+  cli_params_add(pParams, "<iface-id>", NULL);
+  cli_cmds_add(pSubCmds, cli_cmd_create("link-ptp", cli_net_add_linkptp,
+					NULL, pParams));
+
   return cli_cmds_add(pCmds, cli_cmd_create("add", NULL, pSubCmds, NULL));
 }
 
@@ -714,24 +735,6 @@ int cli_register_net_export(SCliCmds * pCmds)
   cli_params_add(pParams, "<file>", NULL);
   return cli_cmds_add(pCmds, cli_cmd_create("export", cli_net_export,
 					    NULL, pParams));
-}
-
-// ----- cli_register_net_link_load ---------------------------------
-int cli_register_net_link_load(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-  
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<load>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add", cli_net_link_load_add,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("clear", cli_net_link_load_clear,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show", cli_net_link_load_show,
-					NULL, NULL));
-  return cli_cmds_add(pCmds, cli_cmd_create("load", NULL, pSubCmds, NULL));
 }
 
 // ----- cli_register_net_link_show ---------------------------------
@@ -763,7 +766,6 @@ int cli_register_net_link(SCliCmds * pCmds)
   cli_cmd_add_option(pCmd, "bidir", NULL);
   cli_cmd_add_option(pCmd, "tos", NULL);
   cli_cmds_add(pSubCmds, pCmd);
-  cli_register_net_link_load(pSubCmds);
   cli_register_net_link_show(pSubCmds);
   pParams= cli_params_create();
   cli_params_add2(pParams, "<addr-src>", NULL, cli_enum_net_nodes_addr);
