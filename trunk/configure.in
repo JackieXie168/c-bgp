@@ -5,7 +5,7 @@ dnl @author Bruno Quoitin
 dnl @version 17/10/2007
 dnl =================================================================
 
-AC_INIT([cbgp], [1.4.5])
+AC_INIT([cbgp], [1.5.0])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -23,7 +23,7 @@ AM_CONFIG_HEADER(src/config.h)
 
 
 dnl Checks for programs.
-AC_PROG_CC
+AC_PROG_CC([gcc])
 AC_PROG_INSTALL
 #AC_PROG_CXX
 AC_PROG_LN_S
@@ -55,7 +55,7 @@ dnl LIBGDS CHECK
 dnl *****************************************************************
 LIBGDS_VERSION="1.4.3"
 AC_SUBST(LIBGDS_VERSION, [$LIBGDS_VERSION])
-PKG_CHECK_MODULES([LIBGDS], libgds >= $LIBGDS_VERSION,[],[
+PKG_CHECK_MODULES([LIBGDS], [libgds >= $LIBGDS_VERSION],[],[
   AC_MSG_ERROR([libgds >= $LIBGDS_VERSION is needed to compile cbgp])
 ])
 AC_SUBST(LIBGDS_CFLAGS)
