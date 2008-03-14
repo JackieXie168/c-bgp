@@ -2,7 +2,7 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl @version 17/10/2007
+dnl @version $Date: 2008-03-14 08:13:35 $
 dnl =================================================================
 
 AC_INIT([cbgp], [1.5.0])
