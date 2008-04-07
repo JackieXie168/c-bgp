@@ -35,6 +35,9 @@ require Exporter;
 
 	    check_traceroute
 	    check_recordroute
+	    check_ping
+	    check_link_info
+	    check_node_info
 
 	    aspath_equals
 	    comm_equals
@@ -87,7 +90,7 @@ sub check_link($%) {
 	       -type   => [F_LINK_TYPE],
 	       -weight => [F_LINK_WEIGHT],
 	      );
-  $tests->debug("check_link($link->[F_LINK_DST]".
+  $tests->debug("check_link($link->[F_LINK_DST], ".
 		__constraints_to_str(\%fields, \%args).")");
   return __constraints_check($link, \%fields, \%args);
 }
@@ -102,6 +105,7 @@ sub cbgp_check_route($$$%) {
 # -----[ check_has_route ]-------------------------------------------
 sub check_has_route($$%) {
   my ($rt, $dest, %args)= @_;
+  $dest= canonic_prefix($dest);
   if (!exists($rt->{$dest})) {
     $tests->debug("no route towards \"$dest\"");
     return 0;
@@ -118,7 +122,7 @@ sub check_route($%) {
 	       -nexthop => [F_RT_NEXTHOP],
 	       -proto   => [F_RT_PROTO]
 	      );
-  $tests->debug("check_route($route->[F_RT_DEST]".
+  $tests->debug("check_route($route->[F_RT_DEST], ".
 		__constraints_to_str(\%fields, \%args).")");
   return __constraints_check($route, \%fields, \%args);
 }
@@ -139,7 +143,7 @@ sub check_iface($%) {
   my %fields= (
 	       -type => [F_IFACE_TYPE],
 	      );
-  $tests->debug("check_iface($iface->[F_IFACE_ID]".
+  $tests->debug("check_iface($iface->[F_IFACE_ID], ".
 		__constraints_to_str(\%fields, \%args).")");
   return __constraints_check($iface, \%fields, \%args);
 }
@@ -168,7 +172,7 @@ sub check_peer($%) {
   my %fields= (
 	       -state => [F_PEER_STATE],
 	       );
-  $tests->debug("check_peer($peer->[F_PEER_IP]".
+  $tests->debug("check_peer($peer->[F_PEER_IP], ".
 		__constraints_to_str(\%fields, \%args).")");
   return __constraints_check($peer, \%fields, \%args);
 }
@@ -203,7 +207,7 @@ sub check_bgp_route($%) {
 	       -pref        => [F_RIB_PREF],
 	       -path        => [F_RIB_PATH, \&aspath_equals, \&aspath_to_str],
 	      );
-  $tests->debug("check_bgp_route($route->[F_RIB_PREFIX]".
+  $tests->debug("check_bgp_route($route->[F_RIB_PREFIX], ".
 		__constraints_to_str(\%fields, \%args).")");
   return __constraints_check($route, \%fields, \%args);
 }
@@ -212,9 +216,10 @@ sub check_bgp_route($%) {
 sub check_traceroute($%) {
   my ($trace, %args)= @_;
   my %fields= (
-	       -nhops => [F_TRACEROUTE_NHOPS],
-	       -hop   => [F_TRACEROUTE_HOPS,
-			  \&traceroute_hop_equals, \&traceroute_hop_to_str]
+	       -nhops  => [F_TRACEROUTE_NHOPS],
+	       -hops   => [F_TRACEROUTE_HOPS,
+			   \&traceroute_hops_equals, \&traceroute_hops_to_str],
+	       -status => [F_TRACEROUTE_STATUS]
 	      );
   $tests->debug("check_traceroute(".
 	       __constraints_to_str(\%fields, \%args).")");
@@ -225,11 +230,93 @@ sub check_traceroute($%) {
 sub check_recordroute($%) {
   my ($trace, %args)= @_;
   my %fields= (
-	       -status => [F_TR_STATUS]
+	       -status   => [F_TR_STATUS],
+	       -path     => [F_TR_PATH,
+			     \&recordroute_hops_equals,
+			     \&recordroute_hops_to_str],
+	       -capacity => [F_TR_CAPACITY],
+	       -delay    => [F_TR_DELAY],
+	       -weight   => [F_TR_WEIGHT],
 	      );
   $tests->debug("check_recordroute(".
 	       __constraints_to_str(\%fields, \%args).")");
   return __constraints_check($trace, \%fields, \%args);
+}
+
+# -----[ check_ping ]-----------------------------------------
+sub check_ping($%) {
+  my ($ping, %args)= @_;
+  my %fields= (
+	       -status => [F_PING_STATUS],
+	       -addr   => [F_PING_ADDR],
+	      );
+  $tests->debug("check ping(".__constraints_to_str(\%fields, \%args).")");
+  return __constraints_check($ping, \%fields, \%args);
+}
+
+# -----[ check_link_info ]-------------------------------------------
+sub check_link_info($%) {
+  my ($info, %args)= @_;
+  my %fields= (
+	       -load => 'load',
+	      );
+  $tests->debug("check_link_info(".__info_constraints_to_str(\%args).")");
+  return __check_info_constraints($info, \%fields, \%args);
+}
+
+# -----[ check_node_info ]-------------------------------------------
+sub check_node_info($%) {
+  my ($info, %args)= @_;
+  my %fields= (
+	       -name => 'name',
+	      );
+  $tests->debug("check_node_info(".__info_constraints_to_str(\%args).")");
+  return __check_info_constraints($info, \%fields, \%args);
+}
+
+# -----[ __info_constraints_to_str ]---------------------------------
+sub __info_constraints_to_str($) {
+  my ($args)= @_;
+  my $str= '';
+  for my $ct (keys %$args) {
+    ($str ne '') and $str.= ' ,';
+    if (defined($args->{$ct})) {
+      $str.= "$ct=$args->{$ct}";
+    } else {
+      $str.= "$ct=undef";
+    }
+  }
+  return $str;
+}
+
+# -----[ __check_info_constraints ]----------------------------------
+sub __check_info_constraints($$) {
+  my ($info, $fields, $args)= @_;
+
+  for my $ct (keys %$args) {
+    die "unsupported link info constraints \"$ct\""
+      if (!exists($fields->{$ct}));
+    my $ct_field= $fields->{$ct};
+    my $ct_value= $args->{$ct};
+    if (!defined($ct_value)) {
+      # Field must not exist or must have an undefined value
+      if (exists($info->{$ct_field})) {
+	$tests->debug("field \"$ct_field\" should be undefined");
+	return 0;
+      }
+    } else {
+      # Field must exist and have given value
+      if (!exists($info->{$ct_field})) {
+	$tests->debug("field \"$ct_field\" is not defined");
+	return 0;
+      } elsif ($info->{$ct_field} ne $ct_value) {
+	$tests->debug("field value ($info->{$ct_field}) does not match ".
+		      "constraint ($ct_value)");
+	return 0;
+      }
+    }
+  }
+  return 1;
 }
 
 #####################################################################
@@ -364,8 +451,8 @@ sub clusterlist_equals($$) {
   return 1;
 }
 
-# -----[ traceroute_hop_to_str ]-------------------------------------
-sub traceroute_hop_to_str($$) {
+# -----[ traceroute_hops_to_str ]------------------------------------
+sub traceroute_hops_to_str($$) {
   my ($hop, $type)= @_;
   if ($type == VAL_FIELD) {
     my $str= "";
@@ -374,33 +461,78 @@ sub traceroute_hop_to_str($$) {
     }
     return $str;
   } elsif ($type == VAL_CONSTRAINT) {
-    return "($hop->[0],$hop->[1],$hop->[2])";
+    my $str= "";
+    foreach my $h (@$hop) {
+      $str= $str."($h->[0],$h->[1],$h->[2])";
+    }
+    return $str;
   }
   return undef;
 }
 
-# -----[ traceroute_hop_equals ]-------------------------------------
-sub traceroute_hop_equals($$) {
-  my ($hops, $hop)= @_;
-  my $index= $hop->[F_HOP_INDEX];
-  if ($index >= scalar(@$hops)) {
-    $tests->debug("hop $index does not exist (hop-count:".scalar(@$hops).")");
-    return 0;
-  }
-  my $chop= $hops->[$index];
-  if ($chop->[F_HOP_ADDRESS] ne $hop->[F_HOP_ADDRESS]) {
-    $tests->debug("hop $index address ($chop->[F_HOP_ADDRESS]) ".
-		  "does not match ($hop->[F_HOP_ADDRESS]");
-    return 0;
-  }
-  if ($chop->[F_HOP_STATUS] ne $hop->[F_HOP_STATUS]) {
-    $tests->debug("hop $index status ($chop->[F_HOP_STATUS]) ".
-		  "does not match ($hop->[F_HOP_STATUS])");
-    return 0;
+# -----[ traceroute_hops_equals ]------------------------------------
+sub traceroute_hops_equals($$) {
+  my ($hops, $hops_ct)= @_;
+  for my $hop (@$hops_ct) {
+    my $index= $hop->[F_HOP_INDEX];
+    if ($index >= scalar(@$hops)) {
+      $tests->debug("hop $index does not exist (hop-count:".
+		    scalar(@$hops).")");
+      return 0;
+    }
+    my $chop= $hops->[$index];
+    if ($chop->[F_HOP_ADDRESS] ne $hop->[F_HOP_ADDRESS]) {
+      $tests->debug("hop $index address ($chop->[F_HOP_ADDRESS]) ".
+		    "does not match ($hop->[F_HOP_ADDRESS])");
+      return 0;
+    }
+    if ($chop->[F_HOP_STATUS] ne $hop->[F_HOP_STATUS]) {
+      $tests->debug("hop $index status ($chop->[F_HOP_STATUS]) ".
+		    "does not match ($hop->[F_HOP_STATUS])");
+      return 0;
+    }
   }
   return 1;
 }
 
+# -----[ recordroute_hops_to_str ]-----------------------------------
+sub recordroute_hops_to_str($$) {
+  my ($hop, $type)= @_;
+  if ($type == VAL_FIELD) {
+    my $str= "";
+    for my $h (@$hop) {
+      $str= $str."($h)";
+    }
+    return $str;
+  } else {
+    my $str= "";
+    for my $h (@$hop) {
+      $str= $str."($h->[0],$h->[1])";
+    }
+    return $str;
+  }
+  return undef;
+}
+
+# -----[ recordroute_hops_equals ]-----------------------------------
+sub recordroute_hops_equals($$) {
+  my ($path, $path_ct)= @_;
+  for my $hop (@$path_ct) {
+    my $index= $hop->[0];
+    if ($index >= scalar(@$path)) {
+      $tests->debug("hop $index does not exist (hop-count:".
+		    scalar(@$path).")");
+      return 0;
+    }
+    my $chop= $path->[$index];
+    if ($chop ne $hop->[1]) {
+      $tests->debug("hop $index address ($chop) ".
+		    "does not match ($hop->[1])");
+      return 0;
+    }
+  }
+  return 1;
+}
 
 #####################################################################
 #
@@ -431,8 +563,9 @@ sub __constraints_to_str($$) {
   my ($fields, $args)= @_;
   my $str= '';
   foreach my $a (keys %$args) {
+    ($str ne '') and $str.= ', ';
     my $value= $args->{$a};
-    $str.= ", $a=".__constraints_val_to_str($fields, $a, $value,
+    $str.= "$a=".__constraints_val_to_str($fields, $a, $value,
 					    VAL_CONSTRAINT);
   }
   return $str;

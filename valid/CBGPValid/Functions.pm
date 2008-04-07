@@ -296,7 +296,10 @@ sub cbgp_parse_link($)
   $link[F_LINK_IFACE]= $fields[$findex++];
 
   # Destination identifier (depends on interface type)
-  if ($link[F_LINK_TYPE] eq C_IFACE_RTR) {
+  if ($link[F_LINK_TYPE] eq C_IFACE_LOOPBACK) {
+    $link[F_LINK_DST]= "loopback";
+    $findex++;
+  } elsif ($link[F_LINK_TYPE] eq C_IFACE_RTR) {
     my $address= check_address($fields[$findex]);
     if (!defined($address)) {
       show_error("invalid rtr-dst (show links): ".$fields[$findex]);
@@ -1033,9 +1036,9 @@ sub cbgp_traceroute($$$)
 	$hop_info[F_HOP_IFACE]= $3;  # interface address
  	$hop_info[F_HOP_STATUS]= $4;  # status
 	push @hops, (\@hop_info);
-	if ($3 eq C_PING_STATUS_REPLY) {
+	if ($4 eq C_PING_STATUS_REPLY) {
 	  $status= C_TRACEROUTE_STATUS_REPLY;
-	} elsif ($3 eq C_PING_STATUS_NO_REPLY) {
+	} elsif ($4 eq C_PING_STATUS_NO_REPLY) {
 	  $status= C_TRACEROUTE_STATUS_NO_REPLY;
 	}
       } else {
