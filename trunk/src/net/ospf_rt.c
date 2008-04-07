@@ -33,7 +33,7 @@
    IpAddress is used to distinguish beetween more than one node reachable
    towards the same link (typically when link is toward transit network)
 */
-SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr)
+SOSPFNextHop * ospf_next_hop_create(net_iface_t * pLink, net_addr_t tAddr)
 {
   SOSPFNextHop * pNH = (SOSPFNextHop *) MALLOC(sizeof(SOSPFNextHop));
   pNH->pLink      = pLink;
@@ -165,7 +165,7 @@ next_hops_list_t * ospf_nh_list_copy(next_hops_list_t * pNHList)
 /*next_hops_list_t * ospf_nh_list_find(next_hops_list_t * pNHList, SNetDest sDest)
 {
   SOSPFNextHop * pWrapNH, sWrapNH; 
-  SNetLink * pWrapLink, sWrapLink;
+  net_iface_t * pWrapLink, sWrapLink;
   pWrapNH = &sWrapNH;
   pWrapLink = &sWrapLink;
   pWrapNH->pLink = pWrapLink;
@@ -899,16 +899,16 @@ int ospf_rt_test(){
   assert(!ip_string_to_address("192.168.0.3", &pcEndPtr, &tAddrB));
   assert(!ip_string_to_address("192.168.0.4", &pcEndPtr, &tAddrC));
   
-  SNetNode * pNodeA= node_create(tAddrA);
-  SNetNode * pNodeB= node_create(tAddrB);
-  SNetNode * pNodeC= node_create(tAddrC);
+  net_node_t * pNodeA= node_create(tAddrA);
+  net_node_t * pNodeB= node_create(tAddrB);
+  net_node_t * pNodeC= node_create(tAddrC);
   
   assert(!ip_string_to_prefix("192.168.0.0/24", &pcEndPtr, &sSubnetPfxTx));
   assert(!ip_string_to_prefix("192.120.0.0/24", &pcEndPtr, &sSubnetPfxTx1));
   
-  SNetSubnet * pSubTx = subnet_create(sSubnetPfxTx.tNetwork,
+  net_subnet_t * pSubTx = subnet_create(sSubnetPfxTx.tNetwork,
                                               sSubnetPfxTx.uMaskLen, NET_SUBNET_TYPE_TRANSIT);
-//   SNetSubnet * pSubTx1 = subnet_create(sSubnetPfxTx1.tNetwork,
+//   net_subnet_t * pSubTx1 = subnet_create(sSubnetPfxTx1.tNetwork,
 //                                                sSubnetPfxTx.uMaskLen,
 // 					       NET_SUBNET_TYPE_TRANSIT);
    
@@ -920,9 +920,9 @@ int ospf_rt_test(){
   LOG_DEBUG(" ok!\n");
   
   LOG_DEBUG("ospf_rt_test(): CHECK node_find_link_to_subnet...");
-  SNetLink * pLinkAS = node_find_link(pNodeA, ip_address_to_dest(1));
+  net_iface_t * pLinkAS = node_find_link(pNodeA, ip_address_to_dest(1));
   assert(pLinkAS != NULL);
-  SNetLink * pLinkAC = node_find_link(pNodeA, ip_address_to_dest(tAddrC));
+  net_iface_t * pLinkAC = node_find_link(pNodeA, ip_address_to_dest(tAddrC));
   assert(pLinkAC != NULL);
   LOG_DEBUG(" ok!\n");
   

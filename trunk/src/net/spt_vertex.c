@@ -26,7 +26,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 // ----- spt_vertex_create_byRouter ---------------------------------------
-SSptVertex * spt_vertex_create_byRouter(SNetNode * pNode, net_link_delay_t uIGPweight)
+SSptVertex * spt_vertex_create_byRouter(net_node_t * pNode, net_link_delay_t uIGPweight)
 {
   SSptVertex * pVertex = (SSptVertex *) MALLOC(sizeof(SSptVertex));
   pVertex->uDestinationType = NET_LINK_TYPE_ROUTER;
@@ -42,7 +42,7 @@ SSptVertex * spt_vertex_create_byRouter(SNetNode * pNode, net_link_delay_t uIGPw
 }
 
 // ----- spt_vertex_create_bySubnet ---------------------------------------
-SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t uIGPweight)
+SSptVertex * spt_vertex_create_bySubnet(net_subnet_t * pSubnet, net_link_delay_t uIGPweight)
 {
   SSptVertex * pVertex = (SSptVertex *) MALLOC(sizeof(SSptVertex));
   pVertex->uDestinationType = NET_LINK_TYPE_TRANSIT;
@@ -70,8 +70,8 @@ SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t u
  * 3) Link source is a node and destination is a subnet: in this case
  *    destination prefix can be obtain by subnet pointer stored in link
  */    
-SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, 
-		                                          SSptVertex * pVFather)
+SSptVertex * spt_vertex_create(SNetwork * pNetwork, net_iface_t * pLink, 
+			       SSptVertex * pVFather)
 {
   SSptVertex * pVertex;
   
@@ -80,14 +80,14 @@ SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink,
 		                         pVFather->uIGPweight);
   }
   else if (pLink->tType == NET_IFACE_RTR){
-    SNetNode * pNode;
+    net_node_t * pNode;
     pNode = network_find_node(link_get_address(pLink));
     assert(pNode != NULL);
     pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + 
 		                                pLink->uIGPweight);
   }
   else if (pLink->tType == NET_IFACE_PTMP) {
-    SNetSubnet * pSubnet;
+    net_subnet_t * pSubnet;
     pSubnet = pLink->tDest.pSubnet;
     pVertex = spt_vertex_create_bySubnet(pSubnet, pVFather->uIGPweight + 
 		                                  pLink->uIGPweight);
@@ -126,9 +126,9 @@ void spt_vertex_dst(void ** ppItem){
 SPtrArray * spt_vertex_get_links(SSptVertex * pVertex)
 {
   if (spt_vertex_is_router(pVertex)){
-    return  ((SNetNode *)(pVertex->pObject))->pLinks;
+    return  ((net_node_t *)(pVertex->pObject))->pLinks;
   }
-  return((SNetSubnet *)(pVertex->pObject))->pLinks; 
+  return((net_subnet_t *)(pVertex->pObject))->pLinks; 
 }
 
 // ----- spt_vertex_belongs_to_area ---------------------------------------
@@ -162,9 +162,9 @@ int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize)
   
   if (pVertex1->uDestinationType == pVertex2->uDestinationType) {
     if (pVertex1->uDestinationType == NET_LINK_TYPE_ROUTER){
-      if (((SNetNode *)(pVertex1->pObject))->tAddr < ((SNetNode *)(pVertex2->pObject))->tAddr)
+      if (((net_node_t *)(pVertex1->pObject))->tAddr < ((net_node_t *)(pVertex2->pObject))->tAddr)
         return -1;
-      else if (((SNetNode *)(pVertex1->pObject))->tAddr > ((SNetNode *)(pVertex2->pObject))->tAddr)
+      else if (((net_node_t *)(pVertex1->pObject))->tAddr > ((net_node_t *)(pVertex2->pObject))->tAddr)
         return 1;
       else
 	return 0;
@@ -251,7 +251,8 @@ int spt_vertex_has_father(SSptVertex * pParent, SSptVertex * pRoot){
  */
  
 void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent, 
-                                   SSptVertex * pDestination, SNetLink * pLink){
+			    SSptVertex * pDestination,
+			    net_iface_t * pLink){
   SOSPFNextHop * pNH = NULL, * pNHCopy = NULL;
   int iLink;
   
@@ -275,14 +276,15 @@ void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent,
 }
 
 // ----- spt_vertex_add_subnet -------------------------------------------------
-int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink){
+int spt_vertex_add_subnet(SSptVertex * pCurrentVertex,
+			  net_iface_t * pCurrentLink){
   return ptr_array_add(pCurrentVertex->aSubnets, &pCurrentLink);
 }
 
 
 // ----- spt_candidate_compute_id -------------------------------------------
 SPrefix spt_candidate_compute_id(SSptVertex * pParentVertex, 
-		                    SNetLink * pLink){
+				 net_iface_t * pLink){
   SPrefix sVertexId;
   if (spt_vertex_is_subnet(pParentVertex)) { 
     sVertexId.tNetwork = pLink->pSrcNode->tAddr;
@@ -307,7 +309,7 @@ SPrefix spt_candidate_compute_id(SSptVertex * pParentVertex,
  *      2. ospf areas configuration is correct
  *      
  */
-SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea)
+SRadixTree * node_ospf_compute_spt(net_node_t * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea)
 {
   SPrefix        sCandidateId; 
   int            iIndex = 0;
@@ -316,11 +318,11 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
   SIGPDomain   * pIGPDomain = get_igp_domain(IGPDomainNumber);
   
   SPtrArray    * aLinks = NULL;
-  SNetLink     * pCurrentLink = NULL;
+  net_iface_t     * pCurrentLink = NULL;
   SSptVertex   * pCurrentVertex = NULL, * pNewVertex = NULL;
   SSptVertex   * pOldVertex = NULL, * pRootVertex = NULL;
   SRadixTree   * pSpt = radix_tree_create(32, spt_vertex_dst);
-  SNetNode     * pRootNode = pNode;
+  net_node_t     * pRootNode = pNode;
   assert(pRootNode != NULL);
   spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|
 		                                       ARRAY_OPTION_UNIQUE,
@@ -348,7 +350,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
         continue;
       }
       //I must check the status of the link in the opposite direction
-      SNetLink * pBckLink = link_find_backword(pCurrentLink);
+      net_iface_t * pBckLink = link_find_backword(pCurrentLink);
       if (!link_get_state(pBckLink, NET_LINK_FLAG_UP))
         continue;
 
@@ -491,7 +493,7 @@ SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, o
  *      2. ospf areas configuration is correct
  *      3. when a link is down it is down in all the two direction
  */
-SRadixTree * ospf_node_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber, 
+SRadixTree * ospf_node_compute_rspt(net_node_t * pNode, uint16_t IGPDomainNumber, 
   	                                                     ospf_area_t tArea)
 {
   SPrefix        sCandidateId; 
@@ -501,11 +503,11 @@ SRadixTree * ospf_node_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber,
   SIGPDomain   * pIGPDomain     = get_igp_domain(IGPDomainNumber);
   
   SPtrArray    * aLinks         = NULL;
-  SNetLink     * pCurrentLink   = NULL;
+  net_iface_t     * pCurrentLink   = NULL;
   SSptVertex   * pCurrentVertex = NULL, * pNewVertex = NULL;
   SSptVertex   * pOldVertex     = NULL, * pRootVertex = NULL;
   SRadixTree   * pRspt           = radix_tree_create(32, spt_vertex_dst);
-  SNetNode     * pRootNode      = pNode;
+  net_node_t     * pRootNode      = pNode;
   
   spt_vertex_list_t * aGrayVertexes = ptr_array_create(ARRAY_OPTION_SORTED|
 		                                       ARRAY_OPTION_UNIQUE,
@@ -539,7 +541,7 @@ SRadixTree * ospf_node_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber,
       }
       
       //I must check the status of the link in the opposite direction
-      SNetLink * pBckLink = link_find_backword(pCurrentLink);
+      net_iface_t * pBckLink = link_find_backword(pCurrentLink);
       if (!link_get_state(pBckLink, NET_LINK_FLAG_UP))
         continue;
            

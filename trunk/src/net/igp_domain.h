@@ -30,7 +30,7 @@ extern "C" {
   // ----- igp_domain_destroy ---------------------------------------
   void igp_domain_destroy(SIGPDomain ** ppDomain);
   // ----- igp_domain_add_router ------------------------------------
-  int igp_domain_add_router(SIGPDomain * pDomain, SNetNode * pRouter);
+  int igp_domain_add_router(SIGPDomain * pDomain, net_node_t * pRouter);
   // -----[ igp_domains_for_each ]-----------------------------------
   int igp_domains_for_each(FIGPDomainsForEach fForEach, void * pContext);
   // ----- igp_domain_routers_for_each ------------------------------
@@ -45,7 +45,7 @@ extern "C" {
   int register_igp_domain(SIGPDomain * pDomain);
   // ----- igp_domain_contains_router -------------------------------
   int igp_domain_contains_router(SIGPDomain * pDomain,
-				 SNetNode * pNode);
+				 net_node_t * pNode);
   // ----- igp_domain_contains_router_by_addr -----------------------
   int igp_domain_contains_router_by_addr(SIGPDomain * pDomain,
 					 net_addr_t tAddr);

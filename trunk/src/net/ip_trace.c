@@ -3,85 +3,98 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// @lastdate 01/03/2008
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include <libgds/array.h>
 
 #include <net/ip_trace.h>
 
 // -----[ ip_trace_item_node ]---------------------------------------
-SIPTraceItem * ip_trace_item_node(SNetNode * pNode,
-				  net_addr_t tInIfaceAddr,
-				  net_addr_t tOutIfaceAddr)
+static inline ip_trace_item_t *
+ip_trace_item_node(net_node_t * node,
+		   net_addr_t iif_addr,
+		   net_addr_t oif_addr)
 {
-  SIPTraceItem * pItem= (SIPTraceItem *) MALLOC(sizeof(SIPTraceItem));
-  pItem->eType= NODE;
-  pItem->uItem.pNode= pNode;
-  pItem->tInIfaceAddr= tInIfaceAddr;
-  pItem->tOutIfaceAddr= tOutIfaceAddr;
-  return pItem;
+  ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
+  item->elt.type= NODE;
+  item->elt.node= node;
+  item->iif_addr= iif_addr;
+  item->oif_addr= oif_addr;
+  return item;
 }
 
 // -----[ ip_trace_item_subnet ]-------------------------------------
-SIPTraceItem * ip_trace_item_subnet(SNetSubnet * pSubnet)
+static inline ip_trace_item_t *
+ip_trace_item_subnet(net_subnet_t * subnet)
 {
-  SIPTraceItem * pItem= (SIPTraceItem *) MALLOC(sizeof(SIPTraceItem));
-  pItem->eType= SUBNET;
-  pItem->uItem.pSubnet= pSubnet;
-  pItem->tInIfaceAddr= NET_ADDR_ANY;
-  pItem->tOutIfaceAddr= NET_ADDR_ANY;
-  return pItem;
+  ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
+  item->elt.type= SUBNET;
+  item->elt.subnet= subnet;
+  item->iif_addr= NET_ADDR_ANY;
+  item->oif_addr= NET_ADDR_ANY;
+  return item;
 }
 
 // -----[ ip_trace_create ]------------------------------------------
-SIPTrace * ip_trace_create()
+ip_trace_t * ip_trace_create()
 {
-  SIPTrace * pTrace= (SIPTrace *) MALLOC(sizeof(SIPTrace));
-  pTrace->pItems= ptr_array_create(0, NULL, NULL);
-  return pTrace;
+  ip_trace_t * trace= (ip_trace_t *) MALLOC(sizeof(ip_trace_t));
+  trace->items= ptr_array_create(0, NULL, NULL);
+  trace->delay= 0;
+  trace->capacity= NET_LINK_MAX_CAPACITY;
+  trace->weight= 0;
+  trace->load= 0;
+  return trace;
 }
 
 // -----[ ip_trace_destroy ]-----------------------------------------
-void ip_trace_destroy(SIPTrace ** ppTrace)
+void ip_trace_destroy(ip_trace_t ** trace_ref)
 {
-  if (*ppTrace != NULL) {
-    ptr_array_destroy(&(*ppTrace)->pItems);
-    FREE(*ppTrace);
-    *ppTrace= NULL;
+  if (*trace_ref != NULL) {
+    ptr_array_destroy(&(*trace_ref)->items);
+    FREE(*trace_ref);
+    *trace_ref= NULL;
   }
 }
 
 // -----[ ip_trace_add ]---------------------------------------------
-int ip_trace_add(SIPTrace * pTrace, SIPTraceItem * pItem)
+static inline ip_trace_item_t * _ip_trace_add(ip_trace_t * trace,
+					      ip_trace_item_t * item)
 {
-  return ptr_array_add(pTrace->pItems, &pItem);
+  assert(ptr_array_add(trace->items, &item) >= 0);
+  return item;
 }
 
-// -----[ ip_trace_length ]------------------------------------------
-unsigned int ip_trace_length(SIPTrace * pTrace)
+// -----[ ip_trace_add_node ]----------------------------------------
+ip_trace_item_t * ip_trace_add_node(ip_trace_t * trace,
+				    net_node_t * node,
+				    net_addr_t iif_addr,
+				    net_addr_t oif_addr)
 {
-  return ptr_array_length(pTrace->pItems);
+  return _ip_trace_add(trace, ip_trace_item_node(node, iif_addr, oif_addr));
 }
 
-// -----[ ip_trace_item_at ]-----------------------------------------
-SIPTraceItem * ip_trace_item_at(SIPTrace * pTrace, unsigned int uIndex)
+// -----[ ip_trace_add_subnet ]--------------------------------------
+ip_trace_item_t * ip_trace_add_subnet(ip_trace_t * trace,
+				      net_subnet_t * subnet)
 {
-  return pTrace->pItems->data[uIndex];
+  return _ip_trace_add(trace, ip_trace_item_subnet(subnet));
 }
 
 // -----[ ip_trace_search ]------------------------------------------
-int ip_trace_search(SIPTrace * pTrace, SNetNode * pNode)
+int ip_trace_search(ip_trace_t * trace, net_node_t * node)
 {
-  unsigned int uIndex;
-  SIPTraceItem * pItem;
-  for (uIndex= 0; uIndex < ip_trace_length(pTrace); uIndex++) {
-    pItem= ip_trace_item_at(pTrace, uIndex);
-    if ((pItem->eType == NODE) && (pItem->uItem.pNode == pNode))
+  unsigned int index;
+  ip_trace_item_t * item;
+  for (index= 0; index < ip_trace_length(trace); index++) {
+    item= ip_trace_item_at(trace, index);
+    if ((item->elt.type == NODE) && (item->elt.node == node))
       return 1;
   }
   return 0;

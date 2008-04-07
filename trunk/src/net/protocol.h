@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)protocol.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 22/01/2007
+// $Id: protocol.h,v 1.5 2008-04-07 09:44:48 bqu Exp $
 // ==================================================================
 // Note: the number of supported protocols will often be low, so that
 // the list of protocols is implemented by a fixed-size array at this
@@ -16,28 +16,36 @@
 #ifndef __NET_PROTOCOL_H__
 #define __NET_PROTOCOL_H__
 
-#include <libgds/array.h>
+#include <net/error.h>
 #include <net/net_types.h>
 
-// Protocol numbers
-#define NET_PROTOCOL_ICMP 0
-#define NET_PROTOCOL_BGP  1
-#define NET_PROTOCOL_IPIP 2
-
-// Protocol names
-extern const char * PROTOCOL_NAMES[];
-
-// ----- protocols_create -------------------------------------------
-extern SNetProtocols * protocols_create();
-// ----- protocols_destroy ------------------------------------------
-extern void protocols_destroy(SNetProtocols ** ppProtocols);
-// ----- protocols_register -----------------------------------------
-extern int protocols_register(SNetProtocols * pProtocols,
-			      uint8_t uNumber, void * pHandler,
-			      FNetNodeHandlerDestroy fDestroy,
-			      FNetNodeHandleEvent fHandleEvent);
-// ----- protocols_get ----------------------------------------------
-extern SNetProtocol * protocols_get(SNetProtocols * pProtocols,
-				    uint8_t uNumber);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // -----[ protocol_recv ]------------------------------------------
+  net_error_t protocol_recv(net_protocol_t * proto, net_msg_t * msg,
+			    simulator_t * sim);
+  
+  // ----- protocols_create -------------------------------------------
+  net_protocols_t * protocols_create();
+  // ----- protocols_destroy ----------------------------------------
+  void protocols_destroy(net_protocols_t ** ppProtocols);
+  // ----- protocols_register ---------------------------------------
+  int protocols_register(net_protocols_t * pProtocols,
+			 net_protocol_id_t id, void * pHandler,
+			 FNetProtoHandlerDestroy fDestroy,
+			 FNetProtoHandleEvent fHandleEvent);
+  // ----- protocols_get --------------------------------------------
+  net_protocol_t * protocols_get(net_protocols_t * pProtocols,
+				 net_protocol_id_t id);
+  // -----[ net_protocol2str ]---------------------------------------
+  const char * net_protocol2str(net_protocol_id_t id);
+  // -----[ net_str2protocol ]---------------------------------------
+  net_error_t net_str2protocol(const char * str, net_protocol_id_t * pID);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __NET_PROTOCOL_H__ */

@@ -1,23 +1,27 @@
 // ==================================================================
 // @(#)protocol.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 21/11/2007
+// $Id: protocol.c,v 1.5 2008-04-07 09:44:48 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <assert.h>
+
+#include <libgds/array.h>
 #include <libgds/memory.h>
 #include <string.h>
 
 #include <net/error.h>
+#include <net/net_types.h>
 #include <net/protocol.h>
 
-// Protocol names
-const char * PROTOCOL_NAMES[]= {
+// -----[ Protocol names ]-----
+const char * PROTOCOL_NAMES[NET_PROTOCOL_MAX]= {
   "icmp",
   "bgp",
   "ipip"
@@ -27,40 +31,49 @@ const char * PROTOCOL_NAMES[]= {
 /**
  *
  */
-SNetProtocol * protocol_create(void * pHandler,
-			       FNetNodeHandlerDestroy fDestroy,
-			       FNetNodeHandleEvent fHandleEvent)
+net_protocol_t * protocol_create(void * handler,
+				 FNetProtoHandlerDestroy destroy,
+				 FNetProtoHandleEvent handle_event)
 {
-  SNetProtocol * pProtocol=
-    (SNetProtocol *) MALLOC(sizeof(SNetProtocol));
-  pProtocol->pHandler= pHandler;
-  pProtocol->fDestroy= fDestroy;
-  pProtocol->fHandleEvent= fHandleEvent;
-  return pProtocol;
+  net_protocol_t * proto=
+    (net_protocol_t *) MALLOC(sizeof(net_protocol_t));
+  proto->pHandler= handler;
+  proto->fDestroy= destroy;
+  proto->fHandleEvent= handle_event;
+  return proto;
 }
 
 // ----- protocol_destroy -------------------------------------------
 /**
  *
  */
-void protocol_destroy(SNetProtocol ** ppProtocol)
+void protocol_destroy(net_protocol_t ** proto_ref)
 {
-  if (*ppProtocol != NULL) {
-    if ((*ppProtocol)->fDestroy != NULL)
-      (*ppProtocol)->fDestroy(&(*ppProtocol)->pHandler);
-    FREE(*ppProtocol);
-    *ppProtocol= NULL;
+  if (*proto_ref != NULL) {
+    if ((*proto_ref)->fDestroy != NULL)
+      (*proto_ref)->fDestroy(&(*proto_ref)->pHandler);
+    FREE(*proto_ref);
+    *proto_ref= NULL;
   }
+}
+
+// -----[ protocol_recv ]------------------------------------------
+net_error_t protocol_recv(net_protocol_t * proto, net_msg_t * msg,
+			  simulator_t * sim)
+{
+  assert(proto->fHandleEvent != NULL);
+  return proto->fHandleEvent(sim, proto->pHandler, msg);
+
 }
 
 // ----- protocols_create -------------------------------------------
 /**
  *
  */
-SNetProtocols * protocols_create()
+net_protocols_t * protocols_create()
 {
-  SNetProtocols * pProtocols=
-    (SNetProtocols *) MALLOC(sizeof(SNetProtocols));
+  net_protocols_t * pProtocols=
+    (net_protocols_t *) MALLOC(sizeof(net_protocols_t));
 
   memset(pProtocols->data, 0, sizeof(pProtocols->data));
   return pProtocols;
@@ -71,53 +84,73 @@ SNetProtocols * protocols_create()
  * This function destroys the list of protocols and destroys all the
  * related protocol instances if required.
  */
-void protocols_destroy(SNetProtocols ** ppProtocols)
+void protocols_destroy(net_protocols_t ** protocols_ref)
 {
-  int iIndex;
+  unsigned int index;
 
-  if (*ppProtocols != NULL) {
+  if (*protocols_ref != NULL) {
     
     // Destroy protocols (also clear the protocol instance if
     // required, see 'protocol_destroy')
-    for (iIndex= 0; iIndex < NET_PROTOCOL_MAX; iIndex++)
-      if ((*ppProtocols)->data[iIndex] != NULL)
-	protocol_destroy(&(*ppProtocols)->data[iIndex]);
+    for (index= 0; index < NET_PROTOCOL_MAX; index++)
+      if ((*protocols_ref)->data[index] != NULL)
+	protocol_destroy(&(*protocols_ref)->data[index]);
 
-    FREE(*ppProtocols);
-    *ppProtocols= NULL;
+    FREE(*protocols_ref);
+    *protocols_ref= NULL;
   }
 }
 
 // ----- protocols_register -----------------------------------------
 /**
- *
+ * Add a protocol handler to the protocol list.
  */
-int protocols_register(SNetProtocols * pProtocols,
-		       uint8_t uNumber, void * pHandler,
-		       FNetNodeHandlerDestroy fDestroy,
-		       FNetNodeHandleEvent fHandleEvent)
+net_error_t protocols_register(net_protocols_t * protocols,
+			       net_protocol_id_t id,
+			       void * handler,
+			       FNetProtoHandlerDestroy destroy,
+			       FNetProtoHandleEvent handle_event)
 {
-  if (uNumber >= NET_PROTOCOL_MAX)
-    return NET_ERROR_MGMT_TOO_MANY_PROTOCOLS;
+  if (id >= NET_PROTOCOL_MAX)
+    return ENET_PROTO_UNKNOWN;
 
-  if (pProtocols->data[uNumber] != NULL)
-    return NET_ERROR_MGMT_DUPLICATE_PROTOCOL;
+  if (protocols->data[id] != NULL)
+    return ENET_PROTO_DUPLICATE;
 
-  pProtocols->data[uNumber]= protocol_create(pHandler, fDestroy,
-					     fHandleEvent);
-
-  return NET_SUCCESS;
+  protocols->data[id]= protocol_create(handler, destroy, handle_event);
+  return ESUCCESS;
 }
 
 // ----- protocols_get ----------------------------------------------
 /**
  *
  */
-SNetProtocol * protocols_get(SNetProtocols * pProtocols,
-			     uint8_t uNumber)
+net_protocol_t * protocols_get(net_protocols_t * protocols,
+			       net_protocol_id_t id)
 {
-  if (uNumber >= NET_PROTOCOL_MAX)
+  if (id >= NET_PROTOCOL_MAX)
     return NULL;
-  
-  return pProtocols->data[uNumber];
+  return protocols->data[id];
+}
+
+// -----[ net_protocol2str ]-----------------------------------------
+const char * net_protocol2str(net_protocol_id_t id)
+{
+  if (id >= NET_PROTOCOL_MAX)
+    return "unknown";
+  return PROTOCOL_NAMES[id];
+}
+
+// -----[ net_str2protocol ]-----------------------------------------
+net_error_t net_str2protocol(const char * str, net_protocol_id_t * id_ref)
+{
+  net_protocol_id_t id= 0;
+  while (id < NET_PROTOCOL_MAX) {
+    if (!strcmp(PROTOCOL_NAMES[id], str)) {
+      *id_ref= id;
+      return ESUCCESS;
+    }
+    id++;
+  }
+  return ENET_PROTO_UNKNOWN;
 }

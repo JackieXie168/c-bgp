@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// @lastdate 23/02/2008
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,7 @@
 #include <libgds/array.h>
 #include <net/igp.h>
 #include <net/igp_domain.h>
+#include <net/link-list.h>
 #include <net/network.h>
 #include <net/node.h>
 #include <net/routing.h>
@@ -31,7 +32,7 @@
  * - weight
  */
 typedef struct {
-  SNetLink * pIface;
+  net_iface_t * pIface;
   net_addr_t tNextHop;
   net_igp_weight_t   tWeight;
 } SSPTInfo;
@@ -46,8 +47,8 @@ typedef struct {
  * - weight
  */
 typedef struct {
-  SNetNode * pNode;
-  SNetLink * pIface;
+  net_node_t * pNode;
+  net_iface_t * pIface;
   net_addr_t tNextHop;
   net_igp_weight_t tWeight;
 } SSPTContext;
@@ -80,7 +81,7 @@ static inline void _spt_info_destroy(void ** pItem)
  */
 static inline int _spt_info_update(SRadixTree * pVisited,
 				   SPrefix sPrefix,
-				   SNetLink * pIface,
+				   net_iface_t * pIface,
 				   net_addr_t tNextHop,
 				   net_igp_weight_t tNewWeight)
 {
@@ -129,8 +130,8 @@ static inline int _spt_info_update(SRadixTree * pVisited,
  */
 static inline void _push(SFIFO * pFIFO,
 			 SIGPDomain * pDomain,
-			 SNetNode * pNode,
-			 SNetIface * pIface,
+			 net_node_t * pNode,
+			 net_iface_t * pIface,
 			 net_addr_t tNextHop,
 			 net_igp_weight_t tWeight)
 {
@@ -162,7 +163,7 @@ static inline void _push(SFIFO * pFIFO,
  * - the IGP weight must be greater than 0
  *   and lower than NET_IGP_MAX_WEIGHT
  */
-static inline int _is_iface_acceptable(SNetIface * pIface)
+static inline int _is_iface_acceptable(net_iface_t * pIface)
 {
   net_igp_weight_t tWeight;
 
@@ -197,19 +198,19 @@ static inline int _is_iface_acceptable(SNetIface * pIface)
  * - separate SPT computation from routing table generation (i.e. do
  *   not look at the local interfaces at the moment)
  */
-static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
+static SRadixTree * _spt_bfs(net_node_t * pSrcNode, SIGPDomain * pDomain)
 {
-  SNetLink * pLink;
-  SNetNode * pNode;
+  net_iface_t * pLink;
+  net_node_t * pNode;
   SFIFO * pFIFO;
   SRadixTree * pVisited;
   SSPTContext * pContext;
   SPrefix sInfoPrefix;
   int iIndex;
   unsigned int uIndex;
-  SNetLink * pIface;   // Root node's outgoing interface along current path
+  net_iface_t * pIface;   // Root node's outgoing interface along current path
   net_addr_t tNextHop; // Root node's nexthop along current path
-  SPtrArray * pLinks;
+  net_ifaces_t * ifaces;
   net_igp_weight_t tWeight;
   net_igp_weight_t tNewWeight;
 
@@ -245,8 +246,8 @@ static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
     _spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, pContext->tWeight);
     
     // Traverse all the outbound links of the current node
-    for (iIndex= 0; iIndex < ptr_array_length(pNode->pLinks); iIndex++) {
-      pLink= (SNetLink *) pNode->pLinks->data[iIndex];
+    for (iIndex= 0; iIndex < net_ifaces_size(pNode->ifaces); iIndex++) {
+      pLink= net_ifaces_at(pNode->ifaces, iIndex);
 
       /*log_printf(pLogErr, "from ");
       ip_address_dump(pLogErr, pNode->tAddr);
@@ -283,19 +284,19 @@ static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
 
       // Push current destination onto stack if further exploration
       // is required from here. This is depending on the iface's type
-      switch (pLink->tType) {
+      switch (pLink->type) {
       case NET_IFACE_RTR:
       case NET_IFACE_PTP:
-	_push(pFIFO, pDomain, pLink->tDest.pIface->pSrcNode,
+	_push(pFIFO, pDomain, pLink->dest.iface->src_node,
 	      pIface, tNextHop, tNewWeight);
 	break;
 
       case NET_IFACE_PTMP:
-	if (!subnet_is_transit(pLink->tDest.pSubnet))
+	if (!subnet_is_transit(pLink->dest.subnet))
 	  continue;
-	pLinks= pLink->tDest.pSubnet->pLinks;
-	for (uIndex= 0; uIndex < ptr_array_length(pLinks); uIndex++) {
-	  SNetLink * pSubLink= (SNetLink *) pLinks->data[uIndex];
+	ifaces= pLink->dest.subnet->ifaces;
+	for (uIndex= 0; uIndex < ptr_array_length(ifaces); uIndex++) {
+	  net_iface_t * pSubLink= net_ifaces_at(ifaces, uIndex);
 
 	  // Skip if we reached the subnet through this link
 	  if (pSubLink == pLink)
@@ -312,9 +313,9 @@ static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
 	  // We traverse the sub-link in reverse direction (i.e. from
 	  // subnet to node) => don't take weight into account
 
-	  sInfoPrefix.tNetwork= pSubLink->pSrcNode->tAddr;
+	  sInfoPrefix.tNetwork= pSubLink->src_node->tAddr;
 	  sInfoPrefix.uMaskLen= 32;
-	  if (igp_domain_contains_router(pDomain, pSubLink->pSrcNode)) {
+	  if (igp_domain_contains_router(pDomain, pSubLink->src_node)) {
 
 	    // Update the next-hop if the subnet is a direct link from
 	    // the root node. Otherwise, use previously computed
@@ -324,14 +325,14 @@ static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
 	    }
 
 	    if (_spt_info_update(pVisited, sInfoPrefix, pIface, tNextHop, tNewWeight))
-	      _push(pFIFO, pDomain, pSubLink->pSrcNode,
+	      _push(pFIFO, pDomain, pSubLink->src_node,
 		    pIface, tNextHop, tNewWeight);
 	  }
 	}
 	break;
       default:
 	log_printf(pLogErr, "WARNING: unsupported link type (%d), "
-		   "ignored by IGP\n", pLink->tType);
+		   "ignored by IGP\n", pLink->type);
       }
     }
     FREE(pContext);
@@ -345,7 +346,7 @@ static SRadixTree * _spt_bfs(SNetNode * pSrcNode, SIGPDomain * pDomain)
 static int _igp_compute_prefix_for_each(uint32_t uKey, uint8_t uKeyLen,
 					void * pItem, void * pContext)
 {
-  SNetNode * pNode= (SNetNode *) pContext;
+  net_node_t * pNode= (net_node_t *) pContext;
   SSPTInfo * pInfo= (SSPTInfo *) pItem;
   SPrefix sPrefix;
   int iResult;
@@ -389,7 +390,7 @@ static int _igp_compute_rt_for_each(uint32_t uKey, uint8_t uKeyLen,
 {
   int iResult;
   SIGPDomain * pDomain= (SIGPDomain *) pContext;
-  SNetNode * pNode= (SNetNode *) pItem;
+  net_node_t * pNode= (net_node_t *) pItem;
   SRadixTree * pTree;
 
   /* Remove all IGP routes from node */

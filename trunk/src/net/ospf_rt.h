@@ -46,7 +46,7 @@ extern int ospf_rt_test();
 //////  OSPF NEXT HOP FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 // ----- ospf_next_hop_create --------------------------------------------------
-extern SOSPFNextHop * ospf_next_hop_create(SNetLink * pLink, net_addr_t tAddr);
+extern SOSPFNextHop * ospf_next_hop_create(net_iface_t * pLink, net_addr_t tAddr);
 // ----- ospf_next_hop_destroy -------------------------------------------------
 extern void ospf_next_hop_destroy(SOSPFNextHop ** ppNH);
 

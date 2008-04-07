@@ -90,13 +90,14 @@ int net_tm_parser(FILE * pStream)
   unsigned int uValue;
   uint32_t uLineNumber= 0;
   net_addr_t tSrcAddr;
-  SNetNode * pSrcNode;
+  net_node_t * pSrcNode;
   //SPrefix sSrcIface;
-  //SNetLink * pSrcLink;
+  //net_iface_t * pSrcLink;
   SNetDest sDst;
   net_link_load_t tLoad;
   net_tos_t tTOS= 0;
   SNetRecordRouteInfo * pRRInfo;
+  network_t * network= network_get_default();
 
   pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
   
@@ -126,7 +127,7 @@ int net_tm_parser(FILE * pStream)
       iError= NET_TM_ERROR_INVALID_SRC;
       break;
     }
-    pSrcNode= network_find_node(tSrcAddr);
+    pSrcNode= network_find_node(network, tSrcAddr);
     if (pSrcNode == NULL) {
       iError= NET_TM_ERROR_UNKNOWN_SRC;
       break;

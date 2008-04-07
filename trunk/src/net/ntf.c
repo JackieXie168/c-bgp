@@ -38,8 +38,9 @@ int ntf_load(char * pcFileName)
   unsigned int uWeight;
   unsigned int uDelay;
   net_link_delay_t tDelay;
-  SNetNode * pNode1, * pNode2;
-  SNetIface * pIface;
+  net_node_t * pNode1, * pNode2;
+  net_iface_t * pIface;
+  network_t * network= network_get_default();
 
   pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
 
@@ -105,22 +106,22 @@ int ntf_load(char * pcFileName)
         tDelay= (net_link_delay_t) uDelay;
       }
 
-      pNode1= network_find_node(tNode1);
+      pNode1= network_find_node(network, tNode1);
       if (pNode1 == NULL) {
-	pNode1= node_create(tNode1);
-	network_add_node(pNode1);
+	assert(node_create(tNode1, &pNode1) == ESUCCESS);
+	assert(network_add_node(network, pNode1) == ESUCCESS);
       }
 
-      pNode2= network_find_node(tNode2);
+      pNode2= network_find_node(network, tNode2);
       if (pNode2 == NULL) {
-	pNode2= node_create(tNode2);
-	network_add_node(pNode2);
+	assert(node_create(tNode2, &pNode2) == ESUCCESS);
+	assert(network_add_node(network, pNode2) == ESUCCESS);
       }
 
       assert(net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface)
-	     == NET_SUCCESS);
-      assert(net_link_set_phys_attr(pIface, tDelay, 0, BIDIR) == NET_SUCCESS);
-      assert(net_iface_set_metric(pIface, 0, uWeight, BIDIR) == NET_SUCCESS);
+	     == ESUCCESS);
+      assert(net_link_set_phys_attr(pIface, tDelay, 0, BIDIR) == ESUCCESS);
+      assert(net_iface_set_metric(pIface, 0, uWeight, BIDIR) == ESUCCESS);
     }
 
     fclose(pFile);

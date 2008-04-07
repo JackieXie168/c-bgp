@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// @lastdate 05/03/2008
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,7 +23,7 @@
 /**
  *
  */
-int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2)
+int route_nexthop_compare(rt_entry_t sNH1, rt_entry_t sNH2)
 {
   if (sNH1.tGateway > sNH2.tGateway)
     return 1;
@@ -40,43 +40,12 @@ int route_nexthop_compare(SNetRouteNextHop sNH1, SNetRouteNextHop sNH2)
   return 0;
 }
 
-// ----- rt_perror -------------------------------------------------------
-/**
- * Dump an error message corresponding to the given error code.
- */
-void rt_perror(SLogStream * pStream, int iErrorCode)
-{
-  char * pcError= rt_strerror(iErrorCode);
-  if (pcError != NULL)
-    log_printf(pStream, pcError);
-  else
-    log_printf(pStream, "unknown error (%i)", iErrorCode);
-}
-
-// ----- rt_strerror ----------------------------------------------
-char * rt_strerror(int iErrorCode)
-{
-  switch (iErrorCode) {
-  case NET_RT_SUCCESS:
-    return "success";
-  case NET_RT_ERROR_NH_UNREACH:
-    return "next-hop is unreachable";
-  case NET_RT_ERROR_IF_UNKNOWN:
-    return "interface is unknown";
-  case NET_RT_ERROR_ADD_DUP:
-    return "route already exists";
-  case NET_RT_ERROR_DEL_UNEXISTING:
-    return "route does not exist";
-  }
-  return NULL;
-}
-
 // ----- net_route_info_create --------------------------------------
 /**
  *
  */
 SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
-				      SNetLink * pIface,
+				      net_iface_t * pIface,
 				      net_addr_t tGateway,
 				      uint32_t uWeight,
 				      net_route_type_t tType)
@@ -174,18 +143,17 @@ int rt_info_list_length(SNetRouteInfoList * pRouteInfoList)
  * destination prefix).
  *
  * Result:
- * - NET_RT_SUCCESS if the insertion succeeded
- * - NET_RT_ERROR_ADD_DUP if the route could not be added (it already
+ * - ESUCCESS          if the insertion succeeded
+ * - ENET_RT_DUPLICATE if the route could not be added (it already
  *   exists)
  */
 int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
-			SNetRouteInfo * pRouteInfo)
+		     SNetRouteInfo * pRouteInfo)
 {
   if (ptr_array_add((SPtrArray *) pRouteInfoList,
-		    &pRouteInfo) < 0) {
-    return NET_RT_ERROR_ADD_DUP;
-  }
-  return NET_RT_SUCCESS;
+		    &pRouteInfo) < 0)
+    return ENET_RT_DUPLICATE;
+  return ESUCCESS;
 }
 
 // ----- SNetRouteInfoFilter ----------------------------------------
@@ -201,7 +169,7 @@ int rt_info_list_add(SNetRouteInfoList * pRouteInfoList,
  */
 typedef struct {
   SPrefix * pPrefix;
-  SNetLink * pIface;
+  net_iface_t * pIface;
   net_addr_t * pGateway;
   net_route_type_t tType;
   SPtrArray * pRemovalList;
@@ -336,7 +304,7 @@ int rt_info_list_del(SNetRouteInfoList * pRouteInfoList,
   unsigned int uIndex;
   SNetRouteInfo * pRI;
   unsigned int uRemovedCount= 0;
-  int iResult= NET_RT_ERROR_DEL_UNEXISTING;
+  int iResult= ENET_RT_UNKNOWN;
 
   /* Lookup the whole list of routes... */
   uIndex= 0;
@@ -357,7 +325,7 @@ int rt_info_list_del(SNetRouteInfoList * pRouteInfoList,
     net_info_schedule_removal(pRIFilter, pPrefix);
 
   if (uRemovedCount > 0)
-    iResult= NET_RT_SUCCESS;
+    iResult= ESUCCESS;
 
   return iResult;
 }
@@ -499,8 +467,8 @@ SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
  * Add a route into the routing table.
  *
  * Returns:
- *   NET_RT_SUCCESS       on success
- *   NET_RT_ERROR_ADD_DUP in case of error (duplicate route)
+ *   ESUCCESS          on success
+ *   ENET_RT_DUPLICATE in case of error (duplicate route)
  */
 int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
 		 SNetRouteInfo * pRouteInfo)
@@ -515,7 +483,7 @@ int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
   // Create a new info-list if none exists for the given prefix
   if (pRIList == NULL) {
     pRIList= rt_info_list_create();
-    assert(rt_info_list_add(pRIList, pRouteInfo) == NET_RT_SUCCESS);
+    assert(rt_info_list_add(pRIList, pRouteInfo) == ESUCCESS);
     trie_insert((STrie *) pRT, sPrefix.tNetwork, sPrefix.uMaskLen, pRIList);
 
   } else {
@@ -523,8 +491,7 @@ int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
     return rt_info_list_add(pRIList, pRouteInfo);
 
   }
-
-  return NET_RT_SUCCESS;
+  return ESUCCESS;
 }
 
 // ----- rt_del_for_each --------------------------------------------
@@ -566,7 +533,7 @@ int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
  * attributes. The NULL value corresponds to the wildcard.
  */
 int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-		 SNetLink * pIface, net_addr_t * ptGateway,
+		 net_iface_t * pIface, net_addr_t * ptGateway,
 		 net_route_type_t tType)
 {
   SNetRouteInfoList * pRIList;
@@ -658,7 +625,7 @@ int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
 /**
  *
  */
-void route_nexthop_dump(SLogStream * pStream, SNetRouteNextHop sNextHop)
+void route_nexthop_dump(SLogStream * pStream, rt_entry_t sNextHop)
 {
   ip_address_dump(pStream, sNextHop.tGateway);
   log_printf(pStream, "\t");
@@ -673,6 +640,9 @@ void route_nexthop_dump(SLogStream * pStream, SNetRouteNextHop sNextHop)
 void net_route_type_dump(SLogStream * pStream, net_route_type_t tType)
 {
   switch (tType) {
+  case NET_ROUTE_DIRECT:
+    log_printf(pStream, "DIRECT");
+    break;
   case NET_ROUTE_STATIC:
     log_printf(pStream, "STATIC");
     break;
@@ -683,7 +653,7 @@ void net_route_type_dump(SLogStream * pStream, net_route_type_t tType)
     log_printf(pStream, "BGP");
     break;
   default:
-    log_printf(pStream, "???");
+    abort();
   }
 }
 

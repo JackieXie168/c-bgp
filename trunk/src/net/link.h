@@ -38,23 +38,24 @@ extern "C" {
 #endif
 
   // -----[ net_link_create_rtr ]------------------------------------
-  int net_link_create_rtr(SNetNode * pSrcNode, SNetNode * pDstNode,
-			  EIfaceDir eDir, SNetIface ** ppIface);
+  int net_link_create_rtr(net_node_t * pSrcNode, net_node_t * pDstNode,
+			  net_iface_dir_t dir, net_iface_t ** ppIface);
   // -----[ net_link_create_ptp ]------------------------------------
-  int net_link_create_ptp(SNetNode * pSrcNode,
+  int net_link_create_ptp(net_node_t * pSrcNode,
 			  net_iface_id_t tSrcIfaceID,
-			  SNetNode * pDstNode,
+			  net_node_t * pDstNode,
 			  net_iface_id_t tDstIfaceID,
-			  EIfaceDir eDir,
-			  SNetIface ** ppIface);
+			  net_iface_dir_t dir,
+			  net_iface_t ** ppIface);
   // -----[ net_link_create_ptmp ]-----------------------------------
-  int net_link_create_ptmp(SNetNode * pSrcNode, SNetSubnet * pSubnet,
-			   net_addr_t tIfaceAddr, SNetIface ** ppIface);
+  int net_link_create_ptmp(net_node_t * pSrcNode, net_subnet_t * pSubnet,
+			   net_addr_t tIfaceAddr, net_iface_t ** ppIface);
   // -----[ net_link_set_phys_attr ]---------------------------------
-  int net_link_set_phys_attr(SNetIface * pIface, net_link_delay_t tDelay,
-			     net_link_load_t tCapacity, EIfaceDir eDir);
+  int net_link_set_phys_attr(net_iface_t * pIface, net_link_delay_t tDelay,
+			     net_link_load_t tCapacity,
+			     net_iface_dir_t dir);
   // ----- net_link_destroy -----------------------------------------
-  void net_link_destroy(SNetLink ** ppLink);
+  void net_link_destroy(net_iface_t ** ppLink);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -62,11 +63,11 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- net_link_dump --------------------------------------------
-  void net_link_dump(SLogStream * pStream, SNetLink * pLink);
+  void net_link_dump(SLogStream * pStream, net_iface_t * pLink);
   // ----- net_link_dump_load ---------------------------------------
-  void net_link_dump_load(SLogStream * pStream, SNetLink * pLink);
+  void net_link_dump_load(SLogStream * pStream, net_iface_t * pLink);
   // ----- net_link_dump_info ---------------------------------------
-  void net_link_dump_info(SLogStream * pStream, SNetLink * pLink);
+  void net_link_dump_info(SLogStream * pStream, net_iface_t * pLink);
 
 
 #ifdef __cplusplus

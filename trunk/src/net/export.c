@@ -22,7 +22,7 @@
  */
 int net_export_stream(SLogStream * pStream)
 {
-  return net_export_cli(pStream, network_get());
+  return net_export_cli(pStream, network_get_default());
 }
 
 // -----[ net_export_file ]------------------------------------------
