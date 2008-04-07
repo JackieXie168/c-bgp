@@ -86,6 +86,8 @@ libbgp_la_SOURCES = \
 	peer.c \
 	peer.h \
 	peer_t.h \
+	peer-list.c \
+	peer-list.h \
 	predicate_parser.c \
 	predicate_parser.h \
 	qos.c \
