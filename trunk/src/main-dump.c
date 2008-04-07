@@ -45,7 +45,7 @@ typedef struct {
   unsigned int uRoutesIgnored;
   unsigned int uRoutesFiltered;
   char * pcOutSpec;
-  SFilterMatcher * pMatcher;
+  bgp_ft_matcher_t * pMatcher;
 } SDumperContext;
 static SDumperContext sContext= { .uRoutesOk= 0,
 				  .uRoutesIgnored= 0,
@@ -78,7 +78,7 @@ void usage()
 }
 
 // -----[ _handler ]-------------------------------------------------
-static int _handler(int iStatus, SRoute * pRoute, net_addr_t tPeerAddr,
+static int _handler(int iStatus, bgp_route_t * pRoute, net_addr_t tPeerAddr,
 		    unsigned int uPeerAS, void * pContext)
 {
   SDumperContext * pCtx= (SDumperContext *) pContext;
