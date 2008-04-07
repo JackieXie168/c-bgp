@@ -29,6 +29,8 @@ libnet_la_SOURCES = \
 	export_ntf.h \
 	icmp.c \
 	icmp.h \
+	icmp_options.c \
+	icmp_options.h \
 	iface.c \
 	iface.h \
 	iface_ptmp.c \
