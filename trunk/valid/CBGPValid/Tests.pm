@@ -141,6 +141,8 @@ sub new($%)
     $self->{'debug'}= $args{'-debug'};
   (exists($args{'-include'})) and
     $self->{'include'}= $args{'-include'};
+  (exists($args{-maxfailures})) and
+    $self->{'max-failures'}= $args{-maxfailures};
   bless $self, $class;
 
   (defined($self->{'cache-file'})) and
