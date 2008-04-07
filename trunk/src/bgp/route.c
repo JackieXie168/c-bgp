@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/11/2002
-// @lastdate 22/02/2008
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,8 +30,8 @@
  * used inside this file only (private). These functions should be
  * static and should not appear in the .h file.
  */
-SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
-		       SBGPAttr * pAttr);
+static inline bgp_route_t *
+_route_create2(SPrefix sPrefix, bgp_peer_t * pPeer, SBGPAttr * pAttr);
 
 // ----- route_create -----------------------------------------------
 /**
@@ -42,40 +42,31 @@ SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
  * route. Finally, the 'origin-type' field tells how the route was
  * originated. This is usually set to IGP.
  */
-SRoute * route_create(SPrefix sPrefix, SBGPPeer * pPeer,
+bgp_route_t * route_create(SPrefix sPrefix, bgp_peer_t * pPeer,
 		      net_addr_t tNextHop,
 		      bgp_origin_t tOrigin)
 {
-  return route_create2(sPrefix, pPeer,
-		       bgp_attr_create(tNextHop, tOrigin,
-				       ROUTE_PREF_DEFAULT,
-				       ROUTE_MED_DEFAULT));
+  return _route_create2(sPrefix, pPeer,
+			bgp_attr_create(tNextHop, tOrigin,
+					ROUTE_PREF_DEFAULT,
+					ROUTE_MED_DEFAULT));
 }
 
-// -----[ route_create2 ]--------------------------------------------
+// -----[ _route_create2 ]-------------------------------------------
 /**
  *
  */
-SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
-		       SBGPAttr * pAttr)
+static inline bgp_route_t *
+_route_create2(SPrefix sPrefix, bgp_peer_t * pPeer, SBGPAttr * pAttr)
 {
-  SRoute * pRoute= (SRoute *) MALLOC(sizeof(SRoute));
+  bgp_route_t * pRoute= (bgp_route_t *) MALLOC(sizeof(bgp_route_t));
   pRoute->sPrefix= sPrefix;
   pRoute->pPeer= pPeer;
   pRoute->pAttr= pAttr;
   pRoute->uFlags= 0;
 
-  /* QoS fields */
 #ifdef BGP_QOS
-  qos_route_init_delay(pRoute);
-  qos_route_init_bandwidth(pRoute);
-  pRoute->pAggrRoutes= NULL;
-  pRoute->pAggrRoute= NULL;
-  pRoute->pEBGPRoute= NULL;
-#endif
-
-#ifdef __ROUTER_LIST_ENABLE__
-  pRoute->pRouterList= NULL;
+  bgp_route_qos_init(pRoute);
 #endif
 
 #ifdef __EXPERIMENTAL__
@@ -93,17 +84,12 @@ SRoute * route_create2(SPrefix sPrefix, SBGPPeer * pPeer,
 /**
  * Destroy the given route.
  */
-void route_destroy(SRoute ** ppRoute)
+void route_destroy(bgp_route_t ** ppRoute)
 {
   if (*ppRoute != NULL) {
 
-    /* BGP QoS */
 #ifdef BGP_QOS
-    ptr_array_destroy(&(*ppRoute)->pAggrRoutes);
-#endif
-
-#ifdef __ROUTER_LIST_ENABLE__
-    route_router_list_clear(*ppRoute);
+    bgp_route_qos_destroy(*ppRoute);
 #endif
 
     bgp_attr_destroy(&(*ppRoute)->pAttr);
@@ -118,7 +104,7 @@ void route_destroy(SRoute ** ppRoute)
 /**
  *
  */
-inline void route_flag_set(SRoute * pRoute, uint16_t uFlag,
+inline void route_flag_set(bgp_route_t * pRoute, uint16_t uFlag,
 			   int iState)
 {
   if (iState)
@@ -131,7 +117,7 @@ inline void route_flag_set(SRoute * pRoute, uint16_t uFlag,
 /**
  *
  */
-inline int route_flag_get(SRoute * pRoute, uint16_t uFlag)
+inline int route_flag_get(bgp_route_t * pRoute, uint16_t uFlag)
 {
   return pRoute->uFlags & uFlag;
 }
@@ -140,7 +126,7 @@ inline int route_flag_get(SRoute * pRoute, uint16_t uFlag)
 /**
  *
  */
-inline void route_peer_set(SRoute * pRoute, SBGPPeer * pPeer)
+inline void route_peer_set(bgp_route_t * pRoute, bgp_peer_t * pPeer)
 {
   pRoute->pPeer= pPeer;
 }
@@ -149,7 +135,7 @@ inline void route_peer_set(SRoute * pRoute, SBGPPeer * pPeer)
 /**
  *
  */
-inline SBGPPeer * route_peer_get(SRoute * pRoute)
+inline bgp_peer_t * route_peer_get(bgp_route_t * pRoute)
 {
   assert(pRoute->pPeer != NULL);
   return pRoute->pPeer;
@@ -157,8 +143,8 @@ inline SBGPPeer * route_peer_get(SRoute * pRoute)
 
 #ifdef __EXPERIMENTAL__
 // ----- route_set_origin_router ------------------------------------
-inline void route_set_origin_router(SRoute * pRoute,
-				    SBGPRouter * pRouter)
+inline void route_set_origin_router(bgp_route_t * pRoute,
+				    bgp_router_t * pRouter)
 {
   pRoute->pOriginRouter= pRouter;
 }
@@ -174,7 +160,7 @@ inline void route_set_origin_router(SRoute * pRoute,
 /**
  * Set the route's BGP next-hop.
  */
-inline void route_set_nexthop(SRoute * pRoute,
+inline void route_set_nexthop(bgp_route_t * pRoute,
 			      net_addr_t tNextHop)
 {
   bgp_attr_set_nexthop(&pRoute->pAttr, tNextHop);
@@ -184,7 +170,7 @@ inline void route_set_nexthop(SRoute * pRoute,
 /**
  * Return the route's BGP next-hop.
  */
-inline net_addr_t route_get_nexthop(SRoute * pRoute)
+inline net_addr_t route_get_nexthop(bgp_route_t * pRoute)
 {
   return pRoute->pAttr->tNextHop;
 }
@@ -200,7 +186,7 @@ inline net_addr_t route_get_nexthop(SRoute * pRoute)
 /**
  * Set the route's origin.
  */
-inline void route_set_origin(SRoute * pRoute, bgp_origin_t tOrigin)
+inline void route_set_origin(bgp_route_t * pRoute, bgp_origin_t tOrigin)
 {
   bgp_attr_set_origin(&pRoute->pAttr, tOrigin);
 }
@@ -209,7 +195,7 @@ inline void route_set_origin(SRoute * pRoute, bgp_origin_t tOrigin)
 /**
  * Return the route's origin.
  */
-inline bgp_origin_t route_get_origin(SRoute * pRoute)
+inline bgp_origin_t route_get_origin(bgp_route_t * pRoute)
 {
   return pRoute->pAttr->tOrigin;
 }
@@ -228,7 +214,7 @@ inline bgp_origin_t route_get_origin(SRoute * pRoute)
  * Note: the given AS-Path is not copied, but it will be referenced
  * in the global path repository if used or destroyed if not.
  */
-inline void route_set_path(SRoute * pRoute, SBGPPath * pPath)
+inline void route_set_path(bgp_route_t * pRoute, SBGPPath * pPath)
 {
   bgp_attr_set_path(&pRoute->pAttr, pPath);
 }
@@ -237,7 +223,7 @@ inline void route_set_path(SRoute * pRoute, SBGPPath * pPath)
 /**
  * Return the route's AS-Path.
  */
-inline SBGPPath * route_get_path(SRoute * pRoute)
+inline SBGPPath * route_get_path(bgp_route_t * pRoute)
 {
   return pRoute->pAttr->pASPathRef;
 }
@@ -258,14 +244,14 @@ inline SBGPPath * route_get_path(SRoute * pRoute)
  *   0  in case of success
  *  -1  in case of failure (AS-Path would become too long)
  */
-inline int route_path_prepend(SRoute * pRoute, uint16_t uAS,
+inline int route_path_prepend(bgp_route_t * pRoute, uint16_t uAS,
 			      uint8_t uAmount)
 {
   return bgp_attr_path_prepend(&pRoute->pAttr, uAS, uAmount);
 }
 
 // -----[ route_path_rem_private ]-----------------------------------
-inline int route_path_rem_private(SRoute * pRoute)
+inline int route_path_rem_private(bgp_route_t * pRoute)
 {
   return bgp_attr_path_rem_private(&pRoute->pAttr);
 }
@@ -276,7 +262,7 @@ inline int route_path_rem_private(SRoute * pRoute)
  *
  * Returns 1 if true, 0 otherwise.
  */
-inline int route_path_contains(SRoute * pRoute, uint16_t uAS)
+inline int route_path_contains(bgp_route_t * pRoute, uint16_t uAS)
 {
   return (pRoute->pAttr->pASPathRef != NULL) &&
     (path_contains(pRoute->pAttr->pASPathRef, uAS) != 0);
@@ -286,7 +272,7 @@ inline int route_path_contains(SRoute * pRoute, uint16_t uAS)
 /**
  * Return the length of the route's AS-Path.
  */
-inline int route_path_length(SRoute * pRoute)
+inline int route_path_length(bgp_route_t * pRoute)
 {
   if (pRoute->pAttr->pASPathRef != NULL)
     return path_length(pRoute->pAttr->pASPathRef);
@@ -304,7 +290,7 @@ inline int route_path_length(SRoute * pRoute)
  * not work if the last segment in the AS-Path is of type AS-SET since
  * there is no ordering of the AS-numbers in this case.
  */
-inline int route_path_last_as(SRoute * pRoute)
+inline int route_path_last_as(bgp_route_t * pRoute)
 {
   if (pRoute->pAttr->pASPathRef != NULL)
     return path_last_as(pRoute->pAttr->pASPathRef);
@@ -328,7 +314,7 @@ inline int route_path_last_as(SRoute * pRoute)
  * referenced in the global Communities repository if used or
  * destroyed if not.
  */
-inline void route_set_comm(SRoute * pRoute, SCommunities * pCommunities)
+inline void route_set_comm(bgp_route_t * pRoute, SCommunities * pCommunities)
 {
   bgp_attr_set_comm(&pRoute->pAttr, pCommunities);
 }
@@ -341,7 +327,7 @@ inline void route_set_comm(SRoute * pRoute, SCommunities * pCommunities)
  *    0  in case of success
  *   -1  in case of failure (Communities would become too long)
  */
-inline int route_comm_append(SRoute * pRoute, comm_t tCommunity)
+inline int route_comm_append(bgp_route_t * pRoute, comm_t tCommunity)
 {
   return bgp_attr_comm_append(&pRoute->pAttr, tCommunity);
 }
@@ -350,7 +336,7 @@ inline int route_comm_append(SRoute * pRoute, comm_t tCommunity)
 /**
  * Remove all the community values from the Communities attribute.
  */
-inline void route_comm_strip(SRoute * pRoute)
+inline void route_comm_strip(bgp_route_t * pRoute)
 {
   bgp_attr_comm_strip(&pRoute->pAttr);
 }
@@ -359,7 +345,7 @@ inline void route_comm_strip(SRoute * pRoute)
 /**
  * Remove a single community value from the Communities attribute.
  */
-inline void route_comm_remove(SRoute * pRoute, comm_t tCommunity)
+inline void route_comm_remove(bgp_route_t * pRoute, comm_t tCommunity)
 {
   bgp_attr_comm_remove(&pRoute->pAttr, tCommunity);
 }
@@ -369,7 +355,7 @@ inline void route_comm_remove(SRoute * pRoute, comm_t tCommunity)
  * Test if the Communities attribute contains the given community
  * value.
  */
-inline int route_comm_contains(SRoute * pRoute, comm_t tCommunity)
+inline int route_comm_contains(bgp_route_t * pRoute, comm_t tCommunity)
 {
   return (pRoute->pAttr->pCommunities != NULL) &&
     (comm_contains(pRoute->pAttr->pCommunities, tCommunity) != 0);
@@ -385,7 +371,7 @@ inline int route_comm_contains(SRoute * pRoute, comm_t tCommunity)
 /**
  *
  */
-inline int route_ecomm_append(SRoute * pRoute, SECommunity * pComm)
+inline int route_ecomm_append(bgp_route_t * pRoute, SECommunity * pComm)
 {
   return bgp_attr_ecomm_append(&pRoute->pAttr, pComm);
 }
@@ -394,7 +380,7 @@ inline int route_ecomm_append(SRoute * pRoute, SECommunity * pComm)
 /**
  *
  */
-inline void route_ecomm_strip_non_transitive(SRoute * pRoute)
+inline void route_ecomm_strip_non_transitive(bgp_route_t * pRoute)
 {
   ecomm_strip_non_transitive(&pRoute->pAttr->pECommunities);
 }
@@ -410,7 +396,7 @@ inline void route_ecomm_strip_non_transitive(SRoute * pRoute)
 /**
  *
  */
-inline void route_localpref_set(SRoute * pRoute, uint32_t uPref)
+inline void route_localpref_set(bgp_route_t * pRoute, uint32_t uPref)
 {
   pRoute->pAttr->uLocalPref= uPref;
 }
@@ -419,7 +405,7 @@ inline void route_localpref_set(SRoute * pRoute, uint32_t uPref)
 /**
  *
  */
-inline uint32_t route_localpref_get(SRoute * pRoute)
+inline uint32_t route_localpref_get(bgp_route_t * pRoute)
 {
   return pRoute->pAttr->uLocalPref;
 }
@@ -435,7 +421,7 @@ inline uint32_t route_localpref_get(SRoute * pRoute)
 /**
  *
  */
-inline void route_med_clear(SRoute * pRoute)
+inline void route_med_clear(bgp_route_t * pRoute)
 {
   pRoute->pAttr->uMED= ROUTE_MED_MISSING;
 }
@@ -444,7 +430,7 @@ inline void route_med_clear(SRoute * pRoute)
 /**
  *
  */
-inline void route_med_set(SRoute * pRoute, uint32_t uMED)
+inline void route_med_set(bgp_route_t * pRoute, uint32_t uMED)
 {
   pRoute->pAttr->uMED= uMED;
 }
@@ -453,7 +439,7 @@ inline void route_med_set(SRoute * pRoute, uint32_t uMED)
 /**
  *
  */
-inline uint32_t route_med_get(SRoute * pRoute)
+inline uint32_t route_med_get(bgp_route_t * pRoute)
 {
   return pRoute->pAttr->uMED;
 }
@@ -469,7 +455,7 @@ inline uint32_t route_med_get(SRoute * pRoute)
 /**
  *
  */
-inline void route_originator_set(SRoute * pRoute, net_addr_t tOriginator)
+inline void route_originator_set(bgp_route_t * pRoute, net_addr_t tOriginator)
 {
   assert(pRoute->pAttr->pOriginator == NULL);
   pRoute->pAttr->pOriginator= (net_addr_t *) MALLOC(sizeof(net_addr_t));
@@ -484,7 +470,7 @@ inline void route_originator_set(SRoute * pRoute, net_addr_t tOriginator)
  *    0 if Originator-ID exists
  *   -1 otherwise
  */
-inline int route_originator_get(SRoute * pRoute, net_addr_t * pOriginator)
+inline int route_originator_get(bgp_route_t * pRoute, net_addr_t * pOriginator)
 {
   if (pRoute->pAttr->pOriginator != NULL) {
     if (pOriginator != NULL)
@@ -498,7 +484,7 @@ inline int route_originator_get(SRoute * pRoute, net_addr_t * pOriginator)
 /**
  *
  */
-inline void route_originator_clear(SRoute * pRoute)
+inline void route_originator_clear(bgp_route_t * pRoute)
 {
   bgp_attr_originator_destroy(pRoute->pAttr);
 }
@@ -511,7 +497,7 @@ inline void route_originator_clear(SRoute * pRoute)
  *   1  if both originator-IDs are equal
  *   0  otherwise
  */
-inline int route_originator_equals(SRoute * pRoute1, SRoute * pRoute2)
+inline int route_originator_equals(bgp_route_t * pRoute1, bgp_route_t * pRoute2)
 {
   return originator_equals(pRoute1->pAttr->pOriginator,
 			   pRoute2->pAttr->pOriginator);
@@ -528,7 +514,7 @@ inline int route_originator_equals(SRoute * pRoute1, SRoute * pRoute2)
 /**
  *
  */
-inline void route_cluster_list_set(SRoute * pRoute)
+inline void route_cluster_list_set(bgp_route_t * pRoute)
 {
   assert(pRoute->pAttr->pClusterList == NULL);
   pRoute->pAttr->pClusterList= cluster_list_create();
@@ -538,7 +524,7 @@ inline void route_cluster_list_set(SRoute * pRoute)
 /**
  *
  */
-inline void route_cluster_list_append(SRoute * pRoute,
+inline void route_cluster_list_append(bgp_route_t * pRoute,
 				      cluster_id_t tClusterID)
 {
   if (pRoute->pAttr->pClusterList == NULL)
@@ -550,7 +536,7 @@ inline void route_cluster_list_append(SRoute * pRoute,
 /**
  *
  */
-void route_cluster_list_clear(SRoute * pRoute)
+void route_cluster_list_clear(bgp_route_t * pRoute)
 {
   bgp_attr_cluster_list_destroy(pRoute->pAttr);
 }
@@ -563,7 +549,7 @@ void route_cluster_list_clear(SRoute * pRoute)
  *   1  if both Cluster-ID-Lists are equal
  *   0  otherwise
  */
-inline int route_cluster_list_equals(SRoute * pRoute1, SRoute * pRoute2)
+inline int route_cluster_list_equals(bgp_route_t * pRoute1, bgp_route_t * pRoute2)
 {
   return cluster_list_equals(pRoute1->pAttr->pClusterList,
 			     pRoute2->pAttr->pClusterList);
@@ -573,44 +559,13 @@ inline int route_cluster_list_equals(SRoute * pRoute1, SRoute * pRoute2)
 /**
  *
  */
-inline int route_cluster_list_contains(SRoute * pRoute,
+inline int route_cluster_list_contains(bgp_route_t * pRoute,
 				       cluster_id_t tClusterID)
 {
   if (pRoute->pAttr->pClusterList != NULL)
     return cluster_list_contains(pRoute->pAttr->pClusterList, tClusterID);
   return 0;
 }
-
-
-/////////////////////////////////////////////////////////////////////
-//
-// ATTRIBUTE ROUTER-LIST (FOR DEBUGGING PURPOSES)
-//
-/////////////////////////////////////////////////////////////////////
-
-#ifdef __ROUTER_LIST_ENABLE__
-// ----- route_router_list_append -----------------------------------
-inline void route_router_list_append(SRoute * pRoute, net_addr_t tAddr)
-{
-  if (pRoute->pRouterList == NULL)
-    pRoute->pRouterList= cluster_list_create();
-  cluster_list_append(pRoute->pRouterList, tAddr);
-}
-
-// ----- route_router_list_clear ------------------------------------
-inline void route_router_list_clear(SRoute * pRoute)
-{
-  cluster_list_destroy(pRoute->pRouterList);
-}
-
-// ----- route_router_list_copy -------------------------------------
-inline SClusterList * route_router_list_copy(SRoute * pRoute)
-{
-  if (pRoute->pRouterList != NULL)
-    return cluster_list_copy(pRoute->pRouterList);
-  return NULL;
-}
-#endif /* __ROUTER_LIST_ENABLE__ */
 
 
 /////////////////////////////////////////////////////////////////////
@@ -623,27 +578,23 @@ inline SClusterList * route_router_list_copy(SRoute * pRoute)
 /**
  *
  */
-int route_equals(SRoute * pRoute1, SRoute * pRoute2)
+int route_equals(bgp_route_t * pRoute1, bgp_route_t * pRoute2)
 {
-  if (pRoute1 == pRoute2) {
+  if (pRoute1 == pRoute2)
     return 1;
-  }
 
-  /* BGP QoS */
 #ifdef BGP_QOS
-  if (!qos_route_delay_equals(pRoute1, pRoute2) ||
-      !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
+  if (!bgp_route_qos_equals(pRoute1, pRoute2))
     return 0;
-  }
 #endif
 
   // Compare destination prefixes
   if (ip_prefix_cmp(&pRoute1->sPrefix, &pRoute2->sPrefix))
     return 0;
 
-  if (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr)) {
+  if (bgp_attr_cmp(pRoute1->pAttr, pRoute2->pAttr))
     return 1;
-  }
+
   return 0;
 }
 
@@ -651,31 +602,17 @@ int route_equals(SRoute * pRoute1, SRoute * pRoute2)
 /**
  *
  */
-SRoute * route_copy(SRoute * pRoute)
+bgp_route_t * route_copy(bgp_route_t * pRoute)
 {
-  SRoute * pNewRoute= route_create2(pRoute->sPrefix,
-				    pRoute->pPeer,
-				    bgp_attr_copy(pRoute->pAttr));
+  bgp_route_t * pNewRoute= _route_create2(pRoute->sPrefix,
+					  pRoute->pPeer,
+					  bgp_attr_copy(pRoute->pAttr));
 
   /* Route info */
   pNewRoute->uFlags= pRoute->uFlags;
 
-  /* QoS attributes (experimental) */
 #ifdef BGP_QOS
-  pNewRoute->tDelay= pRoute->tDelay;
-  pNewRoute->tBandwidth= pRoute->tBandwidth;
-  // Copy also list of aggregatable routes ??
-  // Normalement non: alloué par le decision process et références
-  // dans Adj-RIB-Outs. A vérifier !!!
-  if (pRoute->pAggrRoute != NULL) {
-    pNewRoute->pAggrRoutes=
-      (SPtrArray *) _array_copy((SArray *) pRoute->pAggrRoutes);
-    pNewRoute->pAggrRoute= route_copy(pRoute->pAggrRoute);
-  }
-#endif
-
-#ifdef __ROUTER_LIST_ENABLE__
-  pNewRoute->pRouterList= route_router_list_copy(pRoute);
+  bgp_route_qos_copy(pNewRoute, pRoute);
 #endif
 
 #ifdef __BGP_ROUTE_DP_INFO__
@@ -712,7 +649,7 @@ int route_str2format(const char * pcFormat, uint8_t * puFormat)
 /**
  * Dump a BGP route.
  */
-void route_dump(SLogStream * pStream, SRoute * pRoute)
+void route_dump(SLogStream * pStream, bgp_route_t * pRoute)
 {
   switch (BGP_OPTIONS_SHOW_MODE) {
   case BGP_ROUTES_OUTPUT_MRT_ASCII:
@@ -731,7 +668,7 @@ void route_dump(SLogStream * pStream, SRoute * pRoute)
 /**
  * CISCO-like dump of routes.
  */
-void route_dump_cisco(SLogStream * pStream, SRoute * pRoute)
+void route_dump_cisco(SLogStream * pStream, bgp_route_t * pRoute)
 {
   if (pRoute != NULL) {
 
@@ -778,14 +715,6 @@ void route_dump_cisco(SLogStream * pStream, SRoute * pRoute)
     case ROUTE_ORIGIN_INCOMPLETE: log_printf(pStream, "?"); break;
     }
 
-#ifdef __ROUTER_LIST_ENABLE__
-    // Router list
-    log_printf(pStream, "\t[");
-    if (pRoute->pRouterList != NULL)
-      cluster_list_dump(pStream, pRoute->pRouterList);
-    log_printf(pStream, "]");
-#endif
-
   } else
     log_printf(pStream, "(null)");
 }
@@ -808,7 +737,7 @@ void route_dump_cisco(SLogStream * pStream, SRoute * pRoute)
  *   <bandwidth>|<bandwidth-mean>|<bandwidth-weight>
  *
  */
-void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
+void route_dump_mrt(SLogStream * pStream, bgp_route_t * pRoute)
 {
   if (pRoute == NULL) {
     log_printf(pStream, "null");
@@ -884,13 +813,6 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
       cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
     log_printf(pStream, "|");
     
-#ifdef __ROUTER_LIST_ENABLE__
-    // Router list
-    if (pRoute->pRouterList != NULL)
-      cluster_list_dump(pStream, pRoute->pRouterList);
-    log_printf(pStream, "|");
-#endif
-
     /*
     // QoS Delay
     fprintf(pStream, "%u|%u|%u|", pRoute->tDelay.tDelay,
@@ -927,7 +849,7 @@ void route_dump_mrt(SLogStream * pStream, SRoute * pRoute)
 static int _route_dump_custom(SLogStream * pStream, void * pContext,
 			      char cFormat)
 {
-  SRoute * pRoute= (SRoute *) pContext;
+  bgp_route_t * pRoute= (bgp_route_t *) pContext;
   int iASN;
   switch (cFormat) {
   case 'i':
@@ -996,7 +918,7 @@ static int _route_dump_custom(SLogStream * pStream, void * pContext,
   return 0;
 }
 
-void route_dump_custom(SLogStream * pStream, SRoute * pRoute,
+void route_dump_custom(SLogStream * pStream, bgp_route_t * pRoute,
 		       const char * pcFormat)
 {
   int iResult;
