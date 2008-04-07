@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// @lastdate 22/02/2008
+// $Id: node.h,v 1.10 2008-04-07 09:28:00 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -23,18 +23,18 @@ extern "C" {
 #endif
 
   // ----- node_create ----------------------------------------------
-  SNetNode * node_create(net_addr_t tAddr);
+  net_error_t node_create(net_addr_t tAddr, net_node_t ** node_ref);
   // ----- node_destroy ---------------------------------------------
-  void node_destroy(SNetNode ** ppNode);
+  void node_destroy(net_node_t ** node_ref);
   
   // ----- node_set_name --------------------------------------------
-  void node_set_name(SNetNode * pNode, const char * pcName);
+  void node_set_name(net_node_t * node, const char * name);
   // ----- node_get_name --------------------------------------------
-  char * node_get_name(SNetNode * pNode);
+  char * node_get_name(net_node_t * node);
   // ----- node_dump ------------------------------------------------
-  void node_dump(SLogStream * pStream, SNetNode * pNode);
+  void node_dump(SLogStream * stream, net_node_t * node);
   // ----- node_info ------------------------------------------------
-  void node_info(SLogStream * pStream, SNetNode * pNode);
+  void node_info(SLogStream * stream, net_node_t * node);
   
   
   ///////////////////////////////////////////////////////////////////
@@ -42,44 +42,36 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // -----[ node_add_iface ]-----------------------------------------
-  int node_add_iface(SNetNode * pNode, net_iface_id_t tIfaceID,
+  int node_add_iface(net_node_t * node, net_iface_id_t tIfaceID,
 		     net_iface_type_t tIfaceType);
   // -----[ node_add_iface2 ]----------------------------------------
-  int node_add_iface2(SNetNode * pNode, SNetIface * pIface);
+  int node_add_iface2(net_node_t * node, net_iface_t * iface);
   // -----[ node_find_iface ]----------------------------------------
-  SNetIface * node_find_iface(SNetNode * pNode, net_iface_id_t tIfaceID);
+  net_iface_t * node_find_iface(net_node_t * node, net_iface_id_t tIfaceID);
   // -----[ node_ifaces_load_clear ]---------------------------------
-  void node_ifaces_load_clear(SNetNode * pNode);
+  void node_ifaces_load_clear(net_node_t * node);
 
 
   ///////////////////////////////////////////////////////////////////
   // NODE LINKS FUNCTIONS
   ///////////////////////////////////////////////////////////////////
 
-  // ----- node_add_link --------------------------------------------
-  /*
-  int node_add_link(SNetNode * pNode, SNetDest sDest,
-		    net_link_delay_t tDelay, net_link_load_t tCapacity,
-		    uint8_t tDepth);*/
-  // ----- node_add_link_rtr ----------------------------------------
-  /*int node_add_link_rtr(SNetNode * pNodeA, SNetNode * pNodeB,
-			net_link_delay_t tDelay, net_link_load_t tCapacity,
-			uint8_t tDepth, int iMutual);*/
+  // ----- node_links_dump ------------------------------------------
+  void node_links_dump(SLogStream * stream, net_node_t * node);
   // ----- node_links_save ------------------------------------------
-  void node_links_save(SLogStream * pStream, SNetNode * pNode);
+  void node_links_save(SLogStream * stream, net_node_t * node);
 
   // -----[ node_has_address ]---------------------------------------
-  int node_has_address(SNetNode * pNode, net_addr_t tAddress);
+  int node_has_address(net_node_t * node, net_addr_t tAddress);
   // -----[ node_has_prefix ]----------------------------------------
-  int node_has_prefix(SNetNode * pNode, SPrefix sPrefix);
+  int node_has_prefix(net_node_t * node, SPrefix sPrefix);
   // ----- node_addresses_for_each ----------------------------------
-  int node_addresses_for_each(SNetNode * pNode,
-				     FArrayForEach fForEach,
-				     void * pContext);
+  int node_addresses_for_each(net_node_t * node, FArrayForEach for_each,
+			      void * ctx);
   // ----- node_addresses_dump --------------------------------------
-  void node_addresses_dump(SLogStream * pStream, SNetNode * pNode);
+  void node_addresses_dump(SLogStream * stream, net_node_t * node);
   // -----[ node_ifaces_dump ]---------------------------------------
-  void node_ifaces_dump(SLogStream * pStream, SNetNode * pNode);
+  void node_ifaces_dump(SLogStream * stream, net_node_t * node);
   
   
   ///////////////////////////////////////////////////////////////////
@@ -87,19 +79,19 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
   
   // ----- node_rt_add_route ----------------------------------------
-  int node_rt_add_route(SNetNode * pNode, SPrefix sPrefix,
+  int node_rt_add_route(net_node_t * node, SPrefix sPrefix,
 			net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
 			uint32_t uWeight, uint8_t uType);
   // ----- node_rt_add_route_link -----------------------------------
-  int node_rt_add_route_link(SNetNode * pNode, SPrefix sPrefix,
-			     SNetLink * pIface, net_addr_t tNextHop,
+  int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
+			     net_iface_t * iface, net_addr_t tNextHop,
 			     uint32_t uWeight, uint8_t uType);
   // ----- node_rt_del_route ----------------------------------------
-  int node_rt_del_route(SNetNode * pNode, SPrefix * pPrefix,
+  int node_rt_del_route(net_node_t * node, SPrefix * pPrefix,
 			net_iface_id_t * ptIfaceID, net_addr_t * ptNextHop,
 			uint8_t uType);
   // ----- node_rt_dump ---------------------------------------------
-  void node_rt_dump(SLogStream * pStream, SNetNode * pNode,
+  void node_rt_dump(SLogStream * stream, net_node_t * node,
 		    SNetDest sDest);
   
   
@@ -108,12 +100,14 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- node_register_protocol -----------------------------------
-  int node_register_protocol(SNetNode * pNode, uint8_t uNumber,
+  int node_register_protocol(net_node_t * node,
+			     net_protocol_id_t id,
 			     void * pHandler,
-			     FNetNodeHandlerDestroy fDestroy,
-			     FNetNodeHandleEvent fHandleEvent);
+			     FNetProtoHandlerDestroy fDestroy,
+			     FNetProtoHandleEvent fHandleEvent);
   // -----[ node_get_protocol ]--------------------------------------
-  SNetProtocol * node_get_protocol(SNetNode * pNode, uint8_t uNumber);
+  net_protocol_t * node_get_protocol(net_node_t * node,
+				     net_protocol_id_t id);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -121,9 +115,18 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // -----[ node_load_netflow ]--------------------------------------
-  int node_load_netflow(SNetNode * pNode, const char * pcFileName,
-			uint8_t uOptions);
+  int node_load_netflow(net_node_t * node, const char * file_name,
+			uint8_t options);
 
+
+  ///////////////////////////////////////////////////////////////////
+  // SYSLOG
+  ///////////////////////////////////////////////////////////////////
+
+  // -----[ node_syslog ]--------------------------------------------
+  SLogStream * node_syslog(net_node_t * self);
+  // -----[ node_syslog_set_enabled ]--------------------------------
+  void node_syslog_set_enabled(net_node_t * self, int enabled);
   
 #ifdef __cplusplus
 }
