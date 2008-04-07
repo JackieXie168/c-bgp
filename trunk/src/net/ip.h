@@ -11,7 +11,7 @@
 
 #include <stdlib.h>
 
-#define IPV4_TO_INT(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
+#define IPV4(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
 #define NET_ADDR_ANY 0
 
 // ----- IPv4 address -----
