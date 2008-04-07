@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)rib.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 04/12/2002
-// @lastdate 21/05/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,7 +26,7 @@
  */
 void rib_route_destroy(void ** ppItem)
 {
-  SRoute ** ppRoute= (SRoute **) ppItem;
+  bgp_route_t ** ppRoute= (bgp_route_t **) ppItem;
 
   route_destroy(ppRoute);
 }
@@ -34,7 +34,7 @@ void rib_route_destroy(void ** ppItem)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 void rib_routes_list_destroy(void ** ppItem)
 {
-  SRoutes ** ppRoutes = (SRoutes **) ppItem;
+  bgp_routes_t ** ppRoutes = (bgp_routes_t **) ppItem;
 
   routes_list_destroy(ppRoutes);
 }
@@ -48,7 +48,7 @@ typedef struct {
 int rib_trie_for_each(trie_key_t uKey, trie_key_len_t uKeyLen, void * pItem, void * pContext)
 {
   uint16_t uIndex;
-  SRoutes * pRoutes = (SRoutes *) pItem;
+  bgp_routes_t * pRoutes = (bgp_routes_t *) pItem;
   SRIBCtx * pRIBCtx = (SRIBCtx *) pContext;
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
@@ -98,17 +98,17 @@ void rib_destroy(SRIB ** ppRIB)
  *
  */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-SRoutes * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
+bgp_routes_t * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
 #else
-SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
+bgp_route_t * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
 #if defined __EXPERIMENTAL_WALTON__
-  return (SRoutes *) trie_find_best((STrie *) pRIB,
+  return (bgp_routes_t *) trie_find_best((STrie *) pRIB,
 				   sPrefix.tNetwork,
 				   sPrefix.uMaskLen);
 #else
-  return (SRoute *) trie_find_best((STrie *) pRIB,
+  return (bgp_route_t *) trie_find_best((STrie *) pRIB,
 				   sPrefix.tNetwork,
 				   sPrefix.uMaskLen);
 #endif
@@ -120,17 +120,17 @@ SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix)
  *
  */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-SRoutes * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
+bgp_routes_t * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 #else
-SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
+bgp_route_t * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
 #if defined __EXPERIMENTAL_WALTON__
-  return (SRoutes *) trie_find_exact((STrie *) pRIB,
+  return (bgp_routes_t *) trie_find_exact((STrie *) pRIB,
 				    sPrefix.tNetwork,
 				    sPrefix.uMaskLen);
 #else
-  return (SRoute *) trie_find_exact((STrie *) pRIB,
+  return (bgp_route_t *) trie_find_exact((STrie *) pRIB,
 				    sPrefix.tNetwork,
 				    sPrefix.uMaskLen);
 #endif
@@ -141,9 +141,9 @@ SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix)
 /**
  *
  */
-SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix)
+bgp_route_t * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix)
 {
-  SRoutes * pRoutes = rib_find_best(pRIB, sPrefix);
+  bgp_routes_t * pRoutes = rib_find_best(pRIB, sPrefix);
 
   if (pRoutes != NULL) {
     assert(routes_list_get_num(pRoutes) == 0 
@@ -158,12 +158,12 @@ SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix)
 /**
  *
  */
-SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix, 
+bgp_route_t * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix, 
 					  net_addr_t * tNextHop)
 {
   uint16_t uIndex;
-  SRoutes * pRoutes = rib_find_exact(pRIB, sPrefix);
-  SRoute * pRoute;
+  bgp_routes_t * pRoutes = rib_find_exact(pRIB, sPrefix);
+  bgp_route_t * pRoute;
 
   if (pRoutes != NULL) {
     if (tNextHop != NULL) {
@@ -192,9 +192,9 @@ SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix,
 /**
  *
  */
-int _rib_insert_new_route(SRIB * pRIB, SRoute * pRoute)
+int _rib_insert_new_route(SRIB * pRIB, bgp_route_t * pRoute)
 {
-  SRoutes * pRoutes;
+  bgp_routes_t * pRoutes;
   //TODO: Verify that the option is good!
   pRoutes = routes_list_create(0);
   routes_list_append(pRoutes, pRoute);
@@ -206,10 +206,10 @@ int _rib_insert_new_route(SRIB * pRIB, SRoute * pRoute)
 /**
  *
  */
-int _rib_replace_route(SRIB * pRIB, SRoutes * pRoutes, SRoute * pRoute)
+int _rib_replace_route(SRIB * pRIB, bgp_routes_t * pRoutes, bgp_route_t * pRoute)
 {
   uint16_t uIndex;
-  SRoute * pRouteSeek;
+  bgp_route_t * pRouteSeek;
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
@@ -229,10 +229,10 @@ int _rib_replace_route(SRIB * pRIB, SRoutes * pRoutes, SRoute * pRoute)
 /**
  *
  */
-int _rib_remove_route(SRoutes * pRoutes, net_addr_t tNextHop)
+int _rib_remove_route(bgp_routes_t * pRoutes, net_addr_t tNextHop)
 {
   uint16_t uIndex;
-  SRoute * pRouteSeek;
+  bgp_route_t * pRouteSeek;
 
   for (uIndex = 0; uIndex < routes_list_get_num(pRoutes); uIndex++) {
     pRouteSeek = routes_list_get_at(pRoutes, uIndex);
@@ -259,10 +259,10 @@ int _rib_remove_route(SRoutes * pRoutes, net_addr_t tNextHop)
 /**
  *
  */
-int rib_add_route(SRIB * pRIB, SRoute * pRoute)
+int rib_add_route(SRIB * pRIB, bgp_route_t * pRoute)
 {
 #if defined __EXPERIMENTAL_WALTON__
-  SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
+  bgp_routes_t * pRoutes = trie_find_exact((STrie *) pRIB,
 				      pRoute->sPrefix.tNetwork,
 				      pRoute->sPrefix.uMaskLen);
   if (pRoutes == NULL) {
@@ -280,10 +280,10 @@ int rib_add_route(SRIB * pRIB, SRoute * pRoute)
 /**
  *
  */
-int rib_replace_route(SRIB * pRIB, SRoute * pRoute)
+int rib_replace_route(SRIB * pRIB, bgp_route_t * pRoute)
 {
 #if defined __EXPERIMENTAL_WALTON__
-  SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
+  bgp_routes_t * pRoutes = trie_find_exact((STrie *) pRIB,
 				      pRoute->sPrefix.tNetwork,
 				      pRoute->sPrefix.uMaskLen);
   if (pRoutes == NULL) {
@@ -308,7 +308,7 @@ int rib_remove_route(SRIB * pRIB, SPrefix sPrefix)
 #endif
 {
 #if defined __EXPERIMENTAL_WALTON__
-  SRoutes * pRoutes = trie_find_exact((STrie *) pRIB,
+  bgp_routes_t * pRoutes = trie_find_exact((STrie *) pRIB,
 				      sPrefix.tNetwork,
 				      sPrefix.uMaskLen);
   if (pRoutes != NULL) {

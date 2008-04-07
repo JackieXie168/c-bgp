@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)rib.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 04/12/2002
-// @lastdate 21/05/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __BGP_RIB_H__
@@ -27,23 +27,23 @@ extern "C" {
   void rib_destroy(SRIB ** ppRIB);
   // ----- rib_find_best --------------------------------------------
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
-  SRoutes * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
-  SRoute * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix);
+  bgp_route_ts * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
+  bgp_route_t * rib_find_one_best(SRIB * pRIB, SPrefix sPrefix);
 #else
-  SRoute * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
+  bgp_route_t * rib_find_best(SRIB * pRIB, SPrefix sPrefix);
 #endif
   // ----- rib_find_exact -------------------------------------------
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
-  SRoutes * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
-  SRoute * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix,
+  bgp_route_ts * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
+  bgp_route_t * rib_find_one_exact(SRIB * pRIB, SPrefix sPrefix,
 			      net_addr_t *tNextHop);
 #else
-  SRoute * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
+  bgp_route_t * rib_find_exact(SRIB * pRIB, SPrefix sPrefix);
 #endif
   // ----- rib_add_route --------------------------------------------
-  int rib_add_route(SRIB * pRIB, SRoute * pRoute);
+  int rib_add_route(SRIB * pRIB, bgp_route_t * pRoute);
   // ----- rib_replace_route ----------------------------------------
-  int rib_replace_route(SRIB * pRIB, SRoute * pRoute);
+  int rib_replace_route(SRIB * pRIB, bgp_route_t * pRoute);
   // ----- rib_remove_route -----------------------------------------
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
   int rib_remove_route(SRIB * pRIB, SPrefix sPrefix, net_addr_t * tNextHop);
