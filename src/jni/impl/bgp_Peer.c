@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Peer.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/04/2006
-// @lastdate 18/12/2007
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,7 +33,7 @@
  * CBGP peer.
  */
 jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
-			      SBGPPeer * pPeer)
+			      bgp_peer_t * pPeer)
 {
   jobject joIPAddress;
   jobject joPeer;
@@ -69,16 +69,17 @@ jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getRouter
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jobject joRouter;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return NULL;
 
-  joRouter= cbgp_jni_new_bgp_Router(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+  joRouter= cbgp_jni_new_bgp_Router(jEnv,
+				    NULL/*jni_proxy_get_CBGP(jEnv, joPeer)*/,
 				    pPeer->pLocalRouter);
 
   return_jni_unlock(jEnv, joRouter);
@@ -93,9 +94,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getRouter
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getRouterID
   (JNIEnv * jEnv, jobject joObject)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
     return NULL;
 
@@ -111,15 +112,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getRouterID
 JNIEXPORT jbyte JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getSessionState
   (JNIEnv * jEnv, jobject joObject)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
-  return_jni_unlock(jEnv, pPeer->uSessionState);
+  return_jni_unlock(jEnv, pPeer->tSessionState);
 }
 
 // -----[ openSession ]----------------------------------------------
@@ -131,11 +132,11 @@ JNIEXPORT jbyte JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getSessionState
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_openSession
   (JNIEnv * jEnv, jobject joObject)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   jni_lock(jEnv);
   
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
  
@@ -153,11 +154,11 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_openSession
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_closeSession
   (JNIEnv * jEnv, jobject joObject)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   jni_lock(jEnv);
   
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joObject);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joObject);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
 
@@ -175,13 +176,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_closeSession
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
   (JNIEnv * jEnv, jobject joPeer, jstring jsMesg)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   const char * cMesg;
   SBGPMsg * pMsg;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
 
@@ -214,16 +215,16 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_recv
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jboolean jResult;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
-  jResult= (pPeer->uRemoteAS == pPeer->pLocalRouter->uNumber)?JNI_TRUE:JNI_FALSE;
+  jResult= (pPeer->uRemoteAS == pPeer->pLocalRouter->uASN)?JNI_TRUE:JNI_FALSE;
 
   return_jni_unlock(jEnv, jResult);
 }
@@ -237,12 +238,12 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isInternal
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isReflectorClient
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jboolean jResult;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
@@ -261,11 +262,11 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isReflectorClient
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setReflectorClient
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
 
@@ -284,12 +285,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setReflectorClient
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isVirtual
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jboolean jResult;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
@@ -308,11 +309,11 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isVirtual
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setVirtual
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
 
@@ -331,12 +332,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setVirtual
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHopSelf
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jboolean jbNextHopSelf;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
@@ -355,11 +356,11 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHopSelf
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
   (JNIEnv * jEnv, jobject joPeer, jboolean state)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock2(jEnv);
 
@@ -378,12 +379,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_setNextHopSelf
 JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_hasSoftRestart
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   jboolean jResult;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, JNI_FALSE);
 
@@ -402,20 +403,21 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_hasSoftRestart
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getInputFilter
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
-  SFilter * pFilter;
+  bgp_peer_t * pPeer;
+  bgp_filter_t * pFilter;
   jobject joFilter;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if ((pFilter= bgp_peer_in_filter_get(pPeer)) == NULL)
+  if ((pFilter= bgp_peer_filter_get(pPeer, FILTER_IN)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  joFilter= cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+  joFilter= cbgp_jni_new_bgp_Filter(jEnv,
+				    NULL/*jni_proxy_get_CBGP(jEnv, joPeer)*/,
 				    pFilter);
 
   return_jni_unlock(jEnv, joFilter);
@@ -430,20 +432,21 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getInputFilter
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getOutputFilter
   (JNIEnv * jEnv, jobject joPeer)
 {
-  SBGPPeer * pPeer;
-  SFilter * pFilter;
+  bgp_peer_t * pPeer;
+  bgp_filter_t * pFilter;
   jobject joFilter;
 
   jni_lock(jEnv);
 
-  pPeer= (SBGPPeer *) jni_proxy_lookup(jEnv, joPeer);
+  pPeer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
   if (pPeer == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if ((pFilter= bgp_peer_out_filter_get(pPeer)) == NULL)
+  if ((pFilter= bgp_peer_filter_get(pPeer, FILTER_OUT)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  joFilter= cbgp_jni_new_bgp_Filter(jEnv, jni_proxy_get_CBGP(jEnv, joPeer),
+  joFilter= cbgp_jni_new_bgp_Filter(jEnv,
+				    NULL/*jni_proxy_get_CBGP(jEnv, joPeer)*/,
 				    pFilter);
 
   return_jni_unlock(jEnv, joFilter);

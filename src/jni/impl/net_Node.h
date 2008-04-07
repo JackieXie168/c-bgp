@@ -17,6 +17,6 @@
 
 // -----[ cbgp_jni_new_net_Node ]------------------------------------
 jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
-			      SNetNode * pNode);
+			      net_node_t * pNode);
 
 #endif

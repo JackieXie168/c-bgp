@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 18/02/2008
+// $Id: jni_util.h,v 1.14 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -24,7 +24,7 @@
 // -----[ context-structure for building vectors of links/routes ]---
 typedef struct {
   union {
-    SNetNode * pNode;
+    net_node_t * pNode;
     SBGPRouter * pRouter;
     jobject joHashtable;
   };
@@ -64,7 +64,7 @@ extern "C" {
   jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
 				jobject joHashtable);
   // -----[ cbgp_jni_new_BGPMessage ]----------------------------------
-  jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, SNetMessage * pMessage);
+  jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, net_msg_t * pMessage);
   // -----[ ip_jstring_to_address ]----------------------------------
   int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr);
   // -----[ ip_jstring_to_prefix ]-----------------------------------
@@ -72,7 +72,7 @@ extern "C" {
   // -----[ ip_jstring_to_dest ]-------------------------------------
   int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest);
   // -----[ cbgp_jni_net_node_from_string ]--------------------------
-  SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
+  net_node_t * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_bgp_router_from_string ]------------------------
   SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_bgp_peer_from_string ]--------------------------

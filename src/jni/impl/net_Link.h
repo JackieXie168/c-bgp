@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net_Link.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// @lastdate 12/11/2007
+// $Id: net_Link.h,v 1.3 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_NET_LINK_H__
@@ -17,6 +17,6 @@
 
 // -----[ cbgp_jni_new_net_Link ]------------------------------------
 jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
-			      SNetLink * pLink);
+			      net_iface_t * pLink);
 
 #endif /* __JNI_NET_LINK_H__ */

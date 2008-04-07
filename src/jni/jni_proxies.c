@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)jni_proxies.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// @lastdate 15/02/2008
+// $Id: jni_proxies.c,v 1.13 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -29,10 +29,10 @@
 #define CLASS_ProxyObject "be/ac/ucl/ingi/cbgp/ProxyObject"
 #define METHOD_ProxyObject_getCBGP "()Lbe/ac/ucl/ingi/cbgp/CBGP;"
 
-static SHash * pC2JHash= NULL;
-static SHash * pJ2CHash= NULL;
+static hash_t * pC2JHash= NULL;
+static hash_t * pJ2CHash= NULL;
 static unsigned long ulProxySeqNum= 0;
-JNIEnv * jCurrentEnv= NULL;
+static JNIEnv * jCurrentEnv= NULL;
 
 // -----[ SHashCodeObject ]-----
 /** Maintains the mapping between a CObj and a JObj. */
