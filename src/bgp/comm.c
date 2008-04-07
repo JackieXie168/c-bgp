@@ -19,6 +19,15 @@
 
 #include <comm.h>
 
+/**
+ * Note: as we case 'uint32_t' variables to 'unsigned int' for
+ *       printing, we must make sure that 'unsigned int' is at least
+ *       as large as 'uint32_t'
+ */
+#if UINT32_MAX > UINT_MAX
+# error "unsigned int variables are too small"
+#endif
+
 static STokenizer * pCommTokenizer= NULL;
 
 // ----- comm_create ------------------------------------------------
@@ -253,33 +262,33 @@ void comm_dump(SLogStream * pStream, SCommunities * pComms,
  *   -1    not enough space in destination buffer
  *   >= 0  number of characters written
  */
-int comm_to_string(SCommunities * pComms, char * pBuffer,
+int comm_to_string(SCommunities * comms, char * pBuffer,
 		   size_t tBufferSize)
 {
   size_t tInitialSize= tBufferSize;
-  int iWritten= 0;
-  unsigned int uIndex;
-  comm_t tCommunity;
+  int written= 0;
+  unsigned int index;
+  comm_t comm;
 
-  if ((pComms == NULL) || (pComms->uNum == 0)) {
+  if ((comms == NULL) || (comms->uNum == 0)) {
     if (tBufferSize < 1)
       return -1;
     pBuffer[0]= '\0';
     return 0;
   }
  
-  for (uIndex= 0; uIndex < pComms->uNum; uIndex++) {
-    tCommunity= (comm_t) pComms->asComms[uIndex];
+  for (index= 0; index < comms->uNum; index++) {
+    comm= (comm_t) comms->asComms[index];
 
-    if (uIndex > 0) {
-      iWritten= snprintf(pBuffer, tBufferSize, " %u", (uint32_t) tCommunity);
+    if (index > 0) {
+      written= snprintf(pBuffer, tBufferSize, " %u", (unsigned int) comm);
     } else {
-      iWritten= snprintf(pBuffer, tBufferSize, "%u", (uint32_t) tCommunity);
+      written= snprintf(pBuffer, tBufferSize, "%u", (unsigned int) comm);
     }
-    if (iWritten >= tBufferSize)
+    if (written >= tBufferSize)
       return -1;
-    tBufferSize-= iWritten;
-    pBuffer+= iWritten;
+    tBufferSize-= written;
+    pBuffer+= written;
   }
   return tInitialSize-tBufferSize;
 }
