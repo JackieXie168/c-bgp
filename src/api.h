@@ -3,9 +3,9 @@
 //
 // Application Programming Interface for the C-BGP library (libcsim).
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// @lastdate 12/10/2007
+// $Id: api.h,v 1.5 2008-04-07 09:21:21 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__

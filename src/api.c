@@ -3,9 +3,9 @@
 //
 // Application Programming Interface for the C-BGP library (libcsim).
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// @lastdate 12/10/2007
+// $Id: api.c,v 1.9 2008-04-07 09:21:21 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -72,7 +72,7 @@ void libcbgp_done()
 void libcbgp_banner()
 {
   log_printf(pLogOut, "C-BGP routing solver %s\n", PACKAGE_VERSION);
-  log_printf(pLogOut, "Copyright (C) 2007 Bruno Quoitin\n");
+  log_printf(pLogOut, "Copyright (C) 2008 Bruno Quoitin\n");
   log_printf(pLogOut, "IP Networking Lab, CSE Dept, UCL, Belgium\n");
   log_printf(pLogOut, "\n");
   log_printf(pLogOut, "C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
