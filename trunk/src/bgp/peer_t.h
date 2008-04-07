@@ -13,12 +13,15 @@
 #include <bgp/rib_t.h>
 #include <net/network.h>
 
-#define SESSION_STATE_IDLE        0
-#define SESSION_STATE_OPENWAIT    1
-#define SESSION_STATE_ESTABLISHED 2
-#define SESSION_STATE_ACTIVE      3
+typedef enum {
+  SESSION_STATE_IDLE,
+  SESSION_STATE_OPENWAIT,
+  SESSION_STATE_ESTABLISHED,
+  SESSION_STATE_ACTIVE,
+  SESSION_STATE_MAX
+} bgp_peer_state_t;
 
-extern char * SESSION_STATES[4];
+extern char * SESSION_STATES[SESSION_STATE_MAX];
 
 // ----- Peer flags -----
 /* The peer is a route-reflector client */
@@ -41,5 +44,6 @@ extern char * SESSION_STATES[4];
 
 struct TBGPPeer;
 typedef struct TBGPPeer SBGPPeer;
+typedef struct TBGPPeer bgp_peer_t;
 
 #endif /* __PEER_T_H__ */
