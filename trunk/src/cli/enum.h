@@ -3,10 +3,10 @@
 //
 // Enumeration functions used by the CLI.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), 
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// @lastdate 01/10/2007
+// @lastdate 13/03/2008
 // ==================================================================
 
 #ifndef __CLI_ENUM_H__
@@ -20,16 +20,22 @@ extern "C" {
 #endif
 
   // -----[ cli_enum_net_nodes ]-------------------------------------
-  SNetNode * cli_enum_net_nodes(const char * pcText, int state);
+  net_node_t * cli_enum_net_nodes(const char * text, int state);
   // -----[ cli_enum_bgp_routers ]-----------------------------------
-  SBGPRouter * cli_enum_bgp_routers(const char * pcText, int state);
-  // -----[ cli_enum_bgp_peers ]---------------------------------------
-  SBGPPeer * cli_enum_bgp_peers(SBGPRouter * pRouter, const char * pcText,
-				int state);
+  bgp_router_t * cli_enum_bgp_routers(const char * text, int state);
+  // -----[ cli_enum_bgp_peers ]-------------------------------------
+  bgp_peer_t * cli_enum_bgp_peers(const char * text, int state);
+
   // -----[ cli_enum_net_nodes_addr ]--------------------------------
-  char * cli_enum_net_nodes_addr(const char * pcText, int state);
+  char * cli_enum_net_nodes_addr(const char * text, int state);
   // -----[ cli_enum_bgp_routers_addr ]------------------------------
-  char * cli_enum_bgp_routers_addr(const char * pcText, int state);
+  char * cli_enum_bgp_routers_addr(const char * text, int state);
+  // -----[ cli_enum_bgp_peers_addr ]--------------------------------
+  char * cli_enum_bgp_peers_addr(const char * text, int state);
+
+  // -----[ cli_enum_ctx_bgp_router ]--------------------------------
+  void cli_enum_ctx_bgp_router(bgp_router_t * router);
+
 
 #ifdef __cplusplus
 }

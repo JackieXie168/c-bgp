@@ -3,10 +3,13 @@
 //
 // Enumeration functions used by the CLI.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), 
+// These functions are NOT thread-safe and MUST only be called from
+// the CLI !!!
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// @lastdate 21/07/2007
+// @lastdate 13/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,80 +20,97 @@
 #include <string.h>
 
 #include <bgp/as.h>
+#include <bgp/peer.h>
 #include <net/net_types.h>
 #include <net/network.h>
 #include <net/node.h>
 #include <net/protocol.h>
 
-// -----[ cli_enum_net_nodes ]---------------------------------------
-SNetNode * cli_enum_net_nodes(const char * pcText, int state)
+#define IP4_ADDR_STR_LEN 16
+
+static bgp_router_t * _ctx_bgp_router= NULL;
+
+// -----[ cli_enum_ctx_bgp_router ]----------------------------------
+void cli_enum_ctx_bgp_router(bgp_router_t * router)
 {
-  static SEnumerator * pEnum= NULL;
-  SNetNode * pNode;
-  char acNode[16];
+  _ctx_bgp_router= router;
+}
+
+// -----[ cli_enum_net_nodes ]---------------------------------------
+net_node_t * cli_enum_net_nodes(const char * text, int state)
+{
+  static enum_t * pEnum= NULL;
+  net_node_t * node;
+  char str_addr[IP4_ADDR_STR_LEN];
 
   if (state == 0)
-    pEnum= trie_get_enum(network_get()->pNodes);
+    pEnum= trie_get_enum(network_get_default()->nodes);
+
   while (enum_has_next(pEnum)) {
-    pNode= *((SNetNode **) enum_get_next(pEnum));
+    node= *((net_node_t **) enum_get_next(pEnum));
 
     // Optionally check if prefix matches
-    if (pcText != NULL) {
-      assert(ip_address_to_string(pNode->tAddr, acNode, sizeof(acNode)) >= 0);
-      if (strncmp(pcText, acNode, strlen(pcText)))
+    if (text != NULL) {
+      assert(ip_address_to_string(node->tAddr, str_addr,
+				  sizeof(str_addr)) >= 0);
+      if (strncmp(text, str_addr, strlen(text)))
 	continue;
     }
 
-    return pNode;
+    return node;
   }
   enum_destroy(&pEnum);
   return NULL;
 }
 
 // -----[ cli_enum_bgp_routers ]-------------------------------------
-SBGPRouter * cli_enum_bgp_routers(const char * pcText, int state)
+bgp_router_t * cli_enum_bgp_routers(const char * text, int state)
 {
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
+  net_node_t * node;
+  net_protocol_t * pProtocol;
 
-  while ((pNode= cli_enum_net_nodes(pcText, state++)) != NULL) {
+  while ((node= cli_enum_net_nodes(text, state++)) != NULL) {
 
     // Check if node supports BGP
-    pProtocol= node_get_protocol(pNode, NET_PROTOCOL_BGP);
+    pProtocol= node_get_protocol(node, NET_PROTOCOL_BGP);
     if (pProtocol == NULL)
       continue;
 
-    return (SBGPRouter *) pProtocol->pHandler;
+    return (bgp_router_t *) pProtocol->pHandler;
   }
   return NULL;
 }
 
 // -----[ cli_enum_bgp_peers ]---------------------------------------
-SBGPPeer * cli_enum_bgp_peers(SBGPRouter * pRouter, const char * pcText,
-			      int state)
+bgp_peer_t * cli_enum_bgp_peers(const char * pcText, int state)
 {
-  static unsigned int uIndex= 0;
+  static unsigned int index= 0;
 
   if (state == 0)
-    uIndex= 0;
+    index= 0;
 
-  if (uIndex >= ptr_array_length(pRouter->pPeers))
+  if (_ctx_bgp_router == NULL)
     return NULL;
-  return (SBGPPeer *) pRouter->pPeers->data[uIndex++];
+
+  assert(index >= 0);
+
+  if (index >= bgp_peers_size(_ctx_bgp_router->pPeers))
+    return NULL;
+  return bgp_peers_at(_ctx_bgp_router->pPeers, index++);
 }
 
 // -----[ cli_enum_net_nodes_addr ]----------------------------------
 /**
  * Enumerate all the nodes.
  */
-char * cli_enum_net_nodes_addr(const char * pcText, int state)
+char * cli_enum_net_nodes_addr(const char * text, int state)
 {
-  SNetNode * pNode= NULL;
-  char acNode[16];
+  net_node_t * node= NULL;
+  char str_addr[IP4_ADDR_STR_LEN];
   
-  while ((pNode= cli_enum_net_nodes(pcText, state++)) != NULL) {
-    assert(ip_address_to_string(pNode->tAddr, acNode, sizeof(acNode)) >= 0);
-    return strdup(acNode);
+  while ((node= cli_enum_net_nodes(text, state++)) != NULL) {
+    assert(ip_address_to_string(node->tAddr, str_addr, sizeof(str_addr)) >= 0);
+    return strdup(str_addr);
   }
   return NULL;
 }
@@ -99,16 +119,36 @@ char * cli_enum_net_nodes_addr(const char * pcText, int state)
 /**
  * Enumerate all the BGP routers.
  */
-char * cli_enum_bgp_routers_addr(const char * pcText, int state)
+char * cli_enum_bgp_routers_addr(const char * text, int state)
 {
-  SBGPRouter * pRouter= NULL;
-  char acNode[16];
+  bgp_router_t * router= NULL;
+  char str_addr[IP4_ADDR_STR_LEN];
   
-  while ((pRouter= cli_enum_bgp_routers(pcText, state)) != NULL) {
-    assert(ip_address_to_string(pRouter->pNode->tAddr, acNode,
-				sizeof(acNode)) >= 0);
-    return strdup(acNode);
+  while ((router= cli_enum_bgp_routers(text, state++)) != NULL) {
+    assert(ip_address_to_string(router->pNode->tAddr, str_addr,
+				sizeof(str_addr)) >= 0);
+    return strdup(str_addr);
   }
   return NULL;
 }
 
+// -----[ cli_enum_bgp_peers_addr ]----------------------------------
+/**
+ * Enumerate all the BGP peers of one BGP router.
+ */
+char * cli_enum_bgp_peers_addr(const char * text, int state)
+{
+  bgp_peer_t * peer= NULL;
+  char str_addr[IP4_ADDR_STR_LEN];
+
+  while ((peer= cli_enum_bgp_peers(text, state++)) != NULL) {
+    assert(ip_address_to_string(peer->tAddr, str_addr, sizeof(str_addr)) >= 0);
+
+    // Optionally check if prefix matches
+    if ((text != NULL) && (strncmp(text, str_addr, strlen(text))))
+	continue;
+
+    return strdup(str_addr);
+  }
+  return NULL;
+}

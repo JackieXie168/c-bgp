@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// @lastdate 27/02/2008
+// $Id: bgp.c,v 1.50 2008-04-07 10:04:27 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -55,9 +55,9 @@ static inline SBGPDomain * _domain_from_context(SCliContext * pContext) {
   return pDomain;
 }
 
-static inline SBGPRouter * _router_from_context(SCliContext * pContext) {
-  SBGPRouter * pRouter=
-    (SBGPRouter *) cli_context_get_item_at_top(pContext);
+static inline bgp_router_t * _router_from_context(SCliContext * pContext) {
+  bgp_router_t * pRouter=
+    (bgp_router_t *) cli_context_get_item_at_top(pContext);
   assert(pRouter != NULL);
   return pRouter;
 }
@@ -73,10 +73,9 @@ static inline SBGPRouter * _router_from_context(SCliContext * pContext) {
 int cli_bgp_add_router(SCliContext * pContext, SCliCmd * pCmd)
 {
   char * pcNodeAddr;
-  SNetNode * pNode;
-  SBGPRouter * pRouter;
-  unsigned int uASNum;
-  int iResult;
+  net_node_t * pNode;
+  unsigned int uASN;
+  net_error_t error;
 
   // Find node
   pcNodeAddr= tokens_get_string_at(pCmd->pParamValues, 1);
@@ -88,24 +87,18 @@ int cli_bgp_add_router(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Check AS-Number
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uASNum)
-      || (uASNum > MAX_AS)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uASN)
+      || (uASN > MAX_AS)) {
     cli_set_user_error(cli_get(), "invalid AS_Number");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  pRouter= bgp_router_create(uASNum, pNode);
-
-  // Register BGP protocol into the node
-  iResult= node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter,
-				  (FNetNodeHandlerDestroy) bgp_router_destroy,
-				  bgp_router_handle_message);
-  if (iResult != NET_SUCCESS) {
-    cli_set_user_error(cli_get(), "could not register BGP (%s)",
-		       pcNodeAddr, network_strerror(iResult));
+  error= bgp_add_router(uASN, pNode, NULL);
+  if (error != ESUCCESS) {
+    cli_set_user_error(cli_get(), "could not add BGP router (%s)",
+		       pcNodeAddr, network_strerror(error));
     return CLI_ERROR_COMMAND_FAILED;
   }
-
   return CLI_SUCCESS;
 }
 
@@ -261,7 +254,7 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
 {
   char * pcToken;
   char * pcRouteMapName;
-  SFilter ** ppFilter;
+  bgp_filter_t ** ppFilter;
 
   pcToken= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   
@@ -272,7 +265,7 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
       return CLI_ERROR_CTX_CREATE;
     }
 
-    ppFilter= MALLOC(sizeof(SFilter *));
+    ppFilter= MALLOC(sizeof(bgp_filter_t *));
     *ppFilter= filter_create();
 
     pcRouteMapName= MALLOC(strlen(pcToken)+1);
@@ -294,7 +287,7 @@ int cli_ctx_create_bgp_route_map(SCliContext * pContext, void ** ppItem)
  */
 void cli_ctx_destroy_bgp_route_map(void ** ppItem)
 {
-  SFilter ** ppFilter = (SFilter **)*ppItem;
+  bgp_filter_t ** ppFilter = (bgp_filter_t **)*ppItem;
   
   if (ppFilter != NULL)
     FREE(ppFilter);
@@ -311,8 +304,8 @@ void cli_ctx_destroy_bgp_route_map(void ** ppItem)
 int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
 {
   char * pcNodeAddr;
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
+  net_node_t * pNode;
+  net_protocol_t * pProtocol;
 
   // Find node
   pcNodeAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
@@ -324,7 +317,7 @@ int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
   }
 
   // Get BGP protocol instance
-  pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
+  pProtocol= protocols_get(pNode->protocols, NET_PROTOCOL_BGP);
   if (pProtocol == NULL) {
     cli_set_user_error(cli_get(), "BGP is not supported on node \"%s\"",
 		       pcNodeAddr);
@@ -332,12 +325,16 @@ int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
   }
 
   *ppItem= pProtocol->pHandler;
+
+  cli_enum_ctx_bgp_router((bgp_router_t *) pProtocol->pHandler);
+
   return CLI_SUCCESS;
 }
 
 // ----- cli_ctx_destroy_bgp_router ---------------------------------
 void cli_ctx_destroy_bgp_router(void ** ppItem)
 {
+  cli_enum_ctx_bgp_router(NULL);
 }
 
 // -----[ cli_bgp_options_autocreate ]-------------------------------
@@ -568,11 +565,11 @@ int cli_bgp_options_advertise_external_best(SCliContext * pContext,
 int cli_bgp_router_set_clusterid(SCliContext * pContext,
 				 SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  bgp_router_t * pRouter;
   unsigned int uClusterID;
 
   // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  pRouter= (bgp_router_t *) cli_context_get_item_at_top(pContext);
 
   // Get the cluster-id
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uClusterID)) {
@@ -593,7 +590,7 @@ int cli_bgp_router_set_clusterid(SCliContext * pContext,
  */
 int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -621,7 +618,7 @@ int cli_bgp_router_debug_dp(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_router_load_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcFileName;
   char * pcValue;
   uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
@@ -673,10 +670,10 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
   char * pcParam;
-  SBGPRouter * pRouter;
+  bgp_router_t * pRouter;
 
   // Get the BGP instance from the context
-  pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  pRouter= (bgp_router_t *) cli_context_get_item_at_top(pContext);
 
   // Get the tie-breaking function name
   pcParam= tokens_get_string_at(pTokens, 1);
@@ -705,7 +702,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
 int cli_bgp_router_save_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcFileName;
 
   // Get the file name
@@ -744,7 +741,7 @@ int cli_bgp_router_save_ribin(SCliContext * pContext,
 int cli_bgp_router_show_info(SCliContext * pContext,
 			     SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   // Show information
   bgp_router_info(pLogOut, pRouter);
@@ -763,7 +760,7 @@ int cli_bgp_router_show_info(SCliContext * pContext,
 int cli_bgp_router_show_networks(SCliContext * pContext,
 				 SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   bgp_router_dump_networks(pLogOut, pRouter);
 
@@ -778,7 +775,7 @@ int cli_bgp_router_show_networks(SCliContext * pContext,
 int cli_bgp_router_show_peers(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   // Dump peers
   bgp_router_dump_peers(pLogOut, pRouter);
@@ -802,7 +799,7 @@ int cli_bgp_router_show_peers(SCliContext * pContext,
 int cli_bgp_router_show_rib(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
@@ -848,11 +845,11 @@ int cli_bgp_router_show_rib(SCliContext * pContext,
 int cli_bgp_router_show_ribin(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -901,11 +898,11 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
 int cli_bgp_router_show_ribout(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPeerAddr;
   char * pcEndChar;
   net_addr_t tPeerAddr;
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -958,7 +955,7 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
 int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcDest;
   SNetDest sDest;
   char * pcOutput;
@@ -1002,7 +999,7 @@ int cli_bgp_router_show_routeinfo(SCliContext * pContext,
 int cli_bgp_router_show_stats(SCliContext * pContext,
 			      SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   bgp_router_show_stats(pLogOut, pRouter);
 
@@ -1017,7 +1014,7 @@ int cli_bgp_router_show_stats(SCliContext * pContext,
 int cli_bgp_router_recordroute(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
   int iResult;
@@ -1048,7 +1045,7 @@ int cli_bgp_router_recordroute(SCliContext * pContext,
  */
 int cli_bgp_router_rescan(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   if (bgp_router_scan_rib(pRouter)) {
     cli_set_user_error(cli_get(), "RIB scan failed");
@@ -1065,7 +1062,7 @@ int cli_bgp_router_rescan(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_rerun(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
@@ -1100,7 +1097,7 @@ int cli_bgp_router_rerun(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_reset(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   // Reset the router
   if (bgp_router_reset(pRouter)) {
@@ -1120,7 +1117,7 @@ int cli_bgp_router_reset(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_start(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   // Start the router
   if (bgp_router_start(pRouter)) {
@@ -1140,7 +1137,7 @@ int cli_bgp_router_start(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_stop(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
 
   // Stop the router
   if (bgp_router_stop(pRouter)) {
@@ -1158,7 +1155,7 @@ int cli_bgp_router_stop(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_add_peer(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   unsigned int uASNum;
   char * pcAddr;
   net_addr_t tAddr;
@@ -1195,9 +1192,10 @@ int cli_bgp_router_add_peer(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_router_add_network(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
+  net_error_t error;
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1207,8 +1205,12 @@ int cli_bgp_router_add_network(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add the network
-  if (bgp_router_add_network(pRouter, sPrefix))
+  error= bgp_router_add_network(pRouter, sPrefix);
+  if (error != ESUCCESS) {
+    cli_set_user_error(cli_get(), "could not add network (%s)",
+		       network_strerror(error));
     return CLI_ERROR_COMMAND_FAILED;
+  }
 
   return CLI_SUCCESS;
 }
@@ -1223,7 +1225,7 @@ int cli_bgp_router_add_network(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_router_del_network(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   SPrefix sPrefix;
 
@@ -1249,7 +1251,7 @@ int cli_bgp_router_del_network(SCliContext * pContext,
 #ifdef BGP_QOS
 int cli_bgp_router_add_qosnetwork(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   SPrefix sPrefix;
   unsigned int uDelay;
 
@@ -1275,11 +1277,11 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
 {
   char * pcPredicate;
   char * pcTemp;
-  SFilterMatcher* pMatcher;
-  SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
+  bgp_ft_matcher_t * pMatcher;
+  bgp_routes_t * pRoutes= (bgp_routes_t *) cli_context_get_item_at_top(pContext);
   int iMatches= 0;
-  int iIndex;
-  SRoute * pRoute;
+  unsigned int uIndex;
+  bgp_route_t * pRoute;
   int iResult;
 
   // Parse predicate
@@ -1293,8 +1295,8 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
-    pRoute= (SRoute *) pRoutes->data[iIndex];
+  for (uIndex= 0; uIndex < bgp_routes_size(pRoutes); uIndex++) {
+    pRoute= bgp_routes_at(pRoutes, uIndex);
     if (filter_matcher_apply(pMatcher, NULL, pRoute)) {
       iMatches++;
     }
@@ -1318,7 +1320,7 @@ int cli_bgp_router_assert_routes_match(SCliContext * pContext,
 int cli_bgp_router_assert_routes_show(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SRoutes * pRoutes= (SRoutes *) cli_context_get_item_at_top(pContext);
+  bgp_routes_t * pRoutes= (bgp_routes_t *) cli_context_get_item_at_top(pContext);
 
   routes_list_dump(pLogOut, pRoutes);
 
@@ -1336,11 +1338,11 @@ int cli_bgp_router_assert_routes_show(SCliContext * pContext,
 int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
 					    void ** ppItem)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcPrefix;
   char * pcType;
   SPrefix sPrefix;
-  SRoutes * pRoutes;
+  bgp_routes_t * pRoutes;
 
   // Get the prefix
   pcPrefix= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
@@ -1367,7 +1369,7 @@ int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
   }
 
   // Check that there is at leat one route
-  if (routes_list_get_num(pRoutes) < 1) {
+  if (bgp_routes_size(pRoutes) < 1) {
     cli_set_user_error(cli_get(), "no feasible routes towards %s", pcPrefix);
     routes_list_destroy(&pRoutes);
     return CLI_ERROR_COMMAND_FAILED;
@@ -1382,7 +1384,7 @@ int cli_ctx_create_bgp_router_assert_routes(SCliContext * pContext,
 // ----- cli_ctx_destroy_bgp_router_assert_routes -----------------
 void cli_ctx_destroy_bgp_router_assert_routes(void ** ppItem)
 {
-  routes_list_destroy((SRoutes **) ppItem);
+  routes_list_destroy((bgp_routes_t **) ppItem);
 }
 
 // ----- cli_bgp_route_map_filter_add --------------------------------
@@ -1394,8 +1396,8 @@ int cli_bgp_route_map_filter_add(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
   char * pcRouteMapName;
-  SFilterRule * pRule;
-  SFilter * pFilter= NULL;
+  bgp_ft_rule_t * pRule;
+  bgp_filter_t * pFilter= NULL;
 
   pcRouteMapName = (char *) cli_context_get_item_at_top(pContext);
   
@@ -1424,7 +1426,7 @@ int cli_bgp_route_map_filter_add(SCliContext * pContext,
 int cli_bgp_router_load_ribs_in(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter= _router_from_context(pContext);
+  bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcFileName;
 
   pcFileName = tokens_get_string_at(pCmd->pParamValues, 0);
@@ -1470,16 +1472,17 @@ int cli_bgp_show_routers(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_show_sessions(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
-  SBGPPeer * pPeer;
-  int iState= 0, iState2;
+  bgp_router_t * pRouter;
+  bgp_peer_t * pPeer;
+  int iState= 0;
   SLogStream * pStream= pLogOut;
+  unsigned int index;
 
   pStream= log_create_file("/tmp/cbgp-sessions.dat");
 
   while ((pRouter= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
-    iState2= 0;
-    while ((pPeer= cli_enum_bgp_peers(pRouter, NULL, iState2++)) != NULL) {
+    for (index= 0; index < bgp_peers_size(pRouter->pPeers); index++) {
+      pPeer= bgp_peers_at(pRouter->pPeers, index);
       ip_address_dump(pStream, pRouter->pNode->tAddr);
       log_printf(pStream, "\t");
       ip_address_dump(pStream, pPeer->tAddr);
@@ -1502,7 +1505,7 @@ int cli_bgp_show_sessions(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_clearadjrib(SCliContext * pContext,
 			SCliCmd * pCmd)
 {
-  SBGPRouter * pRouter;
+  bgp_router_t * pRouter;
   int iState= 0;
 
   while ((pRouter= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
@@ -1837,13 +1840,13 @@ int cli_register_bgp_router_show(SCliCmds * pCmds)
 					cli_bgp_router_show_peers,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<peer>", NULL);
+  cli_params_add2(pParams, "<peer>", NULL, cli_enum_bgp_peers_addr);
   cli_params_add(pParams, "<prefix|address|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-in",
 					cli_bgp_router_show_ribin,
 					NULL, pParams));
   pParams= cli_params_create();
-  cli_params_add(pParams, "<peer>", NULL);
+  cli_params_add2(pParams, "<peer>", NULL, cli_enum_bgp_peers_addr);
   cli_params_add(pParams, "<prefix|address|*>", NULL);
   cli_cmds_add(pSubCmds, cli_cmd_create("rib-out",
 					cli_bgp_router_show_ribout,

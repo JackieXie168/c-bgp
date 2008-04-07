@@ -110,13 +110,13 @@ int parse_version(char * pcVersion, unsigned int * puVersion)
 }
 
 // -----[ cli_net_node_by_addr ]-------------------------------------
-SNetNode * cli_net_node_by_addr(char * pcAddr)
+net_node_t * cli_net_node_by_addr(char * pcAddr)
 {
   net_addr_t tAddr;
 
   if (str2address(pcAddr, &tAddr))
     return NULL;
-  return network_find_node(tAddr);
+  return network_find_node(network_get_default(), tAddr);
 }
 
 // -----[ cli_params_add_file ]--------------------------------------
