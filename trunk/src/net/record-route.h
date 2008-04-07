@@ -49,7 +49,7 @@
 typedef struct {
   int              iResult;
   uint8_t          uOptions;
-  SIPTrace *       pTrace;
+  ip_trace_t *     pTrace;
   net_link_delay_t tDelay;    /* QoS info: delay */
   net_igp_weight_t tWeight;   /* QoS info: IGP weight */
   net_link_load_t  tCapacity; /* QoS info: max capacity */
@@ -63,15 +63,15 @@ extern "C" {
 #endif
 
   // ----- node_record_route ----------------------------------------
-  SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
+  SNetRecordRouteInfo * node_record_route(net_node_t * pNode,
 					  SNetDest sDest,
 					  net_tos_t tTOS,
 					  const uint8_t uOptions,
 					  net_link_load_t tLoad);
   // ----- node_dump_recorded_route ---------------------------------
-  void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
+  void node_dump_recorded_route(SLogStream * pStream, net_node_t * pNode,
 				SNetDest sDest, net_tos_t tTOS,
-				const uint8_t uOptions,
+				uint8_t uOptions,
 				net_link_load_t tLoad);
   // ----- net_record_route_info_destroy ----------------------------
   void net_record_route_info_destroy(SNetRecordRouteInfo ** ppRRInfo);

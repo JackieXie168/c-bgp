@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 05/03/2008
+// $Id: record-route.c,v 1.9 2008-04-07 09:45:55 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -32,7 +32,7 @@ static inline SNetRecordRouteInfo * _info_create(const uint8_t uOptions,
   SNetRecordRouteInfo * pInfo=
     (SNetRecordRouteInfo *) MALLOC(sizeof(SNetRecordRouteInfo));
   pInfo->uOptions= uOptions;
-  pInfo->iResult= NET_ERROR_UNEXPECTED;
+  pInfo->iResult= EUNEXPECTED;
   pInfo->pTrace= ip_trace_create();
   pInfo->tDelay= 0;
   pInfo->tWeight= 0;
@@ -45,10 +45,10 @@ static inline SNetRecordRouteInfo * _info_create(const uint8_t uOptions,
 
 // -----[ _check_deflection ]----------------------------------------
 static inline int _check_deflection(SNetRecordRouteInfo * pInfo,
-				    SNetNode * pCNode)
+				    net_node_t * pCNode)
 {
   if (!(pInfo->uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP))
-    return NET_SUCCESS;
+    return ESUCCESS;
 
   /*
     pRRInfo->pDeflectedPath= net_path_create();
@@ -91,7 +91,7 @@ static inline int _check_deflection(SNetRecordRouteInfo * pInfo,
     }
     
     net_addr_t tInitialBGPNextHopAddr = 0, tCurrentBGPNextHopAddr = 0;
-    SNetProtocol * pProtocol = NULL;
+    net_protocol_t * pProtocol = NULL;
     SBGPRouter * pRouter = NULL;
     SRoute * pRoute = NULL;
     uint8_t uDeflectionOccurs = 0;
@@ -102,7 +102,7 @@ static inline int _check_deflection(SNetRecordRouteInfo * pInfo,
     pRouter = (SBGPRouter *)pProtocol->pHandler;
     }
   */
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
   
 // -----[ _check_loop ]----------------------------------------------
@@ -112,27 +112,17 @@ static inline int _check_deflection(SNetRecordRouteInfo * pInfo,
  * Note: will this work with encapsulation ?
  */
 static inline int _check_loop(SNetRecordRouteInfo * pInfo,
-			      SNetNode * pCNode)
+			      net_node_t * pCNode)
 {
   if (!(pInfo->uOptions & NET_RECORD_ROUTE_OPTION_QUICK_LOOP))
-    return NET_SUCCESS;
+    return ESUCCESS;
 
   if (ip_trace_search(pInfo->pTrace, pCNode)) {
-    pInfo->iResult= NET_ERROR_FWD_LOOP;
+    pInfo->iResult= ENET_FWD_LOOP;
     return pInfo->iResult;
   }
 
-  return NET_SUCCESS;
-}
-
-// -----[ _check_hop_count ]-----------------------------------------
-static inline int _check_hop_count(SNetRecordRouteInfo * pInfo)
-{
-  if (ip_trace_length(pInfo->pTrace) > NET_OPTIONS_MAX_HOPS) {
-    pInfo->iResult= NET_ERROR_TIME_EXCEEDED;
-    return pInfo->iResult;
-  }
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ _info_update_qos ]-----------------------------------------
@@ -140,7 +130,7 @@ static inline int _check_hop_count(SNetRecordRouteInfo * pInfo)
  * Update the record-route info with the traversed link's QoS info.
  */
 static inline void _info_update_qos(SNetRecordRouteInfo * pInfo,
-				    SNetIface * pIface)
+				    net_iface_t * pIface)
 {
   net_link_load_t tCapacity;
   
@@ -161,16 +151,16 @@ static inline void _info_update_qos(SNetRecordRouteInfo * pInfo,
 }
 
 // -----[ _find_nexthop ]--------------------------------------------
-static inline int _find_nexthop(SNetNode * pCNode,
+static inline int _find_nexthop(net_node_t * pCNode,
 				SNetDest sDest,
-				SNetIface ** ppDstIface,
+				net_iface_t ** ppDstIface,
 				SNetRecordRouteInfo * pInfo,
-				SNetMessage ** ppDummyMsg)
+				net_msg_t ** ppDummyMsg)
 {
   net_addr_t tNextHop;
   SNetRouteInfo * pRouteInfo;
-  SNetRouteNextHop * pNextHop= NULL;
-  int iResult;
+  const rt_entry_t * pNextHop= NULL;
+  //int iResult;
 
   // Lookup the next-hop for this destination
   switch (sDest.tType) {
@@ -179,7 +169,7 @@ static inline int _find_nexthop(SNetNode * pCNode,
     break;
 
   case NET_DEST_PREFIX:
-    pRouteInfo= rt_find_exact(pCNode->pRT, sDest.uDest.sPrefix,
+    pRouteInfo= rt_find_exact(pCNode->rt, sDest.uDest.sPrefix,
 			      NET_ROUTE_ANY);
     if (pRouteInfo != NULL)
       pNextHop= &pRouteInfo->sNextHop;
@@ -191,11 +181,11 @@ static inline int _find_nexthop(SNetNode * pCNode,
 
   // No route: return UNREACH
   if (pNextHop == NULL)
-    return NET_ERROR_NET_UNREACH;
+    return ENET_NET_UNREACH;
 
   // Link down: return DOWN
   if (!net_iface_is_enabled(pNextHop->pIface))
-    return NET_ERROR_LINK_DOWN;
+    return ENET_LINK_DOWN;
 
   // Update QoS information
   _info_update_qos(pInfo, pNextHop->pIface);
@@ -212,16 +202,16 @@ static inline int _find_nexthop(SNetNode * pCNode,
   //
   // Note/Idea: we could use the returned message as the stack of
   // destinations.
-  iResult= net_iface_send(pNextHop->pIface, ppDstIface,
+  /*iResult= net_iface_send(pNextHop->pIface, ppDstIface,
 			  tNextHop, ppDummyMsg);
-  if (iResult != NET_SUCCESS)
-    return iResult;
+  if (iResult != ESUCCESS)
+  return iResult;*/
    
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ _is_final_destination ]------------------------------------
-static inline int _is_final_destination(SNetNode * pNode, SNetDest sDest)
+static inline int _is_final_destination(net_node_t * pNode, SNetDest sDest)
 {
   switch (sDest.tType) {
   case NET_DEST_ADDRESS:
@@ -239,19 +229,21 @@ static inline int _is_final_destination(SNetNode * pNode, SNetDest sDest)
 }
 
 // ----- node_record_route ------------------------------------------
-SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
+SNetRecordRouteInfo * node_record_route(net_node_t * pNode,
 					SNetDest sDest,
 					net_tos_t tTOS,
 					const uint8_t uOptions,
 					net_link_load_t tLoad)
 {
   SNetRecordRouteInfo * pRRInfo;
-  SNetNode * pCNode= pNode;           /* Current node */
+  net_node_t * pCNode= pNode;           /* Current node */
   net_addr_t tCInAddr= NET_ADDR_ANY;  /* Current incoming iface addr */
   net_addr_t tCOutAddr= NET_ADDR_ANY; /* Current outgoing iface addr */
   int iResult;
-  SNetMessage * pDummyMsg= NULL;
-  SNetIface * pDstIface;
+  net_msg_t * pDummyMsg= NULL;
+  net_iface_t * pDstIface;
+
+  return NULL;
 
   pRRInfo= _info_create(uOptions, tLoad, tTOS);
 
@@ -260,30 +252,28 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
 
   while (pCNode != NULL) {
 
-    ip_trace_add(pRRInfo->pTrace,
-		 ip_trace_item_node(pCNode, tCInAddr, tCOutAddr));
+    ip_trace_add_node(pRRInfo->pTrace, pCNode, tCInAddr, tCOutAddr);
 
-    if (_check_hop_count(pRRInfo) != NET_SUCCESS)
+    if (_check_loop(pRRInfo, pCNode) != ESUCCESS)
       break;
-    if (_check_loop(pRRInfo, pCNode) != NET_SUCCESS)
-      break;
-    if (_check_deflection(pRRInfo, pCNode) != NET_SUCCESS)
+    if (_check_deflection(pRRInfo, pCNode) != ESUCCESS)
       break;
     
     // Final destination reached ?
     if (_is_final_destination(pCNode, sDest)) {
-      pRRInfo->iResult= NET_SUCCESS;
+      pRRInfo->iResult= ESUCCESS;
       break;
     }
 
     // Find next-hop towards destination
+    pDstIface= NULL;
     iResult= _find_nexthop(pCNode, sDest, &pDstIface, pRRInfo, &pDummyMsg);
-    if (iResult != NET_SUCCESS) {
+    if (iResult != ESUCCESS) {
       pRRInfo->iResult= iResult;
       break;
     }
 
-    switch (pDstIface->tType) {
+    switch (pDstIface->type) {
     case NET_IFACE_PTP:
     case NET_IFACE_PTMP:
       tCInAddr= pDstIface->tIfaceAddr;
@@ -295,7 +285,7 @@ SNetRecordRouteInfo * node_record_route(SNetNode * pNode,
       abort();
     }
 
-    pCNode= pDstIface->pSrcNode;
+    pCNode= pDstIface->src_node;
 	  
   }
   return pRRInfo;
@@ -309,7 +299,7 @@ typedef struct {
 } SDeflectedDump;
 
 // -----[ _print_deflected_path_for_each ]---------------------------
-static int _print_deflected_path_for_each(void * pItem,
+/*static int _print_deflected_path_for_each(void * pItem,
 					  void * pContext)
 {
   SDeflectedDump * pDump = (SDeflectedDump *)pContext;
@@ -326,33 +316,7 @@ static int _print_deflected_path_for_each(void * pItem,
     pDump->uAddrType = 0;
   }
   return 0;
-}
-
-// -----[ net_record_route_perror ]----------------------------------
-static void net_record_route_perror(SLogStream * pStream, int iErrorCode)
-{
-#define LOG(M) log_printf(pStream, M); break;
-  switch (iErrorCode) {
-  case NET_SUCCESS:
-    LOG("SUCCESS");
-  case NET_ERROR_NET_UNREACH:
-    LOG("UNREACH");
-  case NET_ERROR_HOST_UNREACH:
-    LOG("UNREACH");
-  case NET_ERROR_LINK_DOWN:
-    LOG("DOWN");
-  case NET_ERROR_FWD_LOOP:
-    LOG("LOOP");
-    /*
-  case NET_RECORD_ROUTE_TUNNEL_UNREACH:
-    LOG("TUNNEL_UNREACH");
-  case NET_RECORD_ROUTE_TUNNEL_BROKEN:
-    LOG("TUNNEL_BROKEN");
-    */
-  default:
-    LOG("UNKNOWN");
-  }
-}
+  }*/
 
 // ----- node_dump_recorded_route -----------------------------------
 /**
@@ -361,55 +325,70 @@ static void net_record_route_perror(SLogStream * pStream, int iErrorCode)
  * Format:
  *   <src> <dst> <status> <num-hops> <hop-1>...<hop-N> [delay:<delay> ...]
  */
-void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
-			      SNetDest sDest, net_tos_t tTOS,
-			      const uint8_t uOptions,
-			      net_link_load_t tLoad)
+void node_dump_recorded_route(SLogStream * stream,
+			      net_node_t * node,
+			      SNetDest sDest,
+			      net_tos_t tOS,
+			      uint8_t options,
+			      net_link_load_t load)
 {
-  SDeflectedDump pDeflectedDump;
-  SNetRecordRouteInfo * pRRInfo;
-  unsigned int uIndex;
-  SIPTraceItem * pTraceItem;
+  unsigned int index;
+  ip_trace_item_t * trace_item;
+  ip_trace_t * trace;
+  net_error_t error;
 
-  pRRInfo= node_record_route(pNode, sDest, tTOS, uOptions, tLoad);
-  assert(pRRInfo != NULL);
+  if (sDest.tType == NET_DEST_PREFIX)
+    options|= ICMP_RR_OPTION_ALT_DEST;
 
-  ip_address_dump(pStream, pNode->tAddr);
-  log_printf(pStream, "\t");
-  ip_dest_dump(pStream, sDest);
-  log_printf(pStream, "\t");
-  net_record_route_perror(pStream, pRRInfo->iResult);
+  error= icmp_record_route(node, sDest.uDest.tAddr,
+			   &sDest.uDest.sPrefix,
+			   255, options, &trace, load);
 
-  log_printf(pStream, "\t%u\t", ip_trace_length(pRRInfo->pTrace));
-  for (uIndex= 0; uIndex < ip_trace_length(pRRInfo->pTrace); uIndex++) {
-    if (uIndex > 0)
-      log_printf(pStream, " ");
-    pTraceItem= ip_trace_item_at(pRRInfo->pTrace, uIndex);
-    switch (pTraceItem->eType) {
+  ip_address_dump(stream, node->tAddr);
+  log_printf(stream, "\t");
+  ip_dest_dump(stream, sDest);
+  log_printf(stream, "\t");
+
+  switch (trace->status) {
+  case ESUCCESS:
+    log_printf(stream, "SUCCESS"); break;
+  case ENET_FWD_LOOP:
+    log_printf(stream, "LOOP"); break;
+  default:
+    log_printf(stream, "UNREACH");
+  }
+
+  log_printf(stream, "\t%u\t", ip_trace_length(trace));
+  for (index= 0; index < ip_trace_length(trace); index++) {
+    if (index > 0)
+      log_printf(stream, " ");
+    trace_item= ip_trace_item_at(trace, index);
+    switch (trace_item->elt.type) {
     case NODE:
-      ip_address_dump(pStream, pTraceItem->uItem.pNode->tAddr);
+      ip_address_dump(stream, trace_item->elt.node->tAddr);
       break;
     case SUBNET: 
-      ip_prefix_dump(pStream, pTraceItem->uItem.pSubnet->sPrefix);
+      ip_prefix_dump(stream, trace_item->elt.subnet->sPrefix);
       break;
     default:
-      abort();
+      fatal("invalid network-element type (%d)\n",
+	    trace_item->elt.type);
     }
   }
 
   // Total propagation delay requested ?
-  if (uOptions & NET_RECORD_ROUTE_OPTION_DELAY)
-    log_printf(pStream, "\tdelay:%u", pRRInfo->tDelay);
+  if (options & NET_RECORD_ROUTE_OPTION_DELAY)
+    log_printf(stream, "\tdelay:%u", trace->delay);
 
   // Total IGP weight requested ?
-  if (uOptions & NET_RECORD_ROUTE_OPTION_WEIGHT)
-    log_printf(pStream, "\tweight:%u", pRRInfo->tWeight);
+  if (options & NET_RECORD_ROUTE_OPTION_WEIGHT)
+    log_printf(stream, "\tweight:%u", trace->weight);
 
   // Maximum capacity requested ?
-  if (uOptions & NET_RECORD_ROUTE_OPTION_CAPACITY)
-    log_printf(pStream, "\tcapacity:%u", pRRInfo->tCapacity);
+  if (options & NET_RECORD_ROUTE_OPTION_CAPACITY)
+    log_printf(stream, "\tcapacity:%u", trace->capacity);
 
-  if ((uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION) &&
+  /*if ((uOptions & NET_RECORD_ROUTE_OPTION_DEFLECTION) &&
       (net_path_length(pRRInfo->pDeflectedPath) > 0)) {
     log_printf(pStream, "\tDEFLECTION\t");
     pDeflectedDump.pStream= pStream;
@@ -417,13 +396,13 @@ void node_dump_recorded_route(SLogStream * pStream, SNetNode * pNode,
     net_path_for_each(pRRInfo->pDeflectedPath,
 		      _print_deflected_path_for_each,
 		      &pDeflectedDump);
-  }
+		      }*/
 
-  log_printf(pStream, "\n");
+  log_printf(stream, "\n");
 
-  net_record_route_info_destroy(&pRRInfo);
+  //net_record_route_info_destroy(&pRRInfo);
 
-  log_flush(pStream);
+  log_flush(stream);
 }
 
 // -----[ net_record_route_info_destroy ]----------------------------
