@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)filter_registry.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// @lastdate 16/01/2008
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -36,7 +36,7 @@ static SCli * pFtActionCLI= NULL;
  * definition of a predicate, creates and returns it.
  */
 int ft_registry_predicate_parser(char * pcExpr,
-				 SFilterMatcher ** ppMatcher)
+				 bgp_ft_matcher_t ** ppMatcher)
 {
   return cli_execute_ctx(pFtPredicateCLI, pcExpr, (void *) ppMatcher);
 }
@@ -47,7 +47,7 @@ int ft_registry_predicate_parser(char * pcExpr,
  * definition of an action, creates and returns it.
  */
 int ft_registry_action_parser(char * pcExpr,
-			      SFilterAction ** ppAction)
+			      bgp_ft_action_t ** ppAction)
 {
   int iResult;
 
@@ -62,7 +62,7 @@ int ft_registry_action_parser(char * pcExpr,
 }
 
 // ----- ft_cli_predicate_get ---------------------------------------
-static SCli * ft_cli_predicate_get()
+static inline SCli * ft_cli_predicate_get()
 {
   if (pFtPredicateCLI == NULL)
     pFtPredicateCLI= cli_create();
@@ -70,7 +70,7 @@ static SCli * ft_cli_predicate_get()
 }
 
 // ----- ft_cli_action_get ------------------------------------------
-static SCli * ft_cli_action_get()
+static inline SCli * ft_cli_action_get()
 {
   if (pFtActionCLI == NULL)
     pFtActionCLI= cli_create();
@@ -92,8 +92,8 @@ static int ft_cli_predicate_any(SCliContext * pContext,
 static int ft_cli_predicate_community_is(SCliContext * pContext,
 					 SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   char * pcCommunity;
   comm_t tCommunity;
 
@@ -113,8 +113,8 @@ static int ft_cli_predicate_community_is(SCliContext * pContext,
 static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
 				       SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
@@ -136,8 +136,8 @@ static int ft_cli_predicate_nexthop_in(SCliContext * pContext,
 static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
 				       SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   char * pcNextHop;
   char * pcEndChar;
   net_addr_t tNextHop;
@@ -159,8 +159,8 @@ static int ft_cli_predicate_nexthop_is(SCliContext * pContext,
 static int ft_cli_predicate_prefix_is(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
@@ -182,8 +182,8 @@ static int ft_cli_predicate_prefix_is(SCliContext * pContext,
 static int ft_cli_predicate_prefix_in(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   char * pcPrefix;
   char * pcEndChar;
   SPrefix sPrefix;
@@ -205,8 +205,8 @@ static int ft_cli_predicate_prefix_in(SCliContext * pContext,
 static int ft_cli_predicate_prefix_ge(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   unsigned int uLength;
   char * pcPrefix;
   char * pcEndChar;
@@ -243,8 +243,8 @@ static int ft_cli_predicate_prefix_ge(SCliContext * pContext,
 static int ft_cli_predicate_prefix_le(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   unsigned int uLength;
   char * pcPrefix;
   char * pcEndChar;
@@ -277,7 +277,7 @@ static int ft_cli_predicate_prefix_le(SCliContext * pContext,
   return CLI_SUCCESS;
 }
 
-extern SHash * pHashPathExpr;
+extern hash_t * pHashPathExpr;
 extern SPtrArray * paPathExpr;
 // ----- ft_cli_predicate_path ---------------------------------------
 /**
@@ -287,8 +287,8 @@ extern SPtrArray * paPathExpr;
 static int ft_cli_predicate_path (SCliContext * pContext, 
 				  SCliCmd * pCmd)
 {
-  SFilterMatcher ** ppMatcher=
-    (SFilterMatcher **) cli_context_get(pContext);
+  bgp_ft_matcher_t ** ppMatcher=
+    (bgp_ft_matcher_t **) cli_context_get(pContext);
   int iPos = 0;
   char * pcPattern;
   SPathMatch * pFilterRegEx, * pHashFilterRegEx;
@@ -438,8 +438,8 @@ static void ft_cli_register_predicate_path()
 int ft_cli_action_accept(SCliContext * pContext,
 			 SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
 
   *ppAction= filter_action_accept();
 
@@ -450,8 +450,8 @@ int ft_cli_action_accept(SCliContext * pContext,
 int ft_cli_action_deny(SCliContext * pContext,
 		       SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
 
   *ppAction= filter_action_deny();
 
@@ -465,10 +465,10 @@ int ft_cli_action_deny(SCliContext * pContext,
 int ft_cli_action_jump(SCliContext * pContext,
 		       SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   char * pcRouteMapName;
-  SFilter * pFilter;
+  bgp_filter_t * pFilter;
 
   if ((pcRouteMapName= tokens_get_string_at(pCmd->pParamValues, 0)) == NULL) {
     *ppAction= NULL;
@@ -495,10 +495,10 @@ int ft_cli_action_jump(SCliContext * pContext,
 int ft_cli_action_call(SCliContext * pContext,
 		       SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   char * pcRouteMapName;
-  SFilter * pFilter;
+  bgp_filter_t * pFilter;
 
   if ((pcRouteMapName= tokens_get_string_at(pCmd->pParamValues, 0)) == NULL) {
     *ppAction= NULL;
@@ -522,8 +522,8 @@ int ft_cli_action_call(SCliContext * pContext,
 int ft_cli_action_local_pref(SCliContext * pContext,
 			     SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned long int ulPref;
 
   if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulPref)) {
@@ -541,8 +541,8 @@ int ft_cli_action_local_pref(SCliContext * pContext,
 int ft_cli_action_metric(SCliContext * pContext,
 			 SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned long int ulMetric;
 
   if (!strcmp(tokens_get_string_at(pCmd->pParamValues, 0), "internal")) {
@@ -565,8 +565,8 @@ int ft_cli_action_metric(SCliContext * pContext,
 int ft_cli_action_as_path_prepend(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned long int ulAmount;
 
   if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulAmount)) {
@@ -584,8 +584,8 @@ int ft_cli_action_as_path_prepend(SCliContext * pContext,
 int ft_cli_action_as_path_rem_private(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
 
   *ppAction= filter_action_path_rem_private();
 
@@ -596,8 +596,8 @@ int ft_cli_action_as_path_rem_private(SCliContext * pContext,
 int ft_cli_action_community_add(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   char * pcCommunity;
   comm_t tCommunity;
 
@@ -617,8 +617,8 @@ int ft_cli_action_community_add(SCliContext * pContext,
 int ft_cli_action_community_remove(SCliContext * pContext,
 				   SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   char * pcCommunity;
   comm_t tCommunity;
 
@@ -638,8 +638,8 @@ int ft_cli_action_community_remove(SCliContext * pContext,
 int ft_cli_action_community_strip(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
 
   *ppAction= filter_action_comm_strip();
 
@@ -650,8 +650,8 @@ int ft_cli_action_community_strip(SCliContext * pContext,
 int ft_cli_action_red_comm_ignore(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned int uTarget;
 
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uTarget)) {
@@ -669,8 +669,8 @@ int ft_cli_action_red_comm_ignore(SCliContext * pContext,
 int ft_cli_action_red_comm_prepend(SCliContext * pContext,
 				   SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned int uAmount;
   unsigned int uTarget;
   
@@ -695,8 +695,8 @@ int ft_cli_action_red_comm_prepend(SCliContext * pContext,
 int ft_cli_action_pref_comm(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SFilterAction ** ppAction=
-    (SFilterAction **) cli_context_get(pContext);
+  bgp_ft_action_t ** ppAction=
+    (bgp_ft_action_t **) cli_context_get(pContext);
   unsigned int uPref;
   
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uPref)) {

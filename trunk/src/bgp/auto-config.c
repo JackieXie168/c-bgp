@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// @lastdate 25/02/2008
+// $Id: auto-config.c,v 1.7 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -52,16 +52,17 @@
  * node supports BGP, the BGP session must be added on both
  * sides. Otherwise, it must only be added on the local router's side.
  */
-int bgp_auto_config_session(SBGPRouter * pRouter,
+int bgp_auto_config_session(bgp_router_t * pRouter,
 			    net_addr_t tRemoteAddr,
 			    uint16_t uRemoteAS,
-			    SBGPPeer ** ppPeer)
+			    bgp_peer_t ** ppPeer)
 {
-  SNetNode * pNode;
-  SNetIface * pIface;
+  net_node_t * pNode;
+  net_iface_t * pIface;
   SPrefix sPrefix;
   int iUseNextHopSelf= 0;
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
+  net_error_t error;
 
   LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
     log_printf(pLogDebug, "AUTO-CONFIG ");
@@ -73,10 +74,14 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
 
   // (1). If node does not exist, create it.
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
-  pNode= network_find_node(tRemoteAddr);
+  pNode= network_find_node(network_get_default(), tRemoteAddr);
   if (pNode == NULL) {
-    pNode= node_create(tRemoteAddr);
-    network_add_node(pNode);
+    error= node_create(tRemoteAddr, &pNode);
+    if (error != ESUCCESS)
+      return error;
+    error= network_add_node(network_get_default(), pNode);
+    if (error != ESUCCESS)
+      return error;
   }
   
   // (2). If there is no direct link to the node, create it. The
@@ -91,9 +96,9 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
     // to AUTO_CONFIG_LINK_WEIGHT. The IGP_ADV flag is also removed
     // from the new link.
     assert(net_link_create_rtr(pRouter->pNode, pNode, UNIDIR, &pIface)
-	   == NET_SUCCESS);
+	   == ESUCCESS);
     assert(net_iface_set_metric(pIface, 0, AUTO_CONFIG_LINK_WEIGHT, UNIDIR)
-	   == NET_SUCCESS);
+	   == ESUCCESS);
   }
 
   // (3). Check if there is a route towards the remote node.
@@ -126,7 +131,7 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
   
   // If peer does not support BGP, create it virtual. Otherwise, also
   // create the session in the remote BGP router.
-  if (protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP) == NULL)
+  if (protocols_get(pNode->protocols, NET_PROTOCOL_BGP) == NULL)
     bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
   else {
     // TODO: we should create the BGP session in the reverse
@@ -147,5 +152,5 @@ int bgp_auto_config_session(SBGPRouter * pRouter,
 
   *ppPeer= pPeer;
 
-  return 0;
+  return ESUCCESS;
 }

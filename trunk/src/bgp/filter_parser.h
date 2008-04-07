@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)filter_parser.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/08/2003
-// @lastdate 20/09/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __FILTER_PARSER_H__
@@ -20,9 +20,13 @@ extern "C" {
 #endif
 
   // ----- filter_parser_rule ---------------------------------------
-  int filter_parser_rule(char * pcRule, SFilterRule ** ppRule);
+  int filter_parser_rule(char * pcRule, bgp_ft_rule_t ** ppRule);
   // ----- filter_parser_action -------------------------------------
   int filter_parser_action(char * pcAction,
-			   SFilterAction ** ppAction);
+			   bgp_ft_action_t ** ppAction);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __FILTER_PARSER_H__ */

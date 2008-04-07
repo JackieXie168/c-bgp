@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)predicate_parser.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/02/2004
-// @lastdate 21/11/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,19 +28,22 @@
 
 #define MAX_DEPTH 100
 
-#define TOKEN_NONE     0
-#define TOKEN_EOF      1
-#define TOKEN_ATOM     2
-#define TOKEN_NOT      3
-#define TOKEN_AND      4
-#define TOKEN_OR       5
-#define TOKEN_PAROPEN  6
-#define TOKEN_PARCLOSE 7
+typedef enum {
+  TOKEN_NONE,
+  TOKEN_EOF,
+  TOKEN_ATOM,
+  TOKEN_NOT,
+  TOKEN_AND,
+  TOKEN_OR,
+  TOKEN_PAROPEN,
+  TOKEN_PARCLOSE,
+  TOKEN_MAK,
+} parser_token_t;
 
 //#define FSM_DEBUG 1
 
 #ifdef FSM_DEBUG
-static char * token_names[]= {
+static char * token_names[TOKEN_MAX]= {
   "none",
   "eof",
   "atom",
@@ -52,12 +55,15 @@ static char * token_names[]= {
 };
 #endif /* FSM_DEBUG */
 
-#define PARSER_STATE_WAIT_UNARY_OP  0
-#define PARSER_STATE_WAIT_BINARY_OP 1
-#define PARSER_STATE_WAIT_ARG       2
+typedef enum {
+  PARSER_STATE_WAIT_UNARY_OP,
+  PARSER_STATE_WAIT_BINARY_OP,
+  PARSER_STATE_WAIT_ARG,
+  PARSER_STATE_MAX
+} parser_state_t;
 
 #ifdef FSM_DEBUG
-static char * state_names[]= {
+static char * state_names[PARSER_STATE_MAX]= {
   "unary-op",
   "binary-op",
   "argument",
@@ -66,14 +72,14 @@ static char * state_names[]= {
 
 typedef struct {
   int iCommand;
-  SFilterMatcher * pLeftPredicate;
+  bgp_ft_matcher_t * pLeftPredicate;
 } SParserStackItem;
 
 static struct {
-  int iState;
+  parser_state_t iState;
   int iCommand;
-  SFilterMatcher * pLeftPredicate;
-  SFilterMatcher * pRightPredicate;
+  bgp_ft_matcher_t * pLeftPredicate;
+  bgp_ft_matcher_t * pRightPredicate;
   int iAtomError;
   SStack * pStack;
   unsigned int uColumn;
@@ -165,7 +171,7 @@ char * predicate_parser_strerror(int iErrorCode)
  *       
  */
 static int _predicate_parser_get_atom(char ** ppcExpr,
-				      SFilterMatcher ** ppMatcher)
+				      bgp_ft_matcher_t ** ppMatcher)
 {
   char * pcPos;
   char *pcSubExpr;
@@ -502,7 +508,7 @@ static void _predicate_parser_destroy()
 /**
  * 
  */
-int predicate_parser(char * pcExpr, SFilterMatcher ** ppMatcher)
+int predicate_parser(char * pcExpr, bgp_ft_matcher_t ** ppMatcher)
 {
   int iError= PREDICATE_PARSER_SUCCESS;
   int iToken;

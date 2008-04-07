@@ -20,9 +20,9 @@ extern "C" {
 #endif
 
   // ----- bgp_router_rt_add_route ----------------------------------
-  void bgp_router_rt_add_route(SBGPRouter * pRouter, SRoute * pRoute);
+  void bgp_router_rt_add_route(bgp_router_t * pRouter, bgp_route_t * pRoute);
   // ----- bgp_router_rt_del_route ----------------------------------
-  void bgp_router_rt_del_route(SBGPRouter * pRouter, SPrefix sPrefix);
+  void bgp_router_rt_del_route(bgp_router_t * pRouter, SPrefix sPrefix);
 
 #ifdef __cplusplus
 }

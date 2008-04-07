@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)filter_registry.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2004
-// @lastdate 28/08/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __FILTER_REGISTRY_H__
@@ -23,10 +23,10 @@ extern "C" {
 
   // -----[ ft_registry_predicate_parser ]---------------------------
   int ft_registry_predicate_parser(char * pcExpr,
-				   SFilterMatcher ** ppMatcher);
+				   bgp_ft_matcher_t ** ppMatcher);
   // -----[ ft_registry_action_parser ]------------------------------
   int ft_registry_action_parser(char * pcExpr,
-				SFilterAction ** ppAction);
+				bgp_ft_action_t ** ppAction);
 
   // -----[ _ft_registry_init ]--------------------------------------
   void _ft_registry_init();

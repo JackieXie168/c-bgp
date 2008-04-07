@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)filter_parser.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/08/2003
-// @lastdate 20/09/2007
+// @lastdate 12/03/2008
 // ==================================================================
 // Syntax:
 //   Script     ::= Rules
@@ -36,13 +36,13 @@ SCli * pActionCli= NULL;
 /**
  *
  */
-int filter_parser_action(char * pcActions, SFilterAction ** ppAction)
+int filter_parser_action(char * pcActions, bgp_ft_action_t ** ppAction)
 {
   STokenizer * pTokenizer;
   STokens * pTokens;
   int iIndex;
-  SFilterAction * pAction;
-  SFilterAction ** ppNewAction= NULL;
+  bgp_ft_action_t * pAction;
+  bgp_ft_action_t ** ppNewAction= NULL;
   int iResult= 0;
 
   pTokenizer= tokenizer_create(",", 0, NULL, NULL);
@@ -82,10 +82,10 @@ int filter_parser_action(char * pcActions, SFilterAction ** ppAction)
 /**
  *
  */
-int filter_parser_rule(char * pcRule, SFilterRule ** ppRule)
+int filter_parser_rule(char * pcRule, bgp_ft_rule_t ** ppRule)
 {
-  SFilterMatcher * pMatcher= NULL;
-  SFilterAction * pAction= NULL;
+  bgp_ft_matcher_t * pMatcher= NULL;
+  bgp_ft_action_t * pAction= NULL;
 
   if (filter_parser_action(pcRule, &pAction) == FILTER_PARSER_SUCCESS)
     if (pAction != NULL) {

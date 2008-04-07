@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)domain.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/02/2002
-// @lastdate 31/05/2007
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,10 +27,10 @@ SBGPDomain * apDomains[BGP_DOMAINS_MAX];
 /**
  * Create a BGP domain (an Autonomous System).
  */
-SBGPDomain * bgp_domain_create(uint16_t uNumber)
+SBGPDomain * bgp_domain_create(uint16_t uASN)
 {
   SBGPDomain * pDomain= (SBGPDomain *) MALLOC(sizeof(SBGPDomain));
-  pDomain->uNumber= uNumber;
+  pDomain->uASN= uASN;
   pDomain->pcName= NULL;
 
   /* Radix-tree with all routers. Destroy function is NULL. */
@@ -81,7 +81,7 @@ int bgp_domains_for_each(FBGPDomainsForEach fForEach, void * pContext)
  *   replaced by the new one and memory leaks as well as unexpected
  *   results may occur.
  */
-void bgp_domain_add_router(SBGPDomain * pDomain, SBGPRouter * pRouter)
+void bgp_domain_add_router(SBGPDomain * pDomain, bgp_router_t * pRouter)
 {
   radix_tree_add(pDomain->pRouters, pRouter->pNode->tAddr, 32, pRouter);
   pRouter->pDomain= pDomain;
@@ -104,9 +104,9 @@ int bgp_domain_routers_for_each(SBGPDomain * pDomain,
  * Return true (1) if the domain identified by the given AS number
  * exists. Otherwise, return false (0).
  */
-int exists_bgp_domain(uint16_t uNumber)
+int exists_bgp_domain(uint16_t uASN)
 {
-  return (apDomains[uNumber] != NULL);
+  return (apDomains[uASN] != NULL);
 }
 
 // ----- get_bgp_domain ---------------------------------------------
@@ -114,11 +114,11 @@ int exists_bgp_domain(uint16_t uNumber)
  * Get the reference of a domain identified by its AS number. If the
  * domain does not exist, it is created and registered.
  */
-SBGPDomain * get_bgp_domain(uint16_t uNumber)
+SBGPDomain * get_bgp_domain(uint16_t uASN)
 {
-  if (apDomains[uNumber] == NULL)
-    apDomains[uNumber]= bgp_domain_create(uNumber);
-  return apDomains[uNumber];
+  if (apDomains[uASN] == NULL)
+    apDomains[uASN]= bgp_domain_create(uASN);
+  return apDomains[uASN];
 }
 
 // ----- register_bgp_domain ----------------------------------------
@@ -131,15 +131,15 @@ SBGPDomain * get_bgp_domain(uint16_t uNumber)
  */
 void register_bgp_domain(SBGPDomain * pDomain)
 {
-  assert(apDomains[pDomain->uNumber] == NULL);
-  apDomains[pDomain->uNumber]= pDomain;
+  assert(apDomains[pDomain->uASN] == NULL);
+  apDomains[pDomain->uASN]= pDomain;
 }
 
 // ----- bgp_domain_routers_rescan_fct ------------------------------
 int bgp_domain_routers_rescan_fct_for_each(uint32_t uKey, uint8_t uKeyLen,
 					   void * pItem, void * pContext)
 {
-  return bgp_router_scan_rib((SBGPRouter *) pItem);
+  return bgp_router_scan_rib((bgp_router_t *) pItem);
 }
 
 // ----- bgp_domain_rescan ------------------------------------------
@@ -165,7 +165,7 @@ static int bgp_domain_routers_record_route_for_each(uint32_t uKey,
 						    void * pItem,
 						    void * pContext)
 {
-  SNetNode * pNode = (SNetNode *)((SBGPRouter *)pItem)->pNode;
+  net_node_t * pNode = (net_node_t *)((bgp_router_t *)pItem)->pNode;
   SRecordRoute * pCont = (SRecordRoute *)pContext;
   
   node_dump_recorded_route(pCont->pStream, pNode,
@@ -194,7 +194,7 @@ int bgp_domain_build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
 				      void * pItem, void * pContext)
 {
   SPtrArray * pRL= (SPtrArray *) pContext;
-  SBGPRouter * pRouter= (SBGPRouter *) pItem;
+  bgp_router_t * pRouter= (bgp_router_t *) pItem;
   
   ptr_array_append(pRL, pRouter);
   
@@ -221,7 +221,7 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
 {
   int iIndex1, iIndex2;
   SPtrArray * pRouters;
-  SBGPRouter * pRouter1, * pRouter2;
+  bgp_router_t * pRouter1, * pRouter2;
 
   /* Get the list of routers */
   pRouters= bgp_domain_routers_list(pDomain);
@@ -237,7 +237,7 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
 
       pRouter2= pRouters->data[iIndex2];
 
-      bgp_router_add_peer(pRouter1, pDomain->uNumber,
+      bgp_router_add_peer(pRouter1, pDomain->uASN,
 			  pRouter2->pNode->tAddr, NULL);
 
     }

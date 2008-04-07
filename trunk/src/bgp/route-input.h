@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)route-input.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// @lastdate 21/05/2007
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifndef __BGP_ROUTE_INPUT_H__
@@ -33,7 +33,7 @@
 
 // ----- BGP Route Handler -----
 typedef int (*FBGPRouteHandler)(int iStatus,
-				SRoute * pRoute, net_addr_t tPeerAddr,
+				bgp_route_t * pRoute, net_addr_t tPeerAddr,
 				unsigned int uPeerAS, void * pContext);
 
 #ifdef __cplusplus
@@ -46,7 +46,7 @@ extern "C" {
   int bgp_routes_load(const char * pcFileName, uint8_t uFormat,
 		      FBGPRouteHandler fHandler, void * pContext);
   // -----[ bgp_routes_load_list ]-----------------------------------
-  SRoutes * bgp_routes_load_list(const char * pcFileName, uint8_t uFormat);
+  bgp_routes_t * bgp_routes_load_list(const char * pcFileName, uint8_t uFormat);
 
 #ifdef __cplusplus
 }

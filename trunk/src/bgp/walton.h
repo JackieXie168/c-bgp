@@ -19,28 +19,38 @@
 #include <bgp/as.h>
 #include <bgp/peer.h>
 
-// ----- bgp_router_walton_init --------------------------------------
-void bgp_router_walton_init(SBGPRouter * pRouter);
-// ----- bgp_router_walton_finalize ----------------------------------
-void bgp_router_walton_finalize(SBGPRouter * pRouter);
-// ---- bgp_router_walton_peer_remove --------------------------------
-void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SPeer * pPeer);
-// ----- bgp_router_walton_unsynchronized_all ------------------------
-void bgp_router_walton_unsynchronized_all(SBGPRouter * pRouter);
-// ----- bgp_router_walton_peer_set ----------------------------------
-int bgp_router_walton_peer_set(SPeer * pPeer, unsigned int uWaltonLimit);
-// ----- bgp_router_walton_dp_disseminate ----------------------------
-void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter, 
-					SPtrArray * pPeers,
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  // ----- bgp_router_walton_init ------------------------------------
+  void bgp_router_walton_init(bgp_router_t * pRouter);
+  // ----- bgp_router_walton_finalize --------------------------------
+  void bgp_router_walton_finalize(bgp_router_t * pRouter);
+  // ---- bgp_router_walton_peer_remove ------------------------------
+  void bgp_router_walton_peer_remove(bgp_router_t * pRouter,
+				     bgp_peer_t * pPeer);
+  // ----- bgp_router_walton_unsynchronized_all ----------------------
+  void bgp_router_walton_unsynchronized_all(bgp_router_t * pRouter);
+  // ----- bgp_router_walton_peer_set --------------------------------
+  int bgp_router_walton_peer_set(bgp_peer_t * pPeer,
+				 unsigned int uWaltonLimit);
+  // ----- bgp_router_walton_dp_disseminate --------------------------
+  void bgp_router_walton_dp_disseminate(bgp_router_t * pRouter, 
+					bgp_peers_t * pPeers,
 					SPrefix sPrefix,
-					SRoutes * pRoutes);
-// ---- bgp_router_walton_disseminate_select_peers -------------------
-void bgp_router_walton_disseminate_select_peers(SBGPRouter * pRouter, 
-					    SRoutes * pRoutes, 
-					    uint16_t iNextHopCount);
-// ----- bgp_router_walton_decision_process_run ---------------------
-int bgp_router_walton_decision_process_run(SBGPRouter * pRouter,
-					   SRoutes * pRoutes);
+					bgp_routes_t * pRoutes);
+  // ---- bgp_router_walton_disseminate_select_peers -----------------
+  void bgp_router_walton_disseminate_select_peers(bgp_router_t * pRouter, 
+						  bgp_routes_t * pRoutes, 
+						  uint16_t iNextHopCount);
+  // ----- bgp_router_walton_decision_process_run -------------------
+  int bgp_router_walton_decision_process_run(bgp_router_t * pRouter,
+					     bgp_routes_t * pRoutes);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EXPERIMENTAL_WALTON
 

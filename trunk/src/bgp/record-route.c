@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)record-route.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/05/2007
-// @lastdate 22/05/2007
+// $Id: record-route.c,v 1.2 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,66 +25,68 @@
  * - records all ASes
  * - records ASes once (do not record iBGP session crossing)
  */
-int bgp_record_route(SBGPRouter * pRouter,
-			    SPrefix sPrefix, SBGPPath ** ppPath,
-			    int iPreserveDups)
+int bgp_record_route(bgp_router_t * router,
+		     SPrefix sPrefix,
+		     SBGPPath ** path_ref,
+		     int iPreserveDups)
 {
-  SBGPRouter * pCurrentRouter= pRouter;
-  SBGPRouter * pPreviousRouter= NULL;
-  SRoute * pRoute;
-  SBGPPath * pPath= path_create();
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
-  int iResult= AS_RECORD_ROUTE_UNREACH;
+  bgp_router_t * cur_router= router;
+  bgp_router_t * prev_router= NULL;
+  SRoute * route;
+  SBGPPath * path= path_create();
+  net_node_t * node;
+  net_protocol_t * protocol;
+  int result= AS_RECORD_ROUTE_UNREACH;
+  network_t * network= router->pNode->network;
 
-  *ppPath= NULL;
+  *path_ref= NULL;
 
-  while (pCurrentRouter != NULL) {
+  while (cur_router != NULL) {
     
     // Is there, in the current node, a BGP route towards the given
     // prefix ?
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoute= rib_find_one_best(pCurrentRouter->pLocRIB, sPrefix);
+    route= rib_find_one_best(cur_router->pLocRIB, sPrefix);
 #else
-    pRoute= rib_find_best(pCurrentRouter->pLocRIB, sPrefix);
+    route= rib_find_best(cur_router->pLocRIB, sPrefix);
 #endif
-    if (pRoute != NULL) {
+    if (route != NULL) {
       
       // Record current node's AS-Num ??
-      if ((pPreviousRouter == NULL) ||
+      if ((prev_router == NULL) ||
 	  (iPreserveDups ||
-	   (pPreviousRouter->uNumber != pCurrentRouter->uNumber))) {
-	if (path_append(&pPath, pCurrentRouter->uNumber) < 0) {
-	  iResult= AS_RECORD_ROUTE_TOO_LONG;
+	   (prev_router->uASN != cur_router->uASN))) {
+	if (path_append(&path, cur_router->uASN) < 0) {
+	  result= AS_RECORD_ROUTE_TOO_LONG;
 	  break;
 	}
       }
       
       // If the route's next-hop is this router, then the function
       // terminates.
-      if (pRoute->pAttr->tNextHop == pCurrentRouter->pNode->tAddr) {
-	iResult= AS_RECORD_ROUTE_SUCCESS;
+      if (route->pAttr->tNextHop == cur_router->pNode->tAddr) {
+	result= AS_RECORD_ROUTE_SUCCESS;
 	break;
       }
       
       // Otherwize, looks for next-hop router
-      pNode= network_find_node(pRoute->pAttr->tNextHop);
-      if (pNode == NULL)
+      node= network_find_node(network, route->pAttr->tNextHop);
+      if (node == NULL)
 	break;
       
       // Get the current node's BGP instance
-      pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
-      if (pProtocol == NULL)
+      protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
+      if (protocol == NULL)
 	break;
-      pPreviousRouter= pCurrentRouter;
-      pCurrentRouter= (SBGPRouter *) pProtocol->pHandler;
+      prev_router= cur_router;
+      cur_router= (bgp_router_t *) protocol->pHandler;
       
     } else
       break;
   }
-  *ppPath= pPath;
+  *path_ref= path;
 
-  return iResult;
+  return result;
 }
 
 // -----[ bgp_dump_recorded_route ]----------------------------------
@@ -92,25 +94,25 @@ int bgp_record_route(SBGPRouter * pRouter,
  * This function dumps the result of a call to
  * 'bgp_router_record_route'.
  */
-void bgp_dump_recorded_route(SLogStream * pStream, SBGPRouter * pRouter,
-			     SPrefix sPrefix, SBGPPath * pPath,
-			     int iResult)
+void bgp_dump_recorded_route(SLogStream * stream, bgp_router_t * router,
+			     SPrefix sPrefix, SBGPPath * path,
+			     int result)
 {
   // Display record-route results
-  ip_address_dump(pStream, pRouter->pNode->tAddr);
-  log_printf(pStream, "\t");
-  ip_prefix_dump(pStream, sPrefix);
-  log_printf(pStream, "\t");
-  switch (iResult) {
-  case AS_RECORD_ROUTE_SUCCESS: log_printf(pStream, "SUCCESS"); break;
-  case AS_RECORD_ROUTE_TOO_LONG: log_printf(pStream, "TOO_LONG"); break;
-  case AS_RECORD_ROUTE_UNREACH: log_printf(pStream, "UNREACHABLE"); break;
+  ip_address_dump(stream, router->pNode->tAddr);
+  log_printf(stream, "\t");
+  ip_prefix_dump(stream, sPrefix);
+  log_printf(stream, "\t");
+  switch (result) {
+  case AS_RECORD_ROUTE_SUCCESS: log_printf(stream, "SUCCESS"); break;
+  case AS_RECORD_ROUTE_TOO_LONG: log_printf(stream, "TOO_LONG"); break;
+  case AS_RECORD_ROUTE_UNREACH: log_printf(stream, "UNREACHABLE"); break;
   default:
-    log_printf(pStream, "UNKNOWN_ERROR");
+    log_printf(stream, "UNKNOWN_ERROR");
   }
-  log_printf(pStream, "\t");
-  path_dump(pStream, pPath, 0);
-  log_printf(pStream, "\n");
+  log_printf(stream, "\t");
+  path_dump(stream, path, 0);
+  log_printf(stream, "\n");
 
-  log_flush(pStream);
+  log_flush(stream);
 }

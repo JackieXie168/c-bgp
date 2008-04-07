@@ -21,13 +21,13 @@
 
 #include <bgp/route_map.h>
 
-static SHash * pHashRouteMap= NULL;
+static hash_t * pHashRouteMap= NULL;
 static uint32_t uHashRouteMapSize= 64;
 
 typedef struct {
   char * pcRouteMapName;
-  SFilter * pFilter;
-}SRouteMapHashElt;
+  bgp_filter_t * pFilter;
+} SRouteMapHashElt;
 
 // ----- route_map_element_compare -----------------------------------
 /**
@@ -86,7 +86,7 @@ uint32_t route_map_hash_compute(const void * pElt, const uint32_t uHashSize)
 /**
  *
  */
-SHash * route_map_hash_get()
+hash_t * route_map_hash_get()
 {
   return pHashRouteMap;
 }
@@ -113,7 +113,7 @@ void _route_map_init()
  */
 void _route_map_destroy()
 {
-  SHash * phRouteMap = route_map_hash_get();
+  hash_t * phRouteMap = route_map_hash_get();
   
   hash_destroy(&phRouteMap);
 }
@@ -125,10 +125,10 @@ void _route_map_destroy()
  *  -1 if the Route Map already exists or the key is too large
  *
  */
-int route_map_add(char * pcRouteMapName, SFilter * pFilter)
+int route_map_add(char * pcRouteMapName, bgp_filter_t * pFilter)
 {
   SRouteMapHashElt * phRouteMapElt, * phRouteMapEltSearched;
-  SHash * phRouteMap = route_map_hash_get();
+  hash_t * phRouteMap = route_map_hash_get();
 
   phRouteMapElt = MALLOC(sizeof(SRouteMapHashElt));
   phRouteMapElt->pcRouteMapName = pcRouteMapName;
@@ -152,10 +152,10 @@ int route_map_add(char * pcRouteMapName, SFilter * pFilter)
  *
  *
  */
-int route_map_replace(char * pcRouteMapName, SFilter * pFilter)
+int route_map_replace(char * pcRouteMapName, bgp_filter_t * pFilter)
 {
   SRouteMapHashElt * phRouteMapEltSearched, * phRouteMapElt;
-  SHash * phRouteMap = route_map_hash_get();
+  hash_t * phRouteMap = route_map_hash_get();
 
   phRouteMapElt = MALLOC(sizeof(SRouteMapHashElt));
   phRouteMapElt->pcRouteMapName = pcRouteMapName;
@@ -183,7 +183,7 @@ int route_map_replace(char * pcRouteMapName, SFilter * pFilter)
 int route_map_del(char * pcRouteMapName)
 {
   SRouteMapHashElt * phRouteMapElt;
-  SHash * phRouteMap = route_map_hash_get();
+  hash_t * phRouteMap = route_map_hash_get();
 
   phRouteMapElt = MALLOC(sizeof(SRouteMapHashElt));
   phRouteMapElt->pcRouteMapName = pcRouteMapName;
@@ -201,11 +201,11 @@ int route_map_del(char * pcRouteMapName)
  *
  *
  */
-SFilter * route_map_get(char * pcRouteMapName)
+bgp_filter_t * route_map_get(char * pcRouteMapName)
 {
   SRouteMapHashElt * phRouteMapEltSearched, * phRouteMapElt;
-  SFilter * pFilter = NULL;
-  SHash * phRouteMap = route_map_hash_get();
+  bgp_filter_t * pFilter = NULL;
+  hash_t * phRouteMap = route_map_hash_get();
 
   phRouteMapElt = MALLOC(sizeof(SRouteMapHashElt));
   phRouteMapElt->pcRouteMapName = pcRouteMapName;

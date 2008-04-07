@@ -6,9 +6,9 @@
 // AS-level topologies inferred by Subramanian et al and further by
 // CAIDA.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// @lastdate 21/11/2007
+// $Id: as-level.h,v 1.4 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_H__
@@ -174,9 +174,9 @@ extern "C" {
   // -----[ aslevel_reverse_relation ]-------------------------------
   peer_type_t aslevel_reverse_relation(peer_type_t tPeerType);
   // -----[ aslevel_filter_in ]--------------------------------------
-  SFilter * aslevel_filter_in(peer_type_t tPeerType);
+  bgp_filter_t * aslevel_filter_in(peer_type_t tPeerType);
   // -----[ aslevel_filter_out ]-------------------------------------
-  SFilter * aslevel_filter_out(peer_type_t tPeerType);
+  bgp_filter_t * aslevel_filter_out(peer_type_t tPeerType);
 
 
   ///////////////////////////////////////////////////////////////////

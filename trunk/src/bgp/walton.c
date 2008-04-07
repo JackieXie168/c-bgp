@@ -69,7 +69,7 @@ void _bgp_router_walton_limit_destroy(void * pItem)
 /**
  *
  */
-void bgp_router_walton_init(SBGPRouter * pRouter)
+void bgp_router_walton_init(bgp_router_t * pRouter)
 {
   pRouter->pWaltonLimitPeers = 
     ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
@@ -81,14 +81,14 @@ void bgp_router_walton_init(SBGPRouter * pRouter)
 /**
  *
  */
-void bgp_router_walton_finalize(SBGPRouter * pRouter)
+void bgp_router_walton_finalize(bgp_router_t * pRouter)
 {
   ptr_array_destroy(&(pRouter->pWaltonLimitPeers));
 }
 
 
 // ----- bgp_router_walton_unsynchronized_all ------------------------
-void bgp_router_walton_unsynchronized_all(SBGPRouter * pRouter)
+void bgp_router_walton_unsynchronized_all(bgp_router_t * pRouter)
 {
   uint16_t uIndex;
   SPtrArray * pWaltonLimit = pRouter->pWaltonLimitPeers;
@@ -105,13 +105,13 @@ void bgp_router_walton_unsynchronized_all(SBGPRouter * pRouter)
 /**
  *
  */
-void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SBGPPeer * pPeer)
+void bgp_router_walton_peer_remove(bgp_router_t * pRouter, bgp_peer_t * pPeer)
 {
   unsigned int uIndexWaltonLimit;
   unsigned int uIndexPeers;
   SPtrArray * pWaltonLimitPeers = pRouter->pWaltonLimitPeers;
-  SPtrArray * pPeers = NULL;
-  SBGPPeer * pPeerFound;
+  bgp_peers_t * pPeers = NULL;
+  bgp_peer_t * pPeerFound;
 
   for (uIndexWaltonLimit = 0; uIndexWaltonLimit < ptr_array_length(pWaltonLimitPeers);
       uIndexWaltonLimit++) {
@@ -130,10 +130,10 @@ void bgp_router_walton_peer_remove(SBGPRouter * pRouter, SBGPPeer * pPeer)
 /**
  *
  */
-int bgp_router_walton_peer_set(SBGPPeer * pPeer, unsigned int uWaltonLimit)
+int bgp_router_walton_peer_set(bgp_peer_t * pPeer, unsigned int uWaltonLimit)
 {
   unsigned int uIndex;
-  SBGPRouter * pRouter = pPeer->pLocalRouter;
+  bgp_router_t * pRouter = pPeer->pLocalRouter;
   SWaltonLimitPeers * pWaltonLimitPeers = MALLOC(sizeof(SWaltonLimitPeers));
 
   bgp_router_walton_peer_remove(pRouter, pPeer);
@@ -169,7 +169,7 @@ int bgp_router_walton_peer_set(SBGPPeer * pPeer, unsigned int uWaltonLimit)
 /**
  *
  */
-SPtrArray * bgp_router_walton_get_peers(SBGPPeer * pPeer, unsigned int uWaltonLimit)
+SPtrArray * bgp_router_walton_get_peers(bgp_peer_t * pPeer, unsigned int uWaltonLimit)
 {
   return NULL;
 }
@@ -178,13 +178,13 @@ SPtrArray * bgp_router_walton_get_peers(SBGPPeer * pPeer, unsigned int uWaltonLi
 /**
  *
  */
-void bgp_router_walton_dump_peers(SPtrArray * pPeers)
+void bgp_router_walton_dump_peers(bgp_peers_t * pPeers)
 {
   int iIndex;
 
   for (iIndex= 0; iIndex < ptr_array_length(pPeers); iIndex++) {
     LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      bgp_peer_dump(pLogDebug, (SBGPPeer *) pPeers->data[iIndex]);
+      bgp_peer_dump(pLogDebug, bgp_peers_at(pPeers, iIndex));
       log_printf(pLogDebug, "\n");
     }
   }
@@ -192,14 +192,14 @@ void bgp_router_walton_dump_peers(SPtrArray * pPeers)
 //  flushir(log_get_stream(pMainLog));
 }
 
-void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
-    SBGPPeer * pPeer,
-    SPrefix sPrefix,
-    SRoutes * pRoutes)
+void bgp_router_walton_withdraw_old_routes(bgp_router_t * pRouter,
+					   bgp_peer_t * pPeer,
+					   SPrefix sPrefix,
+					   bgp_routes_t * pRoutes)
 {
-  SRoutes * pRoutesOut;
-  SRoute * pRouteOut;
-  SRoute * pNewRoute;
+  bgp_routes_t * pRoutesOut;
+  bgp_route_t * pRouteOut;
+  bgp_route_t * pNewRoute;
   net_addr_t tNextHop;
   uint16_t uIndex;
   uint16_t uIndexNewRoute;
@@ -243,7 +243,7 @@ void bgp_router_walton_withdraw_old_routes(SBGPRouter * pRouter,
 typedef struct {
   SPtrArray * pWaltonIDProcessed;
   SPtrArray * pWaltonIDUpdate;
-}SRoutesUpdate;
+}bgp_routes_tUpdate;
 
 // ----- _bgp_router_walton_nh_compare ----------------------------
 /**
@@ -266,9 +266,9 @@ int _bgp_router_walton_nh_compare(void *pItem1, void * pItem2,
     return 0;
 }
 
-SRoutesUpdate * _bgp_router_walton_routes_update_create()
+bgp_routes_tUpdate * _bgp_router_walton_routes_update_create()
 {
-  SRoutesUpdate * pRoutesUpdate = (SRoutesUpdate *)MALLOC(sizeof(SRoutesUpdate));
+  bgp_routes_tUpdate * pRoutesUpdate = (bgp_routes_tUpdate *)MALLOC(sizeof(bgp_routes_tUpdate));
 
   pRoutesUpdate->pWaltonIDUpdate = NULL;
   pRoutesUpdate->pWaltonIDProcessed = NULL;
@@ -277,7 +277,7 @@ SRoutesUpdate * _bgp_router_walton_routes_update_create()
   return pRoutesUpdate;
 }
 
-void _bgp_router_walton_routes_update_destroy(SRoutesUpdate ** pRoutesUpdate)
+void _bgp_router_walton_routes_update_destroy(bgp_routes_tUpdate ** pRoutesUpdate)
 {
   if (*(pRoutesUpdate)) {
     if ((*pRoutesUpdate)->pWaltonIDProcessed)
@@ -293,18 +293,18 @@ void _bgp_router_walton_routes_update_destroy(SRoutesUpdate ** pRoutesUpdate)
 /**
  *
  */
-SRoutesUpdate * bgp_router_walton_build_updates(SBGPRouter * pRouter,
-						SBGPPeer * pPeer,
+bgp_routes_tUpdate * bgp_router_walton_build_updates(bgp_router_t * pRouter,
+						bgp_peer_t * pPeer,
 						SPrefix sPrefix,
-						SRoutes * pRoutes)
+						bgp_routes_t * pRoutes)
 {
-  SRoutesUpdate * pRoutesUpdate = NULL;
+  bgp_routes_tUpdate * pRoutesUpdate = NULL;
   uint8_t uNHFound = 0;
   uint16_t uIndexRoute;
   uint16_t uIndexOldRoute;
-  SRoutes * pOldRoutes;
-  SRoute * pOldRoute;
-  SRoute * pRoute= NULL;
+  bgp_routes_t * pOldRoutes;
+  bgp_route_t * pOldRoute;
+  bgp_route_t * pRoute= NULL;
   net_addr_t tNextHop;
   
   
@@ -380,22 +380,22 @@ SRoutesUpdate * bgp_router_walton_build_updates(SBGPRouter * pRouter,
  * Disseminate route to Adj-RIB-Outs.
  *
  */
-void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter, 
-    SPtrArray * pPeers,
+void bgp_router_walton_dp_disseminate(bgp_router_t * pRouter, 
+    bgp_peers_t * pPeers,
     SPrefix sPrefix,
-    SRoutes * pRoutes)
+    bgp_routes_t * pRoutes)
 {
   unsigned int uIndexPeer;
   unsigned int uIndexRoute;
   unsigned int uIndex;
-  SBGPPeer * pPeer;
-  SRoute * pRoute;
-  SRoutesUpdate * pRoutesUpdate=NULL;
+  bgp_peer_t * pPeer;
+  bgp_route_t * pRoute;
+  bgp_routes_tUpdate * pRoutesUpdate=NULL;
   net_addr_t tNextHop;
 
   
   for (uIndexPeer= 0; uIndexPeer < ptr_array_length(pPeers); uIndexPeer++) {
-    pPeer= (SBGPPeer *) pPeers->data[uIndexPeer];
+    pPeer= (bgp_peer_t *) pPeers->data[uIndexPeer];
     if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
       
       //Withdraw all the routes present in the RIB-OUT which are not part of the set of best routes!
@@ -461,8 +461,8 @@ void bgp_router_walton_dp_disseminate(SBGPRouter * pRouter,
 
 typedef struct {
   uint16_t uWaltonLimit;
-  SRoutes * pRoutes;
-  SBGPRouter * pRouter;
+  bgp_routes_t * pRoutes;
+  bgp_router_t * pRouter;
 }SWaltonCtx;
 // ----- bgp_router_walton_for_each_peer_sync ------------------------
 /**
@@ -474,8 +474,8 @@ int bgp_router_walton_for_each_peer_sync(void * pItem, void * pContext)
   SWaltonCtx * pWaltonCtx = (SWaltonCtx *)pContext;
   SWaltonLimitPeers * pWaltonPeers = *(SWaltonLimitPeers **)pItem;
   SPrefix sPrefix;
-  SRoute * pRoute = NULL;
-  SRoutes * pRoutes = NULL;
+  bgp_route_t * pRoute = NULL;
+  bgp_routes_t * pRoutes = NULL;
   SPtrArray * pPeers = NULL;
 
   /*LOG_DEBUG("walton limit : %d\n", pWaltonPeers->uWaltonLimit);*/
@@ -497,15 +497,15 @@ int bgp_router_walton_for_each_peer_sync(void * pItem, void * pContext)
 /**
  *
  */
-void bgp_router_walton_disseminate_select_peers(SBGPRouter * pRouter, 
-					    SRoutes * pRoutes, 
+void bgp_router_walton_disseminate_select_peers(bgp_router_t * pRouter, 
+					    bgp_routes_t * pRoutes, 
 					    uint16_t iNextHopCount)
 {
 /*  unsigned int uIndex = 2;
   SPtrArray * pPeers;
   SWaltonLimitPeers * pWaltonLimitPeers = (SWaltonLimitPeers*)MALLOC(sizeof(SWaltonLimitPeers));
   SWaltonLimitPeers * pWaltonLimitPeersFound = NULL;
-  SRoute * pRoute = NULL;
+  bgp_route_t * pRoute = NULL;
   SPrefix sPrefix;*/
 
   SWaltonCtx * pWaltonCtx = NULL;
@@ -545,8 +545,8 @@ void bgp_router_walton_disseminate_select_peers(SBGPRouter * pRouter,
  * was a single rule (no choice). Otherwise, if 1 is returned, that
  * means that the Local-Pref rule broke the ties, and so on...
  */
-int bgp_router_walton_decision_process_run(SBGPRouter * pRouter,
-					   SRoutes * pRoutes)
+int bgp_router_walton_decision_process_run(bgp_router_t * pRouter,
+					   bgp_routes_t * pRoutes)
 {
   int iRule;
   int iNextHopCount;

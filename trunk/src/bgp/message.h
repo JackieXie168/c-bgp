@@ -17,91 +17,83 @@
 #include <bgp/route.h>
 #include <bgp/types.h>
 
-#define BGP_MSG_TYPE_UPDATE   0x01
-#define BGP_MSG_TYPE_WITHDRAW 0x02
-#define BGP_MSG_TYPE_CLOSE    0x03
-#define BGP_MSG_TYPE_OPEN     0x04
+typedef enum {
+  BGP_MSG_TYPE_UPDATE,
+  BGP_MSG_TYPE_WITHDRAW,
+  BGP_MSG_TYPE_CLOSE,
+  BGP_MSG_TYPE_OPEN,
+  BGP_MSG_TYPE_MAX,
+} bgp_msg_type_t;
 
 typedef struct {
-  uint8_t uType;
-  uint16_t uPeerAS;
-  unsigned int uSeqNum;
-} SBGPMsg;
+  bgp_msg_type_t type;
+  uint16_t       uPeerAS;
+  unsigned int   uSeqNum;
+} bgp_msg_t;
+typedef bgp_msg_t SBGPMsg;
 
 typedef struct {
-  uint8_t uType;
-  uint16_t uPeerAS;
-  unsigned int uSeqNum;
-  SRoute * pRoute;
-} SBGPMsgUpdate;
+  bgp_msg_t     header;
+  bgp_route_t * pRoute;
+} bgp_msg_update_t;
+typedef bgp_msg_update_t SBGPMsgUpdate;
 
 typedef struct {
-  uint8_t uType;
-  uint16_t uPeerAS;
-  unsigned int uSeqNum;
-  SPrefix sPrefix;
-  net_addr_t * tNextHop;
-#ifdef __EXPERIMENTAL__
-  SBGPRootCause * pRootCause;
-#endif
-} SBGPMsgWithdraw;
+  bgp_msg_t       header;
+  SPrefix         sPrefix;
+  net_addr_t    * tNextHop;
+} bgp_msg_withdraw_t;
+typedef bgp_msg_withdraw_t SBGPMsgWithdraw;
 
 typedef struct {
-  uint8_t uType;
-  uint16_t uPeerAS;
-  unsigned int uSeqNum;
-} SBGPMsgClose;
+  bgp_msg_t header;
+} bgp_msg_close_t;
+typedef bgp_msg_close_t SBGPMsgClose;
 
 typedef struct {
-  uint8_t uType;
-  uint16_t uPeerAS;
-  unsigned int uSeqNum;
-  net_addr_t tRouterID;
-} SBGPMsgOpen;
+  bgp_msg_t  header;
+  net_addr_t router_id;
+} bgp_msg_open_t;
+typedef bgp_msg_open_t SBGPMsgOpen;
 
 #ifdef _cplusplus
 extern "C" {
 #endif
   
   // ----- bgp_msg_update_create ------------------------------------
-  SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
-				       SRoute * pRoute);
+  bgp_msg_t * bgp_msg_update_create(uint16_t uPeerAS,
+				    bgp_route_t * pRoute);
   // ----- bgp_msg_withdraw_create ----------------------------------
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
-				    SPrefix sPrefix,
-				    net_addr_t * tNextHop);
+  bgp_msg_t * bgp_msg_withdraw_create(uint16_t uPeerAS,
+				      SPrefix sPrefix,
+				      net_addr_t * tNextHop);
 #else
-  SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
-				    SPrefix sPrefix);
-#endif
-#ifdef __EXPERIMENTAL__
-  // ----- bgp_msg_withdraw_create_rcn ------------------------------
-  SBGPMsg * bgp_msg_withdraw_create_rcn(uint16_t uPeerAS,
-					SPrefix sPrefix,
-					SBGPRootCause * pRootCause);
+  bgp_msg_t * bgp_msg_withdraw_create(uint16_t uPeerAS,
+				      SPrefix sPrefix);
 #endif
   // ----- bgp_msg_close_create -------------------------------------
-  SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS);
+  bgp_msg_t * bgp_msg_close_create(uint16_t uPeerAS);
   // ----- bgp_msg_open_create --------------------------------------
-  SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS,
-				net_addr_t tRouterID);
+  bgp_msg_t * bgp_msg_open_create(uint16_t uPeerAS,
+				  net_addr_t router_id);
 
   // ----- bgp_msg_destroy ------------------------------------------
-  void bgp_msg_destroy(SBGPMsg ** ppMsg);
+  void bgp_msg_destroy(bgp_msg_t ** msg_ref);
   // ----- bgp_msg_send ---------------------------------------------
-  int bgp_msg_send(SNetNode * pNode, net_addr_t tSrcAddr,
-		   net_addr_t tAddr, SBGPMsg * pMsg);
+  int bgp_msg_send(net_node_t * node, net_addr_t src_addr,
+		   net_addr_t dst_addr, bgp_msg_t * msg);
   // ----- bgp_msg_dump ---------------------------------------------
-  void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg);
+  void bgp_msg_dump(SLogStream * pStream, net_node_t * node,
+		    bgp_msg_t * msg);
 
   // ----- bgp_msg_monitor_open -------------------------------------
-  int bgp_msg_monitor_open(char * pcFileName);
+  int bgp_msg_monitor_open(const char * file_name);
   // -----[ bgp_msg_monitor_close ]----------------------------------
   void bgp_msg_monitor_close();
   // ----- bgp_msg_monitor_write ------------------------------------
-  void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
-			     net_addr_t tAddr);
+  void bgp_msg_monitor_write(bgp_msg_t * msg, net_node_t * node,
+			     net_addr_t addr);
 
   // -----[ _message_destroy ]---------------------------------------
   void _message_destroy();

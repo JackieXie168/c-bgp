@@ -29,6 +29,43 @@ unsigned int BGP_OPTIONS_QOS_AGGR_LIMIT= 2;
 
 #define _qos_delay_interval(D) (D.tMean-D.tDelay)
 
+void bgp_route_qos_init(bgp_route_t * pRoute)
+{
+  qos_route_init_delay(pRoute);
+  qos_route_init_bandwidth(pRoute);
+  pRoute->qos.pAggrRoutes= NULL;
+  pRoute->qos.pAggrRoute= NULL;
+  pRoute->qos.pEBGPRoute= NULL;
+}
+
+void bgp_route_qos_destroy(bgp_route_t * pRoute)
+{
+  ptr_array_destroy(&pRoute->qos.pAggrRoutes);
+}
+
+int bgp_route_qos_equals(bgp_route_t * pRoute1, bgp_route_t * pRoute2)
+{
+  if (!qos_route_delay_equals(pRoute1, pRoute2) ||
+      !qos_route_bandwidth_equals(pRoute1, pRoute2)) {
+    return 0;
+  }
+  return 1;
+}
+
+void bgp_route_qos_copy(bgp_route_t * pNewRoute, bgp_route_t * pRoute)
+{
+  pNewRoute->qos.tDelay= pRoute->qos.tDelay;
+  pNewRoute->qos.tBandwidth= pRoute->qos.tBandwidth;
+  // Copy also list of aggregatable routes ??
+  // Normalement non: alloué par le decision process et références
+  // dans Adj-RIB-Outs. A vérifier !!!
+  if (pRoute->qos.pAggrRoute != NULL) {
+    pNewRoute->qos.pAggrRoutes=
+      (SPtrArray *) _array_copy((SArray *) pRoute->qos.pAggrRoutes);
+    pNewRoute->qos.pAggrRoute= route_copy(pRoute->qos.pAggrRoute);
+  }
+}
+
 // ----- qos_route_aggregate ----------------------------------------
 /**
  * Aggregate N routes. The announced delay is the best route's delay.

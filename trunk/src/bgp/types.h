@@ -22,15 +22,17 @@
 
 //#define __ROUTER_LIST_ENABLE__
 
+typedef SPtrArray bgp_routes_t;
+
 // -----[ BGP attribute reference counter ]--------------------------
 typedef uint32_t bgp_attr_refcnt_t;
 
 // -----[ BGP route ORIGIN type ]------------------------------------
-#define ROUTE_ORIGIN_IGP 0        // static route
-                                  // (added with "add network" command)
-#define ROUTE_ORIGIN_EGP 1        // route learned through BGP
-#define ROUTE_ORIGIN_INCOMPLETE 2 // route learned through redistribution
-typedef unsigned char bgp_origin_t;
+typedef enum {
+  ROUTE_ORIGIN_IGP= 0,        /* static route (see "add network" command) */
+  ROUTE_ORIGIN_EGP= 1,        /* route learned through BGP */
+  ROUTE_ORIGIN_INCOMPLETE= 2, /* route learned through redistribution */
+} bgp_origin_t;
 
 // -----[ AS-Path segment ]------------------------------------------
 typedef struct {
