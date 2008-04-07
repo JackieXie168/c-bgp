@@ -5,12 +5,15 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 15/02/2008
+// @lastdate 13/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <stdarg.h>
+#include <stdlib.h>
 
 #include <net/error.h>
 
@@ -20,7 +23,7 @@
  */
 void network_perror(SLogStream * pStream, int iErrorCode)
 {
-  char * pcErrorStr= network_strerror(iErrorCode);
+  const char * pcErrorStr= network_strerror(iErrorCode);
   if (pcErrorStr != NULL)
     log_printf(pStream, pcErrorStr);
   else
@@ -28,72 +31,104 @@ void network_perror(SLogStream * pStream, int iErrorCode)
 }
 
 // ----- network_strerror -------------------------------------------
-char * network_strerror(int iErrorCode)
+const char * network_strerror(int iErrorCode)
 {
   switch (iErrorCode) {
-  case NET_SUCCESS:
+  case ESUCCESS:
     return "success";
-  case NET_ERROR_UNSUPPORTED:
+  case EUNEXPECTED:
     return "unexpected error";
-  case NET_ERROR_NET_UNREACH:
+  case EUNSUPPORTED:
+    return "not implemented";
+  case EUNSPECIFIED:
+    return "unspecified error";
+
+  case ENET_NET_UNREACH:
     return "network unreachable";
-  case NET_ERROR_HOST_UNREACH:
+  case ENET_HOST_UNREACH:
     return "host unreachable";
-  case NET_ERROR_PROTO_UNREACH:
+  case ENET_PROTO_UNREACH:
     return "protocol unreachable";
-  case NET_ERROR_TIME_EXCEEDED:
+  case ENET_TIME_EXCEEDED:
     return "time exceeded";
-  case NET_ERROR_ICMP_NET_UNREACH:
+  case ENET_ICMP_NET_UNREACH:
     return "icmp error (network-unreachable)";
-  case NET_ERROR_ICMP_HOST_UNREACH:
+  case ENET_ICMP_HOST_UNREACH:
     return "icmp error (host-unreachable)";
-  case NET_ERROR_ICMP_PROTO_UNREACH:
+  case ENET_ICMP_PROTO_UNREACH:
     return "icmp error (proto-unreachable)";
-  case NET_ERROR_ICMP_TIME_EXCEEDED:
+  case ENET_ICMP_TIME_EXCEEDED:
     return "icmp error (time-exceeded)";
-  case NET_ERROR_NO_REPLY:
+  case ENET_NO_REPLY:
     return "no reply";
-  case NET_ERROR_LINK_DOWN:
+  case ENET_LINK_DOWN:
     return "link down";
-  case NET_ERROR_PROTOCOL_ERROR:
+  case ENET_PROTOCOL_ERROR:
     return "protocol error";
-  case NET_ERROR_IF_UNKNOWN:
-    return "unknown interface";
-  case NET_ERROR_MGMT_INVALID_NODE:
-    return "invalid node";
-  case NET_ERROR_MGMT_INVALID_LINK:
-    return "invalid link";
-  case NET_ERROR_MGMT_INVALID_SUBNET:
-    return "invalid subnet";
-  case NET_ERROR_MGMT_NODE_ALREADY_EXISTS:
+  case ENET_NODE_DUPLICATE:
     return "node already exists";
-  case NET_ERROR_MGMT_SUBNET_ALREADY_EXISTS:
+  case ENET_SUBNET_DUPLICATE:
     return "subnet already exists";
-  case NET_ERROR_MGMT_LINK_ALREADY_EXISTS:
+  case ENET_LINK_DUPLICATE:
     return "link already exists";
-  case NET_ERROR_MGMT_LINK_LOOP:
+  case ENET_LINK_LOOP:
     return "link endpoints are equal";
-  case NET_ERROR_MGMT_INVALID_OPERATION:
-    return "invalid operation";
-  case NET_ERROR_MGMT_TOO_MANY_PROTOCOLS:
-    return "too many protocols";
-  case NET_ERROR_MGMT_DUPLICATE_PROTOCOL:
-    return "protocol already exists";
-  case NET_ERROR_MGMT_DUPLICATE_IFACE:
+  case ENET_PROTO_UNKNOWN:
+    return "invalid protocol ID";
+  case ENET_PROTO_DUPLICATE:
+    return "protocol already registered";
+  case ENET_IFACE_UNKNOWN:
+    return "unknown interface";
+  case ENET_IFACE_DUPLICATE:
     return "interface already exists";
-  case NET_ERROR_MGMT_INVALID_IFACE_ID:
+  case ENET_IFACE_INVALID_ID:
     return "invalid interface ID";
-  case NET_ERROR_MGMT_INVALID_IFACE_TYPE:
+  case ENET_IFACE_INVALID_TYPE:
     return "invalid interface type";
-  case NET_ERROR_MGMT_IFACE_NOT_SUPPORTED:
+  case ENET_IFACE_NOT_SUPPORTED:
     return "operation not supported by interface";
-  case NET_ERROR_MGMT_IFACE_INCOMPATIBLE:
-    return "incompatbile interface";
-  case NET_ERROR_MGMT_IFACE_CONNECTED:
+  case ENET_IFACE_INCOMPATIBLE:
+    return "incompatible interface";
+  case ENET_IFACE_CONNECTED:
     return "interface is connected";
-  case NET_ERROR_MGMT_IFACE_NOT_CONNECTED:
+  case ENET_IFACE_NOT_CONNECTED:
     return "interface is not connected";
+  case EBGP_PEER_DUPLICATE:
+    return "peer already exists";
+  case EBGP_PEER_INVALID_ADDR:
+    return "cannot add peer with this address";
+  case EBGP_PEER_UNKNOWN:
+    return "peer does not exist";
+  case EBGP_PEER_INCOMPATIBLE:
+    return "peer not compatible with operation";
+  case EBGP_PEER_UNREACHABLE:
+    return "peer could not be reached";
+  case EBGP_PEER_INVALID_STATE:
+    return "peer state incompatible with operation";
+  case ENET_RT_NH_UNREACH:
+    return "next-hop is unreachable";
+  case ENET_RT_IFACE_UNKNOWN:
+    return "interface is unknown";
+  case ENET_RT_DUPLICATE:
+    return "route already exists";
+  case ENET_RT_UNKNOWN:
+    return "route does not exist";
+  case EBGP_NETWORK_DUPLICATE:
+    return "network already exists";
+  case ENET_NODE_INVALID_ID:
+    return "invalid identifier";
   }
   return NULL;
+}
+
+// -----[ fatal ]----------------------------------------------------
+void fatal(const char * msg, ...)
+{
+  va_list ap;
+
+  va_start(ap, msg);
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+  abort();
 }
 
