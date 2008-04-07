@@ -77,7 +77,7 @@
 #define ROUTE_SHOW_MRT    1
 #define ROUTE_SHOW_CUSTOM 2
 
-typedef struct /*TRoute*/ {
+typedef struct {
   SPrefix sPrefix; // Destination prefix
   SBGPPeer * pPeer;   // Peer of the route
   uint16_t uFlags; // Flags (best, feasible, eligible, ...)
@@ -94,5 +94,6 @@ typedef struct /*TRoute*/ {
 #endif
 
 } SRoute;
+typedef SRoute bgp_route_t;
 
 #endif
