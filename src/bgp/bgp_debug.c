@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)bgp_debug.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 09/04/2004
-// @lastdate 23/04/2007
+// @lastdate 10/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,22 +27,22 @@
  */
 void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
 {
-  SRoute * pOldRoute;
-  SRoutes * pRoutes;
-  SBGPPeer * pPeer;
-  SRoute * pRoute;
+  bgp_route_t * pOldRoute;
+  bgp_routes_t * pRoutes;
+  bgp_peer_t * pPeer;
+  bgp_route_t * pRoute;
   int iIndex;
   int iNumRoutes, iOldNumRoutes;
   int iRule;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   uint16_t uIndex;
-  SRoutes * pRoutesRIBIn;
+  bgp_routes_t * pRoutesRIBIn;
 #endif
 
   log_printf(pStream, "Debug Decision Process\n");
   log_printf(pStream, "----------------------\n");
-  log_printf(pStream, "AS%u, ", pRouter->uNumber);
+  log_printf(pStream, "AS%u, ", pRouter->uASN);
   ip_address_dump(pStream, pRouter->pNode->tAddr);
   log_printf(pStream, ", ");
   ip_prefix_dump(pStream, sPrefix);
@@ -75,14 +75,14 @@ void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
   // Build list of eligible routes received from peers
   pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   for (iIndex= 0; iIndex < ptr_array_length(pRouter->pPeers); iIndex++) {
-    pPeer= (SBGPPeer*) pRouter->pPeers->data[iIndex];
+    pPeer= (bgp_peer_t*) pRouter->pPeers->data[iIndex];
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoutesRIBIn = rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+    pRoutesRIBIn = rib_find_exact(pPeer->pAdjRIB[RIB_IN], sPrefix);
     if (pRoutesRIBIn != NULL) {
       for (uIndex = 0; uIndex < routes_list_get_num(pRoutesRIBIn); uIndex++) {
 	pRoute = routes_list_get_at(pRoutesRIBIn, uIndex);
 #else
-    pRoute= rib_find_exact(pPeer->pAdjRIBIn, sPrefix);
+    pRoute= rib_find_exact(pPeer->pAdjRIB[RIB_IN], sPrefix);
 #endif
     if ((pRoute != NULL) &&
 	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE)))
@@ -107,9 +107,9 @@ void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter, SPrefix sPrefix)
       if (iNumRoutes <= 1)
 	break;
       iOldNumRoutes= iNumRoutes;
-      log_printf(pStream, "[ %s ]\n", DP_RULE_NAME[iRule]);
+      log_printf(pStream, "[ %s ]\n", DP_RULES[iRule].pcName);
 
-      DP_RULES[iRule](pRouter, pRoutes);
+      DP_RULES[iRule].fRule(pRouter, pRoutes);
 
       iNumRoutes= ptr_array_length(pRoutes);
       if (iNumRoutes < iOldNumRoutes)

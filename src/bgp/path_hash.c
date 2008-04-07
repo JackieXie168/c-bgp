@@ -28,8 +28,8 @@
 static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize);
 
 // ---| Private parameters |---
-static SHash * pPathHash= NULL;
-static uint32_t uPathHashSize= 25000;
+static hash_t * pPathHash= NULL;
+static unsigned int uPathHashSize= 25000;
 static uint8_t uPathHashMethod= PATH_HASH_METHOD_STRING;
 static FHashCompute fPathHashCompute= _path_hash_item_compute;
 

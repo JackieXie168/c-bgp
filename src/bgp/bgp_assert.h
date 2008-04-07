@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_assert.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/03/2004
-// @lastdate 22/05/2007
+// $Id: bgp_assert.h,v 1.4 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASSERT_H__

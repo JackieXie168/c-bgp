@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)message.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
 // @lastdate 27/02/2008
@@ -26,9 +26,16 @@
 #include <sim/simulator.h>
 
 typedef struct {
-  uint16_t uRemoteAS;
-  SBGPMsg * pMsg;
-} SBGPMsgSendContext;
+  uint16_t    uRemoteAS;
+  bgp_msg_t * msg;
+} bgp_msg_send_ctx_t;
+
+static char * bgp_msg_names[BGP_MSG_TYPE_MAX]= {
+  "A",
+  "W",
+  "CLOSE",
+  "OPEN",
+};
 
 static SLogStream * pMonitor= NULL;
 
@@ -36,14 +43,15 @@ static SLogStream * pMonitor= NULL;
 /**
  *
  */
-SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
-				SRoute * pRoute)
+bgp_msg_t * bgp_msg_update_create(uint16_t uPeerAS,
+				  bgp_route_t * pRoute)
 {
-  SBGPMsgUpdate * pMsg= (SBGPMsgUpdate *) MALLOC(sizeof(SBGPMsgUpdate));
-  pMsg->uType= BGP_MSG_TYPE_UPDATE;
-  pMsg->uPeerAS= uPeerAS;
-  pMsg->pRoute= pRoute;
-  return (SBGPMsg *) pMsg;
+  bgp_msg_update_t * msg=
+    (bgp_msg_update_t *) MALLOC(sizeof(bgp_msg_update_t));
+  msg->header.type= BGP_MSG_TYPE_UPDATE;
+  msg->header.uPeerAS= uPeerAS;
+  msg->pRoute= pRoute;
+  return (bgp_msg_t *) msg;
 }
 
 // ----- bgp_msg_withdraw_create ------------------------------------
@@ -51,18 +59,19 @@ SBGPMsg * bgp_msg_update_create(uint16_t uPeerAS,
  *
  */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
-				  SPrefix sPrefix, net_addr_t * tNextHop)
+bgp_msg_t * bgp_msg_withdraw_create(uint16_t uPeerAS,
+				    SPrefix sPrefix,
+				    net_addr_t * tNextHop)
 #else
-SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
-				  SPrefix sPrefix)
+bgp_msg_t * bgp_msg_withdraw_create(uint16_t uPeerAS,
+				    SPrefix sPrefix)
 #endif
 {
-  SBGPMsgWithdraw * pMsg=
-    (SBGPMsgWithdraw *) MALLOC(sizeof(SBGPMsgWithdraw));
-  pMsg->uType= BGP_MSG_TYPE_WITHDRAW;
-  pMsg->uPeerAS= uPeerAS;
-  memcpy(&(pMsg->sPrefix), &sPrefix, sizeof(SPrefix));
+  bgp_msg_withdraw_t * msg=
+    (bgp_msg_withdraw_t *) MALLOC(sizeof(bgp_msg_withdraw_t));
+  msg->header.type= BGP_MSG_TYPE_WITHDRAW;
+  msg->header.uPeerAS= uPeerAS;
+  memcpy(&(msg->sPrefix), &sPrefix, sizeof(SPrefix));
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   //It corresponds to the path identifier described in the walton draft 
   //... nevertheless, we keep the variable name NextHop!
@@ -70,66 +79,50 @@ SBGPMsg * bgp_msg_withdraw_create(uint16_t uPeerAS,
 //  LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog), tNextHop);
 //  LOG_DEBUG("\n");
   if (tNextHop != NULL) {
-    pMsg->tNextHop = MALLOC(sizeof(net_addr_t));
-    memcpy(pMsg->tNextHop, tNextHop, sizeof(net_addr_t));
+    msg->tNextHop = MALLOC(sizeof(net_addr_t));
+    memcpy(msg->tNextHop, tNextHop, sizeof(net_addr_t));
   } else {
-    pMsg->tNextHop = NULL;
+    msg->tNextHop = NULL;
   }
 #endif
-  return (SBGPMsg *) pMsg;
+  return (bgp_msg_t *) msg;
 }
-
-#ifdef __EXPERIMENTAL__
-// ----- bgp_msg_withdraw_create_rcn --------------------------------
-/**
- * Create a BGP withdraw message with root cause notification (RCN).
- */
-SBGPMsg * bgp_msg_withdraw_create_rcn(uint16_t uPeerAS,
-				      SPrefix sPrefix,
-                                      SBGPRootCause * pRootCause)
-{
-  /*SBGPMsgWithdraw * pMsg= (SBGPMsgWithdraw *)
-    bgp_msg_withdraw_create(uPeerAS, sPrefix);
-  pMsg->pRootCause= pRootCause;
-  return (SBGPMsg *) pMsg;*/
-  return NULL;
-}
-#endif
 
 // ----- bgp_msg_close_create ---------------------------------------
-SBGPMsg * bgp_msg_close_create(uint16_t uPeerAS)
+bgp_msg_t * bgp_msg_close_create(uint16_t uPeerAS)
 {
-  SBGPMsgClose * pMsg=
-    (SBGPMsgClose *) MALLOC(sizeof(SBGPMsgClose));
-  pMsg->uType= BGP_MSG_TYPE_CLOSE;
-  pMsg->uPeerAS= uPeerAS;
-  return (SBGPMsg *) pMsg;
+  bgp_msg_close_t * msg=
+    (bgp_msg_close_t *) MALLOC(sizeof(bgp_msg_close_t));
+  msg->header.type= BGP_MSG_TYPE_CLOSE;
+  msg->header.uPeerAS= uPeerAS;
+  return (bgp_msg_t *) msg;
 }
 
 // ----- bgp_msg_open_create ----------------------------------------
-SBGPMsg * bgp_msg_open_create(uint16_t uPeerAS, net_addr_t tRouterID)
+bgp_msg_t * bgp_msg_open_create(uint16_t uPeerAS, net_addr_t router_id)
 {
-  SBGPMsgOpen * pMsg=
-    (SBGPMsgOpen *) MALLOC(sizeof(SBGPMsgOpen));
-  pMsg->uType= BGP_MSG_TYPE_OPEN;
-  pMsg->uPeerAS= uPeerAS;
-  pMsg->tRouterID= tRouterID;
-  return (SBGPMsg *) pMsg;
+  bgp_msg_open_t * msg=
+    (bgp_msg_open_t *) MALLOC(sizeof(bgp_msg_open_t));
+  msg->header.type= BGP_MSG_TYPE_OPEN;
+  msg->header.uPeerAS= uPeerAS;
+  msg->router_id= router_id;
+  return (bgp_msg_t *) msg;
 }
 
 // ----- bgp_msg_destroy --------------------------------------------
 /**
  *
  */
-void bgp_msg_destroy(SBGPMsg ** ppMsg)
+void bgp_msg_destroy(bgp_msg_t ** msg_ref)
 {
-  if (*ppMsg != NULL) {
+  if (*msg_ref != NULL) {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    if ((*ppMsg)->uType == BGP_MSG_TYPE_WITHDRAW && ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop != NULL)
-      FREE( ((SBGPMsgWithdraw *)(*ppMsg))->tNextHop );
+    if (((*msg_ref)->type == BGP_MSG_TYPE_WITHDRAW) &&
+	((bgp_msg_withdraw_t *)(*msg_ref))->tNextHop != NULL)
+      FREE( ((SBGPMsgWithdraw *)(*msg_ref))->tNextHop );
 #endif
-    FREE(*ppMsg);
-    *ppMsg= NULL;
+    FREE(*msg_ref);
+    *msg_ref= NULL;
   }
 }
 
@@ -137,134 +130,153 @@ void bgp_msg_destroy(SBGPMsg ** ppMsg)
 /**
  *
  */
-int bgp_msg_send(SNetNode * pNode, net_addr_t tSrcAddr,
-		 net_addr_t tAddr, SBGPMsg * pMsg)
+int bgp_msg_send(net_node_t * node, net_addr_t src_addr,
+		 net_addr_t dst_addr, bgp_msg_t * msg)
 {
-  bgp_msg_monitor_write(pMsg, pNode, tAddr);
+  bgp_msg_monitor_write(msg, node, dst_addr);
 
   //fprintf(stdout, "(");
-  //ip_address_dump(stdout, pNode->tAddr);
+  //ip_address_dump(stdout, node->tAddr);
   //fprintf(stdout, ") bgp-msg-send from ");
-  //ip_address_dump(stdout, pNode->tAddr);
+  //ip_address_dump(stdout, node->tAddr);
   //fprintf(stdout, " to ");
-  //ip_address_dump(stdout, tAddr);
+  //ip_address_dump(stdout, dst_addr);
   //fprintf(stdout, "\n");
   
-  return node_send_msg(pNode, tSrcAddr, tAddr, NET_PROTOCOL_BGP, 255, pMsg,
-		       (FPayLoadDestroy) bgp_msg_destroy,
-		       network_get_simulator());
+  return node_send_msg(node, src_addr, dst_addr, NET_PROTOCOL_BGP, 255,
+		       msg, (FPayLoadDestroy) bgp_msg_destroy,
+		       network_get_simulator(node->network));
+}
+
+// -----[ _bgp_msg_header_dump ]-------------------------------------
+static inline void _bgp_msg_header_dump(SLogStream * stream,
+					net_node_t * node,
+					bgp_msg_t * msg)
+{
+  log_printf(stream, "|%s", bgp_msg_names[msg->type]);
+  // Peer IP
+  log_printf(stream, "|");
+  if (node != NULL) {
+    ip_address_dump(stream, node->tAddr);
+  } else {
+    log_printf(stream, "?");
+  }
+  // Peer AS
+  log_printf(stream, "|%d", msg->uPeerAS);
+}
+
+// -----[ _bgp_msg_update_dump ]-------------------------------------
+static inline void _bgp_msg_update_dump(SLogStream * stream,
+					bgp_msg_update_t * msg)
+{
+  unsigned int index;
+  uint32_t uCommunity;
+  bgp_route_t * route= msg->pRoute;
+
+  // Prefix
+  log_printf(stream, "|");
+  ip_prefix_dump(stream, route->sPrefix);
+  // AS-PATH
+  log_printf(stream, "|");
+  path_dump(stream, route_get_path(route), 1);
+  // ORIGIN
+  log_printf(stream, "|");
+  switch (route->pAttr->tOrigin) {
+  case ROUTE_ORIGIN_IGP:
+    log_printf(stream, "IGP"); break;
+  case ROUTE_ORIGIN_EGP:
+    log_printf(stream, "EGP"); break;
+  case ROUTE_ORIGIN_INCOMPLETE:
+    log_printf(stream, "INCOMPLETE"); break;
+  default:
+    log_printf(stream, "?");
+  }
+  // NEXT-HOP
+  log_printf(stream, "|");
+  ip_address_dump(stream, route->pAttr->tNextHop);
+  // LOCAL-PREF
+  log_printf(stream, "|%u", route->pAttr->uLocalPref);
+  // MULTI-EXIT-DISCRIMINATOR
+  if (route->pAttr->uMED == ROUTE_MED_MISSING)
+    log_printf(stream, "|");
+  else
+    log_printf(stream, "|%u", route->pAttr->uMED);
+  // COMMUNITY
+  log_printf(stream, "|");
+  if (route->pAttr->pCommunities != NULL) {
+    for (index= 0; index < route->pAttr->pCommunities->uNum; index++) {
+      uCommunity= (uint32_t) route->pAttr->pCommunities->asComms[index];
+      log_printf(stream, "%u ", uCommunity);
+    }
+  }
+  
+  // Route-reflectors: Originator
+  if (route->pAttr->pOriginator != NULL) {
+    log_printf(stream, "originator:");
+    ip_address_dump(stream, *route->pAttr->pOriginator);
+  }
+  log_printf(stream, "|");
+  
+  if (route->pAttr->pClusterList != NULL) {
+    log_printf(stream, "cluster_id_list:");
+    cluster_list_dump(stream, route->pAttr->pClusterList);
+  }
+  log_printf(stream, "|");
+}
+
+// -----[ _bgp_msg_withdraw_dump ]-----------------------------------
+static inline void _bgp_msg_withdraw_dump(SLogStream * stream,
+					  bgp_msg_withdraw_t * msg)
+{
+  // Prefix
+  log_printf(stream, "|");
+  ip_prefix_dump(stream, ((SBGPMsgWithdraw *) msg)->sPrefix);
+}
+
+// -----[ _bgp_msg_close_dump ]--------------------------------------
+static inline void _bgp_msg_close_dump(SLogStream * stream,
+				       bgp_msg_close_t * msg)
+{
+}
+
+// -----[ _bgp_msg_open_dump ]---------------------------------------
+static inline void _bgp_msg_open_dump(SLogStream * stream,
+				      bgp_msg_open_t * msg)
+{
+  /* Router ID */
+  log_printf(stream, "|");
+  ip_address_dump(stream, msg->router_id);
 }
 
 // ----- bgp_msg_dump -----------------------------------------------
 /**
  *
  */
-void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
+void bgp_msg_dump(SLogStream * stream,
+		  net_node_t * node,
+		  bgp_msg_t * msg)
 {
-  int iIndex;
-  uint32_t uCommunity;
-  SRoute * pRoute;
+  assert(msg->type < BGP_MSG_TYPE_MAX);
 
-  // Message type
-  switch (pMsg->uType) {
+  /* Dump header */
+  _bgp_msg_header_dump(stream, node, msg);
+
+  /* Dump message content */
+  switch (msg->type) {
   case BGP_MSG_TYPE_UPDATE:
-    pRoute= ((SBGPMsgUpdate *) pMsg)->pRoute;
-    log_printf(pStream, "|A");
-    // Peer IP
-    log_printf(pStream, "|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      log_printf(pStream, "?");
-    }
-    // Peer AS
-    log_printf(pStream, "|%d", pMsg->uPeerAS);
-    // Prefix
-    log_printf(pStream, "|");
-    ip_prefix_dump(pStream, pRoute->sPrefix);
-    // AS-PATH
-    log_printf(pStream, "|");
-    if (pMsg->uType == BGP_MSG_TYPE_UPDATE) {
-      path_dump(pStream, route_get_path(pRoute), 1);
-    }
-    // ORIGIN
-    log_printf(pStream, "|");
-    switch (pRoute->pAttr->tOrigin) {
-    case ROUTE_ORIGIN_IGP:
-      log_printf(pStream, "IGP"); break;
-    case ROUTE_ORIGIN_EGP:
-      log_printf(pStream, "EGP"); break;
-    case ROUTE_ORIGIN_INCOMPLETE:
-      log_printf(pStream, "INCOMPLETE"); break;
-    default:
-      log_printf(pStream, "?");
-    }
-    // NEXT-HOP
-    log_printf(pStream, "|");
-    ip_address_dump(pStream, pRoute->pAttr->tNextHop);
-    // LOCAL-PREF
-    log_printf(pStream, "|%u", pRoute->pAttr->uLocalPref);
-    // MULTI-EXIT-DISCRIMINATOR
-    if (pRoute->pAttr->uMED == ROUTE_MED_MISSING)
-      log_printf(pStream, "|");
-    else
-      log_printf(pStream, "|%u", pRoute->pAttr->uMED);
-    // COMMUNITY
-    log_printf(pStream, "|");
-    if (pRoute->pAttr->pCommunities != NULL) {
-      for (iIndex= 0; iIndex < pRoute->pAttr->pCommunities->uNum; iIndex++) {
-	uCommunity= (uint32_t) pRoute->pAttr->pCommunities->asComms[iIndex];
-	log_printf(pStream, "%u ", uCommunity);
-      }
-    }
-
-    // Route-reflectors: Originator
-    if (pRoute->pAttr->pOriginator != NULL) {
-      log_printf(pStream, "originator:");
-      ip_address_dump(pStream, *pRoute->pAttr->pOriginator);
-    }
-    log_printf(pStream, "|");
-
-    if (pRoute->pAttr->pClusterList != NULL) {
-      log_printf(pStream, "cluster_id_list:");
-      cluster_list_dump(pStream, pRoute->pAttr->pClusterList);
-    }
-    log_printf(pStream, "|");
-
+    _bgp_msg_update_dump(stream, (bgp_msg_update_t *) msg);
     break;
   case BGP_MSG_TYPE_WITHDRAW:
-    log_printf(pStream, "|W");
-    // Peer IP
-    log_printf(pStream, "|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      log_printf(pStream, "?");
-    }
-    // Peer AS
-    log_printf(pStream, "|%d", pMsg->uPeerAS);
-    // Prefix
-    log_printf(pStream, "|");
-    ip_prefix_dump(pStream, ((SBGPMsgWithdraw *) pMsg)->sPrefix);
+    _bgp_msg_withdraw_dump(stream, (bgp_msg_withdraw_t *) msg);
     break;
   case BGP_MSG_TYPE_OPEN:
-    log_printf(pStream, "|OPEN|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      log_printf(pStream, "?");
-    }
+    _bgp_msg_open_dump(stream, (bgp_msg_open_t *) msg);
     break;
   case BGP_MSG_TYPE_CLOSE:
-    log_printf(pStream, "|CLOSE|");
-    if (pNode != NULL) {
-      ip_address_dump(pStream, pNode->tAddr);
-    } else {
-      log_printf(pStream, "?");
-    }
+    _bgp_msg_close_dump(stream, (bgp_msg_close_t *) msg);
     break;
   default:
-    log_printf(pStream, "|?");
+    log_printf(stream, "should never reach this code");
   } 
 }
 
@@ -281,14 +293,14 @@ void bgp_msg_dump(SLogStream * pStream, SNetNode * pNode, SBGPMsg * pMsg)
 /**
  *
  */
-int bgp_msg_monitor_open(char * pcFileName)
+int bgp_msg_monitor_open(const char * file_name)
 {
   time_t tTime= time(NULL);
 
   bgp_msg_monitor_close();
 
   // Create new monitor
-  pMonitor= log_create_file(pcFileName);
+  pMonitor= log_create_file((char *) file_name);
   if (pMonitor == NULL) {
     LOG_ERR(LOG_LEVEL_SEVERE, "Unable to create monitor file\n");
     return -1;
@@ -332,19 +344,19 @@ void bgp_msg_monitor_close()
  *
  *   <dest-ip>|
  */
-void bgp_msg_monitor_write(SBGPMsg * pMsg, SNetNode * pNode,
-			   net_addr_t tAddr)
+void bgp_msg_monitor_write(bgp_msg_t * msg, net_node_t * node,
+			   net_addr_t addr)
 {
   if (pMonitor != NULL) {
 
     // Destination router (): this is not MRTD format but required to
     // identify the destination of the messages
-    ip_address_dump(pMonitor, tAddr);
+    ip_address_dump(pMonitor, addr);
     // Protocol and Time
     log_printf(pMonitor, "|BGP4|%.2f",
-	       simulator_get_time(network_get_simulator()));
+	       sim_get_time(network_get_simulator(node->network)));
 
-    bgp_msg_dump(pMonitor, pNode, pMsg);
+    bgp_msg_dump(pMonitor, node, msg);
 
     log_printf(pMonitor, "\n");
   }

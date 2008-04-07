@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)predicate_parser.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/02/2004
-// @lastdate 21/11/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __PREDICATE_PARSER_H__
@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
   // -----[ predicate_parser ]---------------------------------------
-  int predicate_parser(char * pcExpr, SFilterMatcher ** ppMatcher);
+  int predicate_parser(char * pcExpr, bgp_ft_matcher_t ** ppMatcher);
   // -----[ predicate_parser_perror ]--------------------------------
   void predicate_parser_perror(SLogStream * pStream, int iErrorCode);
   // -----[ predicate_parser_strerror ]------------------------------

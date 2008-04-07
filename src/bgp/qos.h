@@ -19,6 +19,10 @@
 
 #ifdef BGP_QOS
 
+typedef struct {
+  
+} bgp_route_qos_t;
+
 extern unsigned int BGP_OPTIONS_QOS_AGGR_LIMIT;
 
 // ----- qos_route_aggregate ----------------------------------------

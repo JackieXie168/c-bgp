@@ -7,23 +7,31 @@
 // ==================================================================
 
 
-#ifndef _CBGP_ROUTE_MAP_
-#define _CBGP_ROUTE_MAP_
+#ifndef __BGP_ROUTE_MAP_H__
+#define __BGP_ROUTE_MAP_H__
 
 #include <bgp/filter.h>
 
-// ------ route_map_add ----------------------------------------------
-int route_map_add(char * pcRouteMapName, SFilter * pFilter);
-// ------ route_map_del ----------------------------------------------
-int route_map_del(char * pcRouteMapName);
-// ----- route_map_get -----------------------------------------------
-SFilter * route_map_get(char * pcRouteMapName);
-// ----- route_map_replace -------------------------------------------
-int route_map_replace(char * pcRouteMapName, SFilter * pFilter);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// ----- route_map_init ----------------------------------------------
-extern void _route_map_init();
-// ----- route_map_destroy ------------------------------------------
-extern void _route_map_destroy();
+  // ------ route_map_add ----------------------------------------------
+  int route_map_add(char * pcRouteMapName, bgp_filter_t * pFilter);
+  // ------ route_map_del ----------------------------------------------
+  int route_map_del(char * pcRouteMapName);
+  // ----- route_map_get -----------------------------------------------
+  bgp_filter_t * route_map_get(char * pcRouteMapName);
+  // ----- route_map_replace -------------------------------------------
+  int route_map_replace(char * pcRouteMapName, bgp_filter_t * pFilter);
+  
+  // ----- route_map_init ----------------------------------------------
+  void _route_map_init();
+  // ----- route_map_destroy ------------------------------------------
+  void _route_map_destroy();
 
-#endif //_CBGP_ROUTE_MAP_
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BGP_ROUTE_MAP_H__ */

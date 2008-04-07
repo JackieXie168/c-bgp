@@ -3,9 +3,9 @@
 //
 // This is the global Communities repository.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/10/2005
-// @lastdate 18/07/2007
+// $Id: comm_hash.c,v 1.9 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -29,8 +29,8 @@
 static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize);
 
 // ---| Private parameters |---
-static SHash * pCommHash= NULL;
-static uint32_t uCommHashSize= 25000;
+static hash_t * pCommHash= NULL;
+static unsigned int uCommHashSize= 25000;
 static uint8_t uCommHashMethod= COMM_HASH_METHOD_STRING;
 static FHashCompute fCommHashCompute= _comm_hash_item_compute;
 

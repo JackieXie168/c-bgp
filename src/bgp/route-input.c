@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)route-input.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// @lastdate 21/05/2007
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -57,12 +57,12 @@ int bgp_routes_load(const char * pcFileName, uint8_t uFormat,
 
 // -----[ _bgp_routes_load_list_handler ]----------------------------
 static int _bgp_routes_load_list_handler(int iStatus,
-					 SRoute * pRoute,
+					 bgp_route_t * pRoute,
 					 net_addr_t tPeerAddr,
 					 unsigned int uPeerAS,
 					 void * pContext)
 {
-  SRoutes * pRoutes= (SRoutes *) pContext;
+  bgp_routes_t * pRoutes= (bgp_routes_t *) pContext;
 
   if (iStatus == BGP_ROUTES_INPUT_STATUS_OK)
     routes_list_append(pRoutes, pRoute);
@@ -74,9 +74,9 @@ static int _bgp_routes_load_list_handler(int iStatus,
 /**
  *
  */
-SRoutes * bgp_routes_load_list(const char * pcFileName, uint8_t uFormat)
+bgp_routes_t * bgp_routes_load_list(const char * pcFileName, uint8_t uFormat)
 {
-  SRoutes * pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
+  bgp_routes_t * pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
   int iResult;
 
   iResult= bgp_routes_load(pcFileName, uFormat, _bgp_routes_load_list_handler,

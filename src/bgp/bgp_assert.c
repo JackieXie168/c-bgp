@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)bgp_assert.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @Author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 08/03/2004
-// @lastdate 22/05/2007
+// $Id: bgp_assert.c,v 1.15 2008-04-07 10:01:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,17 +23,16 @@
 #include <bgp/route_t.h>
 
 // -----[ _build_router_list_rtfe ]----------------------------------
-static int _build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
-				   void * pItem, void * pContext)
+static int _build_router_list_rtfe(uint32_t key, uint8_t key_len,
+				   void * item, void * ctx)
 {
-  SPtrArray * pRL= (SPtrArray *) pContext;
-  SNetNode * pNode= (SNetNode *) pItem;
-  SNetProtocol * pProtocol;
+  SPtrArray * pRL= (SPtrArray *) ctx;
+  net_node_t * node= (net_node_t *) item;
+  net_protocol_t * protocol;
 
-  pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP);
-  if (pProtocol != NULL)
-    ptr_array_append(pRL, pProtocol->pHandler);
-
+  protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
+  if (protocol != NULL)
+    ptr_array_append(pRL, protocol->pHandler);
   return 0;
 }
 
@@ -41,10 +40,10 @@ static int _build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
 static SPtrArray * build_router_list()
 {
   SPtrArray * pRL= ptr_array_create_ref(0);
-  SNetwork * pNetwork= network_get();
+  network_t * network= network_get_default();
 
   // Build list of BGP routers
-  trie_for_each(pNetwork->pNodes, _build_router_list_rtfe, pRL);
+  trie_for_each(network->nodes, _build_router_list_rtfe, pRL);
 
   return pRL;
 }
@@ -58,20 +57,20 @@ int bgp_assert_reachability()
 {
   SPtrArray * pRL;
   int iIndexSrc, iIndexDst, iIndexNet;
-  SBGPRouter * pRouterSrc, * pRouterDst;
+  bgp_router_t * pRouterSrc, * pRouterDst;
   SBGPPath * pPath;
-  SRoute * pRoute;
+  bgp_route_t * pRoute;
   int iResult= 0;
 
   pRL= build_router_list();
 
   // All routers as source...
   for (iIndexSrc= 0; iIndexSrc < ptr_array_length(pRL); iIndexSrc++) {
-    pRouterSrc= (SBGPRouter *) pRL->data[iIndexSrc];
+    pRouterSrc= (bgp_router_t *) pRL->data[iIndexSrc];
 
     // All routers as destination...
     for (iIndexDst= 0; iIndexDst < ptr_array_length(pRL); iIndexDst++) {
-      pRouterDst= (SBGPRouter *) pRL->data[iIndexDst];
+      pRouterDst= (bgp_router_t *) pRL->data[iIndexDst];
       
       if (pRouterSrc != pRouterDst) {
 
@@ -79,7 +78,7 @@ int bgp_assert_reachability()
 	for (iIndexNet= 0;
 	     iIndexNet < ptr_array_length(pRouterDst->pLocalNetworks);
 	     iIndexNet++) {
-	  pRoute= (SRoute *) pRouterDst->pLocalNetworks->data[iIndexNet];
+	  pRoute= (bgp_route_t *) pRouterDst->pLocalNetworks->data[iIndexNet];
 
 	  // Check BGP reachability
 	  if (bgp_record_route(pRouterSrc, pRoute->sPrefix, &pPath, 0)) {
@@ -112,18 +111,18 @@ int bgp_assert_peerings()
 {
   int iIndex, iPeerIndex;
   SPtrArray * pRL;
-  SBGPRouter * pRouter;
+  bgp_router_t * pRouter;
   int iResult= 0;
-  //SNetNode * pNode;
-  //SNetProtocol * pProtocol;
-  SBGPPeer * pPeer;
+  //net_node_t * pNode;
+  //SNetProtocol * protocol;
+  bgp_peer_t * pPeer;
   int iBadPeerings= 0;
 
   pRL= build_router_list();
 
   // For all BGP instances...
   for (iIndex= 0; iIndex < ptr_array_length(pRL); iIndex++) {
-    pRouter= (SBGPRouter *) pRL->data[iIndex];
+    pRouter= (bgp_router_t *) pRL->data[iIndex];
 
     log_printf(pLogOut, "check router ");
     bgp_router_dump_id(pLogOut, pRouter);
@@ -132,7 +131,7 @@ int bgp_assert_peerings()
     // For all peerings...
     for (iPeerIndex= 0; iPeerIndex < ptr_array_length(pRouter->pPeers);
 	 iPeerIndex++) {
-      pPeer= (SBGPPeer *) pRouter->pPeers->data[iPeerIndex];
+      pPeer= (bgp_peer_t *) pRouter->pPeers->data[iPeerIndex];
 
       log_printf(pLogOut, "\tcheck peer ");
       bgp_peer_dump_id(pLogOut, pPeer);
@@ -209,10 +208,10 @@ int bgp_assert_sessions()
  *
  * Return: 0 on success, -1 on failure
  */
-int bgp_router_assert_best(SBGPRouter * pRouter, SPrefix sPrefix,
+int bgp_router_assert_best(bgp_router_t * pRouter, SPrefix sPrefix,
 			   net_addr_t tNextHop)
 {
-  SRoute * pRoute;
+  bgp_route_t * pRoute;
 
   // Get the best route
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -239,12 +238,12 @@ int bgp_router_assert_best(SBGPRouter * pRouter, SPrefix sPrefix,
  *
  * Return: 0 on success, -1 on failure
  */
-int bgp_router_assert_feasible(SBGPRouter * pRouter, SPrefix sPrefix,
+int bgp_router_assert_feasible(bgp_router_t * pRouter, SPrefix sPrefix,
 			       net_addr_t tNextHop)
 {
-  SRoutes * pRoutes;
-  SRoute * pRoute;
-  int iIndex;
+  bgp_routes_t * pRoutes;
+  bgp_route_t * pRoute;
+  unsigned int uIndex;
   int iResult= -1;
 
   // Get the feasible routes
@@ -255,9 +254,8 @@ int bgp_router_assert_feasible(SBGPRouter * pRouter, SPrefix sPrefix,
 #endif
 
   // Find a route with the given next-hop
-  for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
-    pRoute= (SRoute *) pRoutes->data[iIndex];
-
+  for (uIndex= 0; uIndex < bgp_routes_size(pRoutes); uIndex++) {
+    pRoute= bgp_routes_at(pRoutes, uIndex);
     if (route_get_nexthop(pRoute) == tNextHop) {
       iResult= 0;
       break;
