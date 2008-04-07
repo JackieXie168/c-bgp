@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// @lastdate 12/02/2008
+// $Id: iface_ptmp.c,v 1.2 2008-04-07 09:31:46 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,51 +14,44 @@
 
 #include <net/iface.h>
 #include <net/link.h>
+#include <net/network.h>
 #include <net/prefix.h>
 #include <net/net_types.h>
 #include <net/subnet.h>
 
 // -----[ _net_iface_ptmp_send ]-------------------------------------
-static int _net_iface_ptmp_send(net_addr_t tPhysAddr,
-				void * pContext,
-				SNetIface ** ppDstIface,
-				SNetMessage ** ppMsg)
+static int _net_iface_ptmp_send(net_iface_t * self,
+				net_addr_t l2_addr,
+				net_msg_t * msg)
 {
-  SNetIface * pIface= (SNetIface *) pContext;
-  SNetSubnet * pSubnet;
-  SNetIface * pDstIface;
+  net_subnet_t * subnet;
+  net_iface_t * dst_iface;
 
-  assert(pIface->tType == NET_IFACE_PTMP);
+  assert(self->type == NET_IFACE_PTMP);
   
-  if (!net_iface_is_connected(pIface))
-    return NET_ERROR_LINK_DOWN;
-  if (!net_iface_is_enabled(pIface))
-    return NET_ERROR_LINK_DOWN;
-
-  pSubnet= pIface->tDest.pSubnet;
+  subnet= self->dest.subnet;
 
   // Find destination node (based on "physical address")
-  pDstIface= net_subnet_find_link(pSubnet, tPhysAddr);
-  if (pDstIface == NULL)
-    return NET_ERROR_HOST_UNREACH;
+  dst_iface= net_subnet_find_link(subnet, l2_addr);
+  if (dst_iface == NULL)
+    return ENET_HOST_UNREACH;
 
   // Forward along link from subnet -> node ...
-  if (!net_iface_is_enabled(pDstIface))
-    return NET_ERROR_LINK_DOWN;
+  if (!net_iface_is_enabled(dst_iface))
+    return ENET_LINK_DOWN;
 
-  *((SNetIface **) ppDstIface)= pDstIface;
-  return NET_SUCCESS;
+  network_send(dst_iface, msg);
+  return ESUCCESS;
 }
 
 // -----[ net_iface_new_ptmp ]---------------------------------------
-SNetIface * net_iface_new_ptmp(SNetNode * pNode, SPrefix sPrefix)
+net_iface_t * net_iface_new_ptmp(net_node_t * node, SPrefix sPrefix)
 {
-  SNetIface * pIface= net_iface_new(pNode, NET_IFACE_PTMP);
-  pIface->tIfaceAddr= sPrefix.tNetwork;
-  pIface->tIfaceMask= sPrefix.uMaskLen;
-  pIface->pContext= pIface;
-  pIface->fSend= _net_iface_ptmp_send;
-  return pIface;
+  net_iface_t * iface= net_iface_new(node, NET_IFACE_PTMP);
+  iface->tIfaceAddr= sPrefix.tNetwork;
+  iface->tIfaceMask= sPrefix.uMaskLen;
+  iface->ops.send= _net_iface_ptmp_send;
+  return iface;
 }
 
 

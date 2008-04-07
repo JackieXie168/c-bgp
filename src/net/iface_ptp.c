@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// @lastdate 22/02/2008
+// $Id: iface_ptp.c,v 1.2 2008-04-07 09:31:46 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,38 +14,27 @@
 
 #include <net/iface.h>
 #include <net/link.h>
-//#include <net/prefix.h>
 #include <net/net_types.h>
-//#include <net/subnet.h>
+#include <net/network.h>
 
 // -----[ _net_iface_ptp_send ]--------------------------------------
-static int _net_iface_ptp_send(net_addr_t tPhysAddr,
-				  void * pContext,
-				  SNetIface ** ppDstIface,
-				  SNetMessage ** ppMsg)
+static int _net_iface_ptp_send(net_iface_t * self,
+			       net_addr_t l2_addr,
+			       net_msg_t * msg)
 {
-  SNetIface * pIface= (SNetIface *) pContext;
-
-  assert(pIface->tType == NET_IFACE_PTP);
+  assert(self->type == NET_IFACE_PTP);
   
-  if (!net_iface_is_connected(pIface))
-    return NET_ERROR_LINK_DOWN;
-  if (!net_iface_is_enabled(pIface))
-    return NET_ERROR_LINK_DOWN;
-
-  *ppDstIface= pIface->tDest.pIface;
-
-  return NET_SUCCESS;
+  network_send(self->dest.iface, msg);
+  return ESUCCESS;
 }
 
 // -----[ net_iface_new_ptp ]----------------------------------------
-SNetIface * net_iface_new_ptp(SNetNode * pNode, SPrefix sPrefix)
+net_iface_t * net_iface_new_ptp(net_node_t * node, SPrefix sPrefix)
 {
-  SNetIface * pIface= net_iface_new(pNode, NET_IFACE_PTP);
-  pIface->tIfaceAddr= sPrefix.tNetwork;
-  pIface->tIfaceMask= sPrefix.uMaskLen;
-  pIface->pContext= pIface;
-  pIface->fSend= _net_iface_ptp_send;
-  return pIface;
+  net_iface_t * iface= net_iface_new(node, NET_IFACE_PTP);
+  iface->tIfaceAddr= sPrefix.tNetwork;
+  iface->tIfaceMask= sPrefix.uMaskLen;
+  iface->ops.send= _net_iface_ptp_send;
+  return iface;
 }
 
