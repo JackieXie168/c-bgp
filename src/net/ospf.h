@@ -35,7 +35,7 @@
    The filed can be used only if pPrefix has a 32 bit netmask.
 */
 typedef struct {
-  SNetLink * pLink;  //link towards next-hop
+  net_iface_t * pLink;  //link towards next-hop
   net_addr_t tAddr;  //ip address of next hop
   net_addr_t tAdvRouterAddr; //Router that advertise 
                          //destination with LSA (for INTER-AREA only) 
@@ -49,39 +49,39 @@ extern int ospf_test();
 ///////////////////////////////////////////////////////////////////////////
 
 // ----- node_add_OSPFArea --------------------------------------------
-extern int node_add_OSPFArea(SNetNode * pNode, uint32_t OSPFArea);
+extern int node_add_OSPFArea(net_node_t * pNode, uint32_t OSPFArea);
 // ----- node_is_BorderRouter --------------------------------------------
-extern int node_is_BorderRouter(SNetNode * pNode);
+extern int node_is_BorderRouter(net_node_t * pNode);
 // ----- node_is_InternalRouter --------------------------------------------
-extern int node_is_InternalRouter(SNetNode * pNode);
+extern int node_is_InternalRouter(net_node_t * pNode);
 // ----- node_ospf_rt_add_route --------------------------------------------
-extern int node_ospf_rt_add_route(SNetNode     * pNode,     ospf_dest_type_t  tOSPFDestinationType,
+extern int node_ospf_rt_add_route(net_node_t     * pNode,     ospf_dest_type_t  tOSPFDestinationType,
                        SPrefix        sPrefix,   net_link_delay_t        uWeight,
 		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
 		       next_hops_list_t * pNHList);
 // ----- node_belongs_to_area -----------------------------------------------
-extern int node_belongs_to_area(SNetNode * pNode, uint32_t tArea);
+extern int node_belongs_to_area(net_node_t * pNode, uint32_t tArea);
 // ----- link_set_ospf_area ------------------------------------------
-extern int link_set_ospf_area(SNetLink * pLink, ospf_area_t tArea);
+extern int link_set_ospf_area(net_iface_t * pLink, ospf_area_t tArea);
 
 // ----- ospf_node_get_id ------------------------------------------
-extern net_addr_t ospf_node_get_id(SNetNode * pNode);
+extern net_addr_t ospf_node_get_id(net_node_t * pNode);
 
 ///////////////////////////////////////////////////////////////////////////
 //////  SUBNET OSPF FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 // ----- subnet_OSPFArea -------------------------------------------------
-extern int subnet_set_OSPFArea(SNetSubnet * pSubnet, uint32_t uOSPFArea);
+extern int subnet_set_OSPFArea(net_subnet_t * pSubnet, uint32_t uOSPFArea);
 // ----- subnet_getOSPFArea ----------------------------------------------
-extern uint32_t subnet_get_OSPFArea(SNetSubnet * pSubnet);
+extern uint32_t subnet_get_OSPFArea(net_subnet_t * pSubnet);
 // ----- subnet_belongs_to_area ---------------------------------------------
-int subnet_belongs_to_area(SNetSubnet * pSubnet, uint32_t tArea);
+int subnet_belongs_to_area(net_subnet_t * pSubnet, uint32_t tArea);
 
 ///////////////////////////////////////////////////////////////////////////
 //////  OSPF ROUTING TABLE FUNCTION
 ///////////////////////////////////////////////////////////////////////////
 // ----- ospf_node_rt_dump ------------------------------------------------------------------
-extern void ospf_node_rt_dump(FILE * pStream, SNetNode * pNode, int iOption);
+extern void ospf_node_rt_dump(FILE * pStream, net_node_t * pNode, int iOption);
 // ----- ospf_route_is_adver_in_area -------------------------------------------
 int ospf_route_is_adver_in_area(SOSPFRouteInfo * pRI, ospf_area_t tArea);
 //////////////////////////////////////////////////////////////////////////

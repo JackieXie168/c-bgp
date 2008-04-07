@@ -82,7 +82,7 @@ int igp_domain_set_ecmp(SIGPDomain * pDomain, int iState)
  *   replaced by the new one and memory leaks as well as unexpected
  *   results may occur.
  */
-int igp_domain_add_router(SIGPDomain * pDomain, SNetNode * pNode)
+int igp_domain_add_router(SIGPDomain * pDomain, net_node_t * pNode)
 {
   trie_insert(pDomain->pRouters, pNode->tAddr, 32, pNode);
   return node_igp_domain_add(pNode, pDomain->uNumber);
@@ -167,7 +167,7 @@ static int _igp_domain_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
 {
   SLogStream * pStream= (SLogStream *) (pContext);
   
-  ip_address_dump(pStream, ((SNetNode *) pItem)->tAddr);
+  ip_address_dump(pStream, ((net_node_t *) pItem)->tAddr);
   log_printf(pStream, "\n");
   return 0;
 }
@@ -232,7 +232,7 @@ int igp_domain_compute(SIGPDomain * pDomain)
  * Return TRUE (1) if node is in radix tree. FALSE (0) otherwise.
  *
  */
-int igp_domain_contains_router(SIGPDomain * pDomain, SNetNode * pNode)
+int igp_domain_contains_router(SIGPDomain * pDomain, net_node_t * pNode)
 {
   if (trie_find_exact(pDomain->pRouters, pNode->tAddr, 32) == NULL)
     return 0;
@@ -310,8 +310,8 @@ int _igp_domain_test(){
   register_igp_domain(pDomain3);
   LOG_DEBUG("ok!\n"); 
   
-  SNetNode * pNode1 = node_create(1);
-  SNetNode * pNode2 = node_create(2);
+  net_node_t * pNode1 = node_create(1);
+  net_node_t * pNode2 = node_create(2);
   
   igp_domain_add_router(pDomain1, pNode1);
   igp_domain_add_router(pDomain1, pNode2);

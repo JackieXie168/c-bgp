@@ -16,6 +16,6 @@
 // -----[ net_export_ntf ]-------------------------------------------
 int net_export_ntf(SLogStream * pStream, SNetwork * pNetwork)
 {
-  return NET_SUCCESS;
+  return EUNSUPPORTED;
 }
 

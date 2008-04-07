@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/06/2005
-// @lastdate 18/02/2008
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifndef __NET_SUBNET_H__
@@ -24,33 +24,33 @@ extern "C" {
 #endif
 
   // ----- subnet_create --------------------------------------------
-  SNetSubnet * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen,
+  net_subnet_t * subnet_create(net_addr_t tNetwork, uint8_t uMaskLen,
 			     uint8_t uType);
   // ----- subnet_dump ----------------------------------------------
-  void subnet_dump(SLogStream * pStream, SNetSubnet * pSubnet);
+  void subnet_dump(SLogStream * pStream, net_subnet_t * pSubnet);
   // ----- subnet_getAddr -------------------------------------------
-  //net_addr_t subnet_get_Addr(SNetSubnet * pSubnet);
+  //net_addr_t subnet_get_Addr(net_subnet_t * pSubnet);
   // ----- subnet_get_Prefix ----------------------------------------
-  SPrefix * subnet_get_prefix(SNetSubnet * pSubnet);
+  SPrefix * subnet_get_prefix(net_subnet_t * pSubnet);
   // ----- subnet_is_transit ----------------------------------------
-  int subnet_is_transit(SNetSubnet * pSubnet);
+  int subnet_is_transit(net_subnet_t * pSubnet);
   // ----- subnet_is_stub -------------------------------------------
-  int subnet_is_stub(SNetSubnet * pSubnet);
+  int subnet_is_stub(net_subnet_t * pSubnet);
   // ----- subnet_add_link ------------------------------------------
-  int subnet_add_link(SNetSubnet * pSubnet, SNetLink * pLink);
+  int subnet_add_link(net_subnet_t * pSubnet, net_iface_t * pLink);
   // ----- net_subnet_find_link -----------------------------------------
-  SNetLink * net_subnet_find_link(SNetSubnet * pSubnet,
+  net_iface_t * net_subnet_find_link(net_subnet_t * pSubnet,
 				  net_addr_t tDstAddr);
   // ----- subnet_get_links -----------------------------------------
-  SPtrArray * subnet_get_links(SNetSubnet * pSubnet);
+  SPtrArray * subnet_get_links(net_subnet_t * pSubnet);
   // ----- subnet_destroy -------------------------------------------
-  void subnet_destroy(SNetSubnet ** ppSubnet);
+  void subnet_destroy(net_subnet_t ** ppSubnet);
   
   int _subnet_test();
   
   // ----- _subnet_forward ------------------------------------------
   int _subnet_forward(net_addr_t tPhysAddr, void * pContext,
-		      SNetNode ** ppNextHop, SNetMessage ** ppMsg);
+		      net_node_t ** ppNextHop, net_msg_t ** ppMsg);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -58,13 +58,13 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- subnets_create -------------------------------------------
-  SNetSubnets * subnets_create();
+  net_subnets_t * subnets_create();
   // ----- subnets_destroy ------------------------------------------
-  void subnets_destroy(SNetSubnets ** ppSubnets);
+  void subnets_destroy(net_subnets_t ** ppSubnets);
   // ----- subnets_add ----------------------------------------------
-  int subnets_add(SNetSubnets * pSubnets, SNetSubnet * pSubnet);
+  int subnets_add(net_subnets_t * pSubnets, net_subnet_t * pSubnet);
   // ----- subnets_find ---------------------------------------------
-  SNetSubnet * subnets_find(SNetSubnets * pSubnets, SPrefix sPrefix);
+  net_subnet_t * subnets_find(net_subnets_t * pSubnets, SPrefix sPrefix);
 
 #ifdef __cplusplus
 }

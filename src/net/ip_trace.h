@@ -11,55 +11,57 @@
 
 #include <libgds/array.h>
 
+#include <net/error.h>
 #include <net/net_types.h>
 
-typedef enum {
-  NODE, SUBNET
-} EIPTraceItemType;
-
-typedef union {
-  SNetNode * pNode;
-  SNetSubnet * pSubnet;
-} UIPTraceItem;
+typedef struct {
+  net_elem_t   elt;       /* network element (node / subnet) */
+  net_addr_t   iif_addr;  /* incoming interface address */
+  net_addr_t   oif_addr;  /* outgoing interface address */
+  void       * user_data; /* user-data (e.g. hop QoS data) */
+} ip_trace_item_t;
 
 typedef struct {
-  EIPTraceItemType eType;     /* item type: node / subnet */
-  UIPTraceItem     uItem;     /* item */
-  net_addr_t       tInIfaceAddr;
-  net_addr_t       tOutIfaceAddr;
-  void *           pUserData; /* user-data (e.g. hop QoS data) */
-} SIPTraceItem;
-
-typedef struct {
-  SPtrArray * pItems;
-} SIPTrace;
+  SPtrArray        * items;    /* Traversed hops (nodes, subnets) */
+  net_link_delay_t   delay;    /* QoS info: delay */
+  net_igp_weight_t   weight;   /* QoS info: IGP weight */
+  net_link_load_t    capacity; /* QoS info: max capacity */
+  net_link_load_t    load;     /* Traffic volume to load */
+  net_error_t        status;   /* General status of trace */
+} ip_trace_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  // -----[ ip_trace_item_node ]-------------------------------------
-  SIPTraceItem * ip_trace_item_node(SNetNode * pNode,
-				    net_addr_t tInIfaceAddr,
-				    net_addr_t tOutIfaceAddr);
-  // -----[ ip_trace_item_subnet ]-----------------------------------
-  SIPTraceItem * ip_trace_item_subnet(SNetSubnet * pSubnet);
-
   // -----[ ip_trace_create ]----------------------------------------
-  SIPTrace * ip_trace_create();
+  ip_trace_t * ip_trace_create();
   // -----[ ip_trace_destroy ]---------------------------------------
-  void ip_trace_destroy(SIPTrace ** ppTrace);
-  // -----[ ip_trace_add ]-------------------------------------------
-  int ip_trace_add(SIPTrace * pTrace, SIPTraceItem * pItem);
-  // -----[ ip_trace_length ]----------------------------------------
-  unsigned int ip_trace_length(SIPTrace * pTrace);
-  // -----[ ip_trace_item_at ]---------------------------------------
-  SIPTraceItem * ip_trace_item_at(SIPTrace * pTrace, unsigned int uIndex);
+  void ip_trace_destroy(ip_trace_t ** trace_ref);
+  // -----[ ip_trace_add_node ]--------------------------------------
+  ip_trace_item_t * ip_trace_add_node(ip_trace_t * trace,
+				      net_node_t * node,
+				      net_addr_t iif_addr,
+				      net_addr_t oif_addr);
+  // -----[ ip_trace_add_subnet ]------------------------------------
+  ip_trace_item_t * ip_trace_add_subnet(ip_trace_t * trace,
+					net_subnet_t * subnet);
   // -----[ ip_trace_search ]----------------------------------------
-  int ip_trace_search(SIPTrace * pTrace, SNetNode * pNode);
+  int ip_trace_search(ip_trace_t * trace, net_node_t * node);
 
 #ifdef __cplusplus
 }
 #endif
+
+// -----[ ip_trace_length ]------------------------------------------
+static inline unsigned int ip_trace_length(ip_trace_t * trace) {
+  return ptr_array_length(trace->items);
+}
+
+// -----[ ip_trace_item_at ]-------------------------------------------
+static inline ip_trace_item_t * ip_trace_item_at(ip_trace_t * trace,
+						 unsigned int index) {
+  return trace->items->data[index];
+}
 
 #endif /* __NET_IP_TRACE_H__ */

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/07
-// @lastdate 22/02/08
+// $Id: export_cli.c,v 1.3 2008-04-07 09:44:48 bqu Exp $
 // ==================================================================
 // Note:
 //   - tunnels and tunnel-based routes are not suppported
@@ -33,87 +33,87 @@
   "# -------------------------------------------------------------------\n"
 
 // -----[ _net_export_cli_header ]-----------------------------------
-static void _net_export_cli_header(SLogStream * pStream)
+static void _net_export_cli_header(SLogStream * stream)
 {
   time_t tCurrentTime= time(NULL);
 
-  log_printf(pStream, COMM_SEP1);
-  log_printf(pStream, "# C-BGP Export file (CLI)\n");
-  log_printf(pStream, "# generated on %s", ctime(&tCurrentTime));
-  log_printf(pStream, COMM_SEP1);
+  log_printf(stream, COMM_SEP1);
+  log_printf(stream, "# C-BGP Export file (CLI)\n");
+  log_printf(stream, "# generated on %s", ctime(&tCurrentTime));
+  log_printf(stream, COMM_SEP1);
 }
 
 // -----[ _net_export_cli_comment ]----------------------------------
-static void _net_export_cli_comment(SLogStream * pStream,
-				    const char * pcComment)
+static void _net_export_cli_comment(SLogStream * stream,
+				    const char * comment)
 {
-  log_printf(pStream, COMM_SEP2);
-  log_printf(pStream, "# %s\n", pcComment);
-  log_printf(pStream, COMM_SEP2);
+  log_printf(stream, COMM_SEP2);
+  log_printf(stream, "# %s\n", comment);
+  log_printf(stream, COMM_SEP2);
 }
 
 // -----[ _net_export_cli_phys ]-------------------------------------
 /**
  * Save all nodes, links, subnets
  */
-static void _net_export_cli_phys(SLogStream * pStream,
-				 SNetwork * pNetwork)
+static void _net_export_cli_phys(SLogStream * stream,
+				 network_t * network)
 {
-  SEnumerator * pEnum, * pEnumLinks;
-  SNetNode * pNode;
-  SNetSubnet * pSubnet;
-  SNetLink * pLink;
+  enum_t * pEnum, * pEnumLinks;
+  net_node_t * node;
+  net_subnet_t * subnet;
+  net_iface_t * pLink;
 
   // *** all nodes ***
-  pEnum= trie_get_enum(pNetwork->pNodes);
+  pEnum= trie_get_enum(network->nodes);
   while (enum_has_next(pEnum)) {
-    pNode= *(SNetNode **) enum_get_next(pEnum);
-    log_printf(pStream, "net add node ");
-    ip_address_dump(pStream, pNode->tAddr);
-    log_printf(pStream, "\n");
+    node= *(net_node_t **) enum_get_next(pEnum);
+    log_printf(stream, "net add node ");
+    ip_address_dump(stream, node->tAddr);
+    log_printf(stream, "\n");
   }
   enum_destroy(&pEnum);
 
   // *** all subnets ***
-  pEnum= _array_get_enum((SArray*) pNetwork->pSubnets);
+  pEnum= _array_get_enum((SArray*) network->subnets);
   while (enum_has_next(pEnum)) {
-    pSubnet= *(SNetSubnet **) enum_get_next(pEnum);
+    subnet= *(net_subnet_t **) enum_get_next(pEnum);
 
-    log_printf(pStream, "net add subnet ");
-    ip_prefix_dump(pStream, pSubnet->sPrefix);
-    log_printf(pStream, " ");
-    switch (pSubnet->uType) {
-    case NET_SUBNET_TYPE_TRANSIT: log_printf(pStream, "transit"); break;
-    case NET_SUBNET_TYPE_STUB: log_printf(pStream, "stub"); break;
+    log_printf(stream, "net add subnet ");
+    ip_prefix_dump(stream, subnet->sPrefix);
+    log_printf(stream, " ");
+    switch (subnet->uType) {
+    case NET_SUBNET_TYPE_TRANSIT: log_printf(stream, "transit"); break;
+    case NET_SUBNET_TYPE_STUB: log_printf(stream, "stub"); break;
     }
-    log_printf(pStream, "\n");
+    log_printf(stream, "\n");
   }
   enum_destroy(&pEnum);
 
   // *** all links ***
-  pEnum= trie_get_enum(pNetwork->pNodes);
+  pEnum= trie_get_enum(network->nodes);
   while (enum_has_next(pEnum)) {
-    pNode= *(SNetNode **) enum_get_next(pEnum);
+    node= *(net_node_t **) enum_get_next(pEnum);
 
-    pEnumLinks= net_links_get_enum(pNode->pLinks);
+    pEnumLinks= net_links_get_enum(node->ifaces);
     while (enum_has_next(pEnumLinks)) {
-      pLink= *(SNetLink **) enum_get_next(pEnumLinks);
+      pLink= *(net_iface_t **) enum_get_next(pEnumLinks);
 
-      if ((pLink->tType == NET_IFACE_VIRTUAL) ||
-	  ((pLink->tType == NET_IFACE_RTR) &&
-	   (pLink->tDest.pIface->pSrcNode->tAddr < pNode->tAddr)))
+      if ((pLink->type == NET_IFACE_VIRTUAL) ||
+	  ((pLink->type == NET_IFACE_RTR) &&
+	   (pLink->dest.iface->src_node->tAddr < node->tAddr)))
 	continue;
 
-      log_printf(pStream, "net add link ");
-      ip_address_dump(pStream, pNode->tAddr);
-      log_printf(pStream, " ");
-      switch (pLink->tType) {
+      log_printf(stream, "net add link ");
+      ip_address_dump(stream, node->tAddr);
+      log_printf(stream, " ");
+      switch (pLink->type) {
       case NET_IFACE_RTR:
-	ip_address_dump(pStream, pLink->tDest.pIface->pSrcNode->tAddr);
+	ip_address_dump(stream, pLink->dest.iface->src_node->tAddr);
 	break;
       case NET_IFACE_PTP:
       case NET_IFACE_PTMP:
-	ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
+	ip_prefix_dump(stream, pLink->dest.subnet->sPrefix);
 	break;
       case NET_IFACE_VIRTUAL:
 	abort();
@@ -121,7 +121,7 @@ static void _net_export_cli_phys(SLogStream * pStream,
       default:
 	abort();
       }
-      log_printf(pStream, " %u\n", pLink->tDelay);
+      log_printf(stream, " %u\n", pLink->phys.delay);
     }
     enum_destroy(&pEnumLinks);
   }
@@ -132,19 +132,19 @@ static void _net_export_cli_phys(SLogStream * pStream,
 /**
  * Static routes
  */
-static void _net_export_cli_static(SLogStream * pStream,
-				   SNetwork * pNetwork)
+static void _net_export_cli_static(SLogStream * stream,
+				   network_t * network)
 {
-  SEnumerator * pEnumNodes, * pEnumRILists, * pEnumRIs;
-  SNetNode * pNode;
+  enum_t * pEnumNodes, * pEnumRILists, * pEnumRIs;
+  net_node_t * node;
   SNetRouteInfoList * pRIList;
   SNetRouteInfo * pRI;
 
-  pEnumNodes= trie_get_enum(pNetwork->pNodes);
+  pEnumNodes= trie_get_enum(network->nodes);
   while (enum_has_next(pEnumNodes)) {
-    pNode= *(SNetNode **) enum_get_next(pEnumNodes);
+    node= *(net_node_t **) enum_get_next(pEnumNodes);
 
-    pEnumRILists= trie_get_enum(pNode->pRT);
+    pEnumRILists= trie_get_enum(node->rt);
     while (enum_has_next(pEnumRILists)) {
       pRIList= *(SNetRouteInfoList **) enum_get_next(pEnumRILists);
 
@@ -156,40 +156,40 @@ static void _net_export_cli_static(SLogStream * pStream,
 	// - Only static routes
 	// - Static routes based on tunnel interfaces not supported
 	if ((pRI->tType != NET_ROUTE_STATIC) ||
-	    (pRI->sNextHop.pIface->tType == NET_IFACE_VIRTUAL))
+	    (pRI->sNextHop.pIface->type == NET_IFACE_VIRTUAL))
 	  continue;
 
-	log_printf(pStream, "net node ");
-	ip_address_dump(pStream, pNode->tAddr);
-	log_printf(pStream, " route add ");
+	log_printf(stream, "net node ");
+	ip_address_dump(stream, node->tAddr);
+	log_printf(stream, " route add ");
 
 	// Destination prefix
-	ip_prefix_dump(pStream, pRI->sPrefix);
-	log_printf(pStream, " ");
+	ip_prefix_dump(stream, pRI->sPrefix);
+	log_printf(stream, " ");
 
 	// Gateway ?
 	if (pRI->sNextHop.tGateway != NET_ADDR_ANY)
-	  ip_address_dump(pStream, pRI->sNextHop.tGateway);
+	  ip_address_dump(stream, pRI->sNextHop.tGateway);
 	else
-	  log_printf(pStream, "*");
+	  log_printf(stream, "*");
 
 	// Outgoing interface
-	log_printf(pStream, " ");
-	switch (pRI->sNextHop.pIface->tType) {
+	log_printf(stream, " ");
+	switch (pRI->sNextHop.pIface->type) {
 	case NET_IFACE_LOOPBACK:
 	case NET_IFACE_RTR:
 	case NET_IFACE_VIRTUAL:
-	  ip_address_dump(pStream, pRI->sNextHop.pIface->tDest.pIface->pSrcNode->tAddr);
+	  ip_address_dump(stream, pRI->sNextHop.pIface->dest.iface->src_node->tAddr);
 	  break;
 	case NET_IFACE_PTMP:
-	  ip_prefix_dump(pStream, pRI->sNextHop.pIface->tDest.pSubnet->sPrefix);
+	  ip_prefix_dump(stream, pRI->sNextHop.pIface->dest.subnet->sPrefix);
 	  break;
 	default:
 	  abort();
 	}
 
 	// Metric
-	log_printf(pStream, " %d\n", pRI->uWeight);
+	log_printf(stream, " %d\n", pRI->uWeight);
 
       }
       enum_destroy(&pEnumRIs);
@@ -201,59 +201,59 @@ static void _net_export_cli_static(SLogStream * pStream,
   enum_destroy(&pEnumNodes);
 }
 
-static int _igp_domain_fe(SIGPDomain * pDomain, void * pContext)
+static int _igp_domain_fe(SIGPDomain * pDomain, void * ctx)
 {
-  SEnumerator * pEnumRouters, * pEnumLinks;
-  SLogStream * pStream= (SLogStream *) pContext;
-  SNetNode * pRouter;
-  SNetLink * pLink;
+  enum_t * pEnumRouters, * pEnumLinks;
+  SLogStream * stream= (SLogStream *) ctx;
+  net_node_t * router;
+  net_iface_t * pLink;
 
 
-  log_printf(pStream, "net add domain %d igp\n", pDomain->uNumber);
+  log_printf(stream, "net add domain %d igp\n", pDomain->uNumber);
 
   pEnumRouters= trie_get_enum(pDomain->pRouters);
   while (enum_has_next(pEnumRouters)) {
-    pRouter= *(SNetNode **) enum_get_next(pEnumRouters);
-    log_printf(pStream, "net node ");
-    ip_address_dump(pStream, pRouter->tAddr);
-    log_printf(pStream, " domain %d\n", pDomain->uNumber);
+    router= *(net_node_t **) enum_get_next(pEnumRouters);
+    log_printf(stream, "net node ");
+    ip_address_dump(stream, router->tAddr);
+    log_printf(stream, " domain %d\n", pDomain->uNumber);
   }
   enum_destroy(&pEnumRouters);
 
   pEnumRouters= trie_get_enum(pDomain->pRouters);
   while (enum_has_next(pEnumRouters)) {
-    pRouter= *(SNetNode **) enum_get_next(pEnumRouters);
+    router= *(net_node_t **) enum_get_next(pEnumRouters);
     
-    pEnumLinks= net_links_get_enum(pRouter->pLinks);
+    pEnumLinks= net_links_get_enum(router->ifaces);
     while (enum_has_next(pEnumLinks)) {
-      pLink= *(SNetLink **) enum_get_next(pEnumLinks);
+      pLink= *(net_iface_t **) enum_get_next(pEnumLinks);
       
-      if (pLink->tType == NET_IFACE_VIRTUAL)
+      if (pLink->type == NET_IFACE_VIRTUAL)
 	continue;
       
-      log_printf(pStream, "net link ");
-      ip_address_dump(pStream, pRouter->tAddr);
-      log_printf(pStream, " ");
-      switch (pLink->tType) {
+      log_printf(stream, "net link ");
+      ip_address_dump(stream, router->tAddr);
+      log_printf(stream, " ");
+      switch (pLink->type) {
       case NET_IFACE_LOOPBACK:
       case NET_IFACE_RTR:
       case NET_IFACE_VIRTUAL:
-	ip_address_dump(pStream, pLink->tDest.pIface->pSrcNode->tAddr);
+	ip_address_dump(stream, pLink->dest.iface->src_node->tAddr);
 	break;
       case NET_IFACE_PTMP:
-	ip_prefix_dump(pStream, pLink->tDest.pSubnet->sPrefix);
+	ip_prefix_dump(stream, pLink->dest.subnet->sPrefix);
 	break;
       default:
 	abort();
       }
-      log_printf(pStream, " igp-weight %u\n", net_iface_get_metric(pLink, 0));
+      log_printf(stream, " igp-weight %u\n", net_iface_get_metric(pLink, 0));
     }
     enum_destroy(&pEnumLinks);
 
   }
   enum_destroy(&pEnumRouters);
   
-  log_printf(pStream, "net domain %d compute\n", pDomain->uNumber);
+  log_printf(stream, "net domain %d compute\n", pDomain->uNumber);
 
   return 0;
 }
@@ -262,18 +262,18 @@ static int _igp_domain_fe(SIGPDomain * pDomain, void * pContext)
 /**
  * IGP configuration (domains, weights)
  */
-static void _net_export_cli_igp(SLogStream * pStream,
-				SNetwork * pNetwork)
+static void _net_export_cli_igp(SLogStream * stream,
+				network_t * network)
 {
-  igp_domains_for_each(_igp_domain_fe, pStream);
+  igp_domains_for_each(_igp_domain_fe, stream);
 }
 
 // -----[ _net_export_cli_bgp ]--------------------------------------
 /**
  * BGP configuration
  */
-static void _net_export_cli_bgp(SLogStream * pStream,
-				SNetwork * pNetwork)
+static void _net_export_cli_bgp(SLogStream * stream,
+				network_t * network)
 {
 }
 
@@ -281,26 +281,26 @@ static void _net_export_cli_bgp(SLogStream * pStream,
 /**
  *
  */
-int net_export_cli(SLogStream * pStream, SNetwork * pNetwork)
+int net_export_cli(SLogStream * stream, network_t * network)
 {
-  _net_export_cli_header(pStream);
-  log_printf(pStream, "\n");
+  _net_export_cli_header(stream);
+  log_printf(stream, "\n");
 
-  _net_export_cli_comment(pStream, "Physical topology");
-  _net_export_cli_phys(pStream, pNetwork);
-  log_printf(pStream, "\n");
+  _net_export_cli_comment(stream, "Physical topology");
+  _net_export_cli_phys(stream, network);
+  log_printf(stream, "\n");
 
-  _net_export_cli_comment(pStream, "Static routing");
-  _net_export_cli_static(pStream, pNetwork);
-  log_printf(pStream, "\n");
+  _net_export_cli_comment(stream, "Static routing");
+  _net_export_cli_static(stream, network);
+  log_printf(stream, "\n");
 
-  _net_export_cli_comment(pStream, "IGP routing"); 
-  _net_export_cli_igp(pStream, pNetwork);
-  log_printf(pStream, "\n");
+  _net_export_cli_comment(stream, "IGP routing"); 
+  _net_export_cli_igp(stream, network);
+  log_printf(stream, "\n");
 
-  _net_export_cli_comment(pStream, "BGP routing"); 
-  _net_export_cli_bgp(pStream, pNetwork);
+  _net_export_cli_comment(stream, "BGP routing"); 
+  _net_export_cli_bgp(stream, network);
 
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 

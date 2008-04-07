@@ -18,15 +18,15 @@ extern "C" {
 #endif
 
   // ----- message_create -------------------------------------------
-  SNetMessage * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
-			       uint8_t uProtocol, uint8_t uTTL,
-			       void * pPayLoad,
-			       FPayLoadDestroy fDestroy);
+  net_msg_t * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
+			     uint8_t uProtocol, uint8_t uTTL,
+			     void * pPayLoad,
+			     FPayLoadDestroy fDestroy);
   // ----- message_destroy ------------------------------------------
-  void message_destroy(SNetMessage ** ppMessage);
+  void message_destroy(net_msg_t ** ppMessage);
   // ----- message_dump ---------------------------------------------
-  void message_dump(SLogStream * pStream, SNetMessage * pMessage);
-
+  void message_dump(SLogStream * pStream, net_msg_t * pMessage);
+  
 #ifdef __cplusplus
 }
 #endif

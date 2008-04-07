@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)message.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
 // @lastdate 18/04/2007
 // ==================================================================
@@ -20,33 +20,32 @@
 /**
  *
  */
-SNetMessage * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
-			     uint8_t uProtocol, uint8_t uTTL,
-			     void * pPayLoad, FPayLoadDestroy fDestroy)
+net_msg_t * message_create(net_addr_t src_addr, net_addr_t dst_addr,
+			   uint8_t protocol, uint8_t ttl,
+			   void * payload, FPayLoadDestroy destroy)
 {
-  SNetMessage * pMessage=
-    (SNetMessage *) MALLOC(sizeof(SNetMessage));
-  pMessage->tSrcAddr= tSrcAddr;
-  pMessage->tDstAddr= tDstAddr;
-  pMessage->uProtocol= uProtocol;
-  pMessage->uTTL= uTTL;
-  pMessage->tTOS= 0;
-  pMessage->pPayLoad= pPayLoad;
-  pMessage->fDestroy= fDestroy;
-  return pMessage;
+  net_msg_t * msg= (net_msg_t *) MALLOC(sizeof(net_msg_t));
+  msg->src_addr= src_addr;
+  msg->dst_addr= dst_addr;
+  msg->protocol= protocol;
+  msg->ttl= ttl;
+  msg->tos= 0;
+  msg->payload= payload;
+  msg->ops.destroy= destroy;
+  return msg;
 }
 
 // ----- message_destroy --------------------------------------------
 /**
  *
  */
-void message_destroy(SNetMessage ** ppMessage)
+void message_destroy(net_msg_t ** msg_ref)
 {
-  if (*ppMessage != NULL) {
-    if (((*ppMessage)->pPayLoad != NULL) &&
-	((*ppMessage)->fDestroy != NULL))
-      (*ppMessage)->fDestroy(&(*ppMessage)->pPayLoad);
-    FREE(*ppMessage);
+  if (*msg_ref != NULL) {
+    if (((*msg_ref)->payload != NULL) &&
+	((*msg_ref)->ops.destroy != NULL))
+      (*msg_ref)->ops.destroy(&(*msg_ref)->payload);
+    FREE(*msg_ref);
   }
 }
 
@@ -54,12 +53,12 @@ void message_destroy(SNetMessage ** ppMessage)
 /**
  *
  */
-void message_dump(SLogStream * pStream, SNetMessage * pMessage)
+void message_dump(SLogStream * stream, net_msg_t * msg)
 {
-  log_printf(pStream, "src:");
-  ip_address_dump(pStream, pMessage->tSrcAddr);
-  log_printf(pStream, ", dst:");
-  ip_address_dump(pStream, pMessage->tDstAddr);
-  log_printf(pStream, ", proto:%s, ttl:%d",
-	     PROTOCOL_NAMES[pMessage->uProtocol], pMessage->uTTL);
+  log_printf(stream, "src:");
+  ip_address_dump(stream, msg->src_addr);
+  log_printf(stream, ", dst:");
+  ip_address_dump(stream, msg->dst_addr);
+  log_printf(stream, ", proto:%s, ttl:%d",
+	     net_protocol2str(msg->protocol), msg->ttl);
 }

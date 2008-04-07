@@ -21,8 +21,8 @@
 
 #define spt_vertex_is_router(V) (V)->uDestinationType == NET_LINK_TYPE_ROUTER
 #define spt_vertex_is_subnet(V) (V)->uDestinationType == NET_LINK_TYPE_STUB || (V)->uDestinationType == NET_LINK_TYPE_TRANSIT
-#define spt_vertex_to_router(V) ((SNetNode *)((V)->pObject))
-#define spt_vertex_to_subnet(V) ((SNetSubnet *)((V)->pObject))
+#define spt_vertex_to_router(V) ((net_node_t *)((V)->pObject))
+#define spt_vertex_to_subnet(V) ((net_subnet_t *)((V)->pObject))
 #define spt_vertex_is_linked_to_subnet(V) ((V)->tVertexInfo & VINFO_LINKED_TO_SUBNET)
 #define spt_vertex_linked_to_subnet(V) ((V)->tVertexInfo = (V)->tVertexInfo | VINFO_LINKED_TO_SUBNET)
 typedef SPtrArray spt_vertex_list_t;
@@ -42,11 +42,11 @@ typedef SPtrArray spt_vertex_list_t;
 
 
 // ----- spt_vertex_create -----------------------------------------------------------------
-SSptVertex * spt_vertex_create(SNetwork * pNetwork, SNetLink * pLink, SSptVertex * pVFather); 
+SSptVertex * spt_vertex_create(SNetwork * pNetwork, net_iface_t * pLink, SSptVertex * pVFather); 
 // ----- spt_vertex_create_byRouter ---------------------------------------------------
-SSptVertex * spt_vertex_create_byRouter(SNetNode * pNode, net_link_delay_t uIGPweight);
+SSptVertex * spt_vertex_create_byRouter(net_node_t * pNode, net_link_delay_t uIGPweight);
 // ----- spt_vertex_create_bySubnet ---------------------------------------
-SSptVertex * spt_vertex_create_bySubnet(SNetSubnet * pSubnet, net_link_delay_t uIGPweight);
+SSptVertex * spt_vertex_create_bySubnet(net_subnet_t * pSubnet, net_link_delay_t uIGPweight);
  // ----- spt_vertex_compare -----------------------------------------------
 int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- spt_vertex_get_links ---------------------------------------
@@ -54,14 +54,14 @@ SPtrArray * spt_vertex_get_links(SSptVertex * pVertex);
 // ----- spt_vertex_get_id ---------------------------------------
 SPrefix spt_vertex_get_id(SSptVertex * pVertex);
 // ----- spt_vertex_add_subnet ---------------------------------------------------
-int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, SNetLink * pCurrentLink);
+int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, net_iface_t * pCurrentLink);
 
 // ----- spt_vertex_belongs_to_area ---------------------------------------------------
 int spt_vertex_belongs_to_area(SSptVertex * pVertex, ospf_area_t tArea);
 
 // ----- calculate_next_hop -----------------------------------------------------------
 void spt_calculate_next_hop(SSptVertex * pRoot, SSptVertex * pParent, 
-                                      SSptVertex * pDestination, SNetLink * pLink);
+                                      SSptVertex * pDestination, net_iface_t * pLink);
 // ----- spt_vertex_destroy ---------------------------------------
 void spt_vertex_destroy(SSptVertex ** ppVertex);
 // ----- spt_get_best_candidate -----------------------------------------------
@@ -71,9 +71,9 @@ SSptVertex * spt_get_best_candidate(SPtrArray * paGrayVertexes);
 void spt_vertex_dst(void ** ppItem);
 
 // ----- node_ospf_compute_spt ---------------------------------------------------
-SRadixTree * node_ospf_compute_spt(SNetNode * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea);
+SRadixTree * node_ospf_compute_spt(net_node_t * pNode, uint16_t IGPDomainNumber, ospf_area_t tArea);
 // ----- ospf_node_compute_rspt -----------------------------------------------
-SRadixTree * ospf_node_compute_rspt(SNetNode * pNode, uint16_t IGPDomainNumber, 
+SRadixTree * ospf_node_compute_rspt(net_node_t * pNode, uint16_t IGPDomainNumber, 
   	                                                     ospf_area_t tArea);
 		      
 // ----- spt_dump_dot ----------------------------------------------------------

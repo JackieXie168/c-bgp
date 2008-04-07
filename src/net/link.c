@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 25/02/2008
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -37,7 +37,7 @@
 /**
  *
  */
-void net_link_destroy(SNetLink ** ppLink)
+void net_link_destroy(net_iface_t ** ppLink)
 {
   if (*ppLink != NULL) {
 
@@ -60,94 +60,97 @@ void net_link_destroy(SNetLink ** ppLink)
  *
  * If the interface does not exist, create it.
  */
-static inline int _net_link_create_iface(SNetNode * pNode,
-					 net_iface_id_t tID,
-					 net_iface_type_t tType,
-					 SNetIface ** ppIface)
+static inline net_error_t
+_net_link_create_iface(net_node_t * node,
+		       net_iface_id_t tID,
+		       net_iface_type_t type,
+		       net_iface_t ** ppIface)
 {
   int iResult;
 
   // Does the interface already exist ?
-  *ppIface= node_find_iface(pNode, tID);
+  *ppIface= node_find_iface(node, tID);
 
   if (*ppIface == NULL) {
 
     // If the interface does not exist, create it.
-    iResult= net_iface_factory(pNode, tID, tType, ppIface);
-    if (iResult != NET_SUCCESS)
+    iResult= net_iface_factory(node, tID, type, ppIface);
+    if (iResult != ESUCCESS)
       return iResult;
-    iResult= node_add_iface2(pNode, *ppIface);
-    if (iResult != NET_SUCCESS)
+    iResult= node_add_iface2(node, *ppIface);
+    if (iResult != ESUCCESS)
       return iResult;
 
   } else {
 
     // If the interface exists, check that its type corresponds to
     // the requested type.
-    if ((*ppIface)->tType != tType)
-      return NET_ERROR_MGMT_IFACE_INCOMPATIBLE;
+    if ((*ppIface)->type != type)
+      return ENET_IFACE_INCOMPATIBLE;
 
   }
 
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ net_link_create_rtr ]--------------------------------------
 /**
  * Create a single router-to-router (RTR) link.
  */
-int net_link_create_rtr(SNetNode * pSrcNode,
-			SNetNode * pDstNode,
-			EIfaceDir eDir,
-			SNetIface ** ppIface)
+net_error_t net_link_create_rtr(net_node_t * pSrcNode,
+				net_node_t * pDstNode,
+				net_iface_dir_t dir,
+				net_iface_t ** ppIface)
 {
-  SNetIface * pSrcIface;
-  SNetIface * pDstIface;
-  int iResult;
+  net_iface_t * pSrcIface;
+  net_iface_t * pDstIface;
+  net_error_t error;
+
+  if (pSrcNode == pDstNode)
+    return ENET_LINK_LOOP;
 
   // Create source network interface
-  iResult= _net_link_create_iface(pSrcNode, net_iface_id_addr(pDstNode->tAddr),
-				  NET_IFACE_RTR, &pSrcIface);
-  if (iResult != NET_SUCCESS)
-    return iResult;
+  error= _net_link_create_iface(pSrcNode, net_iface_id_addr(pDstNode->tAddr),
+				NET_IFACE_RTR, &pSrcIface);
+  if (error != ESUCCESS)
+    return error;
 
   // Create destination network interface
-  iResult= _net_link_create_iface(pDstNode, net_iface_id_addr(pSrcNode->tAddr),
-				  NET_IFACE_RTR, &pDstIface);
-  if (iResult != NET_SUCCESS)
-    return iResult;
+  error= _net_link_create_iface(pDstNode, net_iface_id_addr(pSrcNode->tAddr),
+				NET_IFACE_RTR, &pDstIface);
+  if (error != ESUCCESS)
+    return error;
   
   // Connect interfaces in both directions
-  iResult= net_iface_connect_iface(pSrcIface, pDstIface);
-  if (iResult != NET_SUCCESS)
-    return iResult;
-  if (eDir == BIDIR) {
-    iResult= net_iface_connect_iface(pDstIface, pSrcIface);
-    if (iResult != NET_SUCCESS)
-      return iResult;
+  error= net_iface_connect_iface(pSrcIface, pDstIface);
+  if (error != ESUCCESS)
+    return error;
+  if (dir == BIDIR) {
+    error= net_iface_connect_iface(pDstIface, pSrcIface);
+    if (error != ESUCCESS)
+      return error;
   }
 
   if (ppIface != NULL)
     *ppIface= pSrcIface;
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ net_link_create_ptp ]--------------------------------------
-int net_link_create_ptp(SNetNode * pSrcNode,
+int net_link_create_ptp(net_node_t * pSrcNode,
 			net_iface_id_t tSrcIfaceID,
-			SNetNode * pDstNode,
+			net_node_t * pDstNode,
 			net_iface_id_t tDstIfaceID,
-			EIfaceDir eDir,
-			SNetIface ** ppIface)
+			net_iface_dir_t dir,
+			net_iface_t ** ppIface)
 {
-  SNetIface * pSrcIface;
-  SNetIface * pDstIface;
+  net_iface_t * pSrcIface;
+  net_iface_t * pDstIface;
   int iResult;
 
   // Check that endpoints are different
-  if ((pSrcNode == pDstNode) ||
-      (pSrcNode->tAddr == pDstNode->tAddr))
-    return NET_ERROR_MGMT_LINK_LOOP;
+  if (pSrcNode == pDstNode)
+    return ENET_LINK_LOOP;
 
   // Check that both prefixes have the same length
   if (tSrcIfaceID.uMaskLen != tDstIfaceID.uMaskLen) {
@@ -167,53 +170,53 @@ int net_link_create_ptp(SNetNode * pSrcNode,
   // Create source network interface (if it does not exist)
   iResult= _net_link_create_iface(pSrcNode, tSrcIfaceID,
 				    NET_IFACE_PTP, &pSrcIface);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
 
   // Create destination network interface
   iResult= _net_link_create_iface(pDstNode, tDstIfaceID,
 				  NET_IFACE_PTP, &pDstIface);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
 
   // Connect interfaces in both directions
   iResult= net_iface_connect_iface(pSrcIface, pDstIface);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
-  if (eDir == BIDIR) {
+  if (dir == BIDIR) {
     iResult= net_iface_connect_iface(pDstIface, pSrcIface);
-    if (iResult != NET_SUCCESS)
+    if (iResult != ESUCCESS)
       return iResult;
   }
 
   if (ppIface != NULL)
     *ppIface= pSrcIface;
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ net_link_create_ptmp ]-------------------------------------
 /**
  * Create a link to a subnet (point-to-multi-point link).
  */
-int net_link_create_ptmp(SNetNode * pSrcNode,
-			 SNetSubnet * pSubnet,
+int net_link_create_ptmp(net_node_t * pSrcNode,
+			 net_subnet_t * pSubnet,
 			 net_addr_t tIfaceAddr,
-			 SNetIface ** ppIface)
+			 net_iface_t ** ppIface)
 {
   SPrefix tIfaceID= net_iface_id_pfx(tIfaceAddr, pSubnet->sPrefix.uMaskLen);
-  SNetIface * pSrcIface;
+  net_iface_t * pSrcIface;
   int iResult;
 
   iResult= net_iface_factory(pSrcNode, tIfaceID, NET_IFACE_PTMP, &pSrcIface);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
   iResult= node_add_iface2(pSrcNode, pSrcIface);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
 
   // Connect interface to subnet
   iResult= net_iface_connect_subnet(pSrcIface, pSubnet);
-  if (iResult != NET_SUCCESS)
+  if (iResult != ESUCCESS)
     return iResult;
 
   // Connect subnet to interface
@@ -221,17 +224,17 @@ int net_link_create_ptmp(SNetNode * pSrcNode,
 
   if (ppIface != NULL)
     *ppIface= pSrcIface;
-  return NET_SUCCESS;
+  return ESUCCESS;
 }
 
 // -----[ net_link_set_phys_attr ]-----------------------------------
-int net_link_set_phys_attr(SNetIface * pIface, net_link_delay_t tDelay,
-			   net_link_load_t tCapacity, EIfaceDir eDir)
+int net_link_set_phys_attr(net_iface_t * pIface, net_link_delay_t tDelay,
+			   net_link_load_t tCapacity, net_iface_dir_t dir)
 {
-  int iResult= net_iface_set_delay(pIface, tDelay, eDir);
-  if (iResult != NET_SUCCESS)
+  int iResult= net_iface_set_delay(pIface, tDelay, dir);
+  if (iResult != ESUCCESS)
     return iResult;
-  return net_iface_set_capacity(pIface, tCapacity, eDir);
+  return net_iface_set_capacity(pIface, tCapacity, dir);
 }
 
 
@@ -258,12 +261,12 @@ int net_link_set_phys_attr(SNetIface * pIface, net_link_delay_t tDelay,
  *   <igp-adv> is either YES or NO
  *   <ospf-area> is an integer
  */
-void net_link_dump(SLogStream * pStream, SNetLink * pLink)
+void net_link_dump(SLogStream * pStream, net_iface_t * pLink)
 {
   net_iface_dump(pStream, pLink, 1);
 
   /* Link delay */
-  log_printf(pStream, "\t%u", pLink->tDelay);
+  log_printf(pStream, "\t%u", pLink->phys.delay);
 
   /* Link weight */
   if (pLink->pWeights != NULL)
@@ -289,16 +292,16 @@ void net_link_dump(SLogStream * pStream, SNetLink * pLink)
  *
  * Format: <load> <capacity>
  */
-void net_link_dump_load(SLogStream * pStream, SNetLink * pLink)
+void net_link_dump_load(SLogStream * pStream, net_iface_t * pLink)
 {
-  log_printf(pStream, "%u\t%u", pLink->tLoad, pLink->tCapacity);
+  log_printf(pStream, "%u\t%u", pLink->phys.load, pLink->phys.capacity);
 }
 
 // ----- net_link_dump_info -----------------------------------------
 /**
  * 
  */
-void net_link_dump_info(SLogStream * pStream, SNetLink * pLink)
+void net_link_dump_info(SLogStream * pStream, net_iface_t * pLink)
 {
   unsigned int uIndex;
 
@@ -308,8 +311,9 @@ void net_link_dump_info(SLogStream * pStream, SNetLink * pLink)
   net_iface_dump_type(pStream, pLink);
   log_printf(pStream, "\ndest     : ");
   net_iface_dump_dest(pStream, pLink);
-  log_printf(pStream, "\ncapacity : %u\n", pLink->tCapacity);
-  log_printf(pStream, "load     : %u\n", pLink->tLoad);
+  log_printf(pStream, "\ncapacity : %u", pLink->phys.capacity);
+  log_printf(pStream, "\ndelay    : %u", pLink->phys.delay);
+  log_printf(pStream, "\nload     : %u\n", pLink->phys.load);
   if (pLink->pWeights != NULL) {
     log_printf(pStream, "igp-depth: %u\n",
 	       net_igp_weights_depth(pLink->pWeights));

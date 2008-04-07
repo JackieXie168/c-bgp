@@ -86,8 +86,8 @@ void _cd_list_destroy(cd_info_list_t tList){
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef struct { 
-  SNetNode         * pBR;         //router causes deflection
-  SNetNode         * pER;         //exit router that can be selected
+  net_node_t         * pBR;         //router causes deflection
+  net_node_t         * pER;         //exit router that can be selected
   net_link_delay_t   tRCost_BR_ER;
   ospf_area_t        tArea;       //checked area
   cd_info_list_t     tCDList;     //Critical Destination List
@@ -95,7 +95,7 @@ typedef struct {
 
 
 // ----- _crouter_info_create --------------------------------------------------
-SCRouterInfo * _crouter_info_create(SNetNode * pBR, SNetNode * pER, 
+SCRouterInfo * _crouter_info_create(net_node_t * pBR, net_node_t * pER, 
                             net_link_delay_t tRCost_BR_ER, ospf_area_t tArea){
   SCRouterInfo * pCRInfo = (SCRouterInfo *) MALLOC(sizeof(SCRouterInfo));
   pCRInfo->pBR = pBR;
@@ -212,7 +212,7 @@ int build_critical_routers_list(uint16_t uOspfDomain,
   SCRouterInfo * pCRInfo;
   /* Builds the set of BR that belongs to area and are on the backbone */
   SPtrArray * pBRList = ospf_domain_get_br_on_bb_in_area(uOspfDomain, tArea);
-  SNetNode * pBRI, *pBRJ;
+  net_node_t * pBRI, *pBRJ;
   SPrefix sPrefix;
   
   /* Build all possibile couple of border router in the set. 
@@ -408,7 +408,7 @@ int check_deflection_in_area(uint16_t uOspfDomain, ospf_area_t tArea)
   int iIndexI, iIndexJ;
   /* Builds the set of BR that belongs to area and are on the backbone */
   SPtrArray * pBRList = ospf_domain_get_br_on_bb_in_area(uOspfDomain, tArea);
-  SNetNode * pBR, * pER;
+  net_node_t * pBR, * pER;
   
   /* Build all possibile couple of border router in the set. 
    * For each couple build RSPT on ER 

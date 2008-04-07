@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)routing.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// @lastdate 21/11/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -19,16 +19,10 @@
 #include <net/link.h>
 #include <net/routing_t.h>
 
-#define NET_RT_SUCCESS               0
-#define NET_RT_ERROR_NH_UNREACH     -1
-#define NET_RT_ERROR_IF_UNKNOWN     -2
-#define NET_RT_ERROR_ADD_DUP        -3
-#define NET_RT_ERROR_DEL_UNEXISTING -4
-
 // ----- SNetRouteInfoList ------------------------------------------
 typedef SPtrArray SNetRouteInfoList;
 
-// ----- SNetRouteNextHop -------------------------------------------
+// -----[ rt_entry_t ]-----------------------------------------------
 /**
  * This type defines a route next-hop. It is composed of the outgoing
  * link (iface) as well as the address of the destination node.
@@ -38,9 +32,10 @@ typedef SPtrArray SNetRouteInfoList;
  * address is mandatory for a multi-point link such as a subnet.
  */
 typedef struct {
-  net_addr_t tGateway;
-  SNetLink * pIface;
-} SNetRouteNextHop;
+  net_addr_t    tGateway;
+  net_iface_t * pIface;
+} rt_entry_t;
+typedef rt_entry_t SNetRouteNextHop;
 
 typedef SPtrArray SNetRouteNextHops;
 
@@ -48,25 +43,22 @@ typedef SPtrArray SNetRouteNextHops;
 typedef struct {
   SPrefix sPrefix;
   uint32_t uWeight;
-  SNetRouteNextHop sNextHop;
+  rt_entry_t sNextHop;
   SNetRouteNextHops * pNextHops;
   net_route_type_t tType;
-} SNetRouteInfo;
+} rt_info_t;
+typedef rt_info_t SNetRouteInfo;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
   // ----- route_nexthop_compare ------------------------------------
-  int route_nexthop_compare(SNetRouteNextHop sNH1,
-			    SNetRouteNextHop sNH2);
-  // ----- rt_perror ------------------------------------------------
-  void rt_perror(SLogStream * pStream, int iErrorCode);
-  // ----- rt_strerror ----------------------------------------------
-  char * rt_strerror(int iErrorCode);
+  int route_nexthop_compare(rt_entry_t sNH1,
+			    rt_entry_t sNH2);
   // ----- net_route_info_create --------------------------------------
   SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
-					SNetLink * pIface,
+					net_iface_t * pIface,
 					net_addr_t tNextHop,
 					uint32_t uWeight,
 					net_route_type_t tType);
@@ -88,7 +80,7 @@ extern "C" {
 		   SNetRouteInfo * pRouteInfo);
   // ----- rt_del_route -----------------------------------------------
   int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-		   SNetLink * pIface, net_addr_t * ptNextHop,
+		   net_iface_t * pIface, net_addr_t * ptNextHop,
 		   net_route_type_t tType);
   // ----- net_route_type_dump ----------------------------------------
   void net_route_type_dump(SLogStream * pStream, net_route_type_t tType);
