@@ -42,7 +42,7 @@ static int cli_ctx_create_peer(SCliContext * pContext,
 					  void ** ppItem)
 {
   SBGPRouter * pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
   char * pcPeerAddr;
   net_addr_t tAddr;
 
@@ -80,7 +80,7 @@ static void cli_ctx_destroy_peer(void ** ppItem)
 /*static int cli_peer_infilter_set(SCliContext * pContext,
 				 SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   SFilter * pFilter= NULL;
 
   bgp_peer_set_in_filter(pPeer, pFilter);
@@ -96,7 +96,7 @@ static void cli_ctx_destroy_peer(void ** ppItem)
  /*static int cli_peer_infilter_add(SCliContext * pContext,
 				 SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   SFilterRule * pRule;
   SFilter * pFilter;
 
@@ -120,7 +120,7 @@ static void cli_ctx_destroy_peer(void ** ppItem)
   /*static int cli_peer_outfilter_set(SCliContext * pContext,
 					     SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   SFilter * pFilter= NULL;
 
   bgp_peer_set_out_filter(pPeer, pFilter);
@@ -135,7 +135,7 @@ static void cli_ctx_destroy_peer(void ** ppItem)
    /*static int cli_peer_outfilter_add(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   SFilterRule * pRule;
   SFilter * pFilter;
 
@@ -159,15 +159,15 @@ static void cli_ctx_destroy_peer(void ** ppItem)
 static int cli_ctx_create_peer_filter(SCliContext * pContext,
 				      void ** ppItem)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcFilter;
 
   // Create filter context
   pcFilter= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   if (!strcmp("in", pcFilter))
-    *ppItem= &(pPeer->pInFilter);
+    *ppItem= &(pPeer->pFilter[FILTER_IN]);
   else if (!strcmp("out", pcFilter))
-    *ppItem= &(pPeer->pOutFilter);
+    *ppItem= &(pPeer->pFilter[FILTER_OUT]);
   else {
     cli_set_user_error(cli_get(), "invalid filter type \"%s\"", pcFilter);
     return CLI_ERROR_CTX_CREATE;
@@ -189,7 +189,7 @@ static void cli_ctx_destroy_peer_filter(void ** ppItem)
 /*static int cli_peer_show_filter(SCliContext * pContext,
 				SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcFilter;
 
   // Create filter context
@@ -213,7 +213,7 @@ static void cli_ctx_destroy_peer_filter(void ** ppItem)
  */
 static int cli_peer_rrclient(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   pPeer->pLocalRouter->iRouteReflector= 1;
   bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
@@ -228,7 +228,7 @@ static int cli_peer_rrclient(SCliContext * pContext, SCliCmd * pCmd)
 static int cli_peer_nexthop(SCliContext * pContext,
 			    SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcNextHop;
   net_addr_t tNextHop;
   char * pcEndChar;
@@ -258,7 +258,7 @@ static int cli_peer_nexthop(SCliContext * pContext,
 static int cli_peer_nexthopself(SCliContext * pContext,
 				    SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
   return CLI_SUCCESS;
@@ -272,7 +272,7 @@ static int cli_peer_nexthopself(SCliContext * pContext,
 static int cli_peer_record(SCliContext * pContext,
 			   SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcFileName;
   SLogStream * pStream;
   
@@ -305,7 +305,7 @@ static int cli_peer_record(SCliContext * pContext,
 static int cli_peer_recv(SCliContext * pContext,
 			 SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcRecord;
   SBGPMsg * pMsg;
 
@@ -340,7 +340,7 @@ static int cli_peer_recv(SCliContext * pContext,
 static int cli_peer_walton_limit(SCliContext * pContext, 
 				 SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   unsigned int uWaltonLimit;
 
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uWaltonLimit)) {
@@ -362,7 +362,7 @@ static int cli_peer_walton_limit(SCliContext * pContext,
  */
 static int cli_peer_up(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   // Try to open session
   if (bgp_peer_open_session(pPeer)) {
@@ -380,7 +380,7 @@ static int cli_peer_up(SCliContext * pContext, SCliCmd * pCmd)
  */
 static int cli_peer_update_source(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   char * pcSrcAddr, * pcEndChar;
   net_addr_t tSrcAddr;
 
@@ -408,7 +408,7 @@ static int cli_peer_update_source(SCliContext * pContext, SCliCmd * pCmd)
  */
 static int cli_peer_softrestart(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   // Set the virtual flag of this peer
   if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
@@ -427,7 +427,7 @@ static int cli_peer_softrestart(SCliContext * pContext, SCliCmd * pCmd)
  */
 static int cli_peer_virtual(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   // Set the virtual flag of this peer
   bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
@@ -442,7 +442,7 @@ static int cli_peer_virtual(SCliContext * pContext, SCliCmd * pCmd)
  */
 static int cli_peer_down(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
@@ -461,7 +461,7 @@ static int cli_peer_down(SCliContext * pContext, SCliCmd * pCmd)
 #ifdef __EXPERIMENTAL__
 static int cli_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
   SBGPRouter * pRouter= pPeer->pLocalRouter;
   char * pcPrefix;
   char * pcEndChar;
@@ -495,7 +495,7 @@ static int cli_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
  */
 static int cli_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPPeer * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * pPeer= _peer_from_context(pContext);
 
   // Try to close session
   if (bgp_peer_close_session(pPeer)) {
@@ -677,7 +677,7 @@ int cli_register_bgp_router_peer(SCliCmds * pCmds)
 					cli_peer_virtual,
 					NULL, NULL));
   pParams= cli_params_create();
-  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_routers_addr);
+  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_peers_addr);
   return cli_cmds_add(pCmds, cli_cmd_create_ctx("peer",
 						cli_ctx_create_peer,
 						cli_ctx_destroy_peer,

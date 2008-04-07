@@ -40,19 +40,19 @@
 #include <ui/rl.h>
 
 // -----[ _cli_net_subnet_by_prefix ]--------------------------------
-static inline SNetSubnet * _cli_net_subnet_by_prefix(char * pcAddr)
+static inline net_subnet_t * _cli_net_subnet_by_prefix(char * pcAddr)
 {
   SPrefix sPrefix;
 
   if (str2prefix(pcAddr, &sPrefix))
     return NULL;
-  return network_find_subnet(sPrefix);
+  return network_find_subnet(network_get_default(), sPrefix);
 }
 
 // -----[ _link_from_context ]---------------------------------------
-static inline SNetLink * _link_from_context(SCliContext * pContext)
+static inline net_iface_t * _link_from_context(SCliContext * pContext)
 {
-  SNetLink * pLink= cli_context_get_item_at_top(pContext);
+  net_iface_t * pLink= cli_context_get_item_at_top(pContext);
   assert(pLink != NULL);
   return pLink;
 }
@@ -72,8 +72,8 @@ static inline SNetLink * _link_from_context(SCliContext * pContext)
 int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
 {
   net_addr_t tAddr;
-  SNetNode * pNode;
-  int iResult;
+  net_node_t * pNode;
+  int error;
 
   // Node address ?
   if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &tAddr)) {
@@ -82,14 +82,19 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Create new node
-  pNode= node_create(tAddr);
+  error= node_create(tAddr, &pNode);
+  if (error != ESUCCESS) {
+    cli_set_user_error(cli_get(), "could not add node (%s)",
+		       network_strerror(error));
+    return CLI_ERROR_COMMAND_FAILED;    
+  }
 
   // Add node
-  iResult= network_add_node(pNode);
-  if (iResult != NET_SUCCESS) {
+  error= network_add_node(network_get_default(), pNode);
+  if (error != ESUCCESS) {
     node_destroy(&pNode);
     cli_set_user_error(cli_get(), "could not add node (%s)",
-		       network_strerror(iResult));
+		       network_strerror(error));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
@@ -105,7 +110,7 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
   SPrefix sPrefix;
   char * pcType;
   uint8_t uType;
-  SNetSubnet * pSubnet;
+  net_subnet_t * pSubnet;
   int iResult;
 
   // Subnet prefix
@@ -136,8 +141,8 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
   pSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, uType);
 
   // Add the subnet
-  iResult= network_add_subnet(pSubnet);
-  if (iResult != NET_SUCCESS) {
+  iResult= network_add_subnet(network_get_default(), pSubnet);
+  if (iResult != ESUCCESS) {
     subnet_destroy(&pSubnet);
     cli_set_user_error(cli_get(), "could not add subnet (%s)",
 		       network_strerror(iResult));
@@ -155,7 +160,7 @@ int cli_net_add_subnet(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pNodeSrc;
+  net_node_t * pNodeSrc;
   unsigned int uValue;
   char * pcNodeSrcAddr, * pcDest;
   SNetDest sDest;
@@ -164,8 +169,8 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   net_link_delay_t tDelay= 0;
   uint8_t tDepth= 1;
   net_link_load_t tCapacity= 0;
-  SNetIface * pIface;
-  EIfaceDir eDir;
+  net_iface_t * pIface;
+  net_iface_dir_t dir;
 
   // Get optional link depth
   pcValue= cli_options_get_value(pCmd->pOptions, "depth");
@@ -214,32 +219,34 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
   
   // Add link (RTR / PTMP)
   if (sDest.tType == NET_DEST_ADDRESS) {
-    SNetNode * pNodeDst= network_find_node(sDest.uDest.tAddr);
+    net_node_t * pNodeDst= network_find_node(network_get_default(),
+					     sDest.uDest.tAddr);
     if (pNodeDst == NULL) {
       cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.", pcDest);
       return CLI_ERROR_COMMAND_FAILED;
     }
-    eDir= BIDIR;
-    iResult= net_link_create_rtr(pNodeSrc, pNodeDst, eDir, &pIface);
+    dir= BIDIR;
+    iResult= net_link_create_rtr(pNodeSrc, pNodeDst, dir, &pIface);
   } else {
-    SNetSubnet * pSubnet= network_find_subnet(sDest.uDest.sPrefix);
+    net_subnet_t * pSubnet= network_find_subnet(network_get_default(),
+						sDest.uDest.sPrefix);
     if (pSubnet == NULL) {
       cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.", pcDest);
       return CLI_ERROR_COMMAND_FAILED;
     }
-    eDir= UNIDIR;
+    dir= UNIDIR;
     iResult= net_link_create_ptmp(pNodeSrc, pSubnet,
 				  sDest.uDest.sPrefix.tNetwork,
 				  &pIface);
   }
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add link %s -> %s (%s)",
 		       pcNodeSrcAddr, pcDest, network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  iResult= net_link_set_phys_attr(pIface, tDelay, tCapacity, eDir);
-  if (iResult != NET_SUCCESS) {
+  iResult= net_link_set_phys_attr(pIface, tDelay, tCapacity, dir);
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not set physical attributes (%s)",
 		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
@@ -255,13 +262,13 @@ int cli_net_add_link(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetNode * pSrcNode;
-  SNetNode * pDstNode;
+  net_node_t * pSrcNode;
+  net_node_t * pDstNode;
   net_iface_id_t tSrcIfaceID;
   net_iface_id_t tDstIfaceID;
   char * pcTmp;
   int iResult;
-  SNetIface * pIface;
+  net_iface_t * pIface;
 
   // Get source node
   pcTmp= tokens_get_string_at(pCmd->pParamValues, 0);
@@ -274,7 +281,7 @@ int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
   // Get source address
   pcTmp= tokens_get_string_at(pCmd->pParamValues, 1);
   iResult= net_iface_str2id(pcTmp, &tSrcIfaceID);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "invalid interface id \"%\"", pcTmp);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -290,7 +297,7 @@ int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
   // get destination address
   pcTmp= tokens_get_string_at(pCmd->pParamValues, 3);
   iResult= net_iface_str2id(pcTmp, &tDstIfaceID);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "invalid interface id \"%\"", pcTmp);
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -299,7 +306,7 @@ int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
   iResult= net_link_create_ptp(pSrcNode, tSrcIfaceID,
 			       pDstNode, tDstIfaceID,
 			       BIDIR, &pIface);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not create ptp link "
 		       "from %s (%s) to %s (%s) (%s)",
 		       tokens_get_string_at(pCmd->pParamValues, 0),
@@ -321,10 +328,10 @@ int cli_net_add_linkptp(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_ctx_create_net_link(SCliContext * pContext, void ** ppItem)
 {
-  SNetNode * pNodeSrc;
+  net_node_t * pNodeSrc;
   SNetDest sDest;
   char     * pcNodeSrcAddr, * pcVertexDstPrefix; 
-  SNetIface * pIface = NULL;
+  net_iface_t * pIface = NULL;
 
   pcNodeSrcAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   pNodeSrc= cli_net_node_by_addr(pcNodeSrcAddr);
@@ -371,7 +378,7 @@ int cli_net_export(SCliContext * pContext, SCliCmd * pCmd)
   // Get name of the output file
   pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
   
-  if (net_export_file(pcFileName) != NET_SUCCESS) {
+  if (net_export_file(pcFileName) != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not export to \"%s\"",
 		       pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
@@ -409,7 +416,7 @@ int cli_net_ntf_load(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_up(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink= _link_from_context(pContext);
+  net_iface_t * pLink= _link_from_context(pContext);
 
   net_iface_set_enabled(pLink, 1);
 
@@ -423,7 +430,7 @@ int cli_net_link_up(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_down(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink= _link_from_context(pContext);
+  net_iface_t * pLink= _link_from_context(pContext);
 
   net_iface_set_enabled(pLink, 0);
 
@@ -438,12 +445,12 @@ int cli_net_link_down(SCliContext * pContext, SCliCmd * pCmd)
 /* COMMENT ON 17/01/2007
 int cli_net_link_ipprefix(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink;
+  net_iface_t * pLink;
   char * pcIfaceAddr;
   char * pcEndChar;
   SPrefix sIfacePrefix;
   
-  pLink= (SNetLink *) cli_context_get_item_at_top(pContext);
+  pLink= (net_iface_t *) cli_context_get_item_at_top(pContext);
   if (pLink == NULL)
     return CLI_ERROR_COMMAND_FAILED;
 
@@ -471,8 +478,8 @@ int cli_net_link_ipprefix(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink= _link_from_context(pContext);
-  //SNetNode * pNode;
+  net_iface_t * pLink= _link_from_context(pContext);
+  //net_node_t * pNode;
   unsigned int uWeight;
   net_igp_weight_t tWeight;
   net_tos_t tTOS= 0;
@@ -490,7 +497,7 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 
   // Check option --bidir
   if (cli_options_has_value(pCmd->pOptions, "bidir")) {
-    if (pLink->tType != NET_IFACE_RTR) {
+    if (pLink->type != NET_IFACE_RTR) {
       cli_set_user_error(cli_get(), ": --bidir only works with ptp links");
       return CLI_ERROR_COMMAND_FAILED;
     }
@@ -507,7 +514,7 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 
   // Change link weight
   iResult= net_iface_set_metric(pLink, tTOS, tWeight, iBidir);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     cli_set_user_error(cli_get(), "cannot set metric (%s)",
 		       network_strerror(iResult));
     return CLI_ERROR_COMMAND_FAILED;
@@ -523,7 +530,7 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_link_show_info(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SNetLink * pLink= _link_from_context(pContext);
+  net_iface_t * pLink= _link_from_context(pContext);
 
   net_link_dump_info(pLogOut, pLink);
 
@@ -545,7 +552,7 @@ int cli_net_links_load_clear(SCliContext * pContext, SCliCmd * pCmd)
 int cli_ctx_create_net_subnet(SCliContext * pContext, void ** ppItem)
 {
   char * pcSubnetPfx;
-  SNetSubnet * pSubnet;
+  net_subnet_t * pSubnet;
 
   pcSubnetPfx= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
   pSubnet = _cli_net_subnet_by_prefix(pcSubnetPfx);
@@ -564,35 +571,6 @@ void cli_ctx_destroy_net_subnet(void ** ppItem)
 {
 }
 
-// ----- cli_net_options_maxhops ------------------------------------
-/**
- * Change the maximum number of hops used in IP-level
- * record-routes. The maximum number of hops must be in the range
- * [0, 255].
- *
- * context: {}
- * tokens: {maxhops}
- */
-int cli_net_options_maxhops(SCliContext * pContext, SCliCmd * pCmd)
-{
-  unsigned int uMaxHops;
-
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uMaxHops)) {
-    cli_set_user_error(cli_get(), "invalid value for max-hops (%s)",
-		       tokens_get_string_at(pCmd->pParamValues, 0));
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  if (uMaxHops > 255) {
-    cli_set_user_error(cli_get(), "maximum number of hops is 255");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  NET_OPTIONS_MAX_HOPS= uMaxHops;
-
-  return CLI_SUCCESS;
-}
-
 // ----- cli_net_show_nodes -----------------------------------------
 /**
  * Display all nodes matching the given criterion, which is a prefix
@@ -603,7 +581,7 @@ int cli_net_options_maxhops(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
 {
-  network_to_file(pLogOut, network_get());
+  network_to_file(pLogOut, network_get_default());
   return CLI_SUCCESS;
 }
 
@@ -617,7 +595,7 @@ int cli_net_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_show_subnets(SCliContext * pContext, SCliCmd * pCmd)
 {
-  network_dump_subnets(pLogOut, network_get());
+  network_dump_subnets(pLogOut, network_get_default());
   return CLI_SUCCESS;
 }
 
@@ -822,26 +800,6 @@ int cli_register_net_subnet(SCliCmds * pCmds)
 						pSubCmds, pParams));
 }
 
-// ----- cli_register_net_options -----------------------------------
-/**
- *
- */
-int cli_register_net_options(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<max-hops>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("max-hops",
-					cli_net_options_maxhops,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create_ctx("options",
-						NULL, NULL,
-						pSubCmds, NULL));
-}
-
 // ----- cli_register_net_show --------------------------------------
 /**
  *
@@ -898,7 +856,6 @@ int cli_register_net(SCli * pCli)
   cli_register_net_ntf(pCmds);
   cli_register_net_node(pCmds);
   cli_register_net_subnet(pCmds);
-  cli_register_net_options(pCmds);
   cli_register_net_show(pCmds);
   cli_register_net_traffic(pCmds);
 //#ifdef OSPF_SUPPORT

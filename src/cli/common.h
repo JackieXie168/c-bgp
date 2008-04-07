@@ -21,7 +21,7 @@ extern "C" {
   int cli_params_add_file(SCliParams * pParams, const char * pcName,
 			  FCliCheckParam fCheck);
   // -----[ cli_net_node_by_addr ]-----------------------------------
-  SNetNode * cli_net_node_by_addr(char * pcAddr);
+  net_node_t * cli_net_node_by_addr(char * pcAddr);
 
   // ----- cli_get --------------------------------------------------
   SCli * cli_get();

@@ -32,11 +32,11 @@
  */
 int cli_net_node_ospf_area(SCliContext * pContext, STokens * pTokens)
 {
-  SNetNode * pNode;
+  net_node_t * pNode;
   ospf_area_t uArea;
 
   // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  pNode= (net_node_t *) cli_context_get_item_at_top(pContext);
 
   // Add ospf area to node
   tokens_get_uint_at(pTokens, 1, &uArea);
@@ -55,11 +55,11 @@ int cli_net_node_ospf_area(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_node_ospf_domain(SCliContext * pContext, STokens * pTokens)
 {
-  SNetNode * pNode;
+  net_node_t * pNode;
   uint uIGPDomain;
 
   // Get node from context
-  pNode= (SNetNode *) cli_context_get_item_at_top(pContext);
+  pNode= (net_node_t *) cli_context_get_item_at_top(pContext);
   // Add ospf domain id to node
   tokens_get_uint_at(pTokens, 1, &uIGPDomain);
   SIGPDomain * pIGPDomain = get_igp_domain((uint16_t)uIGPDomain); //creating and registering domain
@@ -75,11 +75,11 @@ int cli_net_node_ospf_domain(SCliContext * pContext, STokens * pTokens)
  */
 int cli_net_subnet_ospf_area(SCliContext * pContext, STokens * pTokens)
 {
-  SNetSubnet * pSubnet;
+  net_subnet_t * pSubnet;
   ospf_area_t uArea;
 
   // Get node from context
-  pSubnet= (SNetSubnet *) cli_context_get_item_at_top(pContext);
+  pSubnet= (net_subnet_t *) cli_context_get_item_at_top(pContext);
 
   // set subnet ospf area
   tokens_get_uint_at(pTokens, 1, &uArea);
@@ -140,13 +140,13 @@ int cli_register_net_node_ospf(SCliCmds * pCmds)
  */
 int cli_net_node_link_ospf_area(SCliContext * pContext, STokens * pTokens)
 {
-  SNetNode * pNode;
+  net_node_t * pNode;
   ospf_area_t tArea;
   int iReturn = CLI_SUCCESS;
-  SNetLink * pLink;
+  net_iface_t * pLink;
   
-  pLink = (SNetLink *) cli_context_get_item_at_top(pContext);
-  pNode = (SNetNode *) cli_context_get_item_at(pContext, 0);
+  pLink = (net_iface_t *) cli_context_get_item_at_top(pContext);
+  pNode = (net_node_t *) cli_context_get_item_at(pContext, 0);
   
   if (tokens_get_uint_at(pTokens, 2, &tArea)) {
     LOG_SEVERE("Error: invalid value for ospf-area (%s)\n",

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// @lastdate 27/02/2008
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,14 +19,14 @@
 #include <bgp/predicate_parser.h>
 #include <cli/common.h>
 
-static inline SFilterRule * _rule_from_context(SCliContext * pContext) {
-  SFilterRule * pRule= (SFilterRule *) cli_context_get_item_at_top(pContext);
+static inline bgp_ft_rule_t * _rule_from_context(SCliContext * pContext) {
+  bgp_ft_rule_t * pRule= (bgp_ft_rule_t *) cli_context_get_item_at_top(pContext);
   assert(pRule != NULL);
   return pRule;
 }
 
-static inline SFilter ** _filter_from_context(SCliContext * pContext) {
-  SFilter ** ppFilter= (SFilter **) cli_context_get_item_at_top(pContext);
+static inline bgp_filter_t ** _filter_from_context(SCliContext * pContext) {
+  bgp_filter_t ** ppFilter= (bgp_filter_t **) cli_context_get_item_at_top(pContext);
   assert(ppFilter != NULL);
   return ppFilter;
 }
@@ -39,9 +39,9 @@ static inline SFilter ** _filter_from_context(SCliContext * pContext) {
 static int cli_bgp_filter_rule_match(SCliContext * pContext,
 				     SCliCmd * pCmd)
 {
-  SFilterRule * pRule= _rule_from_context(pContext);
+  bgp_ft_rule_t * pRule= _rule_from_context(pContext);
   char * pcPredicate;
-  SFilterMatcher * pMatcher;
+  bgp_ft_matcher_t * pMatcher;
   int iResult;
 
   // Parse predicate
@@ -69,9 +69,9 @@ static int cli_bgp_filter_rule_match(SCliContext * pContext,
 static int cli_bgp_filter_rule_action(SCliContext * pContext,
 				      SCliCmd * pCmd)
 {
-  SFilterRule * pRule= _rule_from_context(pContext);
+  bgp_ft_rule_t * pRule= _rule_from_context(pContext);
   char * pcAction;
-  SFilterAction * pAction;
+  bgp_ft_action_t * pAction;
 
   // Parse predicate
   pcAction= tokens_get_string_at(pCmd->pParamValues,
@@ -96,8 +96,8 @@ static int cli_bgp_filter_rule_action(SCliContext * pContext,
 int cli_ctx_create_bgp_filter_add_rule(SCliContext * pContext,
 				       void ** ppItem)
 {
-  SFilter ** ppFilter= _filter_from_context(pContext);
-  SFilterRule * pRule;
+  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
+  bgp_ft_rule_t * pRule;
 
   // If the filter is empty, create it
   if (*ppFilter == NULL)
@@ -120,8 +120,8 @@ int cli_ctx_create_bgp_filter_add_rule(SCliContext * pContext,
 int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
 					  void ** ppItem)
 {
-  SFilter ** ppFilter= _filter_from_context(pContext);
-  SFilterRule * pRule;
+  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
+  bgp_ft_rule_t * pRule;
   unsigned int uIndex;
 
   // Get insertion position
@@ -154,7 +154,7 @@ int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
 int cli_bgp_filter_remove_rule(SCliContext * pContext,
 			       SCliCmd * pCmd)
 {
-  SFilter ** ppFilter= _filter_from_context(pContext);
+  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
   unsigned int uIndex;
 
   if (*ppFilter == NULL) {
@@ -207,7 +207,7 @@ void cli_ctx_destroy_bgp_filter_rule(void ** ppItem)
 int cli_bgp_filter_show(SCliContext * pContext,
 			SCliCmd * pCmd)
 {
-  SFilter ** ppFilter= _filter_from_context(pContext);
+  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
 
   filter_dump(pLogOut, *ppFilter);
 

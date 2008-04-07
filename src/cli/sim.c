@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)sim.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/07/2003
-// @lastdate 21/11/2007
+// @lastdate 03/04/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,7 +20,7 @@
 #include <net/network.h>
 #include <sim/simulator.h>
 
-SCli * pTheCli= NULL;
+static SCli * _cli= NULL;
 
 // ----- cli_sim_debug_queue ----------------------------------------
 /**
@@ -29,37 +29,43 @@ SCli * pTheCli= NULL;
  */
 int cli_sim_debug_queue(SCliContext * pContext, SCliCmd * pCmd)
 {
-  simulator_dump_events(pLogErr, network_get_simulator());
+  sim_dump_events(pLogErr, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
 // -----[ _cli_sim_event_callback ]----------------------------------
-static int _cli_sim_event_callback(SSimulator * pSimulator,
-				   void * pContext)
+static int _cli_sim_event_callback(simulator_t * sim,
+				   void * ctx)
 {
-  char * pcCommand= (char *) pContext;
+  char * cmd= (char *) ctx;
   int iResult= 0;
 
-  if (pTheCli != NULL)
-    if (cli_execute(pTheCli, pcCommand) < 0)
+  if (_cli != NULL)
+    if (cli_execute(_cli, cmd) < 0)
       iResult= -1;
-  str_destroy(&pcCommand);
+  str_destroy(&cmd);
   return iResult;
 }
 
 // -----[ _cli_sim_event_destroy ]-----------------------------------
-static void _cli_sim_event_destroy(void * pContext)
+static void _cli_sim_event_destroy(void * ctx)
 {
-  char * pCharContext= (char *) pContext;
-  str_destroy(&pCharContext);
+  char * cmd= (char *) ctx;
+  str_destroy(&cmd);
 }
 
 // -----[ _cli_sim_event_dump ]--------------------------------------
-static void _cli_sim_event_dump(SLogStream * pStream, void * pContext)
+static void _cli_sim_event_dump(SLogStream * stream, void * ctx)
 {
-  char * pcCommand= (char *) pContext;
-  log_printf(pStream, "cli-event [%s]\n", pcCommand);
+  char * cmd= (char *) ctx;
+  log_printf(stream, "cli-event [%s]\n", cmd);
 }
+
+static sim_event_ops_t _sim_event_ops= {
+  .callback= _cli_sim_event_callback,
+  .destroy = _cli_sim_event_destroy,
+  .dump    = _cli_sim_event_dump,
+};
 
 // ----- cli_sim_event ----------------------------------------------
 /**
@@ -72,13 +78,11 @@ int cli_sim_event(SCliContext * pContext, SCliCmd * pCmd)
 
   if (tokens_get_double_at(pCmd->pParamValues, 0, &dTime))
     return CLI_ERROR_COMMAND_FAILED;
-  simulator_post_event(network_get_simulator(),
-		       _cli_sim_event_callback,
-		       _cli_sim_event_dump,
-		       _cli_sim_event_destroy,
-		       str_create(tokens_get_string_at(pCmd->pParamValues, 1)),
-		       dTime,
-		       ABSOLUTE_TIME);
+  sim_post_event(network_get_simulator(network_get_default()),
+		 &_sim_event_ops,
+		 str_create(tokens_get_string_at(pCmd->pParamValues, 1)),
+		 dTime,
+		 SIM_TIME_ABS);
   return CLI_SUCCESS;
 }
 
@@ -121,7 +125,7 @@ int cli_sim_options_scheduler(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
 {
-  simulator_show_infos(pLogOut, network_get_simulator());
+  sim_show_infos(pLogOut, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
@@ -131,8 +135,8 @@ int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_sim_queue_log(SCliContext * pContext, SCliCmd * pCmd)
 {
-  simulator_set_log_progress(network_get_simulator(),
-			     tokens_get_string_at(pCmd->pParamValues, 0));
+  sim_set_log_progress(network_get_simulator(network_get_default()),
+		       tokens_get_string_at(pCmd->pParamValues, 0));
   return CLI_SUCCESS;
 }
 
@@ -142,7 +146,7 @@ int cli_sim_queue_log(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_sim_queue_show(SCliContext * pContext, SCliCmd * pCmd)
 {
-  simulator_dump_events(pLogOut, network_get_simulator());
+  sim_dump_events(pLogOut, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
@@ -150,7 +154,7 @@ int cli_sim_queue_show(SCliContext * pContext, SCliCmd * pCmd)
 // ----- cli_sim_run ------------------------------------------------
 int cli_sim_run(SCliContext * pContext, SCliCmd * pCmd)
 {
-  if (simulator_run(network_get_simulator()))
+  if (sim_run(network_get_simulator(network_get_default())))
     return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
@@ -162,17 +166,18 @@ int cli_sim_run(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_sim_step(SCliContext * pContext, SCliCmd * pCmd)
 {
-  unsigned int uNumSteps;
+  unsigned int num_steps;
 
   // Get number of steps
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uNumSteps)) {
+  if (tokens_get_uint_at(pCmd->pParamValues, 0, &num_steps)) {
     cli_set_user_error(cli_get(), "invalid number of steps \"%s\".",
 		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Run the simulator for the given number of steps
-  if (simulator_step(network_get_simulator(), (int) uNumSteps))
+  if (sim_step(network_get_simulator(network_get_default()),
+	       num_steps))
     return CLI_ERROR_COMMAND_FAILED;
 
   return CLI_SUCCESS;
@@ -185,11 +190,12 @@ int cli_sim_step(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_sim_stop_at(SCliContext * pContext, SCliCmd * pCmd)
 {
-  double dMaxTime;
+  double max_time;
 
-  if (tokens_get_double_at(pCmd->pParamValues, 0, &dMaxTime))
+  if (tokens_get_double_at(pCmd->pParamValues, 0, &max_time))
     return CLI_ERROR_COMMAND_FAILED;
-  simulator_set_max_time(network_get_simulator(), dMaxTime);
+  sim_set_max_time(network_get_simulator(network_get_default()),
+		   max_time);
   return CLI_SUCCESS;
 }
 
@@ -304,7 +310,7 @@ int cli_register_sim(SCli * pCli)
 {
   SCliCmds * pCmds;
 
-  pTheCli= pCli;
+  _cli= pCli;
 
   pCmds= cli_cmds_create();
   cli_register_sim_debug(pCmds);
