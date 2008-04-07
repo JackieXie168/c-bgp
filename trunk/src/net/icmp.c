@@ -3,50 +3,41 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 03/03/2008
+// @lastdate 11/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include <stdlib.h>
 
 #include <net/error.h>
 #include <net/icmp.h>
+#include <net/node.h>
 #include <net/prefix.h>
 #include <net/protocol.h>
 #include <net/network.h>
 #include <net/net_types.h>
 
-// ----- ICMP message types -----
-#define ICMP_ECHO_REQUEST 0
-#define ICMP_ECHO_REPLY   1
-#define ICMP_ERROR        2
-
 typedef struct {
-  uint8_t    uType;      // ICMP type
-  uint8_t    uSubType;   // ICMP subtype
-  SNetNode * pNode;      // Origin node
-} SICMPMsg;
-
-typedef struct {
-  SNetNode * pNode;      // Node that received the message
-  net_addr_t tSrcAddr;   // Source address of the message
-  net_addr_t tDstAddr;   // Destination address of the message
-  SICMPMsg   sMsg;
-  int        iReceived;
-} SICMPMessage;
-static SICMPMessage sICMPRecv= { .iReceived= 0 };
+  net_node_t * node;      // Node that received the message
+  net_addr_t   src_addr;   // Source address of the message
+  net_addr_t   dst_addr;   // Destination address of the message
+  icmp_msg_t   msg;
+  int          received;
+} icmp_msg_info_t;
+static icmp_msg_info_t tICMPRecv= { .received= 0 };
 
 
 // -----[ icmp_perror ]----------------------------------------------
 /**
  * Report comprehensive ICMP error description.
  */
-void icmp_perror(SLogStream * pStream, uint8_t uErrorCode)
+void icmp_perror(SLogStream * pStream, icmp_error_type_t tErrorCode)
 {
-  switch (uErrorCode) {
+  switch (tErrorCode) {
   case ICMP_ERROR_NET_UNREACH:
     log_printf(pStream, "network unreachable"); break;
   case ICMP_ERROR_HOST_UNREACH:
@@ -56,7 +47,7 @@ void icmp_perror(SLogStream * pStream, uint8_t uErrorCode)
   case ICMP_ERROR_TIME_EXCEEDED:
     log_printf(pStream, "time exceeded"); break;
   default:
-    log_printf(pStream, "unknown error code (%d)", uErrorCode);
+    log_printf(pStream, "unknown error code (%d)", tErrorCode);
   }
 }
 
@@ -66,30 +57,32 @@ void icmp_perror(SLogStream * pStream, uint8_t uErrorCode)
  * forwarding function to avoid sending an ICMP error message when
  * we fail to forward/deliver another ICMP error message.
  */
-int is_icmp_error(SNetMessage * pMessage)
+int is_icmp_error(net_msg_t * msg)
 {
-  return ((pMessage->uProtocol != NET_PROTOCOL_ICMP) &&
-	  (((SICMPMsg *) pMessage->pPayLoad)->uType == ICMP_ERROR));
+  return ((msg->protocol != NET_PROTOCOL_ICMP) &&
+	  (((icmp_msg_t *) msg->payload)->type == ICMP_ERROR));
 }
 
 // -----[ _icmp_msg_create ]-----------------------------------------
-static inline SICMPMsg * _icmp_msg_create(uint8_t uType,
-					  uint8_t uSubType,
-					  SNetNode * pNode)
+static inline icmp_msg_t * _icmp_msg_create(icmp_msg_type_t type,
+					    icmp_error_type_t sub_type,
+					    net_node_t * node)
 {
-  SICMPMsg * pMsg= MALLOC(sizeof(SICMPMsg));
-  pMsg->uType= uType;
-  pMsg->uSubType= uSubType;
-  pMsg->pNode= pNode;
-  return pMsg;
+  icmp_msg_t * icmp_msg= MALLOC(sizeof(icmp_msg_t));
+  icmp_msg->type= type;
+  icmp_msg->sub_type= sub_type;
+  icmp_msg->node= node;
+  icmp_msg->opts.trace= NULL;
+  icmp_msg->opts.options= 0;
+  return icmp_msg;
 }
 
 // -----[ _icmp_msg_destroy ]----------------------------------------
-static inline void _icmp_msg_destroy(SICMPMsg ** ppMsg)
+static inline void _icmp_msg_destroy(icmp_msg_t ** msg_ref)
 {
-  if (*ppMsg != NULL) {
-    FREE(*ppMsg);
-    *ppMsg= NULL;
+  if (*msg_ref != NULL) {
+    FREE(*msg_ref);
+    *msg_ref= NULL;
   }
 }
 
@@ -97,28 +90,44 @@ static inline void _icmp_msg_destroy(SICMPMsg ** ppMsg)
 /**
  * Send an ICMP error message.
  */
-int icmp_send_error(SNetNode * pNode, net_addr_t tSrcAddr,
-		    net_addr_t tDstAddr, uint8_t uErrorCode,
-		    SSimulator * pSimulator)
+int icmp_send_error(net_node_t * node,
+		    net_addr_t src_addr,
+		    net_addr_t dst_addr,
+		    icmp_error_type_t tErrorCode,
+		    simulator_t * sim)
 {
-  return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       255, _icmp_msg_create(ICMP_ERROR, uErrorCode, pNode),
+  return node_send_msg(node, src_addr, dst_addr, NET_PROTOCOL_ICMP,
+		       255, _icmp_msg_create(ICMP_ERROR, tErrorCode, node),
 		       (FPayLoadDestroy) _icmp_msg_destroy,
-		       pSimulator);
+		       sim);
+}
+
+// -----[ _icmp_send ]-----------------------------------------------
+static inline int _icmp_send(net_node_t * node,
+			     net_addr_t src_addr,
+			     net_addr_t dst_addr,
+			     uint8_t ttl,
+			     icmp_msg_t * msg,
+			     simulator_t * sim)
+{
+  return node_send_msg(node, src_addr, dst_addr, NET_PROTOCOL_ICMP,
+		       ttl, msg,
+		       (FPayLoadDestroy) _icmp_msg_destroy, sim);
 }
 
 // -----[ icmp_send_echo_request ]-----------------------------------
 /**
  * Send an ICMP echo request to the given destination address.
  */
-int icmp_send_echo_request(SNetNode * pNode, net_addr_t tSrcAddr,
-			   net_addr_t tDstAddr, uint8_t uTTL,
-			   SSimulator * pSimulator)
+int icmp_send_echo_request(net_node_t * node,
+			   net_addr_t src_addr,
+			   net_addr_t dst_addr,
+			   uint8_t ttl,
+			   simulator_t * sim)
 {
-  return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       uTTL, _icmp_msg_create(ICMP_ECHO_REQUEST, 0, pNode),
-		       (FPayLoadDestroy) _icmp_msg_destroy,
-		       pSimulator);
+  return _icmp_send(node, src_addr, dst_addr, ttl,
+		    _icmp_msg_create(ICMP_ECHO_REQUEST, 0, node),
+		    sim);
 }
 
 // -----[ icmp_send_echo_reply ]-------------------------------------
@@ -129,53 +138,67 @@ int icmp_send_echo_request(SNetNode * pNode, net_addr_t tSrcAddr,
  * be the same as the destination address in the ICMP echo request
  * message instead of the address of the outgoing interface.
  */
-int icmp_send_echo_reply(SNetNode * pNode, net_addr_t tSrcAddr,
-			 net_addr_t tDstAddr, uint8_t uTTL,
-			 SSimulator * pSimulator)
+int icmp_send_echo_reply(net_node_t * node,
+			 net_addr_t src_addr,
+			 net_addr_t dst_addr,
+			 uint8_t ttl,
+			 simulator_t * sim)
 {
-  // Source address is fixed
-  return node_send_msg(pNode, tSrcAddr, tDstAddr, NET_PROTOCOL_ICMP,
-		       uTTL, _icmp_msg_create(ICMP_ECHO_REPLY, 0, pNode),
-		       (FPayLoadDestroy) _icmp_msg_destroy,
-		       pSimulator);
-  /*
-  // Source address depends on outgoing interface
-  return node_send(pNode, NET_ADDR_ANY, tDstAddr, NET_PROTOCOL_ICMP,
-  uTTL, (void *) ICMP_ECHO_REPLY, NULL, pSimulator);
-  */
+  return _icmp_send(node, src_addr, dst_addr, ttl,
+		    _icmp_msg_create(ICMP_ECHO_REPLY, 0, node),
+		    sim);
+}
+
+// -----[ _icmp_msg_dump ]-------------------------------------------
+static inline void _icmp_msg_dump(net_node_t * node, net_msg_t * msg)
+{
+  icmp_msg_t * icmp_msg= (icmp_msg_t *) msg;
+
+  ip_address_dump(pLogErr, node->tAddr);
+  log_printf(pLogErr, "recv(");
+  switch (icmp_msg->type) {
+  case ICMP_ECHO_REQUEST:
+    log_printf(pLogErr, "echo-request"); break;
+  case ICMP_ECHO_REPLY:
+    log_printf(pLogErr, "echo-reply"); break;
+  case ICMP_TRACE:
+    log_printf(pLogErr, "trace"); break;
+  case ICMP_ERROR:
+    log_printf(pLogErr, "error(%d)", icmp_msg->sub_type); break;
+  }
+  log_printf(pLogErr, "): src=");
+  ip_address_dump(pLogErr, msg->src_addr);
+  log_printf(pLogErr, ", dst=");
+  ip_address_dump(pLogErr, msg->dst_addr);
+  log_printf(pLogErr, "\n");
 }
 
 // -----[ icmp_event_handler ]---------------------------------------
 /**
  * This function handles ICMP messages received by a node.
  */
-int icmp_event_handler(SSimulator * pSimulator,
-		       void * pHandler,
-		       SNetMessage * pMessage)
+int icmp_event_handler(simulator_t * sim,
+		       void * handler,
+		       net_msg_t * msg)
 {
-  SNetNode * pNode= (SNetNode *) pHandler;
-  SICMPMsg * pMsg= (SICMPMsg *) pMessage->pPayLoad;
+  net_node_t * node= (net_node_t *) handler;
+  icmp_msg_t * icmp_msg= (icmp_msg_t *) msg->payload;
 
   // Record received ICMP messages. This is used by the icmp_ping()
   // and icmp_traceroute() functions to check for replies.
-  sICMPRecv.iReceived= 1;
-  sICMPRecv.pNode= pNode;
-  sICMPRecv.tSrcAddr= pMessage->tSrcAddr;
-  sICMPRecv.tDstAddr= pMessage->tDstAddr;
-  sICMPRecv.sMsg= *pMsg;
+  tICMPRecv.received= 1;
+  tICMPRecv.node= node;
+  tICMPRecv.src_addr= msg->src_addr;
+  tICMPRecv.dst_addr= msg->dst_addr;
+  tICMPRecv.msg= *icmp_msg;
 
-  switch (sICMPRecv.sMsg.uType) {
+  switch (tICMPRecv.msg.type) {
   case ICMP_ECHO_REQUEST:
-    /*
-    ip_address_dump(pLogErr, pNode->tAddr);
-    log_printf(pLogErr, "recv(icmp-echo-request): src=");
-    ip_address_dump(pLogErr, pMessage->tSrcAddr);
-    log_printf(pLogErr, ", dst=");
-    ip_address_dump(pLogErr, pMessage->tDstAddr);
-    log_printf(pLogErr, "\n");
-    */
-    icmp_send_echo_reply(pNode, pMessage->tDstAddr, pMessage->tSrcAddr,
-			 255, pSimulator);
+    icmp_send_echo_reply(node, msg->dst_addr, msg->src_addr, 255, sim);
+    break;
+
+  case ICMP_TRACE:
+    icmp_msg->opts.trace->status= ESUCCESS;
     break;
 
   case ICMP_ECHO_REPLY:
@@ -184,11 +207,11 @@ int icmp_event_handler(SSimulator * pSimulator,
 
   default:
     LOG_ERR(LOG_LEVEL_FATAL, "Error: unsupported ICMP message type (%d)\n",
-	    sICMPRecv.sMsg.uType);
+	    tICMPRecv.msg.type);
     abort();
   }
 
-  _icmp_msg_destroy(&pMsg);
+  _icmp_msg_destroy(&icmp_msg);
 
   return 0;
 }
@@ -204,49 +227,48 @@ int icmp_event_handler(SSimulator * pSimulator,
  * is used to schedule the messages exchanged in reaction to the ICMP
  * echo-request.
  */
-int icmp_ping_send_recv(SNetNode * pSrcNode, net_addr_t tSrcAddr,
-			net_addr_t tDstAddr, uint8_t uTTL)
+net_error_t icmp_ping_send_recv(net_node_t * node, net_addr_t src_addr,
+				net_addr_t dst_addr, uint8_t ttl)
 {
-  SSimulator * pSimulator= NULL;
-  int iResult;
+  simulator_t * sim= NULL;
+  net_error_t error;
 
-  pSimulator= simulator_create(SCHEDULER_STATIC);
+  sim= sim_create(SCHEDULER_STATIC);
 
-  sICMPRecv.iReceived= 0;
-  iResult= icmp_send_echo_request(pSrcNode, tSrcAddr, tDstAddr,
-				  uTTL, pSimulator);
-  if (iResult == NET_SUCCESS) {
-    simulator_run(pSimulator);
+  tICMPRecv.received= 0;
+  error= icmp_send_echo_request(node, src_addr, dst_addr, ttl, sim);
+  if (error == ESUCCESS) {
+    sim_run(sim);
 
-    if ((sICMPRecv.iReceived) && (sICMPRecv.pNode == pSrcNode)) {
-      switch (sICMPRecv.sMsg.uType) {
+    if ((tICMPRecv.received) && (tICMPRecv.node == node)) {
+      switch (tICMPRecv.msg.type) {
       case ICMP_ECHO_REPLY:
-	iResult= NET_SUCCESS;
+	error= ESUCCESS;
 	break;
       case ICMP_ERROR:
-	switch (sICMPRecv.sMsg.uSubType) {
+	switch (tICMPRecv.msg.sub_type) {
 	case ICMP_ERROR_NET_UNREACH:
-	  iResult= NET_ERROR_ICMP_NET_UNREACH; break;
+	  error= ENET_ICMP_NET_UNREACH; break;
 	case ICMP_ERROR_HOST_UNREACH:
-	  iResult= NET_ERROR_ICMP_HOST_UNREACH; break;
+	  error= ENET_ICMP_HOST_UNREACH; break;
 	case ICMP_ERROR_PROTO_UNREACH:
-	  iResult= NET_ERROR_ICMP_PROTO_UNREACH; break;
+	  error= ENET_ICMP_PROTO_UNREACH; break;
 	case ICMP_ERROR_TIME_EXCEEDED:
-	  iResult= NET_ERROR_ICMP_TIME_EXCEEDED; break;
+	  error= ENET_ICMP_TIME_EXCEEDED; break;
 	default:
 	  abort();
 	}
 	break;
       default:
-	iResult= NET_ERROR_NO_REPLY;
+	error= ENET_NO_REPLY;
       }
     } else {
-      iResult= NET_ERROR_NO_REPLY;
+      error= ENET_NO_REPLY;
     }
   }
 
-  simulator_destroy(&pSimulator);
-  return iResult;
+  sim_destroy(&sim);
+  return error;
 }
 
 // -----[ icmp_ping ]------------------------------------------------
@@ -255,36 +277,36 @@ int icmp_ping_send_recv(SNetNode * pSrcNode, net_addr_t tSrcAddr,
  * reply is received. This function mimics the well-known 'ping'
  * application.
  */
-int icmp_ping(SLogStream * pStream,
-	      SNetNode * pSrcNode, net_addr_t tSrcAddr,
-	      net_addr_t tDstAddr, uint8_t uTTL)
+int icmp_ping(SLogStream * stream,
+	      net_node_t * node, net_addr_t src_addr,
+	      net_addr_t dst_addr, uint8_t ttl)
 {
   int iResult;
 
-  if (uTTL == 0)
-    uTTL= 255;
+  if (ttl == 0)
+    ttl= 255;
 
-  iResult= icmp_ping_send_recv(pSrcNode, tSrcAddr, tDstAddr, uTTL);
+  iResult= icmp_ping_send_recv(node, src_addr, dst_addr, ttl);
 
-  log_printf(pStream, "ping: ");
+  log_printf(stream, "ping: ");
   switch (iResult) {
-  case NET_SUCCESS:
-    log_printf(pStream, "reply from ");
-    ip_address_dump(pStream, sICMPRecv.tSrcAddr);
+  case ESUCCESS:
+    log_printf(stream, "reply from ");
+    ip_address_dump(stream, tICMPRecv.src_addr);
     break;
-  case NET_ERROR_ICMP_NET_UNREACH:
-  case NET_ERROR_ICMP_HOST_UNREACH:
-  case NET_ERROR_ICMP_PROTO_UNREACH:
-  case NET_ERROR_ICMP_TIME_EXCEEDED:
-    network_perror(pStream, iResult);
-    log_printf(pStream, " from ");
-    ip_address_dump(pStream, sICMPRecv.tSrcAddr);
+  case ENET_ICMP_NET_UNREACH:
+  case ENET_ICMP_HOST_UNREACH:
+  case ENET_ICMP_PROTO_UNREACH:
+  case ENET_ICMP_TIME_EXCEEDED:
+    network_perror(stream, iResult);
+    log_printf(stream, " from ");
+    ip_address_dump(stream, tICMPRecv.src_addr);
     break;
   default:
-    network_perror(pStream, iResult);
+    network_perror(stream, iResult);
   }
-  log_printf(pStream, "\n");
-  log_flush(pStream);
+  log_printf(stream, "\n");
+  log_flush(stream);
 
   return iResult;
 }
@@ -296,70 +318,104 @@ int icmp_ping(SLogStream * pStream,
  * is received. This function mimics the well-known 'traceroute'
  * application.
  */
-int icmp_trace_route(SLogStream * pStream,
-		     SNetNode * pSrcNode, net_addr_t tSrcAddr,
-		     net_addr_t tDstAddr, uint8_t uMaxTTL,
-		     SIPTrace * pTrace)
+net_error_t icmp_trace_route(SLogStream * stream,
+			     net_node_t * node, net_addr_t src_addr,
+			     net_addr_t dst_addr, uint8_t max_ttl,
+			     ip_trace_t ** trace_ref)
 {
-  int iResult= NET_ERROR_UNEXPECTED;
-  uint8_t uTTL= 1;
+  ip_trace_t * trace= ip_trace_create();
+  net_error_t error= EUNEXPECTED;
+  uint8_t ttl= 1;
 
-  if (uMaxTTL == 0)
-    uMaxTTL= 255;
+  if (max_ttl == 0)
+    max_ttl= 255;
 
-  if (pTrace != NULL)
-    ip_trace_add(pTrace,
-		 ip_trace_item_node(pSrcNode, NET_ADDR_ANY, NET_ADDR_ANY));
+  ip_trace_add_node(trace, node, NET_ADDR_ANY, NET_ADDR_ANY);
 
-  while (uTTL <= uMaxTTL) {
+  while (ttl <= max_ttl) {
 
-    iResult= icmp_ping_send_recv(pSrcNode, tSrcAddr, tDstAddr, uTTL);
+    error= icmp_ping_send_recv(node, src_addr, dst_addr, ttl);
 
-    if (pStream != NULL)
-      log_printf(pStream, "%3d\t", uTTL);
-    switch (iResult) {
-    case NET_SUCCESS:
-    case NET_ERROR_ICMP_NET_UNREACH:
-    case NET_ERROR_ICMP_HOST_UNREACH:
-    case NET_ERROR_ICMP_PROTO_UNREACH:
-    case NET_ERROR_ICMP_TIME_EXCEEDED:
-      if (pStream != NULL) {
-	ip_address_dump(pStream, sICMPRecv.tSrcAddr);
-	log_printf(pStream, " (");
-	ip_address_dump(pStream, sICMPRecv.sMsg.pNode->tAddr);
-	log_printf(pStream, ")");
+    if (stream != NULL)
+      log_printf(stream, "%3d\t", ttl);
+    switch (error) {
+    case ESUCCESS:
+    case ENET_ICMP_NET_UNREACH:
+    case ENET_ICMP_HOST_UNREACH:
+    case ENET_ICMP_PROTO_UNREACH:
+    case ENET_ICMP_TIME_EXCEEDED:
+      if (stream != NULL) {
+	ip_address_dump(stream, tICMPRecv.src_addr);
+	log_printf(stream, " (");
+	ip_address_dump(stream, tICMPRecv.msg.node->tAddr);
+	log_printf(stream, ")");
       }
-      if (pTrace != NULL)
-	ip_trace_add(pTrace,
-		     ip_trace_item_node(sICMPRecv.sMsg.pNode,
-					sICMPRecv.tSrcAddr,
-					NET_ADDR_ANY));
+      ip_trace_add_node(trace, tICMPRecv.msg.node,
+			tICMPRecv.src_addr,
+			NET_ADDR_ANY);
       break;
     default:
-      if (pStream != NULL)
-	log_printf(pStream, "* (*)");
-      if (pTrace != NULL)
-	ip_trace_add(pTrace, ip_trace_item_node(NULL, NET_ADDR_ANY,
-						NET_ADDR_ANY));
+      if (stream != NULL)
+	log_printf(stream, "* (*)");
+      ip_trace_add_node(trace, NULL, NET_ADDR_ANY, NET_ADDR_ANY);
     }
 
-    if (pStream != NULL) {
-      log_printf(pStream, "\t");
-      if (iResult == NET_SUCCESS)
-	log_printf(pStream, "reply");
+    if (stream != NULL) {
+      log_printf(stream, "\t");
+      if (error == ESUCCESS)
+	log_printf(stream, "reply");
       else
-	network_perror(pStream, iResult);
-      log_printf(pStream, "\n");
+	network_perror(stream, error);
+      log_printf(stream, "\n");
     }
     
-    if (iResult != NET_ERROR_ICMP_TIME_EXCEEDED)
-      return iResult;
+    if (error != ENET_ICMP_TIME_EXCEEDED)
+      break;
       
-    uTTL++;
+    ttl++;
   }
 
-  if (pStream != NULL)
-    log_flush(pStream);
+  if (stream != NULL)
+    log_flush(stream);
 
-  return iResult;
+  if (trace_ref != NULL)
+    *trace_ref= trace;
+  else
+    ip_trace_destroy(&trace);
+
+  return error;
+}
+
+// -----[ icmp_record_route ]----------------------------------------
+int icmp_record_route(net_node_t * node,
+		      net_addr_t dst_addr,
+		      SPrefix * alt_dest,
+		      uint8_t max_ttl,
+		      uint8_t options,
+		      ip_trace_t ** trace_ref,
+		      net_link_load_t load)
+{
+  simulator_t * sim= sim_create(SCHEDULER_STATIC);
+  icmp_msg_t * icmp_msg= _icmp_msg_create(ICMP_TRACE, 0, node);
+  ip_trace_t * trace= ip_trace_create();
+  net_error_t error;
+  trace->status= ENET_HOST_UNREACH;
+  trace->load= load;
+  icmp_msg->opts.trace= trace;
+  icmp_msg->opts.options= options;
+
+  if (options & ICMP_RR_OPTION_ALT_DEST)
+    icmp_msg->opts.alt_dest= *alt_dest;
+
+  // Send ICMP record-route probe
+  error= _icmp_send(node, NET_ADDR_ANY, dst_addr, max_ttl, icmp_msg, sim);
+  sim_run(sim);
+  sim_destroy(&sim);
+
+  if (trace_ref != NULL)
+    *trace_ref= trace;
+  else
+    ip_trace_destroy(&trace);
+
+  return error;
 }
