@@ -27,7 +27,7 @@
  * node.
  */
 jobject cbgp_jni_new_net_Subnet(JNIEnv * jEnv, jobject joCBGP,
-				SNetSubnet * pSubnet)
+				net_subnet_t * pSubnet)
 {
   jobject joSubnet;
   jobject joPrefix;

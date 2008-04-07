@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// @lastdate 29/02/2008
+// $Id: jni_interface.c,v 1.42 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -391,7 +391,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
   (JNIEnv * jEnv, jobject joCBGP, jstring jsPrefix, jint jiType)
 {
-  SNetSubnet * pSubnet;
+  net_subnet_t * pSubnet;
   jobject joSubnet= NULL;
   SPrefix sPrefix;
   int iResult;
@@ -413,8 +413,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
   }
 
   // Add subnet to network
-  iResult= network_add_subnet(pSubnet);
-  if (iResult != NET_SUCCESS) {
+  iResult= network_add_subnet(network_get_default(), pSubnet);
+  if (iResult != ESUCCESS) {
     subnet_destroy(&pSubnet);
     throw_CBGPException(jEnv, "subnet already exists");
     return_jni_unlock(jEnv, NULL);
@@ -442,9 +442,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 (JNIEnv * jEnv, jobject joCBGP, jstring jsAddr, jint iDomain)
 {
   SIGPDomain * pDomain;
-  SNetNode * pNode; 
+  net_node_t * pNode; 
   net_addr_t tNetAddr;
   jobject joNode;
+  net_error_t error;
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
@@ -459,13 +460,17 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
     return_jni_unlock(jEnv, NULL);
 
-  if ((pNode= node_create(tNetAddr)) == NULL) {
-    throw_CBGPException(jEnv, "node could not be created");
+  error= node_create(tNetAddr, &pNode);
+  if (error != ESUCCESS) {
+    throw_CBGPException(jEnv, "node could not be created (%s)",
+			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
-  if (network_add_node(pNode) != 0) {
-    throw_CBGPException(jEnv, "node already exists");
+  error= network_add_node(network_get_default(), pNode);
+  if (error != ESUCCESS) {
+    throw_CBGPException(jEnv, "node already exists (%s)",
+			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -484,8 +489,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  SEnumerator * pEnum;
-  SNetNode * pNode;
+  enum_t * pEnum;
+  net_node_t * pNode;
   jobject joVector;
   jobject joNode;
 
@@ -494,14 +499,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
 
   jni_lock(jEnv);
 
-  pEnum= trie_get_enum(network_get()->pNodes);
+  pEnum= trie_get_enum(network_get_default()->nodes);
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
   while (enum_has_next(pEnum)) {
-    pNode= *(SNetNode **) enum_get_next(pEnum);
+    pNode= *(net_node_t **) enum_get_next(pEnum);
 
     // Create Node object
     if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, pNode)) == NULL) {
@@ -526,7 +531,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNode
 (JNIEnv * jEnv, jobject joCBGP, jstring jsAddr)
 {
-  SNetNode * pNode;
+  net_node_t * pNode;
   jobject joNode;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -534,7 +539,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNode
 
   jni_lock(jEnv);
 
-  // Find SNetNode object
+  // Find net_node_t object
   if ((pNode= cbgp_jni_net_node_from_string(jEnv, jsAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
@@ -560,8 +565,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   (JNIEnv * jEnv, jobject joCBGP, jstring jsSrcAddr, jstring jsDstAddr,
    jint jiWeight)
 {
-  SNetNode * pNodeSrc, * pNodeDst;
-  SNetIface * pIface;
+  net_node_t * pNodeSrc, * pNodeDst;
+  net_iface_t * pIface;
   jobject joIface;
   int iResult;
 
@@ -577,14 +582,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
     return_jni_unlock(jEnv, NULL);
 
   iResult= net_link_create_rtr(pNodeSrc, pNodeDst, BIDIR, &pIface);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     throw_CBGPException(jEnv, "could not create link (%s)",
 			network_strerror(iResult));
     return_jni_unlock(jEnv, NULL);
   }
 
   iResult= net_iface_set_metric(pIface, 0, jiWeight, BIDIR);
-  if (iResult != NET_SUCCESS) {
+  if (iResult != ESUCCESS) {
     throw_CBGPException(jEnv, "could not set link metric (%s)",
 			network_strerror(iResult));
     return_jni_unlock(jEnv, NULL);
@@ -669,9 +674,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   (JNIEnv * jEnv, jobject joCBGP, jstring jsName, jstring jsAddr,
    jint jiASNumber)
 {
-  SNetNode * pNode;
-  SBGPRouter * pRouter;
+  net_node_t * pNode;
+  bgp_router_t * pRouter;
   jobject joRouter;
+  net_error_t error;
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
@@ -683,12 +689,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
     return_jni_unlock(jEnv, NULL);
 
   /* Create BGP router, and register. */
-  pRouter= bgp_router_create(jiASNumber, pNode);
-  if (node_register_protocol(pNode, NET_PROTOCOL_BGP, pRouter, 
-			     (FNetNodeHandlerDestroy) bgp_router_destroy,
-			     bgp_router_handle_message)) {
-    bgp_router_destroy(&pRouter);
-    throw_CBGPException(jEnv, "Node already supports BGP");
+  error= bgp_add_router(jiASNumber, pNode, &pRouter);
+  if (error != ESUCCESS) {
+    throw_CBGPException(jEnv, "Could not create BGP router (%s)",
+			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
@@ -723,7 +727,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simRun
 
   jni_lock(jEnv);
 
-  if (simulator_run(network_get_simulator()) != 0)
+  if (sim_run(network_get_simulator(network_get_default())) != 0)
     throw_CBGPException(jEnv, "simulation error");
 
   jni_unlock(jEnv);
@@ -743,7 +747,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simStep
 
   jni_lock(jEnv);
 
-  if (simulator_step(network_get_simulator(), jiNumSteps) != 0)
+  if (sim_step(network_get_simulator(network_get_default()),
+	       jiNumSteps) != 0)
     throw_CBGPException(jEnv, "simulation error");
 
   jni_unlock(jEnv);
@@ -763,7 +768,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simClear
 
   jni_lock(jEnv);
 
-  //simulator_clear(network_get_simulator());
+  sim_clear(network_get_simulator(network_get_default()));
 
   jni_unlock(jEnv);
 }
@@ -784,7 +789,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
 
   jni_lock(jEnv);
 
-  jlResult= (jlong) simulator_get_num_events(network_get_simulator());
+  jlResult= (jlong) sim_get_num_events(network_get_simulator(network_get_default()));
 
   return_jni_unlock(jEnv, jlResult); 
 }
@@ -798,7 +803,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEvent
 (JNIEnv * jEnv, jobject joCBGP, jint i)
 {
-  SNetSendContext * pCtx;
+  net_send_ctx_t * pCtx;
   jobject joMessage;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -808,11 +813,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEvent
 
   // Note: we assume that only network events (SNetSendContext) are
   // stored in the queue.
-  pCtx= (SNetSendContext*) simulator_get_event(network_get_simulator(),
+  pCtx= (net_send_ctx_t *) sim_get_event(network_get_simulator(network_get_default()),
 					       (unsigned int) i);
   
   // Create new Message instance.
-  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, pCtx->pMessage)) == NULL)
+  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, pCtx->msg)) == NULL)
     return_jni_unlock(jEnv, NULL);
   
   return_jni_unlock(jEnv, joMessage);
@@ -1033,7 +1038,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 }
 
 // -----[ _bgp_msg_listener ]----------------------------------------
-static void _bgp_msg_listener(SNetMessage * pMessage, void * pContext)
+static void _bgp_msg_listener(net_msg_t * pMessage, void * pContext)
 {
   SJNIListener * pListener= (SJNIListener *) pContext;
   JavaVM * jVM= pListener->jVM;
@@ -1097,21 +1102,21 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
   (JNIEnv * jEnv, jobject joCBGP)
 {
   jobject joVector, joLink;
-  SEnumerator * pEnum= NULL, * pEnumLinks= NULL;
-  SNetNode * pNode;
-  SNetLink * pLink;
+  enum_t * pEnum= NULL, * pEnumLinks= NULL;
+  net_node_t * node;
+  net_iface_t * pLink;
 
   jni_lock(jEnv);
 
   joVector= cbgp_jni_new_Vector(jEnv);
     
-  pEnum= trie_get_enum(network_get()->pNodes);
+  pEnum= trie_get_enum(network_get_default()->nodes);
   while (enum_has_next(pEnum)) {
-    pNode= *((SNetNode **) enum_get_next(pEnum));
+    node= *((net_node_t **) enum_get_next(pEnum));
     
-    pEnumLinks= net_links_get_enum(pNode->pLinks);
+    pEnumLinks= net_links_get_enum(node->ifaces);
     while (enum_has_next(pEnumLinks)) {
-      pLink= *((SNetLink **) enum_get_next(pEnumLinks));
+      pLink= *((net_iface_t **) enum_get_next(pEnumLinks));
       joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, pLink);
       if (joLink == NULL)
 	return_jni_unlock(jEnv, NULL);

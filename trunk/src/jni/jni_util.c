@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 10/01/2008
+// $Id: jni_util.c,v 1.20 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -335,7 +335,7 @@ jobject cbgp_jni_new_LinkMetrics(JNIEnv * jEnv,
  * This function creates a new instance of the BGPRoute object from a
  * CBGP route.
  */
-jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
+jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, bgp_route_t * pRoute,
 			      jobject joHashtable)
 {
   jobject joPrefix;
@@ -413,51 +413,62 @@ jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
 		      joCommunities);
 }
 
+// -----[ _new_BGPUpdateMsg ]----------------------------------------
+static inline jobject _new_BGPUpdateMsg(JNIEnv * jEnv,
+					jobject from,
+					jobject to,
+					bgp_msg_update_t * msg)
+{
+  jobject joRoute;
+
+  if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, msg->pRoute, NULL)) == NULL)
+      return NULL;
+  return cbgp_jni_new(jEnv, CLASS_MessageUpdate,
+		      CONSTR_MessageUpdate,
+		      from, to, joRoute);
+}
+
+// -----[ _new_BGP>ithdrawMsg ]--------------------------------------
+static inline jobject _new_BGPWithdrawMsg(JNIEnv * jEnv,
+					  jobject from,
+					  jobject to,
+					  bgp_msg_withdraw_t * msg)
+{
+  jobject joPrefix;
+
+  if ((joPrefix= cbgp_jni_new_IPPrefix(jEnv, msg->sPrefix)) == NULL)
+    return NULL;
+  return  cbgp_jni_new(jEnv, CLASS_MessageWithdraw,
+		       CONSTR_MessageWithdraw,
+		       from, to, joPrefix);
+}
+
 // -----[ cbgp_jni_new_BGPMessage ]----------------------------------
 /**
  * This function creates a new instance of the bgp.Message object
  * from a CBGP message.
  */
-jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, SNetMessage * pMessage)
+jobject cbgp_jni_new_BGPMessage(JNIEnv * jEnv, net_msg_t * msg)
 {
-  jobject joFrom= cbgp_jni_new_IPAddress(jEnv, pMessage->tSrcAddr);
-  jobject joTo= cbgp_jni_new_IPAddress(jEnv, pMessage->tDstAddr);
-  jobject joMessage= NULL;
-  jobject joRoute= NULL;
-  jobject joPrefix= NULL;
-  SBGPMsg * pMsg= (SBGPMsg *) pMessage->pPayLoad;
-  SBGPMsgUpdate * pMsgUpdate;
-  SBGPMsgWithdraw * pMsgWithdraw;
+  jobject from= cbgp_jni_new_IPAddress(jEnv, msg->src_addr);
+  jobject to= cbgp_jni_new_IPAddress(jEnv, msg->dst_addr);
+  bgp_msg_t * bgp_msg= (bgp_msg_t *) msg->payload;
   
-  /* Check that the conversion was successful */
-  if ((joFrom == NULL) || (joTo == NULL))
+  /* Check that the conversion of addresses was successful */
+  if ((from == NULL) || (to == NULL))
     return NULL;
 
-  switch (pMsg->uType) {
+  /* Create BGP message instance */
+  switch (bgp_msg->type) {
   case BGP_MSG_TYPE_UPDATE:
-    pMsgUpdate= (SBGPMsgUpdate *) pMsg;
-    if ((joRoute= cbgp_jni_new_BGPRoute(jEnv, pMsgUpdate->pRoute, NULL)) == NULL)
-      return NULL;
-    joMessage= cbgp_jni_new(jEnv, CLASS_MessageUpdate,
-			    CONSTR_MessageUpdate,
-			    joFrom, joTo, joRoute);
-    break;
-
+    return _new_BGPUpdateMsg(jEnv, from, to,
+			     (bgp_msg_update_t *) bgp_msg);
   case BGP_MSG_TYPE_WITHDRAW:
-    pMsgWithdraw= (SBGPMsgWithdraw *) pMsg;
-    if ((joPrefix= cbgp_jni_new_IPPrefix(jEnv, pMsgWithdraw->sPrefix)) == NULL)
-      return NULL;
-    joMessage= cbgp_jni_new(jEnv, CLASS_MessageWithdraw,
-			    CONSTR_MessageWithdraw,
-			    joFrom, joTo, joPrefix);
-    break;
-
+    return _new_BGPWithdrawMsg(jEnv, from, to,
+			       (bgp_msg_withdraw_t *) bgp_msg);
   default:
     return NULL;
   }
-
-  /* Create new bgp.Message object */
-  return joMessage;
 }
 
 // -----[ ip_jstring_to_address ]------------------------------------
@@ -556,15 +567,15 @@ int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest)
  *
  * @throw CBGPException
  */
-SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
+net_node_t * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
 {
-  SNetNode * pNode;
+  net_node_t * pNode;
   net_addr_t tNetAddr;
 
   if (ip_jstring_to_address(env, jsAddr, &tNetAddr) != 0)
     return NULL;
 
-  if ((pNode= network_find_node(tNetAddr)) == NULL) {
+  if ((pNode= network_find_node(network_get_default(), tNetAddr)) == NULL) {
     throw_CBGPException(env, "could not find node");
     return NULL;
   }
@@ -581,20 +592,21 @@ SNetNode * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr)
  *
  * @throw CBGPException
  */
-SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
+bgp_router_t * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
 {
-  SNetNode * pNode;
-  SNetProtocol * pProtocol;
+  net_node_t * node;
+  net_protocol_t * protocol;
 
-  if ((pNode= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
+  if ((node= cbgp_jni_net_node_from_string(env, jsAddr)) == NULL)
     return NULL;
 
-  if (((pProtocol= protocols_get(pNode->pProtocols, NET_PROTOCOL_BGP)) == NULL) || (pProtocol->pHandler == NULL)) {
+  if (((protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP)) == NULL) ||
+      (protocol->pHandler == NULL)) {
     throw_CBGPException(env, "node does not support BGP");
     return NULL;
   }
 
-  return pProtocol->pHandler;
+  return protocol->pHandler;
 }
 
 // -----[ cbgp_jni_bgp_peer_from_string ]----------------------------
@@ -606,12 +618,12 @@ SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
  *
  * @throw CBGPException
  */
-SBGPPeer * cbgp_jni_bgp_peer_from_string(JNIEnv * env, jstring jsRouterAddr,
+bgp_peer_t * cbgp_jni_bgp_peer_from_string(JNIEnv * env, jstring jsRouterAddr,
 					 jstring jsPeerAddr)
 {
-  SBGPRouter * pRouter;
+  bgp_router_t * pRouter;
   net_addr_t tPeerAddr;
-  SBGPPeer * pPeer;
+  bgp_peer_t * pPeer;
 
   if ((pRouter= cbgp_jni_bgp_router_from_string(env, jsRouterAddr)) == NULL)
     return NULL;

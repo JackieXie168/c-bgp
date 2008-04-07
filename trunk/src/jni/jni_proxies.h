@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)jni_proxies.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// @lastdate 12/10/2007
+// $Id: jni_proxies.h,v 1.8 2008-04-07 10:04:59 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_PROXIES_H__

@@ -61,9 +61,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
   (JNIEnv * jEnv, jobject joDomain, jstring jsAddr)
 {
   SIGPDomain * pDomain;
-  SNetNode * pNode; 
+  net_node_t * pNode; 
   net_addr_t tNetAddr;
   jobject joNode;
+  net_error_t error;
 
   jni_lock(jEnv);
 
@@ -75,20 +76,25 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
     return_jni_unlock(jEnv, NULL);
 
-  if ((pNode= node_create(tNetAddr)) == NULL) {
-    throw_CBGPException(jEnv, "node could not be created");
+  error= node_create(tNetAddr, &pNode);
+  if (error != ESUCCESS) {
+    throw_CBGPException(jEnv, "node could not be created (%s)",
+			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
-  if (network_add_node(pNode)) {
+  error= network_add_node(network_get_default(), pNode);
+  if (error != ESUCCESS) {
     node_destroy(&pNode);
-    throw_CBGPException(jEnv, "node already exists");
+    throw_CBGPException(jEnv, "node already exists (%s)",
+			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
   igp_domain_add_router(pDomain, pNode);
 
-  joNode= cbgp_jni_new_net_Node(jEnv, jni_proxy_get_CBGP(jEnv, joDomain),
+  joNode= cbgp_jni_new_net_Node(jEnv,
+				NULL/*jni_proxy_get_CBGP(jEnv, joDomain)*/,
 				pNode); 
 
   return_jni_unlock(jEnv, joNode);
@@ -99,7 +105,7 @@ static int _netDomainGetNodes(uint32_t uKey, uint8_t uKeyLen,
 			      void * pItem, void * pContext)
 {
   SJNIContext * pCtx= (SJNIContext *) pContext;
-  SNetNode * pNode= (SNetNode * ) pItem;
+  net_node_t * pNode= (net_node_t * ) pItem;
   jobject joNode;
 
   if ((joNode= cbgp_jni_new_net_Node(pCtx->jEnv,
@@ -134,7 +140,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_getNodes
 
   sCtx.joVector= joVector;
   sCtx.jEnv= jEnv;
-  sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joDomain);
+  sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joDomain)*/;
 
   if (igp_domain_routers_for_each(pDomain, _netDomainGetNodes, &sCtx))
     return_jni_unlock(jEnv, NULL);

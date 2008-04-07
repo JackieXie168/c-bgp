@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Filter.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/04/2006
-// @lastdate 25/04/2006
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __JNI_BGP_FILTER_H__
@@ -17,6 +17,6 @@
 
 // -----[ cbgp_jni_new_bgp_Filter ]------------------------------------
 jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
-				SFilter * pFilter);
+				bgp_filter_t * pFilter);
 
 #endif /* __JNI_BGP_FILTER_H__ */

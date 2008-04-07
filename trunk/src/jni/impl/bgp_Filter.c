@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Filter.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/04/2006
-// @lastdate 29/06/2007
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -29,7 +29,7 @@
  * a CBGP filter.
  */
 jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
-				SFilter * pFilter)
+				bgp_filter_t * pFilter)
 {
   jobject joFilter;
 
@@ -58,17 +58,17 @@ jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter_getRules
   (JNIEnv * jEnv, jobject joFilter)
 {
-  SFilter * pFilter;
+  bgp_filter_t * pFilter;
   SJNIContext sCtx;
 
   jni_lock(jEnv);
 
-  pFilter= (SFilter *) jni_proxy_lookup(jEnv, joFilter);
+  pFilter= (bgp_filter_t *) jni_proxy_lookup(jEnv, joFilter);
   if (pFilter == NULL)
     return_jni_unlock(jEnv, NULL);
 
   sCtx.jEnv= jEnv;
-  sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joFilter);
+  sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joFilter)*/;
   if ((sCtx.joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
   

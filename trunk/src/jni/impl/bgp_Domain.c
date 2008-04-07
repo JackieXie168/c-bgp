@@ -42,7 +42,7 @@ jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
   /* Create new BGPDomain object */
   if ((joDomain= cbgp_jni_new(jEnv, CLASS_BGPDomain, CONSTR_BGPDomain,
 			      joCBGP,
-			      (jint) pDomain->uNumber)) == NULL)
+			      (jint) pDomain->uASN)) == NULL)
     return NULL;
 
   // Add reference into proxy repository
@@ -92,7 +92,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
 
   sCtx.joVector= joVector;
   sCtx.jEnv= jEnv;
-  sCtx.joCBGP= jni_proxy_get_CBGP(jEnv, joDomain);
+  sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joDomain)*/;
 
   if (bgp_domain_routers_for_each(pDomain, _bgpDomainGetRouters, &sCtx))
     return_jni_unlock(jEnv, NULL);

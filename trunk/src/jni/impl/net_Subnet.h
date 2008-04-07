@@ -18,7 +18,7 @@ extern "C" {
 
   // -----[ cbgp_jni_new_net_Subnet ]----------------------------------
   jobject cbgp_jni_new_net_Subnet(JNIEnv * jEnv, jobject joCBGP,
-				  SNetSubnet * pSubnet);
+				  net_subnet_t * pSubnet);
 
 #ifdef __cplusplus
 }
