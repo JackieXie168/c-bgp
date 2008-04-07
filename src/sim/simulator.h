@@ -1,9 +1,11 @@
 // ==================================================================
 // @(#)simulator.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be), Sebastien Tandel
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Sebastien Tandel
+//
 // @date 28/11/2002
-// @lastdate 16/04/2007
+// @lastdate 03/04/2008
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
@@ -11,86 +13,92 @@
 
 #include <libgds/types.h>
 #include <libgds/log.h>
+#include <net/error.h>
 #include <sim/scheduler.h>
 
-#define SCHEDULER_STATIC  1
-#define SCHEDULER_DYNAMIC 2
+struct sched_t;
+struct simulator_t;
 
-extern uint8_t SIM_OPTIONS_SCHEDULER;
+typedef enum {
+  SIM_TIME_ABS,
+  SIM_TIME_REL,
+  SIM_TIME_MAX
+} sim_time_t;
 
-#define ABSOLUTE_TIME	0x00
-#define RELATIVE_TIME	0x01
+typedef enum {
+  SCHEDULER_STATIC,
+  SCHEDULER_DYNAMIC,
+  SCHEDULER_MAX
+} sched_type_t;
 
-struct TSimulator;
+typedef struct {
+  int  (*callback) (struct simulator_t * sim, void * ctx);
+  void (*destroy) (void * ctx);
+  void (*dump)(SLogStream * stream, void * ctx);
+} sim_event_ops_t;
 
-// ----- FSimEventCallback ------------------------------------------
-typedef int (*FSimEventCallback)(struct TSimulator * pSimulator,
-				 void * pContext);
-// ----- FSimEventDump ----------------------------------------------
-typedef void (*FSimEventDump)(SLogStream * pStream, void * pContext);
-// ----- FSimEventDestroy -------------------------------------------
-typedef void (*FSimEventDestroy)(void * pContext);
+typedef struct sched_ops_t {
+  void         (*destroy) (struct sched_t ** self_ref);
+  void         (*clear) (struct sched_t * self);
+  net_error_t  (*run) (struct sched_t * self, unsigned int num_steps);
+  int          (*post) (struct sched_t * self, sim_event_ops_t * ops,
+			void * ctx, double time, sim_time_t time_type);
+  unsigned int (*num_events) (struct sched_t * self);
+  void *       (*event_at) (struct sched_t * self, unsigned int index);
+  void         (*dump_events) (SLogStream * stream, struct sched_t * self);
+  void         (*set_log_process) (struct sched_t * self,
+				   const char * file_name);
+  double       (*cur_time) (struct sched_t * self);
+} sched_ops_t;
 
-// ----- FSimSchedulerRun -------------------------------------------
-typedef int (*FSimSchedulerRun)(void * pSchedCtx, void * pContext,
-				int iNumSteps);
-// ----- FSimSchedulerPost ------------------------------------------
-typedef int (*FSimSchedulerPost)(void * pSchedCtx,
-				 FSimEventCallback fCallback,
-				 FSimEventDump fDump,
-				 FSimEventDestroy fDestroy,
-				 void * pContext,
-				 double uSchedulingTime,
-				 uint8_t uDeltaType);
+typedef struct sched_t {
+  sched_type_t         type;
+  sched_ops_t          ops;
+  struct simulator_t * sim;
+} sched_t;
 
-struct TSimulator {
-  void * pScheduler;
-  FSimSchedulerRun fSchedulerRun;
-  FSimSchedulerPost fSchedulerPost;
-  double dCurrentTime;
-  double dMaximumTime;
-  uint8_t tType;
-};
-typedef struct TSimulator SSimulator;
+typedef struct simulator_t {
+  sched_t * sched;
+  double    max_time;
+} simulator_t;
+
+extern sched_type_t SIM_OPTIONS_SCHEDULER;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  // -----[ simulator_create ]---------------------------------------
-  SSimulator * simulator_create(uint8_t tType);
-  // -----[ simulator_destroy ]--------------------------------------
-  void simulator_destroy(SSimulator ** ppSimulator);
-  // ----- simulator_run --------------------------------------------
-  int simulator_run(SSimulator * pSimulator);
-  // ----- simulator_step -------------------------------------------
-  int simulator_step(SSimulator * pSimulator, int iNumSteps);
-  // ----- simulator_post_event -------------------------------------
-  int simulator_post_event(SSimulator * pSimulator,
-			   FSimEventCallback fCallback,
-			   FSimEventDump fDump,
-			   FSimEventDestroy fDestroy,
-			   void * pContext, double uSchedulingTime,
-			   uint8_t uDeltaType);
-  // ----- simulator_get_num_events ---------------------------------
-  uint32_t simulator_get_num_events(SSimulator * pSimulator);
-  // ----- simulator_get_event --------------------------------------
-  void * simulator_get_event(SSimulator * pSimulator, unsigned int uIndex);
-  // ----- simulator_get_time ---------------------------------------
-  double simulator_get_time(SSimulator * pSimulator);
-  // ----- simulator_set_max_time -----------------------------------
-  void simulator_set_max_time(SSimulator * pSimulator, double dMaximumTime);
-  // ----- simulator_dump_events ------------------------------------
-  void simulator_dump_events(SLogStream * pStream, SSimulator * pSimulator);
-  // ----- simulator_show_infos -------------------------------------
-  void simulator_show_infos(SLogStream * pStream, SSimulator * pSimulator);
-  // -----[ simulator_set_log_progress ]-----------------------------
-  int simulator_set_log_progress(SSimulator * pSimulator,
-				 const char * pcFileName);
+  // -----[ sim_create ]---------------------------------------------
+  simulator_t * sim_create(sched_type_t type);
+  // -----[ sim_destroy ]--------------------------------------------
+  void sim_destroy(simulator_t ** sim_ref);
+  // -----[ sim_clear ]----------------------------------------------
+  void sim_clear(simulator_t * sim);
+  // -----[ sim_run ]------------------------------------------------
+  int sim_run(simulator_t * sim);
+  // -----[ sim_step ]-----------------------------------------------
+  int sim_step(simulator_t * sim, unsigned int num_steps);
+  // -----[ sim_post_event ]-----------------------------------------
+  int sim_post_event(simulator_t * sim, sim_event_ops_t * ops,
+		     void * ctx, double time, sim_time_t time_type);
+  // -----[ sim_get_num_events ]-------------------------------------
+  uint32_t sim_get_num_events(simulator_t * sim);
+  // -----[ sim_get_event ]------------------------------------------
+  void * sim_get_event(simulator_t * sim, unsigned int index);
+  // -----[ sim_get_time ]-------------------------------------------
+  double sim_get_time(simulator_t * sim);
+  // -----[ sim_set_max_time ]---------------------------------------
+  void sim_set_max_time(simulator_t * sim, double max_time);
+  // -----[ sim_dump_events ]----------------------------------------
+  void sim_dump_events(SLogStream * stream, simulator_t * sim);
+  // -----[ sim_show_infos ]-----------------------------------------
+  void sim_show_infos(SLogStream * stream, simulator_t * sim);
+  // -----[ sim_set_log_progress ]-----------------------------------
+  void sim_set_log_progress(simulator_t * sim, const char * file_name);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* __SIMULATOR_H__ */
 
