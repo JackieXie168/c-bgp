@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/11/2002
-// @lastdate 16/01/2008
+// @lastdate 12/03/2008
 // ==================================================================
 
 #ifndef __BGP_FILTER_H__
@@ -23,38 +23,6 @@
 
 #include <util/regex.h>
 
-// Matcher codes
-#define FT_MATCH_ANY            0
-#define FT_MATCH_OP_AND         1
-#define FT_MATCH_OP_OR          2
-#define FT_MATCH_OP_NOT         3
-#define FT_MATCH_COMM_CONTAINS  10
-#define FT_MATCH_PATH_MATCHES   20
-#define FT_MATCH_NEXTHOP_IS     25
-#define FT_MATCH_NEXTHOP_IN     26
-#define FT_MATCH_PREFIX_IS      30
-#define FT_MATCH_PREFIX_IN      31
-#define FT_MATCH_PREFIX_GE      32
-#define FT_MATCH_PREFIX_LE      33
-
-// Action codes
-#define FT_ACTION_NOP              0
-#define FT_ACTION_ACCEPT           1
-#define FT_ACTION_DENY             2
-#define FT_ACTION_COMM_APPEND      10
-#define FT_ACTION_COMM_STRIP       11
-#define FT_ACTION_COMM_REMOVE      12
-#define FT_ACTION_PATH_APPEND      20
-#define FT_ACTION_PATH_PREPEND     21
-#define FT_ACTION_PATH_REM_PRIVATE 22
-#define FT_ACTION_PREF_SET         30
-#define FT_ACTION_ECOMM_APPEND     40
-#define FT_ACTION_METRIC_SET       50
-#define FT_ACTION_METRIC_INTERNAL  51
-#define FT_ACTION_JUMP		   60
-#define FT_ACTION_CALL		   61
-
-
 #define FTM_AND(fm1, fm2) filter_match_and(fm1, fm2)
 #define FTM_OR(fm1, fm2) filter_match_or(fm1, fm2)
 #define FTM_NOT(fm) filter_match_not(fm)
@@ -73,99 +41,101 @@ extern "C" {
 #endif
 
   // ----- filter_rule_create ---------------------------------------
-  SFilterRule * filter_rule_create(SFilterMatcher * pMatcher,
-				   SFilterAction * pAction);
+  bgp_ft_rule_t * filter_rule_create(bgp_ft_matcher_t * pMatcher,
+				   bgp_ft_action_t * pAction);
   // ----- filter_create --------------------------------------------
-  SFilter * filter_create();
+  bgp_filter_t * filter_create();
   // ----- filter_destroy -------------------------------------------
-  void filter_destroy(SFilter ** ppFilter);
+  void filter_destroy(bgp_filter_t ** ppFilter);
   // ----- filter_matcher_destroy -----------------------------------
-  void filter_matcher_destroy(SFilterMatcher ** ppMatcher);
+  void filter_matcher_destroy(bgp_ft_matcher_t ** ppMatcher);
   // ----- filter_action_destroy ------------------------------------
-  void filter_action_destroy(SFilterAction ** ppAction);
+  void filter_action_destroy(bgp_ft_action_t ** ppAction);
   // ----- filter_add_rule ------------------------------------------
-  int filter_add_rule(SFilter * pFilter,
-		      SFilterMatcher * pMatcher,
-		      SFilterAction * pAction);
+  int filter_add_rule(bgp_filter_t * pFilter,
+		      bgp_ft_matcher_t * pMatcher,
+		      bgp_ft_action_t * pAction);
   // ----- filter_add_rule2 -----------------------------------------
-  int filter_add_rule2(SFilter * pFilter,
-		       SFilterRule * pRule);
+  int filter_add_rule2(bgp_filter_t * pFilter,
+		       bgp_ft_rule_t * pRule);
   // ----- filter_insert_rule ---------------------------------------
-  int filter_insert_rule(SFilter * pFilter, unsigned int uIndex,
-			 SFilterRule * pRule);
+  int filter_insert_rule(bgp_filter_t * pFilter, unsigned int uIndex,
+			 bgp_ft_rule_t * pRule);
   // ----- filter_remove_rule ---------------------------------------
-  int filter_remove_rule(SFilter * pFilter, unsigned int uIndex);
+  int filter_remove_rule(bgp_filter_t * pFilter, unsigned int uIndex);
   // ----- filter_apply ---------------------------------------------
-  int filter_apply(SFilter * pFilter, SBGPRouter * pRouter,
-		   SRoute * pRoute);
+  int filter_apply(bgp_filter_t * pFilter, bgp_router_t * pRouter,
+		   bgp_route_t * pRoute);
   // ----- filter_matcher_apply -------------------------------------
-  int filter_matcher_apply(SFilterMatcher * pMatcher,
-			   SBGPRouter * pRouter,
-			   SRoute * pRoute);
+  int filter_matcher_apply(bgp_ft_matcher_t * pMatcher,
+			   bgp_router_t * pRouter,
+			   bgp_route_t * pRoute);
   // ----- filter_action_apply --------------------------------------
-  int filter_action_apply(SFilterAction * pAction,
-			  SBGPRouter * pRouter,
-			  SRoute * pRoute);
+  int filter_action_apply(bgp_ft_action_t * pAction,
+			  bgp_router_t * pRouter,
+			  bgp_route_t * pRoute);
   // ----- filter_match_and -----------------------------------------
-  SFilterMatcher * filter_match_and(SFilterMatcher * pMatcher1,
-				    SFilterMatcher * pMatcher2);
+  bgp_ft_matcher_t * filter_match_and(bgp_ft_matcher_t * pMatcher1,
+				    bgp_ft_matcher_t * pMatcher2);
   // ----- filter_match_or ------------------------------------------
-  SFilterMatcher * filter_match_or(SFilterMatcher * pMatcher1,
-				   SFilterMatcher * pMatcher2);
+  bgp_ft_matcher_t * filter_match_or(bgp_ft_matcher_t * pMatcher1,
+				   bgp_ft_matcher_t * pMatcher2);
   // ----- filter_match_not -----------------------------------------
-  SFilterMatcher * filter_match_not(SFilterMatcher * pMatcher);
+  bgp_ft_matcher_t * filter_match_not(bgp_ft_matcher_t * pMatcher);
   // ----- filter_match_comm_contains -------------------------------
-  SFilterMatcher * filter_match_comm_contains(uint32_t uCommunity);
+  bgp_ft_matcher_t * filter_match_comm_contains(uint32_t uCommunity);
   // ----- filter_match_nexthop_equals ------------------------------
-  SFilterMatcher * filter_match_nexthop_equals(net_addr_t tNextHop);
+  bgp_ft_matcher_t * filter_match_nexthop_equals(net_addr_t tNextHop);
   // ----- filter_match_nexthop_in ----------------------------------
-  SFilterMatcher * filter_match_nexthop_in(SPrefix sPrefix);
+  bgp_ft_matcher_t * filter_match_nexthop_in(SPrefix sPrefix);
   // ----- filter_match_prefix_equals -------------------------------
-  SFilterMatcher * filter_match_prefix_equals(SPrefix sPrefix);
+  bgp_ft_matcher_t * filter_match_prefix_equals(SPrefix sPrefix);
   // ----- filter_match_prefix_in -----------------------------------
-  SFilterMatcher * filter_match_prefix_in(SPrefix sPrefix);
+  bgp_ft_matcher_t * filter_match_prefix_in(SPrefix sPrefix);
   // ----- filter_match_prefix_ge -----------------------------------
-  SFilterMatcher * filter_match_prefix_ge(SPrefix sPrefix,
+  bgp_ft_matcher_t * filter_match_prefix_ge(SPrefix sPrefix,
 					  uint8_t uMaskLen);
   // ----- filter_match_prefix_le -----------------------------------
-  SFilterMatcher * filter_match_prefix_le(SPrefix sPrefix,
+  bgp_ft_matcher_t * filter_match_prefix_le(SPrefix sPrefix,
 					  uint8_t uMaskLen);
   // ----- filter_math_path -----------------------------------------
-  SFilterMatcher * filter_match_path(int iArrayPathRegExPos);
+  bgp_ft_matcher_t * filter_match_path(int iArrayPathRegExPos);
   // ----- filter_action_accept -------------------------------------
-  SFilterAction * filter_action_accept();
+  bgp_ft_action_t * filter_action_accept();
   // ----- filter_action_deny ---------------------------------------
-  SFilterAction * filter_action_deny();
+  bgp_ft_action_t * filter_action_deny();
   // ----- filter_action_jump ---------------------------------------
-  SFilterAction * filter_action_jump(SFilter * pFilter);
+  bgp_ft_action_t * filter_action_jump(bgp_filter_t * pFilter);
   // ----- filter_action_call ---------------------------------------
-  SFilterAction * filter_action_call(SFilter * pFilter);
+  bgp_ft_action_t * filter_action_call(bgp_filter_t * pFilter);
   // ----- filter_action_pref_set -----------------------------------
-  SFilterAction * filter_action_pref_set(uint32_t uPref);
+  bgp_ft_action_t * filter_action_pref_set(uint32_t uPref);
   // ----- filter_action_metric_set ---------------------------------
-  SFilterAction * filter_action_metric_set(uint32_t uMetric);
+  bgp_ft_action_t * filter_action_metric_set(uint32_t uMetric);
   // ----- filter_action_metric_internal ----------------------------
-  SFilterAction * filter_action_metric_internal();
+  bgp_ft_action_t * filter_action_metric_internal();
   // ----- filter_action_comm_append --------------------------------
-  SFilterAction * filter_action_comm_append(comm_t uCommunity);
+  bgp_ft_action_t * filter_action_comm_append(comm_t uCommunity);
   // ----- filter_action_comm_remove --------------------------------
-  SFilterAction * filter_action_comm_remove(comm_t uCommunity);
+  bgp_ft_action_t * filter_action_comm_remove(comm_t uCommunity);
   // ----- filter_action_comm_strip ---------------------------------
-  SFilterAction * filter_action_comm_strip();
+  bgp_ft_action_t * filter_action_comm_strip();
   // ----- filter_action_ecomm_append -------------------------------
-  SFilterAction * filter_action_ecomm_append(SECommunity * pComm);
+  bgp_ft_action_t * filter_action_ecomm_append(SECommunity * pComm);
   // ----- filter_action_path_prepend -------------------------------
-  SFilterAction * filter_action_path_prepend(uint8_t uAmount);
+  bgp_ft_action_t * filter_action_path_prepend(uint8_t uAmount);
   // ----- filter_action_path_rem_private ---------------------------
-  SFilterAction * filter_action_path_rem_private();
+  bgp_ft_action_t * filter_action_path_rem_private();
   // ----- filter_dump ----------------------------------------------
-  void filter_dump(SLogStream * pStream, SFilter * pFilter);
+  void filter_dump(SLogStream * pStream, bgp_filter_t * pFilter);
+  // ----- filter_rule_dump -------------------------------------------
+  void filter_rule_dump(SLogStream * pStream, bgp_ft_rule_t * pRule);
   // ----- filter_matcher_dump --------------------------------------
   void filter_matcher_dump(SLogStream * pStream,
-			   SFilterMatcher * pMatcher);
+			   bgp_ft_matcher_t * pMatcher);
   // ----- filter_action_dump ---------------------------------------
   void filter_action_dump(SLogStream * pStream,
-			  SFilterAction * pAction);
+			  bgp_ft_action_t * pAction);
   
   // ----- filter_path_regex_init -----------------------------------
   void _filter_path_regex_init();
