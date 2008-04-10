@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing.c,v 1.26 2008-04-10 11:27:00 bqu Exp $
+// $Id: routing.c,v 1.27 2008-04-10 11:32:25 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -506,7 +506,7 @@ int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
  * deletion of a single prefix (can be called by
  * 'radix_tree_for_each')
  */
-int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
+int rt_del_for_each(uint32_t key, uint8_t key_len,
 		    void * item, void * ctx)
 {
   rt_info_list_t * list= (rt_info_list_t *) item;
@@ -517,8 +517,8 @@ int rt_del_for_each(uint32_t uKey, uint8_t uKeyLen,
   if (list == NULL)
     return -1;
 
-  prefix.tNetwork= uKey;
-  prefix.uMaskLen= uKeyLen;
+  prefix.tNetwork= key;
+  prefix.uMaskLen= key_len;
 
   /* Remove from the list all the routes that match the given
      attributes */
@@ -680,15 +680,15 @@ void net_route_info_dump(SLogStream * stream, rt_info_t * rtinfo)
 }
 
 // -----[ _rt_dump_for_each ]----------------------------------------
-static int _rt_dump_for_each(uint32_t uKey, uint8_t uKeyLen,
+static int _rt_dump_for_each(uint32_t key, uint8_t key_len,
 			     void * item, void * ctx)
 {
   SLogStream * stream= (SLogStream *) ctx;
   rt_info_list_t * list= (rt_info_list_t *) item;
   ip_pfx_t pfx;
   
-  pfx.tNetwork= uKey;
-  pfx.uMaskLen= uKeyLen;
+  pfx.tNetwork= key;
+  pfx.uMaskLen= key_len;
   
   _rt_info_list_dump(stream, pfx, list);
   return 0;

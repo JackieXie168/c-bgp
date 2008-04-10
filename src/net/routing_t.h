@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing_t.h,v 1.5 2008-04-10 11:27:00 bqu Exp $
+// $Id: routing_t.h,v 1.6 2008-04-10 11:32:25 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ROUTING_T_H__
@@ -23,4 +23,4 @@ typedef uint8_t net_route_type_t;
 typedef STrie net_rt_t;
 typedef net_rt_t SNetRT;
 
-#endif /* __NET_ROUTING_T_H__ *//
+#endif /* __NET_ROUTING_T_H__ */
