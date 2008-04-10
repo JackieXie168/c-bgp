@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// @lastdate 12/03/2008
+// $Id: routing.h,v 1.18 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ROUTING_H__
@@ -19,8 +19,7 @@
 #include <net/link.h>
 #include <net/routing_t.h>
 
-// ----- SNetRouteInfoList ------------------------------------------
-typedef SPtrArray SNetRouteInfoList;
+typedef SPtrArray rt_info_list_t;
 
 // -----[ rt_entry_t ]-----------------------------------------------
 /**
@@ -32,69 +31,73 @@ typedef SPtrArray SNetRouteInfoList;
  * address is mandatory for a multi-point link such as a subnet.
  */
 typedef struct {
-  net_addr_t    tGateway;
-  net_iface_t * pIface;
+  net_addr_t    gateway;
+  net_iface_t * oif;
 } rt_entry_t;
-typedef rt_entry_t SNetRouteNextHop;
 
-typedef SPtrArray SNetRouteNextHops;
+//typedef SPtrArray SNetRouteNextHops;
 
-// ----- SNetRouteInfo ----------------------------------------------
+// ----- rt_info_t ----------------------------------------------
 typedef struct {
-  SPrefix sPrefix;
-  uint32_t uWeight;
-  rt_entry_t sNextHop;
-  SNetRouteNextHops * pNextHops;
-  net_route_type_t tType;
+  ip_pfx_t         prefix;
+  uint32_t         metric;
+  rt_entry_t       next_hop;
+  //SNetRouteNextHops * pNextHops;
+  net_route_type_t type;
 } rt_info_t;
-typedef rt_info_t SNetRouteInfo;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+  ///////////////////////////////////////////////////////////////////
+  // ROUTE (rt_info_t)
+  ///////////////////////////////////////////////////////////////////
+
   // ----- route_nexthop_compare ------------------------------------
   int route_nexthop_compare(rt_entry_t sNH1,
 			    rt_entry_t sNH2);
   // ----- net_route_info_create --------------------------------------
-  SNetRouteInfo * net_route_info_create(SPrefix sPrefix,
-					net_iface_t * pIface,
-					net_addr_t tNextHop,
-					uint32_t uWeight,
-					net_route_type_t tType);
+  rt_info_t * net_route_info_create(ip_pfx_t prefix,
+				    net_iface_t * oif,
+				    net_addr_t next_hop,
+				    uint32_t metric,
+				    net_route_type_t type);
   // ----- net_route_info_destroy -------------------------------------
-  void net_route_info_destroy(SNetRouteInfo ** ppRouteInfo);
+  void net_route_info_destroy(rt_info_t ** rtinfo_ref);
+  // ----- net_route_info_dump ----------------------------------------
+  void net_route_info_dump(SLogStream * stream, rt_info_t * rtinfo);
+
+
+  ///////////////////////////////////////////////////////////////////
+  // ROUTING TABLE (net_rt_t)
+  ///////////////////////////////////////////////////////////////////
   
   // ----- rt_create --------------------------------------------------
-  SNetRT * rt_create();
+  net_rt_t * rt_create();
   // ----- rt_destroy -------------------------------------------------
-  void rt_destroy(SNetRT ** ppRT);
+  void rt_destroy(net_rt_t ** rt_ref);
   // ----- rt_find_best -----------------------------------------------
-  SNetRouteInfo * rt_find_best(SNetRT * pRT, net_addr_t tAddr,
-			       net_route_type_t tType);
+  rt_info_t * rt_find_best(net_rt_t * rt, net_addr_t addr,
+			   net_route_type_t type);
   // ----- rt_find_exact ----------------------------------------------
-  SNetRouteInfo * rt_find_exact(SNetRT * pRT, SPrefix sPrefix,
-				net_route_type_t tType);
+  rt_info_t * rt_find_exact(net_rt_t * rt, ip_pfx_t prefix,
+			    net_route_type_t type);
   // ----- rt_add_route -----------------------------------------------
-  int rt_add_route(SNetRT * pRT, SPrefix sPrefix,
-		   SNetRouteInfo * pRouteInfo);
+  int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
+		   rt_info_t * rtinfo);
   // ----- rt_del_route -----------------------------------------------
-  int rt_del_route(SNetRT * pRT, SPrefix * pPrefix,
-		   net_iface_t * pIface, net_addr_t * ptNextHop,
-		   net_route_type_t tType);
+  int rt_del_route(net_rt_t * rt, ip_pfx_t * prefix,
+		   net_iface_t * oif, net_addr_t * next_hop,
+		   net_route_type_t type);
   // ----- net_route_type_dump ----------------------------------------
-  void net_route_type_dump(SLogStream * pStream, net_route_type_t tType);
-  // ----- net_route_info_dump ----------------------------------------
-  void net_route_info_dump(SLogStream * pStream, SNetRouteInfo * pRouteInfo);
-  // ----- rt_info_list_dump ------------------------------------------
-  void rt_info_list_dump(SLogStream * pStream, SPrefix sPrefix,
-			 SNetRouteInfoList * pRouteInfoList);
+  void net_route_type_dump(SLogStream * stream, net_route_type_t type);
   // ----- rt_dump ----------------------------------------------------
-  void rt_dump(SLogStream * pStream, SNetRT * pRT, SNetDest sDest);
+  void rt_dump(SLogStream * stream, net_rt_t * rt, SNetDest dest);
   
   // ----- rt_for_each ------------------------------------------------
-  int rt_for_each(SNetRT * pRT, FRadixTreeForEach fForEach,
-		  void * pContext);
+  int rt_for_each(net_rt_t * rt, FRadixTreeForEach fForEach,
+		  void * ctx);
   
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.15 2008-04-07 10:04:59 bqu Exp $
+// $Id: net_Node.c,v 1.16 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -36,18 +36,18 @@
  * node.
  */
 jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
-			      net_node_t * pNode)
+			      net_node_t * node)
 {
   jobject joNode;
   jobject joAddress;
 
   /* Java proxy object already existing ? */
-  joNode= jni_proxy_get(jEnv, pNode);
+  joNode= jni_proxy_get(jEnv, node);
   if (joNode != NULL)
     return joNode;
 
   /* Convert node attributes to Java objects */
-  joAddress= cbgp_jni_new_IPAddress(jEnv, pNode->tAddr);
+  joAddress= cbgp_jni_new_IPAddress(jEnv, node->tAddr);
 
   /* Check that the conversion was successful */
   if (joAddress == NULL)
@@ -60,7 +60,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jEnv, joNode, pNode);
+  jni_proxy_add(jEnv, joNode, node);
 
   return joNode;
 }
@@ -415,6 +415,9 @@ static int _cbgp_jni_get_link(void * pItem, void * pContext)
   net_iface_t * pLink= *((net_iface_t **) pItem);
   jobject joLink;
 
+  if (!net_iface_is_connected(pLink))
+    return 0;
+
   if ((joLink= cbgp_jni_new_net_Link(pCtx->jEnv,
 				     pCtx->joCBGP,
 				     pLink)) == NULL)
@@ -461,14 +464,14 @@ static int _cbgp_jni_get_rt_route(uint32_t uKey, uint8_t uKeyLen,
 				  void * pItem, void * pContext)
 {
   SJNIContext * pCtx= (SJNIContext *) pContext;
-  SNetRouteInfo * pRI= (SNetRouteInfo *) pItem;
+  rt_info_t * rtinfo= (rt_info_t *) pItem;
   SPrefix sPrefix;
   jobject joRoute;
 
   sPrefix.tNetwork= uKey;
   sPrefix.uMaskLen= uKeyLen;
 
-  if ((joRoute= cbgp_jni_new_IPRoute(pCtx->jEnv, sPrefix, pRI)) == NULL)
+  if ((joRoute= cbgp_jni_new_IPRoute(pCtx->jEnv, sPrefix, rtinfo)) == NULL)
     return -1;
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
 }
@@ -485,7 +488,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
   net_node_t * node;
   jobject joVector;
   SJNIContext sCtx;
-  SNetRouteInfo * pRI;
+  rt_info_t * rtinfo;
   SNetDest sDest;
 
   jni_lock(jEnv);
@@ -517,19 +520,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
     break;
 
   case NET_DEST_ADDRESS:
-    pRI= rt_find_best(node->rt, sDest.uDest.tAddr, NET_ROUTE_ANY);
+    rtinfo= rt_find_best(node->rt, sDest.uDest.tAddr, NET_ROUTE_ANY);
 
-    if (pRI != NULL)
-      if (_cbgp_jni_get_rt_route(sDest.uDest.tAddr, 32, pRI, &sCtx) < 0)
+    if (rtinfo != NULL)
+      if (_cbgp_jni_get_rt_route(sDest.uDest.tAddr, 32, rtinfo, &sCtx) < 0)
 	return_jni_unlock(jEnv, NULL);
     break;
 
   case NET_DEST_PREFIX:
-    pRI= rt_find_exact(node->rt, sDest.uDest.sPrefix, NET_ROUTE_ANY);
-    if (pRI != NULL)
+    rtinfo= rt_find_exact(node->rt, sDest.uDest.sPrefix, NET_ROUTE_ANY);
+    if (rtinfo != NULL)
       if (_cbgp_jni_get_rt_route(sDest.uDest.sPrefix.tNetwork,
 				 sDest.uDest.sPrefix.uMaskLen,
-				 pRI, &sCtx) < 0)
+				 rtinfo, &sCtx) < 0)
 	return_jni_unlock(jEnv, NULL);
     break;
     

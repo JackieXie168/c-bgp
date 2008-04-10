@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.71 2008-04-07 09:03:11 bqu Exp $
+// $Id: as.c,v 1.72 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in pLocalNetworks a _copy_ of the BGP routes locally
@@ -1701,8 +1701,8 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
   unsigned int index;
   bgp_peer_t * pPeer;
   unsigned int uBestWeight;
-  SNetRouteInfo * pRouteInfo;
-  SNetRouteInfo * pCurRouteInfo;
+  rt_info_t * pRouteInfo;
+  rt_info_t * pCurRouteInfo;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   uint16_t uIndexRoute;
@@ -1758,8 +1758,8 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 				   pRoute->sPrefix, NET_ROUTE_BGP);
       assert(pCurRouteInfo != NULL);
       
-      if (route_nexthop_compare(pCurRouteInfo->sNextHop,
-				pRouteInfo->sNextHop)) {
+      if (route_nexthop_compare(pCurRouteInfo->next_hop,
+				pRouteInfo->next_hop)) {
 	_array_append(pCtx->pPrefixes, &sPrefix);
 	//fprintf(stderr, "NEXT-HOP HAS CHANGED\n");
 	return 0;
@@ -1778,7 +1778,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 	return 0;	
       }
 
-      uBestWeight= pRouteInfo->uWeight;
+      uBestWeight= pRouteInfo->metric;
 
       /* Lookup in the Adj-RIB-Ins for routes that were also selected
 	 based on the IGP, that is routes that were compared to the
@@ -1820,7 +1820,7 @@ int bgp_router_scan_rib_for_each(uint32_t uKey, uint8_t uKeyLen,
 	    
 	    /* IGP cost is below cost of the best route, thus run the
 	       decision process */
-	    if (pRouteInfo->uWeight < uBestWeight) {
+	    if (pRouteInfo->metric < uBestWeight) {
 	      _array_append(pCtx->pPrefixes, &sPrefix);
 	      return 0;
 	    }	
@@ -1981,7 +1981,7 @@ int bgp_router_scan_rib(bgp_router_t * pRouter)
   int iIndex;
   int iResult;
   SRadixTree * pPrefixes;
-  SPrefix sPrefix;
+  ip_pfx_t sPrefix;
 
   /* Scan peering sessions */
   _bgp_router_refresh_sessions(pRouter);

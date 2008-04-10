@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// $Id: filter.c,v 1.22 2008-04-07 09:12:37 bqu Exp $
+// $Id: filter.c,v 1.23 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -343,7 +343,7 @@ int filter_matcher_apply(bgp_ft_matcher_t * pMatcher, bgp_router_t * pRouter,
 int filter_action_apply(bgp_ft_action_t * pAction, bgp_router_t * pRouter,
 			bgp_route_t * pRoute)
 {
-  SNetRouteInfo * pRouteInfo;
+  rt_info_t * rtinfo;
 
   while (pAction != NULL) {
     switch (pAction->uCode) {
@@ -375,10 +375,10 @@ int filter_action_apply(bgp_ft_action_t * pAction, bgp_router_t * pRouter,
       break;
     case FT_ACTION_METRIC_INTERNAL:
       if (pRoute->pAttr->tNextHop != pRouter->pNode->tAddr) {
-	pRouteInfo= rt_find_best(pRouter->pNode->rt, pRoute->pAttr->tNextHop,
-				 NET_ROUTE_ANY);
-	assert(pRouteInfo != NULL);
-	route_med_set(pRoute, pRouteInfo->uWeight);
+	rtinfo= rt_find_best(pRouter->pNode->rt, pRoute->pAttr->tNextHop,
+			     NET_ROUTE_ANY);
+	assert(rtinfo != NULL);
+	route_med_set(pRoute, rtinfo->metric);
       } else {
 	route_med_set(pRoute, 0);
       }

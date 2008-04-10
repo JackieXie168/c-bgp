@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// $Id: record-route.c,v 1.9 2008-04-07 09:45:55 bqu Exp $
+// $Id: record-route.c,v 1.10 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -158,7 +158,7 @@ static inline int _find_nexthop(net_node_t * pCNode,
 				net_msg_t ** ppDummyMsg)
 {
   net_addr_t tNextHop;
-  SNetRouteInfo * pRouteInfo;
+  rt_info_t * rtinfo;
   const rt_entry_t * pNextHop= NULL;
   //int iResult;
 
@@ -169,10 +169,10 @@ static inline int _find_nexthop(net_node_t * pCNode,
     break;
 
   case NET_DEST_PREFIX:
-    pRouteInfo= rt_find_exact(pCNode->rt, sDest.uDest.sPrefix,
-			      NET_ROUTE_ANY);
-    if (pRouteInfo != NULL)
-      pNextHop= &pRouteInfo->sNextHop;
+    rtinfo= rt_find_exact(pCNode->rt, sDest.uDest.sPrefix,
+			  NET_ROUTE_ANY);
+    if (rtinfo != NULL)
+      pNextHop= &rtinfo->next_hop;
     break;
 
   default:
@@ -184,18 +184,18 @@ static inline int _find_nexthop(net_node_t * pCNode,
     return ENET_NET_UNREACH;
 
   // Link down: return DOWN
-  if (!net_iface_is_enabled(pNextHop->pIface))
+  if (!net_iface_is_enabled(pNextHop->oif))
     return ENET_LINK_DOWN;
 
   // Update QoS information
-  _info_update_qos(pInfo, pNextHop->pIface);
+  _info_update_qos(pInfo, pNextHop->oif);
 
   // Next-hop address on point-to-multipoint links
   // (this is a simplified model of ARP)
-  if (pNextHop->tGateway == 0)
+  if (pNextHop->gateway == 0)
     tNextHop= sDest.uDest.tAddr;
   else
-    tNextHop= pNextHop->tGateway;
+    tNextHop= pNextHop->gateway;
 
   // Forward along the link (using the link's method). The result
   // is the destination's incoming interface

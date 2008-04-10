@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net_Node.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// @lastdate 18/11/2007
+// $Id: net_Node.h,v 1.5 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_NET_NODE_H__
@@ -17,6 +17,6 @@
 
 // -----[ cbgp_jni_new_net_Node ]------------------------------------
 jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
-			      net_node_t * pNode);
+			      net_node_t * node);
 
 #endif

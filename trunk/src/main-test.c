@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: main-test.c,v 1.9 2008-04-07 09:24:29 bqu Exp $
+// $Id: main-test.c,v 1.10 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -382,7 +382,7 @@ static int test_net_attr_prefix4_cmp()
 // -----[ test_net_attr_dest ]---------------------------------------
 static int test_net_attr_dest()
 {
-  return UTEST_SUCCESS;
+  return UTEST_SKIPPED;
 }
 
 // -----[ test_net_attr_dest_str2 ]----------------------------------
@@ -979,6 +979,56 @@ static int test_net_link_ptmp_forward_unreach()
 		"message content should not have changed");  
   subnet_destroy(&subnet);
   node_destroy(&node1);
+  return UTEST_SKIPPED;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// NET ROUTING TABLE
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_net_rt ]----------------------------------------------
+static int test_net_rt()
+{
+  net_rt_t * rt= rt_create();
+  ASSERT_RETURN(rt != NULL, "RT creation should succeed");
+  rt_destroy(&rt);
+  ASSERT_RETURN(rt == NULL, "destroyed RT should be NULL");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_rt_add ]------------------------------------------
+static int test_net_rt_add()
+{
+  net_rt_t * rt= rt_create();
+  net_iface_t * iface= NULL;
+  SPrefix pfx= { .tNetwork= IPV4(192,168,1,0), .uMaskLen= 24 };
+  rt_info_t * rtinfo= net_route_info_create(pfx, iface, NET_ADDR_ANY, 0,
+					    NET_ROUTE_STATIC);
+  ASSERT_RETURN(rtinfo != NULL, "route info creation should succeed");
+  ASSERT_RETURN(rt_add_route(rt, pfx, rtinfo) == ESUCCESS,
+		"route addition should succeed");
+  rt_destroy(&rt);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_rt_add_dup ]--------------------------------------
+static int test_net_rt_add_dup()
+{
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_net_rt_del ]------------------------------------------
+static int test_net_rt_del()
+{
+  return UTEST_SKIPPED;
+}
+
+// -----[ test_net_rt_lookup ]---------------------------------------
+static int test_net_rt_lookup()
+{
   return UTEST_SKIPPED;
 }
 
@@ -2598,6 +2648,15 @@ unit_test_t TEST_NET_LINK[]= {
 };
 #define TEST_NET_LINK_SIZE ARRAY_SIZE(TEST_NET_LINK)
 
+unit_test_t TEST_NET_RT[]= {
+  {test_net_rt, "routing table"},
+  {test_net_rt_add, "add"},
+  {test_net_rt_add_dup, "add (dup)"},
+  {test_net_rt_del, "del"},
+  {test_net_rt_lookup, "lookup"},
+};
+#define TEST_NET_RT_SIZE ARRAY_SIZE(TEST_NET_RT)
+
 unit_test_t TEST_NET_TUNNEL[]= {
   {test_net_tunnel, "tunnel"},
   {test_net_tunnel_forward, "tunnel forward"},
@@ -2730,6 +2789,7 @@ unit_test_suite_t TEST_SUITES[]= {
   {"Net Subnets", TEST_NET_SUBNET_SIZE, TEST_NET_SUBNET},
   {"Net Interfaces", TEST_NET_IFACE_SIZE, TEST_NET_IFACE},
   {"Net Links", TEST_NET_LINK_SIZE, TEST_NET_LINK},
+  {"Net RT", TEST_NET_RT_SIZE, TEST_NET_RT},
   {"Net Tunnels", TEST_NET_TUNNEL_SIZE, TEST_NET_TUNNEL},
   {"Net Network", TEST_NET_NETWORK_SIZE, TEST_NET_NETWORK},
   {"Net Routing Static", TEST_NET_RT_STATIC_SIZE, TEST_NET_RT_STATIC},

@@ -325,7 +325,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
     break;
 
   default:
-    abort();
+    fatal("invalid destination type for getRIB()");
   }
 
   return_jni_unlock(jEnv, joVector);
@@ -364,7 +364,7 @@ static int _cbgp_jni_get_adj_rib_routes(bgp_peer_t * pPeer, SNetDest * pDest,
     break;
 
   default:
-    abort();
+    fatal("invalid destination type for getAdjRIB()");
   }
 
   return 0;

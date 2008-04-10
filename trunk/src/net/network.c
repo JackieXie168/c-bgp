@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// $Id: network.c,v 1.55 2008-04-07 09:39:27 bqu Exp $
+// $Id: network.c,v 1.56 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -313,7 +313,7 @@ const rt_entry_t * node_rt_lookup(net_node_t * node, net_addr_t dst_addr)
   if (node->rt != NULL) {
     rtinfo= rt_find_best(node->rt, dst_addr, NET_ROUTE_ANY);
     if (rtinfo != NULL)
-      rtentry= &rtinfo->sNextHop;
+      rtentry= &rtinfo->next_hop;
   }
   return rtentry;
 }
@@ -401,7 +401,7 @@ static inline net_error_t
 _node_ip_output(net_node_t * node, const rt_entry_t * rtentry,
 		net_msg_t * msg)
 {
-  net_addr_t l2_addr= rtentry->tGateway;
+  net_addr_t l2_addr= rtentry->gateway;
 
   // Note: we don't support recursive routing table lookups in C-BGP
   //       resolving the real outgoing interface is done by the
@@ -409,9 +409,9 @@ _node_ip_output(net_node_t * node, const rt_entry_t * rtentry,
 
   // Fix source address (if not already set)
   if (msg->src_addr == NET_ADDR_ANY)
-    msg->src_addr= net_iface_src_address(rtentry->pIface);
+    msg->src_addr= net_iface_src_address(rtentry->oif);
 
-  if (rtentry->pIface->type == NET_IFACE_PTMP) {
+  if (rtentry->oif->type == NET_IFACE_PTMP) {
     // For point-to-multipoint interfaces, need to get identifier of
     // next-hop (role played by ARP in the case of Ethernet)
     // In C-BGP, the layer-2 address is equal to the destination's
@@ -425,10 +425,10 @@ _node_ip_output(net_node_t * node, const rt_entry_t * rtentry,
 
   // Process ICMP options
   if (msg->protocol == NET_PROTOCOL_ICMP)
-    icmp_process_options(1, node, rtentry->pIface, msg, NULL);
+    icmp_process_options(1, node, rtentry->oif, msg, NULL);
 
   // Forward along this link...
-  return net_iface_send(rtentry->pIface, l2_addr, msg);
+  return net_iface_send(rtentry->oif, l2_addr, msg);
 }
 
 // -----[ node_recv_msg ]--------------------------------------------
@@ -499,7 +499,7 @@ net_error_t node_recv_msg(net_node_t * node,
   // Check that the outgoing interface is different from the
   // incoming interface. Anormal router should send an ICMP Redirect
   // if it is the first hop. We don't handle this case in C-BGP.
-  if (iif == rtentry->pIface)
+  if (iif == rtentry->oif)
     return _node_ip_fwd_error(node, msg, EUNEXPECTED, 0);
 
   return _node_ip_output(node, rtentry, msg);

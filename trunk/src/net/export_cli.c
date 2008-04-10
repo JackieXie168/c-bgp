@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/07
-// $Id: export_cli.c,v 1.3 2008-04-07 09:44:48 bqu Exp $
+// $Id: export_cli.c,v 1.4 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 // Note:
 //   - tunnels and tunnel-based routes are not suppported
@@ -137,8 +137,8 @@ static void _net_export_cli_static(SLogStream * stream,
 {
   enum_t * pEnumNodes, * pEnumRILists, * pEnumRIs;
   net_node_t * node;
-  SNetRouteInfoList * pRIList;
-  SNetRouteInfo * pRI;
+  rt_info_list_t * list;
+  rt_info_t * rtinfo;
 
   pEnumNodes= trie_get_enum(network->nodes);
   while (enum_has_next(pEnumNodes)) {
@@ -146,17 +146,17 @@ static void _net_export_cli_static(SLogStream * stream,
 
     pEnumRILists= trie_get_enum(node->rt);
     while (enum_has_next(pEnumRILists)) {
-      pRIList= *(SNetRouteInfoList **) enum_get_next(pEnumRILists);
+      list= *(rt_info_list_t **) enum_get_next(pEnumRILists);
 
-      pEnumRIs= _array_get_enum((SArray *) pRIList);
+      pEnumRIs= _array_get_enum((SArray *) list);
       while (enum_has_next(pEnumRIs)) {
-	pRI= *(SNetRouteInfo **) enum_get_next(pEnumRIs);
+	rtinfo= *(rt_info_t **) enum_get_next(pEnumRIs);
 
 	// Constraints
 	// - Only static routes
 	// - Static routes based on tunnel interfaces not supported
-	if ((pRI->tType != NET_ROUTE_STATIC) ||
-	    (pRI->sNextHop.pIface->type == NET_IFACE_VIRTUAL))
+	if ((rtinfo->type != NET_ROUTE_STATIC) ||
+	    (rtinfo->next_hop.oif->type == NET_IFACE_VIRTUAL))
 	  continue;
 
 	log_printf(stream, "net node ");
@@ -164,32 +164,32 @@ static void _net_export_cli_static(SLogStream * stream,
 	log_printf(stream, " route add ");
 
 	// Destination prefix
-	ip_prefix_dump(stream, pRI->sPrefix);
+	ip_prefix_dump(stream, rtinfo->prefix);
 	log_printf(stream, " ");
 
 	// Gateway ?
-	if (pRI->sNextHop.tGateway != NET_ADDR_ANY)
-	  ip_address_dump(stream, pRI->sNextHop.tGateway);
+	if (rtinfo->next_hop.gateway != NET_ADDR_ANY)
+	  ip_address_dump(stream, rtinfo->next_hop.gateway);
 	else
 	  log_printf(stream, "*");
 
 	// Outgoing interface
 	log_printf(stream, " ");
-	switch (pRI->sNextHop.pIface->type) {
+	switch (rtinfo->next_hop.oif->type) {
 	case NET_IFACE_LOOPBACK:
 	case NET_IFACE_RTR:
 	case NET_IFACE_VIRTUAL:
-	  ip_address_dump(stream, pRI->sNextHop.pIface->dest.iface->src_node->tAddr);
+	  ip_address_dump(stream, rtinfo->next_hop.oif->dest.iface->src_node->tAddr);
 	  break;
 	case NET_IFACE_PTMP:
-	  ip_prefix_dump(stream, pRI->sNextHop.pIface->dest.subnet->sPrefix);
+	  ip_prefix_dump(stream, rtinfo->next_hop.oif->dest.subnet->sPrefix);
 	  break;
 	default:
 	  abort();
 	}
 
 	// Metric
-	log_printf(stream, " %d\n", pRI->uWeight);
+	log_printf(stream, " %d\n", rtinfo->metric);
 
       }
       enum_destroy(&pEnumRIs);
