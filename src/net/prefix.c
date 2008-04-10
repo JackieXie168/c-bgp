@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/11/2002
-// @lastdate 06/03/2008
+// $Id: prefix.c,v 1.22 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -111,9 +111,9 @@ net_addr_t _ip_address_mask(net_mask_t tMaskLen)
 /**
  *
  */
-SPrefix uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen)
+ip_pfx_t uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen)
 {
-  SPrefix sPrefix;
+  ip_pfx_t sPrefix;
   sPrefix.tNetwork= tPrefix;
   sPrefix.uMaskLen= tMaskLen;
   return sPrefix;
@@ -121,9 +121,9 @@ SPrefix uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen)
 
 
 // ----- create_ip_prefix -------------------------------------------
-SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
+ip_pfx_t * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
 {
-  SPrefix * pPrefix = (SPrefix *) MALLOC(sizeof(SPrefix));
+  ip_pfx_t * pPrefix = (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
   pPrefix->tNetwork= tAddr;
   pPrefix->uMaskLen= tMaskLen;
   return pPrefix;
@@ -133,7 +133,7 @@ SPrefix * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
 /**
  *
  */
-void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix)
+void ip_prefix_dump(SLogStream * pStream, ip_pfx_t sPrefix)
 {
   log_printf(pStream, "%u.%u.%u.%u/%u",
 	     sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
@@ -146,7 +146,7 @@ void ip_prefix_dump(SLogStream * pStream, SPrefix sPrefix)
  *
  *
  */
-int ip_prefix_to_string(SPrefix * pPrefix, char * pcPrefix, size_t tDstSize)
+int ip_prefix_to_string(ip_pfx_t * pPrefix, char * pcPrefix, size_t tDstSize)
 {
   int iResult= snprintf(pcPrefix, tDstSize, "%u.%u.%u.%u/%u", 
 			(unsigned int) pPrefix->tNetwork >> 24,
@@ -162,7 +162,7 @@ int ip_prefix_to_string(SPrefix * pPrefix, char * pcPrefix, size_t tDstSize)
  *
  */
 int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
-			SPrefix * pPrefix)
+			ip_pfx_t * pPrefix)
 {
   unsigned long int ulDigit;
   uint8_t uNumDigits= 4;
@@ -230,7 +230,7 @@ int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
 }
 
 //---------- ip_prefix_to_dest ----------------------------------------------
-SNetDest ip_prefix_to_dest(SPrefix sPrefix)
+SNetDest ip_prefix_to_dest(ip_pfx_t sPrefix)
 {
   SNetDest sDest;
   if (sPrefix.uMaskLen == 32){
@@ -285,7 +285,7 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
  *   0   if P1 == P2
  *   1   if P1 > P2
  */
-int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2)
+int ip_prefix_cmp(ip_pfx_t * pPrefix1, ip_pfx_t * pPrefix2)
 {
   net_addr_t tMask;
 
@@ -314,7 +314,7 @@ int ip_prefix_cmp(SPrefix * pPrefix1, SPrefix * pPrefix2)
  *   != 0  if address is in prefix
  *   0     otherwise
  */
-int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
+int ip_address_in_prefix(net_addr_t tAddr, ip_pfx_t sPrefix)
 {
   assert(sPrefix.uMaskLen <= 32);
 
@@ -335,7 +335,7 @@ int ip_address_in_prefix(net_addr_t tAddr, SPrefix sPrefix)
  *   != 0  if P1 is in P2
  *   0     otherwise
  */
-int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
+int ip_prefix_in_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2)
 {
   assert(sPrefix2.uMaskLen <= 32);
 
@@ -359,7 +359,7 @@ int ip_prefix_in_prefix(SPrefix sPrefix1, SPrefix sPrefix2)
  * Test if P1 matches P2 and its prefix length is greater than or
  * equal to L.
  */
-int ip_prefix_ge_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+int ip_prefix_ge_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2,
 			uint8_t uMaskLen)
 {
   if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
@@ -372,7 +372,7 @@ int ip_prefix_ge_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
 /**
  * Test if P1 is less or equal than P2.
  */
-int ip_prefix_le_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
+int ip_prefix_le_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2,
 			uint8_t uMaskLen)
 {
   if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
@@ -385,10 +385,10 @@ int ip_prefix_le_prefix(SPrefix sPrefix1, SPrefix sPrefix2,
 /**
  * Make a copy of the given IP prefix.
  */
-SPrefix * ip_prefix_copy(SPrefix * pPrefix)
+ip_pfx_t * ip_prefix_copy(ip_pfx_t * pPrefix)
 {
-  SPrefix * pPrefixCopy= (SPrefix *) MALLOC(sizeof(SPrefix));
-  memcpy(pPrefixCopy, pPrefix, sizeof(SPrefix));
+  ip_pfx_t * pPrefixCopy= (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
+  memcpy(pPrefixCopy, pPrefix, sizeof(ip_pfx_t));
   return pPrefixCopy;
 }
 
@@ -396,7 +396,7 @@ SPrefix * ip_prefix_copy(SPrefix * pPrefix)
 /**
  *
  */
-void ip_prefix_destroy(SPrefix ** ppPrefix)
+void ip_prefix_destroy(ip_pfx_t ** ppPrefix)
 {
   if (*ppPrefix != NULL) {
     FREE(*ppPrefix);
@@ -408,7 +408,7 @@ void ip_prefix_destroy(SPrefix ** ppPrefix)
 /**
  * This function masks the remaining bits of the prefix's address.
  */
-void ip_prefix_mask(SPrefix * pPrefix)
+void ip_prefix_mask(ip_pfx_t * pPrefix)
 {
   pPrefix->tNetwork&= _ip_address_mask(pPrefix->uMaskLen);
 }

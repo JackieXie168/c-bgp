@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// $Id: jni_util.c,v 1.20 2008-04-07 10:04:59 bqu Exp $
+// $Id: jni_util.c,v 1.21 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -224,7 +224,7 @@ jobject cbgp_jni_new_ConsoleEvent(JNIEnv * jEnv, char * pcMessage)
  * This function creates a new instance of the Java IPPrefix object
  * from a CBGP prefix.
  */
-jobject cbgp_jni_new_IPPrefix(JNIEnv * env, SPrefix sPrefix)
+jobject cbgp_jni_new_IPPrefix(JNIEnv * env, ip_pfx_t sPrefix)
 {
   jclass class_IPPrefix;
   jmethodID id_IPPrefix;
@@ -280,8 +280,8 @@ jobject cbgp_jni_new_IPAddress(JNIEnv * env, net_addr_t tAddr)
  * This function creates a new instance of the IPRoute object from a
  * CBGP route.
  */
-jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, SPrefix sPrefix,
-			     SNetRouteInfo * pRoute)
+jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, ip_pfx_t sPrefix,
+			     rt_info_t * rtinfo)
 {
   jclass class_IPRoute;
   jmethodID id_IPRoute;
@@ -296,13 +296,13 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, SPrefix sPrefix,
   if (joPrefix == NULL)
     return NULL;
 
-  tIfaceID= net_iface_id(pRoute->sNextHop.pIface);
+  tIfaceID= net_iface_id(rtinfo->next_hop.oif);
   joIface=
     cbgp_jni_new_IPAddress(jEnv, tIfaceID.tNetwork);
   if (joIface == NULL)
     return NULL;
 
-  joGateway= cbgp_jni_new_IPAddress(jEnv, pRoute->sNextHop.tGateway);
+  joGateway= cbgp_jni_new_IPAddress(jEnv, rtinfo->next_hop.gateway);
   if (joGateway == NULL)
     return NULL;
 
@@ -316,7 +316,7 @@ jobject cbgp_jni_new_IPRoute(JNIEnv * jEnv, SPrefix sPrefix,
 
   if ((joRoute= (*jEnv)->NewObject(jEnv, class_IPRoute, id_IPRoute,
 				   joPrefix, joIface, joGateway,
-				   pRoute->tType)) == NULL)
+				   rtinfo->type)) == NULL)
     return NULL;
 
   return joRoute;
@@ -510,7 +510,7 @@ int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr)
  *
  * @throw CBGPException
  */
-int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix)
+int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, ip_pfx_t * psPrefix)
 {
   const char * cPrefix;
   char * pcEndPtr;

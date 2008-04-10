@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/01/2008
-// @lastdate 14/01/2008
+// $Id: ip6.h,v 1.2 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP6_H__

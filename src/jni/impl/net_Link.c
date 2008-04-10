@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: net_Link.c,v 1.11 2008-04-07 10:04:59 bqu Exp $
+// $Id: net_Link.c,v 1.12 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -272,6 +272,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getTail
     return_jni_unlock(jEnv, NULL);
 
   switch (pLink->type) {
+  case NET_IFACE_LOOPBACK:
+    joElement= NULL;
+    break;
+
   case NET_IFACE_RTR:
     joElement= cbgp_jni_new_net_Node(jEnv,
 				     NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
@@ -291,7 +295,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Link_getTail
     break;
 
   default:
-    abort();
+    fatal("invalid link type in getTail()");
   }
 
   return_jni_unlock(jEnv, joElement);

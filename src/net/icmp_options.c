@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/04/2008
-// $Id: icmp_options.c,v 1.1 2008-04-07 09:32:47 bqu Exp $
+// $Id: icmp_options.c,v 1.2 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -94,7 +94,7 @@ _icmp_process_in_options(net_node_t * node,
 			  NET_ROUTE_ANY);
     if (rtinfo == NULL)
       return ENET_NET_UNREACH;
-    *rtentry_ref= &rtinfo->sNextHop;
+    *rtentry_ref= &rtinfo->next_hop;
   }
 
   /* Need to update trace ? */

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.12 2008-04-07 09:28:00 bqu Exp $
+// $Id: node.c,v 1.13 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -467,7 +467,7 @@ int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
 			   net_iface_t * iface, net_addr_t tNextHop,
 			   uint32_t uWeight, uint8_t uType)
 {
-  SNetRouteInfo * pRouteInfo;
+  rt_info_t * rtinfo;
   net_iface_t * pSubLink;
 
   // If a next-hop has been specified, check that it is reachable
@@ -493,10 +493,10 @@ int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
   }
 
   // Build route info
-  pRouteInfo= net_route_info_create(sPrefix, iface, tNextHop,
-				    uWeight, uType);
+  rtinfo= net_route_info_create(sPrefix, iface, tNextHop,
+				uWeight, uType);
 
-  return rt_add_route(node->rt, sPrefix, pRouteInfo);
+  return rt_add_route(node->rt, sPrefix, rtinfo);
 }
 
 // ----- node_rt_del_route ------------------------------------------

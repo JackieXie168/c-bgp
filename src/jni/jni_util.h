@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// $Id: jni_util.h,v 1.14 2008-04-07 10:04:59 bqu Exp $
+// $Id: jni_util.h,v 1.15 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -24,13 +24,13 @@
 // -----[ context-structure for building vectors of links/routes ]---
 typedef struct {
   union {
-    net_node_t * pNode;
-    SBGPRouter * pRouter;
-    jobject joHashtable;
+    net_node_t   * pNode;
+    bgp_router_t * pRouter;
+    jobject        joHashtable;
   };
-  jobject joVector;
-  jobject joCBGP;
-  JNIEnv * jEnv;
+  jobject   joVector;
+  jobject   joCBGP;
+  JNIEnv  * jEnv;
 } SJNIContext;
 
 #ifdef __cplusplus
@@ -54,12 +54,12 @@ extern "C" {
   int cbgp_jni_ASPathSegment_append(JNIEnv * env, jobject joASPathSeg,
 				    uint16_t uAS);
   // -----[ cbgp_jni_new_IPPrefix ]----------------------------------
-  jobject cbgp_jni_new_IPPrefix(JNIEnv * env, SPrefix sPrefix);
+  jobject cbgp_jni_new_IPPrefix(JNIEnv * env, ip_pfx_t sPrefix);
   // -----[ cbgp_jni_new_IPAddress ]---------------------------------
   jobject cbgp_jni_new_IPAddress(JNIEnv * env, net_addr_t tAddr);
   // -----[ cbgp_jni_new_IPRoute ]-----------------------------------
-  jobject cbgp_jni_new_IPRoute(JNIEnv * env, SPrefix sPrefix,
-			       SNetRouteInfo * pRoute);
+  jobject cbgp_jni_new_IPRoute(JNIEnv * env, ip_pfx_t sPrefix,
+			       rt_info_t * route);
   // -----[ cbgp_jni_new_BGPRoute ]----------------------------------
   jobject cbgp_jni_new_BGPRoute(JNIEnv * jEnv, SRoute * pRoute,
 				jobject joHashtable);
@@ -68,7 +68,8 @@ extern "C" {
   // -----[ ip_jstring_to_address ]----------------------------------
   int ip_jstring_to_address(JNIEnv * env, jstring jsAddr, net_addr_t * ptAddr);
   // -----[ ip_jstring_to_prefix ]-----------------------------------
-  int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix, SPrefix * psPrefix);
+  int ip_jstring_to_prefix(JNIEnv * env, jstring jsPrefix,
+			   ip_pfx_t * psPrefix);
   // -----[ ip_jstring_to_dest ]-------------------------------------
   int ip_jstring_to_dest(JNIEnv * jEnv, jstring jsDest, SNetDest * pDest);
   // -----[ cbgp_jni_net_node_from_string ]--------------------------

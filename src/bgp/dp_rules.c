@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/11/2002
-// $Id: dp_rules.c,v 1.19 2008-04-07 09:20:14 bqu Exp $
+// $Id: dp_rules.c,v 1.20 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 // to-do: these routines could be optimized
 
@@ -568,20 +568,20 @@ int dp_rule_ebgp_over_ibgp(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 /**
  * Helper function which retrieves the IGP cost to the given next-hop.
  */
-static uint32_t _dp_rule_igp_cost(bgp_router_t * pRouter, net_addr_t tNextHop)
+static uint32_t _dp_rule_igp_cost(bgp_router_t * router, net_addr_t next_hop)
 {
-  SNetRouteInfo * pRouteInfo;
+  rt_info_t * rtinfo;
 
   /* Is there a route towards the destination ? */
-  pRouteInfo= rt_find_best(pRouter->pNode->rt, tNextHop, NET_ROUTE_ANY);
-  if (pRouteInfo != NULL)
-    return pRouteInfo->uWeight;
+  rtinfo= rt_find_best(router->pNode->rt, next_hop, NET_ROUTE_ANY);
+  if (rtinfo != NULL)
+    return rtinfo->metric;
 
   LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
     log_printf(pLogErr, "Error: unable to compute IGP cost to next-hop (");
-    ip_address_dump(pLogErr, tNextHop);
+    ip_address_dump(pLogErr, next_hop);
     log_printf(pLogErr, ")\nError: ");
-    ip_address_dump(pLogErr, pRouter->pNode->tAddr);
+    ip_address_dump(pLogErr, router->pNode->tAddr);
     log_printf(pLogErr, "\n");
   }
   abort();

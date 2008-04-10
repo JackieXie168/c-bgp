@@ -3,13 +3,13 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// @lastdate 12/03/2008
+// $Id: routing_t.h,v 1.5 2008-04-10 11:27:00 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ROUTING_T_H__
 #define __NET_ROUTING_T_H__
 
-# include <libgds/patricia-tree.h>
+#include <libgds/patricia-tree.h>
 #include <libgds/array.h>
 
 #define NET_ROUTE_ANY    0xFF
@@ -23,4 +23,4 @@ typedef uint8_t net_route_type_t;
 typedef STrie net_rt_t;
 typedef net_rt_t SNetRT;
 
-#endif
+#endif /* __NET_ROUTING_T_H__ *//
