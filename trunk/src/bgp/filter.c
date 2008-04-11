@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// $Id: filter.c,v 1.24 2008-04-11 11:03:06 bqu Exp $
+// $Id: filter.c,v 1.25 2008-04-11 13:07:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@ static void _filter_path_regex_hash_destroy(void * pItem)
  * "Algorithms in C, 3rd edition") and adapted.
  */
 static uint32_t _filter_path_regex_hash_compute(const void * pItem,
-						const uint32_t uHashSize)
+						const unsigned int uHashSize)
 {
   SPathMatch * pRegEx= (SPathMatch *) pItem;
   

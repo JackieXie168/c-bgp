@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/10/2005
-// $Id: comm_hash.c,v 1.9 2008-04-07 10:01:51 bqu Exp $
+// $Id: comm_hash.c,v 1.10 2008-04-11 13:07:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,7 +26,7 @@
 #include <bgp/comm_hash.h>
 
 // ---| Function prototypes |---
-static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize);
+static uint32_t _comm_hash_item_compute(const void * pItem, const unsigned int uHashSize);
 
 // ---| Private parameters |---
 static hash_t * pCommHash= NULL;
@@ -40,7 +40,7 @@ static FHashCompute fCommHashCompute= _comm_hash_item_compute;
  * Communities attribute.
  */
 #define AS_COMM_STR_SIZE 1024
-static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHashSize)
+static uint32_t _comm_hash_item_compute(const void * pItem, const unsigned int uHashSize)
 {
   char acCommStr1[AS_COMM_STR_SIZE];
   uint32_t uKey;
@@ -57,7 +57,7 @@ static uint32_t _comm_hash_item_compute(const void * pItem, const uint32_t uHash
  * attribute hashing function.
  */
 static uint32_t _comm_hash_item_compute_zebra(const void * pItem,
-					      const uint32_t uHashSize)
+					      const unsigned int uHashSize)
 {
   SCommunities * pCommunities= (SCommunities *) pItem;
   unsigned int uKey= 0;
