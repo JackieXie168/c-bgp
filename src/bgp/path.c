@@ -567,7 +567,7 @@ int path_hash(SBGPPath * pPath)
  * AS-Path. The function is based on Zebra's AS-Path hashing
  * function.
  */
-uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize)
+uint32_t path_hash_zebra(const void * pItem, unsigned int uHashSize)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
   SBGPPath * pPath= (SBGPPath *) pItem;
@@ -595,7 +595,7 @@ uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize)
 /**
  * Note: uHashSize must be a power of 2.
  */
-uint32_t path_hash_OAT(const void * pItem, const uint32_t uHashSize)
+uint32_t path_hash_OAT(const void * pItem, unsigned int uHashSize)
 {
 #ifndef __BGP_PATH_TYPE_TREE__
   uint32_t uHash= 0;

@@ -25,7 +25,7 @@
 #include <bgp/path_hash.h>
 
 // ---| Function prototypes |---
-static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize);
+static uint32_t _path_hash_item_compute(const void * pPath, unsigned int uHashSize);
 
 // ---| Private parameters |---
 static hash_t * pPathHash= NULL;
@@ -40,7 +40,7 @@ static FHashCompute fPathHashCompute= _path_hash_item_compute;
  * frequent memory allocation.
  */
 #define AS_PATH_STR_SIZE 1024
-static uint32_t _path_hash_item_compute(const void * pPath, const uint32_t uHashSize)
+static uint32_t _path_hash_item_compute(const void * pPath, unsigned int uHashSize)
 {
   char acPathStr1[AS_PATH_STR_SIZE];
   uint32_t tKey;

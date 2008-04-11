@@ -53,9 +53,9 @@ extern "C" {
   // ----- path_hash ------------------------------------------------
   int path_hash(SBGPPath * pPath);
   // -----[ path_hash_zebra ]----------------------------------------
-  uint32_t path_hash_zebra(const void * pItem, const uint32_t uHashSize);
+  uint32_t path_hash_zebra(const void * pItem, unsigned int uHashSize);
   // -----[ path_hash_OAT ]--------------------------------------------
-  uint32_t path_hash_OAT(const void * pItem, const uint32_t uHashSize);
+  uint32_t path_hash_OAT(const void * pItem, unsigned int uHashSize);
   // ----- path_comparison ------------------------------------------
   int path_comparison(SBGPPath * path1, SBGPPath * path2);
   // ----- path_equals ----------------------------------------------
