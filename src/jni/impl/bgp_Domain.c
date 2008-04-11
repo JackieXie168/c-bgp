@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Domain.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// @lastdate 29/06/2007
+// $Id: bgp_Domain.c,v 1.7 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,38 +30,38 @@
  * BGP domain.
  */
 jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
-				SBGPDomain * pDomain)
+				bgp_domain_t * domain)
 {
   jobject joDomain;
 
   /* Java proxy object already existing ? */
-  joDomain= jni_proxy_get(jEnv, pDomain);
+  joDomain= jni_proxy_get(jEnv, domain);
   if (joDomain != NULL)
     return joDomain;
 
   /* Create new BGPDomain object */
   if ((joDomain= cbgp_jni_new(jEnv, CLASS_BGPDomain, CONSTR_BGPDomain,
 			      joCBGP,
-			      (jint) pDomain->uASN)) == NULL)
+			      (jint) domain->asn)) == NULL)
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jEnv, joDomain, pDomain);
+  jni_proxy_add(jEnv, joDomain, domain);
 
   return joDomain;
 }
 
 // -----[ _bgpDomainGetRouters ]-------------------------------------
-static int _bgpDomainGetRouters(uint32_t uKey, uint8_t uKeyLen,
-				void * pItem, void * pContext)
+static int _bgpDomainGetRouters(uint32_t key, uint8_t key_len,
+				void * item, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
-  SBGPRouter * pRouter= (SBGPRouter * ) pItem;
+  SJNIContext * pCtx= (SJNIContext *) ctx;
+  bgp_router_t * router= (bgp_router_t * ) item;
   jobject joRouter;
 
   if ((joRouter= cbgp_jni_new_bgp_Router(pCtx->jEnv,
 					 pCtx->joCBGP,
-					 pRouter)) == NULL)
+					 router)) == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRouter);
@@ -78,12 +78,12 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
 {
   jobject joVector= NULL;
   SJNIContext sCtx;
-  SBGPDomain * pDomain;
+  bgp_domain_t * domain;
 
   jni_lock(jEnv);
 
-  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
-  if (pDomain == NULL)
+  domain= (bgp_domain_t *) jni_proxy_lookup(jEnv, joDomain);
+  if (domain == NULL)
     return_jni_unlock(jEnv, NULL);
 
   /* Create new Vector */
@@ -94,7 +94,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
   sCtx.jEnv= jEnv;
   sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joDomain)*/;
 
-  if (bgp_domain_routers_for_each(pDomain, _bgpDomainGetRouters, &sCtx))
+  if (bgp_domain_routers_for_each(domain, _bgpDomainGetRouters, &sCtx))
     return_jni_unlock(jEnv, NULL);
 
   return_jni_unlock(jEnv, joVector);
@@ -109,15 +109,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_rescan
   (JNIEnv * jEnv, jobject joDomain)
 {
-  SBGPDomain * pDomain;
+  bgp_domain_t * domain;
 
   jni_lock(jEnv);
 
-  pDomain= (SBGPDomain *) jni_proxy_lookup(jEnv, joDomain);
-  if (pDomain == NULL)
+  domain= (bgp_domain_t *) jni_proxy_lookup(jEnv, joDomain);
+  if (domain == NULL)
     return_jni_unlock2(jEnv);
 
-  bgp_domain_rescan(pDomain);
+  bgp_domain_rescan(domain);
 
   jni_unlock(jEnv);
 }

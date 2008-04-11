@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/02/2002
-// @lastdate 11/03/2008
+// $Id: domain.c,v 1.10 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,35 +20,34 @@
 #include <net/record-route.h>
 
 #define BGP_DOMAINS_MAX 65536
-
-SBGPDomain * apDomains[BGP_DOMAINS_MAX];
+static bgp_domain_t * _domains[BGP_DOMAINS_MAX];
 
 // ----- bgp_domain_create ------------------------------------------
 /**
  * Create a BGP domain (an Autonomous System).
  */
-SBGPDomain * bgp_domain_create(uint16_t uASN)
+bgp_domain_t * bgp_domain_create(asn_t asn)
 {
-  SBGPDomain * pDomain= (SBGPDomain *) MALLOC(sizeof(SBGPDomain));
-  pDomain->uASN= uASN;
-  pDomain->pcName= NULL;
+  bgp_domain_t * domain= (bgp_domain_t *) MALLOC(sizeof(bgp_domain_t));
+  domain->asn= asn;
+  domain->name= NULL;
 
   /* Radix-tree with all routers. Destroy function is NULL. */
-  pDomain->pRouters= radix_tree_create(32, NULL);
+  domain->routers= radix_tree_create(32, NULL);
 
-  return pDomain;
+  return domain;
 }
 
 // ----- bgp_domain_destroy -----------------------------------------
 /**
  * Destroy a BGP domain.
  */
-void bgp_domain_destroy(SBGPDomain ** ppDomain)
+void bgp_domain_destroy(bgp_domain_t ** domain_ref)
 {
-  if (*ppDomain != NULL) {
-    radix_tree_destroy(&((*ppDomain)->pRouters));
-    FREE(*ppDomain);
-    *ppDomain= NULL;
+  if (*domain_ref != NULL) {
+    radix_tree_destroy(&((*domain_ref)->routers));
+    FREE(*domain_ref);
+    *domain_ref= NULL;
   }
 }
 
@@ -56,16 +55,16 @@ void bgp_domain_destroy(SBGPDomain ** ppDomain)
 /**
  *
  */
-int bgp_domains_for_each(FBGPDomainsForEach fForEach, void * pContext)
+int bgp_domains_for_each(FBGPDomainsForEach for_each, void * ctx)
 {
-  uint32_t uIndex;
-  int iResult;
+  unsigned int index;
+  int result;
 
-  for (uIndex= 0; uIndex < BGP_DOMAINS_MAX; uIndex++) {
-    if (apDomains[uIndex] != NULL) {
-      iResult= fForEach(apDomains[uIndex], pContext);
-      if (iResult != 0)
-	return iResult;
+  for (index= 0; index < BGP_DOMAINS_MAX; index++) {
+    if (_domains[index] != NULL) {
+      result= for_each(_domains[index], ctx);
+      if (result != 0)
+	return result;
     }
   }
   return 0;
@@ -81,10 +80,10 @@ int bgp_domains_for_each(FBGPDomainsForEach fForEach, void * pContext)
  *   replaced by the new one and memory leaks as well as unexpected
  *   results may occur.
  */
-void bgp_domain_add_router(SBGPDomain * pDomain, bgp_router_t * pRouter)
+void bgp_domain_add_router(bgp_domain_t * domain, bgp_router_t * router)
 {
-  radix_tree_add(pDomain->pRouters, pRouter->pNode->tAddr, 32, pRouter);
-  pRouter->pDomain= pDomain;
+  radix_tree_add(domain->routers, router->pNode->addr, 32, router);
+  router->domain= domain;
 }
 
 // ----- bgp_domain_routers_for_each --------------------------------
@@ -92,11 +91,11 @@ void bgp_domain_add_router(SBGPDomain * pDomain, bgp_router_t * pRouter)
  * Call the given callback function for all routers registered in the
  * domain.
  */
-int bgp_domain_routers_for_each(SBGPDomain * pDomain,
-				FRadixTreeForEach fForEach,
-				void * pContext)
+int bgp_domain_routers_for_each(bgp_domain_t * domain,
+				FRadixTreeForEach for_each,
+				void * ctx)
 {
-  return radix_tree_for_each(pDomain->pRouters, fForEach, pContext);
+  return radix_tree_for_each(domain->routers, for_each, ctx);
 }
 
 // ----- exists_bgp_domain ------------------------------------------
@@ -104,9 +103,9 @@ int bgp_domain_routers_for_each(SBGPDomain * pDomain,
  * Return true (1) if the domain identified by the given AS number
  * exists. Otherwise, return false (0).
  */
-int exists_bgp_domain(uint16_t uASN)
+int exists_bgp_domain(asn_t asn)
 {
-  return (apDomains[uASN] != NULL);
+  return (_domains[asn] != NULL);
 }
 
 // ----- get_bgp_domain ---------------------------------------------
@@ -114,11 +113,11 @@ int exists_bgp_domain(uint16_t uASN)
  * Get the reference of a domain identified by its AS number. If the
  * domain does not exist, it is created and registered.
  */
-SBGPDomain * get_bgp_domain(uint16_t uASN)
+bgp_domain_t * get_bgp_domain(asn_t asn)
 {
-  if (apDomains[uASN] == NULL)
-    apDomains[uASN]= bgp_domain_create(uASN);
-  return apDomains[uASN];
+  if (_domains[asn] == NULL)
+    _domains[asn]= bgp_domain_create(asn);
+  return _domains[asn];
 }
 
 // ----- register_bgp_domain ----------------------------------------
@@ -129,47 +128,45 @@ SBGPDomain * get_bgp_domain(uint16_t uASN)
  * - the router must be non NULL;
  * - the router must not exist.
  */
-void register_bgp_domain(SBGPDomain * pDomain)
+void register_bgp_domain(bgp_domain_t * domain)
 {
-  assert(apDomains[pDomain->uASN] == NULL);
-  apDomains[pDomain->uASN]= pDomain;
+  assert(_domains[domain->asn] == NULL);
+  _domains[domain->asn]= domain;
 }
 
-// ----- bgp_domain_routers_rescan_fct ------------------------------
-int bgp_domain_routers_rescan_fct_for_each(uint32_t uKey, uint8_t uKeyLen,
-					   void * pItem, void * pContext)
+// -----[ _rescan_for_each ]-----------------------------------------
+static int _rescan_for_each(uint32_t key, uint8_t key_len,
+			    void * item, void * ctx)
 {
-  return bgp_router_scan_rib((bgp_router_t *) pItem);
+  return bgp_router_scan_rib((bgp_router_t *) item);
 }
 
 // ----- bgp_domain_rescan ------------------------------------------
 /**
  * Run the RIB rescan process in each router of the BGP domain.
  */
-int bgp_domain_rescan(SBGPDomain * pDomain)
+int bgp_domain_rescan(bgp_domain_t * domain)
 {
-  return bgp_domain_routers_for_each(pDomain,
-				     bgp_domain_routers_rescan_fct_for_each,
+  return bgp_domain_routers_for_each(domain,
+				     _rescan_for_each,
 				     NULL);
 }
 
 typedef struct {
-  SLogStream * pStream;
-  SNetDest sDest;
-  uint8_t uOptions;
-} SRecordRoute;
+  SLogStream * stream;
+  SNetDest     dest;
+  uint8_t      options;
+} _record_route_ctx_t;
 
-// ----- _bgp_domain_routers_record_route_for_each --------------------
-static int bgp_domain_routers_record_route_for_each(uint32_t uKey,
-						    uint8_t uKeyLen,
-						    void * pItem,
-						    void * pContext)
+// -----[ _record_route_for_each ]-----------------------------------
+static int _record_route_for_each(uint32_t key, uint8_t key_len,
+				  void * item, void * ctx)
 {
-  net_node_t * pNode = (net_node_t *)((bgp_router_t *)pItem)->pNode;
-  SRecordRoute * pCont = (SRecordRoute *)pContext;
+  net_node_t * node = ((bgp_router_t *)item)->pNode;
+  _record_route_ctx_t * rr_ctx = (_record_route_ctx_t *) ctx;
   
-  node_dump_recorded_route(pCont->pStream, pNode,
-			   pCont->sDest, 0, pCont->uOptions, 0);
+  node_dump_recorded_route(rr_ctx->stream, node,
+			   rr_ctx->dest, 0, rr_ctx->options, 0);
   return 0;
 }
 
@@ -177,77 +174,71 @@ static int bgp_domain_routers_record_route_for_each(uint32_t uKey,
 /**
  *
  */
-int bgp_domain_dump_recorded_route(SLogStream * pStream, SBGPDomain * pDomain, 
-				   SNetDest  sDest, const uint8_t uOptions)
+int bgp_domain_dump_recorded_route(SLogStream * stream,
+				   bgp_domain_t * domain, 
+				   SNetDest dest,
+				   uint8_t options)
 {
-  SRecordRoute pContext;
-  pContext.pStream= pStream;
-  pContext.sDest= sDest;
-  pContext.uOptions= uOptions;
+  _record_route_ctx_t ctx=  {
+    .stream = stream,
+    .dest   = dest,
+    .options= options
+  };
 
-  return bgp_domain_routers_for_each(pDomain,
-				     bgp_domain_routers_record_route_for_each,
-				     &pContext);
+  return bgp_domain_routers_for_each(domain,
+				     _record_route_for_each,
+				     &ctx);
 }
 
-int bgp_domain_build_router_list_rtfe(uint32_t uKey, uint8_t uKeyLen,
-				      void * pItem, void * pContext)
+// -----[ _build_router_list ]---------------------------------------
+static int _build_router_list(uint32_t key, uint8_t key_len,
+			      void * item, void * ctx)
 {
-  SPtrArray * pRL= (SPtrArray *) pContext;
-  bgp_router_t * pRouter= (bgp_router_t *) pItem;
+  SPtrArray * list= (SPtrArray *) ctx;
+  bgp_router_t * router= (bgp_router_t *) item;
   
-  ptr_array_append(pRL, pRouter);
+  ptr_array_append(list, router);
   
   return 0;
 }
 
-// ----- build_router_list ------------------------------------------
-static SPtrArray * bgp_domain_routers_list(SBGPDomain * pDomain)
+// -----[ _bgp_domain_routers_list ]---------------------------------
+static inline SPtrArray * _bgp_domain_routers_list(bgp_domain_t * domain)
 {
-  SPtrArray * pRL= ptr_array_create_ref(0);
+  SPtrArray * list= ptr_array_create_ref(0);
 
   // Build list of BGP routers
-  radix_tree_for_each(pDomain->pRouters,
-		      bgp_domain_build_router_list_rtfe, pRL);
+  radix_tree_for_each(domain->routers, _build_router_list, list);
 
-  return pRL;
+  return list;
 }
 
 // ----- bgp_domain_full_mesh ---------------------------------------
 /**
  * Generate a full-mesh of iBGP sessions in the domain.
  */
-int bgp_domain_full_mesh(SBGPDomain * pDomain)
+int bgp_domain_full_mesh(bgp_domain_t * domain)
 {
-  int iIndex1, iIndex2;
-  SPtrArray * pRouters;
-  bgp_router_t * pRouter1, * pRouter2;
+  unsigned int index1, index2;
+  SPtrArray * routers;
+  bgp_router_t * router1, * router2;
 
   /* Get the list of routers */
-  pRouters= bgp_domain_routers_list(pDomain);
+  routers= _bgp_domain_routers_list(domain);
 
   /* Build the full-mesh of sessions */
-  for (iIndex1= 0; iIndex1 < ptr_array_length(pRouters); iIndex1++) {
-    pRouter1= pRouters->data[iIndex1];
-
-    for (iIndex2= 0; iIndex2 < ptr_array_length(pRouters); iIndex2++) {
-
-      if (iIndex1 == iIndex2)
+  for (index1= 0; index1 < ptr_array_length(routers); index1++) {
+    router1= routers->data[index1];
+    for (index2= 0; index2 < ptr_array_length(routers); index2++) {
+      if (index1 == index2)
 	continue;
-
-      pRouter2= pRouters->data[iIndex2];
-
-      bgp_router_add_peer(pRouter1, pDomain->uASN,
-			  pRouter2->pNode->tAddr, NULL);
-
+      router2= routers->data[index2];
+      bgp_router_add_peer(router1, domain->asn,
+			  router2->pNode->addr, NULL);
     }
-
-    bgp_router_start(pRouter1);
-
+    bgp_router_start(router1);
   }
-
-  ptr_array_destroy(&pRouters);
-
+  ptr_array_destroy(&routers);
   return 0;
 }
 
@@ -263,10 +254,10 @@ int bgp_domain_full_mesh(SBGPDomain * pDomain)
  */
 void _bgp_domain_init()
 {
-  int iIndex;
+  unsigned int index;
 
-  for (iIndex= 0; iIndex < BGP_DOMAINS_MAX; iIndex++) {
-    apDomains[iIndex]= NULL;
+  for (index= 0; index < BGP_DOMAINS_MAX; index++) {
+    _domains[index]= NULL;
   }
 }
 
@@ -276,9 +267,9 @@ void _bgp_domain_init()
  */
 void _bgp_domain_destroy()
 {
-  int iIndex;
+  unsigned int index;
 
-  for (iIndex= 0; iIndex < BGP_DOMAINS_MAX; iIndex++) {
-    bgp_domain_destroy(&apDomains[iIndex]);
+  for (index= 0; index < BGP_DOMAINS_MAX; index++) {
+    bgp_domain_destroy(&_domains[index]);
   }
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 11/03/2008
+// $Id: icmp.c,v 1.12 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -154,7 +154,7 @@ static inline void _icmp_msg_dump(net_node_t * node, net_msg_t * msg)
 {
   icmp_msg_t * icmp_msg= (icmp_msg_t *) msg;
 
-  ip_address_dump(pLogErr, node->tAddr);
+  ip_address_dump(pLogErr, node->addr);
   log_printf(pLogErr, "recv(");
   switch (icmp_msg->type) {
   case ICMP_ECHO_REQUEST:
@@ -347,7 +347,7 @@ net_error_t icmp_trace_route(SLogStream * stream,
       if (stream != NULL) {
 	ip_address_dump(stream, tICMPRecv.src_addr);
 	log_printf(stream, " (");
-	ip_address_dump(stream, tICMPRecv.msg.node->tAddr);
+	ip_address_dump(stream, tICMPRecv.msg.node->addr);
 	log_printf(stream, ")");
       }
       ip_trace_add_node(trace, tICMPRecv.msg.node,
@@ -389,7 +389,7 @@ net_error_t icmp_trace_route(SLogStream * stream,
 // -----[ icmp_record_route ]----------------------------------------
 int icmp_record_route(net_node_t * node,
 		      net_addr_t dst_addr,
-		      SPrefix * alt_dest,
+		      ip_pfx_t * alt_dest,
 		      uint8_t max_ttl,
 		      uint8_t options,
 		      ip_trace_t ** trace_ref,

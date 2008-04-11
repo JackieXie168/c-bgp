@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 19/05/2003
-// @lastdate 27/02/2008
+// $Id: message.c,v 1.24 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -136,9 +136,9 @@ int bgp_msg_send(net_node_t * node, net_addr_t src_addr,
   bgp_msg_monitor_write(msg, node, dst_addr);
 
   //fprintf(stdout, "(");
-  //ip_address_dump(stdout, node->tAddr);
+  //ip_address_dump(stdout, node->addr);
   //fprintf(stdout, ") bgp-msg-send from ");
-  //ip_address_dump(stdout, node->tAddr);
+  //ip_address_dump(stdout, node->addr);
   //fprintf(stdout, " to ");
   //ip_address_dump(stdout, dst_addr);
   //fprintf(stdout, "\n");
@@ -157,7 +157,7 @@ static inline void _bgp_msg_header_dump(SLogStream * stream,
   // Peer IP
   log_printf(stream, "|");
   if (node != NULL) {
-    ip_address_dump(stream, node->tAddr);
+    ip_address_dump(stream, node->addr);
   } else {
     log_printf(stream, "?");
   }

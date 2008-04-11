@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: net_node.c,v 1.7 2008-04-07 10:04:27 bqu Exp $
+// $Id: net_node.c,v 1.8 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -111,7 +111,7 @@ static int cli_net_node_domain(SCliContext * pContext, SCliCmd * pCmd)
 {
   net_node_t * pNode= _node_from_context(pContext);
   unsigned int uId;
-  SIGPDomain * pDomain;
+  igp_domain_t * pDomain;
 
   // Get domain ID
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||

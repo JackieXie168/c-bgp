@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 25/02/2008
+// $Id: link.h,v 1.21 2008-04-11 11:03:06 bqu Exp $
 // ===========================================================
 
 #ifndef __NET_LINK_H__
@@ -22,10 +22,6 @@
 #include <libgds/memory.h>
 
 #define NET_LINK_FLAG_UP      0x01
-
-// ----- Different link types -----
-#define NET_LINK_TYPE_TRANSIT  1
-#define NET_LINK_TYPE_STUB     2
 
 #define NET_LINK_MAX_DEPTH     10
 #define NET_LINK_DEFAULT_DEPTH 1

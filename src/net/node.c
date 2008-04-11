@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.13 2008-04-10 11:27:00 bqu Exp $
+// $Id: node.c,v 1.14 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -35,7 +35,7 @@ net_error_t node_create(net_addr_t addr, net_node_t ** node_ref)
   if (addr == NET_ADDR_ANY)
     return ENET_NODE_INVALID_ID;
 
-  node->tAddr= addr;
+  node->addr= addr;
   node->name= NULL;
   node->ifaces= net_links_create();
   node->protocols= protocols_create();
@@ -131,7 +131,7 @@ void node_get_coord(net_node_t * node, float * latitude, float * longitude)
  */
 void node_dump(SLogStream * stream, net_node_t * node)
 { 
-  ip_address_dump(stream, node->tAddr);
+  ip_address_dump(stream, node->addr);
 }
 
 // ----- node_info --------------------------------------------------
@@ -143,7 +143,7 @@ void node_info(SLogStream * stream, net_node_t * pNode)
   unsigned int uIndex;
 
   log_printf(stream, "loopback : ");
-  ip_address_dump(stream, pNode->tAddr);
+  ip_address_dump(stream, pNode->addr);
   log_printf(stream, "\n");
   log_printf(stream, "domain   :");
   for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
@@ -309,7 +309,7 @@ void node_links_save(SLogStream * stream, net_node_t * node)
       continue;
   
     // This side of the link
-    ip_address_dump(stream, node->tAddr);
+    ip_address_dump(stream, node->addr);
     log_printf(stream, "\t");
     net_iface_dump_id(stream, iface);
     log_printf(stream, "\t");
@@ -317,13 +317,13 @@ void node_links_save(SLogStream * stream, net_node_t * node)
     // Other side of the link
     switch (iface->type) {
     case NET_IFACE_RTR:
-      ip_address_dump(stream, iface->dest.iface->src_node->tAddr);
+      ip_address_dump(stream, iface->dest.iface->src_node->addr);
       log_printf(stream, "\t");
-      ip_address_dump(stream, node->tAddr);
+      ip_address_dump(stream, node->addr);
       log_printf(stream, "/32");
       break;
     case NET_IFACE_PTMP:
-      ip_prefix_dump(stream, iface->dest.subnet->sPrefix);
+      ip_prefix_dump(stream, iface->dest.subnet->prefix);
       log_printf(stream, "\t---");
       break;
     default:
@@ -348,28 +348,28 @@ void node_links_save(SLogStream * stream, net_node_t * node)
  * 1 if the node has the given address
  * 0 otherwise
  */
-int node_has_address(net_node_t * pNode, net_addr_t tAddress)
+int node_has_address(net_node_t * pNode, net_addr_t addr)
 {
   unsigned int uIndex;
   net_iface_t * pIface;
 
   for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
     pIface= net_ifaces_at(pNode->ifaces, uIndex);
-    if (net_iface_has_address(pIface, tAddress))
+    if (net_iface_has_address(pIface, addr))
       return 1;
   }
   return 0;
 }
 
 // -----[ node_has_prefix ]------------------------------------------
-int node_has_prefix(net_node_t * pNode, SPrefix sPrefix)
+int node_has_prefix(net_node_t * pNode, ip_pfx_t prefix)
 {
   unsigned int uIndex;
   net_iface_t * pIface;
   
   for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
     pIface= net_ifaces_at(pNode->ifaces, uIndex);
-    if (net_iface_has_prefix(pIface, sPrefix))
+    if (net_iface_has_prefix(pIface, prefix))
       return 1;
   }
   return 0;
@@ -435,7 +435,7 @@ void node_addresses_dump(SLogStream * stream, net_node_t * node)
  * of the route can be specified as it can be different from the
  * outgoing link's weight.
  */
-int node_rt_add_route(net_node_t * node, SPrefix sPrefix,
+int node_rt_add_route(net_node_t * node, ip_pfx_t prefix,
 		      net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
 		      uint32_t uWeight, uint8_t uType)
 {
@@ -451,7 +451,7 @@ int node_rt_add_route(net_node_t * node, SPrefix sPrefix,
   if (iface->type == NET_IFACE_LOOPBACK)
     return ENET_IFACE_INCOMPATIBLE;
 
-  return node_rt_add_route_link(node, sPrefix, iface, tNextHop,
+  return node_rt_add_route_link(node, prefix, iface, tNextHop,
 				uWeight, uType);
 }
 
@@ -463,7 +463,7 @@ int node_rt_add_route(net_node_t * node, SPrefix sPrefix,
  *
  * Pre: the outgoing link (next-hop interface) must exist in the node.
  */
-int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
+int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
 			   net_iface_t * iface, net_addr_t tNextHop,
 			   uint32_t uWeight, uint8_t uType)
 {
@@ -475,7 +475,7 @@ int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
   if (tNextHop != 0) {
     switch (iface->type) {
     case NET_IFACE_RTR:
-      if (iface->dest.iface->src_node->tAddr != tNextHop)
+      if (iface->dest.iface->src_node->addr != tNextHop)
 	return ENET_RT_NH_UNREACH;
       break;
     case NET_IFACE_PTP:
@@ -493,10 +493,10 @@ int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
   }
 
   // Build route info
-  rtinfo= net_route_info_create(sPrefix, iface, tNextHop,
+  rtinfo= net_route_info_create(prefix, iface, tNextHop,
 				uWeight, uType);
 
-  return rt_add_route(node->rt, sPrefix, rtinfo);
+  return rt_add_route(node->rt, prefix, rtinfo);
 }
 
 // ----- node_rt_del_route ------------------------------------------
@@ -508,7 +508,7 @@ int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
  * If the next-hop is not present (NULL), all the routes matching the
  * other parameters will be removed whatever the next-hop is.
  */
-int node_rt_del_route(net_node_t * node, SPrefix * pPrefix,
+int node_rt_del_route(net_node_t * node, ip_pfx_t * pPrefix,
 		      net_iface_id_t * ptIface, net_addr_t * ptNextHop,
 		      uint8_t uType)
 {

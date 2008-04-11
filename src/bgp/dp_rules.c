@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/11/2002
-// $Id: dp_rules.c,v 1.20 2008-04-10 11:27:00 bqu Exp $
+// $Id: dp_rules.c,v 1.21 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 // to-do: these routines could be optimized
 
@@ -581,7 +581,7 @@ static uint32_t _dp_rule_igp_cost(bgp_router_t * router, net_addr_t next_hop)
     log_printf(pLogErr, "Error: unable to compute IGP cost to next-hop (");
     ip_address_dump(pLogErr, next_hop);
     log_printf(pLogErr, ")\nError: ");
-    ip_address_dump(pLogErr, router->pNode->tAddr);
+    ip_address_dump(pLogErr, router->pNode->addr);
     log_printf(pLogErr, "\n");
   }
   abort();
@@ -821,6 +821,7 @@ int dp_rule_lowest_neighbor_address(bgp_router_t * pRouter, bgp_routes_t * pRout
 /**
  *
  */
+/*
 int dp_rule_final(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 {
   int iResult;
@@ -840,3 +841,4 @@ int dp_rule_final(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   }
   return 0;
 }
+*/

@@ -5,9 +5,9 @@
 // exchange of messages. It directly compute the routes based on the
 // whole topology.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// @lastdate 15/01/2007
+// $Id: igp.h,v 1.4 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IGP_H__
@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
   // ----- igp_compute_domain ---------------------------------------
-  int igp_compute_domain(SIGPDomain * pDomain);
+  int igp_compute_domain(igp_domain_t * domain);
 
 #ifdef __cplusplus
 }

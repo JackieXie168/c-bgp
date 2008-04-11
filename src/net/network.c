@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// $Id: network.c,v 1.56 2008-04-10 11:27:00 bqu Exp $
+// $Id: network.c,v 1.57 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -105,22 +105,22 @@ static int _network_send_callback(simulator_t * sim,
  * Callback function used to dump the content of a message event. See
  * also 'simulator_dump_events' (sim/simulator.c).
  */
-static void _network_send_ctx_dump(SLogStream * pStream, void * ctx)
+static void _network_send_ctx_dump(SLogStream * stream, void * ctx)
 {
   net_send_ctx_t * send_ctx= (net_send_ctx_t *) ctx;
 
-  log_printf(pStream, "net-msg n-h:");
-  ip_address_dump(pStream, send_ctx->dst_iface->src_node->tAddr);
-  log_printf(pStream, " [");
-  message_dump(pStream, send_ctx->msg);
-  log_printf(pStream, "]");
+  log_printf(stream, "net-msg n-h:");
+  ip_address_dump(stream, send_ctx->dst_iface->src_node->addr);
+  log_printf(stream, " [");
+  message_dump(stream, send_ctx->msg);
+  log_printf(stream, "]");
 
   switch (send_ctx->msg->protocol) {
   case NET_PROTOCOL_BGP:
-    bgp_msg_dump(pStream, NULL, send_ctx->msg->payload);
+    bgp_msg_dump(stream, NULL, send_ctx->msg->payload);
     break;
   default:
-    log_printf(pStream, "opaque");
+    log_printf(stream, "opaque");
   }
 }
 
@@ -331,7 +331,7 @@ static inline void _node_error_dump(net_node_t * node, net_error_t error)
   SLogStream * syslog= node_syslog(node);
 
   log_printf(syslog, "@");
-  ip_address_dump(syslog, node->tAddr);
+  ip_address_dump(syslog, node->addr);
   log_printf(syslog, ": ");
   network_perror(syslog, error);
   log_printf(syslog, "\n");
@@ -543,7 +543,7 @@ net_error_t node_send_msg(net_node_t * node,
   if (node_has_address(node, msg->dst_addr)) {
     // Set source address as the node's loopback address (if unspecified)
     if (msg->src_addr == NET_ADDR_ANY)
-      msg->src_addr= node->tAddr;
+      msg->src_addr= node->addr;
     return _node_ip_process_msg(node, msg);
   }
   
@@ -617,11 +617,11 @@ network_t * network_get_default()
 net_error_t network_add_node(network_t * network, net_node_t * node)
 {
    // Check that node does not already exist
-  if (network_find_node(network, node->tAddr) != NULL)
+  if (network_find_node(network, node->addr) != NULL)
     return ENET_NODE_DUPLICATE;
 
   node->network= network;
-  if (trie_insert(network->nodes, node->tAddr, 32, node) != 0)
+  if (trie_insert(network->nodes, node->addr, 32, node) != 0)
     return EUNEXPECTED;
   return ESUCCESS;
 }
@@ -633,7 +633,7 @@ net_error_t network_add_node(network_t * network, net_node_t * node)
 net_error_t network_add_subnet(network_t * network, net_subnet_t * subnet)
 {
   // Check that subnet does not already exist
-  if (network_find_subnet(network, subnet->sPrefix) != NULL)
+  if (network_find_subnet(network, subnet->prefix) != NULL)
     return ENET_SUBNET_DUPLICATE;
 
   if (subnets_add(network->subnets, subnet) < 0)
@@ -645,18 +645,18 @@ net_error_t network_add_subnet(network_t * network, net_subnet_t * subnet)
 /**
  *
  */
-net_node_t * network_find_node(network_t * network, net_addr_t tAddr)
+net_node_t * network_find_node(network_t * network, net_addr_t addr)
 {
-  return (net_node_t *) trie_find_exact(network->nodes, tAddr, 32);
+  return (net_node_t *) trie_find_exact(network->nodes, addr, 32);
 }
 
 // ----- network_find_subnet ----------------------------------------
 /**
  *
  */
-net_subnet_t * network_find_subnet(network_t * network, SPrefix sPrefix)
+net_subnet_t * network_find_subnet(network_t * network, ip_pfx_t prefix)
 { 
-  return subnets_find(network->subnets, sPrefix);
+  return subnets_find(network->subnets, prefix);
 }
 
 // ----- _network_nodes_to_file -------------------------------------
@@ -665,15 +665,15 @@ static int _network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
 				  void * pItem, void * pContext)
 {
   net_node_t * pNode= (net_node_t *) pItem;
-  SLogStream * pStream= (SLogStream *) pContext;
+  SLogStream * stream= (SLogStream *) pContext;
   net_iface_t * pLink;
   int iLinkIndex;
 
   for (iLinkIndex= 0; iLinkIndex < ptr_array_length(pNode->ifaces);
        iLinkIndex++) {
     pLink= (net_iface_t *) pNode->ifaces->data[iLinkIndex];
-    link_dump(pStream, pLink);
-    log_printf(pStream, "\n");
+    link_dump(stream, pLink);
+    log_printf(stream, "\n");
   }
   return 0;
 }
@@ -683,39 +683,39 @@ static int _network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
-int network_to_file(SLogStream * pStream, network_t * network)
+int network_to_file(SLogStream * stream, network_t * network)
 {
   enum_t * pEnum= trie_get_enum(network->nodes);
   net_node_t * node;
   /*
   return trie_for_each(pNetwork->nodes, _network_nodes_to_file,
-		       pStream);
+		       stream);
   */
   while (enum_has_next(pEnum)) {
     node= *(net_node_t **) enum_get_next(pEnum);
-    node_dump(pStream, node);
-    log_printf(pStream, "\n");
+    node_dump(stream, node);
+    log_printf(stream, "\n");
   }
   enum_destroy(&pEnum);
   return 0;
 }
 
 typedef struct {
-  net_addr_t tAddr;
+  net_addr_t addr;
   SNetPath * pPath;
   net_link_delay_t tDelay;
 } SContext;
 
 //---- network_dump_subnets ---------------------------------------------
-void network_dump_subnets(SLogStream * pStream, network_t * network)
+void network_dump_subnets(SLogStream * stream, network_t * network)
 {
   //  int iIndex, /*totSub*/;
   net_subnet_t * subnet = NULL;
   enum_t * pEnum= _array_get_enum((SArray*) network->subnets);
   while (enum_has_next(pEnum)) {
     subnet= *(net_subnet_t **) enum_get_next(pEnum);
-    ip_prefix_dump(pStream, subnet->sPrefix);
-    log_printf(pStream, "\n");
+    ip_prefix_dump(stream, subnet->prefix);
+    log_printf(stream, "\n");
   }
   enum_destroy(&pEnum);
 }
@@ -741,7 +741,7 @@ void network_ifaces_load_clear(network_t * network)
 /**
  * Save the load of all links in the topology.
  */
-int network_links_save(SLogStream * pStream)
+int network_links_save(SLogStream * stream)
 {
   enum_t * pEnum= NULL;
   net_node_t * node;
@@ -749,7 +749,7 @@ int network_links_save(SLogStream * pStream)
   pEnum= trie_get_enum(_default_network->nodes);
   while (enum_has_next(pEnum)) {
     node= *((net_node_t **) enum_get_next(pEnum));
-    node_links_save(pStream, node);
+    node_links_save(stream, node);
   }
   enum_destroy(&pEnum);
   return 0;

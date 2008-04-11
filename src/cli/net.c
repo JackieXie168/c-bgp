@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 25/02/2008
+// $Id: net.c,v 1.37 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -481,7 +481,7 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
   net_iface_t * pLink= _link_from_context(pContext);
   //net_node_t * pNode;
   unsigned int uWeight;
-  net_igp_weight_t tWeight;
+  igp_weight_t tWeight;
   net_tos_t tTOS= 0;
   char * pcValue;
   int iBidir= 0;
@@ -510,7 +510,7 @@ int cli_net_link_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
-  tWeight= (net_igp_weight_t) uWeight;
+  tWeight= (igp_weight_t) uWeight;
 
   // Change link weight
   iResult= net_iface_set_metric(pLink, tTOS, tWeight, iBidir);

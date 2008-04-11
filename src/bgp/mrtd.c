@@ -4,12 +4,12 @@
 // Interface with MRT data (ASCII and binary). The importation of
 // binary MRT data is based on Dan Ardelean's library (libbgpdump).
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// @lastdate 20/07/2007
+// $Id: mrtd.c,v 1.25 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -211,11 +211,11 @@ static inline mrtd_input_t _mrtd_check_header(STokens * pTokens)
 static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
 			      net_addr_t * ptPeerAddr,
 			      unsigned int * puPeerAS,
-			      SRoute ** ppRoute)
+			      bgp_route_t ** ppRoute)
 {
   mrtd_input_t tType;
   STokens * pTokens;
-  SRoute * pRoute;
+  bgp_route_t * pRoute;
   bgp_origin_t tOrigin;
   net_addr_t tNextHop;
   unsigned long ulLocalPref;
@@ -351,11 +351,12 @@ static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
  * Parameters:
  *
  */
-SRoute * mrtd_route_from_line(const char * pcLine, net_addr_t * ptPeerAddr,
-			      unsigned int * puPeerAS)
+bgp_route_t * mrtd_route_from_line(const char * pcLine,
+				   net_addr_t * ptPeerAddr,
+				   unsigned int * puPeerAS)
 {
-  SRoute * pRoute;
-  SPrefix sPrefix;
+  bgp_route_t * pRoute;
+  ip_pfx_t sPrefix;
 
   if (_mrtd_create_route(pcLine, &sPrefix, ptPeerAddr, puPeerAS, &pRoute)
       == MRTD_TYPE_RIB) {
@@ -385,12 +386,12 @@ SRoute * mrtd_route_from_line(const char * pcLine, net_addr_t * ptPeerAddr,
  * the function checks that the message comes from a valid peer of the
  * router.
  */
-SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SBGPPeer * pPeer,
+bgp_msg_t * mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * pPeer,
 			     const char * pcLine)
 {
-  SBGPMsg * pMsg= NULL;
-  SRoute * pRoute;
-  SPrefix sPrefix;
+  bgp_msg_t * pMsg= NULL;
+  bgp_route_t * pRoute;
+  ip_pfx_t sPrefix;
   net_addr_t tPeerAddr;
   unsigned int uPeerAS;
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
@@ -429,7 +430,7 @@ int mrtd_ascii_load(const char * pcFileName, FBGPRouteHandler fHandler,
   FILE_TYPE * pFile;
   unsigned int uLineNumber= 0;
   char acFileLine[1024];
-  SRoute * pRoute;
+  bgp_route_t * pRoute;
   int iError= BGP_ROUTES_INPUT_SUCCESS;
   net_addr_t tPeerAddr;
   unsigned int uPeerAS;
@@ -606,11 +607,11 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
  * todo: conversion of communities
  */
 #ifdef HAVE_BGPDUMP
-SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
+bgp_route_t * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
 {
   BGPDUMP_MRTD_TABLE_DUMP * pTableDump= &pEntry->body.mrtd_table_dump;
-  SRoute * pRoute= NULL;
-  SPrefix sPrefix;
+  bgp_route_t * pRoute= NULL;
+  ip_pfx_t sPrefix;
   bgp_origin_t tOrigin;
   net_addr_t tNextHop;
 
@@ -672,10 +673,11 @@ SRoute * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
  * TABLE DUMP, for adress family AF_IP (IPv4).
  */
 #ifdef HAVE_BGPDUMP
-SRoute * mrtd_process_entry(BGPDUMP_ENTRY * pEntry, net_addr_t * ptPeerAddr,
-			    unsigned int * puPeerAS)
+bgp_route_t * mrtd_process_entry(BGPDUMP_ENTRY * pEntry,
+				 net_addr_t * ptPeerAddr,
+				 unsigned int * puPeerAS)
 {
-  SRoute * pRoute= NULL;
+  bgp_route_t * pRoute= NULL;
 
   if (pEntry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
     pRoute= mrtd_process_table_dump(pEntry);
@@ -699,7 +701,7 @@ int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
 {
   BGPDUMP * fDump;
   BGPDUMP_ENTRY * pDumpEntry= NULL;
-  SRoute * pRoute;
+  bgp_route_t * pRoute;
   int iError= BGP_ROUTES_INPUT_SUCCESS;
   int iStatus;
   net_addr_t tPeerAddr;

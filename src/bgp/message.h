@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 19/05/2003
-// @lastdate 27/02/2008
+// $Id: message.h,v 1.15 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_MESSAGE_H__

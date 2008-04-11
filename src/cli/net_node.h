@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net_node.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// @lastdate 15/05/2007
+// $Id: net_node.h,v 1.2 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_NET_NODE_H__

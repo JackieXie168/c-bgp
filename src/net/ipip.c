@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: ipip.c,v 1.7 2008-04-07 09:42:04 bqu Exp $
+// $Id: ipip.c,v 1.8 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -182,7 +182,7 @@ int ipip_event_handler(simulator_t * sim,
   /* Check that the receiving interface is VIRTUAL */
   if (iif->type != NET_IFACE_VIRTUAL) {
     log_printf(syslog, "In node ");
-    ip_address_dump(syslog, node->tAddr);
+    ip_address_dump(syslog, node->addr);
     log_printf(syslog, ",\nIP-IP message received but addressed "
 	       "to wrong interface ");
     ip_address_dump(syslog, msg->dst_addr);

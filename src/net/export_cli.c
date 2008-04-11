@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/07
-// $Id: export_cli.c,v 1.4 2008-04-10 11:27:00 bqu Exp $
+// $Id: export_cli.c,v 1.5 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 // Note:
 //   - tunnels and tunnel-based routes are not suppported
@@ -62,14 +62,14 @@ static void _net_export_cli_phys(SLogStream * stream,
   enum_t * pEnum, * pEnumLinks;
   net_node_t * node;
   net_subnet_t * subnet;
-  net_iface_t * pLink;
+  net_iface_t * link;
 
   // *** all nodes ***
   pEnum= trie_get_enum(network->nodes);
   while (enum_has_next(pEnum)) {
     node= *(net_node_t **) enum_get_next(pEnum);
     log_printf(stream, "net add node ");
-    ip_address_dump(stream, node->tAddr);
+    ip_address_dump(stream, node->addr);
     log_printf(stream, "\n");
   }
   enum_destroy(&pEnum);
@@ -80,11 +80,13 @@ static void _net_export_cli_phys(SLogStream * stream,
     subnet= *(net_subnet_t **) enum_get_next(pEnum);
 
     log_printf(stream, "net add subnet ");
-    ip_prefix_dump(stream, subnet->sPrefix);
+    ip_prefix_dump(stream, subnet->prefix);
     log_printf(stream, " ");
-    switch (subnet->uType) {
+    switch (subnet->type) {
     case NET_SUBNET_TYPE_TRANSIT: log_printf(stream, "transit"); break;
     case NET_SUBNET_TYPE_STUB: log_printf(stream, "stub"); break;
+    default:
+      abort();
     }
     log_printf(stream, "\n");
   }
@@ -97,23 +99,23 @@ static void _net_export_cli_phys(SLogStream * stream,
 
     pEnumLinks= net_links_get_enum(node->ifaces);
     while (enum_has_next(pEnumLinks)) {
-      pLink= *(net_iface_t **) enum_get_next(pEnumLinks);
+      link= *(net_iface_t **) enum_get_next(pEnumLinks);
 
-      if ((pLink->type == NET_IFACE_VIRTUAL) ||
-	  ((pLink->type == NET_IFACE_RTR) &&
-	   (pLink->dest.iface->src_node->tAddr < node->tAddr)))
+      if ((link->type == NET_IFACE_VIRTUAL) ||
+	  ((link->type == NET_IFACE_RTR) &&
+	   (link->dest.iface->src_node->addr < node->addr)))
 	continue;
 
       log_printf(stream, "net add link ");
-      ip_address_dump(stream, node->tAddr);
+      ip_address_dump(stream, node->addr);
       log_printf(stream, " ");
-      switch (pLink->type) {
+      switch (link->type) {
       case NET_IFACE_RTR:
-	ip_address_dump(stream, pLink->dest.iface->src_node->tAddr);
+	ip_address_dump(stream, link->dest.iface->src_node->addr);
 	break;
       case NET_IFACE_PTP:
       case NET_IFACE_PTMP:
-	ip_prefix_dump(stream, pLink->dest.subnet->sPrefix);
+	ip_prefix_dump(stream, link->dest.subnet->prefix);
 	break;
       case NET_IFACE_VIRTUAL:
 	abort();
@@ -121,7 +123,7 @@ static void _net_export_cli_phys(SLogStream * stream,
       default:
 	abort();
       }
-      log_printf(stream, " %u\n", pLink->phys.delay);
+      log_printf(stream, " %u\n", link->phys.delay);
     }
     enum_destroy(&pEnumLinks);
   }
@@ -160,7 +162,7 @@ static void _net_export_cli_static(SLogStream * stream,
 	  continue;
 
 	log_printf(stream, "net node ");
-	ip_address_dump(stream, node->tAddr);
+	ip_address_dump(stream, node->addr);
 	log_printf(stream, " route add ");
 
 	// Destination prefix
@@ -179,10 +181,10 @@ static void _net_export_cli_static(SLogStream * stream,
 	case NET_IFACE_LOOPBACK:
 	case NET_IFACE_RTR:
 	case NET_IFACE_VIRTUAL:
-	  ip_address_dump(stream, rtinfo->next_hop.oif->dest.iface->src_node->tAddr);
+	  ip_address_dump(stream, rtinfo->next_hop.oif->dest.iface->src_node->addr);
 	  break;
 	case NET_IFACE_PTMP:
-	  ip_prefix_dump(stream, rtinfo->next_hop.oif->dest.subnet->sPrefix);
+	  ip_prefix_dump(stream, rtinfo->next_hop.oif->dest.subnet->prefix);
 	  break;
 	default:
 	  abort();
@@ -201,59 +203,59 @@ static void _net_export_cli_static(SLogStream * stream,
   enum_destroy(&pEnumNodes);
 }
 
-static int _igp_domain_fe(SIGPDomain * pDomain, void * ctx)
+static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
 {
   enum_t * pEnumRouters, * pEnumLinks;
   SLogStream * stream= (SLogStream *) ctx;
   net_node_t * router;
-  net_iface_t * pLink;
+  net_iface_t * link;
 
 
-  log_printf(stream, "net add domain %d igp\n", pDomain->uNumber);
+  log_printf(stream, "net add domain %d igp\n", domain->id);
 
-  pEnumRouters= trie_get_enum(pDomain->pRouters);
+  pEnumRouters= trie_get_enum(domain->routers);
   while (enum_has_next(pEnumRouters)) {
     router= *(net_node_t **) enum_get_next(pEnumRouters);
     log_printf(stream, "net node ");
-    ip_address_dump(stream, router->tAddr);
-    log_printf(stream, " domain %d\n", pDomain->uNumber);
+    ip_address_dump(stream, router->addr);
+    log_printf(stream, " domain %d\n", domain->id);
   }
   enum_destroy(&pEnumRouters);
 
-  pEnumRouters= trie_get_enum(pDomain->pRouters);
+  pEnumRouters= trie_get_enum(domain->routers);
   while (enum_has_next(pEnumRouters)) {
     router= *(net_node_t **) enum_get_next(pEnumRouters);
     
     pEnumLinks= net_links_get_enum(router->ifaces);
     while (enum_has_next(pEnumLinks)) {
-      pLink= *(net_iface_t **) enum_get_next(pEnumLinks);
+      link= *(net_iface_t **) enum_get_next(pEnumLinks);
       
-      if (pLink->type == NET_IFACE_VIRTUAL)
+      if (link->type == NET_IFACE_VIRTUAL)
 	continue;
       
       log_printf(stream, "net link ");
-      ip_address_dump(stream, router->tAddr);
+      ip_address_dump(stream, router->addr);
       log_printf(stream, " ");
-      switch (pLink->type) {
+      switch (link->type) {
       case NET_IFACE_LOOPBACK:
       case NET_IFACE_RTR:
       case NET_IFACE_VIRTUAL:
-	ip_address_dump(stream, pLink->dest.iface->src_node->tAddr);
+	ip_address_dump(stream, link->dest.iface->src_node->addr);
 	break;
       case NET_IFACE_PTMP:
-	ip_prefix_dump(stream, pLink->dest.subnet->sPrefix);
+	ip_prefix_dump(stream, link->dest.subnet->prefix);
 	break;
       default:
 	abort();
       }
-      log_printf(stream, " igp-weight %u\n", net_iface_get_metric(pLink, 0));
+      log_printf(stream, " igp-weight %u\n", net_iface_get_metric(link, 0));
     }
     enum_destroy(&pEnumLinks);
 
   }
   enum_destroy(&pEnumRouters);
   
-  log_printf(stream, "net domain %d compute\n", pDomain->uNumber);
+  log_printf(stream, "net domain %d compute\n", domain->id);
 
   return 0;
 }

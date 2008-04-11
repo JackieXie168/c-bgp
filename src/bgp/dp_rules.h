@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/11/2002
-// @lastdate 10/03/2008
+// $Id: dp_rules.h,v 1.9 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_DP_RULES_H__
@@ -78,8 +78,6 @@ extern "C" {
   // ----- dp_rule_lowest_neighbor_address --------------------------
   int dp_rule_lowest_neighbor_address(bgp_router_t * pRouter, bgp_routes_t * pRoutes);
   
-  // ----- dp_rule_final ----------------------------------------------
-  int dp_rule_final(bgp_router_t * pRouter, bgp_routes_t * pRoutes);
   // ----- dp_rule_lowest_delay ---------------------------------------
   int dp_rule_lowest_delay(bgp_router_t * pRouter, bgp_routes_t * pRoutes);
 

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// $Id: record-route.c,v 1.10 2008-04-10 11:27:00 bqu Exp $
+// $Id: record-route.c,v 1.11 2008-04-11 11:03:07 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -344,7 +344,7 @@ void node_dump_recorded_route(SLogStream * stream,
 			   &sDest.uDest.sPrefix,
 			   255, options, &trace, load);
 
-  ip_address_dump(stream, node->tAddr);
+  ip_address_dump(stream, node->addr);
   log_printf(stream, "\t");
   ip_dest_dump(stream, sDest);
   log_printf(stream, "\t");
@@ -365,10 +365,10 @@ void node_dump_recorded_route(SLogStream * stream,
     trace_item= ip_trace_item_at(trace, index);
     switch (trace_item->elt.type) {
     case NODE:
-      ip_address_dump(stream, trace_item->elt.node->tAddr);
+      ip_address_dump(stream, trace_item->elt.node->addr);
       break;
     case SUBNET: 
-      ip_prefix_dump(stream, trace_item->elt.subnet->sPrefix);
+      ip_prefix_dump(stream, trace_item->elt.subnet->prefix);
       break;
     default:
       fatal("invalid network-element type (%d)\n",

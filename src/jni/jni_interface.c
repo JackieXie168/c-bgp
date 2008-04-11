@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.42 2008-04-07 10:04:59 bqu Exp $
+// $Id: jni_interface.c,v 1.43 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -273,7 +273,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetLevel
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
 (JNIEnv * jEnv, jobject joCBGP, jint jiDomain)
 {
-  SIGPDomain * pDomain= NULL;
+  igp_domain_t * domain= NULL;
   jobject joDomain;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -291,10 +291,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
     return_jni_unlock(jEnv, NULL);
   }
 
-  pDomain= igp_domain_create((uint16_t) jiDomain, DOMAIN_IGP);
-  register_igp_domain(pDomain);
+  domain= igp_domain_create((uint16_t) jiDomain, IGP_DOMAIN_IGP);
+  register_igp_domain(domain);
 
-  joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, pDomain);
+  joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, domain);
 
   return_jni_unlock(jEnv, joDomain);
 }
@@ -308,7 +308,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomain
   (JNIEnv * jEnv, jobject joCBGP, jint jiDomain)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t * domain;
   jobject joDomain;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -321,24 +321,24 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomain
     return_jni_unlock(jEnv, NULL);
   }
 
-  pDomain= get_igp_domain((uint16_t) jiDomain);
-  if (pDomain == NULL)
+  domain= get_igp_domain((uint16_t) jiDomain);
+  if (domain == NULL)
     return NULL;
 
-  joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, pDomain);
+  joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, domain);
   return_jni_unlock(jEnv, joDomain);
 }
 
 // -----[ _netGetDomains ]-------------------------------------------
-static int _netGetDomains(SIGPDomain * pDomain, void * pContext)
+static int _netGetDomains(igp_domain_t * domain, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) ctx;
   jobject joDomain;
 
   // Create IGPDomain instance
   joDomain= cbgp_jni_new_net_IGPDomain(pCtx->jEnv,
 				       pCtx->joCBGP,
-				       pDomain);
+				       domain);
   if (joDomain == NULL)
     return -1;
 
@@ -391,10 +391,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
   (JNIEnv * jEnv, jobject joCBGP, jstring jsPrefix, jint jiType)
 {
-  net_subnet_t * pSubnet;
+  net_subnet_t * subnet;
   jobject joSubnet= NULL;
-  SPrefix sPrefix;
-  int iResult;
+  ip_pfx_t prefix;
+  int result;
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
@@ -402,26 +402,26 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
   jni_lock(jEnv);
 
   // Convert prefix
-  if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+  if (ip_jstring_to_prefix(jEnv, jsPrefix, &prefix) != 0)
     return_jni_unlock(jEnv, NULL);
 
   // Create new subnet
-  pSubnet= subnet_create(sPrefix.tNetwork, sPrefix.uMaskLen, 0);
-  if (pSubnet == NULL) {
+  subnet= subnet_create(prefix.tNetwork, prefix.uMaskLen, 0);
+  if (subnet == NULL) {
     throw_CBGPException(jEnv, "subnet cound notbe created");
     return_jni_unlock(jEnv, NULL);
   }
 
   // Add subnet to network
-  iResult= network_add_subnet(network_get_default(), pSubnet);
-  if (iResult != ESUCCESS) {
-    subnet_destroy(&pSubnet);
+  result= network_add_subnet(network_get_default(), subnet);
+  if (result != ESUCCESS) {
+    subnet_destroy(&subnet);
     throw_CBGPException(jEnv, "subnet already exists");
     return_jni_unlock(jEnv, NULL);
   }
 
   // Create Java Subnet object
-  joSubnet= cbgp_jni_new_net_Subnet(jEnv, joCBGP, pSubnet);
+  joSubnet= cbgp_jni_new_net_Subnet(jEnv, joCBGP, subnet);
 
   return_jni_unlock(jEnv, joSubnet);
 }
@@ -441,9 +441,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 (JNIEnv * jEnv, jobject joCBGP, jstring jsAddr, jint iDomain)
 {
-  SIGPDomain * pDomain;
-  net_node_t * pNode; 
-  net_addr_t tNetAddr;
+  igp_domain_t * domain;
+  net_node_t * node; 
+  net_addr_t addr;
   jobject joNode;
   net_error_t error;
 
@@ -453,30 +453,30 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   jni_lock(jEnv);
 
   // Check that the domain is valid
-  pDomain= cbgp_jni_net_domain_from_int(jEnv, iDomain);
-  if (pDomain == NULL)
+  domain= cbgp_jni_net_domain_from_int(jEnv, iDomain);
+  if (domain == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
+  if (ip_jstring_to_address(jEnv, jsAddr, &addr) != 0)
     return_jni_unlock(jEnv, NULL);
 
-  error= node_create(tNetAddr, &pNode);
+  error= node_create(addr, &node);
   if (error != ESUCCESS) {
     throw_CBGPException(jEnv, "node could not be created (%s)",
 			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
-  error= network_add_node(network_get_default(), pNode);
+  error= network_add_node(network_get_default(), node);
   if (error != ESUCCESS) {
     throw_CBGPException(jEnv, "node already exists (%s)",
 			network_strerror(error));
     return_jni_unlock(jEnv, NULL);
   }
 
-  igp_domain_add_router(pDomain, pNode);
+  igp_domain_add_router(domain, node);
 
-  joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, pNode);
+  joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node);
   return_jni_unlock(jEnv, joNode);
 }
 
@@ -490,7 +490,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
   (JNIEnv * jEnv, jobject joCBGP)
 {
   enum_t * pEnum;
-  net_node_t * pNode;
+  net_node_t * node;
   jobject joVector;
   jobject joNode;
 
@@ -506,10 +506,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
     return_jni_unlock(jEnv, NULL);
 
   while (enum_has_next(pEnum)) {
-    pNode= *(net_node_t **) enum_get_next(pEnum);
+    node= *(net_node_t **) enum_get_next(pEnum);
 
     // Create Node object
-    if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, pNode)) == NULL) {
+    if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node)) == NULL) {
       joVector= NULL;
       break;
     }
@@ -531,7 +531,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNode
 (JNIEnv * jEnv, jobject joCBGP, jstring jsAddr)
 {
-  net_node_t * pNode;
+  net_node_t * node;
   jobject joNode;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -540,11 +540,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNode
   jni_lock(jEnv);
 
   // Find net_node_t object
-  if ((pNode= cbgp_jni_net_node_from_string(jEnv, jsAddr)) == NULL)
+  if ((node= cbgp_jni_net_node_from_string(jEnv, jsAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
   // Create Node object
-  if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, pNode)) == NULL)
+  if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
   return_jni_unlock(jEnv, joNode);
@@ -606,15 +606,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
 /////////////////////////////////////////////////////////////////////
 
 // -----[ _bgpGetDomains ]-------------------------------------------
-static int _bgpGetDomains(SBGPDomain * pDomain, void * pContext)
+static int _bgpGetDomains(bgp_domain_t * domain, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
+  SJNIContext * pCtx= (SJNIContext *) ctx;
   jobject joDomain;
 
   // Create BGPDomain instance
   joDomain= cbgp_jni_new_bgp_Domain(pCtx->jEnv,
 				    pCtx->joCBGP,
-				    pDomain);
+				    domain);
 
   if (joDomain == NULL)
     return -1;

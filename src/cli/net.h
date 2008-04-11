@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 15/05/2007
+// $Id: net.h,v 1.4 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_NET_H__

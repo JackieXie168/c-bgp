@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 16/01/2007
+// $Id: bgp.h,v 1.4 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_BGP_H__

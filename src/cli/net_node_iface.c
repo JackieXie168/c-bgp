@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/02/2008
-// @lastdate 12/03/2008
+// $Id: net_node_iface.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -79,7 +79,7 @@ static int cli_iface_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 {
   net_iface_t * pIface= _iface_from_context(pContext);
   unsigned int uWeight;
-  net_igp_weight_t tWeight;
+  igp_weight_t tWeight;
   int iResult;
 
   // Get IGP weight
@@ -88,7 +88,7 @@ static int cli_iface_igpweight(SCliContext * pContext, SCliCmd * pCmd)
 		       tokens_get_string_at(pCmd->pParamValues, 0));
     return CLI_ERROR_COMMAND_FAILED;
   }
-  tWeight= (net_igp_weight_t) uWeight;
+  tWeight= (igp_weight_t) uWeight;
 
   // Change link weight in forward direction
   iResult= net_iface_set_metric(pIface, 0, tWeight, 0);

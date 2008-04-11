@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)domain.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/02/2002
-// @lastdate 03/03/2006
+// $Id: domain.h,v 1.7 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_DOMAIN_H__
@@ -15,47 +15,52 @@
 #include <bgp/as_t.h>
 
 // -----[ FBGPDomainsForEach ]---------------------------------------
-typedef int (*FBGPDomainsForEach)(SBGPDomain * pDomain, void * pContext);
+typedef int (*FBGPDomainsForEach)(bgp_domain_t * domain, void * ctx);
 
-// ----- bgp_domain_create ------------------------------------------
-extern SBGPDomain * bgp_domain_create(uint16_t uNumber);
-
-// ----- bgp_domain_destroy -----------------------------------------
-extern void bgp_domain_destroy(SBGPDomain ** ppDomain);
-
-// -----[ bgp_domains_for_each ]-------------------------------------
-extern int bgp_domains_for_each(FBGPDomainsForEach fForEach, void * pContext);
-
-// ----- bgp_domain_add_router --------------------------------------
-extern void bgp_domain_add_router(SBGPDomain * pDomain, SBGPRouter * pRouter);
-
-// ----- bgp_domain_routers_for_each --------------------------------
-extern int bgp_domain_routers_for_each(SBGPDomain * pDomain,
-				       FRadixTreeForEach fForEach,
-				       void * pContext);
-
-// ----- exists_bgp_domain ------------------------------------------
-extern int exists_bgp_domain(uint16_t uNumber);
-
-// ----- get_bgp_domain ---------------------------------------------
-extern SBGPDomain * get_bgp_domain(uint16_t uNumber);
-
-// ----- register_bgp_domain ----------------------------------------
-extern void register_bgp_domain(SBGPDomain * pDomain);
-
-// ----- bgp_domain_rescan ------------------------------------------
-extern int bgp_domain_rescan(SBGPDomain * pDomain);
-// ----- bgp_domain_dump_recorded_route -----------------------------
-extern int bgp_domain_dump_recorded_route(SLogStream * pStream,
-					  SBGPDomain * pDomain, 
-					  SNetDest sDest,
-					  const uint8_t uOptions);
-// ----- bgp_domain_full_mesh ---------------------------------------
-extern int bgp_domain_full_mesh(SBGPDomain * pDomain);
-
-// ----- _bgp_domain_init -------------------------------------------
-extern void _bgp_domain_init();
-// ----- _bgp_domain_destroy ----------------------------------------
-extern void _bgp_domain_destroy();
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+  // ----- bgp_domain_create ----------------------------------------
+  bgp_domain_t * bgp_domain_create(uint16_t asn);
+  // ----- bgp_domain_destroy ---------------------------------------
+  void bgp_domain_destroy(bgp_domain_t ** domain_ref);
+  // -----[ bgp_domains_for_each ]-----------------------------------
+  int bgp_domains_for_each(FBGPDomainsForEach for_each, void * ctx);
+  // ----- bgp_domain_add_router ------------------------------------
+  void bgp_domain_add_router(bgp_domain_t * domain, bgp_router_t * router);
+  // ----- bgp_domain_routers_for_each ------------------------------
+  int bgp_domain_routers_for_each(bgp_domain_t * domain,
+				  FRadixTreeForEach for_each,
+				  void * ctx);
+    // ----- exists_bgp_domain --------------------------------------
+  int exists_bgp_domain(uint16_t asn);
+  // ----- get_bgp_domain -------------------------------------------
+  bgp_domain_t * get_bgp_domain(uint16_t asn);
+  // ----- register_bgp_domain --------------------------------------
+  void register_bgp_domain(bgp_domain_t * domain);
+  // ----- bgp_domain_rescan ----------------------------------------
+  int bgp_domain_rescan(bgp_domain_t * domain);
+  // ----- bgp_domain_dump_recorded_route ---------------------------
+  int bgp_domain_dump_recorded_route(SLogStream * stream,
+				     bgp_domain_t * domain, 
+				     SNetDest sDest,
+				     uint8_t options);
+  // ----- bgp_domain_full_mesh -------------------------------------
+  int bgp_domain_full_mesh(bgp_domain_t * domain);
+  
+
+  ///////////////////////////////////////////////////////////////////
+  // INITIALIZATION AND FINALIZATION
+  ///////////////////////////////////////////////////////////////////
+
+  // ----- _bgp_domain_init -----------------------------------------
+  void _bgp_domain_init();
+  // ----- _bgp_domain_destroy --------------------------------------
+  void _bgp_domain_destroy();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BGP_DOMAIN_H__ */

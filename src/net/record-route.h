@@ -51,7 +51,7 @@ typedef struct {
   uint8_t          uOptions;
   ip_trace_t *     pTrace;
   net_link_delay_t tDelay;    /* QoS info: delay */
-  net_igp_weight_t tWeight;   /* QoS info: IGP weight */
+  igp_weight_t tWeight;   /* QoS info: IGP weight */
   net_link_load_t  tCapacity; /* QoS info: max capacity */
   net_link_load_t  tLoad;     /* Traffic volume to load */
   net_tos_t        tTOS;      /* Type-Of-Service (topology) */

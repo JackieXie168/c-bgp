@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// @lastdate 10/03/2008
+// $Id: icmp.h,v 1.6 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ICMP_H__
@@ -76,7 +76,7 @@ extern "C" {
   // -----[ icmp_record_route ]--------------------------------------
   int icmp_record_route(net_node_t * node,
 			net_addr_t dst_addr,
-			SPrefix * alt_dest,
+			ip_pfx_t * alt_dest,
 			uint8_t max_ttl,
 			uint8_t options,
 			ip_trace_t ** trace_ref,
