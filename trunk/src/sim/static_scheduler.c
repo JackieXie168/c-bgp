@@ -161,7 +161,7 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
 /**
  * Return the number of queued events.
  */
-static uint32_t _num_events(sched_t * self)
+static unsigned int _num_events(sched_t * self)
 {
   sched_static_t * sched= (sched_static_t *) self;
   return sched->events->uCurrentDepth;
