@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/10/07
-// @lastdate 05/01/2008
+// $Id: main-perf.c,v 1.6 2008-04-11 13:04:39 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -236,7 +236,7 @@ uint32_t jhash (void *key, uint32_t length, uint32_t initval)
 }
 
 // -----[ path_strhash ]---------------------------------------------
-static uint32_t path_strhash(const void * pItem, const uint32_t uHashSize)
+static uint32_t path_strhash(const void * pItem, unsigned int uHashSize)
 {
   char acPathStr[AS_PATH_STR_SIZE];
   SBGPPath * pPath= (SBGPPath *) pItem;
@@ -247,7 +247,7 @@ static uint32_t path_strhash(const void * pItem, const uint32_t uHashSize)
 }
 
 // -----[ path_jhash]------------------------------------------------
-static uint32_t path_jhash(const void * pItem, const uint32_t uHashSize)
+static uint32_t path_jhash(const void * pItem, unsigned int uHashSize)
 {
   SBGPPath * pPath= (SBGPPath *) pItem;
   uint8_t auBuffer[1024];
@@ -258,7 +258,7 @@ static uint32_t path_jhash(const void * pItem, const uint32_t uHashSize)
 }
 
 // -----[ comm_strhash ]---------------------------------------------
-static uint32_t comm_strhash(const void * pItem, const uint32_t uHashSize)
+static uint32_t comm_strhash(const void * pItem, unsigned int uHashSize)
 {
   char acStr[AS_PATH_STR_SIZE];
   SCommunities * pComm= (SCommunities *) pItem;
@@ -268,7 +268,7 @@ static uint32_t comm_strhash(const void * pItem, const uint32_t uHashSize)
 }
 
 // -----[ comm_hash_zebra ]------------------------------------------
-static uint32_t comm_hash_zebra(const void * pItem, const uint32_t uHashSize)
+static uint32_t comm_hash_zebra(const void * pItem, unsigned int uHashSize)
 {
   SCommunities * pComm= (SCommunities *) pItem;
   uint8_t auBuffer[1024];
@@ -283,7 +283,7 @@ static uint32_t comm_hash_zebra(const void * pItem, const uint32_t uHashSize)
 }
 
 // -----[ comm_jhash ]-----------------------------------------------
-static uint32_t comm_jhash(const void * pItem, const uint32_t uHashSize)
+static uint32_t comm_jhash(const void * pItem, unsigned int uHashSize)
 {
   SCommunities * pComm= (SCommunities *) pItem;
   uint8_t auBuffer[1024];
@@ -293,7 +293,7 @@ static uint32_t comm_jhash(const void * pItem, const uint32_t uHashSize)
   return jhash(auBuffer, tSize, JHASH_GOLDEN_RATIO) % uHashSize;
 }
 
-typedef uint32_t (*FHashFunction)(const void * pItem, const uint32_t);
+typedef uint32_t (*FHashFunction)(const void * pItem, unsigned int);
 
 typedef struct {
   FHashFunction fHashFunc;
@@ -329,6 +329,7 @@ SAttrInfo ATTR_INFOS[]= {
 };
 #define ATTR_INFOS_NUM sizeof(ATTR_INFOS)/sizeof(ATTR_INFOS[0])
 
+#ifdef HAVE_BGPDUMP
 // -----[ _route_handler ]-------------------------------------------
 /**
  * Handle routes loaded by the bgpdump library. Store the route's
@@ -355,6 +356,7 @@ static int _route_handler(int iStatus, SRoute * pRoute,
   //route_destroy(&pRoute);
   return BGP_ROUTES_INPUT_SUCCESS;
 }
+#endif /* HAVE_BGPDUMP */
 
 // -----[ test_path_hash_perf ]--------------------------------------
 int test_path_hash_perf(int argc, char * argv[])
@@ -364,7 +366,7 @@ int test_path_hash_perf(int argc, char * argv[])
   double dStartTime;
   double dEndTime;
 #define MAX_HASH_SIZE 65536
-  uint32_t uHashSize= MAX_HASH_SIZE;
+  unsigned int uHashSize= MAX_HASH_SIZE;
   int aiHash[MAX_HASH_SIZE];
   uint32_t uKey;
   double dChiSquare, dExpected, dElement;
