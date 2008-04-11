@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bqu@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 04/12/2007
+// $Id: help.c,v 1.6 2008-04-11 11:02:29 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -61,6 +61,14 @@ int cli_help_cmd_topic(SCliCmd * pCmd)
   int iResult;
   char * pcFileName= str_create(DOCDIR);
   char * pcPath= cli_cmd_get_path(pCmd);
+
+  if (pcPath == NULL) {
+    fprintf(stdout, "\n");
+#ifdef HAVE_RL_ON_NEW_LINE
+    rl_on_new_line();
+#endif
+    return 0;
+  }
 
   // Translate the command's path to a valid filename
   str_translate(pcPath, " ", "_");
@@ -249,7 +257,7 @@ void _rl_help_init()
 {
 #if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
   if (rl_bind_key('?', _rl_help_command) != 0)
-    fprintf(stderr, "Error: could not bind.\n");
+    fprintf(stderr, "Error: could not bind '?' key to help.\n");
   else
     fprintf(stderr, "help is bound to '?' key\n");
 
