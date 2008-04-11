@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_debug.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 09/04/2004
-// @lastdate 03/03/2006
+// $Id: bgp_debug.h,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_DEBUG_H__
@@ -13,8 +13,16 @@
 #include <net/prefix.h>
 #include <stdio.h>
 
-// ----- bgp_debug_dp -----------------------------------------------
-extern void bgp_debug_dp(SLogStream * pStream, SBGPRouter * pRouter,
-			 SPrefix sPrefix);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  // ----- bgp_debug_dp -----------------------------------------------
+  void bgp_debug_dp(SLogStream * stream, bgp_router_t * router,
+		    ip_pfx_t prefix);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

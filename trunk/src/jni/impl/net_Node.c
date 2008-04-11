@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.16 2008-04-10 11:27:00 bqu Exp $
+// $Id: net_Node.c,v 1.17 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,7 +47,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
     return joNode;
 
   /* Convert node attributes to Java objects */
-  joAddress= cbgp_jni_new_IPAddress(jEnv, node->tAddr);
+  joAddress= cbgp_jni_new_IPAddress(jEnv, node->addr);
 
   /* Check that the conversion was successful */
   if (joAddress == NULL)
@@ -630,27 +630,27 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getProtocols
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getBGP
   (JNIEnv * jEnv, jobject joNode)
 {
-  net_node_t * pNode;
-  bgp_router_t * pRouter;
-  net_protocol_t * pProtocol;
+  net_node_t * node;
+  bgp_router_t * router;
+  net_protocol_t * protocol;
   jobject joRouter;
 
   jni_lock(jEnv);
 
   /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
     return_jni_unlock(jEnv, NULL);
 
   /* Get the BGP handler */
-  if ((pProtocol= node_get_protocol(pNode, NET_PROTOCOL_BGP)) == NULL)
+  if ((protocol= node_get_protocol(node, NET_PROTOCOL_BGP)) == NULL)
     return_jni_unlock(jEnv, NULL);
-  pRouter= (SBGPRouter *) pProtocol->pHandler;
+  router= (bgp_router_t *) protocol->pHandler;
 
   /* Create bgp.Router instance */
   if ((joRouter= cbgp_jni_new_bgp_Router(jEnv,
 					 NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/,
-					 pRouter)) == NULL)
+					 router)) == NULL)
     return_jni_unlock(jEnv, NULL);
   
   return_jni_unlock(jEnv, joRouter);

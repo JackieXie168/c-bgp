@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// @lastdate 27/02/2008
+// $Id: bgp_router_peer.h,v 1.2 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_BGP_ROUTER_PEER_H__

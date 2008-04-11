@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: main-test.c,v 1.10 2008-04-10 11:27:00 bqu Exp $
+// $Id: main-test.c,v 1.11 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -70,11 +70,11 @@ static inline net_node_t * __node_create(net_addr_t addr) {
 // -----[ test_net_attr_address4 ]-----------------------------------
 static int test_net_attr_address4()
 {
-  net_addr_t tAddress= IPV4(255,255,255,255);
-  ASSERT_RETURN(tAddress == UINT32_MAX,
+  net_addr_t addr= IPV4(255,255,255,255);
+  ASSERT_RETURN(addr == UINT32_MAX,
 		"255.255.255.255 should be equal to %u", UINT32_MAX);
-  tAddress= NET_ADDR_ANY;
-  ASSERT_RETURN(tAddress == 0,
+  addr= NET_ADDR_ANY;
+  ASSERT_RETURN(addr == 0,
 		"0.0.0.0 should be equal to 0");
   return UTEST_SUCCESS;
 }
@@ -107,35 +107,35 @@ static int test_net_attr_address4_2str()
 // -----[ test_net_attr_address4_str2 ]------------------------------
 static int test_net_attr_address4_str2()
 {
-  net_addr_t tAddress;
+  net_addr_t addr;
   char * pcEndPtr;
-  ASSERT_RETURN((ip_string_to_address("192.168.0.0", &pcEndPtr, &tAddress) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_address("192.168.0.0", &pcEndPtr, &addr) >= 0) && (*pcEndPtr == '\0'),
 		"address \"192.168.0.0\" should be valid");
-  ASSERT_RETURN(tAddress == IPV4(192,168,0,0),
+  ASSERT_RETURN(addr == IPV4(192,168,0,0),
 		"address should 192.168.0.0");
-  ASSERT_RETURN((ip_string_to_address("192.168.1.23", &pcEndPtr, &tAddress) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_address("192.168.1.23", &pcEndPtr, &addr) >= 0) && (*pcEndPtr == '\0'),
 		"address \"192.168.1.23\" should be valid");
-  ASSERT_RETURN(tAddress == IPV4(192,168,1,23),
+  ASSERT_RETURN(addr == IPV4(192,168,1,23),
 		"address should 192.168.1.23");
-  ASSERT_RETURN((ip_string_to_address("255.255.255.255", &pcEndPtr, &tAddress) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_address("255.255.255.255", &pcEndPtr, &addr) >= 0) && (*pcEndPtr == '\0'),
 		"address \"255.255.255.255\" should be valid");
-  ASSERT_RETURN(tAddress == IPV4(255,255,255,255),
+  ASSERT_RETURN(addr == IPV4(255,255,255,255),
 		"address should 255.255.255.255");
-  ASSERT_RETURN((ip_string_to_address("64.233.183.147a", &pcEndPtr, &tAddress) >= 0) && (*pcEndPtr == 'a'),
+  ASSERT_RETURN((ip_string_to_address("64.233.183.147a", &pcEndPtr, &addr) >= 0) && (*pcEndPtr == 'a'),
 		"address \"64.233.183.147a\" should be valid (followed by stuff)");
-  ASSERT_RETURN(tAddress == IPV4(64,233,183,147),
+  ASSERT_RETURN(addr == IPV4(64,233,183,147),
 		"address should 64.233.183.147");
-  ASSERT_RETURN(ip_string_to_address("64a.233.183.147", &pcEndPtr, &tAddress) < 0,
+  ASSERT_RETURN(ip_string_to_address("64a.233.183.147", &pcEndPtr, &addr) < 0,
 		"address \"64a.233.183.147a\" should be invalid");
-  ASSERT_RETURN(ip_string_to_address("255.256.0.0", &pcEndPtr, &tAddress) < 0,
+  ASSERT_RETURN(ip_string_to_address("255.256.0.0", &pcEndPtr, &addr) < 0,
 		"address \"255.256.0.0\" should be invalid");
-  ASSERT_RETURN((ip_string_to_address("255.255.0.0.255", &pcEndPtr, &tAddress) >= 0) && (*pcEndPtr != '\0'),
+  ASSERT_RETURN((ip_string_to_address("255.255.0.0.255", &pcEndPtr, &addr) >= 0) && (*pcEndPtr != '\0'),
 		"address \"255.255.0.0.255\" should be valid (followed by stuff)");
-  ASSERT_RETURN(ip_string_to_address("255.255.0", &pcEndPtr, &tAddress) < 0,
+  ASSERT_RETURN(ip_string_to_address("255.255.0", &pcEndPtr, &addr) < 0,
 		"address \"255.255.0.0.255\" should be invalid");
-  ASSERT_RETURN(ip_string_to_address("255..255.0", &pcEndPtr, &tAddress) < 0,
+  ASSERT_RETURN(ip_string_to_address("255..255.0", &pcEndPtr, &addr) < 0,
 		"address \"255..255.0\" should be invalid");
-  ASSERT_RETURN((ip_string_to_address("1.2.3.4.5", &pcEndPtr, &tAddress) == 0) &&
+  ASSERT_RETURN((ip_string_to_address("1.2.3.4.5", &pcEndPtr, &addr) == 0) &&
 		(*pcEndPtr == '.'),
 		"address \"1.2.3.4.5\" should be invalid");
   return UTEST_SUCCESS;
@@ -414,13 +414,13 @@ static int test_net_attr_dest_str2()
 // -----[ test_net_attr_igpweight ]----------------------------------
 static int test_net_attr_igpweight()
 {
-  SNetIGPWeights * pWeights= net_igp_weights_create(2);
-  ASSERT_RETURN(pWeights != NULL,
+  igp_weights_t * weights= net_igp_weights_create(2);
+  ASSERT_RETURN(weights != NULL,
 		"net_igp_weights_create() should not return NULL");
-  ASSERT_RETURN(net_igp_weights_depth(pWeights) == 2,
+  ASSERT_RETURN(net_igp_weights_depth(weights) == 2,
 		"IGP weights'depth should be 2");
-  net_igp_weights_destroy(&pWeights);
-  ASSERT_RETURN(pWeights == NULL,
+  net_igp_weights_destroy(&weights);
+  ASSERT_RETURN(weights == NULL,
 		"destroyed IGP weights should be NULL");
   return UTEST_SUCCESS;
 }
@@ -430,9 +430,9 @@ static int test_net_attr_igpweight_add()
 {
   ASSERT_RETURN(net_igp_add_weights(5, 10) == 15,
 		"IGP weights 5 and 10 should add to 15");
-  ASSERT_RETURN(net_igp_add_weights(5, NET_IGP_MAX_WEIGHT)
-		== NET_IGP_MAX_WEIGHT,
-		"IGP weights 5 and 10 should add to %d", NET_IGP_MAX_WEIGHT);
+  ASSERT_RETURN(net_igp_add_weights(5, IGP_MAX_WEIGHT)
+		== IGP_MAX_WEIGHT,
+		"IGP weights 5 and 10 should add to %d", IGP_MAX_WEIGHT);
   return UTEST_SUCCESS;
 }
 
@@ -450,7 +450,7 @@ static int test_net_node()
   ASSERT_RETURN(node_create(IPV4(1,0,0,0), &node) == ESUCCESS,
 		"node creation should succeed");
   ASSERT_RETURN(node != NULL, "node creation should succeed");
-  ASSERT_RETURN(node->tAddr == IPV4(1,0,0,0),
+  ASSERT_RETURN(node->addr == IPV4(1,0,0,0),
 		"incorrect node address (ID)");
   ASSERT_RETURN(node->ifaces != NULL,
 		"interfaces list should be created");
@@ -516,14 +516,14 @@ static int test_net_subnet()
 static int test_net_iface_lo()
 {
   net_node_t * pNode1= __node_create(IPV4(1,0,0,1));
-  net_addr_t tAddr= IPV4(172,0,0,1);
+  net_addr_t addr= IPV4(172,0,0,1);
   net_iface_t * pIface= NULL;
-  ASSERT_RETURN(net_iface_factory(pNode1, net_iface_id_addr(tAddr),
+  ASSERT_RETURN(net_iface_factory(pNode1, net_iface_id_addr(addr),
 				  NET_IFACE_LOOPBACK, &pIface) == ESUCCESS,
 		"should be able to create loopback interface");
   ASSERT_RETURN(pIface->type == NET_IFACE_LOOPBACK,
 		"interface type should be LOOPBACK");
-  ASSERT_RETURN(pIface->tIfaceAddr == tAddr,
+  ASSERT_RETURN(pIface->tIfaceAddr == addr,
 		"incorrect interface address");
   ASSERT_RETURN(pIface->tIfaceMask == 32,
 		"incorrect interface mask");
@@ -548,7 +548,7 @@ static int test_net_iface_rtr()
 		"should return non-null interface");
   ASSERT_RETURN(pIface->type == NET_IFACE_RTR,
 		"interface type should be RTR");
-  ASSERT_RETURN(pIface->tIfaceAddr == pNode2->tAddr,
+  ASSERT_RETURN(pIface->tIfaceAddr == pNode2->addr,
 		"incorrect interface address");
   ASSERT_RETURN(pIface->tIfaceMask == 32,
 		"incorrect interface mask");
@@ -618,8 +618,8 @@ static int test_net_iface_virtual()
 {
   net_node_t * pNode1= __node_create(IPV4(1,0,0,1));
   net_iface_t * pIface= NULL;
-  net_addr_t tAddr= IPV4(172,0,0,1);
-  net_iface_id_t tIfaceID= net_iface_id_addr(tAddr);
+  net_addr_t addr= IPV4(172,0,0,1);
+  net_iface_id_t tIfaceID= net_iface_id_addr(addr);
   ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID,
 				  NET_IFACE_VIRTUAL,
 				  &pIface) == ESUCCESS,
@@ -628,7 +628,7 @@ static int test_net_iface_virtual()
 		"should return non-null interface");
   ASSERT_RETURN(pIface->type == NET_IFACE_VIRTUAL,
 		"interface type should be VIRTUAL");
-  ASSERT_RETURN(pIface->tIfaceAddr == tAddr,
+  ASSERT_RETURN(pIface->tIfaceAddr == addr,
 		"incorrect interface address");
   ASSERT_RETURN(pIface->tIfaceMask == 32,
 		"incorrect interface mask");
@@ -669,12 +669,12 @@ static int test_net_iface_list()
   net_ifaces_t * pIfaces= net_links_create();
   net_iface_t * pIface1= NULL;
   net_iface_t * pIface2= NULL;
-  net_addr_t tAddr1= IPV4(1,0,0,2);
-  net_addr_t tAddr2= IPV4(1,0,0,3);
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr1),
+  net_addr_t addr1= IPV4(1,0,0,2);
+  net_addr_t addr2= IPV4(1,0,0,3);
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr1),
 				  NET_IFACE_RTR, &pIface1) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr2),
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr2),
 				  NET_IFACE_RTR, &pIface2) == ESUCCESS,
 		"should be able to create interface");
   ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
@@ -694,11 +694,11 @@ static int test_net_iface_list_duplicate()
   net_ifaces_t * pIfaces= net_links_create();
   net_iface_t * pIface1= NULL;
   net_iface_t * pIface2= NULL;
-  net_addr_t tAddr= IPV4(1,0,0,2);
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr),
+  net_addr_t addr= IPV4(1,0,0,2);
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr),
 				  NET_IFACE_RTR, &pIface1) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(tAddr),
+  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr),
 				  NET_IFACE_RTR, &pIface2) == ESUCCESS,
 		"should be able to create interface");
   ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
@@ -1058,7 +1058,7 @@ static int test_net_tunnel()
 		"link type is incorrect");
   ASSERT_RETURN(tunnel->src_node == node1,
 		"source node is not correct");
-  ASSERT_RETURN(tunnel->dest.end_point == node2->tAddr,
+  ASSERT_RETURN(tunnel->dest.end_point == node2->addr,
 		"tunnel endpoint is incorrect");
   ASSERT_RETURN(tunnel->tIfaceAddr == IPV4(127,0,0,1),
 		"interface address is incorrect");
@@ -1225,11 +1225,11 @@ static int test_net_rt_static_remove()
 // -----[ test_net_igp_domain ]--------------------------------------
 static int test_net_igp_domain()
 {
-  SIGPDomain * pDomain= igp_domain_create(11537, DOMAIN_IGP);
-  ASSERT_RETURN(pDomain != NULL,
+  igp_domain_t *domain= igp_domain_create(11537, IGP_DOMAIN_IGP);
+  ASSERT_RETURN(domain != NULL,
 		"igp_domain_create() should succeed");
-  igp_domain_destroy(&pDomain);
-  ASSERT_RETURN(pDomain == NULL,
+  igp_domain_destroy(&domain);
+  ASSERT_RETURN(domain == NULL,
 		"destroyed domain should be NULL");
   return UTEST_SUCCESS;
 }
@@ -1245,7 +1245,7 @@ static int test_net_igp_compute()
   net_addr_t tIfaceAddr21= IPV4(192,168,0,2);
   net_addr_t tIfaceAddr23= IPV4(192,168,0,5);
   net_addr_t tIfaceAddr32= IPV4(192,168,0,6);
-  SIGPDomain * pDomain= igp_domain_create(1, DOMAIN_IGP);
+  igp_domain_t * pDomain= igp_domain_create(1, IGP_DOMAIN_IGP);
   net_iface_t * pLink;
   
   network_add_node(network, node1);
@@ -1297,7 +1297,7 @@ static int test_before_net_traces()
   net_node_t * node1= __node_create(IPV4(1,0,0,1));
   net_node_t * node2= __node_create(IPV4(1,0,0,2));
   net_node_t * node3= __node_create(IPV4(1,0,0,3));
-  SIGPDomain * domain= igp_domain_create(1, DOMAIN_IGP);
+  igp_domain_t * domain= igp_domain_create(1, IGP_DOMAIN_IGP);
   net_iface_t * pLink;
   _net_traces_ctx.network= network;
   _net_traces_ctx.node1= node1;
@@ -1360,9 +1360,9 @@ static int test_net_traces_recordroute()
   ASSERT_RETURN(ip_trace_length(trace) == 3,
 		"record-route trace's length should be 3");
   ASSERT_RETURN((ip_trace_item_at(trace, 0)->elt.node == node) &&
-		(ip_trace_item_at(trace, 1)->elt.node->tAddr ==
+		(ip_trace_item_at(trace, 1)->elt.node->addr ==
 		 IPV4(1,0,0,2)) &&
-		(ip_trace_item_at(trace, 2)->elt.node->tAddr ==
+		(ip_trace_item_at(trace, 2)->elt.node->addr ==
 		 IPV4(1,0,0,3)),
 		"record-route trace's content is not correct");
   ip_trace_destroy(&trace);
@@ -1385,9 +1385,9 @@ static int test_net_traces_recordroute_qos()
   ASSERT_RETURN(ip_trace_length(trace) == 3,
 		"record-route trace's length should be 3");
   ASSERT_RETURN((ip_trace_item_at(trace, 0)->elt.node == node) &&
-		(ip_trace_item_at(trace, 1)->elt.node->tAddr ==
+		(ip_trace_item_at(trace, 1)->elt.node->addr ==
 		 IPV4(1,0,0,2)) &&
-		(ip_trace_item_at(trace, 2)->elt.node->tAddr ==
+		(ip_trace_item_at(trace, 2)->elt.node->addr ==
 		 IPV4(1,0,0,3)),
 		"record-route trace's content is not correct");
   ASSERT_RETURN(trace->weight == 15,

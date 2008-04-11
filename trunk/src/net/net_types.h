@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/06/2005
-// @lastdate 11/03/2008
+// $Id: net_types.h,v 1.15 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -112,16 +112,19 @@ typedef network_t SNetwork;
 //////////////////////////////////////////////////////////////////////
 
 // Supported domain types
-typedef enum { DOMAIN_IGP, DOMAIN_OSPF } EDomainType;
+typedef enum {
+  IGP_DOMAIN_IGP,
+  IGP_DOMAIN_OSPF,
+IGP_DOMAIN_MAX
+} igp_domain_type_t;
 
 typedef struct {
-  uint16_t      uNumber;
-  char        * pcName;
-  STrie       * pRouters;
-  EDomainType   tType;
-  uint8_t       uECMP;
+  uint16_t            id;
+  char              * name;
+  STrie             * routers;
+  igp_domain_type_t   type;
+  uint8_t             ecmp;
 } igp_domain_t;
-typedef igp_domain_t SIGPDomain;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -143,7 +146,7 @@ typedef igp_domain_t SIGPDomain;
 
 typedef struct {
   ospf_dest_type_t   tOSPFDestinationType;
-  SPrefix            sPrefix;
+  ip_pfx_t           sPrefix;
   net_link_delay_t   uWeight;
   ospf_area_t        tOSPFArea;
   ospf_path_type_t   tOSPFPathType;
@@ -165,7 +168,7 @@ typedef STrie SOSPFRT;
  * This type defines a node object.
  */
 typedef struct {
-  net_addr_t        tAddr;
+  net_addr_t        addr;
   char            * name;
   network_t       * network;
   net_ifaces_t    * ifaces;
@@ -195,12 +198,18 @@ typedef struct {
  * Describe transit or stub networks: if there is only one router this
  * object describe a stub network. A transit network otherwise.
  */
+typedef enum {
+  NET_SUBNET_TYPE_TRANSIT,
+  NET_SUBNET_TYPE_STUB,
+  NET_SUBNET_TYPE_MAX
+} net_subnet_type_t;
+
 typedef struct {
-  SPrefix        sPrefix;
-  uint8_t        uType;
-  net_ifaces_t * ifaces;    /* links towards routers */
+  ip_pfx_t            prefix;
+  net_subnet_type_t   type;
+  net_ifaces_t      * ifaces;    /* links towards routers */
 #ifdef OSPF_SUPPORT
-  ospf_area_t    uOSPFArea; /* a subnetwork belongs to a single area */
+  ospf_area_t         uOSPFArea; /* a subnetwork belongs to a single area */
 #endif
 } net_subnet_t;
 
@@ -305,7 +314,7 @@ typedef struct net_iface_t {
   uint8_t            flags;      // Flags: state (up/down), IGP_ADV
 
   // --- IGP protocol attributes ---
-  SNetIGPWeights   * pWeights;   // List of IGP weights (1/topo)
+  igp_weights_t    * pWeights;   // List of IGP weights (1/topo)
 
   void             * user_data;
   net_iface_ops_t    ops;

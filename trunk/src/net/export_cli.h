@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)export_cli.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/07
-// @lastdate 15/10/07
+// $Id: export_cli.h,v 1.2 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_EXPORT_CLI_H__

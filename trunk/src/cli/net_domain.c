@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)net_domain.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 29/07/2005
-// @lastdate 21/11/2007
+// $Id: net_domain.c,v 1.10 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -31,8 +31,8 @@ int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
 {
   unsigned int uId;
   char * pcType;
-  EDomainType tType;
-  SIGPDomain * pDomain;
+  igp_domain_type_t tType;
+  igp_domain_t* pDomain;
 
   /* Check domain id */
   if (tokens_get_uint_at(pCmd->pParamValues, 0, &uId) ||
@@ -45,10 +45,10 @@ int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
   /* Check domain type */
   pcType= tokens_get_string_at(pCmd->pParamValues, 1);
   if (!strcmp(pcType, "igp")) {
-    tType= DOMAIN_IGP;
+    tType= IGP_DOMAIN_IGP;
   } else if (!strcmp(pcType, "ospf")) {
 #ifdef OSPF_SUPPORT 
-    tType= DOMAIN_OSPF;
+    tType= IGP_DOMAIN_OSPF;
 #else 
     cli_set_user_error(cli_get(), "not compiled with OSPF support");
     return CLI_ERROR_COMMAND_FAILED;
@@ -79,7 +79,7 @@ int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd)
 int cli_ctx_create_net_domain(SCliContext * pContext, void ** ppItem)
 {
   unsigned int uId;
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   /* Get domain id */
   if (tokens_get_uint_at(pContext->pCmd->pParamValues, 0, &uId) ||
@@ -110,7 +110,7 @@ void cli_ctx_destroy_net_domain(void ** ppItem)
  */
 int cli_net_domain_set_ecmp(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
   char * pcState;
   int iState;
 
@@ -145,7 +145,7 @@ int cli_net_domain_set_ecmp(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_domain_show_info(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
@@ -161,7 +161,7 @@ int cli_net_domain_show_info(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_domain_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
@@ -177,7 +177,7 @@ int cli_net_domain_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
  */
 /*int cli_net_domain_show_subnets(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
@@ -193,7 +193,7 @@ int cli_net_domain_show_nodes(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_domain_compute(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);
@@ -215,7 +215,7 @@ int cli_net_domain_compute(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_net_domain_check_deflection(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SIGPDomain * pDomain;
+  igp_domain_t* pDomain;
 
   // Get domain from context
   pDomain= cli_context_get_item_at_top(pContext);

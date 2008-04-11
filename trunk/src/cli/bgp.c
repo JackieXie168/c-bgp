@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.50 2008-04-07 10:04:27 bqu Exp $
+// $Id: bgp.c,v 1.51 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -48,18 +48,18 @@
 #include <net/util.h>
 #include <string.h>
 
-static inline SBGPDomain * _domain_from_context(SCliContext * pContext) {
-  SBGPDomain * pDomain=
-    (SBGPDomain *) cli_context_get_item_at_top(pContext);
-  assert(pDomain != NULL);
-  return pDomain;
+static inline bgp_domain_t * _domain_from_context(SCliContext * pContext) {
+  bgp_domain_t * domain=
+    (bgp_domain_t *) cli_context_get_item_at_top(pContext);
+  assert(domain != NULL);
+  return domain;
 }
 
 static inline bgp_router_t * _router_from_context(SCliContext * pContext) {
-  bgp_router_t * pRouter=
+  bgp_router_t * router=
     (bgp_router_t *) cli_context_get_item_at_top(pContext);
-  assert(pRouter != NULL);
-  return pRouter;
+  assert(router != NULL);
+  return router;
 }
 
 // ----- cli_bgp_add_router -----------------------------------------
@@ -183,7 +183,7 @@ void cli_ctx_destroy_bgp_domain(void ** ppItem)
  */
 int cli_bgp_domain_full_mesh(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain= _domain_from_context(pContext);
+  bgp_domain_t * pDomain= _domain_from_context(pContext);
 
   /* Generate the full-mesh of iBGP sessions */
   bgp_domain_full_mesh(pDomain);
@@ -200,7 +200,7 @@ int cli_bgp_domain_full_mesh(SCliContext * pContext, SCliCmd * pCmd)
  */
 int cli_bgp_domain_rescan(SCliContext * pContext, SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain= _domain_from_context(pContext);
+  bgp_domain_t * pDomain= _domain_from_context(pContext);
 
   /* Rescan all the routers in the domain. */
   bgp_domain_rescan(pDomain);
@@ -216,7 +216,7 @@ int cli_bgp_domain_rescan(SCliContext * pContext, SCliCmd * pCmd)
 int cli_bgp_domain_recordroute(SCliContext * pContext,
 				  SCliCmd * pCmd)
 {
-  SBGPDomain * pDomain= _domain_from_context(pContext);
+  bgp_domain_t * pDomain= _domain_from_context(pContext);
   char * pcDest;
   SNetDest sDest;
   uint8_t uOptions= 0;
@@ -1483,7 +1483,7 @@ int cli_bgp_show_sessions(SCliContext * pContext, SCliCmd * pCmd)
   while ((pRouter= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
     for (index= 0; index < bgp_peers_size(pRouter->pPeers); index++) {
       pPeer= bgp_peers_at(pRouter->pPeers, index);
-      ip_address_dump(pStream, pRouter->pNode->tAddr);
+      ip_address_dump(pStream, pRouter->pNode->addr);
       log_printf(pStream, "\t");
       ip_address_dump(pStream, pPeer->tAddr);
       log_printf(pStream, "\t%d\t%d\n", pPeer->uSendSeqNum,

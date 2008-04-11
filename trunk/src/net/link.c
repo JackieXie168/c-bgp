@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// @lastdate 11/03/2008
+// $Id: link.c,v 1.25 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -97,42 +97,42 @@ _net_link_create_iface(net_node_t * node,
 /**
  * Create a single router-to-router (RTR) link.
  */
-net_error_t net_link_create_rtr(net_node_t * pSrcNode,
-				net_node_t * pDstNode,
+net_error_t net_link_create_rtr(net_node_t * src_node,
+				net_node_t * dst_node,
 				net_iface_dir_t dir,
-				net_iface_t ** ppIface)
+				net_iface_t ** iface_ref)
 {
-  net_iface_t * pSrcIface;
-  net_iface_t * pDstIface;
+  net_iface_t * src_iface;
+  net_iface_t * dst_iface;
   net_error_t error;
 
-  if (pSrcNode == pDstNode)
+  if (src_node == dst_node)
     return ENET_LINK_LOOP;
 
   // Create source network interface
-  error= _net_link_create_iface(pSrcNode, net_iface_id_addr(pDstNode->tAddr),
-				NET_IFACE_RTR, &pSrcIface);
+  error= _net_link_create_iface(src_node, net_iface_id_addr(dst_node->addr),
+				NET_IFACE_RTR, &src_iface);
   if (error != ESUCCESS)
     return error;
 
   // Create destination network interface
-  error= _net_link_create_iface(pDstNode, net_iface_id_addr(pSrcNode->tAddr),
-				NET_IFACE_RTR, &pDstIface);
+  error= _net_link_create_iface(dst_node, net_iface_id_addr(src_node->addr),
+				NET_IFACE_RTR, &dst_iface);
   if (error != ESUCCESS)
     return error;
   
   // Connect interfaces in both directions
-  error= net_iface_connect_iface(pSrcIface, pDstIface);
+  error= net_iface_connect_iface(src_iface, dst_iface);
   if (error != ESUCCESS)
     return error;
   if (dir == BIDIR) {
-    error= net_iface_connect_iface(pDstIface, pSrcIface);
+    error= net_iface_connect_iface(dst_iface, src_iface);
     if (error != ESUCCESS)
       return error;
   }
 
-  if (ppIface != NULL)
-    *ppIface= pSrcIface;
+  if (iface_ref != NULL)
+    *iface_ref= src_iface;
   return ESUCCESS;
 }
 
@@ -199,11 +199,11 @@ int net_link_create_ptp(net_node_t * pSrcNode,
  * Create a link to a subnet (point-to-multi-point link).
  */
 int net_link_create_ptmp(net_node_t * pSrcNode,
-			 net_subnet_t * pSubnet,
+			 net_subnet_t * subnet,
 			 net_addr_t tIfaceAddr,
 			 net_iface_t ** ppIface)
 {
-  SPrefix tIfaceID= net_iface_id_pfx(tIfaceAddr, pSubnet->sPrefix.uMaskLen);
+  ip_pfx_t tIfaceID= net_iface_id_pfx(tIfaceAddr, subnet->prefix.uMaskLen);
   net_iface_t * pSrcIface;
   int iResult;
 
@@ -215,12 +215,12 @@ int net_link_create_ptmp(net_node_t * pSrcNode,
     return iResult;
 
   // Connect interface to subnet
-  iResult= net_iface_connect_subnet(pSrcIface, pSubnet);
+  iResult= net_iface_connect_subnet(pSrcIface, subnet);
   if (iResult != ESUCCESS)
     return iResult;
 
   // Connect subnet to interface
-  subnet_add_link(pSubnet, pSrcIface);
+  subnet_add_link(subnet, pSrcIface);
 
   if (ppIface != NULL)
     *ppIface= pSrcIface;

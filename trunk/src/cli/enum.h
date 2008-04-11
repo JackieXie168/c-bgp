@@ -6,7 +6,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// @lastdate 13/03/2008
+// $Id: enum.h,v 1.5 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_ENUM_H__

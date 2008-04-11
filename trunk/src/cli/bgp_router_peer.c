@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// @lastdate 27/02/2008
+// $Id: bgp_router_peer.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,9 +26,9 @@
 #include <net/util.h>
 
 // -----[ _peer_from_context ]---------------------------------------
-static inline SBGPPeer * _peer_from_context(SCliContext * pContext) {
-  SBGPPeer * pPeer=
-    (SBGPPeer *) cli_context_get_item_at_top(pContext);
+static inline bgp_peer_t * _peer_from_context(SCliContext * pContext) {
+  bgp_peer_t * pPeer=
+    (bgp_peer_t *) cli_context_get_item_at_top(pContext);
   assert(pPeer != NULL);
   return pPeer;
 }
@@ -41,7 +41,7 @@ static inline SBGPPeer * _peer_from_context(SCliContext * pContext) {
 static int cli_ctx_create_peer(SCliContext * pContext,
 					  void ** ppItem)
 {
-  SBGPRouter * pRouter= (SBGPRouter *) cli_context_get_item_at_top(pContext);
+  bgp_router_t* pRouter= (bgp_router_t*) cli_context_get_item_at_top(pContext);
   bgp_peer_t * pPeer;
   char * pcPeerAddr;
   net_addr_t tAddr;
@@ -462,10 +462,10 @@ static int cli_peer_down(SCliContext * pContext, SCliCmd * pCmd)
 static int cli_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
 {
   bgp_peer_t * pPeer= _peer_from_context(pContext);
-  SBGPRouter * pRouter= pPeer->pLocalRouter;
+  bgp_router_t* pRouter= pPeer->pLocalRouter;
   char * pcPrefix;
   char * pcEndChar;
-  SPrefix sPrefix;
+  ip_pfx_t sPrefix;
 
   /* Get prefix */
   pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);

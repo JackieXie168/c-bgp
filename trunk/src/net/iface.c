@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/08/2003
-// $Id: iface.c,v 1.3 2008-04-07 09:31:46 bqu Exp $
+// $Id: iface.c,v 1.4 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -185,26 +185,26 @@ int net_iface_has_address(net_iface_t * iface, net_addr_t addr)
 }
 
 // -----[ net_iface_has_prefix ]-------------------------------------
-int net_iface_has_prefix(net_iface_t * iface, SPrefix sPrefix)
+int net_iface_has_prefix(net_iface_t * iface, ip_pfx_t prefix)
 {
-  SPrefix sIfacePrefix;
+  ip_pfx_t iface_prefix;
   if (iface->type == NET_IFACE_RTR)
     return 0;
 
-  sIfacePrefix= net_iface_dst_prefix(iface);
-  return (ip_prefix_cmp(&sIfacePrefix, &sPrefix) == 0);
+  iface_prefix= net_iface_dst_prefix(iface);
+  return (ip_prefix_cmp(&iface_prefix, &prefix) == 0);
 }
 
 // -----[ net_iface_src_address ]------------------------------------
 net_addr_t net_iface_src_address(net_iface_t * iface)
 {
   if (iface->type == NET_IFACE_RTR)
-    return iface->src_node->tAddr;
+    return iface->src_node->addr;
   return iface->tIfaceAddr;
 }
 
 // -----[ net_iface_dst_prefix ]-------------------------------------
-SPrefix net_iface_dst_prefix(net_iface_t * iface)
+ip_pfx_t net_iface_dst_prefix(net_iface_t * iface)
 {
   return net_iface_id(iface);
 }
@@ -356,12 +356,12 @@ void net_iface_set_enabled(net_iface_t * iface, int enabled)
 
 // -----[ net_iface_get_metric ]-------------------------------------
 /**
- * To-do: if (tTOS > depth) => return NET_IGP_MAX_WEIGHT
+ * To-do: if (tTOS > depth) => return IGP_MAX_WEIGHT
  */
-net_igp_weight_t net_iface_get_metric(net_iface_t * iface, net_tos_t tos)
+igp_weight_t net_iface_get_metric(net_iface_t * iface, net_tos_t tos)
 {
   if (iface->pWeights == NULL)
-    return NET_IGP_MAX_WEIGHT;
+    return IGP_MAX_WEIGHT;
   return iface->pWeights->data[tos];
 }
 
@@ -370,7 +370,7 @@ net_igp_weight_t net_iface_get_metric(net_iface_t * iface, net_tos_t tos)
  * To-do: return error if (pWeights == NULL) or if (depth <= tTOS)
  */
 int net_iface_set_metric(net_iface_t * iface, net_tos_t tos,
-			 net_igp_weight_t weight, net_iface_dir_t dir)
+			 igp_weight_t weight, net_iface_dir_t dir)
 {
   net_error_t error;
   net_iface_t * rev_iface;
@@ -497,10 +497,10 @@ void net_iface_dump_dest(SLogStream * stream, net_iface_t * iface)
   case NET_IFACE_PTP:
     net_iface_dump_id(stream, iface->dest.iface);
     log_printf(stream, "\t");
-    ip_address_dump(stream, iface->dest.iface->src_node->tAddr);
+    ip_address_dump(stream, iface->dest.iface->src_node->addr);
     break;
   case NET_IFACE_PTMP:
-    ip_prefix_dump(stream, iface->dest.subnet->sPrefix);
+    ip_prefix_dump(stream, iface->dest.subnet->prefix);
     break;
   case NET_IFACE_VIRTUAL:
     ip_address_dump(stream, iface->dest.end_point);

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// $Id: jni_util.c,v 1.21 2008-04-10 11:27:00 bqu Exp $
+// $Id: jni_util.c,v 1.22 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -647,7 +647,7 @@ bgp_peer_t * cbgp_jni_bgp_peer_from_string(JNIEnv * env, jstring jsRouterAddr,
  *
  * @throw CBGPException
  */
-SIGPDomain * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber)
+igp_domain_t * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber)
 {
   // Check that domain ID is in the range [0, 65535]
   if ((iNumber < 0) || (iNumber > 65535)) {
@@ -672,7 +672,7 @@ SIGPDomain * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber)
  *
  * @throw CBGPException
  */
-SBGPDomain * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber)
+bgp_domain_t * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber)
 {
   // Check that domain ID is in the range [0, 65535]
   if ((iNumber < 0) || (iNumber > 65535)) {

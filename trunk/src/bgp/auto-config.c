@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// $Id: auto-config.c,v 1.7 2008-04-07 10:01:51 bqu Exp $
+// $Id: auto-config.c,v 1.8 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -119,7 +119,7 @@ int bgp_auto_config_session(bgp_router_t * pRouter,
   // Add a new BGP session.
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION ");
   LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    ip_address_dump(pLogDebug, pRouter->pNode->tAddr);
+    ip_address_dump(pLogDebug, pRouter->pNode->addr);
     log_printf(pLogDebug, " --> ");
     ip_address_dump(pLogDebug, tRemoteAddr);
     log_printf(pLogDebug, "\n");

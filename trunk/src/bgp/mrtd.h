@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)mrtd.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 20/02/2004
-// @lastdate 21/05/2007
+// $Id: mrtd.h,v 1.9 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __MRTD_H__
@@ -39,17 +39,17 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- mrtd_create_path -----------------------------------------
-  SBGPPath * mrtd_create_path(const char * pcPath);
+  SBGPPath * mrtd_create_path(const char * path);
   // ----- mrtd_route_from_line -------------------------------------
-  SRoute * mrtd_route_from_line(const char * pcLine,
-				net_addr_t * ptPeerAddr,
-				unsigned int * puPeerAS);
+  bgp_route_t * mrtd_route_from_line(const char * line,
+				     net_addr_t * peer_addr,
+				     unsigned int * peer_asn);
   // ----- mrtd_msg_from_line ---------------------------------------
-  SBGPMsg * mrtd_msg_from_line(SBGPRouter * pRouter, SBGPPeer * pPeer,
-			       const char * pcLine);
+  bgp_msg_t * mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * peer,
+			       const char * line);
   // ----- mrtd_ascii_load_routes -----------------------------------
-  int mrtd_ascii_load(const char * pcFileName, FBGPRouteHandler fHandler,
-		      void * pContext);
+  int mrtd_ascii_load(const char * file_name, FBGPRouteHandler handler,
+		      void * ctx);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -58,8 +58,8 @@ extern "C" {
 
 #ifdef HAVE_BGPDUMP
   // -----[ mrtd_binary_load ]---------------------------------------
-  int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
-		       void * pContext);
+  int mrtd_binary_load(const char * file_name, FBGPRouteHandler handler,
+		       void * ctx);
 #endif
 
 

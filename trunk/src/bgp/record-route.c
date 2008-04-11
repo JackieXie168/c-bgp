@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/05/2007
-// $Id: record-route.c,v 1.2 2008-04-07 10:01:51 bqu Exp $
+// $Id: record-route.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,13 +26,13 @@
  * - records ASes once (do not record iBGP session crossing)
  */
 int bgp_record_route(bgp_router_t * router,
-		     SPrefix sPrefix,
+		     ip_pfx_t sPrefix,
 		     SBGPPath ** path_ref,
 		     int iPreserveDups)
 {
   bgp_router_t * cur_router= router;
   bgp_router_t * prev_router= NULL;
-  SRoute * route;
+  bgp_route_t * route;
   SBGPPath * path= path_create();
   net_node_t * node;
   net_protocol_t * protocol;
@@ -64,7 +64,7 @@ int bgp_record_route(bgp_router_t * router,
       
       // If the route's next-hop is this router, then the function
       // terminates.
-      if (route->pAttr->tNextHop == cur_router->pNode->tAddr) {
+      if (route->pAttr->tNextHop == cur_router->pNode->addr) {
 	result= AS_RECORD_ROUTE_SUCCESS;
 	break;
       }
@@ -95,11 +95,11 @@ int bgp_record_route(bgp_router_t * router,
  * 'bgp_router_record_route'.
  */
 void bgp_dump_recorded_route(SLogStream * stream, bgp_router_t * router,
-			     SPrefix sPrefix, SBGPPath * path,
+			     ip_pfx_t sPrefix, SBGPPath * path,
 			     int result)
 {
   // Display record-route results
-  ip_address_dump(stream, router->pNode->tAddr);
+  ip_address_dump(stream, router->pNode->addr);
   log_printf(stream, "\t");
   ip_prefix_dump(stream, sPrefix);
   log_printf(stream, "\t");

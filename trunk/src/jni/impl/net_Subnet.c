@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/10/2007
-// @lastdate 19/10/2007
+// $Id: net_Subnet.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,18 +27,18 @@
  * node.
  */
 jobject cbgp_jni_new_net_Subnet(JNIEnv * jEnv, jobject joCBGP,
-				net_subnet_t * pSubnet)
+				net_subnet_t * subnet)
 {
   jobject joSubnet;
   jobject joPrefix;
 
   /* Java proxy object already existing ? */
-  joSubnet= jni_proxy_get(jEnv, pSubnet);
+  joSubnet= jni_proxy_get(jEnv, subnet);
   if (joSubnet != NULL)
     return joSubnet;
 
   /* Convert node attributes to Java objects */
-  joPrefix= cbgp_jni_new_IPPrefix(jEnv, pSubnet->sPrefix);
+  joPrefix= cbgp_jni_new_IPPrefix(jEnv, subnet->prefix);
   if (joPrefix == NULL)
     return NULL;
 
@@ -49,7 +49,7 @@ jobject cbgp_jni_new_net_Subnet(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jEnv, joSubnet, pSubnet);
+  jni_proxy_add(jEnv, joSubnet, subnet);
 
   return joSubnet;
 }

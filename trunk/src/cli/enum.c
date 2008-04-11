@@ -9,7 +9,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// @lastdate 13/03/2008
+// $Id: enum.c,v 1.6 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -51,7 +51,7 @@ net_node_t * cli_enum_net_nodes(const char * text, int state)
 
     // Optionally check if prefix matches
     if (text != NULL) {
-      assert(ip_address_to_string(node->tAddr, str_addr,
+      assert(ip_address_to_string(node->addr, str_addr,
 				  sizeof(str_addr)) >= 0);
       if (strncmp(text, str_addr, strlen(text)))
 	continue;
@@ -109,7 +109,7 @@ char * cli_enum_net_nodes_addr(const char * text, int state)
   char str_addr[IP4_ADDR_STR_LEN];
   
   while ((node= cli_enum_net_nodes(text, state++)) != NULL) {
-    assert(ip_address_to_string(node->tAddr, str_addr, sizeof(str_addr)) >= 0);
+    assert(ip_address_to_string(node->addr, str_addr, sizeof(str_addr)) >= 0);
     return strdup(str_addr);
   }
   return NULL;
@@ -125,7 +125,7 @@ char * cli_enum_bgp_routers_addr(const char * text, int state)
   char str_addr[IP4_ADDR_STR_LEN];
   
   while ((router= cli_enum_bgp_routers(text, state++)) != NULL) {
-    assert(ip_address_to_string(router->pNode->tAddr, str_addr,
+    assert(ip_address_to_string(router->pNode->addr, str_addr,
 				sizeof(str_addr)) >= 0);
     return strdup(str_addr);
   }

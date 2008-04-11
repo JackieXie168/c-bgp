@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// $Id: jni_util.h,v 1.15 2008-04-10 11:27:00 bqu Exp $
+// $Id: jni_util.h,v 1.16 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_UTIL_H__
@@ -75,15 +75,15 @@ extern "C" {
   // -----[ cbgp_jni_net_node_from_string ]--------------------------
   net_node_t * cbgp_jni_net_node_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_bgp_router_from_string ]------------------------
-  SBGPRouter * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr);
+  bgp_router_t * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr);
   // -----[ cbgp_jni_bgp_peer_from_string ]--------------------------
-  SBGPPeer * cbgp_jni_bgp_peer_from_string(JNIEnv * env,
+  bgp_peer_t * cbgp_jni_bgp_peer_from_string(JNIEnv * env,
 					   jstring jsRouterAddr,
 					   jstring jsPeerAddr);
   // -----[ cbgp_jni_net_domain_from_int ]---------------------------
-  SIGPDomain * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber);
+  igp_domain_t * cbgp_jni_net_domain_from_int(JNIEnv * env, jint iNumber);
   // -----[ cbgp_jni_bgp_domain_from_int ]---------------------------
-  SBGPDomain * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber);
+  bgp_domain_t * cbgp_jni_bgp_domain_from_int(JNIEnv * env, jint iNumber);
 
   // -----[ cbgp_jni_net_error_str ]---------------------------------
   jstring cbgp_jni_net_error_str(JNIEnv * jEnv, int iErrorCode);

@@ -4,7 +4,7 @@
 // @Author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 08/03/2004
-// $Id: bgp_assert.c,v 1.15 2008-04-07 10:01:51 bqu Exp $
+// $Id: bgp_assert.c,v 1.16 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -83,7 +83,7 @@ int bgp_assert_reachability()
 	  // Check BGP reachability
 	  if (bgp_record_route(pRouterSrc, pRoute->sPrefix, &pPath, 0)) {
 	    log_printf(pLogOut, "Assert: ");
-	    ip_address_dump(pLogOut, pRouterSrc->pNode->tAddr);
+	    ip_address_dump(pLogOut, pRouterSrc->pNode->addr);
 	    log_printf(pLogOut, " can not reach ");
 	    ip_prefix_dump(pLogOut, pRoute->sPrefix);
 	    log_printf(pLogOut, "\n");
@@ -148,7 +148,7 @@ int bgp_assert_peerings()
 	  // Check for reachability
 	  if (!bgp_peer_session_ok(pPeer)) {
 	    log_printf(pLogOut, "Assert: ");
-	    ip_address_dump(pLogOut, pRouter->pNode->tAddr);
+	    ip_address_dump(pLogOut, pRouter->pNode->addr);
 	    log_printf(pLogOut, "'s peer ");
 	    ip_address_dump(pLogOut, pPeer->tAddr);
 	    log_printf(pLogOut, " is not reachable\n");
@@ -158,7 +158,7 @@ int bgp_assert_peerings()
 
 	  /*} else {
 	  fprintf(stdout, "Assert: ");
-	  ip_address_dump(stdout, pRouter->pNode->tAddr);
+	  ip_address_dump(stdout, pRouter->pNode->addr);
 	  fprintf(stdout, "'s peer ");
 	  ip_address_dump(stdout, pPeer->tAddr);
 	  fprintf(stdout, " does not support BGP\n");
@@ -168,7 +168,7 @@ int bgp_assert_peerings()
 
       } else {
 	fprintf(stdout, "Assert: ");
-	ip_address_dump(stdout, pRouter->pNode->tAddr);
+	ip_address_dump(stdout, pRouter->pNode->addr);
 	fprintf(stdout, "'s peer ");
 	ip_address_dump(stdout, pPeer->tAddr);
 	fprintf(stdout, " does not exist\n");

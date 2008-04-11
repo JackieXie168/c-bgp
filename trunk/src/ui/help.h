@@ -3,9 +3,9 @@
 //
 // Provides functions to obtain help from the CLI in interactive mode.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/11/2002
-// @lastdate 25/06/2007
+// $Id: help.h,v 1.2 2008-04-11 11:03:07 bqu Exp $
 // ==================================================================
 
 #ifndef __UI_HELP_H__

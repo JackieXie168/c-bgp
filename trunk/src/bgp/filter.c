@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// $Id: filter.c,v 1.23 2008-04-10 11:27:00 bqu Exp $
+// $Id: filter.c,v 1.24 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -374,7 +374,7 @@ int filter_action_apply(bgp_ft_action_t * pAction, bgp_router_t * pRouter,
       route_med_set(pRoute, *((uint32_t *) pAction->auParams));
       break;
     case FT_ACTION_METRIC_INTERNAL:
-      if (pRoute->pAttr->tNextHop != pRouter->pNode->tAddr) {
+      if (pRoute->pAttr->tNextHop != pRouter->pNode->addr) {
 	rtinfo= rt_find_best(pRouter->pNode->rt, pRoute->pAttr->tNextHop,
 			     NET_ROUTE_ANY);
 	assert(rtinfo != NULL);

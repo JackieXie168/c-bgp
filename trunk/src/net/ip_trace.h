@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// @lastdate 01/03/2008
+// $Id: ip_trace.h,v 1.3 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP_TRACE_H__
@@ -24,7 +24,7 @@ typedef struct {
 typedef struct {
   SPtrArray        * items;    /* Traversed hops (nodes, subnets) */
   net_link_delay_t   delay;    /* QoS info: delay */
-  net_igp_weight_t   weight;   /* QoS info: IGP weight */
+  igp_weight_t       weight;   /* QoS info: IGP weight */
   net_link_load_t    capacity; /* QoS info: max capacity */
   net_link_load_t    load;     /* Traffic volume to load */
   net_error_t        status;   /* General status of trace */

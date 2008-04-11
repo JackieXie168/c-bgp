@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.c,v 1.5 2008-04-07 10:01:51 bqu Exp $
+// $Id: as-level.c,v 1.6 2008-04-11 11:03:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -747,41 +747,41 @@ static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
 }
 
 // -----[ _aslevel_build_bgp_session ]-------------------------------
-static inline int _aslevel_build_bgp_session(bgp_router_t * pRouter1,
-					     bgp_router_t * pRouter2)
+static inline int _aslevel_build_bgp_session(bgp_router_t * router1,
+					     bgp_router_t * router2)
 {
-  net_node_t * pNode1= pRouter1->pNode;
-  net_node_t * pNode2= pRouter2->pNode;
-  SPrefix sPrefix;
-  net_iface_t * pIface;
-  net_igp_weight_t tWeight= 0;
-  int iResult;
+  net_node_t * node1= router1->pNode;
+  net_node_t * node2= router2->pNode;
+  ip_pfx_t prefix;
+  net_iface_t * iface;
+  igp_weight_t weight= 0;
+  int result;
 
   // Add the link and check if it did not already exist
-  iResult= net_link_create_rtr(pNode1, pNode2, BIDIR, &pIface);
-  if (iResult != ESUCCESS)
-    return iResult;
+  result= net_link_create_rtr(node1, node2, BIDIR, &iface);
+  if (result != ESUCCESS)
+    return result;
 
   // Configure IGP weight in forward direction
-  assert(pIface != NULL);
-  assert(net_iface_set_metric(pIface, 0, tWeight, BIDIR) == ESUCCESS);
+  assert(iface != NULL);
+  assert(net_iface_set_metric(iface, 0, weight, BIDIR) == ESUCCESS);
       
   // Add static route in forward direction
-  sPrefix.tNetwork= pNode2->tAddr;
-  sPrefix.uMaskLen= 32;
-  assert(!node_rt_add_route(pNode1, sPrefix, net_iface_id_rtr(pNode2),
-			    pNode2->tAddr, tWeight, NET_ROUTE_STATIC));
+  prefix.tNetwork= node2->addr;
+  prefix.uMaskLen= 32;
+  assert(!node_rt_add_route(node1, prefix, net_iface_id_rtr(node2),
+			    node2->addr, weight, NET_ROUTE_STATIC));
 
   // Add static route in reverse direction
-  sPrefix.tNetwork= pNode1->tAddr;
-  sPrefix.uMaskLen= 32;
-  assert(!node_rt_add_route(pNode2, sPrefix, net_iface_id_rtr(pNode1),
-			    pNode1->tAddr, tWeight, NET_ROUTE_STATIC));
+  prefix.tNetwork= node1->addr;
+  prefix.uMaskLen= 32;
+  assert(!node_rt_add_route(node2, prefix, net_iface_id_rtr(node1),
+			    node1->addr, weight, NET_ROUTE_STATIC));
   
   // Setup peering relations in both directions
-  if (bgp_router_add_peer(pRouter1, pRouter2->uASN, pNode2->tAddr, NULL) != 0)
+  if (bgp_router_add_peer(router1, router2->uASN, node2->addr, NULL) != 0)
     return -1;
-  if (bgp_router_add_peer(pRouter2, pRouter1->uASN, pNode1->tAddr, NULL) != 0)
+  if (bgp_router_add_peer(router2, router1->uASN, node1->addr, NULL) != 0)
     return -1;
 
   return 0;
@@ -792,7 +792,7 @@ int aslevel_topo_build_network(SASLevelTopo * pTopo)
 {
   unsigned int uIndex, uIndex2;
   SASLevelDomain * pDomain, * pNeighbor;
-  net_addr_t tAddr;
+  net_addr_t addr;
   bgp_router_t * pRouter;
 
   if (pTopo->uState != ASLEVEL_STATE_LOADED)
@@ -805,10 +805,10 @@ int aslevel_topo_build_network(SASLevelTopo * pTopo)
     pDomain= (SASLevelDomain *) pTopo->pDomains->data[uIndex];
 
     // Determine node addresses (identifiers)
-    tAddr= pTopo->fAddrMapper(pDomain->uASN);
+    addr= pTopo->fAddrMapper(pDomain->uASN);
 
     // Check that node doesn't exist
-    if (network_find_node(network_get_default(), tAddr) != NULL)
+    if (network_find_node(network_get_default(), addr) != NULL)
       return ASLEVEL_ERROR_NODE_EXISTS;
   }
 
@@ -819,10 +819,10 @@ int aslevel_topo_build_network(SASLevelTopo * pTopo)
     pDomain= (SASLevelDomain *) pTopo->pDomains->data[uIndex];
 
     // Determine node addresses (identifiers)
-    tAddr= pTopo->fAddrMapper(pDomain->uASN);
+    addr= pTopo->fAddrMapper(pDomain->uASN);
 
     // Find/create AS1's node
-    pRouter= _aslevel_build_bgp_router(tAddr, pDomain->uASN);
+    pRouter= _aslevel_build_bgp_router(addr, pDomain->uASN);
     if (pRouter == NULL)
       return ASLEVEL_ERROR_UNEXPECTED;
 
@@ -876,11 +876,11 @@ int aslevel_topo_setup_policies(SASLevelTopo * pTopo)
 
       pFilter= aslevel_filter_in(pLink->tPeerType);
       bgp_router_peer_set_filter(pDomain->pRouter,
-				 pNeighbor->pRouter->pNode->tAddr,
+				 pNeighbor->pRouter->pNode->addr,
 				 FILTER_IN, pFilter);
       pFilter= aslevel_filter_out(pLink->tPeerType);
       bgp_router_peer_set_filter(pDomain->pRouter,
-				 pNeighbor->pRouter->pNode->tAddr,
+				 pNeighbor->pRouter->pNode->addr,
 				 FILTER_OUT, pFilter);
 
     }
