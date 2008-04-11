@@ -667,11 +667,9 @@ void bgp_peer_announce_route(bgp_peer_t * pPeer, bgp_route_t * pRoute)
 void bgp_peer_withdraw_prefix(bgp_peer_t * pPeer, SPrefix sPrefix)
 {
   // Send the message to the peer (except if this is a virtual peer)
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    bgp_peer_send(pPeer,
-		  bgp_msg_withdraw_create(pPeer->pLocalRouter->uASN,
-					  sPrefix));
-  }
+  bgp_peer_send(pPeer,
+		bgp_msg_withdraw_create(pPeer->pLocalRouter->uASN,
+					sPrefix));
 }
 
 // ----- peer_route_delay_update ------------------------------------
