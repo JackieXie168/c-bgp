@@ -2,10 +2,10 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl $Id: configure.in,v 1.82 2008-04-11 11:03:06 bqu Exp $
+dnl $Id: configure.in,v 1.83 2008-04-11 13:42:55 bqu Exp $
 dnl =================================================================
 
-AC_REVISION($Revision: 1.82 $)
+AC_REVISION($Revision: 1.83 $)
 
 AC_INIT([cbgp], [1.5.0], [bruno.quoitin@uclouvain.be])
 AC_CONFIG_SRCDIR(src/main.c)
@@ -135,11 +135,11 @@ if test "$with_jni" != "no"; then
 
    AC_PATH_PROG(JAVAH, javah)
 
-   jni_paths="$JAVA_HOME/include"
+   jni_paths=""
    if test "$with_jni" != "yes"; then
-     jni_paths="$with_jni $jni_paths"
+     jni_paths="$with_jni"
    fi
-   for jni_path in $jni_paths; do
+   for jni_path in "$JAVA_HOME/include" "$jni_paths"; do
      AC_MSG_CHECKING([for jni.h in $jni_path])
      if test -e "$jni_path/jni.h"; then
        AC_MSG_RESULT([ok])
