@@ -2,10 +2,10 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl $Id: configure.in,v 1.83 2008-04-11 13:42:55 bqu Exp $
+dnl $Id: configure.in,v 1.84 2008-04-14 09:19:51 bqu Exp $
 dnl =================================================================
 
-AC_REVISION($Revision: 1.83 $)
+AC_REVISION($Revision: 1.84 $)
 
 AC_INIT([cbgp], [1.5.0], [bruno.quoitin@uclouvain.be])
 AC_CONFIG_SRCDIR(src/main.c)
@@ -149,10 +149,7 @@ if test "$with_jni" != "no"; then
          jni_cflags="-I$jni_path"
          break
        else
-         AC_MSG_WARN([$build_os])
          ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,' | sed 's,linux-gnu,linux,'`
-         AC_MSG_WARN([$ac_machdep])
-         AC_MSG_RESULT([no])
          AC_MSG_CHECKING([for jni_md.h in $jni_path/$ac_machdep])
          if test -e "$jni_path/$ac_machdep/jni_md.h"; then
            AC_MSG_RESULT([ok])
