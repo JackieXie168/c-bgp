@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// $Id: net.c,v 1.37 2008-04-11 11:03:06 bqu Exp $
+// $Id: net.c,v 1.38 2008-04-14 09:16:55 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -67,22 +67,29 @@ static inline net_iface_t * _link_from_context(SCliContext * pContext)
 // ----- cli_net_add_node -------------------------------------------
 /**
  * context: {}
- * tokens: {addr}
+ * tokens : {addr}
+ * options: {no-loopback}
  */
 int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
 {
-  net_addr_t tAddr;
-  net_node_t * pNode;
+  net_addr_t addr;
+  net_node_t * node;
   int error;
+  int options= 0; // default is: create loopback with address = node ID
 
   // Node address ?
-  if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &tAddr)) {
+  if (str2address(tokens_get_string_at(pCmd->pParamValues, 0), &addr)) {
     cli_set_user_error(cli_get(), "could not add node (invalid address)");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  // Option: no-loopback ?
+  if (!cli_options_has_value(pCmd->pOptions, "no-loopback")) {
+    options|= NODE_OPTIONS_LOOPBACK;
+  }
+
   // Create new node
-  error= node_create(tAddr, &pNode);
+  error= node_create(addr, &node, options);
   if (error != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add node (%s)",
 		       network_strerror(error));
@@ -90,9 +97,9 @@ int cli_net_add_node(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add node
-  error= network_add_node(network_get_default(), pNode);
+  error= network_add_node(network_get_default(), node);
   if (error != ESUCCESS) {
-    node_destroy(&pNode);
+    node_destroy(&node);
     cli_set_user_error(cli_get(), "could not add node (%s)",
 		       network_strerror(error));
     return CLI_ERROR_COMMAND_FAILED;
@@ -679,8 +686,9 @@ int cli_register_net_add(SCliCmds * pCmds)
 					NULL, pParams));
   pParams= cli_params_create();
   cli_params_add(pParams, "<addr>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("node", cli_net_add_node,
-					NULL, pParams));
+  pCmd= cli_cmd_create("node", cli_net_add_node, NULL, pParams);
+  cli_cmd_add_option(pCmd, "no-loopback", NULL);
+  cli_cmds_add(pSubCmds, pCmd);
   pParams= cli_params_create();
   cli_params_add(pParams, "<prefix>", NULL);
   cli_params_add(pParams, "<transit|stub>", NULL);
