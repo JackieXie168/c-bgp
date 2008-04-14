@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// $Id: auto-config.c,v 1.8 2008-04-11 11:03:06 bqu Exp $
+// $Id: auto-config.c,v 1.9 2008-04-14 09:13:31 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,7 +76,7 @@ int bgp_auto_config_session(bgp_router_t * pRouter,
   LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
   pNode= network_find_node(network_get_default(), tRemoteAddr);
   if (pNode == NULL) {
-    error= node_create(tRemoteAddr, &pNode);
+    error= node_create(tRemoteAddr, &pNode, NODE_OPTIONS_LOOPBACK);
     if (error != ESUCCESS)
       return error;
     error= network_add_node(network_get_default(), pNode);
