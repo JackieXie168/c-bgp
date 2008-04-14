@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.h,v 1.10 2008-04-07 09:28:00 bqu Exp $
+// $Id: node.h,v 1.11 2008-04-14 09:11:34 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -18,12 +18,16 @@
 #define NET_NODE_NETFLOW_OPTIONS_SUMMARY 0x01
 #define NET_NODE_NETFLOW_OPTIONS_DETAILS 0x02
 
+// ----- Node creation options -----
+#define NODE_OPTIONS_LOOPBACK 0x01
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
   // ----- node_create ----------------------------------------------
-  net_error_t node_create(net_addr_t tAddr, net_node_t ** node_ref);
+  net_error_t node_create(net_addr_t tAddr, net_node_t ** node_ref,
+			  int options);
   // ----- node_destroy ---------------------------------------------
   void node_destroy(net_node_t ** node_ref);
   
