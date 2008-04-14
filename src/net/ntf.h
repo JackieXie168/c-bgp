@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ntf.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/03/2005
-// @lastdate 15/01/2007
+// $Id: ntf.h,v 1.3 2008-04-14 09:16:04 bqu Exp $
 // ==================================================================
 
 #ifndef __NTF_H__
@@ -23,9 +23,9 @@ extern "C" {
 #endif
 
   // -----[ ntf_load ]-----------------------------------------------
-  int ntf_load(char * pcFileName);
+  int ntf_load(const char * file_name);
   // -----[ ntf_save ]-----------------------------------------------
-  int ntf_save(char * pcFileName);
+  int ntf_save(const char * file_name);
 
 #ifdef __cplusplus
 }

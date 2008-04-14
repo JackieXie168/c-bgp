@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/03/2005
-// @lastdate 25/02/2008
+// $Id: ntf.c,v 1.10 2008-04-14 09:16:04 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -25,7 +25,7 @@
 /**
  * Load the given NTF file into the topology.
  */
-int ntf_load(char * pcFileName)
+int ntf_load(const char * file_name)
 {
   FILE * pFile;
   char acFileLine[80];
@@ -44,7 +44,7 @@ int ntf_load(char * pcFileName)
 
   pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
 
-  if ((pFile= fopen(pcFileName, "r")) != NULL) {
+  if ((pFile= fopen(file_name, "r")) != NULL) {
     
     while ((!feof(pFile)) && (iError == NTF_SUCCESS)) {
       if (fgets(acFileLine, sizeof(acFileLine), pFile) == NULL)
@@ -108,13 +108,13 @@ int ntf_load(char * pcFileName)
 
       pNode1= network_find_node(network, tNode1);
       if (pNode1 == NULL) {
-	assert(node_create(tNode1, &pNode1) == ESUCCESS);
+	assert(node_create(tNode1, &pNode1, NODE_OPTIONS_LOOPBACK) == ESUCCESS);
 	assert(network_add_node(network, pNode1) == ESUCCESS);
       }
 
       pNode2= network_find_node(network, tNode2);
       if (pNode2 == NULL) {
-	assert(node_create(tNode2, &pNode2) == ESUCCESS);
+	assert(node_create(tNode2, &pNode2, NODE_OPTIONS_LOOPBACK) == ESUCCESS);
 	assert(network_add_node(network, pNode2) == ESUCCESS);
       }
 
@@ -127,7 +127,8 @@ int ntf_load(char * pcFileName)
     fclose(pFile);
 
   } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not open NTF file \"%s\"\n", pcFileName);
+    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not open NTF file \"%s\"\n",
+	    file_name);
     iError= NTF_ERROR_OPEN;    
   }
 
@@ -140,7 +141,7 @@ int ntf_load(char * pcFileName)
 /**
  * Save the topology in an NTF file.
  */
-int ntf_save(char * pcFileName)
+int ntf_save(const char * file_name)
 {
   return -1;
 }
