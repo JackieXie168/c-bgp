@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.14 2008-04-11 11:03:06 bqu Exp $
+// $Id: node.c,v 1.15 2008-04-14 09:11:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,7 +27,8 @@
 /**
  *
  */
-net_error_t node_create(net_addr_t addr, net_node_t ** node_ref)
+net_error_t node_create(net_addr_t addr, net_node_t ** node_ref,
+			int options)
 {
   net_node_t * node= (net_node_t *) MALLOC(sizeof(net_node_t));
   net_error_t error;
@@ -53,9 +54,11 @@ net_error_t node_create(net_addr_t addr, net_node_t ** node_ref)
     return error;
 
   // Create loopback interface with node's RID
-  error= node_add_iface(node, net_iface_id_addr(addr), NET_IFACE_LOOPBACK);
-  if (error != ESUCCESS)
-    return error;
+  if (options & NODE_OPTIONS_LOOPBACK) {
+    error= node_add_iface(node, net_iface_id_addr(addr), NET_IFACE_LOOPBACK);
+    if (error != ESUCCESS)
+      return error;
+  }
 
 #ifdef OSPF_SUPPORT
   node->pOSPFAreas= uint32_array_create(ARRAY_OPTION_SORTED|
