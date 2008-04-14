@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// $Id: net_IGPDomain.c,v 1.10 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_IGPDomain.c,v 1.11 2008-04-14 09:15:09 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,7 +76,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
   if (ip_jstring_to_address(jEnv, jsAddr, &tNetAddr) != 0)
     return_jni_unlock(jEnv, NULL);
 
-  error= node_create(tNetAddr, &node);
+  error= node_create(tNetAddr, &node, NODE_OPTIONS_LOOPBACK);
   if (error != ESUCCESS) {
     throw_CBGPException(jEnv, "node could not be created (%s)",
 			network_strerror(error));
