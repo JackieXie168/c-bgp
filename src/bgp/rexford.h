@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)rexford.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 28/07/2003
-// @lastdate 03/05/2007
+// $Id: rexford.h,v 1.9 2008-04-14 09:12:49 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_REXFORD_H__

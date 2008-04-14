@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/2007
-// @lastdate 16/10/2007
+// $Id: import_meulle.c,v 1.2 2008-04-14 09:12:49 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
