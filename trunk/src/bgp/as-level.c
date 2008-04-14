@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.c,v 1.6 2008-04-11 11:03:06 bqu Exp $
+// $Id: as-level.c,v 1.7 2008-04-14 09:13:31 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -729,7 +729,7 @@ static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
 
   node= network_find_node(network_get_default(), addr);
   if (node == NULL) {
-    error= node_create(addr, &node);
+    error= node_create(addr, &node, NODE_OPTIONS_LOOPBACK);
     if (error != ESUCCESS)
       return NULL;
     error= bgp_add_router(uASN, node, &router);
