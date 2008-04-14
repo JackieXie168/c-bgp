@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/06/2003
-// @lastdate 03/04/2008
+// $Id: simulator.c,v 1.13 2008-04-14 09:12:14 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

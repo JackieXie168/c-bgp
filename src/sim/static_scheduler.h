@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/07/2003
-// @lastdate 03/04/2008
+// $Id: static_scheduler.h,v 1.11 2008-04-14 09:12:14 bqu Exp $
 // ==================================================================
 
 #ifndef __STATIC_SCHEDULER_H__
