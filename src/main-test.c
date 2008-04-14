@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: main-test.c,v 1.11 2008-04-11 11:03:06 bqu Exp $
+// $Id: main-test.c,v 1.12 2008-04-14 09:17:15 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -56,7 +56,7 @@
 
 static inline net_node_t * __node_create(net_addr_t addr) {
   net_node_t * node;
-  assert(node_create(addr, &node) == ESUCCESS);
+  assert(node_create(addr, &node, NODE_OPTIONS_LOOPBACK) == ESUCCESS);
   return node;
 }
 
@@ -447,7 +447,8 @@ static int test_net_attr_igpweight_add()
 static int test_net_node()
 {
   net_node_t * node;
-  ASSERT_RETURN(node_create(IPV4(1,0,0,0), &node) == ESUCCESS,
+  ASSERT_RETURN(node_create(IPV4(1,0,0,0), &node, NODE_OPTIONS_LOOPBACK)
+		== ESUCCESS,
 		"node creation should succeed");
   ASSERT_RETURN(node != NULL, "node creation should succeed");
   ASSERT_RETURN(node->addr == IPV4(1,0,0,0),
@@ -467,7 +468,8 @@ static int test_net_node()
 static int test_net_node_0()
 {
   net_node_t * pNode;
-  ASSERT_RETURN(node_create(NET_ADDR_ANY, &pNode) != ESUCCESS,
+  ASSERT_RETURN(node_create(NET_ADDR_ANY, &pNode, NODE_OPTIONS_LOOPBACK)
+		!= ESUCCESS,
 		"it should not be possible to create node 0.0.0.0");
   return UTEST_SUCCESS;
 }

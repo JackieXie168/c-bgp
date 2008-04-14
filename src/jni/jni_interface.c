@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.43 2008-04-11 11:03:06 bqu Exp $
+// $Id: jni_interface.c,v 1.44 2008-04-14 09:15:09 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -460,7 +460,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   if (ip_jstring_to_address(jEnv, jsAddr, &addr) != 0)
     return_jni_unlock(jEnv, NULL);
 
-  error= node_create(addr, &node);
+  error= node_create(addr, &node, NODE_OPTIONS_LOOPBACK);
   if (error != ESUCCESS) {
     throw_CBGPException(jEnv, "node could not be created (%s)",
 			network_strerror(error));
