@@ -4,9 +4,9 @@
 // Provides utility functions to manage and handle large AS-level
 // topologies.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/06/2007
-// @lastdate 21/06/2007
+// $Id: as-level-util.h,v 1.2 2008-04-14 09:14:35 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_UTIL_H__

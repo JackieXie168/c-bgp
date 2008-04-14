@@ -8,9 +8,9 @@
 // - remove all peer-to-peer links
 // - remove all but top-level domains
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/06/2007
-// @lastdate 21/06/2007
+// $Id: as-level-filter.h,v 1.2 2008-04-14 09:14:35 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_FILTER_H__

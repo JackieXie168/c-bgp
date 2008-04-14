@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)caida.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// @lastdate 02/05/2007
+// $Id: caida.h,v 1.2 2008-04-14 09:12:49 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_CAIDA_H__

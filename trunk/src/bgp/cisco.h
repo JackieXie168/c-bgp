@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)cisco.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// @lastdate 15/05/2007
+// $Id: cisco.h,v 1.2 2008-04-14 09:14:35 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_CISCO_H__
