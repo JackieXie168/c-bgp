@@ -5,7 +5,7 @@
 // @author Sebastien Tandel
 //
 // @date 28/11/2002
-// @lastdate 03/04/2008
+// $Id: simulator.h,v 1.13 2008-04-14 09:12:14 bqu Exp $
 // ==================================================================
 
 #ifndef __SIMULATOR_H__
