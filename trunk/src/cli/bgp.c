@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.51 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp.c,v 1.52 2008-05-20 12:00:24 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -621,7 +621,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
   bgp_router_t * pRouter= _router_from_context(pContext);
   char * pcFileName;
   char * pcValue;
-  uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
+  bgp_input_type_t format= BGP_ROUTES_INPUT_MRT_ASC;
   uint8_t tOptions= 0;
 
   // Get the MRTD file name
@@ -630,7 +630,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
   // Get the optional format
   pcValue= cli_options_get_value(pCmd->pOptions, "format");
   if (pcValue != NULL) {
-    if (bgp_routes_str2format(pcValue, &tFormat) != 0) {
+    if (bgp_routes_str2format(pcValue, &format) != 0) {
       cli_set_user_error(cli_get(), "invalid input format \"%s\"",
 			 pcValue);
       return CLI_ERROR_COMMAND_FAILED;
@@ -650,7 +650,7 @@ int cli_bgp_router_load_rib(SCliContext * pContext,
     tOptions|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
   // Load the MRTD file 
-  if (bgp_router_load_rib(pRouter, pcFileName, tFormat, tOptions) != 0) {
+  if (bgp_router_load_rib(pRouter, pcFileName, format, tOptions) != 0) {
     cli_set_user_error(cli_get(), "could not load \"%s\"", pcFileName);
     return CLI_ERROR_COMMAND_FAILED;
   }
