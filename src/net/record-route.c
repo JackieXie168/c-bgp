@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// $Id: record-route.c,v 1.11 2008-04-11 11:03:07 bqu Exp $
+// $Id: record-route.c,v 1.12 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -238,7 +238,6 @@ SNetRecordRouteInfo * node_record_route(net_node_t * pNode,
   SNetRecordRouteInfo * pRRInfo;
   net_node_t * pCNode= pNode;           /* Current node */
   net_addr_t tCInAddr= NET_ADDR_ANY;  /* Current incoming iface addr */
-  net_addr_t tCOutAddr= NET_ADDR_ANY; /* Current outgoing iface addr */
   int iResult;
   net_msg_t * pDummyMsg= NULL;
   net_iface_t * pDstIface;
@@ -252,7 +251,7 @@ SNetRecordRouteInfo * node_record_route(net_node_t * pNode,
 
   while (pCNode != NULL) {
 
-    ip_trace_add_node(pRRInfo->pTrace, pCNode, tCInAddr, tCOutAddr);
+    ip_trace_add_node(pRRInfo->pTrace, pCNode, NULL, NULL);
 
     if (_check_loop(pRRInfo, pCNode) != ESUCCESS)
       break;

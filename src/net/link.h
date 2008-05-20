@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// $Id: link.h,v 1.21 2008-04-11 11:03:06 bqu Exp $
+// $Id: link.h,v 1.22 2008-05-20 12:17:06 bqu Exp $
 // ===========================================================
 
 #ifndef __NET_LINK_H__
@@ -34,24 +34,24 @@ extern "C" {
 #endif
 
   // -----[ net_link_create_rtr ]------------------------------------
-  int net_link_create_rtr(net_node_t * pSrcNode, net_node_t * pDstNode,
-			  net_iface_dir_t dir, net_iface_t ** ppIface);
+  int net_link_create_rtr(net_node_t * src_node, net_node_t * dst_node,
+			  net_iface_dir_t dir, net_iface_t ** iface_ref);
   // -----[ net_link_create_ptp ]------------------------------------
-  int net_link_create_ptp(net_node_t * pSrcNode,
+  int net_link_create_ptp(net_node_t * src_node,
 			  net_iface_id_t tSrcIfaceID,
-			  net_node_t * pDstNode,
+			  net_node_t * dst_node,
 			  net_iface_id_t tDstIfaceID,
 			  net_iface_dir_t dir,
-			  net_iface_t ** ppIface);
+			  net_iface_t ** iface_ref);
   // -----[ net_link_create_ptmp ]-----------------------------------
-  int net_link_create_ptmp(net_node_t * pSrcNode, net_subnet_t * pSubnet,
-			   net_addr_t tIfaceAddr, net_iface_t ** ppIface);
+  int net_link_create_ptmp(net_node_t * src_node, net_subnet_t * subnet,
+			   net_addr_t iface_addr, net_iface_t ** iface_ref);
   // -----[ net_link_set_phys_attr ]---------------------------------
-  int net_link_set_phys_attr(net_iface_t * pIface, net_link_delay_t tDelay,
-			     net_link_load_t tCapacity,
+  int net_link_set_phys_attr(net_iface_t * iface, net_link_delay_t delay,
+			     net_link_load_t capacity,
 			     net_iface_dir_t dir);
   // ----- net_link_destroy -----------------------------------------
-  void net_link_destroy(net_iface_t ** ppLink);
+  void net_link_destroy(net_iface_t ** link_ref);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -59,11 +59,11 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- net_link_dump --------------------------------------------
-  void net_link_dump(SLogStream * pStream, net_iface_t * pLink);
+  void net_link_dump(SLogStream * stream, net_iface_t * link);
   // ----- net_link_dump_load ---------------------------------------
-  void net_link_dump_load(SLogStream * pStream, net_iface_t * pLink);
+  void net_link_dump_load(SLogStream * stream, net_iface_t * link);
   // ----- net_link_dump_info ---------------------------------------
-  void net_link_dump_info(SLogStream * pStream, net_iface_t * pLink);
+  void net_link_dump_info(SLogStream * stream, net_iface_t * link);
 
 
 #ifdef __cplusplus

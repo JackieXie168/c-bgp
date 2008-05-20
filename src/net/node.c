@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.15 2008-04-14 09:11:34 bqu Exp $
+// $Id: node.c,v 1.16 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -467,27 +467,27 @@ int node_rt_add_route(net_node_t * node, ip_pfx_t prefix,
  * Pre: the outgoing link (next-hop interface) must exist in the node.
  */
 int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
-			   net_iface_t * iface, net_addr_t tNextHop,
-			   uint32_t uWeight, uint8_t uType)
+			   net_iface_t * iface, net_addr_t next_hop,
+			   uint32_t weight, uint8_t type)
 {
   rt_info_t * rtinfo;
-  net_iface_t * pSubLink;
+  net_iface_t * sub_link;
 
   // If a next-hop has been specified, check that it is reachable
   // through the given interface.
-  if (tNextHop != 0) {
+  if (next_hop != 0) {
     switch (iface->type) {
     case NET_IFACE_RTR:
-      if (iface->dest.iface->src_node->addr != tNextHop)
+      if (iface->dest.iface->src_node->addr != next_hop)
 	return ENET_RT_NH_UNREACH;
       break;
     case NET_IFACE_PTP:
-      if (!node_has_address(iface->dest.iface->src_node, tNextHop))
+      if (!node_has_address(iface->dest.iface->src_node, next_hop))
 	return ENET_RT_NH_UNREACH;
       break;
     case NET_IFACE_PTMP:
-      pSubLink= net_subnet_find_link(iface->dest.subnet, tNextHop);
-      if ((pSubLink == NULL) || (pSubLink->tIfaceAddr == iface->tIfaceAddr))
+      sub_link= net_subnet_find_link(iface->dest.subnet, next_hop);
+      if ((sub_link == NULL) || (sub_link->tIfaceAddr == iface->tIfaceAddr))
 	return ENET_RT_NH_UNREACH;
       break;
     default:
@@ -496,8 +496,8 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
   }
 
   // Build route info
-  rtinfo= net_route_info_create(prefix, iface, tNextHop,
-				uWeight, uType);
+  rtinfo= net_route_info_create(prefix, iface, next_hop,
+				weight, type);
 
   return rt_add_route(node->rt, prefix, rtinfo);
 }

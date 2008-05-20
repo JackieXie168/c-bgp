@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/04/2008
-// $Id: icmp_options.c,v 1.2 2008-04-10 11:27:00 bqu Exp $
+// $Id: icmp_options.c,v 1.3 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -79,6 +79,7 @@ _icmp_process_in_options(net_node_t * node,
   net_error_t error;
   ip_trace_item_t * last_item;
   rt_info_t * rtinfo;
+  int reached= 0;
 
   /* Perform lookup with alternate destination ? */
   if (icmp_msg->opts.options & ICMP_RR_OPTION_ALT_DEST) {
@@ -86,15 +87,16 @@ _icmp_process_in_options(net_node_t * node,
     if (node_has_prefix(node, icmp_msg->opts.alt_dest)) {
       if (icmp_msg->opts.trace != NULL)
 	icmp_msg->opts.trace->status= ESUCCESS;
-      return EUNSPECIFIED;
-    }
+      reached= 1;
+    } else {
 
-    /* Perform exact match with provided destination prefix (alt_dest) */
-    rtinfo= rt_find_exact(node->rt, icmp_msg->opts.alt_dest,
-			  NET_ROUTE_ANY);
-    if (rtinfo == NULL)
-      return ENET_NET_UNREACH;
-    *rtentry_ref= &rtinfo->next_hop;
+      /* Perform exact match with provided destination prefix (alt_dest) */
+      rtinfo= rt_find_exact(node->rt, icmp_msg->opts.alt_dest,
+			    NET_ROUTE_ANY);
+      if (rtinfo == NULL)
+	return ENET_NET_UNREACH;
+      *rtentry_ref= &rtinfo->next_hop;
+    }
   }
 
   /* Need to update trace ? */
@@ -102,7 +104,7 @@ _icmp_process_in_options(net_node_t * node,
     last_item= ip_trace_add_node(icmp_msg->opts.trace, node,
 				 NET_ADDR_ANY, NET_ADDR_ANY);
     if (iface != NULL)
-      last_item->iif_addr= iface->tIfaceAddr;
+      last_item->iif= iface;
   
     /* Check if the packet is looping back to an already traversed node */
     error= _check_loop(icmp_msg, node);
@@ -110,6 +112,9 @@ _icmp_process_in_options(net_node_t * node,
       return error;
 
   }
+
+  if (reached)
+    return EUNSPECIFIED;
 
   return ESUCCESS;
 }
@@ -133,11 +138,21 @@ _icmp_process_out_options(net_node_t * node,
     assert(trace_len > 0);
     last_item= ip_trace_item_at(icmp_msg->opts.trace, trace_len-1);
     assert(last_item->elt.node == node);
-    last_item->oif_addr= iface->tIfaceAddr;
+    last_item->oif= iface;
     _info_update_qos(icmp_msg, iface);
-
   }
 
+  return ESUCCESS;
+}
+
+// -----[ _icmp_process_subnet_options ]-----------------------------
+static inline net_error_t
+_icmp_process_subnet_options(net_subnet_t * subnet,
+			     icmp_msg_t * icmp_msg)
+{
+  if (icmp_msg->opts.trace != NULL) {
+    ip_trace_add_subnet(icmp_msg->opts.trace, subnet);
+  }
   return ESUCCESS;
 }
 
@@ -188,6 +203,9 @@ net_error_t icmp_process_options(icmp_opt_state_t state,
 
   case ICMP_OPT_STATE_OUTGOING:
     return _icmp_process_out_options(node, iface, icmp_msg);
+
+  case ICMP_OPT_STATE_SUBNET:
+    return _icmp_process_subnet_options((net_subnet_t *) node, icmp_msg);
 
   case ICMP_OPT_STATE_ENCAP:
     return _icmp_process_encap_options();

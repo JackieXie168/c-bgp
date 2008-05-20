@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// $Id: iface_ptmp.c,v 1.2 2008-04-07 09:31:46 bqu Exp $
+// $Id: iface_ptmp.c,v 1.3 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,6 +12,7 @@
 
 #include <assert.h>
 
+#include <net/icmp_options.h>
 #include <net/iface.h>
 #include <net/link.h>
 #include <net/network.h>
@@ -20,16 +21,24 @@
 #include <net/subnet.h>
 
 // -----[ _net_iface_ptmp_send ]-------------------------------------
-static int _net_iface_ptmp_send(net_iface_t * self,
-				net_addr_t l2_addr,
-				net_msg_t * msg)
+static net_error_t _net_iface_ptmp_send(net_iface_t * self,
+					net_addr_t l2_addr,
+					net_msg_t * msg)
 {
   net_subnet_t * subnet;
   net_iface_t * dst_iface;
+  net_error_t error;
 
   assert(self->type == NET_IFACE_PTMP);
   
   subnet= self->dest.subnet;
+
+  if (msg->protocol == NET_PROTOCOL_ICMP)
+    if ((error= icmp_process_options(ICMP_OPT_STATE_SUBNET,
+				     (net_node_t *) subnet,
+				     self, msg, NULL)) != ESUCCESS)
+      return error;
+
 
   // Find destination node (based on "physical address")
   dst_iface= net_subnet_find_link(subnet, l2_addr);
