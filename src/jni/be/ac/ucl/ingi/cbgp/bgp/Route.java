@@ -19,9 +19,9 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
 {
 
     // -----[ public constants ]-------------------------------------
-    public static final byte ROUTE_ORIGIN_IGP= 0;
-    public static final byte ROUTE_ORIGIN_EGP= 1;
-    public static final byte ROUTE_ORIGIN_INCOMPLETE= 2;
+    public static final byte ORIGIN_IGP= 0;
+    public static final byte ORIGIN_EGP= 1;
+    public static final byte ORIGIN_INCOMPLETE= 2;
 
     // -----[ private attributes of the route ]----------------------
     protected boolean bInternal;
@@ -107,9 +107,9 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      */
     public static String originToString(byte bOrigin) {
     	switch (bOrigin) {
-    	case ROUTE_ORIGIN_IGP       : return "IGP";
-    	case ROUTE_ORIGIN_EGP       : return "EGP";
-    	case ROUTE_ORIGIN_INCOMPLETE: return "INCOMPLETE";
+    	case ORIGIN_IGP       : return "IGP";
+    	case ORIGIN_EGP       : return "EGP";
+    	case ORIGIN_INCOMPLETE: return "INCOMPLETE";
     	default:
     		return "DEFAULT";
     	}
@@ -143,9 +143,9 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
     		s+= path;
     	s+= "\t";
     	switch (bOrigin) {
-    	case ROUTE_ORIGIN_IGP: s+= "i"; break;
-    	case ROUTE_ORIGIN_EGP: s+= "e"; break;
-    	case ROUTE_ORIGIN_INCOMPLETE: s+= "?"; break;
+    	case ORIGIN_IGP: s+= "i"; break;
+    	case ORIGIN_EGP: s+= "e"; break;
+    	case ORIGIN_INCOMPLETE: s+= "?"; break;
     	default:
     		s+= "?";
     	}

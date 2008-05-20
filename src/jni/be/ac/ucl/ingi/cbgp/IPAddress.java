@@ -22,13 +22,12 @@ public class IPAddress
     /**
      * IPAddress's constructor.
      */
-    public IPAddress(byte bA, byte bB, byte bC, byte bD)
-    {
-	abAddress= new byte[4];
-	abAddress[0]= bA;
-	abAddress[1]= bB;
-	abAddress[2]= bC;
-	abAddress[3]= bD;
+    public IPAddress(byte bA, byte bB, byte bC, byte bD) {
+    	abAddress= new byte[4];
+    	abAddress[0]= bA;
+    	abAddress[1]= bB;
+    	abAddress[2]= bC;
+    	abAddress[3]= bD;
     }
 
     // -----[ byte2int ]---------------------------------------------
@@ -37,27 +36,24 @@ public class IPAddress
      * integer. We need this to correctly handle bytes coming from the
      * C part of C-BGP and that are unsigned bytes.
      */
-    protected static int byte2int(byte b)
-    {
-	return (b >= 0)?b:(256+b);
+    protected static int byte2int(byte b) {
+    	return (b >= 0)?b:(256+b);
     }
 
     // -----[ toString ]---------------------------------------------
     /**
      * Converts this IP address to a String.
      */
-    public String toString()
-    {
-	return byte2int(abAddress[0])+"."+
-	    byte2int(abAddress[1])+"."+
-	    byte2int(abAddress[2])+"."+
-	    byte2int(abAddress[3]);
+    public String toString() {
+    	return byte2int(abAddress[0])+"."+
+	    	byte2int(abAddress[1])+"."+
+	    	byte2int(abAddress[2])+"."+
+	    	byte2int(abAddress[3]);
     }
 
     // -----[ equals ]-----------------------------------------------
-    public boolean equals(IPAddress addr)
-    {
-	return addr.toString().equals(toString());
+    public boolean equals(IPAddress addr) {
+    	return addr.toString().equals(toString());
     }
 
 }

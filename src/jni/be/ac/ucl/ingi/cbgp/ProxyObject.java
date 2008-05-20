@@ -11,8 +11,6 @@ package be.ac.ucl.ingi.cbgp;
 // -----[ ProxyObject ]----------------------------------------------
 public class ProxyObject extends Object {
 
-    protected CBGP cbgp;
-
     // -----[ objectId ]---------------------------------------------
     /**
      * This is a replacement for Object's hashCode() method that ensures
@@ -23,13 +21,10 @@ public class ProxyObject extends Object {
 	
     // -----[ ProxyObject ]------------------------------------------
     protected ProxyObject(CBGP cbgp) {
-    	this.cbgp= cbgp;
     }
 	
     // -----[ getCBGP ]----------------------------------------------
-    public CBGP getCBGP() {
-    	return cbgp;
-    }
+    public native CBGP getCBGP();
 	
     // -----[ finalize ]---------------------------------------------
     protected void finalize() {

@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.44 2008-04-14 09:15:09 bqu Exp $
+// $Id: jni_interface.c,v 1.45 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -78,6 +78,9 @@ static SJNIListener sConsoleErrListener;
 static SJNIListener sBGPListener;
 
 static jobject joGlobalCBGP= NULL;
+
+static SLogStream * pSavedLogErr= NULL;
+static SLogStream * pSavedLogOut= NULL;
 
 
 /////////////////////////////////////////////////////////////////////
@@ -162,6 +165,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   jni_unlock(jEnv);
 }
 
+// -----[ get_Global_CBGP ]------------------------------------------
+jobject get_Global_CBGP()
+{
+  return joGlobalCBGP;
+}
+
 // -----[ _console_listener ]----------------------------------------
 static void _console_listener(void * pContext, char * pcBuffer)
 {
@@ -206,9 +215,14 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
 
   jni_lock(jEnv);
 
-  log_destroy(&pLogOut);
-  jni_listener_set(&sConsoleOutListener, jEnv, joListener);
-  pLogOut= log_create_callback(_console_listener, &sConsoleOutListener);
+  if (joListener != NULL) {
+    pSavedLogOut= pLogOut;
+    jni_listener_set(&sConsoleOutListener, jEnv, joListener);
+    pLogOut= log_create_callback(_console_listener, &sConsoleOutListener);
+  } else {
+    jni_listener_unset(&sConsoleOutListener, jEnv);
+    pLogOut= pSavedLogOut;
+  }
 
   jni_unlock(jEnv);
 }
@@ -227,9 +241,14 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetErrListener
 
   jni_lock(jEnv);
   
-  log_destroy(&pLogErr);
-  jni_listener_set(&sConsoleErrListener, jEnv, joListener);
-  pLogErr= log_create_callback(_console_listener, &sConsoleErrListener);
+  if (joListener != NULL) {
+    pSavedLogErr= pLogErr;
+    jni_listener_set(&sConsoleErrListener, jEnv, joListener);
+    pLogErr= log_create_callback(_console_listener, &sConsoleErrListener);
+  } else {
+    jni_listener_unset(&sConsoleErrListener, jEnv);
+    pLogErr= pSavedLogErr;
+  }
 
   jni_unlock(jEnv);
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.c,v 1.13 2008-04-07 10:04:59 bqu Exp $
+// $Id: jni_proxies.c,v 1.14 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,9 @@ static hash_t * pC2JHash= NULL;
 static hash_t * pJ2CHash= NULL;
 static unsigned long ulProxySeqNum= 0;
 static JNIEnv * jCurrentEnv= NULL;
+
+// -----[ get_Global_CBGP ]------------------------------------------
+jobject get_Global_CBGP();
 
 // -----[ SHashCodeObject ]-----
 /** Maintains the mapping between a CObj and a JObj. */
@@ -399,15 +402,17 @@ jobject jni_proxy_get2(JNIEnv * jEnv, void * pObject,
   return pProxy->joObject;
 }
 
-// -----[ jni_proxy_get_CBGP ]---------------------------------------
-/**
- *
+// -----[ getCBGP ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_ProxyObject
+ * Method:    getCBGP
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/CBGP;
  */
-/*inline jobject jni_proxy_get_CBGP(JNIEnv * jEnv, jobject joObject)
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_ProxyObject_getCBGP
+  (JNIEnv * jEnv, jobject joObject)
 {
-  return cbgp_jni_call_Object(jEnv, joObject, "getCBGP",
-			       METHOD_ProxyObject_getCBGP);
-			       }*/
+  return get_Global_CBGP();
+}
 
 // -----[ _jni_unregister ]------------------------------------------
 /**

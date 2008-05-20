@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)listener.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/06/2007
-// @lastdate 29/06/2007
+// $Id: listener.h,v 1.2 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_LISTENER_H__

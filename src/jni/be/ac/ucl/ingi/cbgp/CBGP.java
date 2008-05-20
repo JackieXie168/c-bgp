@@ -7,7 +7,7 @@ import be.ac.ucl.ingi.cbgp.bgp.Router;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPScriptException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
-import be.ac.ucl.ingi.cbgp.net.Link;
+import be.ac.ucl.ingi.cbgp.net.Interface;
 import be.ac.ucl.ingi.cbgp.net.Message;
 import be.ac.ucl.ingi.cbgp.net.Node;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
@@ -159,7 +159,7 @@ public class CBGP {
      * @param iWeight the link's propagation delay
      * @return the newly created Link
      */
-    public native synchronized Link netAddLink(String sSrcAddr,
+    public native synchronized Interface netAddLink(String sSrcAddr,
     	String sDstAddr, int iWeight) 
 		throws CBGPException;
     
@@ -334,7 +334,7 @@ public class CBGP {
     /**
      * This is an experimental method. Use at your own risk.
      */
-    public native Vector<Link> netGetLinks()
+    public native Vector<Interface> netGetLinks()
     	throws CBGPException;
 
 

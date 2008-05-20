@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// $Id: bgp_Router.c,v 1.12 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp_Router.c,v 1.13 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -325,7 +325,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getRIB
     break;
 
   default:
-    fatal("invalid destination type for getRIB()");
+    throw_CBGPException(jEnv, "invalid destination type for getRIB()");
   }
 
   return_jni_unlock(jEnv, joVector);
@@ -364,7 +364,7 @@ static int _cbgp_jni_get_adj_rib_routes(bgp_peer_t * pPeer, SNetDest * pDest,
     break;
 
   default:
-    fatal("invalid destination type for getAdjRIB()");
+    throw_CBGPException(pCtx->jEnv, "invalid destination type for getAdjRIB()");
   }
 
   return 0;
@@ -494,32 +494,41 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_getNetworks
  * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_loadRib
-(JNIEnv * jEnv, jobject joRouter, jstring jsFileName, jboolean jbForce)
+(JNIEnv * jEnv, jobject joRouter, jstring jsFileName, jboolean jbForce,
+ jstring jsFormat)
 {
-  char * cFileName;
-  bgp_router_t * pRouter;
-  uint8_t tFormat= BGP_ROUTES_INPUT_MRT_ASC;
-  uint8_t tOptions= 0;
+  char * filename, * format_str;
+  bgp_router_t * router;
+  bgp_input_type_t format= BGP_ROUTES_INPUT_MRT_ASC;
+  uint8_t options= 0;
+  int result;
+
+  format_str= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFormat, NULL);
+  result= bgp_routes_str2format(format_str, &format);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFormat, format_str);
+  if (result != 0)
+    throw_CBGPException(jEnv, "invalid format");
 
   jni_lock(jEnv);
 
   /* Get the router instance */
-  pRouter= (bgp_router_t *) jni_proxy_lookup(jEnv, joRouter);
-  if (pRouter == NULL)
+  router= (bgp_router_t *) jni_proxy_lookup(jEnv, joRouter);
+  if (router == NULL)
     return_jni_unlock2(jEnv);
 
   if (jbForce == JNI_TRUE) {
-    tOptions|= BGP_ROUTER_LOAD_OPTIONS_FORCE;
-    tOptions|= BGP_ROUTER_LOAD_OPTIONS_AUTOCONF;
+    options|= BGP_ROUTER_LOAD_OPTIONS_FORCE;
+    options|= BGP_ROUTER_LOAD_OPTIONS_AUTOCONF;
   }
 
-  tOptions|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
+  options|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
-  cFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
-  if (bgp_router_load_rib(pRouter, (char *) cFileName,
-			  tFormat, tOptions) != 0)
+  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  result= bgp_router_load_rib(router, (char *) filename,
+			      format, options);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
+  if (result != 0)
     throw_CBGPException(jEnv, "could not load RIB");
-  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, cFileName);
 
   jni_unlock(jEnv);
 }

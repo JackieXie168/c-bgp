@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)listener.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/06/2007
-// @lastdate 15/02/2008
+// $Id: listener.c,v 1.5 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -27,6 +27,9 @@ void jni_listener_set(SJNIListener * pListener, JNIEnv * jEnv,
 		      jobject joListener)
 {
   jni_listener_unset(pListener, jEnv);
+
+  if (joListener == NULL)
+    return;
 
   // Get reference to Java Virtual Machine (required by the JNI callback)
   if (pListener->jVM == NULL)

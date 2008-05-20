@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.17 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_Node.c,v 1.18 2008-05-20 12:11:38 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,12 +17,14 @@
 #include <jni/jni_base.h>
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
+#include <jni/impl/net_IGPDomain.h>
 #include <jni/impl/net_IPTrace.h>
 #include <jni/impl/net_Link.h>
 #include <jni/impl/net_Node.h>
 #include <jni/impl/bgp_Router.h>
 
 #include <net/error.h>
+#include <net/igp_domain.h>
 #include <net/node.h>
 #include <net/record-route.h>
 
@@ -63,6 +65,37 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
   jni_proxy_add(jEnv, joNode, node);
 
   return joNode;
+}
+
+// -----[ getDomain ]------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getDomain
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/IGPDomain;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getDomain
+  (JNIEnv * jEnv, jobject joNode)
+{
+  net_node_t * node;
+  igp_domain_t * domain= NULL;
+  jobject joDomain= NULL;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  /* Get the domain */
+  if ((node->pIGPDomains != NULL) &&
+      (_array_length((SArray *) node->pIGPDomains) > 0)) {
+    domain=  get_igp_domain(node->pIGPDomains->data[0]);
+    joDomain= cbgp_jni_new_net_IGPDomain(jEnv, NULL, domain);
+  }
+
+  jni_unlock(jEnv);
+  return joDomain;
 }
 
 // -----[ getName ]--------------------------------------------------
@@ -435,15 +468,15 @@ static int _cbgp_jni_get_link(void * pItem, void * pContext)
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
   (JNIEnv * jEnv, jobject joNode)
 {
-  net_node_t * pNode;
+  net_node_t * node;
   jobject joVector;
   SJNIContext sCtx;
 
   jni_lock(jEnv);
 
   /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
     return_jni_unlock(jEnv, NULL); 
 
   /* Create new Vector */
@@ -453,7 +486,56 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
   sCtx.joVector= joVector;
   sCtx.jEnv= jEnv;
   sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/;
-  if (node_links_for_each(pNode, _cbgp_jni_get_link, &sCtx) != 0)
+  if (node_links_for_each(node, _cbgp_jni_get_link, &sCtx) != 0)
+    return_jni_unlock(jEnv, NULL);
+  
+  return_jni_unlock(jEnv, joVector);
+}
+
+// -----[ _cbgp_jni_get_iface ]--------------------------------------
+static int _cbgp_jni_get_iface(void * item, void * context)
+{
+  SJNIContext * ctx= (SJNIContext *) context;
+  net_iface_t * iface= *((net_iface_t **) item);
+  jobject joLink;
+
+
+  if ((joLink= cbgp_jni_new_net_Link(ctx->jEnv,
+				     ctx->joCBGP,
+				     iface)) == NULL)
+    return -1;
+
+  return cbgp_jni_Vector_add(ctx->jEnv, ctx->joVector, joLink);
+}
+
+// -----[ getInterfaces ]--------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    getInterfaces
+ * Signature: ()Ljava/util/Vector;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getInterfaces
+  (JNIEnv * jEnv, jobject joNode)
+{
+  net_node_t * node;
+  jobject joVector;
+  SJNIContext sCtx;
+
+  jni_lock(jEnv);
+
+  /* Get the node */
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
+    return_jni_unlock(jEnv, NULL); 
+
+  /* Create new Vector */
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  sCtx.joVector= joVector;
+  sCtx.jEnv= jEnv;
+  sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/;
+  if (node_links_for_each(node, _cbgp_jni_get_iface, &sCtx) != 0)
     return_jni_unlock(jEnv, NULL);
   
   return_jni_unlock(jEnv, joVector);

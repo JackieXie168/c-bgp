@@ -16,9 +16,10 @@ public class IPRoute extends Route
 {
 
     // -----[ public constants ]-------------------------------------
-    public static final byte NET_ROUTE_STATIC= 0x01;
-    public static final byte NET_ROUTE_IGP= 0x02;
-    public static final byte NET_ROUTE_BGP= 0x04;
+	public static final byte NET_ROUTE_DIRECT= 0x01;
+    public static final byte NET_ROUTE_STATIC= 0x02;
+    public static final byte NET_ROUTE_IGP= 0x04;
+    public static final byte NET_ROUTE_BGP= 0x08;
 
     // -----[ protected attributes of the IP route ]-----------------
     protected byte bType;
@@ -52,9 +53,10 @@ public class IPRoute extends Route
     public static String typeToString(byte bType)
     {
 	switch (bType) {
+	case NET_ROUTE_DIRECT: return "DIRECT";
 	case NET_ROUTE_STATIC: return "STATIC";
-	case NET_ROUTE_IGP: return "IGP";
-	case NET_ROUTE_BGP: return "BGP";
+	case NET_ROUTE_IGP   : return "IGP";
+	case NET_ROUTE_BGP   : return "BGP";
 	default:
 	    return "UNKNOWN";
 	}
