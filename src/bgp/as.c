@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.73 2008-04-11 11:03:06 bqu Exp $
+// $Id: as.c,v 1.74 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in pLocalNetworks a _copy_ of the BGP routes locally
@@ -2498,13 +2498,13 @@ static int _bgp_router_load_rib_handler(int iStatus,
  * be replaced by routes received from peers. The routes are marked
  * as best and feasible and are directly installed into the Loc-RIB.
  */
-int bgp_router_load_rib(bgp_router_t * pRouter, const char * pcFileName,
-			uint8_t tFormat, uint8_t uOptions)
+int bgp_router_load_rib(bgp_router_t * router, const char * filename,
+			bgp_input_type_t format, uint8_t options)
 {
-  int iResult;
+  int result;
   SBGP_LOAD_RIB_CTX sCtx= {
-    .pTargetRouter   = pRouter,
-    .uOptions        = uOptions,
+    .pTargetRouter   = router,
+    .uOptions        = options,
     .iReturnCode     = 0, // Ignore errors
     .uRoutesOk       = 0,
     .uRoutesBadTarget= 0,
@@ -2513,13 +2513,14 @@ int bgp_router_load_rib(bgp_router_t * pRouter, const char * pcFileName,
   };
 
   // Load routes
-  iResult= bgp_routes_load(pcFileName, tFormat,
-			   _bgp_router_load_rib_handler, &sCtx);
-  if (iResult != 0)
+  result= bgp_routes_load(filename, format,
+			  _bgp_router_load_rib_handler, &sCtx);
+  if (result != 0)
     return -1;
 
   // Show summary
-  if (uOptions & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
+  if (options & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
+    log_printf(pLogOut, "Source: %s\n", filename);
     log_printf(pLogOut, "Routes loaded         : %u\n", sCtx.uRoutesOk);
     log_printf(pLogOut, "Routes with bad target: %u\n", sCtx.uRoutesBadTarget);
     log_printf(pLogOut, "Routes with bad peer  : %u\n", sCtx.uRoutesBadPeer);

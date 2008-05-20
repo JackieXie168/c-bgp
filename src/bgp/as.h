@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.h,v 1.33 2008-04-07 09:03:11 bqu Exp $
+// $Id: as.h,v 1.34 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ROUTER_H__
@@ -23,6 +23,7 @@
 #include <bgp/peer_t.h>
 #include <bgp/rib.h>
 #include <bgp/route.h>
+#include <bgp/route-input.h>
 #include <bgp/routes_list.h>
 #include <net/prefix.h>
 #include <net/message.h>
@@ -208,8 +209,8 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- bgp_router_load_rib --------------------------------------
-  int bgp_router_load_rib(bgp_router_t * pRouter, const char * pcFileName,
-			  uint8_t uFormat, uint8_t uOptions);
+  int bgp_router_load_rib(bgp_router_t * router, const char * filename,
+			  bgp_input_type_t format, uint8_t options);
 #ifdef __EXPERIMENTAL__
   // ----- bgp_router_load_ribs_in ----------------------------------
   int bgp_router_load_ribs_in(bgp_router_t * pRoutes, const char * pcFileName);

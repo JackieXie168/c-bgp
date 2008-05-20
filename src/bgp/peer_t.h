@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)peer_t.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/05/2003
-// @lastdate 02/05/2007
+// $Id: peer_t.h,v 1.9 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 
 #ifndef __PEER_T_H__
@@ -40,7 +40,10 @@ extern char * SESSION_STATES[SESSION_STATE_MAX];
    available in the Adj-RIB-in will be taken into account by the
    decision process when the session with the virtual peer is
    restarted. This option is only available to virtual peers. */
-#define PEER_FLAG_SOFT_RESTART  0x08 
+#define PEER_FLAG_SOFT_RESTART  0x08
+
+/* This flag is set if this session was configured automatically */ 
+#define PEER_FLAG_AUTOCONF      0x10
 
 struct TBGPPeer;
 typedef struct TBGPPeer SBGPPeer;

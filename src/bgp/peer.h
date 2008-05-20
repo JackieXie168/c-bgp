@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)peer.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @auhtor Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 24/11/2002
-// @lastdate 27/02/2008
+// $Id: peer.h,v 1.17 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 
 #ifndef __PEER_H__
@@ -53,11 +53,11 @@ extern "C" {
 
   // ----- bgp_peer_create ------------------------------------------
   bgp_peer_t * bgp_peer_create(uint16_t uRemoteAS,
-			     net_addr_t tAddr,
-			     bgp_router_t * pLocalRouter);
+			       net_addr_t tAddr,
+			       bgp_router_t * pLocalRouter);
   // ----- bgp_peer_destroy -----------------------------------------
   void bgp_peer_destroy(bgp_peer_t ** ppPeer);
-
+  
   // ----- bgp_peer_flag_set ----------------------------------------
   void bgp_peer_flag_set(bgp_peer_t * pPeer, uint8_t uFlag, int iState);
   // ----- bgp_peer_flag_get ----------------------------------------
