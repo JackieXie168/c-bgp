@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/08/2003
-// $Id: iface.c,v 1.4 2008-04-11 11:03:06 bqu Exp $
+// $Id: iface.c,v 1.5 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -597,6 +597,14 @@ net_error_t net_iface_str2type(char * str, net_iface_type_t * ptr_type)
     type++;
   }
   return ENET_IFACE_INVALID_TYPE;
+}
+
+// -----[ net_iface_type2str ]-------------------------------------
+const char * net_iface_type2str(net_iface_type_t type)
+{
+  if (type > NET_IFACE_MAX)
+    return NULL;
+  return IFACE_TYPES[type].short_name;
 }
 
 // -----[ net_iface_str2id ]-----------------------------------------

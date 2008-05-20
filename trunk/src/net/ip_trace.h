@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// $Id: ip_trace.h,v 1.3 2008-04-11 11:03:06 bqu Exp $
+// $Id: ip_trace.h,v 1.4 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP_TRACE_H__
@@ -15,10 +15,10 @@
 #include <net/net_types.h>
 
 typedef struct {
-  net_elem_t   elt;       /* network element (node / subnet) */
-  net_addr_t   iif_addr;  /* incoming interface address */
-  net_addr_t   oif_addr;  /* outgoing interface address */
-  void       * user_data; /* user-data (e.g. hop QoS data) */
+  net_elem_t    elt;       /* network element (node / subnet) */
+  net_iface_t * iif;       /* incoming interface address */
+  net_iface_t * oif;       /* outgoing interface address */
+  void        * user_data; /* user-data (e.g. hop QoS data) */
 } ip_trace_item_t;
 
 typedef struct {
@@ -41,8 +41,8 @@ extern "C" {
   // -----[ ip_trace_add_node ]--------------------------------------
   ip_trace_item_t * ip_trace_add_node(ip_trace_t * trace,
 				      net_node_t * node,
-				      net_addr_t iif_addr,
-				      net_addr_t oif_addr);
+				      net_iface_t * iif,
+				      net_iface_t * oif);
   // -----[ ip_trace_add_subnet ]------------------------------------
   ip_trace_item_t * ip_trace_add_subnet(ip_trace_t * trace,
 					net_subnet_t * subnet);

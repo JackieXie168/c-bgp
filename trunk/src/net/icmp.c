@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: icmp.c,v 1.12 2008-04-11 11:03:06 bqu Exp $
+// $Id: icmp.c,v 1.13 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -330,7 +330,7 @@ net_error_t icmp_trace_route(SLogStream * stream,
   if (max_ttl == 0)
     max_ttl= 255;
 
-  ip_trace_add_node(trace, node, NET_ADDR_ANY, NET_ADDR_ANY);
+  ip_trace_add_node(trace, node, NULL, NULL);
 
   while (ttl <= max_ttl) {
 
@@ -351,8 +351,9 @@ net_error_t icmp_trace_route(SLogStream * stream,
 	log_printf(stream, ")");
       }
       ip_trace_add_node(trace, tICMPRecv.msg.node,
-			tICMPRecv.src_addr,
-			NET_ADDR_ANY);
+			node_find_iface(tICMPRecv.msg.node,
+					net_prefix(tICMPRecv.src_addr, 32)),
+			NULL);
       break;
     default:
       if (stream != NULL)

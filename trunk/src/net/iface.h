@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/08/2003
-// $Id: iface.h,v 1.4 2008-04-11 11:03:06 bqu Exp $
+// $Id: iface.h,v 1.5 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IFACE_H__
@@ -120,6 +120,8 @@ extern "C" {
 
   // -----[ net_iface_str2type ]-------------------------------------
   net_error_t net_iface_str2type(char * str, net_iface_type_t * ptr_type);
+  // -----[ net_iface_type2str ]-------------------------------------
+  const char * net_iface_type2str(net_iface_type_t type);
   // -----[ net_iface_str2id ]---------------------------------------
   net_error_t net_iface_str2id(char * str, net_iface_id_t * ptr_id);
 

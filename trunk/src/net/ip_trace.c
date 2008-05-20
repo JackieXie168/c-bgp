@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// $Id: ip_trace.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
+// $Id: ip_trace.c,v 1.4 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,14 +18,14 @@
 // -----[ ip_trace_item_node ]---------------------------------------
 static inline ip_trace_item_t *
 ip_trace_item_node(net_node_t * node,
-		   net_addr_t iif_addr,
-		   net_addr_t oif_addr)
+		   net_iface_t * iif,
+		   net_iface_t * oif)
 {
   ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
   item->elt.type= NODE;
   item->elt.node= node;
-  item->iif_addr= iif_addr;
-  item->oif_addr= oif_addr;
+  item->iif= iif;
+  item->oif= oif;
   return item;
 }
 
@@ -36,8 +36,8 @@ ip_trace_item_subnet(net_subnet_t * subnet)
   ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
   item->elt.type= SUBNET;
   item->elt.subnet= subnet;
-  item->iif_addr= NET_ADDR_ANY;
-  item->oif_addr= NET_ADDR_ANY;
+  item->iif= NULL;
+  item->oif= NULL;
   return item;
 }
 
@@ -74,10 +74,10 @@ static inline ip_trace_item_t * _ip_trace_add(ip_trace_t * trace,
 // -----[ ip_trace_add_node ]----------------------------------------
 ip_trace_item_t * ip_trace_add_node(ip_trace_t * trace,
 				    net_node_t * node,
-				    net_addr_t iif_addr,
-				    net_addr_t oif_addr)
+				    net_iface_t * iif,
+				    net_iface_t * oif)
 {
-  return _ip_trace_add(trace, ip_trace_item_node(node, iif_addr, oif_addr));
+  return _ip_trace_add(trace, ip_trace_item_node(node, iif, oif));
 }
 
 // -----[ ip_trace_add_subnet ]--------------------------------------

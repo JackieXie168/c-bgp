@@ -3,13 +3,14 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/0/2008
-// @lastdate 02/04/2008
+// $Id: icmp_options.h,v 1.2 2008-05-20 12:17:06 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ICMP_OPTIONS_H__
 #define __NET_ICMP_OPTIONS_H__
 
 #include <net/error.h>
+#include <net/ip_trace.h>
 #include <net/net_types.h>
 #include <net/routing.h>
 
@@ -25,6 +26,7 @@
 typedef enum {
   ICMP_OPT_STATE_INCOMING, /* Node and incoming iface are known (msg rcvd) */
   ICMP_OPT_STATE_OUTGOING, /* Outgoing iface is known (after lookup) */
+  ICMP_OPT_STATE_SUBNET,   /* Subnet traversal */
   ICMP_OPT_STATE_ENCAP,    /* Probe packet is encapsulated */
   ICMP_OPT_STATE_DECAP,    /* Probe packet is decapsulated */
 } icmp_opt_state_t;
@@ -32,7 +34,7 @@ typedef enum {
 typedef struct icmp_msg_opt_t {
   ip_trace_t * trace;    /* Record-route trace */
   uint8_t      options;  /* Record-route options */
-  SPrefix      alt_dest; /* Alternate destination for lookup */
+  ip_pfx_t     alt_dest; /* Alternate destination for lookup */
 } icmp_msg_opt_t;
 
 #ifdef __cplusplus
