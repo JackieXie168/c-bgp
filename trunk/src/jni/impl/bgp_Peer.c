@@ -394,6 +394,30 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_hasSoftRestart
   return_jni_unlock(jEnv, jResult);
 }
 
+// -----[ isAutoConfigured ]-----------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    isAutoConfigured
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isAutoConfigured
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  bgp_peer_t * peer;
+  jboolean jResult;
+
+  jni_lock(jEnv);
+
+  peer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
+  if (peer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  jResult= (bgp_peer_flag_get(peer, PEER_FLAG_AUTOCONF) != 0)?
+    JNI_TRUE:JNI_FALSE;
+
+  return_jni_unlock(jEnv, jResult);
+}
+
 // -----[ getInputfilter ]-------------------------------------------
 /*
  * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer

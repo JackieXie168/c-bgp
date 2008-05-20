@@ -10,8 +10,7 @@ package be.ac.ucl.ingi.cbgp;
 
 import java.util.Collection;
 import java.util.Vector;
-import be.ac.ucl.ingi.cbgp.LinkMetrics;
-import be.ac.ucl.ingi.cbgp.exceptions.UnknownMetricException;
+
 import be.ac.ucl.ingi.cbgp.net.Node;
 
 // -----[ IPTrace ]--------------------------------------------------
@@ -36,18 +35,18 @@ public class IPTrace {
     // -----[ protected attributes ]---------------------------------
     protected Node src;
     protected IPAddress dst;
-    protected int iStatus;
+    protected int status;
     protected Vector<IPTraceElement> elements;
 
     // -----[ IPTrace ]----------------------------------------------
     /**
      * IPTrace's constructor.
      */
-    private IPTrace(Node src, IPAddress dst, int iStatus) {
-	this.src= src;
-	this.dst= dst;
-	this.iStatus= iStatus;
-	elements= new Vector<IPTraceElement>();
+    private IPTrace(Node src, IPAddress dst, int status) {
+    	this.src= src;
+    	this.dst= dst;
+    	this.status= status;
+    	elements= new Vector<IPTraceElement>();
     }
 
     // -----[ append ]-----------------------------------------------
@@ -103,7 +102,7 @@ public class IPTrace {
      * Returns the trace's status.
      */
     public int getStatus() {
-    	return iStatus;
+    	return status;
     }
 
     // -----[ getCapacity ]------------------------------------------
@@ -174,7 +173,7 @@ public class IPTrace {
     	s+= "\t";
     	s+= dst;
     	s+= "\t";
-    	s+= statusToString(iStatus);
+    	s+= statusToString(status);
     	s+= "\t";
     	for (IPTraceElement el: elements) {
     		s+= el.toString();

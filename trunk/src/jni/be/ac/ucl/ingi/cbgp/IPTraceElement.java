@@ -10,6 +10,7 @@ import be.ac.ucl.ingi.cbgp.net.Element;
  */
 public class IPTraceElement {
 
+	protected int hop_count;
 	protected Element element;
 	
 	// -----[ constructor ]-----------------------------------------
@@ -20,6 +21,11 @@ public class IPTraceElement {
 	// -----[ getElement ]------------------------------------------
 	public Element getElement() {
 		return this.element;
+	}
+	
+	// -----[ getHopCount ]-----------------------------------------
+	public int getHopCount() {
+		return hop_count;
 	}
 	
 }

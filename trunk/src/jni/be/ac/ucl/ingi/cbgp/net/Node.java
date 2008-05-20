@@ -53,6 +53,9 @@ public class Node extends Element {
     public IPAddress getAddress() {
     	return address;
     }
+    
+    // -----[ getDomain ]-------------------------------------------
+    public native synchronized IGPDomain getDomain();
 
     // -----[ getLatitude ]------------------------------------------
     /**
@@ -149,14 +152,14 @@ public class Node extends Element {
     /**
      * Adds a loopback-to-loopback (LTL) link to this node.
      */
-    public native synchronized Link addLTLLink(Node dst, boolean bidir)
+    public native synchronized Interface addLTLLink(Node dst, boolean bidir)
     	throws CBGPException;
     
     // -----[ addPTPLink ]------------------------------------------
     /**
      * Adds a point-to-point (PTP) link to this node.
      */
-    public native synchronized Link addPTPLink(Node dst, String siface, 
+    public native synchronized Interface addPTPLink(Node dst, String siface, 
     		String diface, boolean bidir)
     	throws CBGPException;
     
@@ -165,15 +168,23 @@ public class Node extends Element {
      * Adds a point-to-multipoint (PTMP) link to this node. The
      * destination is a Subnet object.
      */
-    public native synchronized Link addPTMPLink(Subnet subnet, String siface)
+    public native synchronized Interface addPTMPLink(Subnet subnet, String siface)
     	throws CBGPException; 
 
     // -----[ getLinks ]---------------------------------------------
     /**
      * Returns the list of links departing from this node.
      */
-    public native synchronized Vector<Link> getLinks()
+    public native synchronized Vector<Interface> getLinks()
 		throws CBGPException;
+    
+    // -----[ getInterfaces ]---------------------------------------
+    /**
+     * Returns the list of interfaces departing from this node.
+     */
+    public native synchronized Vector<Interface> getInterfaces()
+		throws CBGPException;
+
     
     // -----[ getRT ]------------------------------------------------
     /**

@@ -1,5 +1,6 @@
 package be.ac.ucl.ingi.cbgp;
 
+import be.ac.ucl.ingi.cbgp.net.Interface;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
 /**
@@ -23,10 +24,10 @@ import be.ac.ucl.ingi.cbgp.net.Node;
  */
 public class IPTraceNode extends IPTraceElement {
 	
-	private IPAddress iif, oif;
+	private Interface iif, oif;
 	
 	// -----[ constructor ]-----------------------------------------
-	private IPTraceNode(Node node, IPAddress iif, IPAddress oif) {
+	private IPTraceNode(Node node, Interface iif, Interface oif) {
 		super(node);
 		this.iif= iif;
 		this.oif= oif;
@@ -38,12 +39,12 @@ public class IPTraceNode extends IPTraceElement {
 	}
 	
 	// -----[ getInIface ]------------------------------------------
-	public IPAddress getInIface() {
+	public Interface getInIface() {
 		return iif;
 	}
 	
 	// -----[ getOutIface ]-----------------------------------------
-	public IPAddress getOutIface() {
+	public Interface getOutIface() {
 		return oif;
 	}
 	

@@ -22,14 +22,23 @@ import be.ac.ucl.ingi.cbgp.net.Node;
 /**
  * This class represents a BGP router
  */
-public class Router extends ProxyObject
-{
+public class Router extends ProxyObject {
 
+	public static enum BGPRouteInputFormat {
+		MRT_BINARY("mrt-binary"),
+		MRT_ASCII("mrt-ascii"),
+		CISCO("cisco");
+		private final String value;
+		BGPRouteInputFormat(String value) { this.value= value; }
+		public String value() { return value; }
+	}
+	
     // -----[ protected attributes ]---------------------------------
     protected IPAddress routerID;
     protected short asn;
     protected Node node;
-    // -----[ Router ]----------------------------------------------
+    
+    // -----[ constructor ]-----------------------------------------
     /**
      * Router's constructor.
      *
@@ -38,8 +47,7 @@ public class Router extends ProxyObject
      * @param asn the router's AS number
      * @param routerID the router ID
      */
-    protected Router(CBGP cbgp, Node node, short asn, IPAddress routerID)
-    {
+    protected Router(CBGP cbgp, Node node, short asn, IPAddress routerID) {
     	super(cbgp);
     	this.node= node;
     	this.asn= asn;
@@ -57,8 +65,7 @@ public class Router extends ProxyObject
      *
      * @return the router's identifier
      */
-    public IPAddress getAddress()
-    {
+    public IPAddress getAddress() {
     	return node.getAddress();
     }
     
@@ -68,8 +75,7 @@ public class Router extends ProxyObject
      *
      * @return the router's ASN
      */
-    public short getASN()
-    {
+    public short getASN() {
     	return asn;
     }
 
@@ -79,8 +85,7 @@ public class Router extends ProxyObject
      *
      * @return the router ID
      */
-    public IPAddress getRouterID()
-    {
+    public IPAddress getRouterID() {
     	return routerID;
     }
 
@@ -90,9 +95,7 @@ public class Router extends ProxyObject
      *
      * @return the router's name
      */
-    public String getName()
-    	throws CBGPException
-    {
+    public String getName() throws CBGPException {
     	return node.getName();
     }
     
@@ -117,7 +120,7 @@ public class Router extends ProxyObject
 		throws CBGPException;
     
     // -----[ getNetworks ]-----------------------------------------
-    public native Vector getNetworks()
+    public native Vector<IPPrefix> getNetworks()
     	throws CBGPException;
     
     // -----[ getRIB ]----------------------------------------------
@@ -130,31 +133,24 @@ public class Router extends ProxyObject
 		throws CBGPException, InvalidDestinationException;
 
     // -----[ loadRib ]----------------------------------------------
-    public native void loadRib(String fileName, boolean force)
-	throws CBGPException;
+    public native void loadRib(String fileName, boolean force, String type)
+		throws CBGPException;
 
     // -----[ rescan ]-----------------------------------------------
     public native void rescan()
-	throws CBGPException;
+		throws CBGPException;
 
 
     // -----[ toString ]---------------------------------------------
     /**
      * Converts this router to a String.
      */
-    public String toString()
-    {
+    public String toString() {
     	String s= "";
-
-    	s+= getAddress(); 
-    	s+= ":"+asn;
+    	s+= getRouterID();
     	try {
-    		if (getName() != null)
-    			s+= " (name: \""+getName()+"\")";
-    	} catch (CBGPException e) {
-    		s+= " name: \"???\"";
-    	}
-
+    		s+= " ("+getName()+")";
+    	} catch (CBGPException e) {}
     	return s;
     }
 

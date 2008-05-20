@@ -11,10 +11,9 @@ package be.ac.ucl.ingi.cbgp.bgp;
 import be.ac.ucl.ingi.cbgp.CBGP;
 import be.ac.ucl.ingi.cbgp.ProxyObject;
 
-// -----[ FilterRule ]----------------------------------------------
 public class FilterRule extends ProxyObject {
 
-	// -----[ FilterRule ]------------------------------------------
+	// -----[ constructor ]-----------------------------------------
 	protected FilterRule(CBGP cbgp) {
 		super(cbgp);
 	}

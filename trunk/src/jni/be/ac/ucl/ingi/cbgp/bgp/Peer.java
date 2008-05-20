@@ -30,10 +30,7 @@ public class Peer extends ProxyObject
     protected IPAddress address;
     protected int iAS;
 
-    // -----[ Peer ]-------------------------------------------------
-    /**
-     * Peer's constructor.
-     */
+    // -----[ constructor ]-------------------------------------------------
     protected Peer(CBGP cbgp, IPAddress address, int iAS) {
     	super(cbgp);
     	this.address= address;
@@ -101,16 +98,15 @@ public class Peer extends ProxyObject
     /**
      * Converts a session state in a String.
      */
-    public static String sessionStateToString(byte bSessionState)
-    {
-	switch (bSessionState) {
-	case SESSION_STATE_IDLE: return "IDLE";
-	case SESSION_STATE_OPENWAIT: return "OPENWAIT";
-	case SESSION_STATE_ESTABLISHED: return "ESTABLISHED";
-	case SESSION_STATE_ACTIVE: return "ACTIVE";
-	default:
-	    return "?";
-	}
+    public static String sessionStateToString(byte bSessionState) {
+    	switch (bSessionState) {
+    	case SESSION_STATE_IDLE: return "IDLE";
+    	case SESSION_STATE_OPENWAIT: return "OPENWAIT";
+    	case SESSION_STATE_ESTABLISHED: return "ESTABLISHED";
+    	case SESSION_STATE_ACTIVE: return "ACTIVE";
+    	default:
+    		return "?";
+    	}
     }
     
     // -----[ recv ]-------------------------------------------------
@@ -162,7 +158,10 @@ public class Peer extends ProxyObject
      * Returns true if the peer has the soft-restart feature.
      */
     public native synchronized boolean hasSoftRestart()
-	throws CBGPException;
+		throws CBGPException;
+    
+    // -----[ isAutoConfigured ]------------------------------------
+    public native synchronized boolean isAutoConfigured();
     
     // -----[ getInputFilter ]---------------------------------------
     public native Filter getInputFilter()

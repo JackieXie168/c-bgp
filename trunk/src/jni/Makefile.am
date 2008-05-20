@@ -72,7 +72,7 @@ JAVAFILES= \
 	be/ac/ucl/ingi/cbgp/bgp/Router.java \
 	be/ac/ucl/ingi/cbgp/net/Element.java \
 	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
-	be/ac/ucl/ingi/cbgp/net/Link.java \
+	be/ac/ucl/ingi/cbgp/net/Interface.java \
 	be/ac/ucl/ingi/cbgp/net/Message.java \
 	be/ac/ucl/ingi/cbgp/net/Node.java \
 	be/ac/ucl/ingi/cbgp/net/Subnet.java
@@ -93,12 +93,13 @@ JAVATESTFILES= \
 JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.CBGP \
 	be.ac.ucl.ingi.cbgp.IPTrace \
+	be.ac.ucl.ingi.cbgp.ProxyObject \
 	be.ac.ucl.ingi.cbgp.bgp.Domain \
 	be.ac.ucl.ingi.cbgp.bgp.Filter \
 	be.ac.ucl.ingi.cbgp.bgp.Peer \
 	be.ac.ucl.ingi.cbgp.bgp.Router \
 	be.ac.ucl.ingi.cbgp.net.IGPDomain \
-	be.ac.ucl.ingi.cbgp.net.Link \
+	be.ac.ucl.ingi.cbgp.net.Interface \
 	be.ac.ucl.ingi.cbgp.net.Node \
 	be.ac.ucl.ingi.cbgp.net.Subnet
 
