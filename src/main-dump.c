@@ -3,9 +3,9 @@
 //
 // Main source file for cbgp-dump application.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @lastdate 21/05/2007
-// @date 02/10/07
+// $Id: main-dump.c,v 1.5 2008-05-20 11:55:32 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -143,8 +143,8 @@ static void _main_done()
 // -----[ main ]-----------------------------------------------------
 int main(int argc, char * argv[])
 {
-  uint8_t uInFormat= BGP_ROUTES_INPUT_MRT_ASC;
-  uint8_t uOutFormat= BGP_ROUTES_OUTPUT_CISCO;
+  bgp_input_type_t in_format= BGP_ROUTES_INPUT_MRT_ASC;
+  uint8_t out_format= BGP_ROUTES_OUTPUT_CISCO;
   int iOption, iResult;
   char * pcFilter;
 
@@ -169,13 +169,13 @@ int main(int argc, char * argv[])
       usage();
       return EXIT_SUCCESS;
     case OPTION_IN_FORMAT:
-      if (bgp_routes_str2format(optarg, &uInFormat) != 0) {
+      if (bgp_routes_str2format(optarg, &in_format) != 0) {
 	log_printf(pLogErr, "Error: invalid input format \"%s\".\n", optarg);
 	return EXIT_FAILURE;
       }
       break;
     case OPTION_OUT_FORMAT:
-      if (route_str2format(optarg, &uOutFormat) != 0) {
+      if (route_str2format(optarg, &out_format) != 0) {
 	log_printf(pLogErr, "Error: invalid output format \"%s\".\n", optarg);
 	return EXIT_FAILURE;
       }
@@ -198,7 +198,7 @@ int main(int argc, char * argv[])
     return EXIT_FAILURE;
   }
 
-  BGP_OPTIONS_SHOW_MODE= uOutFormat;
+  BGP_OPTIONS_SHOW_MODE= out_format;
   if (sContext.pcOutSpec != NULL)
     BGP_OPTIONS_SHOW_FORMAT= strdup(sContext.pcOutSpec);
 
@@ -207,7 +207,7 @@ int main(int argc, char * argv[])
 
     log_printf(pLogErr, "Reading from \"%s\"...\n", argv[optind]);
 
-    iResult= bgp_routes_load(argv[optind], uInFormat, _handler, &sContext);
+    iResult= bgp_routes_load(argv[optind], in_format, _handler, &sContext);
     if (iResult != 0) {
       LOG_ERR(LOG_LEVEL_SEVERE, "Error: an error (%d) occured while reading \"%s\"", iResult, argv[optind]);
       libcbgp_done();
