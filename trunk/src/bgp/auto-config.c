@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// $Id: auto-config.c,v 1.9 2008-04-14 09:13:31 bqu Exp $
+// $Id: auto-config.c,v 1.10 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -128,6 +128,7 @@ int bgp_auto_config_session(bgp_router_t * pRouter,
     LOG_ERR(LOG_LEVEL_FATAL, "ERROR: could not create peer\n");
     abort();
   }
+  bgp_peer_flag_set(pPeer, PEER_FLAG_AUTOCONF, 1);
   
   // If peer does not support BGP, create it virtual. Otherwise, also
   // create the session in the remote BGP router.

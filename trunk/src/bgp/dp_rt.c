@@ -7,7 +7,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/01/2007
-// $Id: dp_rt.c,v 1.5 2008-04-10 11:27:00 bqu Exp $
+// $Id: dp_rt.c,v 1.6 2008-05-20 11:58:15 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,16 +34,13 @@ static void _bgp_router_rt_add_route_error(bgp_router_t * router,
   if (log_enabled(pLogErr, LOG_LEVEL_FATAL)) {
     log_printf(pLogErr, "Error: could not install BGP route in RT of ");
     bgp_router_dump_id(pLogErr, router);
-    log_printf(pLogErr, "\n");
-    log_printf(pLogErr, "  BGP route: ");
+    log_printf(pLogErr, "\n  BGP route: ");
     route_dump(pLogErr, route);
-    log_printf(pLogErr, ")\n");
-    log_printf(pLogErr, "  RT entry : nh:");
+    log_printf(pLogErr, ")\n  RT entry : nh:");
     ip_address_dump(pLogErr, rtentry->gateway);
     log_printf(pLogErr, ", if:");
     net_iface_dump_id(pLogErr, rtentry->oif);
-    log_printf(pLogErr, ")\n");
-    log_printf(pLogErr, "  reason   : ");
+    log_printf(pLogErr, ")\n  reason   : ");
     network_perror(pLogErr, iErrorCode);
     log_printf(pLogErr, ")\n");
   }
