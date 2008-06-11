@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_Peer.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/04/2006
-// @lastdate 21/04/2006
+// $Id: bgp_Peer.h,v 1.2 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_BGP_PEER_H__

@@ -96,6 +96,7 @@ JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.ProxyObject \
 	be.ac.ucl.ingi.cbgp.bgp.Domain \
 	be.ac.ucl.ingi.cbgp.bgp.Filter \
+	be.ac.ucl.ingi.cbgp.bgp.FilterRule \
 	be.ac.ucl.ingi.cbgp.bgp.Peer \
 	be.ac.ucl.ingi.cbgp.bgp.Router \
 	be.ac.ucl.ingi.cbgp.net.IGPDomain \

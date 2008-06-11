@@ -148,9 +148,12 @@ public class Router extends ProxyObject {
     public String toString() {
     	String s= "";
     	s+= getRouterID();
+    	String name= null;
     	try {
-    		s+= " ("+getName()+")";
+    		name= getName();
     	} catch (CBGPException e) {}
+    	if (name != null)
+    		s+= " ("+name+")";
     	return s;
     }
 

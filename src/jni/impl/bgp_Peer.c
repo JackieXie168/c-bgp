@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/04/2006
-// @lastdate 11/03/2008
+// $Id: bgp_Peer.c,v 1.11 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -416,6 +416,52 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_isAutoConfigured
     JNI_TRUE:JNI_FALSE;
 
   return_jni_unlock(jEnv, jResult);
+}
+
+// -----[ getNextHop ]-----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    getNextHop
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/IPAddress;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getNextHop
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  bgp_peer_t * peer;
+  jobject joAddress;
+
+  jni_lock(jEnv);
+
+  peer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
+  if (peer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  joAddress= cbgp_jni_new_IPAddress(jEnv, peer->tNextHop);
+
+  return_jni_unlock(jEnv, joAddress);
+}
+
+// -----[ getUpdateSource ]------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Peer
+ * Method:    getUpdateSource
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/IPAddress;
+ */
+JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Peer_getUpdateSource
+  (JNIEnv * jEnv, jobject joPeer)
+{
+  bgp_peer_t * peer;
+  jobject joAddress;
+
+  jni_lock(jEnv);
+
+  peer= (bgp_peer_t *) jni_proxy_lookup(jEnv, joPeer);
+  if (peer == NULL)
+    return_jni_unlock(jEnv, JNI_FALSE);
+
+  joAddress= cbgp_jni_new_IPAddress(jEnv, peer->tSrcAddr);
+
+  return_jni_unlock(jEnv, joAddress);
 }
 
 // -----[ getInputfilter ]-------------------------------------------

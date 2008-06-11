@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.18 2008-05-20 12:11:38 bqu Exp $
+// $Id: net_Node.c,v 1.19 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -330,7 +330,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addLTLLink
   }
 
   /* Retrieve new link */
-  joLink= cbgp_jni_new_net_Link(jEnv,
+  joLink= cbgp_jni_new_net_Interface(jEnv,
 				NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/,
 				pIface);
 
@@ -387,7 +387,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTPLink
   }
 
   /* Retrieve new link */
-  joIface= cbgp_jni_new_net_Link(jEnv,
+  joIface= cbgp_jni_new_net_Interface(jEnv,
 				 NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/,
 				 pIface);
 
@@ -435,9 +435,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTMPLink
   }
 
   /* Retrieve new link */
-  joIface= cbgp_jni_new_net_Link(jEnv,
-				 NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/,
-				 pIface);
+  joIface= cbgp_jni_new_net_Interface(jEnv,
+				      NULL/*jni_proxy_get_CBGP(jEnv, joNode)*/,
+				      pIface);
   return_jni_unlock(jEnv, joIface);
 }
 
@@ -445,15 +445,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTMPLink
 static int _cbgp_jni_get_link(void * pItem, void * pContext)
 {
   SJNIContext * pCtx= (SJNIContext *) pContext;
-  net_iface_t * pLink= *((net_iface_t **) pItem);
+  net_iface_t * iface= *((net_iface_t **) pItem);
   jobject joLink;
 
-  if (!net_iface_is_connected(pLink))
+  if (!net_iface_is_connected(iface))
     return 0;
 
-  if ((joLink= cbgp_jni_new_net_Link(pCtx->jEnv,
-				     pCtx->joCBGP,
-				     pLink)) == NULL)
+  if ((joLink= cbgp_jni_new_net_Interface(pCtx->jEnv,
+					  pCtx->joCBGP,
+					  iface)) == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joLink);
@@ -500,9 +500,9 @@ static int _cbgp_jni_get_iface(void * item, void * context)
   jobject joLink;
 
 
-  if ((joLink= cbgp_jni_new_net_Link(ctx->jEnv,
-				     ctx->joCBGP,
-				     iface)) == NULL)
+  if ((joLink= cbgp_jni_new_net_Interface(ctx->jEnv,
+					  ctx->joCBGP,
+					  iface)) == NULL)
     return -1;
 
   return cbgp_jni_Vector_add(ctx->jEnv, ctx->joVector, joLink);

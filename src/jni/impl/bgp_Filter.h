@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/04/2006
-// @lastdate 12/03/2008
+// $Id: bgp_Filter.h,v 1.3 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_BGP_FILTER_H__
