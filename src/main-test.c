@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: main-test.c,v 1.12 2008-04-14 09:17:15 bqu Exp $
+// $Id: main-test.c,v 1.13 2008-06-11 15:08:11 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -144,22 +144,22 @@ static int test_net_attr_address4_str2()
 // -----[ test_net_attr_prefix4 ]------------------------------------
 static int test_net_attr_prefix4()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(255,255,255,255),
-		     .uMaskLen= 32 };
-  SPrefix * pPrefix;
-  ASSERT_RETURN((sPrefix.tNetwork == UINT32_MAX),
+  ip_pfx_t pfx= IPV4PFX(255,255,255,255,32);
+  ip_pfx_t * pfx_ptr;
+  ASSERT_RETURN((pfx.tNetwork == UINT32_MAX),
 		"255.255.255.255 should be equal to %u", UINT32_MAX);
-  sPrefix.tNetwork= NET_ADDR_ANY;
-  sPrefix.uMaskLen= 0;
-  ASSERT_RETURN(sPrefix.tNetwork == 0,
+  pfx.tNetwork= NET_ADDR_ANY;
+  pfx.uMaskLen= 0;
+  ASSERT_RETURN(pfx.tNetwork == 0,
 		"0.0.0.0 should be equal to 0");
-  pPrefix= create_ip_prefix(IPV4(1,2,3,4), 5);
-  ASSERT_RETURN((pPrefix != NULL) &&
-		(pPrefix->tNetwork == IPV4(1,2,3,4)) &&
-		(pPrefix->uMaskLen == 5),
+
+  pfx_ptr= create_ip_prefix(IPV4(1,2,3,4), 5);
+  ASSERT_RETURN((pfx_ptr != NULL) &&
+		(pfx_ptr->tNetwork == IPV4(1,2,3,4)) &&
+		(pfx_ptr->uMaskLen == 5),
 		"prefix should be 1.2.3.4/5");
-  ip_prefix_destroy(&pPrefix);
-  ASSERT_RETURN(pPrefix == NULL,
+  ip_prefix_destroy(&pfx_ptr);
+  ASSERT_RETURN(pfx_ptr == NULL,
 		"destroyed prefix should be null");
   return UTEST_SUCCESS;
 }
@@ -167,23 +167,20 @@ static int test_net_attr_prefix4()
 // -----[ test_net_attr_prefix4_in ]---------------------------------
 static int test_net_attr_prefix4_in()
 {
-  SPrefix sPrefix1= { .tNetwork= IPV4(192,168,1,0),
-		      .uMaskLen= 24 };
-  SPrefix sPrefix2= { .tNetwork= IPV4(192,168,0,0),
-		      .uMaskLen= 16 };
-  SPrefix sPrefix3= { .tNetwork= IPV4(192,168,2,0),
-		      .uMaskLen= 24 };
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix1, sPrefix2) != 0,
+  ip_pfx_t pfx1= IPV4PFX(192,168,1,0, 24);
+  ip_pfx_t pfx2= IPV4PFX(192,168,0,0,16);
+  ip_pfx_t pfx3= IPV4PFX(192,168,2,0,24);
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx1, pfx2) != 0,
 		"192.168.1/24 should be in 192.168/16");
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix3, sPrefix2) != 0,
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx3, pfx2) != 0,
 		"192.168.2/24 should be in 192.168/16");
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix2, sPrefix1) == 0,
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx2, pfx1) == 0,
 		"192.168/16 should not be in 192.168.1/24");
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix3, sPrefix1) == 0,
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx3, pfx1) == 0,
 		"192.168.2/24 should not be in 192.168.1/24");
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix1, sPrefix3) == 0,
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx1, pfx3) == 0,
 		"192.168.1/24 should not be in 192.168.2/24");
-  ASSERT_RETURN(ip_prefix_in_prefix(sPrefix1, sPrefix1) != 0,
+  ASSERT_RETURN(ip_prefix_in_prefix(pfx1, pfx1) != 0,
 		"192.168.1/24 should be in 192.168.1/24");
   return UTEST_SUCCESS;
 }
@@ -191,21 +188,17 @@ static int test_net_attr_prefix4_in()
 // -----[ test_net_attr_prefix4_ge ]---------------------------------
 static int test_net_attr_prefix4_ge()
 {
-  SPrefix sPrefix1= { .tNetwork= IPV4(192,168,0,0),
-		      .uMaskLen= 16 };
-  SPrefix sPrefix2= { .tNetwork= IPV4(192,168,1,0),
-		      .uMaskLen= 24 };
-  SPrefix sPrefix3= { .tNetwork= IPV4(192,168,0,0),
-		      .uMaskLen= 15 };
-  SPrefix sPrefix4= { .tNetwork= IPV4(192,169,0,0),
-		      .uMaskLen= 24 };
-  ASSERT_RETURN(ip_prefix_ge_prefix(sPrefix1, sPrefix1, 16),
+  ip_pfx_t pfx1= IPV4PFX(192,168,0,0,16);
+  ip_pfx_t pfx2= IPV4PFX(192,168,1,0,24);
+  ip_pfx_t pfx3= IPV4PFX(192,168,0,0,15);
+  ip_pfx_t pfx4= IPV4PFX(192,169,0,0,24);
+  ASSERT_RETURN(ip_prefix_ge_prefix(pfx1, pfx1, 16),
 		"192.168/16 should be ge (192.168/16, 16)");
-  ASSERT_RETURN(ip_prefix_ge_prefix(sPrefix2, sPrefix1, 16),
+  ASSERT_RETURN(ip_prefix_ge_prefix(pfx2, pfx1, 16),
 		"192.168.1/24 should be ge (192.168/16, 16)");
-  ASSERT_RETURN(!ip_prefix_ge_prefix(sPrefix3, sPrefix1, 16),
+  ASSERT_RETURN(!ip_prefix_ge_prefix(pfx3, pfx1, 16),
 		"192.168/15 should not be ge (192.168/16, 16)");
-  ASSERT_RETURN(!ip_prefix_ge_prefix(sPrefix4, sPrefix1, 16),
+  ASSERT_RETURN(!ip_prefix_ge_prefix(pfx4, pfx1, 16),
 		"192.169.0/24 should not be ge (192.168/16, 16)");
   return UTEST_SUCCESS;
 }
@@ -213,25 +206,20 @@ static int test_net_attr_prefix4_ge()
 // -----[ test_net_attr_prefix4_le ]---------------------------------
 static int test_net_attr_prefix4_le()
 {
-  SPrefix sPrefix1= { .tNetwork= IPV4(192,168,0,0),
-		      .uMaskLen= 16 };
-  SPrefix sPrefix2= { .tNetwork= IPV4(192,168,1,0),
-		      .uMaskLen= 24 };
-  SPrefix sPrefix3= { .tNetwork= IPV4(192,168,1,0),
-		      .uMaskLen= 25 };
-  SPrefix sPrefix4= { .tNetwork= IPV4(192,169,0,0),
-		      .uMaskLen= 24 };
-  SPrefix sPrefix5= { .tNetwork= IPV4(192,168,0,0),
-		      .uMaskLen= 15 };
-  ASSERT_RETURN(ip_prefix_le_prefix(sPrefix2, sPrefix1, 24),
+  ip_pfx_t pfx1= IPV4PFX(192,168,0,0,16);
+  ip_pfx_t pfx2= IPV4PFX(192,168,1,0,24);
+  ip_pfx_t pfx3= IPV4PFX(192,168,1,0,25);
+  ip_pfx_t pfx4= IPV4PFX(192,169,0,0,24);
+  ip_pfx_t pfx5= IPV4PFX(192,168,0,0,15);
+  ASSERT_RETURN(ip_prefix_le_prefix(pfx2, pfx1, 24),
 		"192.168.1/24 should be le (192.168/16, 24)");
-  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix3, sPrefix1, 24),
+  ASSERT_RETURN(!ip_prefix_le_prefix(pfx3, pfx1, 24),
 		"192.168.0.0/25 should not be le (192.168/16, 24)");
-  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix4, sPrefix1, 24),
+  ASSERT_RETURN(!ip_prefix_le_prefix(pfx4, pfx1, 24),
 		"192.169/24 should not be le (192.168/16, 24)");
-  ASSERT_RETURN(ip_prefix_le_prefix(sPrefix1, sPrefix1, 24),
+  ASSERT_RETURN(ip_prefix_le_prefix(pfx1, pfx1, 24),
 		"192.168/16 should be le (192.168/16, 24)");
-  ASSERT_RETURN(!ip_prefix_le_prefix(sPrefix5, sPrefix1, 24),
+  ASSERT_RETURN(!ip_prefix_le_prefix(pfx5, pfx1, 24),
 		"192.168/15 should not be le (192.168/16, 24)");
   return UTEST_SUCCESS;
 }
@@ -239,25 +227,22 @@ static int test_net_attr_prefix4_le()
 // -----[ test_net_attr_prefix4_match ]------------------------------
 static int test_net_attr_prefix4_match()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(0,0,0,0),
-		     .uMaskLen= 0 };
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(0,0,0,0), sPrefix) != 0,
+  ip_pfx_t pfx= IPV4PFX(0,0,0,0,0);
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(0,0,0,0), pfx) != 0,
 		"0.0.0.0 should be in 0.0.0.0/0");
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(255,255,255,255), sPrefix) != 0,
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(255,255,255,255), pfx) != 0,
 		"255.255.255.255 should be in 0.0.0.0/0");
-  sPrefix.tNetwork= IPV4(255,255,255,255);
-  sPrefix.uMaskLen= 32;
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(0,0,0,0), sPrefix) == 0,
+  pfx= IPV4PFX(255,255,255,255,32);
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(0,0,0,0), pfx) == 0,
 		"0.0.0.0 should not be in 255.255.255.255/32");
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(255,255,255,255), sPrefix) != 0,
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(255,255,255,255), pfx) != 0,
 		"255.255.255.255 should be in 255.255.255.255/32");
-  sPrefix.tNetwork= IPV4(130,104,229,224);
-  sPrefix.uMaskLen= 27;
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,225), sPrefix) != 0,
+  pfx= IPV4PFX(130,104,229,224,27);
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,225), pfx) != 0,
 		"130.104.229.225 should be in 130.104.229.224/27");
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,240), sPrefix) != 0,
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,240), pfx) != 0,
 		"130.104.229.240 should be in 130.104.229.224/27");
-  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,256), sPrefix) == 0,
+  ASSERT_RETURN(ip_address_in_prefix(IPV4(130,104,229,256), pfx) == 0,
 		"130.104.229.256 should not be in 130.104.229.224/27");
   return UTEST_SUCCESS;
 }
@@ -382,7 +367,13 @@ static int test_net_attr_prefix4_cmp()
 // -----[ test_net_attr_dest ]---------------------------------------
 static int test_net_attr_dest()
 {
-  return UTEST_SKIPPED;
+  SNetDest sDest= { .tType= NET_DEST_ADDRESS,
+		    .uDest.tAddr= IPV4(192,168,0,1) };
+  ASSERT_RETURN(sDest.tType == NET_DEST_ADDRESS,
+		"dest type should be ADDRESS");
+  ASSERT_RETURN(sDest.uDest.tAddr == IPV4(192,168,0,1),
+		"dest address should be 192.168.0.1");
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_attr_dest_str2 ]----------------------------------
@@ -1005,10 +996,12 @@ static int test_net_rt()
 static int test_net_rt_add()
 {
   net_rt_t * rt= rt_create();
-  net_iface_t * iface= NULL;
-  SPrefix pfx= { .tNetwork= IPV4(192,168,1,0), .uMaskLen= 24 };
-  rt_info_t * rtinfo= net_route_info_create(pfx, iface, NET_ADDR_ANY, 0,
-					    NET_ROUTE_STATIC);
+  net_iface_t * iface;
+  ip_pfx_t pfx= IPV4PFX(192,168,1,0,24);
+  rt_info_t * rtinfo;
+  
+  net_iface_factory(NULL, IPV4PFX(10,0,0,1,30), NET_IFACE_PTP, &iface);
+  rtinfo= net_route_info_create(pfx, iface, NET_ADDR_ANY, 0, NET_ROUTE_STATIC);
   ASSERT_RETURN(rtinfo != NULL, "route info creation should succeed");
   ASSERT_RETURN(rt_add_route(rt, pfx, rtinfo) == ESUCCESS,
 		"route addition should succeed");
@@ -1019,19 +1012,124 @@ static int test_net_rt_add()
 // -----[ test_net_rt_add_dup ]--------------------------------------
 static int test_net_rt_add_dup()
 {
-  return UTEST_SKIPPED;
-}
+  net_rt_t * rt= rt_create();
+  net_iface_t * iface;
+  ip_pfx_t pfx= IPV4PFX(192,168,1,0,24);
+  rt_info_t * rtinfo;
 
-// -----[ test_net_rt_del ]------------------------------------------
-static int test_net_rt_del()
-{
-  return UTEST_SKIPPED;
+  net_iface_factory(NULL, IPV4PFX(10,0,0,1,30), NET_IFACE_PTP, &iface);
+  rtinfo= net_route_info_create(pfx, iface, NET_ADDR_ANY, 0, NET_ROUTE_STATIC);
+  ASSERT_RETURN(rtinfo != NULL, "route info creation should succeed");
+  ASSERT_RETURN(rt_add_route(rt, pfx, rtinfo) == ESUCCESS,
+		"route addition should succeed");
+
+  rtinfo= net_route_info_create(pfx, iface, NET_ADDR_ANY, 0,
+					    NET_ROUTE_STATIC);
+  ASSERT_RETURN(rtinfo != NULL, "route info creation should succeed");
+  ASSERT_RETURN(rt_add_route(rt, pfx, rtinfo) == ENET_RT_DUPLICATE,
+		"route addition should fail (duplicate)");
+  rt_destroy(&rt);
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_rt_lookup ]---------------------------------------
 static int test_net_rt_lookup()
 {
-  return UTEST_SKIPPED;
+  net_rt_t * rt= rt_create();
+  net_iface_t * iface;
+  ip_pfx_t pfx[3]= { IPV4PFX(192,168,1,0,24),
+		     IPV4PFX(192,168,2,0,24),
+		     IPV4PFX(192,168,2,128,25) };
+  rt_info_t * rtinfo[3];
+  int index;
+
+  net_iface_factory(NULL, IPV4PFX(10,0,0,1,30), NET_IFACE_PTP, &iface);
+
+  for (index= 0; index < 3; index++) {
+    rtinfo[index]= net_route_info_create(pfx[index], iface,
+					 NET_ADDR_ANY, 0, NET_ROUTE_STATIC);
+    ASSERT_RETURN(rtinfo[index] != NULL, "route info creation should succeed");
+    ASSERT_RETURN(rt_add_route(rt, pfx[index], rtinfo[index]) == ESUCCESS,
+		  "route addition should succeed");
+  }
+
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,0,1), NET_ROUTE_ANY) == NULL,
+		"should not return a result for 192.168.0.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,1,1), NET_ROUTE_ANY)
+		== rtinfo[0], "should returned a result for 192.168.1.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,2,1), NET_ROUTE_ANY)
+		== rtinfo[1], "should return a result for 192.168.2.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,2,129), NET_ROUTE_ANY)
+		== rtinfo[2], "should return a result for 192.168.2.129");
+
+  return UTEST_SUCCESS;
+}
+
+
+// -----[ test_net_rt_del ]------------------------------------------
+static int test_net_rt_del()
+{
+  net_rt_t * rt= rt_create();
+  net_iface_t * iface;
+  ip_pfx_t pfx[2]= { IPV4PFX(192,168,1,0,24),
+		     IPV4PFX(192,168,2,0,24) };
+  rt_info_t * rtinfo[2];
+  rt_filter_t * filter;
+  int index;
+
+  net_iface_factory(NULL, IPV4PFX(10,0,0,1,30), NET_IFACE_PTP, &iface);
+
+  for (index= 0; index < 2; index++) {
+    rtinfo[index]= net_route_info_create(pfx[index], iface,
+					 NET_ADDR_ANY, 0, NET_ROUTE_STATIC);
+    ASSERT_RETURN(rtinfo[index] != NULL, "route info creation should succeed");
+    ASSERT_RETURN(rt_add_route(rt, pfx[index], rtinfo[index]) == ESUCCESS,
+		"route addition should succeed");
+  }
+
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,1,1), NET_ROUTE_ANY)
+		== rtinfo[0], "should return a result for 192.168.1.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,2,1), NET_ROUTE_ANY)
+		== rtinfo[1], "should return a result for 192.168.2.1");
+
+  filter= rt_filter_create();
+  filter->prefix= &pfx[0];
+  filter->type= NET_ROUTE_IGP;
+  ASSERT_RETURN(rt_del_routes(rt, filter) == ESUCCESS,
+		"route removal should succeed");
+  ASSERT_RETURN(filter->matches == 0,
+		"incorrect number of removal(s)");
+  rt_filter_destroy(&filter);
+
+
+  filter= rt_filter_create();
+  filter->prefix= &pfx[0];
+  ASSERT_RETURN(rt_del_routes(rt, filter) == ESUCCESS,
+		"route removal should succeed");
+  ASSERT_RETURN(filter->matches == 1,
+		"incorrect number of removal(s)");
+  rt_filter_destroy(&filter);
+
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,1,1), NET_ROUTE_ANY)
+		== NULL, "should not return a result for 192.168.1.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,2,1), NET_ROUTE_ANY)
+		== rtinfo[1], "should return a result for 192.168.2.1");
+
+  filter= rt_filter_create();
+  filter->prefix= &pfx[1];
+  ASSERT_RETURN(rt_del_routes(rt, filter) == ESUCCESS,
+		"route removal should succeed");
+  ASSERT_RETURN(filter->matches == 1,
+		"incorrect number of removal(s)");
+  rt_filter_destroy(&filter);
+
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,1,1), NET_ROUTE_ANY)
+		== NULL, "should not return a result for 192.168.1.1");
+  ASSERT_RETURN(rt_find_best(rt, IPV4(192,168,2,1), NET_ROUTE_ANY)
+		== NULL, "should not return a result for 192.168.2.1");
+
+  rt_destroy(&rt);
+  return UTEST_SUCCESS;
 }
 
 
@@ -1130,10 +1228,10 @@ static int test_net_tunnel_forward_broken()
 // -----[ test_net_network ]-----------------------------------------
 static int test_net_network()
 {
-  SNetwork * pNetwork= network_create();
-  ASSERT_RETURN(pNetwork != NULL, "network creation should succeed");
-  network_destroy(&pNetwork);
-  ASSERT_RETURN(pNetwork == NULL, "destroyed network should be NULL");
+  network_t * network= network_create();
+  ASSERT_RETURN(network != NULL, "network creation should succeed");
+  network_destroy(&network);
+  ASSERT_RETURN(network == NULL, "destroyed network should be NULL");
   return UTEST_SUCCESS;
 }
 
@@ -1202,19 +1300,58 @@ static int test_net_network_add_subnet_dup()
 // -----[ test_net_rt_static_add ]-----------------------------------
 static int test_net_rt_static_add()
 {
-  return UTEST_SKIPPED;
+  net_node_t * node= __node_create(IPV4(1,0,0,1));
+  ip_pfx_t pfx= { .tNetwork= IPV4(192,168,1,0), .uMaskLen=24 };
+  ip_pfx_t iface_pfx= { .tNetwork= IPV4(10,0,0,1), .uMaskLen=30 };
+
+  node_add_iface(node, iface_pfx, NET_IFACE_PTP);
+  ASSERT_RETURN(node_rt_add_route(node, pfx, iface_pfx, NET_ADDR_ANY,
+				  0, NET_ROUTE_STATIC) == ESUCCESS,
+		"static route addition should succeed");
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_rt_static_add_dup ]-------------------------------
 static int test_net_rt_static_add_dup()
 {
-  return UTEST_SKIPPED;
+  net_node_t * node= __node_create(IPV4(1,0,0,1));
+  ip_pfx_t pfx= { .tNetwork= IPV4(192,168,1,0), .uMaskLen=24 };
+  ip_pfx_t iface_pfx= { .tNetwork= IPV4(10,0,0,1), .uMaskLen=30 };
+
+  node_add_iface(node, iface_pfx, NET_IFACE_PTP);
+  ASSERT_RETURN(node_rt_add_route(node, pfx, iface_pfx, NET_ADDR_ANY,
+				  0, NET_ROUTE_STATIC) == ESUCCESS,
+		"static route addition should succeed");
+  ASSERT_RETURN(node_rt_add_route(node, pfx, iface_pfx, NET_ADDR_ANY,
+				  0, NET_ROUTE_STATIC) == ENET_RT_DUPLICATE,
+		"static route addition should fail (duplicate)");
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_rt_static_remove ]--------------------------------
 static int test_net_rt_static_remove()
 {
-  return UTEST_SKIPPED;
+  net_node_t * node= __node_create(IPV4(1,0,0,1));
+  ip_pfx_t pfx[2]= { IPV4PFX(192,168,1,0,24),
+		     IPV4PFX(192,168,2,0,24)};
+  ip_pfx_t iface_pfx= IPV4PFX(10,0,0,1,30);
+  int index;
+  
+  node_add_iface(node, iface_pfx, NET_IFACE_PTP);
+  
+  for (index= 0; index < 2; index++) {
+    ASSERT_RETURN(node_rt_add_route(node, pfx[index], IPV4PFX(10,0,0,1,30),
+				    NET_ADDR_ANY, 0, NET_ROUTE_STATIC)
+		  == ESUCCESS,
+		  "static route addition should succeed");
+  }
+
+  ASSERT_RETURN(node_rt_del_route(node, &pfx[0], NULL, NULL, NET_ROUTE_STATIC)
+		== ESUCCESS, "route removal should succeed");
+  ASSERT_RETURN(node_rt_del_route(node, &pfx[1], NULL, NULL, NET_ROUTE_STATIC)
+		== ESUCCESS, "route removal should succeed");
+
+  return UTEST_SUCCESS;
 }
 
 
