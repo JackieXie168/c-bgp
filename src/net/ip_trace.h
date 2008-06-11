@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// $Id: ip_trace.h,v 1.4 2008-05-20 12:17:06 bqu Exp $
+// $Id: ip_trace.h,v 1.5 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP_TRACE_H__
@@ -30,6 +30,9 @@ typedef struct {
   net_error_t        status;   /* General status of trace */
 } ip_trace_t;
 
+#define IP_TRACE_DUMP_LENGTH  0x01
+#define IP_TRACE_DUMP_SUBNETS 0x02
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,6 +51,9 @@ extern "C" {
 					net_subnet_t * subnet);
   // -----[ ip_trace_search ]----------------------------------------
   int ip_trace_search(ip_trace_t * trace, net_node_t * node);
+  // -----[ ip_trace_dump ]------------------------------------------
+  void ip_trace_dump(SLogStream * stream, ip_trace_t * trace,
+		     uint8_t options);
 
 #ifdef __cplusplus
 }

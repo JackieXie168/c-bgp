@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.h,v 1.11 2008-04-14 09:11:34 bqu Exp $
+// $Id: node.h,v 1.12 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_NODE_H__
@@ -66,9 +66,9 @@ extern "C" {
   void node_links_save(SLogStream * stream, net_node_t * node);
 
   // -----[ node_has_address ]---------------------------------------
-  int node_has_address(net_node_t * node, net_addr_t tAddress);
+  int node_has_address(net_node_t * node, net_addr_t addr);
   // -----[ node_has_prefix ]----------------------------------------
-  int node_has_prefix(net_node_t * node, SPrefix sPrefix);
+  net_iface_t * node_has_prefix(net_node_t * node, ip_pfx_t pfx);
   // ----- node_addresses_for_each ----------------------------------
   int node_addresses_for_each(net_node_t * node, FArrayForEach for_each,
 			      void * ctx);
@@ -83,17 +83,17 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
   
   // ----- node_rt_add_route ----------------------------------------
-  int node_rt_add_route(net_node_t * node, SPrefix sPrefix,
-			net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
-			uint32_t uWeight, uint8_t uType);
+  int node_rt_add_route(net_node_t * node, ip_pfx_t pfx,
+			net_iface_id_t oif_id, net_addr_t nexthop,
+			uint32_t weight, uint8_t type);
   // ----- node_rt_add_route_link -----------------------------------
-  int node_rt_add_route_link(net_node_t * node, SPrefix sPrefix,
-			     net_iface_t * iface, net_addr_t tNextHop,
-			     uint32_t uWeight, uint8_t uType);
+  int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
+			     net_iface_t * iface, net_addr_t nexthop,
+			     uint32_t weight, uint8_t type);
   // ----- node_rt_del_route ----------------------------------------
-  int node_rt_del_route(net_node_t * node, SPrefix * pPrefix,
-			net_iface_id_t * ptIfaceID, net_addr_t * ptNextHop,
-			uint8_t uType);
+  int node_rt_del_route(net_node_t * node, ip_pfx_t * pfx,
+			net_iface_id_t * oif_id, net_addr_t * nexthop,
+			uint8_t type);
   // ----- node_rt_dump ---------------------------------------------
   void node_rt_dump(SLogStream * stream, net_node_t * node,
 		    SNetDest sDest);

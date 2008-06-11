@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// @lastdate 05/03/2008
+// $Id: record-route.h,v 1.9 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_RECORD_ROUTE_H__

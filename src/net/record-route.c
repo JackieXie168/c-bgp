@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (sta@info.ucl.ac.be)
 // @date 04/08/2003
-// $Id: record-route.c,v 1.12 2008-05-20 12:17:06 bqu Exp $
+// $Id: record-route.c,v 1.13 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -221,7 +221,7 @@ static inline int _is_final_destination(net_node_t * pNode, SNetDest sDest)
   case NET_DEST_PREFIX:
     // Check if any interface on the current node has the same prefix
     // as the destination
-    return node_has_prefix(pNode, sDest.uDest.sPrefix);
+    return (node_has_prefix(pNode, sDest.uDest.sPrefix) != NULL);
 
   default:
     abort();
@@ -327,12 +327,10 @@ typedef struct {
 void node_dump_recorded_route(SLogStream * stream,
 			      net_node_t * node,
 			      SNetDest sDest,
-			      net_tos_t tOS,
+			      net_tos_t tos,
 			      uint8_t options,
 			      net_link_load_t load)
 {
-  unsigned int index;
-  ip_trace_item_t * trace_item;
   ip_trace_t * trace;
   net_error_t error;
 
@@ -357,23 +355,8 @@ void node_dump_recorded_route(SLogStream * stream,
     log_printf(stream, "UNREACH");
   }
 
-  log_printf(stream, "\t%u\t", ip_trace_length(trace));
-  for (index= 0; index < ip_trace_length(trace); index++) {
-    if (index > 0)
-      log_printf(stream, " ");
-    trace_item= ip_trace_item_at(trace, index);
-    switch (trace_item->elt.type) {
-    case NODE:
-      ip_address_dump(stream, trace_item->elt.node->addr);
-      break;
-    case SUBNET: 
-      ip_prefix_dump(stream, trace_item->elt.subnet->prefix);
-      break;
-    default:
-      fatal("invalid network-element type (%d)\n",
-	    trace_item->elt.type);
-    }
-  }
+  // Dump each (node) hop to output
+  ip_trace_dump(stream, trace, IP_TRACE_DUMP_LENGTH);
 
   // Total propagation delay requested ?
   if (options & NET_RECORD_ROUTE_OPTION_DELAY)

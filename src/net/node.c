@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.16 2008-05-20 12:17:06 bqu Exp $
+// $Id: node.c,v 1.17 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -141,22 +141,22 @@ void node_dump(SLogStream * stream, net_node_t * node)
 /**
  *
  */
-void node_info(SLogStream * stream, net_node_t * pNode)
+void node_info(SLogStream * stream, net_node_t * node)
 {
   unsigned int uIndex;
 
   log_printf(stream, "loopback : ");
-  ip_address_dump(stream, pNode->addr);
+  ip_address_dump(stream, node->addr);
   log_printf(stream, "\n");
   log_printf(stream, "domain   :");
-  for (uIndex= 0; uIndex < uint16_array_length(pNode->pIGPDomains); uIndex++) {
-    log_printf(stream, " %d", pNode->pIGPDomains->data[uIndex]);
+  for (uIndex= 0; uIndex < uint16_array_length(node->pIGPDomains); uIndex++) {
+    log_printf(stream, " %d", node->pIGPDomains->data[uIndex]);
   }
   log_printf(stream, "\n");
-  if (pNode->name != NULL)
-    log_printf(stream, "name     : %s\n", pNode->name);
+  if (node->name != NULL)
+    log_printf(stream, "name     : %s\n", node->name);
   log_printf(stream, "addresses: ");
-  node_addresses_dump(stream, pNode);
+  node_addresses_dump(stream, node);
   log_printf(stream, "\n");
 }
 
@@ -181,18 +181,18 @@ void node_info(SLogStream * stream, net_node_t * pNode)
  * Otherwise, the function should return
  *   ESUCCESS
  */
-int node_add_iface(net_node_t * pNode, net_iface_id_t tIfaceID,
+int node_add_iface(net_node_t * node, net_iface_id_t tIfaceID,
 		   net_iface_type_t tIfaceType)
 {
   net_iface_t * pIface;
   int iResult;
 
   // Create interface
-  iResult= net_iface_factory(pNode, tIfaceID, tIfaceType, &pIface);
+  iResult= net_iface_factory(node, tIfaceID, tIfaceType, &pIface);
   if (iResult != ESUCCESS)
     return iResult;
 
-  return node_add_iface2(pNode, pIface);
+  return node_add_iface2(node, pIface);
 }
 
 // -----[ node_add_iface2 ]------------------------------------------
@@ -203,9 +203,9 @@ int node_add_iface(net_node_t * pNode, net_iface_id_t tIfaceID,
  * function fails with error
  *   NET_ERROR_MGMT_DUPLICATE_IFACE
  */
-int node_add_iface2(net_node_t * pNode, net_iface_t * pIface)
+int node_add_iface2(net_node_t * node, net_iface_t * pIface)
 {
-  net_error_t error= net_links_add(pNode->ifaces, pIface);
+  net_error_t error= net_links_add(node->ifaces, pIface);
   if (error != ESUCCESS)
     net_iface_destroy(&pIface);
   return error;
@@ -215,9 +215,9 @@ int node_add_iface2(net_node_t * pNode, net_iface_t * pIface)
 /**
  * Find an interface link based on its identifier.
  */
-net_iface_t * node_find_iface(net_node_t * pNode, net_iface_id_t tIfaceID)
+net_iface_t * node_find_iface(net_node_t * node, net_iface_id_t tIfaceID)
 {
-  return net_links_find(pNode->ifaces, tIfaceID);
+  return net_links_find(node->ifaces, tIfaceID);
 }
 
 // -----[ node_ifaces_dump ]-----------------------------------------
@@ -225,23 +225,23 @@ net_iface_t * node_find_iface(net_node_t * pNode, net_iface_id_t tIfaceID)
  * This function shows the list of interfaces of a given node's, along
  * with their type.
  */
-void node_ifaces_dump(SLogStream * stream, net_node_t * pNode)
+void node_ifaces_dump(SLogStream * stream, net_node_t * node)
 {
   unsigned int uIndex;
   net_iface_t * pIface;
 
   // Show network interfaces
-  for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
-    pIface= net_ifaces_at(pNode->ifaces, uIndex);
+  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
+    pIface= net_ifaces_at(node->ifaces, uIndex);
     net_iface_dump(stream, pIface, 0);
     log_printf(stream, "\n");
   }
 }
 
 // -----[ node_ifaces_load_clear ]-----------------------------------
-void node_ifaces_load_clear(net_node_t * pNode)
+void node_ifaces_load_clear(net_node_t * node)
 {
-  enum_t * pEnum= net_links_get_enum(pNode->ifaces);
+  enum_t * pEnum= net_links_get_enum(node->ifaces);
   net_iface_t * pIface;
 
   while (enum_has_next(pEnum)) {
@@ -265,13 +265,13 @@ void node_ifaces_load_clear(net_node_t * pNode)
  * dumped, by using a "link dump" function (i.e. net_link_dump()
  * defined in src/net/link.h).
  */
-void node_links_dump(SLogStream * stream, net_node_t * pNode)
+void node_links_dump(SLogStream * stream, net_node_t * node)
 {
   unsigned int uIndex;
   net_iface_t * pIface;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
-    pIface= net_ifaces_at(pNode->ifaces, uIndex);
+  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
+    pIface= net_ifaces_at(node->ifaces, uIndex);
     if (!net_iface_is_connected(pIface))
       continue;
     net_link_dump(stream, pIface);
@@ -282,13 +282,13 @@ void node_links_dump(SLogStream * stream, net_node_t * pNode)
 // ----- node_links_enum --------------------------------------------
 /**
  * THIS SHOULD BE MOVED TO src/cli/enum.c
-net_iface_t * node_links_enum(net_node_t * pNode, int state)
+net_iface_t * node_links_enum(net_node_t * node, int state)
 {
   static enum_t * pEnum;
   net_iface_t * pIface;
 
   if (state == 0)
-    pEnum= net_links_get_enum(pNode->ifaces);
+    pEnum= net_links_get_enum(node->ifaces);
   if (enum_has_next(pEnum)) {
     pIface= *((net_iface_t **) enum_get_next(pEnum));
     return pIface;
@@ -351,13 +351,13 @@ void node_links_save(SLogStream * stream, net_node_t * node)
  * 1 if the node has the given address
  * 0 otherwise
  */
-int node_has_address(net_node_t * pNode, net_addr_t addr)
+int node_has_address(net_node_t * node, net_addr_t addr)
 {
   unsigned int uIndex;
   net_iface_t * pIface;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
-    pIface= net_ifaces_at(pNode->ifaces, uIndex);
+  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
+    pIface= net_ifaces_at(node->ifaces, uIndex);
     if (net_iface_has_address(pIface, addr))
       return 1;
   }
@@ -365,17 +365,17 @@ int node_has_address(net_node_t * pNode, net_addr_t addr)
 }
 
 // -----[ node_has_prefix ]------------------------------------------
-int node_has_prefix(net_node_t * pNode, ip_pfx_t prefix)
+net_iface_t * node_has_prefix(net_node_t * node, ip_pfx_t pfx)
 {
-  unsigned int uIndex;
-  net_iface_t * pIface;
+  unsigned int index;
+  net_iface_t * iface;
   
-  for (uIndex= 0; uIndex < net_ifaces_size(pNode->ifaces); uIndex++) {
-    pIface= net_ifaces_at(pNode->ifaces, uIndex);
-    if (net_iface_has_prefix(pIface, prefix))
-      return 1;
+  for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
+    iface= net_ifaces_at(node->ifaces, index);
+    if (net_iface_has_prefix(iface, pfx))
+      return iface;
   }
-  return 0;
+  return NULL;
 }
 
 // ----- node_addresses_for_each ------------------------------------
@@ -438,15 +438,15 @@ void node_addresses_dump(SLogStream * stream, net_node_t * node)
  * of the route can be specified as it can be different from the
  * outgoing link's weight.
  */
-int node_rt_add_route(net_node_t * node, ip_pfx_t prefix,
-		      net_iface_id_t tOutIfaceID, net_addr_t tNextHop,
-		      uint32_t uWeight, uint8_t uType)
+int node_rt_add_route(net_node_t * node, ip_pfx_t pfx,
+		      net_iface_id_t oif_id, net_addr_t next_hop,
+		      uint32_t weight, uint8_t type)
 {
   net_iface_t * iface;
 
   // Lookup the next-hop's interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  iface= node_find_iface(node, tOutIfaceID);
+  iface= node_find_iface(node, oif_id);
   if (iface == NULL)
     return ENET_IFACE_UNKNOWN;
 
@@ -454,8 +454,8 @@ int node_rt_add_route(net_node_t * node, ip_pfx_t prefix,
   if (iface->type == NET_IFACE_LOOPBACK)
     return ENET_IFACE_INCOMPATIBLE;
 
-  return node_rt_add_route_link(node, prefix, iface, tNextHop,
-				uWeight, uType);
+  return node_rt_add_route_link(node, pfx, iface, next_hop,
+				weight, type);
 }
 
 // ----- node_rt_add_route_link -------------------------------------
@@ -466,7 +466,7 @@ int node_rt_add_route(net_node_t * node, ip_pfx_t prefix,
  *
  * Pre: the outgoing link (next-hop interface) must exist in the node.
  */
-int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
+int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
 			   net_iface_t * iface, net_addr_t next_hop,
 			   uint32_t weight, uint8_t type)
 {
@@ -496,10 +496,10 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
   }
 
   // Build route info
-  rtinfo= net_route_info_create(prefix, iface, next_hop,
+  rtinfo= net_route_info_create(pfx, iface, next_hop,
 				weight, type);
 
-  return rt_add_route(node->rt, prefix, rtinfo);
+  return rt_add_route(node->rt, pfx, rtinfo);
 }
 
 // ----- node_rt_del_route ------------------------------------------
@@ -511,18 +511,18 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t prefix,
  * If the next-hop is not present (NULL), all the routes matching the
  * other parameters will be removed whatever the next-hop is.
  */
-int node_rt_del_route(net_node_t * node, ip_pfx_t * pPrefix,
-		      net_iface_id_t * ptIface, net_addr_t * ptNextHop,
-		      uint8_t uType)
+int node_rt_del_route(net_node_t * node, ip_pfx_t * pfx,
+		      net_iface_id_t * oif_id, net_addr_t * next_hop,
+		      uint8_t type)
 {
   net_iface_t * iface= NULL;
 
   // Lookup the outgoing interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  if (ptIface != NULL)
-    iface= node_find_iface(node, *ptIface);
+  if (oif_id != NULL)
+    iface= node_find_iface(node, *oif_id);
 
-  return rt_del_route(node->rt, pPrefix, iface, ptNextHop, uType);
+  return rt_del_route(node->rt, pfx, iface, next_hop, type);
 }
 
 // ----- node_rt_dump -----------------------------------------------
@@ -596,14 +596,14 @@ static int _node_netflow_handler(net_addr_t tSrc, net_addr_t tDst,
 				 unsigned int uOctets, void * pContext)
 {
   SNET_NODE_NETFLOW_CTX * pCtx= (SNET_NODE_NETFLOW_CTX *) pContext;
-  net_node_t * pNode= pCtx->pTargetNode;
+  net_node_t * node= pCtx->pTargetNode;
   SNetRecordRouteInfo * pRRInfo;
   SNetDest sDst= { .tType= NET_DEST_ADDRESS, .uDest.tAddr= tDst };
 
   pCtx->uFlowsTotal++;
   pCtx->uOctetsTotal+= uOctets;
 
-  pRRInfo= node_record_route(pNode, sDst, 0,
+  pRRInfo= node_record_route(node, sDst, 0,
 			     NET_RECORD_ROUTE_OPTION_LOAD,
 			     uOctets);
 
@@ -641,12 +641,12 @@ static int _node_netflow_handler(net_addr_t tSrc, net_addr_t tDst,
 }
 
 // -----[ node_load_netflow ]----------------------------------------
-int node_load_netflow(net_node_t * pNode, const char * pcFileName,
+int node_load_netflow(net_node_t * node, const char * pcFileName,
 		      uint8_t uOptions)
 {
   int iResult;
   SNET_NODE_NETFLOW_CTX sCtx= {
-    .pTargetNode= pNode,
+    .pTargetNode= node,
     .uOptions= uOptions,
     .uFlowsTotal= 0,
     .uFlowsOk= 0,

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/04/2008
-// $Id: icmp_options.c,v 1.3 2008-05-20 12:17:06 bqu Exp $
+// $Id: icmp_options.c,v 1.4 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -80,11 +80,17 @@ _icmp_process_in_options(net_node_t * node,
   ip_trace_item_t * last_item;
   rt_info_t * rtinfo;
   int reached= 0;
+  net_iface_t * oif;
 
   /* Perform lookup with alternate destination ? */
   if (icmp_msg->opts.options & ICMP_RR_OPTION_ALT_DEST) {
+
     /* Destination reached ? */
-    if (node_has_prefix(node, icmp_msg->opts.alt_dest)) {
+    if ((oif= node_has_prefix(node, icmp_msg->opts.alt_dest)) != NULL) {
+
+      // Need to load outgoing interface here
+      _info_update_qos(icmp_msg, oif);
+
       if (icmp_msg->opts.trace != NULL)
 	icmp_msg->opts.trace->status= ESUCCESS;
       reached= 1;

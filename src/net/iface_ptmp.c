@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// $Id: iface_ptmp.c,v 1.3 2008-05-20 12:17:06 bqu Exp $
+// $Id: iface_ptmp.c,v 1.4 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,7 +33,7 @@ static net_error_t _net_iface_ptmp_send(net_iface_t * self,
   
   subnet= self->dest.subnet;
 
-  if (msg->protocol == NET_PROTOCOL_ICMP)
+  if ((msg != NULL) && (msg->protocol == NET_PROTOCOL_ICMP))
     if ((error= icmp_process_options(ICMP_OPT_STATE_SUBNET,
 				     (net_node_t *) subnet,
 				     self, msg, NULL)) != ESUCCESS)
