@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: net_Link.c,v 1.13 2008-05-20 12:11:38 bqu Exp $
+// $Id: net_Link.c,v 1.14 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -26,35 +26,35 @@
 #define CONSTR_Link "(Lbe/ac/ucl/ingi/cbgp/CBGP;"\
                     "Lbe/ac/ucl/ingi/cbgp/IPPrefix;J)V"
 
-// -----[ cbgp_jni_new_net_Link ]------------------------------------
+// -----[ cbgp_jni_new_net_Interface ]-------------------------------
 /**
  * This function creates a new instance of the Link object from a CBGP
  * link.
  */
-jobject cbgp_jni_new_net_Link(JNIEnv * jEnv, jobject joCBGP,
-			      net_iface_t * pLink)
+jobject cbgp_jni_new_net_Interface(JNIEnv * jEnv, jobject joCBGP,
+			      net_iface_t * iface)
 {
   jobject joLink;
   jobject joPrefix;
 
   /* Java proxy object already existing ? */
-  joLink= jni_proxy_get(jEnv, pLink);
+  joLink= jni_proxy_get(jEnv, iface);
   if (joLink != NULL)
     return joLink;
 
   /* Convert link attributes to Java objects */
-  joPrefix= cbgp_jni_new_IPPrefix(jEnv, net_iface_dst_prefix(pLink));
+  joPrefix= cbgp_jni_new_IPPrefix(jEnv, net_iface_dst_prefix(iface));
   if (joPrefix == NULL)
     return NULL;
 
   /* Create new Link object */
   if ((joLink= cbgp_jni_new(jEnv, CLASS_Link, CONSTR_Link,
 			    joCBGP, joPrefix,
-			    (jlong) net_iface_get_delay(pLink))) == NULL)
+			    (jlong) net_iface_get_delay(iface))) == NULL)
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jEnv, joLink, pLink);
+  jni_proxy_add(jEnv, joLink, iface);
 
   return joLink;
 }
@@ -86,7 +86,7 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getType
 
 // -----[ getCapacity ]----------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getCapacity
  * Signature: ()J
  */
@@ -110,7 +110,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getCapacity
 
 // -----[ setCapacity ]----------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    setCapacity
  * Signature: (J)V
  */
@@ -135,9 +135,61 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_setCapacity
   jni_unlock(jEnv);
 }
 
+// -----[ getDelay ]-------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Interface
+ * Method:    getDelay
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getDelay
+  (JNIEnv * jEnv, jobject joIface)
+{
+  net_iface_t * iface;
+  jlong jlDelay= 0;
+
+  jni_lock(jEnv);
+
+  /* Get interface */
+  iface= (net_iface_t *) jni_proxy_lookup(jEnv, joIface);
+  if (iface == NULL)
+    return_jni_unlock(jEnv, -1);
+
+  jlDelay= net_iface_get_delay(iface);
+
+  return_jni_unlock(jEnv, jlDelay);
+}
+
+// -----[ setDelay ]-------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Interface
+ * Method:    setDelay
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_setDelay
+  (JNIEnv * jEnv, jobject joIface, jlong jlDelay)
+{
+  net_iface_t * iface;
+  int result;
+
+  jni_lock(jEnv);
+
+  /* Get interface */
+  iface= (net_iface_t *) jni_proxy_lookup(jEnv, joIface);
+  if (iface == NULL)
+    return_jni_unlock2(jEnv);
+
+  result= net_iface_set_delay(iface, jlDelay, 0);
+  if (result != ESUCCESS)
+    throw_CBGPException(jEnv, "could not set delay (%s)",
+			network_strerror(result));
+
+  jni_unlock(jEnv);
+
+}
+
 // -----[ getLoad ]--------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getLoad
  * Signature: ()J
  */
@@ -161,7 +213,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getLoad
 
 // -----[ getState ]-------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getState
  * Signature: ()Z
  */
@@ -184,7 +236,7 @@ JNIEXPORT jboolean JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getState
 
 // -----[ setState ]-------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    setState
  * Signature: (Z)V
  */
@@ -206,7 +258,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_setState
 
 // -----[ getWeight ]--------------------------------------------
 /**
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getWeight
  * Signature: ()J
  */
@@ -229,7 +281,7 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getWeight
 
 // -----[ setWeight ]--------------------------------------------
 /**
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    setWeight
  * Signature: (J)V
  */
@@ -255,48 +307,48 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_setWeight
 
 // -----[ getHead ]--------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getHead
  * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/Node;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getHead
   (JNIEnv * jEnv, jobject joLink)
 {
-  net_iface_t * pLink;
+  net_iface_t * iface;
   jobject joNode;
 
   jni_lock(jEnv);
 
-  pLink= (net_iface_t *) jni_proxy_lookup(jEnv, joLink);
-  if (pLink == NULL)
+  iface= (net_iface_t *) jni_proxy_lookup(jEnv, joLink);
+  if (iface == NULL)
     return_jni_unlock(jEnv, NULL);
 
   joNode= cbgp_jni_new_net_Node(jEnv,
 				NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				pLink->src_node);
+				iface->src_node);
 
   return_jni_unlock(jEnv, joNode);
 }
 
 // -----[ getTail ]--------------------------------------------------
 /*
- * Class:     be_ac_ucl_ingi_cbgp_net_Link
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
  * Method:    getTail
  * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/Element;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getTail
   (JNIEnv * jEnv, jobject joLink)
 {
-  net_iface_t * pLink;
+  net_iface_t * iface;
   jobject joElement= NULL;
 
   jni_lock(jEnv);
 
-  pLink= (net_iface_t *) jni_proxy_lookup(jEnv, joLink);
-  if (pLink == NULL)
+  iface= (net_iface_t *) jni_proxy_lookup(jEnv, joLink);
+  if (iface == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  switch (pLink->type) {
+  switch (iface->type) {
   case NET_IFACE_LOOPBACK:
     joElement= NULL;
     break;
@@ -304,19 +356,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getTail
   case NET_IFACE_RTR:
     joElement= cbgp_jni_new_net_Node(jEnv,
 				     NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				     pLink->dest.iface->src_node);
+				     iface->dest.iface->src_node);
     break;
 
   case NET_IFACE_PTP:
     joElement= cbgp_jni_new_net_Node(jEnv,
 				     NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				     pLink->dest.iface->src_node);
+				     iface->dest.iface->src_node);
     break;
 
   case NET_IFACE_PTMP:
     joElement= cbgp_jni_new_net_Subnet(jEnv,
 				       NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				       pLink->dest.subnet);
+				       iface->dest.subnet);
     break;
 
   case NET_IFACE_VIRTUAL:
@@ -329,4 +381,51 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getTail
 
   return_jni_unlock(jEnv, joElement);
 }
+
+// -----[ getTailInterface ]--------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Iface
+ * Method:    getTail
+ * Signature: ()Lbe/ac/ucl/ingi/cbgp/net/Element;
+ */
+JNIEXPORT jobject JNICALL
+Java_be_ac_ucl_ingi_cbgp_net_Interface_getTailInterface
+(JNIEnv * jEnv, jobject joLink)
+{
+  net_iface_t * iface;
+  jobject joElement= NULL;
+
+  jni_lock(jEnv);
+
+  iface= (net_iface_t *) jni_proxy_lookup(jEnv, joLink);
+  if (iface == NULL)
+    return_jni_unlock(jEnv, NULL);
+
+  switch (iface->type) {
+  case NET_IFACE_RTR:
+    joElement=
+      cbgp_jni_new_net_Interface(jEnv,
+				 NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
+				 iface->dest.iface);
+    break;
+
+  case NET_IFACE_PTP:
+    joElement=
+      cbgp_jni_new_net_Interface(jEnv,
+				 NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
+				 iface->dest.iface);
+    break;
+
+  case NET_IFACE_LOOPBACK:
+  case NET_IFACE_PTMP:
+  case NET_IFACE_VIRTUAL:
+    break;
+
+  default:
+    fatal("invalid link type in getTailInterface()");
+  }
+
+  return_jni_unlock(jEnv, joElement);
+}
+
 

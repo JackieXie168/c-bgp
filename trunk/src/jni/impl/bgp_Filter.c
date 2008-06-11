@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/04/2006
-// @lastdate 12/03/2008
+// $Id: bgp_Filter.c,v 1.6 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,7 @@
 #include <jni/jni_proxies.h>
 #include <jni/jni_util.h>
 #include <jni/impl/bgp_Peer.h>
+#include <jni/impl/bgp_FilterRule.h>
 
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
@@ -58,19 +59,29 @@ jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter_getRules
   (JNIEnv * jEnv, jobject joFilter)
 {
-  bgp_filter_t * pFilter;
-  SJNIContext sCtx;
+  bgp_filter_t * filter;
+  bgp_ft_rule_t * rule;
+  int index;
+  jobject joRule;
+  jobject joVector;
 
   jni_lock(jEnv);
 
-  pFilter= (bgp_filter_t *) jni_proxy_lookup(jEnv, joFilter);
-  if (pFilter == NULL)
+  filter= (bgp_filter_t *) jni_proxy_lookup(jEnv, joFilter);
+  if (filter == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  sCtx.jEnv= jEnv;
-  sCtx.joCBGP= NULL/*jni_proxy_get_CBGP(jEnv, joFilter)*/;
-  if ((sCtx.joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
+  if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
+
+  for (index= 0; index < filter->pSeqRules->iSize; index++) {
+    rule= (bgp_ft_rule_t *) filter->pSeqRules->ppItems[index];
+    joRule= cbgp_jni_new_bgp_FilterRule(jEnv, NULL, rule);
+    if (joRule == NULL)
+      return_jni_unlock(jEnv, NULL);
+    if (cbgp_jni_Vector_add(jEnv, joVector, joRule) != 0)
+      return_jni_unlock(jEnv, NULL);
+  }
   
-  return_jni_unlock(jEnv, sCtx.joVector);
+  return_jni_unlock(jEnv, joVector);
 }

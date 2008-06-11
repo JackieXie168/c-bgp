@@ -114,15 +114,13 @@ public class Peer extends ProxyObject
 	throws CBGPException;
     
     // -----[ isInternal ]-------------------------------------------
-    public native synchronized boolean isInternal()
-	throws CBGPException;
+    public native synchronized boolean isInternal();
 
     // -----[ isReflectorClient ]------------------------------------
     /**
      * Returns true if the peer is a route-reflector client.
      */
-    public native synchronized boolean isReflectorClient()
-	throws CBGPException;
+    public native synchronized boolean isReflectorClient();
 
     // -----[ setReflectorClient ]-----------------------------------
     /**
@@ -135,8 +133,7 @@ public class Peer extends ProxyObject
     /**
      * Returns true if the peer is virtual.
      */
-    public native synchronized boolean isVirtual()
-	throws CBGPException;
+    public native synchronized boolean isVirtual();
 
     // -----[ setVirtual ]-------------------------------------------
     /**
@@ -162,6 +159,12 @@ public class Peer extends ProxyObject
     
     // -----[ isAutoConfigured ]------------------------------------
     public native synchronized boolean isAutoConfigured();
+    
+    // -----[ getNextHop ]-------------------------------------------
+    public native synchronized IPAddress getNextHop();
+    
+    // -----[ getUpdateSource ]--------------------------------------
+    public native synchronized IPAddress getUpdateSource();
     
     // -----[ getInputFilter ]---------------------------------------
     public native Filter getInputFilter()

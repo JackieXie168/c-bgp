@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.45 2008-05-20 12:11:38 bqu Exp $
+// $Id: jni_interface.c,v 1.46 2008-06-11 15:21:47 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -614,7 +614,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
     return_jni_unlock(jEnv, NULL);
   }
   
-  joIface= cbgp_jni_new_net_Link(jEnv, joCBGP, pIface);
+  joIface= cbgp_jni_new_net_Interface(jEnv, joCBGP, pIface);
 
   return_jni_unlock(jEnv, joIface);
 }
@@ -1136,7 +1136,12 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
     pEnumLinks= net_links_get_enum(node->ifaces);
     while (enum_has_next(pEnumLinks)) {
       pLink= *((net_iface_t **) enum_get_next(pEnumLinks));
-      joLink= cbgp_jni_new_net_Link(jEnv, joCBGP, pLink);
+
+      if ((pLink->type == NET_IFACE_LOOPBACK) ||
+	  (pLink->type == NET_IFACE_VIRTUAL))
+	continue;
+
+      joLink= cbgp_jni_new_net_Interface(jEnv, joCBGP, pLink);
       if (joLink == NULL)
 	return_jni_unlock(jEnv, NULL);
       if (cbgp_jni_Vector_add(jEnv, joVector, joLink))
