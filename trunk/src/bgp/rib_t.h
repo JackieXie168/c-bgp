@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 04/12/2002
-// @lastdate 10/03/2008
+// $Id: rib_t.h,v 1.5 2008-06-11 15:14:52 bqu Exp $
 // ==================================================================
 
 #ifndef __RIB_T_H__

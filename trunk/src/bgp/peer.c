@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// @lastdate 12/03/2008
+// $Id: peer.c,v 1.43 2008-06-11 15:14:52 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1145,7 +1145,7 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
  * - iInOut, if 1, dump Adj-RIB-In, otherwize, dump Adj-RIB-Out.
  */
 void bgp_peer_dump_adjrib(SLogStream * pStream, bgp_peer_t * pPeer,
-			  SPrefix sPrefix, bgp_rib_dir_t dir)
+			  ip_pfx_t sPrefix, bgp_rib_dir_t dir)
 {
   bgp_route_tDumpCtx sCtx;
   bgp_route_t * pRoute;
