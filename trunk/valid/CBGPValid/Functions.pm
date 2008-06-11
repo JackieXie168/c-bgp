@@ -5,7 +5,7 @@
 # routes) from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 25/02/2008
+# $Id: Functions.pm,v 1.3 2008-06-11 15:22:28 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Functions;
@@ -24,6 +24,7 @@ require Exporter;
 	    F_LINK_WEIGHT
 	    F_LINK_DELAY
 	    F_LINK_STATE
+	    F_LINK_LOAD
 
 	    F_RT_DEST
 	    F_RT_NEXTHOP
@@ -144,6 +145,7 @@ use constant F_LINK_DST    => 2;
 use constant F_LINK_WEIGHT => 3;
 use constant F_LINK_DELAY  => 4;
 use constant F_LINK_STATE  => 5;
+use constant F_LINK_LOAD   => 6;
 
 # -----[ Fields : IP route ]-----
 use constant F_RT_DEST    => 0;
