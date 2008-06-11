@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: cbgp-validation.pl,v 1.41 2008-04-07 10:05:55 bqu Exp $
+# $Id: cbgp-validation.pl,v 1.42 2008-06-11 15:22:28 bqu Exp $
 # ===================================================================
 # Syntax:
 #
@@ -121,7 +121,7 @@ my $validation= {
 		 'program_version' => CBGP_VALIDATION_VERSION,
 		};
 
-show_info("c-bgp validation v".$validation->{'program_version'});
+show_info("c-bgp CLI validation v".$validation->{'program_version'});
 show_info("(c) 2008, Bruno Quoitin (bruno.quoitin\@uclouvain.be)");
 
 my %opts;
