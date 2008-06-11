@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.74 2008-05-20 11:58:15 bqu Exp $
+// $Id: as.c,v 1.75 2008-06-11 15:14:52 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in pLocalNetworks a _copy_ of the BGP routes locally
@@ -2244,21 +2244,21 @@ void bgp_router_dump_rib_prefix(SLogStream * pStream, bgp_router_t * pRouter,
 /**
  *
  */
-void bgp_router_dump_adjrib(SLogStream * pStream, bgp_router_t * pRouter,
-			    bgp_peer_t * pPeer, SPrefix sPrefix,
+void bgp_router_dump_adjrib(SLogStream * stream, bgp_router_t * router,
+			    bgp_peer_t * peer, ip_pfx_t prefix,
 			    bgp_rib_dir_t dir)
 {
   unsigned int index;
 
-  if (pPeer == NULL) {
-    for (index= 0; index < bgp_peers_size(pRouter->pPeers); index++) {
-      bgp_peer_dump_adjrib(pStream, bgp_peers_at(pRouter->pPeers, index),
-			   sPrefix, dir);
+  if (peer == NULL) {
+    for (index= 0; index < bgp_peers_size(router->pPeers); index++) {
+      bgp_peer_dump_adjrib(stream, bgp_peers_at(router->pPeers, index),
+			   prefix, dir);
     }
   } else {
-    bgp_peer_dump_adjrib(pStream, pPeer, sPrefix, dir);
+    bgp_peer_dump_adjrib(stream, peer, prefix, dir);
   }
-  log_flush(pStream);
+  log_flush(stream);
 }
 
 // ----- bgp_router_info --------------------------------------------
