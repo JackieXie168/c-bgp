@@ -3,9 +3,9 @@
 //
 // Traffic matrix management.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/01/2007
-// @lastdate 20/11/2007
+// $Id: tm.h,v 1.3 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_TM_H__

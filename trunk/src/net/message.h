@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)message.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// @lastdate 22/01/2007
+// $Id: message.h,v 1.6 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_MESSAGE_H__
@@ -18,10 +18,10 @@ extern "C" {
 #endif
 
   // ----- message_create -------------------------------------------
-  net_msg_t * message_create(net_addr_t tSrcAddr, net_addr_t tDstAddr,
-			     uint8_t uProtocol, uint8_t uTTL,
-			     void * pPayLoad,
-			     FPayLoadDestroy fDestroy);
+  net_msg_t * message_create(net_addr_t src_addr, net_addr_t dst_addr,
+			     net_protocol_id_t proto, uint8_t ttl,
+			     void * payload,
+			     FPayLoadDestroy destroy);
   // ----- message_destroy ------------------------------------------
   void message_destroy(net_msg_t ** ppMessage);
   // ----- message_dump ---------------------------------------------

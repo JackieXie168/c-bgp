@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// @lastdate 18/04/2007
+// $Id: message.c,v 1.8 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,13 +21,13 @@
  *
  */
 net_msg_t * message_create(net_addr_t src_addr, net_addr_t dst_addr,
-			   uint8_t protocol, uint8_t ttl,
+			   net_protocol_id_t proto, uint8_t ttl,
 			   void * payload, FPayLoadDestroy destroy)
 {
   net_msg_t * msg= (net_msg_t *) MALLOC(sizeof(net_msg_t));
   msg->src_addr= src_addr;
   msg->dst_addr= dst_addr;
-  msg->protocol= protocol;
+  msg->protocol= proto;
   msg->ttl= ttl;
   msg->tos= 0;
   msg->payload= payload;

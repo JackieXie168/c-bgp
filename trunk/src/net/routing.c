@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing.c,v 1.27 2008-04-10 11:32:25 bqu Exp $
+// $Id: routing.c,v 1.28 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -177,62 +177,13 @@ static inline int _rt_info_list_add(rt_info_list_t * list,
   return ESUCCESS;
 }
 
-// ----- rt_info_list_filter_t --------------------------------------
-/**
- * This structure defines a filter to remove routes from the routing
- * table. The possible criteria are as follows:
- * - prefix  : exact match of destination prefix (NULL => match any)
- * - iface   : exact match of outgoing link (NULL => match any)
- * - gateway : exact match of gateway (NULL => match any)
- * - type    : exact match of type (mandatory)
- * All the given criteria have to match a route in order for it to be
- * deleted.
- */
-typedef struct {
-  ip_pfx_t         * prefix;
-  net_iface_t      * oif;
-  net_addr_t       * gateway;
-  net_route_type_t   type;
-  SPtrArray        * del_list;
-} rt_info_list_filter_t;
-
-// ----- _net_route_info_matches_filter -----------------------------
-/**
- * Check if the given route-info matches the given filter. The
- * following fields are checked:
- * - next-hop interface
- * - gateway address
- * - type (routing protocol)
- *
- * Return:
- * 0 if the route does not match filter
- * 1 if the route matches the filter
- */
-static inline
-int _net_route_info_matches_filter(rt_info_t * rtinfo,
-				   rt_info_list_filter_t * filter)
-{
-  
-  if ((filter->oif != NULL) &&
-      (filter->oif != rtinfo->next_hop.oif))
-    return 0;
-
-  if ((filter->gateway != NULL) &&
-      (*filter->gateway != rtinfo->next_hop.gateway))
-    return 0;
-  if (filter->type != rtinfo->type)
-    return 0;
-
-  return 1;
-}
-
 // -----[ _net_route_info_dump_filter ]------------------------------
 /**
  * Dump a route-info filter.
  */
 /*static inline void
 net_route_info_dump_filter(SLogStream * stream,
-			   rt_info_list_filter_t * filter)
+			   rt_filter_t * filter)
 {
   // Destination filter
   log_printf(stream, "prefix : ");
@@ -274,7 +225,7 @@ void net_info_prefix_dst(void * item)
  * be removed. This is used when a route-info-list has been emptied.
  */
 static inline void
-net_info_schedule_removal(rt_info_list_filter_t * filter,
+net_info_schedule_removal(rt_filter_t * filter,
 			  ip_pfx_t * prefix)
 {
   if (filter->del_list == NULL)
@@ -300,7 +251,7 @@ int net_info_removal_for_each(void * item, void * ctx)
 /**
  * Remove the scheduled prefixes from the routing table.
  */
-static inline int _net_info_removal(rt_info_list_filter_t * filter,
+static inline int _net_info_removal(rt_filter_t * filter,
 				    net_rt_t * rt)
 {
   int result= 0;
@@ -321,7 +272,7 @@ static inline int _net_info_removal(rt_info_list_filter_t * filter,
  * link).
  */
 static inline int _rt_info_list_del(rt_info_list_t * list,
-				    rt_info_list_filter_t * filter,
+				    rt_filter_t * filter,
 				    ip_pfx_t * prefix)
 {
   unsigned int index;
@@ -334,7 +285,7 @@ static inline int _rt_info_list_del(rt_info_list_t * list,
   while (index < _rt_info_list_length(list)) {
     rtinfo= (rt_info_t *) list->data[index];
 
-    if (_net_route_info_matches_filter(rtinfo, filter)) {
+    if (rt_filter_matches(rtinfo, filter)) {
       ptr_array_remove_at((SPtrArray *) list, index);
       del_count++;
     } else {
@@ -488,6 +439,7 @@ int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
 
   // Create a new info-list if none exists for the given prefix
   if (list == NULL) {
+
     list= _rt_info_list_create();
     assert(_rt_info_list_add(list, rtinfo) == ESUCCESS);
     trie_insert((STrie *) rt, prefix.tNetwork, prefix.uMaskLen, list);
@@ -500,17 +452,17 @@ int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
   return ESUCCESS;
 }
 
-// -----[ rt_del_for_each ]------------------------------------------
+// -----[ _rt_del_for_each ]-----------------------------------------
 /**
  * Helper function for the 'rt_del_route' function. Handles the
  * deletion of a single prefix (can be called by
  * 'radix_tree_for_each')
  */
-int rt_del_for_each(uint32_t key, uint8_t key_len,
-		    void * item, void * ctx)
+static int _rt_del_for_each(uint32_t key, uint8_t key_len,
+			    void * item, void * ctx)
 {
   rt_info_list_t * list= (rt_info_list_t *) item;
-  rt_info_list_filter_t * filter= (rt_info_list_filter_t *) ctx;
+  rt_filter_t * filter= (rt_filter_t *) ctx;
   ip_pfx_t prefix;
   int result;
 
@@ -524,11 +476,42 @@ int rt_del_for_each(uint32_t key, uint8_t key_len,
      attributes */
   result= _rt_info_list_del(list, filter, &prefix);
 
-  /* If we use widlcards, the call never fails, otherwise, it depends
+  /* If we use wildcards, the call never fails, otherwise, it depends
      on the '_rt_info_list_del' call */
   return ((filter->prefix != NULL) &&
 	  (filter->oif != NULL) &&
-	  (filter->gateway)) ? result : 0;
+	  (filter->gateway != NULL)) ? result : 0;
+}
+
+// ----- rt_del_routes ----------------------------------------------
+net_error_t rt_del_routes(net_rt_t * rt, rt_filter_t * filter)
+{
+  rt_info_list_t * list;
+  net_error_t error;
+
+  /* Prefix specified ? or wildcard ? */
+  if (filter->prefix != NULL) {
+
+    /* Get the list of routes towards the given prefix */
+    list= (rt_info_list_t *) trie_find_exact((STrie *) rt,
+					     filter->prefix->tNetwork,
+					     filter->prefix->uMaskLen);
+    error= _rt_del_for_each(filter->prefix->tNetwork,
+			    filter->prefix->uMaskLen,
+			    list, filter);
+
+  } else {
+
+    /* Remove all the routes that match the given attributes, whatever
+       the prefix is */
+    error= trie_for_each((STrie *) rt, _rt_del_for_each, filter);
+
+  }
+
+  // Post-processing, remove empty rtinfo lists
+  _net_info_removal(filter, rt);
+
+  return error;
 }
 
 // ----- rt_del_route -----------------------------------------------
@@ -538,42 +521,23 @@ int rt_del_for_each(uint32_t key, uint8_t key_len,
  * type. However, wildcards can be used for the prefix and next-hop
  * attributes. The NULL value corresponds to the wildcard.
  */
-int rt_del_route(net_rt_t * rt, ip_pfx_t * prefix,
-		 net_iface_t * oif, net_addr_t * gateway,
-		 net_route_type_t type)
+net_error_t rt_del_route(net_rt_t * rt, ip_pfx_t * prefix,
+			 net_iface_t * oif, net_addr_t * gateway,
+			 net_route_type_t type)
 {
-  rt_info_list_t * list;
-  rt_info_list_filter_t filter;
-  int result;
+  rt_filter_t * filter= rt_filter_create();
+  net_error_t error;
 
   /* Prepare the attributes of the routes to be removed (context) */
-  filter.prefix= prefix;
-  filter.oif= oif;
-  filter.gateway= gateway;
-  filter.type= type;
-  filter.del_list= NULL;
+  filter->prefix= prefix;
+  filter->oif= oif;
+  filter->gateway= gateway;
+  filter->type= type;
 
-  /* Prefix specified ? or wildcard ? */
-  if (prefix != NULL) {
+  error= rt_del_routes(rt, filter);
+  rt_filter_destroy(&filter);
 
-    /* Get the list of routes towards the given prefix */
-    list= (rt_info_list_t *) trie_find_exact((STrie *) rt,
-					     prefix->tNetwork,
-					     prefix->uMaskLen);
-    result= rt_del_for_each(prefix->tNetwork, prefix->uMaskLen,
-			    list, &filter);
-
-  } else {
-
-    /* Remove all the routes that match the given attributes, whatever
-       the prefix is */
-    result= trie_for_each((STrie *) rt, rt_del_for_each, &filter);
-
-  }
-
-  _net_info_removal(&filter, rt);
-
-  return result;
+  return error;
 }
 
 typedef struct {

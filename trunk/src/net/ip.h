@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/12/2002
-// $Id: ip.h,v 1.4 2008-04-10 11:27:00 bqu Exp $
+// $Id: ip.h,v 1.5 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP_H__
@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #define IPV4(A,B,C,D) (((((uint32_t)(A))*256 +(uint32_t)(B))*256 +(uint32_t)( C))*256 +(uint32_t)(D))
+#define IPV4PFX(A,B,C,D,L) net_prefix(IPV4(A,B,C,D),L)
 #define IP_ADDR_ANY 0
 #define NET_ADDR_ANY IP_ADDR_ANY
 

@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/06/2005
-// $Id: net_types.h,v 1.15 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_types.h,v 1.16 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -45,6 +45,15 @@ typedef struct {
 //
 //////////////////////////////////////////////////////////////////////
 
+// Protocol numbers
+typedef enum {
+  NET_PROTOCOL_RAW,
+  NET_PROTOCOL_ICMP,
+  NET_PROTOCOL_BGP,
+  NET_PROTOCOL_IPIP,
+  NET_PROTOCOL_MAX,
+} net_protocol_id_t;
+
 // ----- FPayLoadDestroy -----
 typedef void (*FPayLoadDestroy)(void ** pPayLoad);
 
@@ -54,13 +63,13 @@ typedef struct {
 
 // -----[ net_msg_t ]-----
 typedef struct {
-  net_addr_t      src_addr;
-  net_addr_t      dst_addr;
-  uint8_t         protocol;
-  uint8_t         ttl;
-  net_tos_t       tos;
-  void          * payload;
-  net_msg_ops_t   ops;
+  net_addr_t        src_addr;
+  net_addr_t        dst_addr;
+  net_protocol_id_t protocol;
+  uint8_t           ttl;
+  net_tos_t         tos;
+  void            * payload;
+  net_msg_ops_t     ops;
 } net_msg_t;
 
 // -----[ FNetProtoHandleEvent ]-----
@@ -69,14 +78,6 @@ typedef int (*FNetProtoHandleEvent)(simulator_t * sim,
 				    net_msg_t * msg);
 // ----- FNetProtoHandlerDestroy -----
 typedef void (*FNetProtoHandlerDestroy)(void ** handler_ref);
-
-// Protocol numbers
-typedef enum {
-  NET_PROTOCOL_ICMP,
-  NET_PROTOCOL_BGP,
-  NET_PROTOCOL_IPIP,
-  NET_PROTOCOL_MAX,
-} net_protocol_id_t;
 
 // -----[ net_protocol_t ]-----
 typedef struct {
@@ -102,7 +103,6 @@ typedef struct {
   net_subnets_t * subnets;    /* Global subnet index (key=IP prefix) */
   simulator_t   * sim;
 } network_t;
-typedef network_t SNetwork;
 
 
 //////////////////////////////////////////////////////////////////////

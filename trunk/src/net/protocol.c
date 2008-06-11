@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: protocol.c,v 1.5 2008-04-07 09:44:48 bqu Exp $
+// $Id: protocol.c,v 1.6 2008-06-11 15:13:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -22,6 +22,7 @@
 
 // -----[ Protocol names ]-----
 const char * PROTOCOL_NAMES[NET_PROTOCOL_MAX]= {
+  "raw",
   "icmp",
   "bgp",
   "ipip"
