@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.52 2008-05-20 12:00:24 bqu Exp $
+// $Id: bgp.c,v 1.53 2008-06-11 15:15:50 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -885,12 +885,12 @@ int cli_bgp_router_show_ribin(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, 1);
+  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, RIB_IN);
   
   return CLI_SUCCESS;
 }
 
-// ----- cli_bgp_router_show_ribin ----------------------------------
+// ----- cli_bgp_router_show_ribout ----------------------------------
 /**
  * context: {router}
  * tokens: {addr, prefix|address|*}
@@ -939,7 +939,7 @@ int cli_bgp_router_show_ribout(SCliContext * pContext,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, 0);
+  bgp_router_dump_adjrib(pLogOut, pRouter, pPeer, sPrefix, RIB_OUT);
   
   return CLI_SUCCESS;
 }
