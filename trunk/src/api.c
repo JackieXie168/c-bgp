@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.11 2008-06-12 11:05:19 bqu Exp $
+// $Id: api.c,v 1.12 2008-06-12 11:18:39 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +34,8 @@
 #include <cli/common.h>
 #include <net/igp_domain.h>
 #include <sim/simulator.h>
+#include <ui/rl.h>
+
 
 
 /////////////////////////////////////////////////////////////////////
@@ -186,22 +188,22 @@ EXPORT void libcbgp_set_debug_file(char * pcFileName)
 /**
  *
  */
-EXPORT int libcbgp_exec_cmd(const char * pcCmd)
+EXPORT int libcbgp_exec_cmd(const char * cmd)
 {
-  return cli_execute_line(cli_get(), pcCmd);
+  return cli_execute_line(cli_get(), cmd);
 }
 
 // -----[ libcbgp_exec_file ]----------------------------------------
 /**
  *
  */
-EXPORT int libcbgp_exec_file(const char * pcFileName)
+EXPORT int libcbgp_exec_file(const char * file_name)
 {
-  FILE * pInCli= fopen(pcFileName, "r");
+  FILE * pInCli= fopen(file_name, "r");
 
   if (pInCli == NULL) {
     LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: Unable to open script file \"%s\"\n", pcFileName);
+	    "Error: Unable to open script file \"%s\"\n", file_name);
     return -1;
   }
   
@@ -218,9 +220,48 @@ EXPORT int libcbgp_exec_file(const char * pcFileName)
 /**
  *
  */
-EXPORT int libcbgp_exec_stream(FILE * pStream)
+EXPORT int libcbgp_exec_stream(FILE * stream)
 {
-  return cli_execute_file(cli_get(), pStream);
+  return cli_execute_file(cli_get(), stream);
+}
+
+// -----[ libcbgp_interactive ]--------------------------------------
+/**
+ *
+ */
+EXPORT int libcbgp_interactive()
+{
+  int result= CLI_SUCCESS;
+  char * line;
+
+  libcbgp_banner();
+  fprintf(stdout, "cbgp> init.\n");
+
+  _rl_init();
+
+  while (1) {
+    /* Get user-input */
+    line= rl_gets();
+
+    /* EOF has been catched (Ctrl-D), exit */
+    if (line == NULL) {
+      fprintf(stdout, "\n");
+      break;
+    }
+
+    /* Execute command */
+    result= libcbgp_exec_cmd(line);
+
+    if (result == CLI_SUCCESS_TERMINATE)
+      break;
+
+  }
+
+  _rl_destroy();
+
+  fprintf(stdout, "cbgp> done.\n");
+
+  return result;
 }
 
 
