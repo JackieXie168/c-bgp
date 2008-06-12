@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.h,v 1.8 2008-06-12 11:18:39 bqu Exp $
+// $Id: api.h,v 1.9 2008-06-12 11:19:36 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__
@@ -15,7 +15,7 @@
 #include <libgds/log.h>
 
 #ifdef CYGWIN
-# define API_EXPORT __declspec(dllexport)
+# define EXPORT __declspec(dllexport)
 #else
 # define EXPORT
 #endif
