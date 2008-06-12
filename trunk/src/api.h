@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.h,v 1.5 2008-04-07 09:21:21 bqu Exp $
+// $Id: api.h,v 1.6 2008-06-12 10:50:08 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__
@@ -13,6 +13,10 @@
 
 #include <libgds/libgds-config.h>
 #include <libgds/log.h>
+
+#ifdef CYGWIN
+__declspec(dllexport) {
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +78,10 @@ extern "C" {
 
 
 #ifdef __cplusplus
+}
+#endif
+
+#ifdef CYGWIN
 }
 #endif
 

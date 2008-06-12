@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.9 2008-04-07 09:21:21 bqu Exp $
+// $Id: api.c,v 1.10 2008-06-12 10:50:08 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +34,10 @@
 #include <cli/common.h>
 #include <net/igp_domain.h>
 #include <sim/simulator.h>
+
+#ifdef CYGWIN
+__declspec(dllexport) {
+#endif
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -287,6 +291,11 @@ void libcbgp_done2()
   _path_segment_destroy();
   _comm_destroy();
 }
+
+#ifdef CYGWIN
+}
+#endif
+
 
 
 
