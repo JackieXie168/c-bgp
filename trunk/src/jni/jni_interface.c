@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.47 2008-06-12 09:34:39 bqu Exp $
+// $Id: jni_interface.c,v 1.48 2008-06-12 09:39:10 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -1031,6 +1031,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
 
+#ifdef HAVE_BGPDUMP
+
   jni_lock(jEnv);
 
   joPathHash= cbgp_jni_new_Hashtable(jEnv);
@@ -1054,6 +1056,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
 
   return_jni_unlock(jEnv, joVector);
+
+#else /* HAVE_BGPDUMP */
+  return NULL;
+#endif /* HAVE_BGPDUMP */
 }
 
 // -----[ _bgp_msg_listener ]----------------------------------------
