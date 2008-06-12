@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: net_Link.h,v 1.4 2008-06-11 15:21:47 bqu Exp $
+// $Id: net_Link.h,v 1.5 2008-06-12 09:30:46 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_NET_LINK_H__
@@ -13,7 +13,7 @@
 #include <jni.h>
 
 #include <net/link.h>
-#include <jni/headers/be_ac_ucl_ingi_cbgp_net_Link.h>
+#include <jni/headers/be_ac_ucl_ingi_cbgp_net_Interface.h>
 
 // -----[ cbgp_jni_new_net_Interface ]-------------------------------
 jobject cbgp_jni_new_net_Interface(JNIEnv * jEnv, jobject joCBGP,
