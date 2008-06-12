@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)path_hash.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 10/10/2005
-// @lastdate 18/07/2007
+// $Id: path_hash.h,v 1.4 2008-06-12 09:44:51 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_PATH_HASH_H__
