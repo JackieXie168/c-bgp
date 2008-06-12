@@ -2,10 +2,10 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl $Id: configure.in,v 1.84 2008-04-14 09:19:51 bqu Exp $
+dnl $Id: configure.in,v 1.85 2008-06-12 10:08:37 bqu Exp $
 dnl =================================================================
 
-AC_REVISION($Revision: 1.84 $)
+AC_REVISION($Revision: 1.85 $)
 
 AC_INIT([cbgp], [1.5.0], [bruno.quoitin@uclouvain.be])
 AC_CONFIG_SRCDIR(src/main.c)
@@ -448,6 +448,16 @@ AC_ARG_WITH(efence,
        [link with Electrical Fence]),
    cbgp_efence="$withval")
 AM_CONDITIONAL([WITH_EFENCE], [test "$cbgp_efence" = "yes"])
+
+case $host in
+  *-*-cygwin*)
+    test_cygwin="yes"
+    ;;
+  *)
+    test_cygwin="no"
+    ;;
+esac
+AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 
 TESTS="src/checks/basic"
 

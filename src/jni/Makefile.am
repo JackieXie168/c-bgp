@@ -113,7 +113,12 @@ EXTRA_DIST = \
 	$(METAFILE) \
 	jni-test-wrapper.sh
 
-CLASSPATH = .:$(top_builddir)/lib/junit-4.4.jar
+CP = .:$(top_builddir)/lib/junit-4.4.jar
+if HOST_IS_CYGWIN
+  CLASSPATH = `cygpath -wp $(CP)`
+else
+  CLASSPATH = $(CP)
+endif
 
 # Invoke javac in order to build Java classes. In addition, invoke
 # javah in order to build the native function headers.
