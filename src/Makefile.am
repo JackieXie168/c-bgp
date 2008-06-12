@@ -97,12 +97,12 @@ cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS)
 cbgp_test_SOURCES = main-test.c
 cbgp_test_LDADD = libcsim.la
 cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
-cbgp_test_LDFLAGS = -all-static
+cbgp_test_LDFLAGS = -static
 
 cbgp_perf_SOURCES = main-perf.c
 cbgp_perf_LDADD = libcsim.la
 cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS)
-cbgp_perf_LDFLAGS = -all-static
+cbgp_perf_LDFLAGS = -static
 
 TESTS = \
 	cbgp-test
