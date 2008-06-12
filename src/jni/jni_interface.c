@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.48 2008-06-12 09:39:10 bqu Exp $
+// $Id: jni_interface.c,v 1.49 2008-06-12 09:39:55 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -1022,6 +1022,7 @@ static int _cbgp_jni_load_mrt_handler(int iStatus,
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   (JNIEnv * jEnv , jobject joCBGP, jstring jsFileName)
 {
+#ifdef HAVE_BGPDUMP
   jobject joVector= NULL;
   const char * pcFileName;
   SJNIContext sCtx;
@@ -1030,8 +1031,6 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
-
-#ifdef HAVE_BGPDUMP
 
   jni_lock(jEnv);
 
