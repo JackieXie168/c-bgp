@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/01/2007
-// $Id: tm.c,v 1.4 2008-06-11 15:13:45 bqu Exp $
+// $Id: tm.c,v 1.5 2008-06-12 07:50:23 bqu Exp $
 // ==================================================================
 // TODO:
 //   - what action must be taken in case of incomplete record-route
@@ -169,7 +169,7 @@ int net_tm_parser(FILE * stream)
     ip_address_dump(pLogErr, node->addr);
     fprintf(stderr, " to ");
     ip_dest_dump(pLogErr, sDst);
-    fprintf(stderr, ", volume=%d\n", load);
+    fprintf(stderr, ", volume=%u\n", (unsigned int) load);
 #endif /* __VERBOSE */
 
     // Trace route and load traffic
