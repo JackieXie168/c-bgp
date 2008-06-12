@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.c,v 1.14 2008-05-20 12:11:38 bqu Exp $
+// $Id: jni_proxies.c,v 1.15 2008-06-12 09:44:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -215,20 +215,20 @@ static void _jni_proxy_j2c_destroy(void * pElt)
 
 // -----[ _jni_proxy_c2j_compute ]-----------------------------------
 static uint32_t _jni_proxy_c2j_compute(const void * pElt,
-				       const uint32_t uHashSize)
+				       unsigned int hash_size)
 {
   SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
 
-  return ((unsigned long int) pHashObj->pObject) % uHashSize;
+  return ((unsigned long int) pHashObj->pObject) % hash_size;
 }
 
 // -----[ _jni_proxy_j2c_compute ]-----------------------------------
 static uint32_t _jni_proxy_j2c_compute(const void * pElt,
-				       const uint32_t uHashSize)
+				       unsigned int hash_size)
 {
   SHashCodeObject * pHashObj= (SHashCodeObject *) pElt;
 
-  return pHashObj->ulObjectId % uHashSize;
+  return pHashObj->ulObjectId % hash_size;
 }
 
 // -----[ jni_proxy_add ]--------------------------------------------
