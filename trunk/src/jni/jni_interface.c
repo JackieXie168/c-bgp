@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.46 2008-06-11 15:21:47 bqu Exp $
+// $Id: jni_interface.c,v 1.47 2008-06-12 09:34:39 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -1179,7 +1179,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
 /**
  * This function is called when the JNI library is loaded.
  */
-jint JNI_OnLoad(JavaVM * jVM, void *reserved)
+JNIEXPORT jint JNICALL
+JNI_OnLoad(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
   void * ppEnv= &jEnv;
@@ -1207,7 +1208,8 @@ jint JNI_OnLoad(JavaVM * jVM, void *reserved)
 /**
  * This function is called when the JNI library is unloaded.
  */
-void JNI_OnUnload(JavaVM * jVM, void *reserved)
+JNIEXPORT void JNICALL
+JNI_OnUnload(JavaVM * jVM, void *reserved)
 {
   JNIEnv * jEnv= NULL;
   void * ppEnv= &jEnv;
