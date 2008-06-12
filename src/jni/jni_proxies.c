@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.c,v 1.15 2008-06-12 09:44:34 bqu Exp $
+// $Id: jni_proxies.c,v 1.16 2008-06-12 09:48:35 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -156,7 +156,7 @@ static void _jni_proxy_dump(SJNIProxy * pProxy)
 
 // -----[ _jni_proxy_c2j_cmp ]---------------------------------------
 static int _jni_proxy_c2j_cmp(void * pElt1, void * pElt2,
-			      uint32_t uEltSize)
+			      unsigned int elt_size)
 {
   SHashCodeObject * pHashObj1= (SHashCodeObject *) pElt1;
   SHashCodeObject * pHashObj2= (SHashCodeObject *) pElt2;
@@ -171,7 +171,7 @@ static int _jni_proxy_c2j_cmp(void * pElt1, void * pElt2,
 
 // -----[ _jni_proxy_j2c_cmp ]---------------------------------------
 static int _jni_proxy_j2c_cmp(void * pElt1, void * pElt2,
-			      uint32_t uEltSize)
+			      unsigned int elt_size)
 {
   SHashCodeObject * pHashObj1= (SHashCodeObject *) pElt1;
   SHashCodeObject * pHashObj2= (SHashCodeObject *) pElt2;
