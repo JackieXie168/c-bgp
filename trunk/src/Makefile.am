@@ -80,14 +80,16 @@ libcsim_la_CFLAGS = \
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
-bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
+if HOST_IS_CYGWIN
+  bin_PROGRAMS = cbgp
+else
+  bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
+endif
 
 cbgp_SOURCES = main.c
 cbgp_LDADD = libcsim.la
 cbgp_CFLAGS = $(LIBGDS_CFLAGS)
 
-#if HOST_IS_CYGWIN
-#else
 cbgp_dump_SOURCES = main-dump.c
 cbgp_dump_LDADD = libcsim.la
 cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS)
@@ -99,7 +101,6 @@ cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
 cbgp_perf_SOURCES = main-perf.c
 cbgp_perf_LDADD = libcsim.la
 cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS)
-#endif
 
 TESTS = \
 	cbgp-test
