@@ -83,7 +83,7 @@ libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
 if HOST_IS_CYGWIN
-  bin_PROGRAMS = cbgp cbgp-test cbgp-perf
+  bin_PROGRAMS = cbgp cbgp-test
 else
   bin_PROGRAMS = cbgp cbgp-dump cbgp-test cbgp-perf
 endif
