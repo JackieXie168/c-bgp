@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.12 2008-06-12 11:18:39 bqu Exp $
+// $Id: api.c,v 1.13 2008-06-12 14:23:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -48,7 +48,8 @@
 /**
  * Initialize the C-BGP library.
  */
-EXPORT void libcbgp_init()
+CBGP_EXP_DECL
+void libcbgp_init()
 {
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
@@ -62,7 +63,8 @@ EXPORT void libcbgp_init()
 /**
  * Free the resources allocated by the C-BGP library.
  */
-EXPORT void libcbgp_done()
+CBGP_EXP_DECL
+void libcbgp_done()
 {
   libcbgp_done2();
   gds_destroy();
@@ -72,7 +74,8 @@ EXPORT void libcbgp_done()
 /**
  *
  */
-EXPORT void libcbgp_banner()
+CBGP_EXP_DECL
+void libcbgp_banner()
 {
   log_printf(pLogOut, "C-BGP routing solver %s\n", PACKAGE_VERSION);
   log_printf(pLogOut, "Copyright (C) 2008 Bruno Quoitin\n");
@@ -88,7 +91,8 @@ EXPORT void libcbgp_banner()
 /**
  *
  */
-EXPORT void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
+CBGP_EXP_DECL
+void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
 				void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -107,7 +111,8 @@ EXPORT void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-EXPORT void libcbgp_set_err_callback(FLogStreamCallback fCallback,
+CBGP_EXP_DECL
+void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -126,7 +131,8 @@ EXPORT void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-EXPORT void libcbgp_set_out_callback(FLogStreamCallback fCallback,
+CBGP_EXP_DECL
+void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -145,7 +151,8 @@ EXPORT void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-EXPORT void libcbgp_set_debug_level(ELogLevel eLevel)
+CBGP_EXP_DECL
+void libcbgp_set_debug_level(ELogLevel eLevel)
 {
   log_set_level(pLogDebug, eLevel);
 }
@@ -154,7 +161,8 @@ EXPORT void libcbgp_set_debug_level(ELogLevel eLevel)
 /**
  *
  */
-EXPORT void libcbgp_set_err_level(ELogLevel eLevel)
+CBGP_EXP_DECL
+void libcbgp_set_err_level(ELogLevel eLevel)
 {
   log_set_level(pLogErr, eLevel);
 }
@@ -163,7 +171,8 @@ EXPORT void libcbgp_set_err_level(ELogLevel eLevel)
 /**
  *
  */
-EXPORT void libcbgp_set_debug_file(char * pcFileName)
+CBGP_EXP_DECL
+void libcbgp_set_debug_file(char * pcFileName)
 {
   SLogStream * pLogTmp= log_create_file(pcFileName);
 
@@ -188,7 +197,8 @@ EXPORT void libcbgp_set_debug_file(char * pcFileName)
 /**
  *
  */
-EXPORT int libcbgp_exec_cmd(const char * cmd)
+CBGP_EXP_DECL
+int libcbgp_exec_cmd(const char * cmd)
 {
   return cli_execute_line(cli_get(), cmd);
 }
@@ -197,7 +207,8 @@ EXPORT int libcbgp_exec_cmd(const char * cmd)
 /**
  *
  */
-EXPORT int libcbgp_exec_file(const char * file_name)
+CBGP_EXP_DECL
+int libcbgp_exec_file(const char * file_name)
 {
   FILE * pInCli= fopen(file_name, "r");
 
@@ -220,7 +231,8 @@ EXPORT int libcbgp_exec_file(const char * file_name)
 /**
  *
  */
-EXPORT int libcbgp_exec_stream(FILE * stream)
+CBGP_EXP_DECL
+int libcbgp_exec_stream(FILE * stream)
 {
   return cli_execute_file(cli_get(), stream);
 }
@@ -229,7 +241,8 @@ EXPORT int libcbgp_exec_stream(FILE * stream)
 /**
  *
  */
-EXPORT int libcbgp_interactive()
+CBGP_EXP_DECL
+int libcbgp_interactive()
 {
   int result= CLI_SUCCESS;
   char * line;
@@ -281,7 +294,8 @@ EXPORT int libcbgp_interactive()
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_init' function instead.
  */
-EXPORT void libcbgp_init2()
+CBGP_EXP_DECL
+void libcbgp_init2()
 {
   // Initialize log.
   libcbgp_set_err_level(LOG_LEVEL_WARNING);
@@ -310,7 +324,8 @@ EXPORT void libcbgp_init2()
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_done' function instead. 
  */
-EXPORT void libcbgp_done2()
+CBGP_EXP_DECL
+void libcbgp_done2()
 {
   _cli_common_destroy();
   _message_destroy();

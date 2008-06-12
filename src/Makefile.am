@@ -58,7 +58,9 @@ endif
 AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 
 lib_LTLIBRARIES = libcsim.la
-libcsim_la_SOURCES = api.c
+libcsim_la_SOURCES = \
+	api.c \
+	selfcheck.c
 libcsim_la_LIBADD = \
 	bgp/libbgp.la \
 	cli/libcli.la \
@@ -94,29 +96,9 @@ cbgp_dump_SOURCES = main-dump.c
 cbgp_dump_LDADD = libcsim.la
 cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS)
 
-#cbgp_test_SOURCES = main-test.c
-#cbgp_test_LDADD = libcsim.la
-#cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
-
-cbgp_test_SOURCES = \
-	main-test.c \
-	api.c
-cbgp_test_LDADD = \
-	bgp/libbgp.la \
-	cli/libcli.la \
-	sim/libsim.la \
-	net/libnet.la \
-	ui/libui.la \
-	util/libutil.la \
-	$(OPT_JNI_LIBADD) \
-	$(OPT_LIBALLOC_LIBADD) \
-	$(OPT_BGPDUMP_LIBADD) \
-	$(OPT_EFENCE)
+cbgp_test_SOURCES = main-test.c
+cbgp_test_LDADD = libcsim.la
 cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
-cbgp_test_LDFLAGS= \
-	$(READLINE_LIBS) \
-	$(LIBGDS_LIBS) \
-	$(PCRE_LIBS)
 
 cbgp_perf_SOURCES = main-perf.c
 cbgp_perf_LDADD = libcsim.la
