@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.10 2008-06-12 10:50:08 bqu Exp $
+// $Id: api.c,v 1.11 2008-06-12 11:05:19 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -35,9 +35,6 @@
 #include <net/igp_domain.h>
 #include <sim/simulator.h>
 
-#ifdef CYGWIN
-__declspec(dllexport) {
-#endif
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -49,7 +46,7 @@ __declspec(dllexport) {
 /**
  * Initialize the C-BGP library.
  */
-void libcbgp_init()
+EXPORT void libcbgp_init()
 {
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
@@ -63,7 +60,7 @@ void libcbgp_init()
 /**
  * Free the resources allocated by the C-BGP library.
  */
-void libcbgp_done()
+EXPORT void libcbgp_done()
 {
   libcbgp_done2();
   gds_destroy();
@@ -73,7 +70,7 @@ void libcbgp_done()
 /**
  *
  */
-void libcbgp_banner()
+EXPORT void libcbgp_banner()
 {
   log_printf(pLogOut, "C-BGP routing solver %s\n", PACKAGE_VERSION);
   log_printf(pLogOut, "Copyright (C) 2008 Bruno Quoitin\n");
@@ -89,7 +86,7 @@ void libcbgp_banner()
 /**
  *
  */
-void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
+EXPORT void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
 				void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -108,7 +105,7 @@ void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-void libcbgp_set_err_callback(FLogStreamCallback fCallback,
+EXPORT void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -127,7 +124,7 @@ void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-void libcbgp_set_out_callback(FLogStreamCallback fCallback,
+EXPORT void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 			      void * pContext)
 {
   SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
@@ -146,7 +143,7 @@ void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 /**
  *
  */
-void libcbgp_set_debug_level(ELogLevel eLevel)
+EXPORT void libcbgp_set_debug_level(ELogLevel eLevel)
 {
   log_set_level(pLogDebug, eLevel);
 }
@@ -155,7 +152,7 @@ void libcbgp_set_debug_level(ELogLevel eLevel)
 /**
  *
  */
-void libcbgp_set_err_level(ELogLevel eLevel)
+EXPORT void libcbgp_set_err_level(ELogLevel eLevel)
 {
   log_set_level(pLogErr, eLevel);
 }
@@ -164,7 +161,7 @@ void libcbgp_set_err_level(ELogLevel eLevel)
 /**
  *
  */
-void libcbgp_set_debug_file(char * pcFileName)
+EXPORT void libcbgp_set_debug_file(char * pcFileName)
 {
   SLogStream * pLogTmp= log_create_file(pcFileName);
 
@@ -189,7 +186,7 @@ void libcbgp_set_debug_file(char * pcFileName)
 /**
  *
  */
-int libcbgp_exec_cmd(const char * pcCmd)
+EXPORT int libcbgp_exec_cmd(const char * pcCmd)
 {
   return cli_execute_line(cli_get(), pcCmd);
 }
@@ -198,7 +195,7 @@ int libcbgp_exec_cmd(const char * pcCmd)
 /**
  *
  */
-int libcbgp_exec_file(const char * pcFileName)
+EXPORT int libcbgp_exec_file(const char * pcFileName)
 {
   FILE * pInCli= fopen(pcFileName, "r");
 
@@ -221,7 +218,7 @@ int libcbgp_exec_file(const char * pcFileName)
 /**
  *
  */
-int libcbgp_exec_stream(FILE * pStream)
+EXPORT int libcbgp_exec_stream(FILE * pStream)
 {
   return cli_execute_file(cli_get(), pStream);
 }
@@ -243,7 +240,7 @@ int libcbgp_exec_stream(FILE * pStream)
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_init' function instead.
  */
-void libcbgp_init2()
+EXPORT void libcbgp_init2()
 {
   // Initialize log.
   libcbgp_set_err_level(LOG_LEVEL_WARNING);
@@ -272,7 +269,7 @@ void libcbgp_init2()
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_done' function instead. 
  */
-void libcbgp_done2()
+EXPORT void libcbgp_done2()
 {
   _cli_common_destroy();
   _message_destroy();
@@ -291,10 +288,6 @@ void libcbgp_done2()
   _path_segment_destroy();
   _comm_destroy();
 }
-
-#ifdef CYGWIN
-}
-#endif
 
 
 

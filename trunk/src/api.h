@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.h,v 1.6 2008-06-12 10:50:08 bqu Exp $
+// $Id: api.h,v 1.7 2008-06-12 11:05:19 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__
@@ -15,7 +15,7 @@
 #include <libgds/log.h>
 
 #ifdef CYGWIN
-__declspec(dllexport) {
+# define EXPORT __declspec(dllexport)
 #endif
 
 #ifdef __cplusplus
@@ -29,26 +29,26 @@ extern "C" {
   /////////////////////////////////////////////////////////////////*/
 
   // -----[ libcbgp_init ]-------------------------------------------
-  void libcbgp_init();
+  EXPORT void libcbgp_init();
   // -----[ libcbgp_done ]-------------------------------------------
-  void libcbgp_done();
+  EXPORT void libcbgp_done();
   // -----[ libcbgp_banner ]-----------------------------------------
-  void libcbgp_banner();
+  EXPORT void libcbgp_banner();
   // -----[ libcbgp_set_debug_callback ]-----------------------------
-  void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
+  EXPORT void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
 				  void * pContext);
   // -----[ libcbgp_set_err_callback ]-------------------------------
-  void libcbgp_set_err_callback(FLogStreamCallback fCallback,
+  EXPORT void libcbgp_set_err_callback(FLogStreamCallback fCallback,
 				void * pContext);
   // -----[ libcbgp_set_out_callback ]-------------------------------
-  void libcbgp_set_out_callback(FLogStreamCallback fCallback,
+  EXPORT void libcbgp_set_out_callback(FLogStreamCallback fCallback,
 				void * pContext);
   // -----[ libcbgp_set_debug_file ]---------------------------------
-  void libcbgp_set_debug_file(char * pcFileName);
+  EXPORT void libcbgp_set_debug_file(char * pcFileName);
   // -----[ libcbgp_set_debug_level ]--------------------------------
-  void libcbgp_set_debug_level(ELogLevel eLevel);
+  EXPORT void libcbgp_set_debug_level(ELogLevel eLevel);
   // -----[ libcbgp_set_err_level ]----------------------------------
-  void libcbgp_set_err_level(ELogLevel eLevel);
+  EXPORT void libcbgp_set_err_level(ELogLevel eLevel);
   
 
   /*/////////////////////////////////////////////////////////////////
@@ -58,11 +58,11 @@ extern "C" {
   /////////////////////////////////////////////////////////////////*/
 
   // -----[ libcbgp_exec_cmd ]---------------------------------------
-  int libcbgp_exec_cmd(const char * pcCmd);
+  EXPORT int libcbgp_exec_cmd(const char * pcCmd);
   // -----[ libcbgp_exec_file ]--------------------------------------
-  int libcbgp_exec_file(const char * pcFileName);
+  EXPORT int libcbgp_exec_file(const char * pcFileName);
   // -----[ libcbgp_exec_stream ]------------------------------------
-  int libcbgp_exec_stream(FILE * pStream);
+  EXPORT int libcbgp_exec_stream(FILE * pStream);
 
   
   /*/////////////////////////////////////////////////////////////////
@@ -72,16 +72,12 @@ extern "C" {
   /////////////////////////////////////////////////////////////////*/
 
   // -----[ libcbgp_init2 ]------------------------------------------
-  void libcbgp_init2();
+  EXPORT void libcbgp_init2();
   // -----[ libcbgp_done2 ]------------------------------------------
-  void libcbgp_done2();
+  EXPORT void libcbgp_done2();
 
 
 #ifdef __cplusplus
-}
-#endif
-
-#ifdef CYGWIN
 }
 #endif
 
