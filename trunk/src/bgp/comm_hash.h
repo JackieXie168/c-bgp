@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)comm_hash.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/10/2005
-// @lastdate 20/07/2007
+// $Id: comm_hash.h,v 1.4 2008-06-12 09:44:51 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_COMM_HASH_H__

@@ -3,9 +3,9 @@
 //
 // This is the global AS-Path repository.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 10/10/2005
-// @lastdate 03/03/2006
+// $Id: path_hash.c,v 1.9 2008-06-12 09:44:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
