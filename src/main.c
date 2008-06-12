@@ -1,10 +1,10 @@
 // ==================================================================
 // @(#)main.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// @lastdate 22/06/2007
+// $Id: main.c,v 1.36 2008-06-12 11:18:39 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -23,8 +23,6 @@
 #include <libgds/memory.h>
 #include <libgds/str_util.h>
 
-#include <ui/rl.h>
-#include <ui/help.h>
 #include <cli/common.h>
 
 //#include <net/ospf.h>
@@ -80,45 +78,6 @@ void simulation_set_mode(uint8_t uNewMode, char * pcNewArg)
     simulation_cli_help();
     exit(EXIT_FAILURE);
   }
-}
-
-// ----- simulation_interactive -------------------------------------
-/**
- *
- */
-int simulation_interactive()
-{
-  int iResult= CLI_SUCCESS;
-  char * pcLine;
-
-  libcbgp_banner();
-  fprintf(stdout, "cbgp> init.\n");
-
-  _rl_init();
-
-  while (1) {
-    /* Get user-input */
-    pcLine= rl_gets();
-
-    /* EOF has been catched (Ctrl-D), exit */
-    if (pcLine == NULL) {
-      fprintf(stdout, "\n");
-      break;
-    }
-
-    /* Execute command */
-    iResult= libcbgp_exec_cmd(pcLine);
-
-    if (iResult == CLI_SUCCESS_TERMINATE)
-      break;
-
-  }
-
-  _rl_destroy();
-
-  fprintf(stdout, "cbgp> done.\n");
-
-  return iResult;
 }
 
 // ----- option_string ----------------------------------------------
@@ -217,7 +176,7 @@ int main(int argc, char ** argv) {
       iExitCode= EXIT_FAILURE;
     break;
   case CBGP_MODE_INTERACTIVE:
-    if (simulation_interactive() != CLI_SUCCESS)
+    if (libcbgp_interactive() != CLI_SUCCESS)
       iExitCode= EXIT_FAILURE;
     break;
   case CBGP_MODE_SCRIPT:

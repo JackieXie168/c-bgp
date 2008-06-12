@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.h,v 1.7 2008-06-12 11:05:19 bqu Exp $
+// $Id: api.h,v 1.8 2008-06-12 11:18:39 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__
@@ -15,7 +15,9 @@
 #include <libgds/log.h>
 
 #ifdef CYGWIN
-# define EXPORT __declspec(dllexport)
+# define API_EXPORT __declspec(dllexport)
+#else
+# define EXPORT
 #endif
 
 #ifdef __cplusplus
@@ -58,11 +60,14 @@ extern "C" {
   /////////////////////////////////////////////////////////////////*/
 
   // -----[ libcbgp_exec_cmd ]---------------------------------------
-  EXPORT int libcbgp_exec_cmd(const char * pcCmd);
+  EXPORT int libcbgp_exec_cmd(const char * cmd);
   // -----[ libcbgp_exec_file ]--------------------------------------
-  EXPORT int libcbgp_exec_file(const char * pcFileName);
+  EXPORT int libcbgp_exec_file(const char * file_name);
   // -----[ libcbgp_exec_stream ]------------------------------------
-  EXPORT int libcbgp_exec_stream(FILE * pStream);
+  EXPORT int libcbgp_exec_stream(FILE * stream);
+  // -----[ libcbgp_interactive ]------------------------------------
+  EXPORT int libcbgp_interactive();
+
 
   
   /*/////////////////////////////////////////////////////////////////
