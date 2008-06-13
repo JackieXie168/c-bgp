@@ -9,7 +9,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// $Id: enum.c,v 1.6 2008-04-11 11:03:06 bqu Exp $
+// $Id: enum.c,v 1.7 2008-06-13 14:27:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,7 +76,7 @@ bgp_router_t * cli_enum_bgp_routers(const char * text, int state)
     if (pProtocol == NULL)
       continue;
 
-    return (bgp_router_t *) pProtocol->pHandler;
+    return (bgp_router_t *) pProtocol->handler;
   }
   return NULL;
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.19 2008-06-11 15:21:47 bqu Exp $
+// $Id: net_Node.c,v 1.20 2008-06-13 14:27:53 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -727,7 +727,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getBGP
   /* Get the BGP handler */
   if ((protocol= node_get_protocol(node, NET_PROTOCOL_BGP)) == NULL)
     return_jni_unlock(jEnv, NULL);
-  router= (bgp_router_t *) protocol->pHandler;
+  router= (bgp_router_t *) protocol->handler;
 
   /* Create bgp.Router instance */
   if ((joRouter= cbgp_jni_new_bgp_Router(jEnv,
