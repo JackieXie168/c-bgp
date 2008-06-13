@@ -4,7 +4,7 @@
 // @Author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 08/03/2004
-// $Id: bgp_assert.c,v 1.16 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp_assert.c,v 1.17 2008-06-13 14:27:12 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -32,7 +32,7 @@ static int _build_router_list_rtfe(uint32_t key, uint8_t key_len,
 
   protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
   if (protocol != NULL)
-    ptr_array_append(pRL, protocol->pHandler);
+    ptr_array_append(pRL, protocol->handler);
   return 0;
 }
 

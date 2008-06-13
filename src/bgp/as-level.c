@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.c,v 1.7 2008-04-14 09:13:31 bqu Exp $
+// $Id: as-level.c,v 1.8 2008-06-13 14:27:12 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -741,7 +741,7 @@ static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
   } else {
     protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
     if (protocol != NULL)
-      router= (bgp_router_t *) protocol->pHandler;
+      router= (bgp_router_t *) protocol->handler;
   }
   return router;
 }

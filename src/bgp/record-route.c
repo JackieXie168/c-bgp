@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/05/2007
-// $Id: record-route.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
+// $Id: record-route.c,v 1.4 2008-06-13 14:27:12 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -79,7 +79,7 @@ int bgp_record_route(bgp_router_t * router,
       if (protocol == NULL)
 	break;
       prev_router= cur_router;
-      cur_router= (bgp_router_t *) protocol->pHandler;
+      cur_router= (bgp_router_t *) protocol->handler;
       
     } else
       break;
