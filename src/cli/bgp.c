@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.53 2008-06-11 15:15:50 bqu Exp $
+// $Id: bgp.c,v 1.54 2008-06-13 14:27:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -324,9 +324,9 @@ int cli_ctx_create_bgp_router(SCliContext * pContext, void ** ppItem)
     return CLI_ERROR_CTX_CREATE;
   }
 
-  *ppItem= pProtocol->pHandler;
+  *ppItem= pProtocol->handler;
 
-  cli_enum_ctx_bgp_router((bgp_router_t *) pProtocol->pHandler);
+  cli_enum_ctx_bgp_router((bgp_router_t *) pProtocol->handler);
 
   return CLI_SUCCESS;
 }

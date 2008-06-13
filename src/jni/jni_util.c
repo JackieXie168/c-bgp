@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// $Id: jni_util.c,v 1.22 2008-04-11 11:03:06 bqu Exp $
+// $Id: jni_util.c,v 1.23 2008-06-13 14:27:53 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -601,12 +601,12 @@ bgp_router_t * cbgp_jni_bgp_router_from_string(JNIEnv * env, jstring jsAddr)
     return NULL;
 
   if (((protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP)) == NULL) ||
-      (protocol->pHandler == NULL)) {
+      (protocol->handler == NULL)) {
     throw_CBGPException(env, "node does not support BGP");
     return NULL;
   }
 
-  return protocol->pHandler;
+  return protocol->handler;
 }
 
 // -----[ cbgp_jni_bgp_peer_from_string ]----------------------------
