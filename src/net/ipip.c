@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: ipip.c,v 1.8 2008-04-11 11:03:06 bqu Exp $
+// $Id: ipip.c,v 1.9 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -84,6 +84,10 @@ static int _ipip_iface_send(net_iface_t * self,
  */
 static int _ipip_iface_recv(net_iface_t * self, net_msg_t * msg)
 {
+  log_printf(pLogErr, "IPIP msg recvd {");
+  message_dump(pLogErr, msg);
+  log_printf(pLogErr, "}\n");
+
   if (msg->protocol != NET_PROTOCOL_IPIP) {
     /* Discard packet silently ? should log */
     log_printf(pLogErr, "non-IPIP packet received on tunnel interface\n");
@@ -171,6 +175,12 @@ int ipip_event_handler(simulator_t * sim,
   net_node_t * node= (net_node_t *) handler;
   net_iface_t * iif= NULL;
   SLogStream * syslog= node_syslog(node);
+
+  /*
+  log_printf(pLogErr, "IPIP msg handling {");
+  message_dump(pLogErr, msg);
+  log_printf(pLogErr, "}\n");
+*/
 
   /* Check that the receiving interface exists */
   iif= node_find_iface(node, net_prefix(msg->dst_addr, 32));

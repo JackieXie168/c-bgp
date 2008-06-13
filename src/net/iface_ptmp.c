@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// $Id: iface_ptmp.c,v 1.4 2008-06-11 15:13:45 bqu Exp $
+// $Id: iface_ptmp.c,v 1.5 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -54,11 +54,11 @@ static net_error_t _net_iface_ptmp_send(net_iface_t * self,
 }
 
 // -----[ net_iface_new_ptmp ]---------------------------------------
-net_iface_t * net_iface_new_ptmp(net_node_t * node, SPrefix sPrefix)
+net_iface_t * net_iface_new_ptmp(net_node_t * node, ip_pfx_t pfx)
 {
   net_iface_t * iface= net_iface_new(node, NET_IFACE_PTMP);
-  iface->tIfaceAddr= sPrefix.tNetwork;
-  iface->tIfaceMask= sPrefix.uMaskLen;
+  iface->tIfaceAddr= pfx.tNetwork;
+  iface->tIfaceMask= pfx.uMaskLen;
   iface->ops.send= _net_iface_ptmp_send;
   return iface;
 }

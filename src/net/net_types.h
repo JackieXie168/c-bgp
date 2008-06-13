@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/06/2005
-// $Id: net_types.h,v 1.16 2008-06-11 15:13:45 bqu Exp $
+// $Id: net_types.h,v 1.17 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_TYPES_H__
@@ -78,18 +78,28 @@ typedef int (*FNetProtoHandleEvent)(simulator_t * sim,
 				    net_msg_t * msg);
 // ----- FNetProtoHandlerDestroy -----
 typedef void (*FNetProtoHandlerDestroy)(void ** handler_ref);
+// -----[ FNetProtoDump ]-----
+typedef void (*FNetProtoDump)(SLogStream * stream,
+			      void * handler,
+			      net_msg_t * msg);
+
+// -----[ net_protocol_ops_t ]-----
+typedef struct {
+  int  (*handle)  (simulator_t * sim, void * handler, net_msg_t * msg);
+  void (*destroy) (void ** handler_ref);
+  void (*dump)    (SLogStream * stream, void * handler, net_msg_t * msg);
+} net_protocol_ops_t;
 
 // -----[ net_protocol_t ]-----
 typedef struct {
-  void                    * pHandler;
-  FNetProtoHandleEvent      fHandleEvent;
-  FNetProtoHandlerDestroy   fDestroy;
+  net_protocol_id_t    id;
+  const char         * name;
+  void               * handler;
+  net_protocol_ops_t   ops;
 } net_protocol_t;
 
 // -----[ net_protocols_t ]-----
-typedef struct {
-  net_protocol_t * data[NET_PROTOCOL_MAX];
-} net_protocols_t;
+typedef SPtrArray net_protocols_t;
 
 
 //////////////////////////////////////////////////////////////////////

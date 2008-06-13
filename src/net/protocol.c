@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: protocol.c,v 1.6 2008-06-11 15:13:45 bqu Exp $
+// $Id: protocol.c,v 1.7 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,31 +28,38 @@ const char * PROTOCOL_NAMES[NET_PROTOCOL_MAX]= {
   "ipip"
 };
 
-// ----- protocol_create --------------------------------------------
+// -----[ _protocol_create ]-----------------------------------------
 /**
  *
  */
-net_protocol_t * protocol_create(void * handler,
-				 FNetProtoHandlerDestroy destroy,
-				 FNetProtoHandleEvent handle_event)
+static inline
+net_protocol_t * _protocol_create(net_protocol_id_t id,
+				  const char * name,
+				  void * handler,
+				  FNetProtoHandlerDestroy destroy,
+				  FNetProtoHandleEvent handle_event)
 {
   net_protocol_t * proto=
     (net_protocol_t *) MALLOC(sizeof(net_protocol_t));
-  proto->pHandler= handler;
-  proto->fDestroy= destroy;
-  proto->fHandleEvent= handle_event;
+  proto->id= id;
+  proto->name= name;
+  proto->handler= handler;
+  proto->ops.handle= handle_event;
+  proto->ops.destroy= destroy;
+  proto->ops.dump= NULL;
   return proto;
 }
 
-// ----- protocol_destroy -------------------------------------------
+// -----[ _protocol_destroy ]----------------------------------------
 /**
  *
  */
-void protocol_destroy(net_protocol_t ** proto_ref)
+static inline
+void _protocol_destroy(net_protocol_t ** proto_ref)
 {
   if (*proto_ref != NULL) {
-    if ((*proto_ref)->fDestroy != NULL)
-      (*proto_ref)->fDestroy(&(*proto_ref)->pHandler);
+    if ((*proto_ref)->ops.destroy != NULL)
+      (*proto_ref)->ops.destroy(&(*proto_ref)->handler);
     FREE(*proto_ref);
     *proto_ref= NULL;
   }
@@ -62,9 +69,28 @@ void protocol_destroy(net_protocol_t ** proto_ref)
 net_error_t protocol_recv(net_protocol_t * proto, net_msg_t * msg,
 			  simulator_t * sim)
 {
-  assert(proto->fHandleEvent != NULL);
-  return proto->fHandleEvent(sim, proto->pHandler, msg);
+  assert(proto->ops.handle != NULL);
+  return proto->ops.handle(sim, proto->handler, msg);
+}
 
+// -----[ _protocols_cmp ]-------------------------------------------
+static int _protocols_cmp(void * item1, void * item2,
+			  unsigned int item_size)
+{
+  net_protocol_t * proto1= *((net_protocol_t **) item1);
+  net_protocol_t * proto2= *((net_protocol_t **) item2);
+  
+  if (proto1->id > proto2->id)
+    return 1;
+  else if (proto1->id < proto2->id)
+    return -1;
+  return 0;
+}
+
+// -----[ _protocols_destroy ]---------------------------------------
+static void _protocols_destroy(void * item)
+{
+  _protocol_destroy((net_protocol_t **) item);
 }
 
 // ----- protocols_create -------------------------------------------
@@ -74,9 +100,10 @@ net_error_t protocol_recv(net_protocol_t * proto, net_msg_t * msg,
 net_protocols_t * protocols_create()
 {
   net_protocols_t * pProtocols=
-    (net_protocols_t *) MALLOC(sizeof(net_protocols_t));
-
-  memset(pProtocols->data, 0, sizeof(pProtocols->data));
+    (net_protocols_t *) ptr_array_create(ARRAY_OPTION_SORTED|
+					 ARRAY_OPTION_UNIQUE,
+					 _protocols_cmp,
+					 _protocols_destroy);
   return pProtocols;
 }
 
@@ -87,19 +114,7 @@ net_protocols_t * protocols_create()
  */
 void protocols_destroy(net_protocols_t ** protocols_ref)
 {
-  unsigned int index;
-
-  if (*protocols_ref != NULL) {
-    
-    // Destroy protocols (also clear the protocol instance if
-    // required, see 'protocol_destroy')
-    for (index= 0; index < NET_PROTOCOL_MAX; index++)
-      if ((*protocols_ref)->data[index] != NULL)
-	protocol_destroy(&(*protocols_ref)->data[index]);
-
-    FREE(*protocols_ref);
-    *protocols_ref= NULL;
-  }
+  ptr_array_destroy(protocols_ref);
 }
 
 // ----- protocols_register -----------------------------------------
@@ -112,13 +127,14 @@ net_error_t protocols_register(net_protocols_t * protocols,
 			       FNetProtoHandlerDestroy destroy,
 			       FNetProtoHandleEvent handle_event)
 {
-  if (id >= NET_PROTOCOL_MAX)
-    return ENET_PROTO_UNKNOWN;
+  net_protocol_t * protocol=
+    _protocol_create(id, NULL, handler, destroy, handle_event);
 
-  if (protocols->data[id] != NULL)
+  if (ptr_array_add(protocols, &protocol) < 0) {
+    _protocol_destroy(&protocol);
     return ENET_PROTO_DUPLICATE;
+  }
 
-  protocols->data[id]= protocol_create(handler, destroy, handle_event);
   return ESUCCESS;
 }
 
@@ -129,9 +145,13 @@ net_error_t protocols_register(net_protocols_t * protocols,
 net_protocol_t * protocols_get(net_protocols_t * protocols,
 			       net_protocol_id_t id)
 {
-  if (id >= NET_PROTOCOL_MAX)
+  net_protocol_t proto= { .id= id };
+  net_protocol_t * proto_ref= &proto;
+  unsigned int index;
+
+  if (ptr_array_sorted_find_index(protocols, &proto_ref, &index) < 0)
     return NULL;
-  return protocols->data[id];
+  return protocols->data[index];
 }
 
 // -----[ net_protocol2str ]-----------------------------------------

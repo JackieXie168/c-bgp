@@ -3,15 +3,8 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: protocol.h,v 1.5 2008-04-07 09:44:48 bqu Exp $
+// $Id: protocol.h,v 1.6 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
-// Note: the number of supported protocols will often be low, so that
-// the list of protocols is implemented by a fixed-size array at this
-// time. Later, if the number of protocols increases or if the
-// protocols supported on different nodes varies a lot, we will switch
-// to another data structure such as a sorted heap with a O(log(n))
-// complexity.
-
 
 #ifndef __NET_PROTOCOL_H__
 #define __NET_PROTOCOL_H__
@@ -33,7 +26,8 @@ extern "C" {
   void protocols_destroy(net_protocols_t ** ppProtocols);
   // ----- protocols_register ---------------------------------------
   int protocols_register(net_protocols_t * pProtocols,
-			 net_protocol_id_t id, void * pHandler,
+			 net_protocol_id_t id,
+			 void * pHandler,
 			 FNetProtoHandlerDestroy fDestroy,
 			 FNetProtoHandleEvent fHandleEvent);
   // ----- protocols_get --------------------------------------------
