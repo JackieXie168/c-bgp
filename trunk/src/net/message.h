@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// $Id: message.h,v 1.6 2008-06-11 15:13:45 bqu Exp $
+// $Id: message.h,v 1.7 2008-06-13 14:26:23 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_MESSAGE_H__
@@ -23,9 +23,9 @@ extern "C" {
 			     void * payload,
 			     FPayLoadDestroy destroy);
   // ----- message_destroy ------------------------------------------
-  void message_destroy(net_msg_t ** ppMessage);
+  void message_destroy(net_msg_t ** msg_ref);
   // ----- message_dump ---------------------------------------------
-  void message_dump(SLogStream * pStream, net_msg_t * pMessage);
+  void message_dump(SLogStream * stream, net_msg_t * msg);
   
 #ifdef __cplusplus
 }
