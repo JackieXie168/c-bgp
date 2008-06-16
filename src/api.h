@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.h,v 1.10 2008-06-12 14:23:51 bqu Exp $
+// $Id: api.h,v 1.11 2008-06-16 09:58:24 bqu Exp $
 // ==================================================================
 
 #ifndef __CBGP_API_H__
@@ -77,9 +77,9 @@ extern "C" {
   /////////////////////////////////////////////////////////////////*/
 
   // -----[ libcbgp_init2 ]------------------------------------------
-  CBGP_EXP_DECL void libcbgp_init2();
+  void libcbgp_init2();
   // -----[ libcbgp_done2 ]------------------------------------------
-  CBGP_EXP_DECL void libcbgp_done2();
+  void libcbgp_done2();
 
 
 #ifdef __cplusplus
