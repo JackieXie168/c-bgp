@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: selfcheck.c,v 1.1 2008-06-12 14:23:51 bqu Exp $
+// $Id: selfcheck.c,v 1.2 2008-06-16 09:58:24 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -249,23 +249,20 @@ static int test_net_attr_prefix4_match()
 // -----[ test_net_attr_prefix4_mask ]-------------------------------
 static int test_net_attr_prefix4_mask()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(192,168,128,2),
-		     .uMaskLen= 17 };
-  ip_prefix_mask(&sPrefix);
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(192,168,128,0)) &&
-		(sPrefix.uMaskLen == 17),
+  ip_pfx_t pfx= IPV4PFX(192,168,128,2,17);
+  ip_prefix_mask(&pfx);
+  ASSERT_RETURN((pfx.tNetwork == IPV4(192,168,128,0)) &&
+		(pfx.uMaskLen == 17),
 		"masked prefix should be 192.168.128.0/17");
-  sPrefix.tNetwork= IPV4(255,255,255,255);
-  sPrefix.uMaskLen= 1;
-  ip_prefix_mask(&sPrefix);
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(128,0,0,0)) &&
-		(sPrefix.uMaskLen == 1),
+  pfx= IPV4PFX(255,255,255,255,1);
+  ip_prefix_mask(&pfx);
+  ASSERT_RETURN((pfx.tNetwork == IPV4(128,0,0,0)) &&
+		(pfx.uMaskLen == 1),
 		"masked prefix should be 128.0.0.0/1");
-  sPrefix.tNetwork= IPV4(255,255,255,255);
-  sPrefix.uMaskLen= 32;
-  ip_prefix_mask(&sPrefix);
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(255,255,255,255)) &&
-		(sPrefix.uMaskLen == 32),
+  pfx= IPV4PFX(255,255,255,255,32);
+  ip_prefix_mask(&pfx);
+  ASSERT_RETURN((pfx.tNetwork == IPV4(255,255,255,255)) &&
+		(pfx.uMaskLen == 32),
 		"masked prefix should be 255.255.255.255/32");
   return UTEST_SUCCESS;
 }
@@ -273,20 +270,18 @@ static int test_net_attr_prefix4_mask()
 // -----[ test_net_attr_prefix4_2str ]-------------------------------
 static int test_net_attr_prefix4_2str()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(192,168,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(192,168,0,0,16);
   char acBuffer[19];
-  ASSERT_RETURN(ip_prefix_to_string(&sPrefix, acBuffer, sizeof(acBuffer))
+  ASSERT_RETURN(ip_prefix_to_string(&pfx, acBuffer, sizeof(acBuffer))
 		== 14,
 		"ip_prefix_to_string() should return 14");
   ASSERT_RETURN(strcmp(acBuffer, "192.168.0.0/16") == 0,
 		"string for prefix 192.168/16 should be \"192.168.0.0/16\"");
-  sPrefix.tNetwork= IPV4(255,255,255,255);
-  sPrefix.uMaskLen= 32;
-  ASSERT_RETURN(ip_prefix_to_string(&sPrefix, acBuffer, sizeof(acBuffer)-1)
+  pfx= IPV4PFX(255,255,255,255,32);
+  ASSERT_RETURN(ip_prefix_to_string(&pfx, acBuffer, sizeof(acBuffer)-1)
 		< 0,
 		"ip_prefix_to_string() should return < 0");
-  ASSERT_RETURN(ip_prefix_to_string(&sPrefix, acBuffer, sizeof(acBuffer))
+  ASSERT_RETURN(ip_prefix_to_string(&pfx, acBuffer, sizeof(acBuffer))
 		== 18,
 		"ip_prefix_to_string() should return 18");
   ASSERT_RETURN(strcmp(acBuffer, "255.255.255.255/32") == 0,
@@ -298,43 +293,43 @@ static int test_net_attr_prefix4_2str()
 // -----[ test_net_attr_prefix4_str2 ]-------------------------------
 static int test_net_attr_prefix4_str2()
 {
-  SPrefix sPrefix;
+  ip_pfx_t pfx;
   char * pcEndPtr;
-  ASSERT_RETURN((ip_string_to_prefix("192.168.0.0/16", &pcEndPtr, &sPrefix) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_prefix("192.168.0.0/16", &pcEndPtr, &pfx) >= 0) && (*pcEndPtr == '\0'),
 		"prefix \"192.168.0.0/16\" should be valid");
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(192,168,0,0)) &&
-		(sPrefix.uMaskLen == 16),
+  ASSERT_RETURN((pfx.tNetwork == IPV4(192,168,0,0)) &&
+		(pfx.uMaskLen == 16),
 		"prefix should be 192.168.0.0/16");
-  ASSERT_RETURN((ip_string_to_prefix("192.168/16", &pcEndPtr, &sPrefix) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_prefix("192.168/16", &pcEndPtr, &pfx) >= 0) && (*pcEndPtr == '\0'),
 		"prefix \"192.168/16\" should be valid");
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(192,168,0,0)) &&
-		(sPrefix.uMaskLen == 16),
+  ASSERT_RETURN((pfx.tNetwork == IPV4(192,168,0,0)) &&
+		(pfx.uMaskLen == 16),
 		"prefix should be 192.168.0.0/16");
-  ASSERT_RETURN((ip_string_to_prefix("192.168.1.2/28", &pcEndPtr, &sPrefix) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_prefix("192.168.1.2/28", &pcEndPtr, &pfx) >= 0) && (*pcEndPtr == '\0'),
 		"prefix \"192.168.1.2/28\" should be valid");
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(192,168,1,2)) &&
-		(sPrefix.uMaskLen == 28),
+  ASSERT_RETURN((pfx.tNetwork == IPV4(192,168,1,2)) &&
+		(pfx.uMaskLen == 28),
 		"prefix should be 192.168.1.2/28");
-  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255/32", &pcEndPtr, &sPrefix) >= 0) && (*pcEndPtr == '\0'),
+  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255/32", &pcEndPtr, &pfx) >= 0) && (*pcEndPtr == '\0'),
 		"prefix \"255.255.255.255/32\" should be valid");
-  ASSERT_RETURN((sPrefix.tNetwork == IPV4(255,255,255,255)) &&
-		(sPrefix.uMaskLen == 32),
+  ASSERT_RETURN((pfx.tNetwork == IPV4(255,255,255,255)) &&
+		(pfx.uMaskLen == 32),
 		"prefix should be 255.255.255.255/32");
-  ASSERT_RETURN((ip_string_to_prefix("192.168.1.2/16a", &pcEndPtr, &sPrefix) >= 0) && (*pcEndPtr == 'a'),
+  ASSERT_RETURN((ip_string_to_prefix("192.168.1.2/16a", &pcEndPtr, &pfx) >= 0) && (*pcEndPtr == 'a'),
 		"prefix should be valid (but followed by stuff)");
-  ASSERT_RETURN((ip_string_to_prefix("192.168a.1.2/16", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("192.168a.1.2/16", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("256/8", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("256/8", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255.255/8", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255.255/8", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255/99", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("255.255.255.255/99", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("255.255", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("255.255", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("255.255./16", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("255.255./16", &pcEndPtr, &pfx) < 0),
 		"prefix should be invalid");
-  ASSERT_RETURN((ip_string_to_prefix("1.2.3.4.5", &pcEndPtr, &sPrefix) < 0),
+  ASSERT_RETURN((ip_string_to_prefix("1.2.3.4.5", &pcEndPtr, &pfx) < 0),
 		"prefix \"1.2.3.4.5\" should be invalid");
   return UTEST_SUCCESS;
 }
@@ -342,23 +337,20 @@ static int test_net_attr_prefix4_str2()
 // -----[ test_net_attr_prefix4_cmp ]--------------------------------
 static int test_net_attr_prefix4_cmp()
 {
-  SPrefix sPrefix1= { .tNetwork= IPV4(1,2,3,4),
-		      .uMaskLen= 24 };
-  SPrefix sPrefix2= sPrefix1;
-  ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 0,
+  ip_pfx_t pfx1= IPV4PFX(1,2,3,4,24);
+  ip_pfx_t pfx2= pfx1;
+  ASSERT_RETURN(ip_prefix_cmp(&pfx1, &pfx2) == 0,
 		"1.2.3.4/24 should be equal to 1.2.3.4.24");
-  sPrefix2.tNetwork= IPV4(1,2,2,4);
-  ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 1,
+  pfx2.tNetwork= IPV4(1,2,2,4);
+  ASSERT_RETURN(ip_prefix_cmp(&pfx1, &pfx2) == 1,
 		"1.2.3.4/24 should be > than 1.2.2.4/24");
-  sPrefix2.tNetwork= sPrefix1.tNetwork;
-  sPrefix2.uMaskLen= 25;
-  ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == -1,
+  pfx2.tNetwork= pfx1.tNetwork;
+  pfx2.uMaskLen= 25;
+  ASSERT_RETURN(ip_prefix_cmp(&pfx1, &pfx2) == -1,
 		"1.2.3.4/24 should be > than 1.2.3.4/25");
-  sPrefix1.tNetwork= IPV4(1,2,3,1);
-  sPrefix1.uMaskLen= 24;
-  sPrefix2.tNetwork= IPV4(1,2,3,0);
-  sPrefix2.uMaskLen= 24;
-  ASSERT_RETURN(ip_prefix_cmp(&sPrefix1, &sPrefix2) == 0,
+  pfx1= IPV4PFX(1,2,3,1,24);
+  pfx2= IPV4PFX(1,2,3,0,24);
+  ASSERT_RETURN(ip_prefix_cmp(&pfx1, &pfx2) == 0,
 		"1.2.3.1/24 should be > than 1.2.3.0/24");
   return UTEST_SUCCESS;
 }
@@ -580,27 +572,27 @@ static int test_net_iface_ptp()
 // -----[ test_net_iface_ptmp ]--------------------------------------
 static int test_net_iface_ptmp()
 {
-  net_node_t * pNode1= __node_create(IPV4(1,0,0,1));
-  net_iface_t * pIface= NULL;
-  net_iface_id_t tIfaceID= net_iface_id_pfx(IPV4(192,168,0,1), 24);
-  SPrefix sPrefix= { .tNetwork= IPV4(192,168,0,0), .uMaskLen=24 };
-  ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID, NET_IFACE_PTMP,
-				  &pIface) == ESUCCESS,
+  net_node_t * node1= __node_create(IPV4(1,0,0,1));
+  net_iface_t * iface= NULL;
+  net_iface_id_t iface_id= net_iface_id_pfx(IPV4(192,168,0,1), 24);
+  ip_pfx_t pfx= IPV4PFX(192,168,0,0,24);
+  ASSERT_RETURN(net_iface_factory(node1, iface_id, NET_IFACE_PTMP,
+				  &iface) == ESUCCESS,
 		"should be able to create ptmp interface");
-  ASSERT_RETURN(pIface != NULL,
+  ASSERT_RETURN(iface != NULL,
 		"should return non-null interface");
-  ASSERT_RETURN(pIface->type == NET_IFACE_PTMP,
+  ASSERT_RETURN(iface->type == NET_IFACE_PTMP,
 		"interface type should be PTMP");
-  ASSERT_RETURN(pIface->tIfaceAddr == IPV4(192,168,0,1),
+  ASSERT_RETURN(iface->tIfaceAddr == IPV4(192,168,0,1),
 		"incorrect interface address");
-  ASSERT_RETURN(pIface->tIfaceMask == 24,
+  ASSERT_RETURN(iface->tIfaceMask == 24,
 		"incorrect interface mask");
-  ASSERT_RETURN(!net_iface_is_connected(pIface),
+  ASSERT_RETURN(!net_iface_is_connected(iface),
 		"interface should not be connected");
-  ASSERT_RETURN(net_iface_has_prefix(pIface, sPrefix),
+  ASSERT_RETURN(net_iface_has_prefix(iface, pfx),
 		"interface should have prefix");
-  net_iface_destroy(&pIface);
-  ASSERT_RETURN(pIface == NULL,
+  net_iface_destroy(&iface);
+  ASSERT_RETURN(iface == NULL,
 		"destroyed interface should be NULL");
   return UTEST_SUCCESS;
 }
@@ -608,26 +600,26 @@ static int test_net_iface_ptmp()
 // -----[ test_net_iface_virtual ]-----------------------------------
 static int test_net_iface_virtual()
 {
-  net_node_t * pNode1= __node_create(IPV4(1,0,0,1));
-  net_iface_t * pIface= NULL;
+  net_node_t * node1= __node_create(IPV4(1,0,0,1));
+  net_iface_t * iface= NULL;
   net_addr_t addr= IPV4(172,0,0,1);
-  net_iface_id_t tIfaceID= net_iface_id_addr(addr);
-  ASSERT_RETURN(net_iface_factory(pNode1, tIfaceID,
+  net_iface_id_t iface_id= net_iface_id_addr(addr);
+  ASSERT_RETURN(net_iface_factory(node1, iface_id,
 				  NET_IFACE_VIRTUAL,
-				  &pIface) == ESUCCESS,
+				  &iface) == ESUCCESS,
 		"should be able to create virtual interface");
-  ASSERT_RETURN(pIface != NULL,
+  ASSERT_RETURN(iface != NULL,
 		"should return non-null interface");
-  ASSERT_RETURN(pIface->type == NET_IFACE_VIRTUAL,
+  ASSERT_RETURN(iface->type == NET_IFACE_VIRTUAL,
 		"interface type should be VIRTUAL");
-  ASSERT_RETURN(pIface->tIfaceAddr == addr,
+  ASSERT_RETURN(iface->tIfaceAddr == addr,
 		"incorrect interface address");
-  ASSERT_RETURN(pIface->tIfaceMask == 32,
+  ASSERT_RETURN(iface->tIfaceMask == 32,
 		"incorrect interface mask");
-  ASSERT_RETURN(!net_iface_is_connected(pIface),
+  ASSERT_RETURN(!net_iface_is_connected(iface),
 		"interface should not be connected");
-  net_iface_destroy(&pIface);
-  ASSERT_RETURN(pIface == NULL,
+  net_iface_destroy(&iface);
+  ASSERT_RETURN(iface == NULL,
 		"destroyed interface should be NULL");
   return UTEST_SUCCESS;
 }
@@ -635,21 +627,21 @@ static int test_net_iface_virtual()
 // -----[ test_net_iface_str2type ]----------------------------------
 static int test_net_iface_str2type()
 {
-  net_iface_type_t tType;
-  ASSERT_RETURN((net_iface_str2type("loopback", &tType) == ESUCCESS) &&
-		(tType == NET_IFACE_LOOPBACK),
+  net_iface_type_t type;
+  ASSERT_RETURN((net_iface_str2type("loopback", &type) == ESUCCESS) &&
+		(type == NET_IFACE_LOOPBACK),
 		"bad conversion for loopback type");
-  ASSERT_RETURN((net_iface_str2type("router-to-router", &tType) == ESUCCESS) &&
-		(tType == NET_IFACE_RTR),
+  ASSERT_RETURN((net_iface_str2type("router-to-router", &type) == ESUCCESS) &&
+		(type == NET_IFACE_RTR),
 		"bad conversion for router-to-router type");
-  ASSERT_RETURN((net_iface_str2type("point-to-point", &tType) == ESUCCESS) &&
-		(tType == NET_IFACE_PTP),
+  ASSERT_RETURN((net_iface_str2type("point-to-point", &type) == ESUCCESS) &&
+		(type == NET_IFACE_PTP),
 		"bad conversion for point-to-point type");
-  ASSERT_RETURN((net_iface_str2type("point-to-multipoint", &tType)
-		 == ESUCCESS) && (tType == NET_IFACE_PTMP),
+  ASSERT_RETURN((net_iface_str2type("point-to-multipoint", &type)
+		 == ESUCCESS) && (type == NET_IFACE_PTMP),
 		"bad conversion for point-to-multipoint type");
-  ASSERT_RETURN((net_iface_str2type("virtual", &tType) == ESUCCESS) &&
-		(tType == NET_IFACE_VIRTUAL),
+  ASSERT_RETURN((net_iface_str2type("virtual", &type) == ESUCCESS) &&
+		(type == NET_IFACE_VIRTUAL),
 		"bad conversion for virtual type");
   return UTEST_SUCCESS;
 }
@@ -657,24 +649,24 @@ static int test_net_iface_str2type()
 // -----[ test_net_iface_list ]--------------------------------------
 static int test_net_iface_list()
 {
-  net_node_t * pNode= __node_create(IPV4(1,0,0,1));
-  net_ifaces_t * pIfaces= net_links_create();
-  net_iface_t * pIface1= NULL;
-  net_iface_t * pIface2= NULL;
+  net_node_t * node= __node_create(IPV4(1,0,0,1));
+  net_ifaces_t * ifaces= net_links_create();
+  net_iface_t * iface1= NULL;
+  net_iface_t * iface2= NULL;
   net_addr_t addr1= IPV4(1,0,0,2);
   net_addr_t addr2= IPV4(1,0,0,3);
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr1),
-				  NET_IFACE_RTR, &pIface1) == ESUCCESS,
+  ASSERT_RETURN(net_iface_factory(node, net_iface_id_addr(addr1),
+				  NET_IFACE_RTR, &iface1) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr2),
-				  NET_IFACE_RTR, &pIface2) == ESUCCESS,
+  ASSERT_RETURN(net_iface_factory(node, net_iface_id_addr(addr2),
+				  NET_IFACE_RTR, &iface2) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
+  ASSERT_RETURN(net_links_add(ifaces, iface1) >= 0,
 		"should be able to add interface");
-  ASSERT_RETURN(net_links_add(pIfaces, pIface2) >= 0,
+  ASSERT_RETURN(net_links_add(ifaces, iface2) >= 0,
 		"should be able to add interface");
-  net_links_destroy(&pIfaces);
-  ASSERT_RETURN(pIfaces == NULL,
+  net_links_destroy(&ifaces);
+  ASSERT_RETURN(ifaces == NULL,
 		"destroyed interface list should be NULL");
   return UTEST_SUCCESS;
 }
@@ -682,23 +674,23 @@ static int test_net_iface_list()
 // -----[ test_net_iface_list_duplicate ]----------------------------
 static int test_net_iface_list_duplicate()
 {
-  net_node_t * pNode= __node_create(IPV4(1,0,0,1));
-  net_ifaces_t * pIfaces= net_links_create();
-  net_iface_t * pIface1= NULL;
-  net_iface_t * pIface2= NULL;
+  net_node_t * node= __node_create(IPV4(1,0,0,1));
+  net_ifaces_t * ifaces= net_links_create();
+  net_iface_t * iface1= NULL;
+  net_iface_t * iface2= NULL;
   net_addr_t addr= IPV4(1,0,0,2);
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr),
-				  NET_IFACE_RTR, &pIface1) == ESUCCESS,
+  ASSERT_RETURN(net_iface_factory(node, net_iface_id_addr(addr),
+				  NET_IFACE_RTR, &iface1) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_iface_factory(pNode, net_iface_id_addr(addr),
-				  NET_IFACE_RTR, &pIface2) == ESUCCESS,
+  ASSERT_RETURN(net_iface_factory(node, net_iface_id_addr(addr),
+				  NET_IFACE_RTR, &iface2) == ESUCCESS,
 		"should be able to create interface");
-  ASSERT_RETURN(net_links_add(pIfaces, pIface1) >= 0,
+  ASSERT_RETURN(net_links_add(ifaces, iface1) >= 0,
 		"should be able to add interface");
-  ASSERT_RETURN(net_links_add(pIfaces, pIface2) < 0,
+  ASSERT_RETURN(net_links_add(ifaces, iface2) < 0,
 		"should not be able to add interface with same ID");
-  net_links_destroy(&pIfaces);
-  ASSERT_RETURN(pIfaces == NULL,
+  net_links_destroy(&ifaces);
+  ASSERT_RETURN(ifaces == NULL,
 		"destroyed interface list should be NULL");
   return UTEST_SUCCESS;
 }
@@ -891,15 +883,15 @@ static int test_net_link_ptmp()
   net_subnet_t * subnet= subnet_create(IPV4(192,168,0,0), 16,
 				       NET_SUBNET_TYPE_TRANSIT);
   net_iface_t * link= NULL;
-  SPrefix sIfaceID;
+  ip_pfx_t iface_id;
   ASSERT_RETURN((net_link_create_ptmp(node1, subnet,
 				      IPV4(192,168,0,1),
 				      &link) == ESUCCESS) &&
 		(link != NULL),
 		"link creation should succeed");
-  sIfaceID= net_iface_id(link);
-  ASSERT_RETURN((sIfaceID.tNetwork == link->tIfaceAddr) &&
-		(sIfaceID.uMaskLen == link->tIfaceMask),
+  iface_id= net_iface_id(link);
+  ASSERT_RETURN((iface_id.tNetwork == link->tIfaceAddr) &&
+		(iface_id.uMaskLen == link->tIfaceMask),
 		"link identifier is incorrect");
   ASSERT_RETURN(link->type == NET_IFACE_PTMP,
 		"link type is not correct");
@@ -958,20 +950,26 @@ static int test_net_link_ptmp_forward()
 // -----[ test_net_link_ptmp_forward_unreach ]-----------------------
 static int test_net_link_ptmp_forward_unreach()
 {
-  net_node_t * node1= __node_create(IPV4(1,0,0,0));
+  net_node_t * node= __node_create(IPV4(1,0,0,0));
   net_subnet_t * subnet= subnet_create(IPV4(192,168,0,0), 16,
 				       NET_SUBNET_TYPE_TRANSIT);
-  net_iface_t * link1= NULL;
-  net_node_t * pNextHop= NULL;
-  net_msg_t * msg= (net_msg_t *) 12345;
-  net_link_create_ptmp(node1, subnet, IPV4(192,168,0,1), &link1);
-  ASSERT_RETURN(pNextHop == NULL,
-		"link target should be unchanged (NULL)");
-  ASSERT_RETURN(msg == (net_msg_t *) 12345,
-		"message content should not have changed");  
+  net_iface_t * iface1= NULL;
+  net_msg_t * msg= message_create(NET_ADDR_ANY, NET_ADDR_ANY, 0, 0,
+				  (void *) 12345, NULL);
+  simulator_t * sim= network_get_simulator(network_get_default());
+  net_link_create_ptmp(node, subnet, IPV4(192,168,0,1), &iface1);
+
+  thread_set_simulator(sim);
+  ASSERT_RETURN(net_iface_send(iface1, IPV4(192,168,0,2), msg)
+		== ENET_HOST_UNREACH,
+		"link forward should fail (host-unreach)");
+  ASSERT_RETURN(sim_get_num_events(sim) == 0,
+		"incorrect number of queued events");
   subnet_destroy(&subnet);
-  node_destroy(&node1);
-  return UTEST_SKIPPED;
+  sim_clear(sim);
+  subnet_destroy(&subnet);
+  node_destroy(&node);
+  return UTEST_SUCCESS;
 }
 
 
@@ -1182,7 +1180,53 @@ static int test_net_tunnel_forward()
   net_error_t error;
   net_send_ctx_t * ctx;
   net_link_create_rtr(node1, node2, BIDIR, &iface);
-  node_rt_add_route_link(node1, net_prefix(IPV4(2,0,0,0), 32), iface,
+  node_rt_add_route_link(node1, IPV4PFX(2,0,0,0,32), iface,
+			 NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
+  node_ipip_enable(node2);
+  ASSERT_RETURN((ipip_link_create(node1, IPV4(2,0,0,0),
+				  IPV4(2,0,0,0),
+				  NULL,
+				  NET_ADDR_ANY,
+				  &tunnel) == ESUCCESS) &&
+		(tunnel != NULL),
+		"ipip_link_create() should succeed");
+  thread_set_simulator(sim);
+  ASSERT_RETURN((error= net_iface_send(tunnel, NET_ADDR_ANY, msg))
+		== ESUCCESS,
+		"tunnel forward should succeed (%s)",
+		network_strerror(error));
+  ASSERT_RETURN(sim_get_num_events(sim) == 1,
+		"incorrect number of queued events");
+  ctx= (net_send_ctx_t *) sim_get_event(sim, 0);
+  ASSERT_RETURN(ctx->msg->protocol == NET_PROTOCOL_IPIP,
+		"incorrect protocol for outer header");
+  ASSERT_RETURN(ctx->msg->payload == msg,
+		"incorrect payload for encapsulated packet");
+  sim_step(sim, 1);
+  
+  
+  net_link_destroy(&tunnel);
+  ASSERT_RETURN(tunnel == NULL, "destroyed tunnel should be NULL");
+  sim_clear(sim);
+  node_destroy(&node1);
+  node_destroy(&node2);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_net_tunnel_forward_broken ]---------------------------
+static int test_net_tunnel_forward_broken()
+{
+  net_node_t * node1= __node_create(IPV4(1,0,0,0));
+  net_node_t * node2= __node_create(IPV4(2,0,0,0));
+  net_iface_t * iface= NULL;
+  net_iface_t * tunnel= NULL;
+  net_msg_t * msg= message_create(NET_ADDR_ANY, NET_ADDR_ANY, 0, 0,
+				  (void *) 12345, NULL);
+  simulator_t * sim= network_get_simulator(network_get_default());
+  net_error_t error;
+  net_send_ctx_t * ctx;
+  net_link_create_rtr(node1, node2, BIDIR, &iface);
+  node_rt_add_route_link(node1, IPV4PFX(2,0,0,0,32), iface,
 			 NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
   ASSERT_RETURN((ipip_link_create(node1, IPV4(2,0,0,0),
 				  IPV4(2,0,0,0),
@@ -1208,12 +1252,6 @@ static int test_net_tunnel_forward()
   sim_clear(sim);
   node_destroy(&node1);
   node_destroy(&node2);
-  return UTEST_SUCCESS;
-}
-
-// -----[ test_net_tunnel_forward_broken ]---------------------------
-static int test_net_tunnel_forward_broken()
-{
   return UTEST_SKIPPED;
 }
 
@@ -1967,14 +2005,13 @@ static int test_bgp_attr_cluster_list_contains()
 // -----[ test_bgp_route_basic ]-------------------------------------
 static int test_bgp_route_basic()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(130,104,0,0),
-		     .uMaskLen= 16 };
-  bgp_route_t * pRoute= route_create(sPrefix, NULL, IPV4(1,0,0,0),
-				ROUTE_ORIGIN_IGP);
-  ASSERT_RETURN(pRoute != NULL,
+  ip_pfx_t pfx= IPV4PFX(130,104,0,0,16);
+  bgp_route_t * route= route_create(pfx, NULL, IPV4(1,0,0,0),
+				    ROUTE_ORIGIN_IGP);
+  ASSERT_RETURN(route != NULL,
 		"Route should not be NULL when created");
-  route_destroy(&pRoute);
-  ASSERT_RETURN(pRoute == NULL,
+  route_destroy(&route);
+  ASSERT_RETURN(route == NULL,
 		"Route should be NULL when destroyed");
   return UTEST_SUCCESS;
 }
@@ -1982,61 +2019,60 @@ static int test_bgp_route_basic()
 // -----[ test_bgp_route_communities ]-------------------------------
 static int test_bgp_route_communities()
 {
-  bgp_route_t * pRoute1, * pRoute2;
-  SCommunities * pComm1, * pComm2;
+  bgp_route_t * route1, * route2;
+  SCommunities * comm1, * comm2;
 
-  SPrefix sPrefix= { .tNetwork= IPV4(130,104,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(130,104,0,0,16);
 
-  pRoute1= route_create(sPrefix, NULL, IPV4(1,0,0,0), ROUTE_ORIGIN_IGP);
-  pRoute2= route_create(sPrefix, NULL, IPV4(2,0,0,0), ROUTE_ORIGIN_IGP);
+  route1= route_create(pfx, NULL, IPV4(1,0,0,0), ROUTE_ORIGIN_IGP);
+  route2= route_create(pfx, NULL, IPV4(2,0,0,0), ROUTE_ORIGIN_IGP);
 
   // Copy of Communities must be different
-  pComm1= comm_create();
-  pComm2= comm_copy(pComm1);
-  ASSERT_RETURN(pComm1 != pComm2,
+  comm1= comm_create();
+  comm2= comm_copy(comm1);
+  ASSERT_RETURN(comm1 != comm2,
 		"Communities copy should not be equal to original");
 
   // Communities must not exist in global repository
-  ASSERT_RETURN((comm_hash_get(pComm1) == NULL) &&
-		(comm_hash_get(pComm2) == NULL),
+  ASSERT_RETURN((comm_hash_get(comm1) == NULL) &&
+		(comm_hash_get(comm2) == NULL),
 		"Communities should not already be interned");
 
   // Communities must now be interned and equal
-  route_set_comm(pRoute1, pComm1);
-  route_set_comm(pRoute2, pComm2);
-  ASSERT_RETURN(pRoute1->pAttr->pCommunities == pRoute2->pAttr->pCommunities,
+  route_set_comm(route1, comm1);
+  route_set_comm(route2, comm2);
+  ASSERT_RETURN(route1->pAttr->pCommunities == route2->pAttr->pCommunities,
 		"interned Communities not equal");
-  ASSERT_RETURN((comm_hash_get(pRoute1->pAttr->pCommunities) ==
-		 pRoute1->pAttr->pCommunities) &&
-		(comm_hash_get(pRoute2->pAttr->pCommunities) ==
-		 pRoute2->pAttr->pCommunities),
+  ASSERT_RETURN((comm_hash_get(route1->pAttr->pCommunities) ==
+		 route1->pAttr->pCommunities) &&
+		(comm_hash_get(route2->pAttr->pCommunities) ==
+		 route2->pAttr->pCommunities),
 		"Communities <-> hash mismatch");
-  ASSERT_RETURN(comm_hash_refcnt(pRoute1->pAttr->pCommunities) == 2,
+  ASSERT_RETURN(comm_hash_refcnt(route1->pAttr->pCommunities) == 2,
 		"Incorrect reference count");
 
   // Append community value
-  route_comm_append(pRoute1, 12345);
-  ASSERT_RETURN(pRoute1->pAttr->pCommunities != pRoute2->pAttr->pCommunities,
+  route_comm_append(route1, 12345);
+  ASSERT_RETURN(route1->pAttr->pCommunities != route2->pAttr->pCommunities,
 		"interned Communities are equal");
-  ASSERT_RETURN((comm_hash_get(pRoute1->pAttr->pCommunities) ==
-		 pRoute1->pAttr->pCommunities) &&
-		(comm_hash_get(pRoute2->pAttr->pCommunities) ==
-		 pRoute2->pAttr->pCommunities),
+  ASSERT_RETURN((comm_hash_get(route1->pAttr->pCommunities) ==
+		 route1->pAttr->pCommunities) &&
+		(comm_hash_get(route2->pAttr->pCommunities) ==
+		 route2->pAttr->pCommunities),
 		"Communities <-> hash mismatch");
 
   // Append Community value
-  route_comm_append(pRoute2, 12345);
-  ASSERT_RETURN(pRoute1->pAttr->pCommunities == pRoute2->pAttr->pCommunities,
+  route_comm_append(route2, 12345);
+  ASSERT_RETURN(route1->pAttr->pCommunities == route2->pAttr->pCommunities,
 		"interned Communities not equal");
-  ASSERT_RETURN((comm_hash_get(pRoute1->pAttr->pCommunities) ==
-		 pRoute1->pAttr->pCommunities) &&
-		(comm_hash_get(pRoute2->pAttr->pCommunities) ==
-		 pRoute2->pAttr->pCommunities),
+  ASSERT_RETURN((comm_hash_get(route1->pAttr->pCommunities) ==
+		 route1->pAttr->pCommunities) &&
+		(comm_hash_get(route2->pAttr->pCommunities) ==
+		 route2->pAttr->pCommunities),
 		"Communities <-> hash mismatch");
 
-  route_destroy(&pRoute1);
-  route_destroy(&pRoute2);
+  route_destroy(&route1);
+  route_destroy(&route2);
 
   return EXIT_SUCCESS;
 }
@@ -2047,11 +2083,10 @@ static int test_bgp_route_aspath()
   bgp_route_t * pRoute1, * pRoute2;
   SBGPPath * pPath1, * pPath2;
 
-  SPrefix sPrefix= { .tNetwork= IPV4(130,104,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(130,104,0,0,16);
 
-  pRoute1= route_create(sPrefix, NULL, IPV4(1,0,0,0), ROUTE_ORIGIN_IGP);
-  pRoute2= route_create(sPrefix, NULL, IPV4(2,0,0,0), ROUTE_ORIGIN_IGP);
+  pRoute1= route_create(pfx, NULL, IPV4(1,0,0,0), ROUTE_ORIGIN_IGP);
+  pRoute2= route_create(pfx, NULL, IPV4(2,0,0,0), ROUTE_ORIGIN_IGP);
 
   pPath1= path_create();
   pPath2= path_copy(pPath1);
@@ -2293,10 +2328,9 @@ int test_bgp_filter_predicate_nexthop_is()
 // -----[ test_bgp_filter_predicate_nexthop_in ]---------------------
 int test_bgp_filter_predicate_nexthop_in()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(10,0,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(10,0,0,0,16);
   bgp_ft_matcher_t * pPredicate=
-    filter_match_nexthop_in(sPrefix);
+    filter_match_nexthop_in(pfx);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_NEXTHOP_IN,
@@ -2310,10 +2344,9 @@ int test_bgp_filter_predicate_nexthop_in()
 // -----[ test_bgp_filter_predicate_prefix_is ]----------------------
 int test_bgp_filter_predicate_prefix_is()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(10,0,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(10,0,0,0,16);
   bgp_ft_matcher_t * pPredicate=
-    filter_match_prefix_equals(sPrefix);
+    filter_match_prefix_equals(pfx);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_IS,
@@ -2327,10 +2360,9 @@ int test_bgp_filter_predicate_prefix_is()
 // -----[ test_bgp_filter_predicate_prefix_in ]----------------------
 int test_bgp_filter_predicate_prefix_in()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(10,0,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(10,0,0,0,16);
   bgp_ft_matcher_t * pPredicate=
-    filter_match_prefix_in(sPrefix);
+    filter_match_prefix_in(pfx);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_IN,
@@ -2344,15 +2376,14 @@ int test_bgp_filter_predicate_prefix_in()
 // -----[ test_bgp_filter_predicate_prefix_ge ]----------------------
 static int test_bgp_filter_predicate_prefix_ge()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(10,0,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(10,0,0,0,16);
   bgp_ft_matcher_t * pPredicate=
-    filter_match_prefix_ge(sPrefix, 24);
+    filter_match_prefix_ge(pfx, 24);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_GE,
 		"Incorrect predicate code");
-  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(SPrefix))) == 24,
+  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(ip_pfx_t))) == 24,
 		"Incorrect prefix length");
   filter_matcher_destroy(&pPredicate);
   ASSERT_RETURN(pPredicate == NULL,
@@ -2363,15 +2394,14 @@ static int test_bgp_filter_predicate_prefix_ge()
 // -----[ test_bgp_filter_predicate_prefix_le ]----------------------
 static int test_bgp_filter_predicate_prefix_le()
 {
-  SPrefix sPrefix= { .tNetwork= IPV4(10,0,0,0),
-		     .uMaskLen= 16 };
+  ip_pfx_t pfx= IPV4PFX(10,0,0,0,16);
   bgp_ft_matcher_t * pPredicate=
-    filter_match_prefix_le(sPrefix, 24);
+    filter_match_prefix_le(pfx, 24);
   ASSERT_RETURN(pPredicate != NULL,
 		"New predicate should not be NULL");
   ASSERT_RETURN(pPredicate->uCode == FT_MATCH_PREFIX_LE,
 		"Incorrect predicate code");
-  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(SPrefix))) == 24,
+  ASSERT_RETURN(*((uint8_t *) (pPredicate->auParams+sizeof(ip_pfx_t))) == 24,
 		"Incorrect prefix length");
   filter_matcher_destroy(&pPredicate);
   ASSERT_RETURN(pPredicate == NULL,
@@ -2682,8 +2712,8 @@ static int test_bgp_router_add_network()
 {
   net_node_t * node= __node_create(IPV4(1,0,0,0));
   bgp_router_t * router= bgp_router_create(2611, node);
-  SPrefix sPrefix= { .tNetwork= IPV4(192,168,0,0), .uMaskLen= 24 };
-  ASSERT_RETURN(bgp_router_add_network(router, sPrefix) == ESUCCESS,
+  ip_pfx_t pfx= IPV4PFX(192,168,0,0,24);
+  ASSERT_RETURN(bgp_router_add_network(router, pfx) == ESUCCESS,
 		"addition of network should succeed");
   bgp_router_destroy(&router);
   node_destroy(&node);
@@ -2695,10 +2725,10 @@ static int test_bgp_router_add_network_dup()
 {
   net_node_t * node= __node_create(IPV4(1,0,0,0));
   bgp_router_t * router= bgp_router_create(2611, node);
-  SPrefix sPrefix= { .tNetwork= IPV4(192,168,0,0), .uMaskLen= 24 };
-  ASSERT_RETURN(bgp_router_add_network(router, sPrefix) == ESUCCESS,
+  ip_pfx_t pfx= IPV4PFX(192,168,0,0,24);
+  ASSERT_RETURN(bgp_router_add_network(router, pfx) == ESUCCESS,
 		"addition of network should succeed");
-  ASSERT_RETURN(bgp_router_add_network(router, sPrefix)
+  ASSERT_RETURN(bgp_router_add_network(router, pfx)
 		== EBGP_NETWORK_DUPLICATE,
 		"addition of duplicate network should fail");
   bgp_router_destroy(&router);
@@ -2712,20 +2742,6 @@ static int test_bgp_router_add_network_dup()
 // MAIN PART
 //
 /////////////////////////////////////////////////////////////////////
-
-// -----[ _main_init ]-----------------------------------------------
-static void _main_init() __attribute((constructor));
-static void _main_init()
-{
-  libcbgp_init();
-}
-
-// -----[ _main_done ]-----------------------------------------------
-static void _main_done() __attribute((destructor));
-static void _main_done()
-{
-  libcbgp_done();
-}
 
 #define ARRAY_SIZE(A) sizeof(A)/sizeof(A[0])
 

@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.13 2008-06-12 14:23:51 bqu Exp $
+// $Id: api.c,v 1.14 2008-06-16 09:58:24 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -294,7 +294,6 @@ int libcbgp_interactive()
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_init' function instead.
  */
-CBGP_EXP_DECL
 void libcbgp_init2()
 {
   // Initialize log.
@@ -324,7 +323,6 @@ void libcbgp_init2()
  * NOTE: You should normaly not use this function. Consider using the
  * 'libcbgp_done' function instead. 
  */
-CBGP_EXP_DECL
 void libcbgp_done2()
 {
   _cli_common_destroy();

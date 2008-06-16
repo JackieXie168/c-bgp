@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: main.c,v 1.36 2008-06-12 11:18:39 bqu Exp $
+// $Id: main.c,v 1.37 2008-06-16 09:58:24 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -200,6 +200,6 @@ int main(int argc, char ** argv) {
 #endif
     break;
   }
-  
+
   return iExitCode;
 }
