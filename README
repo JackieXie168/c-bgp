@@ -38,9 +38,10 @@ language. It is mainly used and tested on Linux and Mac OS X. It has
 also been used on other platforms such as FreeBSD, Solaris and even
 under Windows, using the cygwin API. It should compile on most POSIX
 compliant environment. C-BGP is Open-Source and provided under the
-LGPL license. This means that it can be freely embedded in a
-commercial tool. The text of the LGPL license is available in
-the COPYING file included in this distribution.
+GPL license for academic use. The text of the GPL license is
+available in the COPYING file included in this distribution.
+Commercial use of C-BGP is covered by a separate license since
+version 2.0.0.
 
 C-BGP website:  http://cbgp.info.ucl.ac.be
 libGDS website: http://libgds.info.ucl.ac.be
