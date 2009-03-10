@@ -7,15 +7,6 @@ else
   OPT_JNI_LIBADD =
 endif
 
-# Compile with liballoc ?
-if WITH_LIBALLOC
-  OPT_LIBALLOC_DIR = liballoc
-  OPT_LIBALLOC_LIBADD = liballoc/liballoc.la
-else
-  OPT_LIBALLOC_DIR =
-  OPT_LIBALLOC_LIBADD =
-endif
-
 # Compile with ospf support?
 if WITH_OSPF
   OPT_WITH_OSPF = -DOSPF_SUPPORT
@@ -39,8 +30,8 @@ else
   OPT_BGPDUMP_DIR = 
 endif
 
-SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_LIBALLOC_DIR) $(OPT_BGPDUMP_DIR)
-DIST_SUBDIRS = bgp cli external net sim ui util jni liballoc
+SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_BGPDUMP_DIR)
+DIST_SUBDIRS = bgp cli external net sim ui util jni
 
 # Compile experimental features ?
 if WITH_EXPERIMENTAL
@@ -60,7 +51,8 @@ AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 lib_LTLIBRARIES = libcsim.la
 libcsim_la_SOURCES = \
 	api.c \
-	selfcheck.c
+	selfcheck.c \
+	selfcheck.h
 libcsim_la_LIBADD = \
 	bgp/libbgp.la \
 	cli/libcli.la \
@@ -78,7 +70,8 @@ libcsim_la_LDFLAGS = -no-undefined -release $(CBGP_LT_RELEASE) \
 	$(PCRE_LIBS)
 libcsim_la_CFLAGS = \
 	$(OPT_MEMORY_DEBUG) \
-	$(LIBGDS_CFLAGS)
+	$(LIBGDS_CFLAGS) \
+	$(AM_CFLAGS)
 libcsiminclude_HEADERS = api.h
 libcsimincludedir = $(includedir)/cbgp
 
@@ -90,19 +83,19 @@ endif
 
 cbgp_SOURCES = main.c
 cbgp_LDADD = libcsim.la
-cbgp_CFLAGS = $(LIBGDS_CFLAGS)
+cbgp_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
 
 cbgp_dump_SOURCES = main-dump.c
 cbgp_dump_LDADD = libcsim.la
-cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS)
+cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
 
 cbgp_test_SOURCES = main-test.c
 cbgp_test_LDADD = libcsim.la
-cbgp_test_CFLAGS = $(LIBGDS_CFLAGS)
+cbgp_test_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
 
 cbgp_perf_SOURCES = main-perf.c
 cbgp_perf_LDADD = libcsim.la
-cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS)
+cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
 
 TESTS = \
 	cbgp-test
@@ -139,3 +132,9 @@ doc:
 	(echo "$$subdir" ; cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) doc) \
 	done)
 
+dist-hook:
+	(for f in `find $(distdir) | grep -E '\.(c|h|java)$$'`; do \
+	echo $$f; \
+	sed -E -e '/\$$Id.*\$$/ r $(top_builddir)/LICENCE' $$f > $$f.tmp; \
+	mv $$f.tmp $$f; \
+	done)
