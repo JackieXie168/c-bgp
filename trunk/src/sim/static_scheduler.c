@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/07/2003
-// $Id: static_scheduler.c,v 1.15 2008-04-14 09:12:14 bqu Exp $
+// $Id: static_scheduler.c,v 1.16 2009-03-10 13:13:25 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,7 +15,7 @@
 #include <sys/time.h>
 
 #include <libgds/fifo.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 #include <sim/static_scheduler.h>
 #include <net/network.h>
@@ -23,22 +23,22 @@
 #define EVENT_QUEUE_DEPTH 256
 
 typedef struct {
-  sim_event_ops_t * ops;
-  void            * ctx;
+  const sim_event_ops_t * ops;
+  void                  * ctx;
 } _event_t;
 
 typedef struct {
   sched_type_t   type;
   sched_ops_t    ops;
   simulator_t  * sim;
-  SFIFO        * events;
+  gds_fifo_t   * events;
   unsigned int   cur_time;
-  SLogStream   * pProgressLogStream;
+  gds_stream_t * pProgressLogStream;
+  volatile int   cancelled;
 } sched_static_t;
-typedef sched_static_t SStaticScheduler;
 
 // -----[ _event_create ]--------------------------------------------
-static inline _event_t * _event_create(sim_event_ops_t * ops,
+static inline _event_t * _event_create(const sim_event_ops_t * ops,
 				       void * ctx)
 {
   _event_t * event= (_event_t *) MALLOC(sizeof(_event_t));
@@ -60,12 +60,14 @@ static void _event_destroy(_event_t ** event_ref)
 static void _fifo_event_destroy(void ** item_ref)
 {
   _event_t ** event_ref= (_event_t **) item_ref;
+  _event_t * event= *event_ref;
 
-  if (*event_ref != NULL) {
-    if ((*event_ref)->ops->destroy != NULL)
-      (*event_ref)->ops->destroy((*event_ref)->ctx);
-    _event_destroy(event_ref);
-  }
+  if (event == NULL)
+    return;
+  
+  if ((event->ops != NULL) && (event->ops->destroy != NULL))
+    event->ops->destroy(event->ctx);
+  _event_destroy(event_ref);
 }
 
 // -----[ _log_progress ]--------------------------------------------
@@ -77,10 +79,10 @@ static inline void _log_progress(sched_static_t * sched)
     return;
 
   assert(gettimeofday(&tv, NULL) >= 0);
-  log_printf(sched->pProgressLogStream, "%d\t%.0f\t%d\n",
-	     sched->cur_time,
-	     ((double) tv.tv_sec)*1000000 + (double) tv.tv_usec,
-	     fifo_depth(sched->events));
+  stream_printf(sched->pProgressLogStream, "%d\t%.0f\t%d\n",
+		sched->cur_time,
+		((double) tv.tv_sec)*1000000 + (double) tv.tv_usec,
+		fifo_depth(sched->events));
 }
 
 // -----[ _destroy ]-------------------------------------------------
@@ -91,17 +93,25 @@ static void _destroy(sched_t ** sched_ref)
 
     sched= (sched_static_t *) *sched_ref;
 
-    /* Free private part */
-    if (sched->events->uCurrentDepth > 0)
-      LOG_ERR(LOG_LEVEL_WARNING, "Warning: %d events still in queue.\n",
-	      sched->events->uCurrentDepth);
+    // Free private part
+    if (sched->events->current_depth > 0)
+      cbgp_warn("%d event%s still in simulation queue.\n",
+		sched->events->current_depth,
+		(sched->events->current_depth>1?"s":""));
     fifo_destroy(&sched->events);
     if (sched->pProgressLogStream != NULL)
-      log_destroy(&sched->pProgressLogStream);
+      stream_destroy(&sched->pProgressLogStream);
 
-    FREE(*sched_ref);
+    FREE(sched);
     *sched_ref= NULL;
   }
+}
+
+// -----[ _cancel ]--------------------------------------------------
+static void _cancel(sched_t * self)
+{
+  sched_static_t * sched= (sched_static_t *) self;
+  sched->cancelled= 1;
 }
 
 // -----[ _clear ]---------------------------------------------------
@@ -126,24 +136,24 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event;
 
-  while ((event= (_event_t *) fifo_pop(sched->events)) != NULL) {
+  sched->cancelled= 0;
 
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
+  while ((!sched->cancelled) &&
+	 ((event= (_event_t *) fifo_pop(sched->events)) != NULL)) {
+
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
 	      (double) sched->cur_time);
     event->ops->callback(sched->sim, event->ctx);
     _event_destroy(&event);
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "\n");
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\n");
 
     // Update simulation time
     sched->cur_time++;
 
     // Limit on simulation time ??
     if ((sched->sim->max_time > 0) &&
-	(sched->cur_time >= sched->sim->max_time)) {
-      LOG_ERR(LOG_LEVEL_WARNING, "WARNING: Simulation stopped @ %2.2f.\n",
-	      (double) sched->cur_time);
+	(sched->cur_time >= sched->sim->max_time))
       return ESIM_TIME_LIMIT;
-    }
 
     // Limit on number of steps
     if (num_steps > 0) {
@@ -164,7 +174,7 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
 static unsigned int _num_events(sched_t * self)
 {
   sched_static_t * sched= (sched_static_t *) self;
-  return sched->events->uCurrentDepth;
+  return sched->events->current_depth;
 }
 
 // -----[ _event_at ]------------------------------------------------
@@ -175,25 +185,22 @@ void * _event_at(sched_t * self, unsigned int index)
   uint32_t max_depth;
   uint32_t start;
 
-  depth= sched->events->uCurrentDepth;
+  depth= sched->events->current_depth;
   if (index >= depth)
     return NULL;
 
-  max_depth= sched->events->uMaxDepth;
-  start= sched->events->uStartIndex;
-  return ((_event_t *) sched->events->ppItems[(start+index) % max_depth])->ctx;
+  max_depth= sched->events->max_depth;
+  start= sched->events->start_index;
+  return ((_event_t *) sched->events->items[(start+index) % max_depth])->ctx;
 
 }
 
 // -----[ _post ]----------------------------------------------------
-static int _post(sched_t * self, sim_event_ops_t * ops,
+static int _post(sched_t * self, const sim_event_ops_t * ops,
 		 void * ctx, double time, sim_time_t time_type)
 {
   sched_static_t * sched= (sched_static_t *) self;
-  _event_t * event;
-
-  assert((time == 0) && (time_type == SIM_TIME_REL));
-  event= _event_create(ops, ctx);
+  _event_t * event= _event_create(ops, ctx);
   return fifo_push(sched->events, event);
 }
 
@@ -201,7 +208,7 @@ static int _post(sched_t * self, sim_event_ops_t * ops,
 /**
  * Return information 
  */
-static void _dump_events(SLogStream * stream, sched_t * self)
+static void _dump_events(gds_stream_t * stream, sched_t * self)
 {
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event;
@@ -210,21 +217,21 @@ static void _dump_events(SLogStream * stream, sched_t * self)
   uint32_t start;
   unsigned int index;
 
-  depth= sched->events->uCurrentDepth;
-  max_depth= sched->events->uMaxDepth;
-  start= sched->events->uStartIndex;
-  log_printf(stream, "Number of events queued: %u (%u)\n",
+  depth= sched->events->current_depth;
+  max_depth= sched->events->max_depth;
+  start= sched->events->start_index;
+  stream_printf(stream, "Number of events queued: %u (%u)\n",
 	     depth, max_depth);
   for (index= 0; index < depth; index++) {
-    event= (_event_t *) sched->events->ppItems[(start+index) % max_depth];
-    log_printf(stream, "(%d) ", (start+index) % max_depth);
-    log_flush(stream);
+    event= (_event_t *) sched->events->items[(start+index) % max_depth];
+    stream_printf(stream, "(%d) ", (start+index) % max_depth);
+    stream_flush(stream);
     if (event->ops->dump != NULL) {
       event->ops->dump(stream, event->ctx);
     } else {
-      log_printf(stream, "unknown");
+      stream_printf(stream, "unknown");
     }
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   }
 }
 
@@ -232,17 +239,17 @@ static void _dump_events(SLogStream * stream, sched_t * self)
 /**
  *
  */
-static void _set_log_progress(sched_t * self, const char * file_name)
+static void _set_log_progress(sched_t * self, const char * filename)
 {
   sched_static_t * sched= (sched_static_t *) self;
 
   if (sched->pProgressLogStream != NULL)
-    log_destroy(&sched->pProgressLogStream);
+    stream_destroy(&sched->pProgressLogStream);
 
-  if (file_name != NULL) {
-    sched->pProgressLogStream= log_create_file(file_name);
-    log_printf(sched->pProgressLogStream, "# C-BGP Queue Progress\n");
-    log_printf(sched->pProgressLogStream, "# <step> <time (us)> <depth>\n");
+  if (filename != NULL) {
+    sched->pProgressLogStream= stream_create_file(filename);
+    stream_printf(sched->pProgressLogStream, "# C-BGP Queue Progress\n");
+    stream_printf(sched->pProgressLogStream, "# <step> <time (us)> <depth>\n");
   }
 }
 
@@ -262,9 +269,11 @@ sched_t * sched_static_create(simulator_t * sim)
   sched_static_t * sched=
     (sched_static_t *) MALLOC(sizeof(sched_static_t));
 
-  /* Initialize public part (type + ops) */
+  // Initialize public part (type + ops)
   sched->type= SCHEDULER_STATIC;
+  sched->sim= sim;
   sched->ops.destroy        = _destroy;
+  sched->ops.cancel         = _cancel;
   sched->ops.clear          = _clear;
   sched->ops.run            = _run;
   sched->ops.post           = _post;
@@ -273,9 +282,8 @@ sched_t * sched_static_create(simulator_t * sim)
   sched->ops.dump_events    = _dump_events;
   sched->ops.set_log_process= _set_log_progress;
   sched->ops.cur_time       = _cur_time;
-  sched->sim= sim;
 
-  /* Initialize private part */
+  // Initialize private part
   sched->events= fifo_create(EVENT_QUEUE_DEPTH, _fifo_event_destroy);
   fifo_set_option(sched->events, FIFO_OPTION_GROW_EXPONENTIAL, 1);
   sched->cur_time= 0;
