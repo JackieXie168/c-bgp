@@ -1,265 +1,317 @@
 // ==================================================================
 // @(#)scheduler.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 12/06/2003
-// @lastdate 03/03/2006
+// $Id: scheduler.c,v 1.7 2009-03-10 13:13:25 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
+
+#include <libgds/fifo.h>
+#include <libgds/list.h>
+#include <libgds/memory.h>
+#include <libgds/stream.h>
+
 #include <sim/scheduler.h>
 
-typedef struct {
-  SList * pEvents;
-} SScheduler;
+//#define DEBUG
+#include <libgds/debug.h>
 
-typedef struct {
-  float uTime;
-  SFIFO * pFifoEvents;
-} SSchedulerFifoEvent;
-
-SScheduler * pScheduler = NULL;
-
+#define NUM_BUCKETS       50
 #define EVENT_QUEUE_DEPTH 40000000
 
-static uint32_t uCountEventCreated;
-static uint32_t uCountEventDestroyed;
+typedef struct {
+  const sim_event_ops_t * ops;
+  void                  * ctx;
+} _event_t;
 
-static uint32_t uCountFifoEventCreated;
-static uint32_t uCountFifoEventDestroyed;
+typedef struct {
+  double       time;
+  gds_fifo_t * events;
+} _bucket_t;
 
-static uint32_t uCountEvent = 0;
-static uint32_t uCountPost = 0;
+typedef struct {
+  sched_type_t   type;
+  sched_ops_t    ops;
+  simulator_t  * sim;
+  gds_list_t   * buckets;
+  float          cur_time;
+  gds_stream_t * pProgressLogStream;
+  volatile int   cancelled;
+} sched_dynamic_t;
 
-// ----- scheduler_event_compare ------------------------------------
-/**
- *
- */
-int scheduler_event_compare(void * pItem1, void * pItem2)
+// -----[ _event_create ]--------------------------------------------
+static inline _event_t * _event_create(const sim_event_ops_t * ops,
+				       void * ctx)
 {
-  SSchedulerFifoEvent * pEvent1= (SSchedulerFifoEvent *) pItem1;
-  SSchedulerFifoEvent * pEvent2= (SSchedulerFifoEvent *) pItem2;
+  _event_t * ev= (_event_t *) MALLOC(sizeof(_event_t));
+  ev->ops= ops;
+  ev->ctx= ctx;
+  return ev;
+}
 
-  if (pEvent1->uTime < pEvent2->uTime) 
+// -----[ _event_destroy ]-------------------------------------------
+static inline void _event_destroy(_event_t ** event_ref)
+{
+  _event_t * event= *event_ref;
+  if (event == NULL)
+    return;
+  FREE(event);
+  *event_ref= NULL;
+}
+
+// -----[ _bucket_item_destroy ]-------------------------------------
+static void _bucket_item_destroy(void ** item_ref)
+{
+  _event_t ** event_ref= (_event_t **) item_ref;
+  _event_t * event= *event_ref;
+  if (event == NULL)
+    return;
+  if ((event->ops != NULL) && (event->ops->destroy != NULL))
+    event->ops->destroy(event->ctx);
+  _event_destroy(event_ref);
+}
+
+// -----[ _bucket_create ]-------------------------------------------
+static inline _bucket_t * _bucket_create(double time)
+{
+  _bucket_t * bucket= MALLOC(sizeof(_bucket_t));
+  bucket->events= fifo_create(EVENT_QUEUE_DEPTH, _bucket_item_destroy);
+  bucket->time= time;
+  return bucket;
+}
+
+// -----[ _bucket_destroy ]------------------------------------------
+static inline void _bucket_destroy(_bucket_t ** bucket_ref)
+{
+  _bucket_t * bucket= *bucket_ref;
+  if (bucket == NULL)
+    return;
+  fifo_destroy(&bucket->events);
+  FREE(bucket);
+  *bucket_ref= NULL;
+}
+
+// -----[ _bucket_push ]---------------------------------------------
+static inline void _bucket_push(_bucket_t * bucket, _event_t * event)
+{
+  assert(fifo_push(bucket->events, event) >= 0);
+}
+
+// -----[ _bucket_list_item_cmp ]------------------------------------
+static int _bucket_list_item_cmp(const void * item1,
+				 const void * item2)
+{
+  _bucket_t * bucket1= (_bucket_t *) item1;
+  _bucket_t * bucket2= (_bucket_t *) item2;
+
+  if (bucket2->time < bucket1->time) 
     return 1;
-  else if (pEvent1->uTime > pEvent2->uTime) 
+  if (bucket2->time > bucket1->time) 
     return -1;
-  else 
-    return 0;
-}
-
-
-/*void scheduler_event_fifo_destroy(void ** pItem)
-  {
-  SSchedEvent ** ppEvent = (SSchedulerEvent **) ppItem;
-
-  scheduler_event_destroy(ppEvent);
-  }*/
-
-// ----- scheduler_event_create -------------------------------------
-/**
- *
- */
-SSchedEvent * scheduler_event_create(FSchedEventCallback fCallback,
-				     void * pContext)
-{
-  SSchedEvent * pEvent= (SSchedEvent *) MALLOC(sizeof(SSchedEvent));
-
-  pEvent->fCallback= fCallback;
-  pEvent->pContext= pContext;
-  uCountEventCreated++;
-  return pEvent;
-}
-
-// ----- scheduler_insert_event -------------------------------------
-/**
- *
- */
-int scheduler_event_fifo_insert(SFIFO * pFifoEvents,
-				FSchedEventCallback fCallback,
-				void * pContext)
-{
-  SSchedEvent * pEvent= scheduler_event_create(fCallback, pContext);
-		
-  return fifo_push(pFifoEvents, pEvent);
-}
-
-// ----- scheduler_event_destroy ------------------------------------
-/**
- *
- */
-void scheduler_event_destroy(SSchedEvent ** ppEvent)
-{
-  if (*ppEvent != NULL) {
-    uCountEventDestroyed++;
-    FREE(*ppEvent);
-    *ppEvent= NULL;
-  }
-}
-
-// ----- scheduler_event_destroy_wrapper ----------------------------
-/**
- *
- */
-inline void scheduler_event_destroy_wrapper(void ** ppItem)
-{
-  scheduler_event_destroy((SSchedEvent **) ppItem);
-}
-
-// ----- scheduler_event_create -------------------------------------
-/**
- *
- */
-SSchedulerFifoEvent * scheduler_event_fifo_create(float uSchedulingTime)
-{
-  SSchedulerFifoEvent * pEvent=
-    (SSchedulerFifoEvent *) MALLOC(sizeof(SSchedulerFifoEvent));
-  pEvent->pFifoEvents= fifo_create(EVENT_QUEUE_DEPTH,
-				   scheduler_event_destroy_wrapper);
-  pEvent->uTime= uSchedulingTime;
-  uCountFifoEventCreated++;
-  return pEvent;
-}
-
-
-// ----- scheduler_event_fifo_destroy -------------------------------
-/**
- *
- */
-void scheduler_event_fifo_destroy(SSchedulerFifoEvent ** ppFifoEvent)
-{
-  if (*ppFifoEvent != NULL) {
-    if ((*ppFifoEvent)->pFifoEvents != NULL) 
-      fifo_destroy(&(*ppFifoEvent)->pFifoEvents);
-    uCountFifoEventDestroyed++;
-    FREE(*ppFifoEvent);
-    *ppFifoEvent= NULL;
-  }
-}
-
-// ----- scheduler_list_event_destroy -------------------------------
-/**
- *
- */
-void scheduler_list_event_destroy(void ** ppItem)
-{
-  SSchedulerFifoEvent ** ppFifoEvent= (SSchedulerFifoEvent **) ppItem;
-
-  scheduler_event_fifo_destroy(ppFifoEvent);
-}
-
-// ----- scheduler_create -------------------------------------------
-/**
- *
- */
-SScheduler * scheduler_create()
-{
-  SScheduler * pScheduler= (SScheduler *) MALLOC(sizeof(SScheduler));
-  pScheduler->pEvents= list_create(scheduler_event_compare,
-				   scheduler_list_event_destroy, 50);
-  return pScheduler;
-}
-
-// ----- scheduler_init ---------------------------------------------
-/**
- * Rem : We can imagine initializing the scheduler with a function representing
- * the intelligence of the scheduler.
- */
-int scheduler_init()
-{
-  uCountFifoEventCreated= 0;
-  uCountFifoEventDestroyed= 0;
-  uCountEventCreated= 0;
-  uCountEventDestroyed= 0;
-  if (pScheduler == NULL)
-    pScheduler= scheduler_create();
   return 0;
 }
 
-// ----- scheduler_run ----------------------------------------------
-/**
- *
- */
-int scheduler_run(float uSimulatorTime)
+// -----[ _bucket_list_item_destroy ]--------------------------------
+static void _bucket_list_item_destroy(void ** item_ref)
 {
-  int iIndexFirstEvent= list_get_nbr_element(pScheduler->pEvents)-1;
-  SSchedulerFifoEvent * pFifoEvent= list_get_index(pScheduler->pEvents, 
-						    iIndexFirstEvent);
-  SSchedEvent * pEvent;
-	
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler> nbr events before scheduling %d\t",
-	    iIndexFirstEvent + 1);
-  if (pFifoEvent->uTime == uSimulatorTime) {
-		
-    while ((pEvent = fifo_pop(pFifoEvent->pFifoEvents)) != NULL) {
-      uCountEvent++;
-      pEvent->fCallback(pEvent->pContext);
-      scheduler_event_destroy(&pEvent);
-      iIndexFirstEvent = list_get_nbr_element(pScheduler->pEvents) - 1;
-      pFifoEvent = list_get_index(pScheduler->pEvents, iIndexFirstEvent);
+  _bucket_destroy((_bucket_t **) item_ref);
+}
+
+// -----[ _destroy ]-------------------------------------------------
+static void _destroy(sched_t ** self_ref)
+{
+  sched_dynamic_t * sched= *((sched_dynamic_t **) self_ref);
+  if (sched == NULL)
+    return;
+  list_destroy(&sched->buckets);
+  FREE(sched);
+  self_ref= NULL;
+}
+
+// -----[ _cancel ]--------------------------------------------------
+static void _cancel(sched_t * self)
+{
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  sched->cancelled= 1;
+}
+
+// -----[ _clear ]---------------------------------------------------
+static void _clear(sched_t * self)
+{
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  list_destroy(&sched->buckets);
+  sched->buckets= list_create(_bucket_list_item_cmp,
+			      _bucket_list_item_destroy,
+			      NUM_BUCKETS);
+}
+
+// -----[ _run ]-----------------------------------------------------
+static net_error_t _run(sched_t * self, unsigned int num_steps)
+{
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  _bucket_t * bucket;
+  _event_t * event;
+
+  __debug("sched_dynamic::_run(%p)\n", sched);
+
+  while (list_length(sched->buckets) > 0) {
+    bucket= (_bucket_t *) list_get_at(sched->buckets, 0);
+    __debug("  +-- bucket-time: %f\n", bucket->time);
+
+    sched->cur_time= bucket->time;
+
+    // Limit on simulation time ??
+    if ((sched->sim->max_time > 0) &&
+	(sched->cur_time >= sched->sim->max_time))
+      return ESIM_TIME_LIMIT;
+
+    while (fifo_depth(bucket->events) > 0) {
+
+      event= (_event_t *) fifo_pop(bucket->events);
+      if (event->ops->callback == NULL)
+	cbgp_fatal("event callback is NULL");
+      __debug("event_run()\n"
+	      "  +-- ctx: \"");
+      /*if (event->ops->dump != NULL)
+	event->ops->dump(gdserr, event->ctx);
+      else
+      __debug("???");*/
+      __debug("\"\n");
+      event->ops->callback(sched->sim, event->ctx);
+      _event_destroy(&event);
+
+      // Limit on number of steps
+      if (num_steps > 0) {
+	num_steps--;
+	if (num_steps == 0)
+	  return ESUCCESS;
+      }
     }
 
-    list_delete(pScheduler->pEvents, iIndexFirstEvent);
-  } else if (pFifoEvent->uTime < uSimulatorTime) {
-    LOG_ERR(LOG_LEVEL_FATAL, "Existence of events which will never occur %f",
-	    pFifoEvent->uTime);
-    abort();
+    list_remove_at(sched->buckets, 0);
   }
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "after %d\n", iIndexFirstEvent + 1);
   return 0;
 }
 
-// ----- scheduler_destroy ------------------------------------------
-/**
- *
- */
-void scheduler_done()
+// -----[ _post ]----------------------------------------------------
+static int _post(sched_t * self, const sim_event_ops_t * ops,
+		 void * ctx, double time, sim_time_t time_type)
 {
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler> uCountEvent : %d\n", uCountEvent);
-  if (pScheduler != NULL) {
-    list_destroy(&(pScheduler->pEvents));
-    FREE(pScheduler);
-    pScheduler = NULL;
-  }
-}
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  _bucket_t bucket= { };
+  _bucket_t * bucket_ptr;
+  unsigned int index;
 
-// ----- scheduler_post_event ---------------------------------------
-/**
- *
- */
-int scheduler_post_event(FSchedEventCallback fCallback,
-			 void * pContext, float uSchedulingTime)
-{
-  int iIndex, iRet;
-  SSchedulerFifoEvent * pFifoEvent;
+  if (time_type == SIM_TIME_REL)
+    time= sched->cur_time+time;
 
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "scheduler_post_event\n");
-	
-  pFifoEvent = scheduler_event_fifo_create(uSchedulingTime);
-  uCountPost++;
-  if (list_find_index(pScheduler->pEvents, pFifoEvent, &iIndex) == 0) {
-    scheduler_event_fifo_destroy((void *)&pFifoEvent);
-    pFifoEvent = list_get_index(pScheduler->pEvents, iIndex);
-    iRet = scheduler_event_fifo_insert(pFifoEvent->pFifoEvents, fCallback, pContext);
+  __debug("sched_dynamic::_post(%p)\n"
+	  "  +-- time: %f\n"
+	  "  +-- cur : %f\n", sched, time, sched->cur_time);
+
+  bucket.time= time;
+
+  if ((time < 0) ||
+      ((time_type == SIM_TIME_ABS) &&
+       (time < sched->cur_time)))
+    cbgp_fatal("impossible to schedule events in the past");
+
+  if (list_index_of(sched->buckets, &bucket, &index) < 0) {
+    bucket_ptr= _bucket_create(time);
+    if (list_insert_at(sched->buckets, index, bucket_ptr) < 0)
+      return -1;
   } else {
-    scheduler_event_fifo_insert(pFifoEvent->pFifoEvents, fCallback, pContext);
-    iRet = list_insert_index(pScheduler->pEvents, iIndex, pFifoEvent);
+    bucket_ptr= (_bucket_t *) list_get_at(sched->buckets, index);
   }
-  return iRet;
+  _bucket_push(bucket_ptr, _event_create(ops, ctx));
+  return 0;
 }
 
-// ----- scheduler_isEmpty ------------------------------------------
-/**
- *
- */
-int scheduler_isEmpty()
+// -----[ _num_events ]----------------------------------------------
+static unsigned int _num_events(sched_t * self)
 {
-  if (pScheduler != NULL) 
-    return (list_get_nbr_element(pScheduler->pEvents) == 0 ? 1 : 0);
-  else
-    return -1;
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  unsigned int num_events= 0;
+  unsigned int index;
+  _bucket_t * bucket;
+
+  for (index= 0; index < list_length(sched->buckets); index++) {
+    bucket= (_bucket_t *) list_get_at(sched->buckets, index);
+    num_events+= fifo_depth(bucket->events);
+  }
+  return num_events;
+}
+
+// -----[ _event_at ]------------------------------------------------
+static void * _event_at(sched_t * self, unsigned int index)
+{
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  unsigned int index2;
+  _event_t * event= NULL;
+    _bucket_t * bucket;
+
+  for (index2= 0; index2 < list_length(sched->buckets); index2++) {
+    bucket= (_bucket_t *) list_get_at(sched->buckets, index2);
+    if (index < fifo_depth(bucket->events)) {
+      event= (_event_t *) fifo_get_at(bucket->events, index);
+      break;
+    }
+    index-= fifo_depth(bucket->events);
+  }
+  return event;
+}
+
+// -----[ _dump_events ]---------------------------------------------
+static void _dump_events(gds_stream_t * stream, sched_t * self)
+{
+}
+
+// -----[ _set_log_progress ]----------------------------------------
+static void _set_log_progress(sched_t * self, const char * filename)
+{
+}
+
+// -----[ _cur_time ]------------------------------------------------
+static double _cur_time(sched_t * self)
+{
+  sched_dynamic_t * sched= (sched_dynamic_t *) self;
+  return sched->cur_time;
+}
+
+// -----[ sched_dynamic_create ]-------------------------------------
+sched_t * sched_dynamic_create(simulator_t * sim)
+{
+  sched_dynamic_t * sched=
+    (sched_dynamic_t *) MALLOC(sizeof(sched_dynamic_t));
+
+  // Initialize public part (type + ops)
+  sched->type= SCHEDULER_DYNAMIC;
+  sched->sim= sim;
+  sched->ops.destroy        = _destroy;
+  sched->ops.cancel         = _cancel;
+  sched->ops.clear          = _clear;
+  sched->ops.run            = _run;
+  sched->ops.post           = _post;
+  sched->ops.num_events     = _num_events;
+  sched->ops.event_at       = _event_at;
+  sched->ops.dump_events    = _dump_events;
+  sched->ops.set_log_process= _set_log_progress;
+  sched->ops.cur_time       = _cur_time;
+
+  // Initialize private part
+  sched->buckets= list_create(_bucket_list_item_cmp,
+			      _bucket_list_item_destroy,
+			      NUM_BUCKETS);
+  sched->cur_time= 0;
+  sched->pProgressLogStream= NULL;
+  sched->cancelled= 0;
+
+  return (sched_t *) sched;
 }
