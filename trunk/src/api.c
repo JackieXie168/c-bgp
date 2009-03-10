@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.15 2009-03-10 13:54:23 bqu Exp $
+// $Id: api.c,v 1.16 2009-03-10 14:47:51 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,6 +13,7 @@
 #endif
 
 #include <limits.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -43,6 +44,7 @@
 #include <cli/common.h>
 #include <net/igp_domain.h>
 #include <net/netflow.h>
+#include <net/network.h>
 #include <net/ntf.h>
 #include <net/tm.h>
 #include <sim/simulator.h>
@@ -63,6 +65,29 @@
 static gds_assoc_array_t * _main_params= NULL;
 static param_lookup_t      _main_params_lookup;
 
+// -----[ _signal_handler ]-------------------------------------------
+/**
+ * This is an ANSI C signal handler for SIGINT. The signal handler is
+ * used to interrupt running simulations without quitting C-BGP.
+ */
+static void _signal_handler(int signum)
+{
+  network_t * network;
+  simulator_t * sim;
+
+  if (signum != SIGINT)
+    return;
+
+  network= network_get_default();
+  if (network == NULL)
+    return;
+
+  sim= network_get_simulator(network);
+  if ((sim != NULL) && sim_is_running(sim)) {
+    cbgp_warn("Simulation interrupted by user.\n");
+    sim_cancel(sim);
+  }
+}
 
 // -----[ _file_is_executable ]--------------------------------------
 static inline int _file_is_executable(const char * path)
@@ -169,6 +194,8 @@ void libcbgp_init(int argc, char * argv[])
   if (exec_path != NULL)
     libcbgp_set_param("EXEC_PATH", exec_path);
   str_destroy(&exec_path);
+
+  assert(signal(SIGINT, _signal_handler) != SIG_ERR);
 }
 
 // -----[ libcbgp_done ]---------------------------------------------
