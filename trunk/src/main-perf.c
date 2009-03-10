@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/10/07
-// $Id: main-perf.c,v 1.6 2008-04-11 13:04:39 bqu Exp $
+// $Id: main-perf.c,v 1.7 2009-03-10 13:55:14 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,9 +19,9 @@
 #include <libgds/str_util.h>
 
 #include <api.h>
-#include <bgp/comm.h>
+#include <bgp/attr/comm.h>
+#include <bgp/attr/path.h>
 #include <bgp/mrtd.h>
-#include <bgp/path.h>
 #include <bgp/route.h>
 
 // -----[ test_rib_perf ]--------------------------------------------
@@ -35,27 +35,27 @@
 #ifdef __EXPERIMENTAL__
 /*int test_rib_perf(int argc, char * argv[])
 {
-  int iIndex;
-  SRoutes * pRoutes= mrtd_ascii_load_routes(NULL, pcArg);
-  SRoute * pRoute;
-  SRadixTree * pRadixTree;
-  STrie * pTrie;
+  unsigned int index;
+  bgp_routes_t * routes= mrtd_ascii_load_routes(NULL, pcArg);
+  bgp_route_t * route;
+  SRadixTree * rtree;
+  gds_trie_t * trie;
 
-  if (pRoutes != NULL) {
-    pRadixTree= radix_tree_create(32, NULL);
-    pTrie= trie_create(NULL);
-    for (iIndex= 0; iIndex < routes_list_get_num(pRoutes); iIndex++) {
-      pRoute= (SRoute *) pRoutes->data[iIndex];
-      radix_tree_add(pRadixTree, pRoute->sPrefix.tNetwork,
-		     pRoute->sPrefix.uMaskLen, pRoute);
-      trie_insert(pTrie, pRoute->sPrefix.tNetwork,
-		  pRoute->sPrefix.uMaskLen, pRoute);
+  if (routes != NULL) {
+    rtree= radix_tree_create(32, NULL);
+    trie= trie_create(NULL);
+    for (index= 0; index < routes_list_get_num(routes); index++) {
+      route= (bgp_route_t *) routes->data[index];
+      radix_tree_add(rtree, route->prefix.network,
+		       route->prefix.mask, route);
+      trie_insert(trie, route->prefix.network,
+		  route->prefix.mask, route);
     }
-    fprintf(stdout, "radix-tree: %d\n", radix_tree_num_nodes(pRadixTree));
-    fprintf(stdout, "trie: %d\n", trie_num_nodes(pTrie));
-    radix_tree_destroy(&pRadixTree);
-    trie_destroy(&pTrie);
-    routes_list_destroy(&pRoutes);
+    fprintf(stdout, "radix-tree: %d\n", radix_tree_num_nodes(rtree));
+    fprintf(stdout, "trie: %d\n", trie_num_nodes(trie));
+    radix_tree_destroy(&rtree);
+    trie_destroy(&trie);
+    routes_list_destroy(&routes);
     return 0;
   } else {
     fprintf(stderr, "could not load \"%s\"\n", pcArg);
@@ -74,35 +74,37 @@
 #define AS_PATH_STR_SIZE 1024
 
 // -----[ _array_path_destroy ]--------------------------------------
-static void _array_path_destroy(void * pItem)
+static void _array_path_destroy(void * item, const void * ctx)
 {
-  SBGPPath * pPath= (SBGPPath *) pItem;
-  path_destroy(&pPath);
+  bgp_path_t * path= (bgp_path_t *) item;
+  path_destroy(&path);
 }
 
 // -----[ _array_path_compare ]--------------------------------------
-static int _array_path_compare(void * pItem1, void * pItem2,
-			       unsigned int uEltSize)
+static int _array_path_compare(const void * item1,
+			       const void * item2,
+			       unsigned int elt_size)
 {
-  SBGPPath * pPath1= *((SBGPPath **) pItem1);
-  SBGPPath * pPath2= *((SBGPPath **) pItem2);
+  bgp_path_t * path1= *((bgp_path_t **) item1);
+  bgp_path_t * path2= *((bgp_path_t **) item2);
 
-  return path_cmp(pPath1, pPath2);
+  return path_cmp(path1, path2);
 }
 
 // -----[ _array_comm_destroy ]--------------------------------------
-static void _array_comm_destroy(void * pItem)
+static void _array_comm_destroy(void * item, const void * ctx)
 {
 }
 
 // -----[ _array_comm_compare ]--------------------------------------
-static int _array_comm_compare(void * pItem1, void * pItem2,
-			       unsigned int uEltSize)
+static int _array_comm_compare(const void * item1,
+			       const void * item2,
+			       unsigned int elt_size)
 {
-  SCommunities * pComm1= *((SCommunities **) pItem1);
-  SCommunities * pComm2= *((SCommunities **) pItem2);
+  bgp_comms_t * comms1= *((bgp_comms_t **) item1);
+  bgp_comms_t * comms2= *((bgp_comms_t **) item2);
 
-  return comm_cmp(pComm1, pComm2);
+  return comms_cmp(comms1, comms2);
 }
 
 
@@ -110,50 +112,53 @@ static int _array_comm_compare(void * pItem1, void * pItem2,
 /**
  * Convert an AS-Path to a byte stream.
  */
-static inline size_t path_to_buf(SBGPPath * pPath, uint8_t * puBuffer,
-				 size_t tSize)
+static inline size_t path_to_buf(bgp_path_t * path, uint8_t * buf,
+				 size_t size)
 {
-  unsigned int uIndex, uIndex2;
-  SPathSegment * pSegment;
-  uint8_t * puOrig= puBuffer;
+  unsigned int index, index2;
+  bgp_path_seg_t * seg;
+  uint8_t * buf_start= buf;
 
-  for (uIndex= 0; uIndex < path_num_segments(pPath); uIndex++) {
-    pSegment= (SPathSegment *) pPath->data[uIndex];
-    *(puBuffer++)= pSegment->uType;
-    for (uIndex2= 0; uIndex2 < pSegment->uLength; uIndex2++) {
-      *(puBuffer++)= pSegment->auValue[uIndex2] & 255;
-      *(puBuffer++)= pSegment->auValue[uIndex2] >> 8;
+  for (index= 0; index < path_num_segments(path); index++) {
+    seg= (bgp_path_seg_t *) path->data[index];
+    *(buf++)= seg->type;
+    for (index2= 0; index2 < seg->length; index2++) {
+      *(buf++)= seg->asns[index2] & 255;
+      *(buf++)= seg->asns[index2] >> 8;
     }
   }
-  return puBuffer-puOrig;
+  return buf-buf_start;
 }
 
 // -----[ comm_to_buff ]---------------------------------------------
 /**
  * Convert a Communities to a byte stream.
  */
-static inline size_t comm_to_buf(SCommunities * pComm, uint8_t * puBuffer,
-				 size_t tSize)
+static inline size_t comm_to_buf(bgp_comms_t * comms, uint8_t * buf,
+				 size_t size)
 {
-  unsigned int uIndex;
-  uint8_t * puOrig= puBuffer;
-  comm_t tComm;
+  unsigned int index;
+  uint8_t * buf_start= buf;
+  bgp_comm_t comm;
 
-  if (pComm != NULL) {
-    for (uIndex= 0; uIndex < pComm->uNum; uIndex++) {
-      tComm= (comm_t) pComm->asComms[uIndex];
-      *(puBuffer++)= tComm & 255;
-      tComm= tComm >> 8;
-      *(puBuffer++)= tComm & 255;
-      tComm= tComm >> 8;
-      *(puBuffer++)= tComm & 255;
-      tComm= tComm >> 8;
-      *(puBuffer++)= tComm;
+  if (comms != NULL) {
+    for (index= 0; index < comms->num; index++) {
+      comm= comms->values[index];
+      *(buf++)= comm & 255;
+      comm= comm >> 8;
+      *(buf++)= comm & 255;
+      comm= comm >> 8;
+      *(buf++)= comm & 255;
+      comm= comm >> 8;
+      *(buf++)= comm;
     }
   }
-  return puBuffer-puOrig;
+  return buf-buf_start;
 }
 
+//
+// The following hash function is from Bob Jenkins
+//
 
 /* The golden ratio: an arbitrary value */
 #define JHASH_GOLDEN_RATIO  0x9e3779b9
@@ -236,41 +241,41 @@ uint32_t jhash (void *key, uint32_t length, uint32_t initval)
 }
 
 // -----[ path_strhash ]---------------------------------------------
-static uint32_t path_strhash(const void * pItem, unsigned int uHashSize)
+static uint32_t path_strhash(const void * item, unsigned int hash_size)
 {
-  char acPathStr[AS_PATH_STR_SIZE];
-  SBGPPath * pPath= (SBGPPath *) pItem;
+  char str[AS_PATH_STR_SIZE];
+  bgp_path_t * path= (bgp_path_t *) item;
 
-  assert(path_to_string(pPath, 1,
-			acPathStr, AS_PATH_STR_SIZE) < AS_PATH_STR_SIZE);
-  return hash_utils_key_compute_string(acPathStr, uHashSize) % uHashSize;
+  assert(path_to_string(path, 1,
+			str, AS_PATH_STR_SIZE) < AS_PATH_STR_SIZE);
+  return hash_utils_key_compute_string(str, hash_size) % hash_size;
 }
 
 // -----[ path_jhash]------------------------------------------------
-static uint32_t path_jhash(const void * pItem, unsigned int uHashSize)
+static uint32_t path_jhash(const void * pItem, unsigned int hash_size)
 {
-  SBGPPath * pPath= (SBGPPath *) pItem;
+  bgp_path_t * path= (bgp_path_t *) pItem;
   uint8_t auBuffer[1024];
   size_t tSize;
 
-  tSize= path_to_buf(pPath, auBuffer, sizeof(auBuffer));
-  return jhash(auBuffer, tSize, JHASH_GOLDEN_RATIO) % uHashSize;
+  tSize= path_to_buf(path, auBuffer, sizeof(auBuffer));
+  return jhash(auBuffer, tSize, JHASH_GOLDEN_RATIO) % hash_size;
 }
 
 // -----[ comm_strhash ]---------------------------------------------
-static uint32_t comm_strhash(const void * pItem, unsigned int uHashSize)
+static uint32_t comm_strhash(const void * pItem, unsigned int hash_size)
 {
   char acStr[AS_PATH_STR_SIZE];
-  SCommunities * pComm= (SCommunities *) pItem;
+  bgp_comms_t * pComm= (bgp_comms_t *) pItem;
 
   assert(comm_to_string(pComm, acStr, sizeof(acStr)) < AS_PATH_STR_SIZE);
-  return hash_utils_key_compute_string(acStr, uHashSize) % uHashSize;;
+  return hash_utils_key_compute_string(acStr, hash_size) % hash_size;;
 }
 
 // -----[ comm_hash_zebra ]------------------------------------------
-static uint32_t comm_hash_zebra(const void * pItem, unsigned int uHashSize)
+static uint32_t comm_hash_zebra(const void * pItem, unsigned int hash_size)
 {
-  SCommunities * pComm= (SCommunities *) pItem;
+  bgp_comms_t * pComm= (bgp_comms_t *) pItem;
   uint8_t auBuffer[1024];
   size_t tSize;
   uint32_t uKey= 0;
@@ -279,28 +284,28 @@ static uint32_t comm_hash_zebra(const void * pItem, unsigned int uHashSize)
   for (; tSize > 0; tSize--) {
     uKey+= auBuffer[tSize] & 255;
   }
-  return uKey % uHashSize;
+  return uKey % hash_size;
 }
 
 // -----[ comm_jhash ]-----------------------------------------------
-static uint32_t comm_jhash(const void * pItem, unsigned int uHashSize)
+static uint32_t comm_jhash(const void * pItem, unsigned int hash_size)
 {
-  SCommunities * pComm= (SCommunities *) pItem;
+  bgp_comms_t * pComm= (bgp_comms_t *) pItem;
   uint8_t auBuffer[1024];
   size_t tSize;
 
   tSize= comm_to_buf(pComm, auBuffer, sizeof(auBuffer));
-  return jhash(auBuffer, tSize, JHASH_GOLDEN_RATIO) % uHashSize;
+  return jhash(auBuffer, tSize, JHASH_GOLDEN_RATIO) % hash_size;
 }
 
 typedef uint32_t (*FHashFunction)(const void * pItem, unsigned int);
 
 typedef struct {
   FHashFunction fHashFunc;
-  char *        pcName;
-} SHashMethod;
+  char *        name;
+} hash_method_t;
 
-SHashMethod PATH_HASH_METHODS[]= {
+hash_method_t PATH_HASH_METHODS[]= {
   {path_strhash, "Path-String"},
   {path_hash_zebra, "Path-Zebra"},
   {path_hash_OAT, "Path-OAT"},
@@ -308,7 +313,7 @@ SHashMethod PATH_HASH_METHODS[]= {
 };
 #define PATH_HASH_METHODS_NUM sizeof(PATH_HASH_METHODS)/sizeof(PATH_HASH_METHODS[0])
 
-SHashMethod COMM_HASH_METHODS[]= {
+hash_method_t COMM_HASH_METHODS[]= {
   {comm_strhash, "Comm-String"},
   {comm_hash_zebra, "Comm-Zebra"},
   /*{comm_hash_OAT, "Comm-OAT"},*/
@@ -317,13 +322,13 @@ SHashMethod COMM_HASH_METHODS[]= {
 #define COMM_HASH_METHODS_NUM sizeof(COMM_HASH_METHODS)/sizeof(COMM_HASH_METHODS[0])
 
 typedef struct {
-  SHashMethod * pMethods;
-  uint8_t       uNumMethods;
-  char *        pcName;
-  SPtrArray *   pArray;
-} SAttrInfo;
+  hash_method_t * methods;
+  uint8_t         num_methods;
+  char *          name;
+  ptr_array_t   * array;
+} attr_info_t;
 
-SAttrInfo ATTR_INFOS[]= {
+attr_info_t ATTR_INFOS[]= {
   {PATH_HASH_METHODS, PATH_HASH_METHODS_NUM, "Path", NULL},
   {COMM_HASH_METHODS, COMM_HASH_METHODS_NUM, "Comm", NULL},
 };
@@ -336,24 +341,24 @@ SAttrInfo ATTR_INFOS[]= {
  * attributes in the target arrays. Supported attributes are AS-Path
  * and Communities.
  */
-static int _route_handler(int iStatus, SRoute * pRoute,
-			  net_addr_t tPeerAddr,
-			  unsigned int uPeerAS, void * pContext)
+static int _route_handler(int status, bgp_route_t * route,
+			  net_addr_t peer_addr,
+			  asn_t peer_asn, void * ctx)
 {
-  SAttrInfo * pAttrInfos= (SAttrInfo *) pContext;
+  attr_info_t * attr_infos= (attr_info_t *) ctx;
 
-  if (iStatus != BGP_ROUTES_INPUT_STATUS_OK)
+  if (status != BGP_ROUTES_INPUT_STATUS_OK)
     return BGP_ROUTES_INPUT_SUCCESS;
 
   // AS-Path attribute
-  ptr_array_add(pAttrInfos[0].pArray, &pRoute->pAttr->pASPathRef);
-  pRoute->pAttr->pASPathRef= NULL;
+  ptr_array_add(attr_infos[0].array, &route->attr->path_ref);
+  route->attr->path_ref= NULL;
 
   // Communities attribute
-  ptr_array_add(pAttrInfos[1].pArray, &pRoute->pAttr->pCommunities);
-  pRoute->pAttr->pCommunities= NULL;
+  ptr_array_add(attr_infos[1].array, &route->attr->comms);
+  route->attr->comms= NULL;
 
-  //route_destroy(&pRoute);
+  //route_destroy(&route);
   return BGP_ROUTES_INPUT_SUCCESS;
 }
 #endif /* HAVE_BGPDUMP */
@@ -361,121 +366,124 @@ static int _route_handler(int iStatus, SRoute * pRoute,
 // -----[ test_path_hash_perf ]--------------------------------------
 int test_path_hash_perf(int argc, char * argv[])
 {
-  unsigned int uIndex;
+  unsigned int index;
   struct timeval tp;
   double dStartTime;
   double dEndTime;
 #define MAX_HASH_SIZE 65536
-  unsigned int uHashSize= MAX_HASH_SIZE;
+  unsigned int hash_size= MAX_HASH_SIZE;
   int aiHash[MAX_HASH_SIZE];
   uint32_t uKey;
   double dChiSquare, dExpected, dElement;
   uint32_t uDegreeFreedom;
-  unsigned int uAttrIndex;
-  unsigned int uHashIndex;
+  unsigned int attr_index;
+  unsigned int hash_index;
   FHashFunction fHashFunc;
 
   if (argc < 3) {
-    log_printf(pLogErr, "Error: incorrect number of arguments.\n");
+    stream_printf(gdserr, "Error: incorrect number of arguments"
+		  " (3 needed).\n");
     return -1;
   }
 
-  if ((str_as_uint(argv[1], &uHashSize) < 0) ||
-      (uHashSize > MAX_HASH_SIZE)) {
-    log_printf(pLogErr, "Error: invalid hash size specified.\n");
+  if ((str_as_uint(argv[1], &hash_size) < 0) ||
+      (hash_size > MAX_HASH_SIZE)) {
+    stream_printf(gdserr, "Error: invalid hash size specified.\n");
     return -1;
   }
 
-  ATTR_INFOS[0].pArray= ptr_array_create(ARRAY_OPTION_SORTED |
+  ATTR_INFOS[0].array= ptr_array_create(ARRAY_OPTION_SORTED |
 					 ARRAY_OPTION_UNIQUE,
 					 _array_path_compare,
-					 _array_path_destroy);
-  ATTR_INFOS[1].pArray= ptr_array_create(ARRAY_OPTION_SORTED |
+					_array_path_destroy,
+					NULL);
+  ATTR_INFOS[1].array= ptr_array_create(ARRAY_OPTION_SORTED |
 					 ARRAY_OPTION_UNIQUE,
 					 _array_comm_compare,
-					 _array_comm_destroy);
+					_array_comm_destroy,
+					NULL);
 
   // Load AS-Paths from specified BGP routing tables
-  log_printf(pLogErr,
-	     "***** loading files *******************"
-	     "***************************************\n");
+  stream_printf(gdserr,
+		"***** loading files *******************"
+		"***************************************\n");
   while (argc-- > 2) {
-    log_printf(pLogErr, "* %s...", argv[2]);
-    log_flush(pLogErr);
+    stream_printf(gdserr, "* %s...", argv[2]);
+    stream_flush(gdserr);
 #ifdef HAVE_BGPDUMP
     if (mrtd_binary_load(argv[2], _route_handler, ATTR_INFOS) != 0)
-      log_printf(pLogErr, " KO :-(\n");
+      stream_printf(gdserr, " KO :-(\n");
     else
-      log_printf(pLogErr, " OK :-)\n");
+      stream_printf(gdserr, " OK :-)\n");
 #else
-    log_printf(pLogErr, " KO :-(  /* not bound to libbgpdump */\n");
+    stream_printf(gdserr, " KO :-(  /* not bound to libbgpdump */\n");
 #endif /* HAVE_BGPDUMP */
-    log_flush(pLogErr);
+    stream_flush(gdserr);
   }
 
 
-  log_printf(pLogErr,
-	     "\n***** analysing data ******************"
-	     "***************************************\n");
+  stream_printf(gdserr,
+		"\n***** analysing data ******************"
+		"***************************************\n");
 
-  for (uAttrIndex= 0; uAttrIndex < ATTR_INFOS_NUM; uAttrIndex++) {
+  for (attr_index= 0; attr_index < ATTR_INFOS_NUM; attr_index++) {
 
-    SHashMethod * pMethods= ATTR_INFOS[uAttrIndex].pMethods;
-    uint8_t uNumMethods= ATTR_INFOS[uAttrIndex].uNumMethods;
-    SPtrArray * pArray= ATTR_INFOS[uAttrIndex].pArray;
+    hash_method_t * methods= ATTR_INFOS[attr_index].methods;
+    uint8_t num_methods= ATTR_INFOS[attr_index].num_methods;
+    ptr_array_t * array= ATTR_INFOS[attr_index].array;
 
-    log_printf(pLogErr, "***** Attribute [%s]\n",
-	       ATTR_INFOS[uAttrIndex].pcName);
-
-    log_printf(pLogErr, "- number of different values: %d\n",
-	       ptr_array_length(pArray));
+    stream_printf(gdserr, "***** Attribute [%s]\n",
+		  ATTR_INFOS[attr_index].name);
+    
+    stream_printf(gdserr, "- number of different values: %d\n",
+		  ptr_array_length(array));
 
     // Adjust hash size so that each expected count per bin is at
     // least 5 (this is a common rule of thumb for the adequacy of
     // using the Chi-2 goodness of fit statistic)
-    if ((uHashSize == 0) || (uHashSize > ptr_array_length(pArray)/5))
-      uHashSize= ptr_array_length(pArray)/5;
+    if ((hash_size == 0) || (hash_size > ptr_array_length(array)/5))
+      hash_size= ptr_array_length(array)/5;
     
     // Compute number of degrees of freedom for Pearson's Chi-2 test:
     //   number of bins - number of independent parameters fitted (1) - 1
-    uDegreeFreedom= uHashSize-2; 
-    log_printf(pLogErr, "- degrees of freedom: %d\n", uDegreeFreedom);
+    uDegreeFreedom= hash_size-2; 
+    stream_printf(gdserr, "- degrees of freedom: %d\n", uDegreeFreedom);
 
-    log_printf(pLogErr, "- number of hash functions: %d\n", uNumMethods);
-    log_printf(pLogErr, "- hash table size         : %d\n", uHashSize);
+    stream_printf(gdserr, "- number of hash functions: %d\n", num_methods);
+    stream_printf(gdserr, "- hash table size         : %d\n", hash_size);
     
     // For various hash functions,
     // - measure time for computing hash value
     // - measure goodness of fit using Chi-2 statistic
-    for (uHashIndex= 0; uHashIndex < uNumMethods; uHashIndex++) {
+    for (hash_index= 0; hash_index < num_methods; hash_index++) {
       
-      fHashFunc= pMethods[uHashIndex].fHashFunc;
+      fHashFunc= methods[hash_index].fHashFunc;
       
       memset(aiHash, 0, sizeof(aiHash));
       
       // Measure computation time
-      log_printf(pLogErr, "(%d) method \"%s\"\n",
-		 uHashIndex, pMethods[uHashIndex].pcName);
+      stream_printf(gdserr, "(%d) method \"%s\"\n",
+		    hash_index, methods[hash_index].name);
       assert(gettimeofday(&tp, NULL) >= 0);
       dStartTime= tp.tv_sec*1000000.0 + tp.tv_usec*1.0;
 
-      for (uIndex= 0; uIndex < ptr_array_length(pArray); uIndex++) {
-	uKey= fHashFunc(pArray->data[uIndex], uHashSize);
+      for (index= 0; index < ptr_array_length(array); index++) {
+	uKey= fHashFunc(array->data[index], hash_size);
 	aiHash[uKey]++;
       }
       assert(gettimeofday(&tp, NULL) >= 0);
       dEndTime= tp.tv_sec*1000000.0 + tp.tv_usec*1.0;
-      log_printf(pLogErr, "  - elapsed time   : %f s\n",
-		 (dEndTime-dStartTime)/1000000.0);
+      stream_printf(gdserr, "  - elapsed time   : %f s\n",
+		    (dEndTime-dStartTime)/1000000.0);
       
       // Measure goodness of fit using Pearson's Chi-2 statistic
       dChiSquare= 0;
-      dExpected= ptr_array_length(pArray)*1.0 / (uHashSize*1.0);
-      for (uIndex= 0; uIndex < uHashSize; uIndex++) {
-	dElement= aiHash[uIndex]*1.0 - dExpected;
+      dExpected= ptr_array_length(array)*1.0 / (hash_size*1.0);
+      for (index= 0; index < hash_size; index++) {
+	dElement= aiHash[index]*1.0 - dExpected;
 	dChiSquare+= (dElement*dElement)/dExpected;
       }
-      log_printf(pLogErr, "  - chi-2 statistic: %f\n", dChiSquare);
+      stream_printf(gdserr, "  - chi-2 statistic: %f\n", dChiSquare);
       
       // Need to compute p-value for the above statistic, based on
       // Chi-2 distribution with same number of degrees of freedom.
@@ -485,8 +493,8 @@ int test_path_hash_perf(int argc, char * argv[])
     }
   }
 
-  //ptr_array_destroy(&pArrayPath);
-  //ptr_array_destroy(&pArrayComm);
+  //ptr_array_destroy(&arrayPath);
+  //ptr_array_destroy(&arrayComm);
 
   return 0;
 }
@@ -497,25 +505,14 @@ int test_path_hash_perf(int argc, char * argv[])
 //
 /////////////////////////////////////////////////////////////////////
 
-// -----[ _main_init ]-----------------------------------------------
-static void _main_init() __attribute((constructor));
-static void _main_init()
-{
-  libcbgp_init();
-}
-
-// -----[ _main_done ]-----------------------------------------------
-static void _main_done() __attribute((destructor));
-static void _main_done()
-{
-  libcbgp_done();
-}
-
 // -----[ main ]-----------------------------------------------------
 int main(int argc, char * argv[])
 {
+  libcbgp_init(argc, argv);
   libcbgp_banner();
 
   test_path_hash_perf(argc, argv);
+
+  libcbgp_done();
   return EXIT_SUCCESS;
 }

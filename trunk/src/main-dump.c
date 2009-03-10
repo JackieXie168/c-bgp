@@ -4,8 +4,8 @@
 // Main source file for cbgp-dump application.
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-// @lastdate 21/05/2007
-// $Id: main-dump.c,v 1.5 2008-05-20 11:55:32 bqu Exp $
+// @date 21/05/2007
+// $Id: main-dump.c,v 1.6 2009-03-10 13:55:14 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,20 +17,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <api.h>
 #include <bgp/as.h>
-#include <bgp/filter.h>
+#include <bgp/filter/filter.h>
+#include <bgp/filter/predicate_parser.h>
 #include <bgp/peer.h>
-#include <bgp/predicate_parser.h>
 #include <bgp/route.h>
 #include <bgp/route-input.h>
 
-#define OPTION_HELP       0
-#define OPTION_IN_FORMAT  1
-#define OPTION_OUT_FORMAT 2
-#define OPTION_OUT_SPEC   3
-#define OPTION_FILTER     4
+enum {
+  OPTION_HELP,
+  OPTION_IN_FORMAT,
+  OPTION_OUT_FORMAT,
+  OPTION_OUT_SPEC,
+  OPTION_FILTER
+} options_t;
 
 static struct option longopts[]= {
   {"filter", required_argument, NULL, OPTION_FILTER},
@@ -41,101 +43,103 @@ static struct option longopts[]= {
 };
 
 typedef struct {
-  unsigned int uRoutesOk;
-  unsigned int uRoutesIgnored;
-  unsigned int uRoutesFiltered;
-  char * pcOutSpec;
-  bgp_ft_matcher_t * pMatcher;
-} SDumperContext;
-static SDumperContext sContext= { .uRoutesOk= 0,
-				  .uRoutesIgnored= 0,
-				  .uRoutesFiltered= 0,
-				  .pcOutSpec= NULL,
-				  .pMatcher= NULL,
+  unsigned int       num_routes_ok;
+  unsigned int       num_routes_ignored;
+  unsigned int       num_routes_filtered;
+  char             * out_spec;
+  bgp_ft_matcher_t * matcher;
+} dump_ctx_t;
+static dump_ctx_t dump_ctx= {
+  .num_routes_ok= 0,
+  .num_routes_ignored= 0,
+  .num_routes_filtered= 0,
+  .out_spec= NULL,
+  .matcher= NULL,
 };
 
 // -----[ usage ]----------------------------------------------------
 void usage()
 {
   printf("C-BGP route dumper %s\n", PACKAGE_VERSION);
-  printf("Copyright (C) 2007, Bruno Quoitin\n");
-  printf("IP Networking Lab, CSE Dept, UCL, Belgium\n");
-  printf("\nUsage: cbgp-dump [OPTION]... [FILE]...\n\n");
-  printf("  --filter=FILTER     specifies a route filter.\n");
-  printf("  --help              prints this message.\n");
-  printf("  --in-fmt=FORMAT     specifies the input file format. The default format is\n");
-  printf("                      MRT ASCII. Available file formats are:\n");
-  printf("                        (cisco)      CISCO's show ip bgp format\n");
-  printf("                        (mrt-ascii)  MRT ASCII format\n");
-  printf("                        (mrt-binary) MRT binary\n");
-  printf("  --out-fmt=FORMAT    specifies the output format. The default format is\n");
-  printf("                      CISCO's show ip bgp. Available file formats are:\n");
-  printf("                        (cisco)      CISCO's show ip bgp format\n");
-  printf("                        (mrt-ascii)  MRT ASCII format\n");
-  printf("                        (custom)     custom format (see --out-spec)\n");
-  printf("  --out-spec=SPEC     specifies the format string for the custom output format.\n");
-  printf("\n");
+  printf("Copyright (C) 2007, Bruno Quoitin\n"
+	 "IP Networking Lab, CSE Dept, UCL, Belgium\n"
+	 "\n");
+  printf("Usage: cbgp-dump [OPTION]... [FILE]...\n"
+	 "\n"
+	 "  --filter=FILTER     specifies a route filter.\n"
+	 "  --help              prints this message.\n"
+	 "  --in-fmt=FORMAT     specifies the input file format. The default "
+	 "format\n"
+	 "                      MRT ASCII. Available file formats are:\n"
+	 "                        (cisco)      CISCO's show ip bgp format\n"
+	 "                        (mrt-ascii)  MRT ASCII format\n"
+	 "                        (mrt-binary) MRT binary\n"
+	 "  --out-fmt=FORMAT    specifies the output format. The default "
+	 "format is\n"
+	 "                      CISCO's show ip bgp. Available file formats "
+	 "are:\n"
+	 "                        (cisco)      CISCO's show ip bgp format\n"
+	 "                        (mrt-ascii)  MRT ASCII format\n"
+	 "                        (custom)     custom format (see "
+	 "--out-spec)\n"
+	 "  --out-spec=SPEC     specifies the format string for the custom "
+	 "output format.\n"
+	 "\n");
 }
 
 // -----[ _handler ]-------------------------------------------------
-static int _handler(int iStatus, bgp_route_t * pRoute, net_addr_t tPeerAddr,
-		    unsigned int uPeerAS, void * pContext)
+static int _handler(int status, bgp_route_t * route,
+		    net_addr_t peer_addr, asn_t peer_asn,
+		    void * handler_ctx)
 {
-  SDumperContext * pCtx= (SDumperContext *) pContext;
-  SBGPPeer sPeer;
+  dump_ctx_t * ctx= (dump_ctx_t *) handler_ctx;
+  bgp_peer_t peer;
 
   // Maintain statistics for discarded routes
-  if (iStatus != BGP_ROUTES_INPUT_STATUS_OK) {
-    switch (iStatus) {
+  if (status != BGP_ROUTES_INPUT_STATUS_OK) {
+    switch (status) {
     case BGP_ROUTES_INPUT_STATUS_IGNORED:
-      pCtx->uRoutesIgnored++;
+      ctx->num_routes_ignored++;
       break;
     case BGP_ROUTES_INPUT_STATUS_FILTERED:
-      pCtx->uRoutesFiltered++;
+      ctx->num_routes_filtered++;
       break;
     }
     return BGP_ROUTES_INPUT_SUCCESS;
   }
 
   // Filter route (if filter specified)
-  if (pCtx->pMatcher != NULL) {
-    if (filter_matcher_apply(pCtx->pMatcher, NULL, pRoute) != 1) {
-      pCtx->uRoutesFiltered++;
-      route_destroy(&pRoute);
+  if (ctx->matcher != NULL) {
+    if (filter_matcher_apply(ctx->matcher, NULL, route) != 1) {
+      ctx->num_routes_filtered++;
+      route_destroy(&route);
       return BGP_ROUTES_INPUT_SUCCESS;
     }
   }
 
   // Create fake BGP peer
-  sPeer.tAddr= tPeerAddr;
-  sPeer.uRemoteAS= uPeerAS;
-  pRoute->pPeer= &sPeer;
+  peer.addr= peer_addr;
+  peer.asn= peer_asn;
+  route->peer= &peer;
 
   // Display route
-  //log_printf(pLogOut, "TABLE_DUMP|0|");
-  route_dump(pLogOut, pRoute);
-  log_flush(pLogOut);
-  log_printf(pLogOut, "\n");
-  pCtx->uRoutesOk++;
-  route_destroy(&pRoute);
+  //log_printf(gdsout, "TABLE_DUMP|0|");
+  route_dump(gdsout, route);
+  stream_flush(gdsout);
+  stream_printf(gdsout, "\n");
+  ctx->num_routes_ok++;
+  route_destroy(&route);
   return BGP_ROUTES_INPUT_SUCCESS;
-}
-
-// -----[ _main_init ]-----------------------------------------------
-static void _main_init() __attribute((constructor));
-static void _main_init()
-{
-  libcbgp_init();
 }
 
 // -----[ _main_done ]-----------------------------------------------
 static void _main_done() __attribute((destructor));
 static void _main_done()
 {
-  if (sContext.pcOutSpec != NULL)
-    free(sContext.pcOutSpec);
-  if (sContext.pMatcher != NULL)
-    filter_matcher_destroy(&sContext.pMatcher);
+  if (dump_ctx.out_spec != NULL)
+    free(dump_ctx.out_spec);
+  if (dump_ctx.matcher != NULL)
+    filter_matcher_destroy(&dump_ctx.matcher);
 
   libcbgp_done();
 }
@@ -145,23 +149,25 @@ int main(int argc, char * argv[])
 {
   bgp_input_type_t in_format= BGP_ROUTES_INPUT_MRT_ASC;
   uint8_t out_format= BGP_ROUTES_OUTPUT_CISCO;
-  int iOption, iResult;
-  char * pcFilter;
+  int option, result;
+  char * filter;
+
+  libcbgp_init(argc, argv);
 
   // Parse options
-  while ((iOption= getopt_long(argc, argv, "", longopts, NULL)) != -1) {
-    switch (iOption) {
+  while ((option= getopt_long(argc, argv, "", longopts, NULL)) != -1) {
+    switch (option) {
     case OPTION_FILTER:
-      pcFilter= strdup(optarg);
-      if (sContext.pMatcher != NULL) {
-	log_printf(pLogErr, "Error: route filter already specified.\n");
+      filter= strdup(optarg);
+      if (dump_ctx.matcher != NULL) {
+	stream_printf(gdserr, "Error: route filter already specified.\n");
 	return EXIT_FAILURE;
       }
-      iResult= predicate_parser(pcFilter, &sContext.pMatcher);
-      if (iResult != PREDICATE_PARSER_SUCCESS) {
-	log_printf(pLogErr, "Error: invalid route filter \"%s\" [", optarg);
-	predicate_parser_perror(pLogErr, iResult);
-	log_printf(pLogErr, "\n");
+      result= predicate_parser(filter, &dump_ctx.matcher);
+      if (result != PREDICATE_PARSER_SUCCESS) {
+	stream_printf(gdserr, "Error: invalid route filter \"%s\" [", optarg);
+	predicate_parser_perror(gdserr, result);
+	stream_printf(gdserr, "\n");
 	return EXIT_FAILURE;
       }
       break;
@@ -170,22 +176,23 @@ int main(int argc, char * argv[])
       return EXIT_SUCCESS;
     case OPTION_IN_FORMAT:
       if (bgp_routes_str2format(optarg, &in_format) != 0) {
-	log_printf(pLogErr, "Error: invalid input format \"%s\".\n", optarg);
+	stream_printf(gdserr, "Error: invalid input format \"%s\".\n", optarg);
 	return EXIT_FAILURE;
       }
       break;
     case OPTION_OUT_FORMAT:
-      if (route_str2format(optarg, &out_format) != 0) {
-	log_printf(pLogErr, "Error: invalid output format \"%s\".\n", optarg);
+      if (route_str2mode(optarg, &out_format) != 0) {
+	stream_printf(gdserr, "Error: invalid output format \"%s\".\n",
+		      optarg);
 	return EXIT_FAILURE;
       }
       break;
     case OPTION_OUT_SPEC:
-      if (sContext.pcOutSpec != NULL) {
-	log_printf(pLogErr, "Error: output spec already specified.\n");
+      if (dump_ctx.out_spec != NULL) {
+	stream_printf(gdserr, "Error: output spec already specified.\n");
 	return EXIT_FAILURE;
       }
-      sContext.pcOutSpec= strdup(optarg);
+      dump_ctx.out_spec= strdup(optarg);
       break;
     default:
       usage();
@@ -194,22 +201,21 @@ int main(int argc, char * argv[])
   }
 
   if (optind >= argc) {
-    log_printf(pLogErr, "Error: no input file.\n");
+    stream_printf(gdserr, "Error: no input file.\n");
     return EXIT_FAILURE;
   }
 
-  BGP_OPTIONS_SHOW_MODE= out_format;
-  if (sContext.pcOutSpec != NULL)
-    BGP_OPTIONS_SHOW_FORMAT= strdup(sContext.pcOutSpec);
+  route_set_show_mode(out_format, dump_ctx.out_spec);
 
   // Parse input file(s)
   while (optind < argc) {
 
-    log_printf(pLogErr, "Reading from \"%s\"...\n", argv[optind]);
+    stream_printf(gdserr, "Reading from \"%s\"...\n", argv[optind]);
 
-    iResult= bgp_routes_load(argv[optind], in_format, _handler, &sContext);
-    if (iResult != 0) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: an error (%d) occured while reading \"%s\"", iResult, argv[optind]);
+    result= bgp_routes_load(argv[optind], in_format, _handler, &dump_ctx);
+    if (result != 0) {
+      stream_printf(gdserr, "Error: an error (%d) occured while "
+		    "reading \"%s\"", result, argv[optind]);
       libcbgp_done();
       return EXIT_SUCCESS;
     }
@@ -217,11 +223,14 @@ int main(int argc, char * argv[])
   }
 
   // Print statistics
-  log_printf(pLogErr, "\n");
-  log_printf(pLogErr, "Summary:\n");
-  log_printf(pLogErr, "  routes dumped  : %d\n", sContext.uRoutesOk);
-  log_printf(pLogErr, "  routes ignored : %d\n", sContext.uRoutesIgnored);
-  log_printf(pLogErr, "  routes filtered: %d\n", sContext.uRoutesFiltered);
+  stream_printf(gdserr, "\n");
+  stream_printf(gdserr, "Summary:\n");
+  stream_printf(gdserr, "  routes dumped  : %d\n",
+		dump_ctx.num_routes_ok);
+  stream_printf(gdserr, "  routes ignored : %d\n",
+		dump_ctx.num_routes_ignored);
+  stream_printf(gdserr, "  routes filtered: %d\n",
+		dump_ctx.num_routes_filtered);
 
   return EXIT_SUCCESS;
 }

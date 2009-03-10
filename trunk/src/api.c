@@ -5,38 +5,143 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.14 2008-06-16 09:58:24 bqu Exp $
+// $Id: api.c,v 1.15 2009-03-10 13:54:23 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <api.h>
 
+#include <libgds/assoc_array.h>
 #include <libgds/gds.h>
+#include <libgds/tokenizer.h>
+#include <libgds/tokens.h>
 
 #include <bgp/as.h>
-#include <bgp/as-level.h>
-#include <bgp/comm.h>
-#include <bgp/comm_hash.h>
+#include <bgp/aslevel/as-level.h>
+#include <bgp/attr/comm.h>
+#include <bgp/attr/comm_hash.h>
+#include <bgp/attr/path.h>
+#include <bgp/attr/path_hash.h>
+#include <bgp/attr/path_segment.h>
 #include <bgp/domain.h>
-#include <bgp/filter_registry.h>
+#include <bgp/filter/filter.h>
+#include <bgp/filter/registry.h>
 #include <bgp/mrtd.h>
-#include <bgp/path.h>
-#include <bgp/path_hash.h>
-#include <bgp/path_segment.h>
-#include <bgp/peer_t.h>
-#include <bgp/predicate_parser.h>
+#include <bgp/filter/predicate_parser.h>
 #include <bgp/qos.h>
-#include <bgp/rexford.h>
+#include <bgp/aslevel/rexford.h>
+#include <bgp/route.h>
 #include <bgp/route_map.h>
 #include <cli/common.h>
 #include <net/igp_domain.h>
+#include <net/netflow.h>
+#include <net/ntf.h>
+#include <net/tm.h>
 #include <sim/simulator.h>
+#include <ui/help.h>
 #include <ui/rl.h>
 
+#define COPYRIGHT_MSG				\
+  "  Copyright (C) 2002-2008 Bruno Quoitin\n"				\
+  "  IP Networking Lab\n"						\
+  "  Computer Science and Engineering Dept (INGI)\n"			\
+  "  Université catholique de Louvain\n"				\
+  "  Louvain-la-Neuve, Belgium\n"					\
+  "  \n"								\
+  "  This software is free for personal and educational uses.\n"	\
+  "  See file COPYING for details.\n"					\
 
+
+static gds_assoc_array_t * _main_params= NULL;
+static param_lookup_t      _main_params_lookup;
+
+
+// -----[ _file_is_executable ]--------------------------------------
+static inline int _file_is_executable(const char * path)
+{
+  struct stat sb;
+
+  if (stat(path, &sb) < 0) {
+    perror("stat");
+    return -1;
+  }
+
+  // Regular file ?
+  if ((sb.st_mode & S_IFMT) != S_IFREG)
+    return 0;
+
+  // Owner execute permission
+  if (sb.st_uid == geteuid())
+    return (sb.st_mode & S_IXUSR? 1 : 0);
+
+  // Group execute permission
+  if (sb.st_gid == getegid())
+    return (sb.st_mode & S_IXGRP ? 1 : 0);
+
+  // Others execute permission
+  return (sb.st_mode & S_IXOTH ? 1 : 0);
+
+}
+
+// -----[ _get_exec_path ]-------------------------------------------
+static inline char * _get_exec_path(const char * cmd)
+{
+  char * slash;
+  char buf[PATH_MAX+1];
+  char buf2[PATH_MAX+1];
+  //char * exec_path;
+  char * search_path;
+  unsigned int index;
+  gds_tokenizer_t * tokenizer;
+  const gds_tokens_t * tokens;
+
+  // Locate slash
+  slash= strchr(cmd, '/');
+  if (!slash) {
+
+    search_path= getenv("PATH");
+    if (search_path == NULL)
+      return NULL;
+    if (strlen(search_path) <= 0)
+      return NULL;
+
+    tokenizer= tokenizer_create(":", NULL, NULL);
+    tokenizer_run(tokenizer, search_path);
+
+    tokens= tokenizer_get_tokens(tokenizer);
+
+    buf[0]= '\0';
+    for (index= 0; index < tokens_get_num(tokens); index++) {
+      snprintf(buf, PATH_MAX+1, "%s/%s", tokens_get_string_at(tokens, index), cmd); 
+      if (_file_is_executable(buf))
+	break;
+    }
+    if (strlen(buf) == 0)
+      return NULL;
+    cmd= buf;
+  }
+
+  // get absolute real path
+  if (realpath(cmd, buf2) == NULL) {
+    perror("realpath");
+    return NULL;
+  }
+
+  // Extract path
+  slash= strrchr(buf2, '/');
+  if (slash) 
+    return str_ncreate(buf2, slash-buf2);
+
+  return NULL;
+}
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -49,14 +154,21 @@
  * Initialize the C-BGP library.
  */
 CBGP_EXP_DECL
-void libcbgp_init()
+void libcbgp_init(int argc, char * argv[])
 {
+  char * exec_path;
+
 #ifdef __MEMORY_DEBUG__
   gds_init(GDS_OPTION_MEMORY_DEBUG);
 #else
   gds_init(0);
 #endif
   libcbgp_init2();
+
+  exec_path= _get_exec_path(argv[0]);
+  if (exec_path != NULL)
+    libcbgp_set_param("EXEC_PATH", exec_path);
+  str_destroy(&exec_path);
 }
 
 // -----[ libcbgp_done ]---------------------------------------------
@@ -77,14 +189,8 @@ void libcbgp_done()
 CBGP_EXP_DECL
 void libcbgp_banner()
 {
-  log_printf(pLogOut, "C-BGP routing solver %s\n", PACKAGE_VERSION);
-  log_printf(pLogOut, "Copyright (C) 2008 Bruno Quoitin\n");
-  log_printf(pLogOut, "IP Networking Lab, CSE Dept, UCL, Belgium\n");
-  log_printf(pLogOut, "\n");
-  log_printf(pLogOut, "C-BGP comes with ABSOLUTELY NO WARRANTY.\n");
-  log_printf(pLogOut, "This is free software, and you are welcome to redistribute it\n");
-  log_printf(pLogOut, "under certain conditions; see file COPYING for details.\n");
-  log_printf(pLogOut, "\n");
+  stream_printf(gdsout, "C-BGP Routing Solver version %s\n", PACKAGE_VERSION);
+  stream_printf(gdsout, "\n%s\n", COPYRIGHT_MSG);
 }
 
 // -----[ libcbgp_set_debug_callback ]-------------------------------
@@ -92,19 +198,17 @@ void libcbgp_banner()
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
-				void * pContext)
+void libcbgp_set_debug_callback(gds_stream_cb_f cb, void * ctx)
 {
-  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+  gds_stream_t * debug= stream_create_callback(cb, ctx);
   
-  if (pLogTmp == NULL) {
-    fprintf(stderr, "Warning: couln't direct debug log to callback %p.\n",
-	    fCallback);
+  if (debug == NULL) {
+    cbgp_warn("couln't direct debug log to callback %p.\n", cb);
     return;
   }
 
-  log_destroy(&pLogDebug);
-  pLogDebug= pLogTmp;
+  stream_destroy(&gdsdebug);
+  gdsdebug= debug;
 }
 
 // -----[ libcbgp_set_err_callback ]---------------------------------
@@ -112,19 +216,17 @@ void libcbgp_set_debug_callback(FLogStreamCallback fCallback,
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_err_callback(FLogStreamCallback fCallback,
-			      void * pContext)
+void libcbgp_set_err_callback(gds_stream_cb_f cb, void * ctx)
 {
-  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+  gds_stream_t * err= stream_create_callback(cb, ctx);
   
-  if (pLogTmp == NULL) {
-    fprintf(stderr, "Warning: couln't direct error log to callback %p.\n",
-	    fCallback);
+  if (err == NULL) {
+    cbgp_warn("couln't direct error log to callback %p.\n", cb);
     return;
   }
 
-  log_destroy(&pLogErr);
-  pLogErr= pLogTmp;
+  stream_destroy(&gdserr);
+  gdserr= err;
 }
 
 // -----[ libcbgp_set_out_callback ]---------------------------------
@@ -132,19 +234,17 @@ void libcbgp_set_err_callback(FLogStreamCallback fCallback,
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_out_callback(FLogStreamCallback fCallback,
-			      void * pContext)
+void libcbgp_set_out_callback(gds_stream_cb_f cb, void * ctx)
 {
-  SLogStream * pLogTmp= log_create_callback(fCallback, pContext);
+  gds_stream_t * out= stream_create_callback(cb, ctx);
 
-  if (pLogTmp == NULL) {
-    fprintf(stderr, "Warning: couln't direct output to callback %p.\n",
-	    fCallback);
+  if (out == NULL) {
+    cbgp_warn("couln't direct output to callback %p.\n", cb);
     return;
   }
 
-  log_destroy(&pLogOut);
-  pLogOut= pLogTmp;
+  stream_destroy(&gdsout);
+  gdsout= out;
 }
 
 // -----[ libcbgp_set_debug_level ]----------------------------------
@@ -152,9 +252,9 @@ void libcbgp_set_out_callback(FLogStreamCallback fCallback,
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_debug_level(ELogLevel eLevel)
+void libcbgp_set_debug_level(stream_level_t level)
 {
-  log_set_level(pLogDebug, eLevel);
+  stream_set_level(gdsdebug, level);
 }
 
 // -----[ libcbgp_set_err_level ]------------------------------------
@@ -162,9 +262,9 @@ void libcbgp_set_debug_level(ELogLevel eLevel)
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_err_level(ELogLevel eLevel)
+void libcbgp_set_err_level(stream_level_t level)
 {
-  log_set_level(pLogErr, eLevel);
+  stream_set_level(gdserr, level);
 }
 
 // -----[ libcbgp_set_debug_file ]-----------------------------------
@@ -172,18 +272,18 @@ void libcbgp_set_err_level(ELogLevel eLevel)
  *
  */
 CBGP_EXP_DECL
-void libcbgp_set_debug_file(char * pcFileName)
+void libcbgp_set_debug_file(const char * filename)
 {
-  SLogStream * pLogTmp= log_create_file(pcFileName);
+  gds_stream_t * debug= stream_create_file(filename);
 
-  if (pLogTmp == NULL) {
+  if (debug == NULL) {
     fprintf(stderr, "Warning: couln't direct debug log to \"%s\".\n",
-	    pcFileName);
+	    filename);
     return;
   }
 
-  log_destroy(&pLogDebug);
-  pLogDebug= pLogTmp;
+  stream_destroy(&gdsdebug);
+  gdsdebug= debug;
 }
 
 
@@ -193,10 +293,35 @@ void libcbgp_set_debug_file(char * pcFileName)
 //
 /////////////////////////////////////////////////////////////////////
 
+// -----[ libcbgp_set_param ]----------------------------------------
+CBGP_EXP_DECL
+void libcbgp_set_param(const char * name, const char * value)
+{
+  assoc_array_set(_main_params, name, strdup(value));
+}
+
+// -----[ libcbgp_get_param ]----------------------------------------
+CBGP_EXP_DECL
+const char * libcbgp_get_param(const char * name)
+{
+  return assoc_array_get(_main_params, name);
+}
+
+// -----[ libcbgp_has_param ]----------------------------------------
+CBGP_EXP_DECL
+int libcbgp_has_param(const char * name)
+{
+  return assoc_array_exists(_main_params, name);
+}
+
+// -----[ libcbgp_get_param_lookup ]---------------------------------
+CBGP_EXP_DECL
+param_lookup_t libcbgp_get_param_lookup()
+{
+  return _main_params_lookup;
+}
+
 // -----[ libcbgp_exec_cmd ]-----------------------------------------
-/**
- *
- */
 CBGP_EXP_DECL
 int libcbgp_exec_cmd(const char * cmd)
 {
@@ -204,26 +329,23 @@ int libcbgp_exec_cmd(const char * cmd)
 }
 
 // -----[ libcbgp_exec_file ]----------------------------------------
-/**
- *
- */
 CBGP_EXP_DECL
-int libcbgp_exec_file(const char * file_name)
+int libcbgp_exec_file(const char * filename)
 {
-  FILE * pInCli= fopen(file_name, "r");
+  FILE * script= fopen(filename, "r");
 
-  if (pInCli == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: Unable to open script file \"%s\"\n", file_name);
+  if (script == NULL) {
+    stream_printf(gdserr, "Error: Unable to open script file \"%s\"\n",
+		  filename);
     return -1;
   }
   
-  if (libcbgp_exec_stream(pInCli) != CLI_SUCCESS) {
-    fclose(pInCli);
+  if (libcbgp_exec_stream(script) != CLI_SUCCESS) {
+    fclose(script);
     return -1;
   }
 
-  fclose(pInCli);
+  fclose(script);
   return 0;
 }
 
@@ -234,7 +356,7 @@ int libcbgp_exec_file(const char * file_name)
 CBGP_EXP_DECL
 int libcbgp_exec_stream(FILE * stream)
 {
-  return cli_execute_file(cli_get(), stream);
+  return cli_execute_stream(cli_get(), stream);
 }
 
 // -----[ libcbgp_interactive ]--------------------------------------
@@ -248,31 +370,33 @@ int libcbgp_interactive()
   char * line;
 
   libcbgp_banner();
-  fprintf(stdout, "cbgp> init.\n");
-
+  _help_init();
   _rl_init();
 
-  while (1) {
-    /* Get user-input */
+  fprintf(stdout, "cbgp> init.\n");
+
+  do {
+
+    // Get user-input
     line= rl_gets();
 
-    /* EOF has been catched (Ctrl-D), exit */
+    // EOF has been catched (Ctrl-D), exit
     if (line == NULL) {
       fprintf(stdout, "\n");
       break;
     }
 
-    /* Execute command */
+    // Execute command
     result= libcbgp_exec_cmd(line);
+    if (result < CLI_SUCCESS)
+      cli_dump_error(gdserr, cli_get());
 
-    if (result == CLI_SUCCESS_TERMINATE)
-      break;
-
-  }
-
-  _rl_destroy();
+  } while (result != CLI_SUCCESS_TERMINATE);
 
   fprintf(stdout, "cbgp> done.\n");
+
+  _rl_destroy();
+  _help_destroy();
 
   return result;
 }
@@ -284,21 +408,23 @@ int libcbgp_interactive()
 //
 /////////////////////////////////////////////////////////////////////
 
+// -----[ _param_destroy ]-------------------------------------------
+static void _param_destroy(void * item)
+{
+  free(item);
+}
+
 // -----[ libcbgp_init2 ]--------------------------------------------
-/**
- * Initialize the C-BGP library, but not the GDS library. This
- * function is used by programs or libraries that run multiple C-BGP
- * C-BGP sessions and manage the GDS library by themselve (see the
- * JNI library for an example).
- *
- * NOTE: You should normaly not use this function. Consider using the
- * 'libcbgp_init' function instead.
- */
 void libcbgp_init2()
 {
   // Initialize log.
-  libcbgp_set_err_level(LOG_LEVEL_WARNING);
-  libcbgp_set_debug_level(LOG_LEVEL_WARNING);
+  libcbgp_set_err_level(STREAM_LEVEL_WARNING);
+  libcbgp_set_debug_level(STREAM_LEVEL_WARNING);
+
+  // Initialize global params
+  _main_params= assoc_array_create(_param_destroy);
+  _main_params_lookup.lookup= default_lookup;
+  _main_params_lookup.ctx   = _main_params;
 
   // Hash init code commented in order to allow parameter setup
   // through he command-line/script (initialization is performed
@@ -306,41 +432,40 @@ void libcbgp_init2()
   //_comm_hash_init();
   //_path_hash_init();
 
-  _network_create();
+  _network_init();
   _bgp_domain_init();
-  _igp_domain_init();
   _ft_registry_init();
   _filter_path_regex_init();
-  _route_map_init();
+  _route_maps_init();
+  _ntf_init();
+  _netflow_init();
+  _tm_init();
+  _cli_common_init();
 }
 
 // -----[ libcbgp_done2 ]--------------------------------------------
-/**
- * Free the resources allocated by the C-BGP library, but do not
- * terminate the GDS library. See the 'libcbgp_init2' function for
- * more details.
- *
- * NOTE: You should normaly not use this function. Consider using the
- * 'libcbgp_done' function instead. 
- */
 void libcbgp_done2()
 {
   _cli_common_destroy();
+  _tm_done();
+  _netflow_done();
+  _ntf_done();
   _message_destroy();
-  _route_map_destroy();
+  _route_maps_destroy();
   _filter_path_regex_destroy();
-  _ft_registry_destroy();
+  _ft_registry_done();
   _bgp_domain_destroy();
-  _igp_domain_destroy();
-  _network_destroy();
+  _network_done();
   _mrtd_destroy();
   _path_hash_destroy();
   _comm_hash_destroy();
-  _bgp_router_destroy();
+  _bgp_route_destroy();
   _aslevel_destroy();
   _path_destroy();
   _path_segment_destroy();
   _comm_destroy();
+
+  assoc_array_destroy(&_main_params);
 }
 
 
