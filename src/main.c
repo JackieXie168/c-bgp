@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: main.c,v 1.38 2009-03-09 16:44:19 bqu Exp $
+// $Id: main.c,v 1.39 2009-03-10 14:47:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -24,8 +24,6 @@
 #include <libgds/str_util.h>
 
 #include <cli/common.h>
-#include <net/network.h>
-#include <sim/simulator.h>
 
 //#include <net/ospf.h>
 
@@ -39,30 +37,6 @@
 // -----[ global options ]-----
 uint8_t mode   = CBGP_MODE_DEFAULT;
 char * arg_mode= NULL;
-
-// -----[ signal_handler ]-------------------------------------------
-/**
- * This is an ANSI C signal handler for SIGINT. The signal handler is
- * used to interrupt running simulations without quitting C-BGP.
- */
-void signal_handler(int signum)
-{
-  network_t * network;
-  simulator_t * sim;
-
-  if (signum != SIGINT)
-    return;
-
-  network= network_get_default();
-  if (network == NULL)
-    return;
-
-  sim= network_get_simulator(network);
-  if ((sim != NULL) && sim_is_running(sim)) {
-    cbgp_warn("Simulation interrupted by user.\n");
-    sim_cancel(sim);
-  }
-}
 
 // -----[ simulation_cli_help ]--------------------------------------
 /**
@@ -131,7 +105,6 @@ int main(int argc, char ** argv) {
   int exit_code= EXIT_SUCCESS;
   gds_tokenizer_t * tokenizer;
   const gds_tokens_t * tokens;
-  struct sigaction sa;
 
   libcbgp_init(argc, argv);
 
@@ -173,11 +146,6 @@ int main(int argc, char ** argv) {
 
   if ((mode == CBGP_MODE_DEFAULT) && isatty(0))
     simulation_set_mode(CBGP_MODE_INTERACTIVE, NULL);
-
-  sa.sa_handler= signal_handler;
-  sa.sa_flags= 0;
-  sa.sa_mask= 0;
-  assert(sigaction(SIGINT, &sa, NULL) >= 0);
 
   /* Run simulation in selected mode... */
   switch (mode) {
