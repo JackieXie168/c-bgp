@@ -2,12 +2,12 @@ dnl =================================================================
 dnl configure.in for cbgp
 dnl
 dnl @author Bruno Quoitin
-dnl $Id: configure.in,v 1.86 2008-06-12 10:50:08 bqu Exp $
+dnl $Id: configure.in,v 1.87 2009-03-10 13:53:53 bqu Exp $
 dnl =================================================================
 
-AC_REVISION($Revision: 1.86 $)
+AC_REVISION($Revision: 1.87 $)
 
-AC_INIT([cbgp], [1.5.0], [bruno.quoitin@uclouvain.be])
+AC_INIT([cbgp], [2.0.0], [bruno.quoitin@uclouvain.be])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -55,7 +55,7 @@ AC_SUBST(CBGP_LT_RELEASE, [$PACKAGE_VERSION])
 dnl *****************************************************************
 dnl LIBGDS CHECK
 dnl *****************************************************************
-LIBGDS_VERSION="1.4.3"
+LIBGDS_VERSION="2.0.0"
 AC_SUBST(LIBGDS_VERSION, [$LIBGDS_VERSION])
 PKG_CHECK_MODULES([LIBGDS], [libgds >= $LIBGDS_VERSION],[],[
   AC_MSG_ERROR([libgds >= $LIBGDS_VERSION is needed to compile cbgp])
@@ -465,4 +465,4 @@ TESTS="src/checks/basic"
 CFLAGS="$CFLAGS -Wall -Werror -O2"
 AC_SUBST(CFLAGS)
 
-AC_OUTPUT(Makefile doc/Makefile doc/txt/Makefile lib/Makefile src/Makefile src/bgp/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/liballoc/Makefile src/net/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec src/jni/jni-test.sh)
+AC_OUTPUT(Makefile doc/Makefile doc/txt/Makefile examples/Makefile lib/Makefile src/Makefile src/bgp/Makefile src/bgp/aslevel/Makefile src/bgp/attr/Makefile src/bgp/filter/Makefile src/cli/Makefile src/external/Makefile src/jni/Makefile src/jni/impl/Makefile src/net/Makefile src/net/traffic/Makefile src/sim/Makefile src/ui/Makefile src/util/Makefile valid/Makefile libcsim.pc cbgp.spec src/jni/jni-test.sh)
