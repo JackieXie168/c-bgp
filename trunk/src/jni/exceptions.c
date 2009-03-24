@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 18/12/2007
-// @lastdate 22/02/2008
+// $Id: exceptions.c,v 1.2 2009-03-24 15:59:55 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -75,7 +75,7 @@ static inline jthrowable _get_throwable(JNIEnv * jEnv,
 /**
  * Throw a CBGPException.
  */
-void throw_CBGPException(JNIEnv * jEnv, char * pcMsg, ...)
+void throw_CBGPException(JNIEnv * jEnv, const char * pcMsg, ...)
 {
   jclass jcException;
   char * pcFinalMsg;
@@ -101,8 +101,8 @@ void throw_CBGPException(JNIEnv * jEnv, char * pcMsg, ...)
  * Throw a CBGPScriptException.
  */
 void throw_CBGPScriptException(JNIEnv * jEnv,
-			       char * pcMsg,
-			       char * pcFileName,
+			       const char * pcMsg,
+			       const char * pcFileName,
 			       int iLineNumber)
 {
   jstring jsMsg= NULL;

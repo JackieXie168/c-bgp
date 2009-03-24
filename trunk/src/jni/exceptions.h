@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 18/12/2007
-// @lastdate 10/01/2008
+// $Id: exceptions.h,v 1.2 2009-03-24 15:59:55 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_EXCEPTIONS_H__
@@ -16,11 +16,11 @@ extern "C" {
 #endif
 
   // -----[ throw_CBGPException ]------------------------------------
-  void throw_CBGPException(JNIEnv * jEnv, char * pcMsg, ...);
+  void throw_CBGPException(JNIEnv * jEnv, const char * pcMsg, ...);
   // -----[ throw_CBGPScriptException ]------------------------------
   void throw_CBGPScriptException(JNIEnv * jEnv,
-				 char * pcMsg,
-				 char * pcFileName,
+				 const char * pcMsg,
+				 const char * pcFileName,
 				 int iLineNumber);
   // -----[ throw_InvalidDestination ]-------------------------------
   void throw_InvalidDestination(JNIEnv * jEnv, jstring jsDest);
