@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// @lastdate 12/03/2008
+// $Id: bgp_filter.c,v 1.3 2009-03-24 15:58:13 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,50 +13,38 @@
 #include <assert.h>
 
 #include <libgds/cli_ctx.h>
+#include <libgds/cli_params.h>
 
-#include <bgp/filter.h>
-#include <bgp/filter_parser.h>
-#include <bgp/predicate_parser.h>
+#include <bgp/filter/filter.h>
+#include <bgp/filter/parser.h>
+#include <bgp/filter/predicate_parser.h>
 #include <cli/common.h>
-
-static inline bgp_ft_rule_t * _rule_from_context(SCliContext * pContext) {
-  bgp_ft_rule_t * pRule= (bgp_ft_rule_t *) cli_context_get_item_at_top(pContext);
-  assert(pRule != NULL);
-  return pRule;
-}
-
-static inline bgp_filter_t ** _filter_from_context(SCliContext * pContext) {
-  bgp_filter_t ** ppFilter= (bgp_filter_t **) cli_context_get_item_at_top(pContext);
-  assert(ppFilter != NULL);
-  return ppFilter;
-}
+#include <cli/context.h>
 
 // -----[ cli_bgp_filter_rule_match ]--------------------------------
 /**
  * context: {?, rule}
  * tokens: {?, predicate}
  */
-static int cli_bgp_filter_rule_match(SCliContext * pContext,
-				     SCliCmd * pCmd)
+static int cli_bgp_filter_rule_match(cli_ctx_t * ctx,
+				     cli_cmd_t * cmd)
 {
-  bgp_ft_rule_t * pRule= _rule_from_context(pContext);
-  char * pcPredicate;
-  bgp_ft_matcher_t * pMatcher;
-  int iResult;
+  bgp_ft_rule_t * rule= _rule_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  bgp_ft_matcher_t * matcher;
+  int result;
 
   // Parse predicate
-  pcPredicate= tokens_get_string_at(pCmd->pParamValues,
-				    tokens_get_num(pCmd->pParamValues)-1);
-  iResult= predicate_parser(pcPredicate, &pMatcher);
-  if (iResult != PREDICATE_PARSER_SUCCESS) {
+  result= predicate_parser(arg, &matcher);
+  if (result != PREDICATE_PARSER_SUCCESS) {
     cli_set_user_error(cli_get(), "invalid predicate \"%s\" (%s)",
-		       pcPredicate, predicate_parser_strerror(iResult));
+		       arg, predicate_parser_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if (pRule->pMatcher != NULL)
-    filter_matcher_destroy(&pRule->pMatcher);
-  pRule->pMatcher= pMatcher;
+  if (rule->matcher != NULL)
+    filter_matcher_destroy(&rule->matcher);
+  rule->matcher= matcher;
 
   return CLI_SUCCESS;
 }
@@ -66,25 +54,28 @@ static int cli_bgp_filter_rule_match(SCliContext * pContext,
  * context: {?, rule}
  * tokens: {?, action}
  */
-static int cli_bgp_filter_rule_action(SCliContext * pContext,
-				      SCliCmd * pCmd)
+static int cli_bgp_filter_rule_action(cli_ctx_t * ctx,
+				      cli_cmd_t * cmd)
 {
-  bgp_ft_rule_t * pRule= _rule_from_context(pContext);
-  char * pcAction;
-  bgp_ft_action_t * pAction;
+  bgp_ft_rule_t * rule= _rule_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  bgp_ft_action_t * action;
+  bgp_ft_action_t * prev;
 
-  // Parse predicate
-  pcAction= tokens_get_string_at(pCmd->pParamValues,
-				 tokens_get_num(pCmd->pParamValues)-1);
-  if (filter_parser_action(pcAction, &pAction)) {
-    cli_set_user_error(cli_get(), "invalid action \"%s\"", pcAction);
+  // Parse action
+  if (filter_parser_action(arg, &action)) {
+    cli_set_user_error(cli_get(), "invalid action \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  if (pRule->pAction != NULL)
-    filter_action_destroy(&pRule->pAction);
-  pRule->pAction= pAction;
-
+  if (rule->action == NULL) {
+    rule->action= action;
+  } else {
+    prev= rule->action;
+    while (prev->next_action != NULL)
+      prev= prev->next_action;
+    prev->next_action= action;
+  }
   return CLI_SUCCESS;
 }
 
@@ -93,21 +84,21 @@ static int cli_bgp_filter_rule_action(SCliContext * pContext,
  * context: {?, &filter}
  * tokens: {?}
  */
-int cli_ctx_create_bgp_filter_add_rule(SCliContext * pContext,
-				       void ** ppItem)
+int cli_ctx_create_bgp_filter_add_rule(cli_ctx_t * ctx, cli_cmd_t * cmd,
+				       void ** item)
 {
-  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
-  bgp_ft_rule_t * pRule;
+  bgp_filter_t ** filter= _filter_from_context(ctx);
+  bgp_ft_rule_t * rule;
 
   // If the filter is empty, create it
-  if (*ppFilter == NULL)
-    *ppFilter= filter_create();
+  if (*filter == NULL)
+    *filter= filter_create();
 
   // Create rule and put it on the context
-  pRule= filter_rule_create(NULL, NULL);
-  filter_add_rule2(*ppFilter, pRule);
+  rule= filter_rule_create(NULL, NULL);
+  filter_add_rule2(*filter, rule);
 
-  *ppItem= pRule;
+  *item= rule;
 
   return CLI_SUCCESS;
 }
@@ -117,33 +108,31 @@ int cli_ctx_create_bgp_filter_add_rule(SCliContext * pContext,
  * context: {?, &filter}
  * tokens: {?, pos}
  */
-int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
-					  void ** ppItem)
+int cli_ctx_create_bgp_filter_insert_rule(cli_ctx_t * ctx, cli_cmd_t * cmd,
+					  void ** item)
 {
-  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
-  bgp_ft_rule_t * pRule;
-  unsigned int uIndex;
+  bgp_filter_t ** filter= _filter_from_context(ctx);
+  bgp_ft_rule_t * rule;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned int index;
 
   // Get insertion position
-  if (tokens_get_uint_at(pContext->pCmd->pParamValues,
-			 tokens_get_num(pContext->pCmd->pParamValues)-1,
-			 &uIndex)) {
-    cli_set_user_error(cli_get(), "invalid index");
+  if (str_as_uint(arg, &index)) {
+    cli_set_user_error(cli_get(), "invalid index \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // If the filter is empty, create it
-  if (*ppFilter == NULL)
-    *ppFilter= filter_create();
+  if (*filter == NULL)
+    *filter= filter_create();
 
   // Create rule and put it on the context
-  pRule= filter_rule_create(NULL, NULL);
-  filter_insert_rule(*ppFilter, uIndex, pRule);
+  rule= filter_rule_create(NULL, NULL);
+  filter_insert_rule(*filter, index, rule);
 
-  *ppItem= pRule;
+  *item= rule;
 
   return CLI_SUCCESS;
-  return CLI_ERROR_CTX_CREATE;
 }
 
 // ----- cli_bgp_filter_remove_rule ---------------------------------
@@ -151,28 +140,27 @@ int cli_ctx_create_bgp_filter_insert_rule(SCliContext * pContext,
  * context: {?, &filter}
  * tokens: {?, pos}
  */
-int cli_bgp_filter_remove_rule(SCliContext * pContext,
-			       SCliCmd * pCmd)
+int cli_bgp_filter_remove_rule(cli_ctx_t * ctx,
+			       cli_cmd_t * cmd)
 {
-  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
-  unsigned int uIndex;
+  bgp_filter_t ** filter= _filter_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned int index;
 
-  if (*ppFilter == NULL) {
+  if (*filter == NULL) {
     cli_set_user_error(cli_get(), "filter contains no rule");
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   // Get index of rule to be removed
-  if (tokens_get_uint_at(pCmd->pParamValues,
-			 tokens_get_num(pCmd->pParamValues)-1,
-			 &uIndex)) {
-    cli_set_user_error(cli_get(), "invalid index");
+  if (str_as_uint(arg, &index)) {
+    cli_set_user_error(cli_get(), "invalid index \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Remove rule
-  if (filter_remove_rule(*ppFilter, uIndex)) {
-    cli_set_user_error(cli_get(), "could not remove rule %u", uIndex);
+  if (filter_remove_rule(*filter, index)) {
+    cli_set_user_error(cli_get(), "could not remove rule %u", index);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -184,8 +172,8 @@ int cli_bgp_filter_remove_rule(SCliContext * pContext,
  * context: {?, &filter}
  * tokens: {?}
  */
-int cli_ctx_create_bgp_filter_rule(SCliContext * pContext,
-				   void ** ppItem)
+int cli_ctx_create_bgp_filter_rule(cli_ctx_t * ctx, cli_cmd_t * cmd,
+				   void ** item)
 {
   cli_set_user_error(cli_get(), "not yet implemented, sorry.");
   return CLI_ERROR_CTX_CREATE;
@@ -195,7 +183,7 @@ int cli_ctx_create_bgp_filter_rule(SCliContext * pContext,
 /**
  *
  */
-void cli_ctx_destroy_bgp_filter_rule(void ** ppItem)
+void cli_ctx_destroy_bgp_filter_rule(void ** item)
 {
 }
 
@@ -204,33 +192,21 @@ void cli_ctx_destroy_bgp_filter_rule(void ** ppItem)
  * context: {?, &filter}
  * tokens: {?}
  */
-int cli_bgp_filter_show(SCliContext * pContext,
-			SCliCmd * pCmd)
+int cli_bgp_filter_show(cli_ctx_t * ctx,
+			cli_cmd_t * cmd)
 {
-  bgp_filter_t ** ppFilter= _filter_from_context(pContext);
-
-  filter_dump(pLogOut, *ppFilter);
-
+  bgp_filter_t ** filter= _filter_from_context(ctx);
+  filter_dump(gdsout, *filter);
   return CLI_SUCCESS;
 }
 
 // -----[ cli_register_bgp_filter_rule ]-----------------------------
-SCliCmds * cli_register_bgp_filter_rule()
+void cli_register_bgp_filter_rule(cli_cmd_t * parent)
 {
-  SCliCmds * pCmds= cli_cmds_create();
-  SCliParams * pParams;
+  cli_cmd_t * cmd;
 
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<predicate>", NULL);
-  cli_cmds_add(pCmds, cli_cmd_create("match",
-				     cli_bgp_filter_rule_match,
-				     NULL,
-				     pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<actions>", NULL);
-  cli_cmds_add(pCmds, cli_cmd_create("action",
-				     cli_bgp_filter_rule_action,
-				     NULL,
-				     pParams));
-  return pCmds;
+  cmd= cli_add_cmd(parent, cli_cmd("match", cli_bgp_filter_rule_match));
+  cli_add_arg(cmd, cli_arg("predicate", NULL));
+  cmd= cli_add_cmd(parent, cli_cmd("action", cli_bgp_filter_rule_action));
+  cli_add_arg(cmd, cli_arg("actions", NULL));
 }
