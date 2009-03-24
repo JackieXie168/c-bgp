@@ -3,15 +3,14 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// $Id: route-input.h,v 1.3 2008-05-20 11:58:15 bqu Exp $
+// $Id: route-input.h,v 1.4 2009-03-24 15:50:49 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ROUTE_INPUT_H__
 #define __BGP_ROUTE_INPUT_H__
 
 #include <net/prefix.h>
-#include <bgp/route_t.h>
-#include <bgp/routes_list.h>
+#include <bgp/types.h>
 
 // ----- BGP Routes Input Formats -----
 typedef enum {
@@ -36,10 +35,10 @@ typedef enum {
 #define BGP_ROUTES_INPUT_STATUS_FILTERED 1
 #define BGP_ROUTES_INPUT_STATUS_IGNORED  2
 
-// ----- BGP Route Handler -----
-typedef int (*FBGPRouteHandler)(int status,
-				bgp_route_t * route, net_addr_t peer_addr,
-				unsigned int peer_asn, void * context);
+// -----[ bgp_route_handler_f ]--------------------------------------
+typedef int (*bgp_route_handler_f)(int status,
+				   bgp_route_t * route, net_addr_t peer_addr,
+				   asn_t peer_asn, void * ctx);
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,7 +50,7 @@ extern "C" {
   // -----[ bgp_routes_load ]----------------------------------------
   int bgp_routes_load(const char * filename,
 		      bgp_input_type_t format,
-		      FBGPRouteHandler handler, void * context);
+		      bgp_route_handler_f handler, void * ctx);
   // -----[ bgp_routes_load_list ]-----------------------------------
   bgp_routes_t * bgp_routes_load_list(const char * filename,
 				      bgp_input_type_t format);

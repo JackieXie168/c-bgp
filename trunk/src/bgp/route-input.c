@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// $Id: route-input.c,v 1.3 2008-05-20 11:58:15 bqu Exp $
+// $Id: route-input.c,v 1.4 2009-03-24 15:50:49 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -43,19 +43,20 @@ int bgp_routes_str2format(const char * format_str,
 
 // -----[ bgp_routes_load ]------------------------------------------
 int bgp_routes_load(const char * filename, bgp_input_type_t format,
-		    FBGPRouteHandler handler, void * context)
+		    bgp_route_handler_f handler, void * ctx)
 {
   switch (format) {
   case BGP_ROUTES_INPUT_MRT_ASC:
-    return mrtd_ascii_load(filename, handler, context);
+    return mrtd_ascii_load(filename, handler, ctx);
 #ifdef HAVE_BGPDUMP
   case BGP_ROUTES_INPUT_MRT_BIN:
-    return mrtd_binary_load(filename, handler, context);
+    return mrtd_binary_load(filename, handler, ctx);
 #endif
   case BGP_ROUTES_INPUT_CISCO:
-    return -1;//cisco_load(filename, handler, context);
+    cbgp_fatal("cisco input format is not supported");
+    return -1;//cisco_load(filename, handler, ctx);
   default:
-    return -1;
+    cbgp_fatal("invalid input format");
   }
   return -1;
 }
@@ -64,10 +65,10 @@ int bgp_routes_load(const char * filename, bgp_input_type_t format,
 static int _bgp_routes_load_list_handler(int status,
 					 bgp_route_t * route,
 					 net_addr_t peer_addr,
-					 unsigned int peer_asn,
-					 void * context)
+					 asn_t peer_asn,
+					 void * ctx)
 {
-  bgp_routes_t * routes= (bgp_routes_t *) context;
+  bgp_routes_t * routes= (bgp_routes_t *) ctx;
 
   if (status == BGP_ROUTES_INPUT_STATUS_OK)
     routes_list_append(routes, route);

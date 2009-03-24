@@ -1,16 +1,16 @@
 // ==================================================================
 // @(#)route_reflector.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/12/2003
-// @lastdate 23/07/2007
+// $Id: route_reflector.h,v 1.6 2009-03-24 15:52:37 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ROUTE_REFLECTOR_H__
 #define __BGP_ROUTE_REFLECTOR_H__
 
 #include <libgds/array.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/types.h>
 
 #include <stdio.h>
@@ -18,10 +18,12 @@
 #include <net/prefix.h>
 
 // A CLUSTER_ID is a 4-bytes value (RFC1966)
-typedef uint32_t cluster_id_t;
+typedef uint32_t bgp_cluster_id_t;
 
 // A CLUSTER_ID_LIST is the list of clusters traversed by a route (RFC1966)
-typedef SUInt32Array SClusterList;
+typedef uint32_array_t bgp_cluster_list_t;
+
+typedef net_addr_t bgp_originator_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,30 +31,31 @@ extern "C" {
 
   // ---- cluster_list_create ---------------------------------------
 #define cluster_list_create()				\
-  (SClusterList *) uint32_array_create(0)
+  uint32_array_create(0)
   // ---- cluster_list_append ---------------------------------------
-  inline int cluster_list_append(SClusterList * pClusterList,
-				 cluster_id_t tClusterID);
+  inline int cluster_list_append(bgp_cluster_list_t * cl,
+				 bgp_cluster_id_t cluster_id);
   // ----- cluster_list_copy ------------------------------------------
 #define cluster_list_copy(PL)				\
-  (SClusterList *) _array_copy((SArray *) PL)
+  uint32_array_copy(PL)
   // ----- cluster_list_length ----------------------------------------
 #define cluster_list_length(PL)			\
-  _array_length((SArray *) PL)
+  uint32_array_size(PL)
   
   // ----- cluster_list_destroy -------------------------------------
-  void cluster_list_destroy(SClusterList ** ppClusterList);
+  void cluster_list_destroy(bgp_cluster_list_t ** cl_ref);
   // ----- cluster_list_dump ----------------------------------------
-  void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList);
+  void cluster_list_dump(gds_stream_t * stream, bgp_cluster_list_t * cl);
   // ----- cluster_list_equals --------------------------------------
-  int cluster_list_equals(SClusterList * pClusterList1,
-			  SClusterList * pClusterList2);
+  int cluster_list_equals(bgp_cluster_list_t * cl1,
+			  bgp_cluster_list_t * cl2);
   // ----- cluster_list_contains ------------------------------------
-  int cluster_list_contains(SClusterList * pClusterList,
-			    cluster_id_t tClusterID);
+  int cluster_list_contains(bgp_cluster_list_t * cl,
+			    bgp_cluster_id_t cluster_id);
 
   // -----[ originator_equals ]--------------------------------------
-  int originator_equals(net_addr_t * pOrig1, net_addr_t * pOrig2);
+  int originator_equals(bgp_originator_t * orig1,
+			bgp_originator_t * orig2);
 
 #ifdef __cplusplus
 }

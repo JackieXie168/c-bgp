@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 20/02/2004
-// @lastdate 11/03/2008
+// $Id: routes_list.h,v 1.7 2009-03-24 15:53:12 bqu Exp $
 // ==================================================================
 
 #ifndef __ROUTES_LIST_H__
@@ -18,27 +18,28 @@ extern "C" {
 #endif
 
   // ----- routes_list_create ---------------------------------------
-  bgp_routes_t * routes_list_create(uint8_t uOptions);
+  bgp_routes_t * routes_list_create(uint8_t options);
   // ----- routes_list_destroy --------------------------------------
-  void routes_list_destroy(bgp_routes_t ** ppRoutes);
+  void routes_list_destroy(bgp_routes_t ** routes_ref);
   // ----- routes_list_append ---------------------------------------
-  void routes_list_append(bgp_routes_t * pRoutes, bgp_route_t * pRoute);
+  void routes_list_append(bgp_routes_t * routes, bgp_route_t * route);
   // ----- routes_list_remove_at ------------------------------------
-  void routes_list_remove_at(bgp_routes_t * pRoutes, unsigned int uIndex);
+  void routes_list_remove_at(bgp_routes_t * routes, unsigned int index);
   // ----- routes_list_dump -----------------------------------------
-  void routes_list_dump(SLogStream * pStream, bgp_routes_t * pRoutes);
+  void routes_list_dump(gds_stream_t * stream, bgp_routes_t * routes);
   // -----[ routes_list_for_each ]-----------------------------------
-  int routes_list_for_each(bgp_routes_t * pRoutes, FArrayForEach fForEach,
-			   void * pContext);
+  int routes_list_for_each(bgp_routes_t * routes,
+			   gds_array_foreach_f foreach,
+			   void * ctx);
 
   // -----[ bgp_routes_size ]----------------------------------------
-  static inline unsigned int bgp_routes_size(bgp_routes_t * pRoutes) {
-    return ptr_array_length(pRoutes);
+  static inline unsigned int bgp_routes_size(bgp_routes_t * routes) {
+    return ptr_array_length(routes);
   }
   // -----[ bgp_routes_at ]------------------------------------------
-  static inline bgp_route_t * bgp_routes_at(bgp_routes_t * pRoutes,
-					    unsigned int uIndex) {
-    return pRoutes->data[uIndex];
+  static inline bgp_route_t * bgp_routes_at(bgp_routes_t * routes,
+					    unsigned int index) {
+    return routes->data[index];
   }
   
 #ifdef __cplusplus

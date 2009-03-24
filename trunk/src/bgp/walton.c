@@ -3,7 +3,7 @@
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/02/2006
-// @lastdate 22/01/2007
+// $Id: walton.c,v 1.8 2009-03-24 15:55:46 bqu Exp $
 // ==================================================================
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -13,7 +13,7 @@
 //#include <string.h>
 #include <stdio.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 
 #include <bgp/dp_rules.h>
