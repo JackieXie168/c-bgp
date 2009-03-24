@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// $Id: ip_trace.c,v 1.5 2008-06-11 15:13:45 bqu Exp $
+// $Id: ip_trace.c,v 1.6 2009-03-24 16:13:52 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,11 +13,13 @@
 #include <assert.h>
 #include <libgds/array.h>
 
+#include <net/iface.h>
 #include <net/ip_trace.h>
+#include <net/node.h>
 
-// -----[ ip_trace_item_node ]---------------------------------------
+// -----[ _ip_trace_item_node ]---------------------------------------
 static inline ip_trace_item_t *
-ip_trace_item_node(net_node_t * node,
+_ip_trace_item_node(net_node_t * node,
 		   net_iface_t * iif,
 		   net_iface_t * oif)
 {
@@ -29,9 +31,9 @@ ip_trace_item_node(net_node_t * node,
   return item;
 }
 
-// -----[ ip_trace_item_subnet ]-------------------------------------
+// -----[ _ip_trace_item_subnet ]-------------------------------------
 static inline ip_trace_item_t *
-ip_trace_item_subnet(net_subnet_t * subnet)
+_ip_trace_item_subnet(net_subnet_t * subnet)
 {
   ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
   item->elt.type= SUBNET;
@@ -41,15 +43,48 @@ ip_trace_item_subnet(net_subnet_t * subnet)
   return item;
 }
 
+// -----[ _ip_trace_item_trace ]-------------------------------------
+static inline ip_trace_item_t *
+_ip_trace_item_trace(ip_trace_t * trace)
+{
+  ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
+  item->elt.type= TRACE;
+  item->elt.trace= (struct ip_trace_t *) trace;
+  item->iif= NULL;
+  item->oif= NULL;
+  return item;
+}
+
+// -----[ _ip_trace_item_copy ]--------------------------------------
+static inline ip_trace_item_t *
+_ip_trace_item_copy(ip_trace_item_t * item)
+{
+  ip_trace_item_t * new_item=
+    (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
+  new_item->iif= item->iif;
+  new_item->oif= item->oif;
+  switch (item->elt.type) {
+  case TRACE:
+    new_item->elt.type= item->elt.type;
+    new_item->elt.trace=
+      (struct ip_trace_t *) ip_trace_copy((ip_trace_t *) item->elt.trace);
+    break;
+  default:
+    new_item->elt.type= item->elt.type;
+    new_item->elt= item->elt;
+  }
+  return new_item;
+}
+
 // -----[ ip_trace_create ]------------------------------------------
 ip_trace_t * ip_trace_create()
 {
   ip_trace_t * trace= (ip_trace_t *) MALLOC(sizeof(ip_trace_t));
-  trace->items= ptr_array_create(0, NULL, NULL);
+  trace->items= ptr_array_create(0, NULL, NULL, NULL);
   trace->delay= 0;
   trace->capacity= NET_LINK_MAX_CAPACITY;
   trace->weight= 0;
-  trace->load= 0;
+  trace->status= ENET_NO_REPLY;
   return trace;
 }
 
@@ -63,7 +98,7 @@ void ip_trace_destroy(ip_trace_t ** trace_ref)
   }
 }
 
-// -----[ ip_trace_add ]---------------------------------------------
+// -----[ _ip_trace_add ]--------------------------------------------
 static inline ip_trace_item_t * _ip_trace_add(ip_trace_t * trace,
 					      ip_trace_item_t * item)
 {
@@ -77,15 +112,23 @@ ip_trace_item_t * ip_trace_add_node(ip_trace_t * trace,
 				    net_iface_t * iif,
 				    net_iface_t * oif)
 {
-  return _ip_trace_add(trace, ip_trace_item_node(node, iif, oif));
+  return _ip_trace_add(trace, _ip_trace_item_node(node, iif, oif));
 }
 
 // -----[ ip_trace_add_subnet ]--------------------------------------
 ip_trace_item_t * ip_trace_add_subnet(ip_trace_t * trace,
 				      net_subnet_t * subnet)
 {
-  return _ip_trace_add(trace, ip_trace_item_subnet(subnet));
+  return _ip_trace_add(trace, _ip_trace_item_subnet(subnet));
 }
+
+// -----[ ip_trace_add_trace ]---------------------------------------
+ip_trace_item_t * ip_trace_add_trace(ip_trace_t * trace,
+				     ip_trace_t * trace_item)
+{
+  return _ip_trace_add(trace, _ip_trace_item_trace(trace_item));
+}
+
 
 // -----[ ip_trace_search ]------------------------------------------
 int ip_trace_search(ip_trace_t * trace, net_node_t * node)
@@ -101,12 +144,13 @@ int ip_trace_search(ip_trace_t * trace, net_node_t * node)
 }
 
 // -----[ ip_trace_dump ]--------------------------------------------
-void ip_trace_dump(SLogStream * stream, ip_trace_t * trace,
+void ip_trace_dump(gds_stream_t * stream, ip_trace_t * trace,
 		   uint8_t options)
 {
   ip_trace_item_t * item;
   int trace_length= 0;
   int index;
+  int space;
 
   if (options & IP_TRACE_DUMP_LENGTH) {
     // Compute trace length (only nodes)
@@ -119,29 +163,70 @@ void ip_trace_dump(SLogStream * stream, ip_trace_t * trace,
 	if (options & IP_TRACE_DUMP_SUBNETS)
 	  trace_length++;
 	break;
+      case TRACE:
+	trace_length++;
+	break;
+      default:
+	abort();
       }
     }
 
     // Dump trace length to output
-    log_printf(stream, "\t%u\t", trace_length);
+    stream_printf(stream, "\t%u\t", trace_length);
   }
 
   // Dump each (node) hop to output
+  space= 0;
   for (index= 0; index < ip_trace_length(trace); index++) {
+    if (space)
+	stream_printf(stream, " ");
     item= ip_trace_item_at(trace, index);
+    space= 0;
     switch (item->elt.type) {
     case NODE:
-      ip_address_dump(stream, item->elt.node->addr);
+      node_dump_id(stream, item->elt.node);
+      space= 1;
       break;
     case SUBNET:
-      if (options & IP_TRACE_DUMP_SUBNETS)
+      if (options & IP_TRACE_DUMP_SUBNETS) {
 	ip_prefix_dump(stream, item->elt.subnet->prefix);
+	space= 1;
+      }
+      break;
+    case TRACE:
+      stream_printf(stream, "[");
+      if (item->elt.trace != NULL)
+	ip_trace_dump(stream, (ip_trace_t *) item->elt.trace, 0);
+      else
+	stream_printf(stream, "null");
+      stream_printf(stream, "]");
+      space= 1;
       break;
     default:
-      fatal("invalid network-element type (%d)\n",
-	    item->elt.type);
+      cbgp_fatal("invalid network-element type (%d)\n", item->elt.type);
     }
-    if (index+1 < trace_length)
-      log_printf(stream, " ");
   }
 }
+
+// -----[ ip_trace_copy ]--------------------------------------------
+ip_trace_t * ip_trace_copy(ip_trace_t * trace)
+{
+  unsigned int index;
+  ip_trace_t * new_trace= ip_trace_create();
+  ip_trace_item_t *item, * new_item;
+
+  // Copy options
+  new_trace->delay= trace->delay;
+  new_trace->capacity= trace->capacity;
+  new_trace->weight= trace->weight;
+
+  // Copy items
+  for (index= 0; index < ip_trace_length(trace); index++) {
+    item= ip_trace_item_at(trace, index);
+    new_item= _ip_trace_item_copy(item);
+    _ip_trace_add(new_trace, new_item);
+  }
+
+  return new_trace;
+}
+
