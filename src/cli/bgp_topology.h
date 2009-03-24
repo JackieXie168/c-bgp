@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)bgp_topology.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// @lastdate 15/05/2007
+// $Id: bgp_topology.h,v 1.2 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_BGP_TOPOLOGY_H__
@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
   // -----[ cli_register_bgp_topology ]------------------------------
-  int cli_register_bgp_topology(SCliCmds * pCmds);
+  void cli_register_bgp_topology(cli_cmd_t * parent);
 
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: net_node.h,v 1.2 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_node.h,v 1.3 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_NET_NODE_H__
@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
   // -----[ cli_register_net_node ]----------------------------------
-  int cli_register_net_node(SCliCmds * pCmds);
+  void cli_register_net_node(cli_cmd_t * parent);
 
 #ifdef __cplusplus
 }

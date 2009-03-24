@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/02/2008
-// $Id: net_node_iface.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_node_iface.c,v 1.4 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,60 +14,56 @@
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
+#include <libgds/cli_params.h>
 #include <libgds/str_util.h>
 
 #include <cli/common.h>
+#include <cli/context.h>
 #include <net/iface.h>
 #include <net/net_types.h>
 #include <net/node.h>
 #include <net/error.h>
-
-// -----[ _iface_from_context ]--------------------------------------
-static inline net_iface_t *_iface_from_context(SCliContext * pContext) {
-  net_iface_t * pIface= (net_iface_t *) cli_context_get_item_at_top(pContext);
-  assert(pIface != NULL);
-  return pIface;
-}
+#include <net/util.h>
 
 // -----[ cli_ctx_create_iface ]-------------------------------------
 /**
  * context: {node}
  * tokens: {prefix|address}
  */
-static int cli_ctx_create_iface(SCliContext * pContext, void ** ppItem)
+static int cli_ctx_create_iface(cli_ctx_t * ctx, cli_cmd_t * cmd,
+				void ** item_ref)
 {
-  net_node_t * pNode= (net_node_t *) cli_context_get_item_at_top(pContext);
-  net_iface_t * pIface= NULL;
-  net_iface_id_t tIfaceID;
-  char * pcTmp;
-  int iResult;
+  net_node_t * node= _node_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  net_iface_t * iface= NULL;
+  net_iface_id_t iface_id;
+  int result;
 
-  assert(pNode != NULL);
+  assert(node != NULL);
   
   // Get interface identifier
-  pcTmp= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  iResult= net_iface_str2id(pcTmp, &tIfaceID);
-  if (iResult != ESUCCESS) {
-    cli_set_user_error(cli_get(), "invalid input \"%s\" (%s)", pcTmp,
-		       network_strerror(iResult));
+  result= net_iface_str2id(arg, &iface_id);
+  if (result != ESUCCESS) {
+    cli_set_user_error(cli_get(), "invalid input \"%s\" (%s)", arg,
+		       network_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Find interface in current node
-  pIface= node_find_iface(pNode, tIfaceID);
-  if (pIface == NULL) {
-    cli_set_user_error(cli_get(), "no such interface \"%s\".", pcTmp);
+  iface= node_find_iface(node, iface_id);
+  if (iface == NULL) {
+    cli_set_user_error(cli_get(), "no such interface \"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  *ppItem= pIface;
+  *item_ref= iface;
   return CLI_SUCCESS;
 }
 
 // -----[ cli_ctx_destroy_iface ]------------------------------------
-static void cli_ctx_destroy_iface(void ** ppItem)
+static void cli_ctx_destroy_iface(void ** item_ref)
 {
-  /* Nothing to do here (context is only a reference). */
+  // Nothing to do here (context is only a reference).
 }
 
 // -----[ cli_iface_igpweight ]--------------------------------------
@@ -75,29 +71,26 @@ static void cli_ctx_destroy_iface(void ** ppItem)
  * context: {iface}
  * tokens: {weight}
  */
-static int cli_iface_igpweight(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_iface_igpweight(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_iface_t * pIface= _iface_from_context(pContext);
-  unsigned int uWeight;
-  igp_weight_t tWeight;
-  int iResult;
+  net_iface_t * iface= _iface_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  igp_weight_t weight;
+  int result;
 
   // Get IGP weight
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uWeight) != 0) {
-    cli_set_user_error(cli_get(), "invalid weight \"%s\"",
-		       tokens_get_string_at(pCmd->pParamValues, 0));
+  if (str2weight(arg, &weight)) {
+    cli_set_user_error(cli_get(), "invalid weight \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  tWeight= (igp_weight_t) uWeight;
 
   // Change link weight in forward direction
-  iResult= net_iface_set_metric(pIface, 0, tWeight, 0);
-  if (iResult != ESUCCESS) {
+  result= net_iface_set_metric(iface, 0, weight, 0);
+  if (result != ESUCCESS) {
     cli_set_user_error(cli_get(), "cannot set weight (%s)",
-		       network_strerror(iResult));
+		       network_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
-
   return CLI_SUCCESS;
 }
 
@@ -106,11 +99,11 @@ static int cli_iface_igpweight(SCliContext * pContext, SCliCmd * pCmd)
  * context: {iface}
  * tokens: {}
  */
-static int cli_iface_connect(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_iface_connect(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_iface_t * pIface= _iface_from_context(pContext);
+  net_iface_t * iface= _iface_from_context(ctx);
 
-  pIface= NULL;
+  iface= NULL;
 
   return CLI_SUCCESS;
 }
@@ -120,12 +113,10 @@ static int cli_iface_connect(SCliContext * pContext, SCliCmd * pCmd)
  * context: {iface}
  * tokens: {}
  */
-static int cli_iface_load_clear(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_iface_load_clear(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_iface_t * pIface= _iface_from_context(pContext);
-
-  net_iface_set_load(pIface, 0);
-
+  net_iface_t * iface= _iface_from_context(ctx);
+  net_iface_set_load(iface, 0);
   return CLI_SUCCESS;
 }
 
@@ -134,23 +125,18 @@ static int cli_iface_load_clear(SCliContext * pContext, SCliCmd * pCmd)
  * context: {iface}
  * tokens: {load}
  */
-static int cli_iface_load_add(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_iface_load_add(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_iface_t * pIface= _iface_from_context(pContext);
-  char * pcValue;
-  unsigned int uValue;
-  net_link_load_t tLoad;
+  net_iface_t * iface= _iface_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  net_link_load_t load;
 
   // Get load
-  pcValue= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str_as_uint(pcValue, &uValue) < 0) {
-    cli_set_user_error(cli_get(), "invalid load \"%s\"", pcValue);
+  if (str2capacity(arg, &load)) {
+    cli_set_user_error(cli_get(), "invalid load \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  tLoad= uValue;
-
-  net_iface_set_load(pIface, tLoad);
-
+  net_iface_set_load(iface, load);
   return CLI_SUCCESS;
 }
 
@@ -159,12 +145,10 @@ static int cli_iface_load_add(SCliContext * pContext, SCliCmd * pCmd)
  * context: {iface}
  * tokens: {}
  */
-static int cli_iface_load_show(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_iface_load_show(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_iface_t * pIface= _iface_from_context(pContext);
-
-  net_link_dump_load(pLogOut, pIface);
-
+  net_iface_t * iface= _iface_from_context(ctx);
+  net_link_dump_load(gdsout, iface);
   return CLI_SUCCESS;
 }
 
@@ -174,17 +158,17 @@ static int cli_iface_load_show(SCliContext * pContext, SCliCmd * pCmd)
  * tokens: {address|prefix, type}
  * type: {rtr, ptp, ptmp, virtual}
  */
-static int cli_net_node_add_iface(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_net_node_add_iface(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  net_node_t * pNode= (net_node_t *) cli_context_get_item_at_top(pContext);
-  char * pcTmp;
+  net_node_t * node= _node_from_context(ctx);
+  const char * arg_if= cli_get_arg_value(cmd, 0);
+  const char * arg_type= cli_get_arg_value(cmd, 1);
   net_error_t error;
-  net_iface_id_t tIfaceID;
-  net_iface_type_t tIfaceType;
+  net_iface_id_t iface;
+  net_iface_type_t type;
 
   // Get interface identifier
-  pcTmp= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  error= net_iface_str2id(pcTmp, &tIfaceID);
+  error= net_iface_str2id(arg_if, &iface);
   if (error != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add interface (%s)",
 		       network_strerror(error));
@@ -192,8 +176,7 @@ static int cli_net_node_add_iface(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Get interface type
-  pcTmp= tokens_get_string_at(pContext->pCmd->pParamValues, 1);
-  error= net_iface_str2type(pcTmp, &tIfaceType);
+  error= net_iface_str2type(arg_type, &type);
   if (error != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add interface (%s)",
 		       network_strerror(error));
@@ -201,7 +184,7 @@ static int cli_net_node_add_iface(SCliContext * pContext, SCliCmd * pCmd)
   }
 
   // Add new interface
-  error= node_add_iface(pNode, tIfaceID, tIfaceType);
+  error= node_add_iface(node, iface, type);
   if (error != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add interface (%s)",
 		       network_strerror(error));
@@ -211,57 +194,44 @@ static int cli_net_node_add_iface(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
-// -----[ cli_register_net_node_add_iface ]-------------------------
-int cli_register_net_node_add_iface(SCliCmds * pCmds)
-{
-  SCliParams * pParams;
 
-  pParams= cli_params_create();
-  cli_params_add(pParams, "address|prefix", NULL);
-  cli_params_add(pParams, "type", NULL);
-  return cli_cmds_add(pCmds, cli_cmd_create("iface",
-					    cli_net_node_add_iface,
-					    NULL, pParams));
+/////////////////////////////////////////////////////////////////////
+//
+// CLI COMMANDS REGISTRATION
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ cli_register_net_node_add_iface ]--------------------------
+void cli_register_net_node_add_iface(cli_cmd_t * parent)
+{
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("iface",
+					       cli_net_node_add_iface));
+  cli_add_arg(cmd, cli_arg("address|prefix", NULL));
+  cli_add_arg(cmd, cli_arg("type", NULL));
 }
 
-// -----[ cli_register_net_node_iface_load --------------------------
-static int cli_register_net_node_iface_load(SCliCmds * pCmds)
+// -----[ _register_net_node_iface_load ]----------------------------
+static void _register_net_node_iface_load(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * group, * cmd;
   
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<load>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add", cli_iface_load_add,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("clear", cli_iface_load_clear,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show", cli_iface_load_show,
-					NULL, NULL));
-  return cli_cmds_add(pCmds, cli_cmd_create("load", NULL, pSubCmds, NULL));
+  group= cli_add_cmd(parent, cli_cmd_group("load"));
+  cmd= cli_add_cmd(group, cli_cmd("add", cli_iface_load_add));
+  cli_add_arg(cmd, cli_arg("load", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("clear", cli_iface_load_clear));
+  cmd= cli_add_cmd(group, cli_cmd("show", cli_iface_load_show));
 }
 
 // -----[ cli_register_net_node_iface ]------------------------------
-int cli_register_net_node_iface(SCliCmds * pCmds)
+void cli_register_net_node_iface(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds= cli_cmds_create();
-  SCliParams * pParams;
-
-  pParams= cli_params_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create("connect",
-					cli_iface_connect,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<weight>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("igp-weight",
-					cli_iface_igpweight,
-					NULL, pParams));
-  cli_register_net_node_iface_load(pSubCmds);
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<address|prefix>", NULL);
-  return cli_cmds_add(pCmds, cli_cmd_create_ctx("iface",
-						cli_ctx_create_iface,
-						cli_ctx_destroy_iface,
-						pSubCmds, pParams));
+  cli_cmd_t * group, *cmd;
+  group= cli_add_cmd(parent, cli_cmd_ctx("iface",
+					 cli_ctx_create_iface,
+					 cli_ctx_destroy_iface));
+  cli_add_arg(group, cli_arg("address|prefix", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("connect", cli_iface_connect));
+  cmd= cli_add_cmd(group, cli_cmd("igp-weight", cli_iface_igpweight));
+  cli_add_arg(cmd, cli_arg("weight", NULL));
+  _register_net_node_iface_load(group);
 }

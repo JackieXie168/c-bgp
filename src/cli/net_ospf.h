@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 15/07/2003
-// @lastdate 22/07/2003
+// $Id: net_ospf.h,v 1.4 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef OSPF_SUPPORT

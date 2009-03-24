@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// $Id: bgp_router_peer.c,v 1.3 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp_router_peer.c,v 1.4 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,162 +14,90 @@
 #include <string.h>
 
 #include <libgds/cli_ctx.h>
+#include <libgds/cli_params.h>
 
-#include <bgp/filter.h>
-#include <bgp/filter_parser.h>
+#include <bgp/aslevel/as-level.h>
+#include <bgp/filter/filter.h>
+#include <bgp/filter/parser.h>
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/as.h>
 #include <cli/bgp_filter.h>
 #include <cli/common.h>
+#include <cli/context.h>
 #include <cli/enum.h>
 #include <net/util.h>
-
-// -----[ _peer_from_context ]---------------------------------------
-static inline bgp_peer_t * _peer_from_context(SCliContext * pContext) {
-  bgp_peer_t * pPeer=
-    (bgp_peer_t *) cli_context_get_item_at_top(pContext);
-  assert(pPeer != NULL);
-  return pPeer;
-}
 
 // -----[ cli_ctx_create_peer ]--------------------------------------
 /**
  * context: {router} -> {router, peer}
  * tokens: {addr}
  */
-static int cli_ctx_create_peer(SCliContext * pContext,
-					  void ** ppItem)
+static int cli_ctx_create_peer(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** item)
 {
-  bgp_router_t* pRouter= (bgp_router_t*) cli_context_get_item_at_top(pContext);
-  bgp_peer_t * pPeer;
-  char * pcPeerAddr;
-  net_addr_t tAddr;
+  bgp_router_t* router= _router_from_context(ctx);
+  bgp_peer_t * peer;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  net_addr_t addr;
+  asn_t asn;
+  as_level_topo_t * topo;
 
-  assert(pRouter != NULL);
-
-  // Get the peer address
-  pcPeerAddr= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (str2address(pcPeerAddr, &tAddr) < 0) {
-    cli_set_user_error(cli_get(), "invalid peer address \"%s\"",
-		       pcPeerAddr);
-    return CLI_ERROR_CTX_CREATE;
+  if (!strncmp("AS", arg, 2)) {
+    arg+= 2;
+    if (str2asn(arg, &asn)) {
+      cli_set_user_error(cli_get(), "invalid AS number \"%s\"", arg);
+      return CLI_ERROR_CTX_CREATE;
+    }
+    topo= aslevel_get_topo();
+    if (topo == NULL) {
+      cli_set_user_error(cli_get(), "no AS-level topology loaded. "
+			 "Can't use ASN id \"%s\"", asn);
+      return CLI_ERROR_CTX_CREATE;
+    }
+    addr= topo->addr_mapper(asn);
+  } else {
+    // Get the peer address
+    if (str2address(arg, &addr) < 0) {
+      cli_set_user_error(cli_get(), "invalid peer address \"%s\"", arg);
+      return CLI_ERROR_CTX_CREATE;
+    }
   }
 
   // Get the peer
-  pPeer= bgp_router_find_peer(pRouter, tAddr);
-  if (pPeer == NULL) {
+  peer= bgp_router_find_peer(router, addr);
+  if (peer == NULL) {
     cli_set_user_error(cli_get(), "unknown peer");
     return CLI_ERROR_CTX_CREATE;
   }
 
-  *ppItem= pPeer;
+  *item= peer;
   return CLI_SUCCESS;
 }
 
 // -----[ cli_ctx_destroy_peer ]-------------------------------------
-static void cli_ctx_destroy_peer(void ** ppItem)
+static void cli_ctx_destroy_peer(void ** item_ref)
 {
+  // NOTHING TO REMOVE.
 } 
-
-// -----[ cli_peer_infilter_set ]------------------------------------
-/**
- * context: {router, peer}
- * tokens: {addr, addr, filter}
- */
-/*static int cli_peer_infilter_set(SCliContext * pContext,
-				 SCliCmd * pCmd)
-{
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  SFilter * pFilter= NULL;
-
-  bgp_peer_set_in_filter(pPeer, pFilter);
-
-  return CLI_SUCCESS;
-  }*/
-
-// -----[ cli_peer_infilter_add ]------------------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
- /*static int cli_peer_infilter_add(SCliContext * pContext,
-				 SCliCmd * pCmd)
-{
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  SFilterRule * pRule;
-  SFilter * pFilter;
-
-  if (filter_parser_rule(tokens_get_string_at(pCmd->pParamValues, 0), &pRule)
-      != FILTER_PARSER_SUCCESS)
-    return CLI_ERROR_COMMAND_FAILED;
-  pFilter= bgp_peer_in_filter_get(pPeer);
-  if (pFilter == NULL) {
-    pFilter= filter_create();
-    bgp_peer_set_in_filter(pPeer, pFilter);
-  }
-  filter_add_rule2(pFilter, pRule);
-  return CLI_SUCCESS;
-  }*/
-
-// -----[ cli_peer_outfilter_set ]-----------------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
-  /*static int cli_peer_outfilter_set(SCliContext * pContext,
-					     SCliCmd * pCmd)
-{
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  SFilter * pFilter= NULL;
-
-  bgp_peer_set_out_filter(pPeer, pFilter);
-  return CLI_SUCCESS;
-  }*/
-
-// -----[ cli_peer_outfilter_add ]-----------------------------------
-/**
- * context: {router, peer}
- * tokens: {filter}
- */
-   /*static int cli_peer_outfilter_add(SCliContext * pContext,
-				  SCliCmd * pCmd)
-{
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  SFilterRule * pRule;
-  SFilter * pFilter;
-
-  if (filter_parser_rule(tokens_get_string_at(pCmd->pParamValues, 0), &pRule) !=
-      FILTER_PARSER_SUCCESS)
-    return CLI_ERROR_COMMAND_FAILED;
-  pFilter= bgp_peer_out_filter_get(pPeer);
-  if (pFilter == NULL) {
-    pFilter= filter_create();
-    bgp_peer_set_out_filter(pPeer, pFilter);
-  }
-  filter_add_rule2(pFilter, pRule);
-  return CLI_SUCCESS;
-  }*/
 
 // -----[ cli_ctx_create_peer_filter ]-------------------------------
 /**
  * context: {router, peer}
  * tokens: {in|out}
  */
-static int cli_ctx_create_peer_filter(SCliContext * pContext,
-				      void ** ppItem)
+static int cli_ctx_create_peer_filter(cli_ctx_t * ctx, cli_cmd_t * cmd,
+				      void ** item_ref)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcFilter;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
 
   // Create filter context
-  pcFilter= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (!strcmp("in", pcFilter))
-    *ppItem= &(pPeer->pFilter[FILTER_IN]);
-  else if (!strcmp("out", pcFilter))
-    *ppItem= &(pPeer->pFilter[FILTER_OUT]);
+  if (!strcmp(arg, "in"))
+    *item_ref= &(peer->filter[FILTER_IN]);
+  else if (!strcmp(arg, "out"))
+    *item_ref= &(peer->filter[FILTER_OUT]);
   else {
-    cli_set_user_error(cli_get(), "invalid filter type \"%s\"", pcFilter);
+    cli_set_user_error(cli_get(), "invalid filter type \"%s\"", arg);
     return CLI_ERROR_CTX_CREATE;
   }
 
@@ -177,46 +105,34 @@ static int cli_ctx_create_peer_filter(SCliContext * pContext,
 }
 
 // -----[ cli_ctx_destroy_peer_filter ]------------------------------
-static void cli_ctx_destroy_peer_filter(void ** ppItem)
+static void cli_ctx_destroy_peer_filter(void ** item_ref)
 {
 }
 
-// -----[ cli_peer_show_filter ]-------------------------------------
+// -----[ cli_peer_show_info ]---------------------------------------
 /**
  * context: {router, peer}
- * tokens: {in|out}
+ * tokens: {}
  */
-/*static int cli_peer_show_filter(SCliContext * pContext,
-				SCliCmd * pCmd)
+static int cli_peer_show_info(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcFilter;
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
-  // Create filter context
-  pcFilter= tokens_get_string_at(pContext->pCmd->pParamValues, 0);
-  if (!strcmp(pcFilter, "in"))
-    bgp_peer_dump_in_filters(pLogOut, pPeer);
-  else if (!strcmp(pcFilter, "out"))
-    bgp_peer_dump_out_filters(pLogOut, pPeer);
-  else {
-    cli_set_user_error(cli_get(), "invalid filter type \"%s\"", pcFilter);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
+  bgp_peer_show_info(gdsout, peer);
   return CLI_SUCCESS;
-  }*/
+}
 
 // -----[ cli_peer_rrclient ]----------------------------------------
 /**
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_rrclient(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_rrclient(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
-  pPeer->pLocalRouter->iRouteReflector= 1;
-  bgp_peer_flag_set(pPeer, PEER_FLAG_RR_CLIENT, 1);
+  peer->router->reflector= 1;
+  bgp_peer_flag_set(peer, PEER_FLAG_RR_CLIENT, 1);
   return CLI_SUCCESS;
 }
 
@@ -225,24 +141,21 @@ static int cli_peer_rrclient(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {addr}
  */
-static int cli_peer_nexthop(SCliContext * pContext,
-			    SCliCmd * pCmd)
+static int cli_peer_nexthop(cli_ctx_t * ctx,
+			    cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcNextHop;
-  net_addr_t tNextHop;
-  char * pcEndChar;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  net_addr_t next_hop;
 
   // Get next-hop address
-  pcNextHop= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_address(pcNextHop, &pcEndChar, &tNextHop) ||
-      (*pcEndChar != 0)) {
-    cli_set_user_error(cli_get(), "invalid next-hop \"%s\".", pcNextHop);
+  if (str2address(arg, &next_hop)) {
+    cli_set_user_error(cli_get(), "invalid next-hop \"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Set the next-hop to be used for routes advertised to this peer
-  if (bgp_peer_set_nexthop(pPeer, tNextHop)) {
+  if (bgp_peer_set_nexthop(peer, next_hop)) {
     cli_set_user_error(cli_get(), "could not change next-hop");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -255,12 +168,12 @@ static int cli_peer_nexthop(SCliContext * pContext,
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_nexthopself(SCliContext * pContext,
-				    SCliCmd * pCmd)
+static int cli_peer_nexthopself(cli_ctx_t * ctx,
+				    cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
-  bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
+  bgp_peer_flag_set(peer, PEER_FLAG_NEXT_HOP_SELF, 1);
   return CLI_SUCCESS;
 }
 
@@ -269,26 +182,24 @@ static int cli_peer_nexthopself(SCliContext * pContext,
  * context: {router, peer}
  * tokens: {file|-}
  */
-static int cli_peer_record(SCliContext * pContext,
-			   SCliCmd * pCmd)
+static int cli_peer_record(cli_ctx_t * ctx,
+			   cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcFileName;
-  SLogStream * pStream;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  gds_stream_t * stream;
   
   /* Get filename */
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp(pcFileName, "-") == 0) {
-    bgp_peer_set_record_stream(pPeer, NULL);
+  if (strcmp(arg, "-") == 0) {
+    bgp_peer_set_record_stream(peer, NULL);
   } else {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "could not open \"%s\" for writing",
-			 pcFileName);
+    stream= stream_create_file(arg);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "could not open \"%s\" for writing", arg);
       return CLI_ERROR_COMMAND_FAILED;
     }
-    if (bgp_peer_set_record_stream(pPeer, pStream) < 0) {
-      log_destroy(&pStream);
+    if (bgp_peer_set_record_stream(peer, stream) < 0) {
+      stream_destroy(&stream);
       cli_set_user_error(cli_get(), "could not set the peer record stream");
       return CLI_ERROR_COMMAND_FAILED;
     }
@@ -302,31 +213,29 @@ static int cli_peer_record(SCliContext * pContext,
  * context: {router, peer}
  * tokens: {mrt-record}
  */
-static int cli_peer_recv(SCliContext * pContext,
-			 SCliCmd * pCmd)
+static int cli_peer_recv(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcRecord;
-  SBGPMsg * pMsg;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  bgp_msg_t * msg;
+  int result;
 
   /* Check that the peer is virtual */
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
     cli_set_user_error(cli_get(), "only virtual peers can do that");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  /* Get the MRT-record */
-  pcRecord= tokens_get_string_at(pCmd->pParamValues, 0);
-
   /* Build a message from the MRT-record */
-  pMsg= mrtd_msg_from_line(pPeer->pLocalRouter, pPeer, pcRecord);
+  result= mrtd_msg_from_line(peer->router, peer, arg, &msg);
 
-  if (pMsg == NULL) {
-    cli_set_user_error(cli_get(), "could not build message from input");
+  if (result < 0) {
+    cli_set_user_error(cli_get(), "could not build message from input (%s)",
+		       mrtd_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_peer_handle_message(pPeer, pMsg);
+  bgp_peer_handle_message(peer, msg);
 
   return CLI_SUCCESS;
 }
@@ -337,21 +246,19 @@ static int cli_peer_recv(SCliContext * pContext,
  * tokens: {announce-limit}
  */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-static int cli_peer_walton_limit(SCliContext * pContext, 
-				 SCliCmd * pCmd)
+static int cli_peer_walton_limit(cli_ctx_t * ctx, 
+				 cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  unsigned int uWaltonLimit;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned int limit;
 
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &uWaltonLimit)) {
-    cli_set_user_error(cli_get(), "invalid walton limitation");
+  if (str_as_uint(arg, &limit)) {
+    cli_set_user_error(cli_get(), "invalid walton limit \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  peer_set_walton_limit(pPeer, uWaltonLimit);
-
+  peer_set_walton_limit(peer, limit);
   return CLI_SUCCESS;
-
-  
 }
 #endif
 
@@ -360,12 +267,12 @@ static int cli_peer_walton_limit(SCliContext * pContext,
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_up(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_up(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
   // Try to open session
-  if (bgp_peer_open_session(pPeer)) {
+  if (bgp_peer_open_session(peer)) {
     cli_set_user_error(cli_get(), "could not open session");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -378,22 +285,20 @@ static int cli_peer_up(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {src-addr}
  */
-static int cli_peer_update_source(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_update_source(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  char * pcSrcAddr, * pcEndChar;
-  net_addr_t tSrcAddr;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  net_addr_t src_addr;
 
   // Get source address
-  pcSrcAddr= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (ip_string_to_address(pcSrcAddr, &pcEndChar, &tSrcAddr) ||
-      (*pcEndChar != 0)) {
-    cli_set_user_error(cli_get(), "invalid source address \"%s\".", pcSrcAddr);
+  if (str2address(arg, &src_addr)) {
+    cli_set_user_error(cli_get(), "invalid source address \"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Try to open session
-  if (bgp_peer_set_source(pPeer, tSrcAddr)) {
+  if (bgp_peer_set_source(peer, src_addr)) {
     cli_set_user_error(cli_get(), "could not set source address");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -406,16 +311,16 @@ static int cli_peer_update_source(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_softrestart(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_softrestart(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
   // Set the virtual flag of this peer
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
+  if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
     cli_set_user_error(cli_get(), "soft-restart option only available to virtual peers");
     return CLI_ERROR_COMMAND_FAILED;
   }
-  bgp_peer_flag_set(pPeer, PEER_FLAG_SOFT_RESTART, 1);
+  bgp_peer_flag_set(peer, PEER_FLAG_SOFT_RESTART, 1);
     
   return CLI_SUCCESS;
 }
@@ -425,12 +330,12 @@ static int cli_peer_softrestart(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_virtual(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_virtual(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
   // Set the virtual flag of this peer
-  bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  bgp_peer_flag_set(peer, PEER_FLAG_VIRTUAL, 1);
     
   return CLI_SUCCESS;
 }
@@ -440,12 +345,12 @@ static int cli_peer_virtual(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_down(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_down(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
   // Try to close session
-  if (bgp_peer_close_session(pPeer)) {
+  if (bgp_peer_close_session(peer)) {
     cli_set_user_error(cli_get(), "could not close session");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -459,27 +364,24 @@ static int cli_peer_down(SCliContext * pContext, SCliCmd * pCmd)
  * tokens: {prefix|*}
  */
 #ifdef __EXPERIMENTAL__
-static int cli_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_readv(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
-  bgp_router_t* pRouter= pPeer->pLocalRouter;
-  char * pcPrefix;
-  char * pcEndChar;
-  ip_pfx_t sPrefix;
+  bgp_peer_t * peer= _peer_from_context(ctx);
+  bgp_router_t* router= peer->router;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  ip_pfx_t prefix;
 
   /* Get prefix */
-  pcPrefix= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (!strcmp(pcPrefix, "*")) {
-    sPrefix.uMaskLen= 0;
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar, &sPrefix) &&
-	     (*pcEndChar == 0)) {
+  if (!strcmp(arg, "*")) {
+    prefix.mask= 0;
+  } else if (!str2prefix(arg, &prefix)) {
   } else {
-    cli_set_user_error(cli_get(), "invalid prefix|* \"%s\"", pcPrefix);
+    cli_set_user_error(cli_get(), "invalid prefix|* \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   /* Re-advertise */
-  if (bgp_router_peer_readv_prefix(pRouter, pPeer, sPrefix)) {
+  if (bgp_router_peer_readv_prefix(router, peer, prefix)) {
     cli_set_user_error(cli_get(), "could not re-advertise");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -493,18 +395,18 @@ static int cli_peer_readv(SCliContext * pContext, SCliCmd * pCmd)
  * context: {router, peer}
  * tokens: {}
  */
-static int cli_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_peer_reset(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  bgp_peer_t * pPeer= _peer_from_context(pContext);
+  bgp_peer_t * peer= _peer_from_context(ctx);
 
   // Try to close session
-  if (bgp_peer_close_session(pPeer)) {
+  if (bgp_peer_close_session(peer)) {
     cli_set_user_error(cli_get(), "could not close session");
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Try to open session
-  if (bgp_peer_open_session(pPeer)) {
+  if (bgp_peer_open_session(peer)) {
     cli_set_user_error(cli_get(), "could not close session");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -512,7 +414,7 @@ static int cli_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
   return CLI_SUCCESS;
 }
 
-// -----[ _cli_register_peer_filter ]--------------------------------
+// -----[ _register_peer_filter ]------------------------------------
 /**
  * filter add
  * filter insert <pos>
@@ -523,163 +425,68 @@ static int cli_peer_reset(SCliContext * pContext, SCliCmd * pCmd)
  *   action ""
  *   (...)
  */
-static int _cli_register_peer_filter(SCliCmds * pCmds)
+static void _register_peer_filter(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * group, * cmd;
 
-  pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("add-rule",
-					    cli_ctx_create_bgp_filter_add_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(), NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("insert-rule",
-					    cli_ctx_create_bgp_filter_insert_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(),
-					    pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("remove-rule",
-					cli_bgp_filter_remove_rule,
-					NULL, pParams));
-  /*pParams= cli_params_create();
-  cli_params_add(pParams, "<index>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create_ctx("rule",
-					    cli_ctx_create_bgp_filter_rule,
-					    cli_ctx_destroy_bgp_filter_rule,
-					    cli_register_bgp_filter_rule(),
-					    pParams));*/
-  cli_cmds_add(pSubCmds, cli_cmd_create("show",
-					cli_bgp_filter_show,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<in|out>", NULL);
-  return cli_cmds_add(pCmds,
-		      cli_cmd_create_ctx("filter",
+  group= cli_add_cmd(parent, cli_cmd_ctx("filter",
 					 cli_ctx_create_peer_filter,
-					 cli_ctx_destroy_peer_filter,
-					 pSubCmds, pParams));
+					 cli_ctx_destroy_peer_filter));
+  cli_add_arg(group, cli_arg("in|out", NULL));
+  cmd= cli_add_cmd(group, cli_cmd_ctx("add-rule",
+				      cli_ctx_create_bgp_filter_add_rule,
+				      cli_ctx_destroy_bgp_filter_rule));
+  cli_register_bgp_filter_rule(cmd);
+  cmd= cli_add_cmd(group, cli_cmd_ctx("insert-rule",
+				      cli_ctx_create_bgp_filter_insert_rule,
+				      cli_ctx_destroy_bgp_filter_rule));
+  cli_add_arg(cmd, cli_arg("index", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("remove-rule", cli_bgp_filter_remove_rule));
+  cli_add_arg(cmd, cli_arg("index", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("show", cli_bgp_filter_show));
 }
 
-// -----[ _cli_register_peer_filters ]-------------------------------
-/*static int _cli_register_peer_filters(SCliCmds * pCmds)
+// -----[ _register_peer_show ]--------------------------------------
+static inline void _register_peer_show(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * group;
 
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("set",
-					cli_peer_infilter_set,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add",
-					cli_peer_infilter_add,
-					NULL, pParams));
-  cli_cmds_add(pCmds, cli_cmd_create("in-filter", NULL,
-				     pSubCmds, NULL));
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("set",
-					cli_peer_outfilter_set,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<filter>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("add",
-					cli_peer_outfilter_add,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("out-filter", NULL,
-					    pSubCmds, NULL));
-					    }*/
-
-// -----[ cli_register_peer_show ]-----------------------------------
-/*static int cli_register_peer_show(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-  
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<in|out>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("filter",
-					cli_bgp_router_peer_show_filter,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("show", NULL,
-					    pSubCmds, NULL));
-					    }*/
+  group= cli_add_cmd(parent, cli_cmd_group("show"));
+  cli_add_cmd(group, cli_cmd("info", cli_peer_show_info));
+}
 
 // -----[ cli_register_bgp_router_peer ]-----------------------------
-int cli_register_bgp_router_peer(SCliCmds * pCmds)
+void cli_register_bgp_router_peer(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * group, * cmd;
 
-  pSubCmds= cli_cmds_create();
-  _cli_register_peer_filter(pSubCmds);
-  //_cli_register_peer_filters(pSubCmds);
-  //_cli_register_peer_show(pSubCmds);
-  cli_cmds_add(pSubCmds, cli_cmd_create("down", cli_peer_down,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<next-hop>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("next-hop",
-					cli_peer_nexthop,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("next-hop-self",
-					cli_peer_nexthopself,
-					NULL, NULL));
+  group= cli_add_cmd(parent, cli_cmd_ctx("peer",
+					 cli_ctx_create_peer,
+					 cli_ctx_destroy_peer));
+  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_bgp_peers_addr));
+  _register_peer_filter(group);
+  _register_peer_show(group);
+  cmd= cli_add_cmd(group, cli_cmd("down", cli_peer_down));
+  cmd= cli_add_cmd(group, cli_cmd("next-hop", cli_peer_nexthop));
+  cli_add_arg(cmd, cli_arg("next-hop", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("next-hop-self", cli_peer_nexthopself));
 #ifdef __EXPERIMENTAL__
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<prefix|*>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("re-adv",
-					cli_peer_readv,
-					NULL, pParams));
-#endif
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<file>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("record",
-					cli_peer_record,
-					NULL, pParams));
+  cmd= cli_add_cmd(group, cli_cmd("re-adv", cli_peer_readv));
+  cli_add_arg(cmd, cli_arg("prefix|*", NULL));
+#endif /* __EXPERIMENTAL__ */
+  cmd= cli_add_cmd(group, cli_cmd("record", cli_peer_record));
+  cli_add_arg(cmd, cli_arg_file("file", NULL));
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pParams = cli_params_create();
-  cli_params_add(pParams, "<announce-limit>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("walton-limit", 
-					cli_peer_walton_limit,
-					NULL, pParams));
-#endif
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<mrt-record>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("recv",
-					cli_peer_recv,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("reset", cli_peer_reset,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("rr-client",
-					cli_peer_rrclient,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("soft-restart",
-					cli_peer_softrestart,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("up", cli_peer_up,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<iface-address>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("update-source",
-					cli_peer_update_source,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("virtual",
-					cli_peer_virtual,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add2(pParams, "<addr>", NULL, cli_enum_bgp_peers_addr);
-  return cli_cmds_add(pCmds, cli_cmd_create_ctx("peer",
-						cli_ctx_create_peer,
-						cli_ctx_destroy_peer,
-						pSubCmds, pParams));
+  cmd= cli_add_cmd(group, cli_cmd("walton-limit", cli_peer_walton_limit));
+  cli_add_arg(cmd, cli_arg("announce-limit", NULL));
+#endif /* __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__ */
+  cmd= cli_add_cmd(group, cli_cmd("recv", cli_peer_recv));
+  cli_add_arg(cmd, cli_arg("mrt-record", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("reset", cli_peer_reset));
+  cmd= cli_add_cmd(group, cli_cmd("rr-client", cli_peer_rrclient));
+  cmd= cli_add_cmd(group, cli_cmd("soft-restart", cli_peer_softrestart));
+  cmd= cli_add_cmd(group, cli_cmd("up", cli_peer_up));
+  cmd= cli_add_cmd(group, cli_cmd("update-source", cli_peer_update_source));
+  cli_add_arg(cmd, cli_arg("iface-address", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("virtual", cli_peer_virtual));
 }
