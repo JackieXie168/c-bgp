@@ -3,41 +3,238 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing.c,v 1.28 2008-06-11 15:13:45 bqu Exp $
+// $Id: routing.c,v 1.29 2009-03-24 16:24:35 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <libgds/log.h>
-#include <libgds/memory.h>
-#include <net/network.h>
-#include <net/routing.h>
-#include <ui/output.h>
-
 #include <assert.h>
 #include <string.h>
 
-// ----- route_nexthop_compare --------------------------------------
-/**
- *
- */
-int route_nexthop_compare(rt_entry_t sNH1, rt_entry_t sNH2)
+#include <libgds/stream.h>
+#include <libgds/memory.h>
+#include <net/network.h>
+#include <net/node.h>
+#include <net/routing.h>
+#include <ui/output.h>
+#include <util/str_format.h>
+
+//#define ROUTING_DEBUG
+
+#ifdef ROUTING_DEBUG
+static int _debug_for_each(gds_stream_t * stream, void * context,
+			   char format)
 {
-  if (sNH1.gateway > sNH2.gateway)
+  va_list * ap= (va_list*) context;
+  net_node_t * node;
+  net_addr_t addr;
+  net_iface_t * iface;
+  rt_entry_t * entry;
+
+  switch (format) {
+  case 'a':
+    addr= va_arg(*ap, net_addr_t);
+    ip_address_dump(stream, addr);
+    break;
+  case 'e':
+    entry= va_arg(*ap, rt_entry_t *);
+    rt_entry_dump(stream, entry);
+    break;
+  case 'i':
+    iface= va_arg(*ap, net_iface_t *);
+    net_iface_dump_id(stream, iface);
+    break;
+  case 'n':
+    node= va_arg(*ap, net_node_t *);
+    node_dump_id(stream, node);
+    break;
+  }
+  return 0;
+}
+#endif /* ROUTING_DEBUG */
+
+#ifdef ROUTING_DEBUG
+static inline void ___routing_debug(const char * format, ...)
+{
+  va_list ap;
+
+  va_start(ap, format);
+  stream_printf(gdsout, "RT_DBG::");
+  str_format_for_each(gdsout, _debug_for_each, &ap, format);
+  stream_flush(gdsout);
+  va_end(ap);
+}
+#else
+#define ___routing_debug(M...)
+#endif /* ROUTING_DEBUG */
+
+
+
+///////////////////////////////////////////////////////////////////
+// RT ENTRY (rt_entry_t)
+///////////////////////////////////////////////////////////////////
+
+// -----[ rt_entry_create ]------------------------------------------
+rt_entry_t * rt_entry_create(net_iface_t * oif, net_addr_t gateway)
+{
+  rt_entry_t * entry= (rt_entry_t *) MALLOC(sizeof(rt_entry_t));
+  entry->oif= oif;
+  entry->gateway= gateway;
+  entry->ref_cnt= 1;
+  ___routing_debug("rt_entry_create %e\n", entry);
+  return entry;
+}
+
+// -----[ rt_entry_destroy ]-----------------------------------------
+void rt_entry_destroy(rt_entry_t ** entry_ref)
+{
+  if (*entry_ref != NULL) {
+    assert((*entry_ref)->ref_cnt > 0);
+    (*entry_ref)->ref_cnt--;
+    ___routing_debug("rt_entry_dec_ref %e\n", *entry_ref);
+    if ((*entry_ref)->ref_cnt > 0)
+      return;
+    ___routing_debug("rt_entry_destroy %e\n", *entry_ref);
+    FREE(*entry_ref);
+    *entry_ref= NULL;
+  }
+}
+
+// -----[ rt_entry_add_ref ]-----------------------------------------
+rt_entry_t * rt_entry_add_ref(rt_entry_t * entry)
+{
+  entry->ref_cnt++;
+  ___routing_debug("rt_entry_add_ref %e\n", entry);
+  return entry;
+}
+
+// -----[ rt_entry_copy ]--------------------------------------------
+rt_entry_t * rt_entry_copy(const rt_entry_t * entry)
+{
+  return rt_entry_create(entry->oif, entry->gateway);
+}
+
+// -----[ rt_entry_dump ]--------------------------------------------
+void rt_entry_dump(gds_stream_t * stream, const rt_entry_t * entry)
+{
+  ip_address_dump(stream, entry->gateway);
+  stream_printf(stream, "\t");
+  if (entry->oif != NULL)
+    ip_address_dump(stream, entry->oif->addr);
+  else
+    stream_printf(stream, "---");
+}
+
+// -----[ rt_entry_compare ]-----------------------------------------
+int rt_entry_compare(const rt_entry_t * entry1,
+		     const rt_entry_t * entry2)
+{
+  if (entry1->gateway > entry2->gateway)
     return 1;
-  if (sNH1.gateway < sNH2.gateway)
+  if (entry1->gateway < entry2->gateway)
     return -1;
   
-  if (sNH1.oif->tIfaceAddr >
-      sNH2.oif->tIfaceAddr)
+  if (entry1->oif->addr > entry2->oif->addr)
     return 1;
-  if (sNH1.oif->tIfaceAddr <
-      sNH2.oif->tIfaceAddr)
+  if (entry1->oif->addr < entry2->oif->addr)
     return -1;
 
   return 0;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+// RT ENTRIES (rt_entries_t)
+/////////////////////////////////////////////////////////////////////
+
+// -----[ _rt_entries_cmp ]------------------------------------------
+static int _rt_entries_cmp(const void * item1,
+			   const void * item2,
+			   unsigned int size)
+{
+  rt_entry_t * entry1= *(rt_entry_t **) item1;
+  rt_entry_t * entry2= *(rt_entry_t **) item2;
+
+  return rt_entry_compare(entry1, entry2);
+}
+
+// -----[ _rt_entries_destroy ]--------------------------------------
+static void _rt_entries_destroy(void * item, const void * ctx)
+{
+  rt_entry_destroy((rt_entry_t **) item);
+}
+
+// -----[ rt_entries_create ]----------------------------------------
+rt_entries_t * rt_entries_create()
+{
+  return (rt_entries_t *) ptr_array_create(ARRAY_OPTION_SORTED |
+					   ARRAY_OPTION_UNIQUE,
+					   _rt_entries_cmp,
+					   _rt_entries_destroy,
+					   NULL);
+}
+
+// -----[ rt_entries_destroy ]---------------------------------------
+void rt_entries_destroy(rt_entries_t ** entries)
+{
+  ptr_array_destroy(entries);
+}
+
+// -----[ rt_entries_contains ]--------------------------------------
+int rt_entries_contains(const rt_entries_t * entries, rt_entry_t * entry)
+{
+  unsigned int index;
+  return (ptr_array_sorted_find_index(entries, &entry, &index) >= 0);
+}
+
+// -----[ rt_entries_add ]-------------------------------------------
+int rt_entries_add(const rt_entries_t * entries, rt_entry_t * entry)
+{
+  return (ptr_array_add(entries, &entry) >= 0)?ESUCCESS:ENET_RT_DUPLICATE;
+}
+
+// -----[ rt_entries_del ]-------------------------------------------
+int rt_entries_del(const rt_entries_t * entries, rt_entry_t * entry)
+{
+  unsigned int index;
+  if (ptr_array_sorted_find_index(entries, &entry, &index) < 0)
+    return -1;
+  return ptr_array_remove_at(entries, index);
+}
+
+// -----[ rt_entries_size ]------------------------------------------
+unsigned int rt_entries_size(const rt_entries_t * entries)
+{
+  return ptr_array_length(entries);
+}
+
+// -----[ rt_entries_get_at ]----------------------------------------
+rt_entry_t * rt_entries_get_at(const rt_entries_t * entries,
+			       unsigned int index)
+{
+  return (rt_entry_t *) entries->data[index];
+}
+
+// -----[ rt_entries_remove_at ]-------------------------------------
+int rt_entries_remove_at(const rt_entries_t * entries, unsigned int index)
+{
+  return ptr_array_remove_at(entries, index);
+}
+
+// -----[ rt_entries_copy ]------------------------------------------
+rt_entries_t * rt_entries_copy(const rt_entries_t * entries)
+{
+  unsigned int index;
+  rt_entries_t * new_entries;
+
+  new_entries= rt_entries_create();
+  for (index= 0; index < rt_entries_size(entries); index++) {
+    rt_entries_add(new_entries,
+		   rt_entry_copy(rt_entries_get_at(entries, index)));
+  }
+  return new_entries;
 }
 
 
@@ -47,33 +244,39 @@ int route_nexthop_compare(rt_entry_t sNH1, rt_entry_t sNH2)
 //
 /////////////////////////////////////////////////////////////////////
 
-// -----[ net_route_info_create ]------------------------------------
-/**
- *
- */
-rt_info_t * net_route_info_create(ip_pfx_t prefix,
-				  net_iface_t * oif,
-				  net_addr_t gateway,
-				  uint32_t metric,
-				  net_route_type_t type)
+// -----[ rt_info_create ]-------------------------------------------
+rt_info_t * rt_info_create(ip_pfx_t prefix,
+			   uint32_t metric,
+			   net_route_type_t type)
 {
   rt_info_t * rtinfo= (rt_info_t *) MALLOC(sizeof(rt_info_t));
   rtinfo->prefix= prefix;
-  rtinfo->next_hop.gateway= gateway;
-  rtinfo->next_hop.oif= oif;
-  //rtinfo->pNextHops= NULL;
+  rtinfo->entries= rt_entries_create();
   rtinfo->metric= metric;
   rtinfo->type= type;
   return rtinfo;
 }
 
-// -----[ net_route_info_destroy ]-----------------------------------
-/**
- *
- */
-void net_route_info_destroy(rt_info_t ** rtinfo_ref)
+// -----[ rt_info_add_entry ]----------------------------------------
+int rt_info_add_entry(rt_info_t * rtinfo,
+		      net_iface_t * oif, net_addr_t gateway)
+{
+  return rt_entries_add(rtinfo->entries, rt_entry_create(oif, gateway));
+}
+
+// -----[ rt_info_set_entries ]--------------------------------------
+int rt_info_set_entries(rt_info_t * rtinfo, rt_entries_t * entries)
+{
+  rt_entries_destroy(&rtinfo->entries);
+  rtinfo->entries= entries;
+  return ESUCCESS;
+}
+
+// -----[ rt_info_destroy ]------------------------------------------
+void rt_info_destroy(rt_info_t ** rtinfo_ref)
 {
   if (*rtinfo_ref != NULL) {
+    rt_entries_destroy(&(*rtinfo_ref)->entries);
     FREE(*rtinfo_ref);
     *rtinfo_ref= NULL;
   }
@@ -84,9 +287,9 @@ void net_route_info_destroy(rt_info_t ** rtinfo_ref)
  * Compare two routes towards the same destination
  * - prefer the route with the lowest type (STATIC > IGP > BGP)
  * - prefer the route with the lowest metric
- * - prefer the route with the lowest next-hop address
  */
-static int _rt_info_list_cmp(void * item1, void * item2,
+static int _rt_info_list_cmp(const void * item1,
+			     const void * item2,
 			     unsigned int elt_size)
 {
   rt_info_t * rtinfo1= *((rt_info_t **) item1);
@@ -104,57 +307,57 @@ static int _rt_info_list_cmp(void * item1, void * item2,
   if (rtinfo1->metric < rtinfo2->metric)
     return -1;
 
-  // Tie-break: prefer route with lowest next-hop address
-  return route_nexthop_compare(rtinfo1->next_hop, rtinfo2->next_hop);
+  return 0;
 }
 
 // ----- _rt_info_list_dst ------------------------------------------
-static void _rt_info_list_dst(void * item)
+static void _rt_info_list_dst(void * item, const void * ctx)
 {
   rt_info_t * rtinfo= *((rt_info_t **) item);
-  net_route_info_destroy(&rtinfo);
+  rt_info_destroy(&rtinfo);
 }
 
 // -----[ _rt_info_list_create ]-------------------------------------
-static inline rt_info_list_t * _rt_info_list_create()
+static inline rt_infos_t * _rt_info_list_create()
 {
-  return (rt_info_list_t *) ptr_array_create(ARRAY_OPTION_SORTED|
+  return (rt_infos_t *) ptr_array_create(ARRAY_OPTION_SORTED|
 					     ARRAY_OPTION_UNIQUE,
 					     _rt_info_list_cmp,
-					     _rt_info_list_dst);
+					     _rt_info_list_dst,
+					     NULL);
 }
 
 // -----[ _rt_info_list_destroy ]------------------------------------
-static inline void _rt_info_list_destroy(rt_info_list_t ** list_ref)
+static inline void _rt_info_list_destroy(rt_infos_t ** list_ref)
 {
-  ptr_array_destroy((SPtrArray **) list_ref);
+  ptr_array_destroy((ptr_array_t **) list_ref);
 }
 
 // -----[ _rt_info_list_length ]-------------------------------------
-static inline unsigned int _rt_info_list_length(rt_info_list_t * list)
+static inline unsigned int _rt_info_list_length(rt_infos_t * list)
 {
-  return ptr_array_length((SPtrArray *) list);
+  return ptr_array_length((ptr_array_t *) list);
 }
 
 // -----[ _rt_info_list_dump ]----------------------------------------
-static inline void _rt_info_list_dump(SLogStream * stream,
+static inline void _rt_info_list_dump(gds_stream_t * stream,
 				      ip_pfx_t prefix,
-				      rt_info_list_t * list)
+				      rt_infos_t * list)
 {
   unsigned int index;
 
   if (_rt_info_list_length(list) == 0) {
-    LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
-      log_printf(pLogErr, "\033[1;31mERROR: empty info-list for ");
-      ip_prefix_dump(pLogErr, prefix);
-      log_printf(pLogErr, "\033[0m\n");
+    STREAM_ERR_ENABLED(STREAM_LEVEL_FATAL) {
+      stream_printf(gdserr, "\033[1;31mERROR: empty info-list for ");
+      ip_prefix_dump(gdserr, prefix);
+      stream_printf(gdserr, "\033[0m\n");
     }
     abort();
   }
 
   for (index= 0; index < _rt_info_list_length(list); index++) {
     net_route_info_dump(stream, (rt_info_t *) list->data[index]);
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   }
 }
 
@@ -168,10 +371,10 @@ static inline void _rt_info_list_dump(SLogStream * stream,
  * - ENET_RT_DUPLICATE if the route could not be added (it already
  *   exists)
  */
-static inline int _rt_info_list_add(rt_info_list_t * list,
+static inline int _rt_info_list_add(rt_infos_t * list,
 				    rt_info_t * rtinfo)
 {
-  if (ptr_array_add((SPtrArray *) list,
+  if (ptr_array_add((ptr_array_t *) list,
 		    &rtinfo) < 0)
     return ENET_RT_DUPLICATE;
   return ESUCCESS;
@@ -182,39 +385,39 @@ static inline int _rt_info_list_add(rt_info_list_t * list,
  * Dump a route-info filter.
  */
 /*static inline void
-net_route_info_dump_filter(SLogStream * stream,
+net_route_info_dump_filter(gds_stream_t * stream,
 			   rt_filter_t * filter)
 {
   // Destination filter
-  log_printf(stream, "prefix : ");
+  stream_printf(stream, "prefix : ");
   if (filter->prefix != NULL)
     ip_prefix_dump(stream, *filter->prefix);
   else
-    log_printf(stream, "*");
+    stream_printf(stream, "*");
 
   // Next-hop address (gateway)
-  log_printf(stream, ", gateway: ");
+  stream_printf(stream, ", gateway: ");
   if (filter->gateway != NULL)
     ip_address_dump(stream, *filter->gateway);
   else
-    log_printf(stream, "*");
+    stream_printf(stream, "*");
 
   // Next-hop interface
-  log_printf(stream, ", iface   : ");
+  stream_printf(stream, ", iface   : ");
   if (filter->oif != NULL)
     ip_address_dump(stream, filter->oif->tIfaceAddr);
     //net_iface_dump_id(stream, filter->oif);
   else
-    log_printf(stream, "*");
+    stream_printf(stream, "*");
 
   // Route type (routing protocol)
-  log_printf(stream, ", type: ");
+  stream_printf(stream, ", type: ");
   net_route_type_dump(stream, filter->type);
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
   }*/
 
-// ----- net_info_prefix_dst ----------------------------------------
-void net_info_prefix_dst(void * item)
+// -----[ _net_info_prefix_dst ]-------------------------------------
+static void _net_info_prefix_dst(void * item, const void * ctx)
 {
   ip_prefix_destroy((ip_pfx_t **) item);
 }
@@ -229,22 +432,25 @@ net_info_schedule_removal(rt_filter_t * filter,
 			  ip_pfx_t * prefix)
 {
   if (filter->del_list == NULL)
-    filter->del_list= ptr_array_create(0, NULL, net_info_prefix_dst);
+    filter->del_list= ptr_array_create(0, NULL,
+				       _net_info_prefix_dst,
+				       NULL);
 
   prefix= ip_prefix_copy(prefix);
   ptr_array_append(filter->del_list, prefix);
 }
 
-// ----- net_info_removal_for_each ----------------------------------
+// -----[ _net_info_removal_for_each ]-------------------------------
 /**
  *
  */
-int net_info_removal_for_each(void * item, void * ctx)
+static int _net_info_removal_for_each(const void * item,
+				      const void * ctx)
 {
   net_rt_t * rt= (net_rt_t *) ctx;
   ip_pfx_t * prefix= *(ip_pfx_t **) item;
 
-  return trie_remove(rt, prefix->tNetwork, prefix->uMaskLen);
+  return trie_remove(rt, prefix->network, prefix->mask);
 }
 
 // -----[ _net_info_removal ]----------------------------------------
@@ -257,8 +463,8 @@ static inline int _net_info_removal(rt_filter_t * filter,
   int result= 0;
 
   if (filter->del_list != NULL) {
-    result= _array_for_each((SArray *) filter->del_list,
-			     net_info_removal_for_each, rt);
+    result= _array_for_each((array_t *) filter->del_list,
+			     _net_info_removal_for_each, rt);
     ptr_array_destroy(&filter->del_list);
   }
   return result;
@@ -271,7 +477,7 @@ static inline int _net_info_removal(rt_filter_t * filter,
  * used for the next-hop attribute (by specifying a NULL next-hop
  * link).
  */
-static inline int _rt_info_list_del(rt_info_list_t * list,
+static inline int _rt_info_list_del(rt_infos_t * list,
 				    rt_filter_t * filter,
 				    ip_pfx_t * prefix)
 {
@@ -286,7 +492,7 @@ static inline int _rt_info_list_del(rt_info_list_t * list,
     rtinfo= (rt_info_t *) list->data[index];
 
     if (rt_filter_matches(rtinfo, filter)) {
-      ptr_array_remove_at((SPtrArray *) list, index);
+      ptr_array_remove_at((ptr_array_t *) list, index);
       del_count++;
     } else {
       index++;
@@ -305,7 +511,7 @@ static inline int _rt_info_list_del(rt_info_list_t * list,
 
 // -----[ _rt_info_list_get ]----------------------------------------
 static inline rt_info_t *
-_rt_info_list_get(rt_info_list_t * list, unsigned int index)
+_rt_info_list_get(rt_infos_t * list, unsigned int index)
 {
   if (index < _rt_info_list_length(list))
     return list->data[index];
@@ -315,7 +521,7 @@ _rt_info_list_get(rt_info_list_t * list, unsigned int index)
 // ----- _rt_il_dst -------------------------------------------------
 static void _rt_il_dst(void ** ppItem)
 {
-  _rt_info_list_destroy((rt_info_list_t **) ppItem);
+  _rt_info_list_destroy((rt_infos_t **) ppItem);
 }
 
 
@@ -340,7 +546,7 @@ net_rt_t * rt_create()
  */
 void rt_destroy(net_rt_t ** rt_ref)
 {
-  trie_destroy((STrie **) rt_ref);
+  trie_destroy(rt_ref);
 }
 
 // -----[ rt_find_best ]---------------------------------------------
@@ -357,13 +563,13 @@ void rt_destroy(net_rt_t ** rt_ref)
 rt_info_t * rt_find_best(net_rt_t * rt, net_addr_t addr,
 			 net_route_type_t type)
 {
-  rt_info_list_t * list;
+  rt_infos_t * list;
   int index;
   rt_info_t * rtinfo;
 
   /* First, retrieve the list of routes that best match the given
      prefix */
-  list= (rt_info_list_t *) trie_find_best((STrie *) rt, addr, 32);
+  list= (rt_infos_t *) trie_find_best(rt, addr, 32);
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -395,14 +601,14 @@ rt_info_t * rt_find_best(net_rt_t * rt, net_addr_t addr,
 rt_info_t * rt_find_exact(net_rt_t * rt, ip_pfx_t prefix,
 			  net_route_type_t type)
 {
-  rt_info_list_t * list;
+  rt_infos_t * list;
   int index;
   rt_info_t * rtinfo;
 
   /* First, retrieve the list of routes that exactly match the given
      prefix */
-  list= (rt_info_list_t *)
-    trie_find_exact((STrie *) rt, prefix.tNetwork, prefix.uMaskLen);
+  list= (rt_infos_t *)
+    trie_find_exact(rt, prefix.network, prefix.mask);
 
   /* Then, select the first returned route that matches the given
      route-type (if requested) */
@@ -431,18 +637,18 @@ rt_info_t * rt_find_exact(net_rt_t * rt, ip_pfx_t prefix,
 int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
 		 rt_info_t * rtinfo)
 {
-  rt_info_list_t * list;
+  rt_infos_t * list;
 
-  list= (rt_info_list_t *) trie_find_exact((STrie *) rt,
-					   prefix.tNetwork,
-					   prefix.uMaskLen);
+  list= (rt_infos_t *) trie_find_exact(rt,
+					   prefix.network,
+					   prefix.mask);
 
   // Create a new info-list if none exists for the given prefix
   if (list == NULL) {
 
     list= _rt_info_list_create();
     assert(_rt_info_list_add(list, rtinfo) == ESUCCESS);
-    trie_insert((STrie *) rt, prefix.tNetwork, prefix.uMaskLen, list);
+    trie_insert(rt, prefix.network, prefix.mask, list, 0);
 
   } else {
 
@@ -461,7 +667,7 @@ int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
 static int _rt_del_for_each(uint32_t key, uint8_t key_len,
 			    void * item, void * ctx)
 {
-  rt_info_list_t * list= (rt_info_list_t *) item;
+  rt_infos_t * list= (rt_infos_t *) item;
   rt_filter_t * filter= (rt_filter_t *) ctx;
   ip_pfx_t prefix;
   int result;
@@ -469,8 +675,8 @@ static int _rt_del_for_each(uint32_t key, uint8_t key_len,
   if (list == NULL)
     return -1;
 
-  prefix.tNetwork= key;
-  prefix.uMaskLen= key_len;
+  prefix.network= key;
+  prefix.mask= key_len;
 
   /* Remove from the list all the routes that match the given
      attributes */
@@ -486,25 +692,25 @@ static int _rt_del_for_each(uint32_t key, uint8_t key_len,
 // ----- rt_del_routes ----------------------------------------------
 net_error_t rt_del_routes(net_rt_t * rt, rt_filter_t * filter)
 {
-  rt_info_list_t * list;
+  rt_infos_t * list;
   net_error_t error;
 
   /* Prefix specified ? or wildcard ? */
   if (filter->prefix != NULL) {
 
     /* Get the list of routes towards the given prefix */
-    list= (rt_info_list_t *) trie_find_exact((STrie *) rt,
-					     filter->prefix->tNetwork,
-					     filter->prefix->uMaskLen);
-    error= _rt_del_for_each(filter->prefix->tNetwork,
-			    filter->prefix->uMaskLen,
+    list= (rt_infos_t *) trie_find_exact(rt,
+					     filter->prefix->network,
+					     filter->prefix->mask);
+    error= _rt_del_for_each(filter->prefix->network,
+			    filter->prefix->mask,
 			    list, filter);
 
   } else {
 
     /* Remove all the routes that match the given attributes, whatever
        the prefix is */
-    error= trie_for_each((STrie *) rt, _rt_del_for_each, filter);
+    error= trie_for_each(rt, _rt_del_for_each, filter);
 
   }
 
@@ -555,7 +761,7 @@ static int _rt_for_each_function(uint32_t key, uint8_t key_len,
 				 void * item, void * ctx)
 {
   _for_each_ctx_t * for_each_ctx= (_for_each_ctx_t *) ctx;
-  rt_info_list_t * list= (rt_info_list_t *) item;
+  rt_infos_t * list= (rt_infos_t *) item;
   unsigned int index;
 
   for (index= 0; index < _rt_info_list_length(list); index++) {
@@ -579,7 +785,7 @@ int rt_for_each(net_rt_t * rt, FRadixTreeForEach fForEach,
   for_each_ctx.fForEach= fForEach;
   for_each_ctx.ctx= ctx;
 
-  return trie_for_each((STrie *) rt, _rt_for_each_function, &for_each_ctx);
+  return trie_for_each(rt, _rt_for_each_function, &for_each_ctx);
 }
 
 
@@ -589,37 +795,24 @@ int rt_for_each(net_rt_t * rt, FRadixTreeForEach fForEach,
 //
 /////////////////////////////////////////////////////////////////////
 
-// -----[ _route_nexthop_dump ]--------------------------------------
-/**
- *
- */
-static inline void _route_nexthop_dump(SLogStream * stream,
-				       rt_entry_t rtentry)
-{
-  ip_address_dump(stream, rtentry.gateway);
-  log_printf(stream, "\t");
-  ip_address_dump(stream, rtentry.oif->tIfaceAddr);
-  //net_iface_dump_id(stream, rtentry.oif);
-}
-
 // ----- net_route_type_dump ----------------------------------------
 /**
  *
  */
-void net_route_type_dump(SLogStream * stream, net_route_type_t type)
+void net_route_type_dump(gds_stream_t * stream, net_route_type_t type)
 {
   switch (type) {
   case NET_ROUTE_DIRECT:
-    log_printf(stream, "DIRECT");
+    stream_printf(stream, "DIRECT");
     break;
   case NET_ROUTE_STATIC:
-    log_printf(stream, "STATIC");
+    stream_printf(stream, "STATIC");
     break;
   case NET_ROUTE_IGP:
-    log_printf(stream, "IGP");
+    stream_printf(stream, "IGP");
     break;
   case NET_ROUTE_BGP:
-    log_printf(stream, "BGP");
+    stream_printf(stream, "BGP");
     break;
   default:
     abort();
@@ -631,15 +824,31 @@ void net_route_type_dump(SLogStream * stream, net_route_type_t type)
  * Output format:
  * <dst-prefix> <link/if> <weight> <type> [ <state> ]
  */
-void net_route_info_dump(SLogStream * stream, rt_info_t * rtinfo)
+void net_route_info_dump(gds_stream_t * stream, rt_info_t * rtinfo)
 {
-  ip_prefix_dump(stream, rtinfo->prefix);
-  log_printf(stream, "\t");
-  _route_nexthop_dump(stream, rtinfo->next_hop);
-  log_printf(stream, "\t%u\t", rtinfo->metric);
-  net_route_type_dump(stream, rtinfo->type);
-  if (!net_iface_is_enabled(rtinfo->next_hop.oif)) {
-    log_printf(stream, "\t[DOWN]");
+  const rt_entry_t * rtentry;
+  unsigned int index, index2;
+  int cr= 0;
+  char pfx_str[19];
+
+  for (index= 0; index < rt_entries_size(rtinfo->entries); index++) {
+    rtentry= rt_entries_get_at(rtinfo->entries, index);
+    if (!cr) {
+      ip_prefix_dump(stream, rtinfo->prefix);
+      ip_prefix_to_string(&rtinfo->prefix, pfx_str, sizeof(pfx_str));
+      for (index2= 0; index2 < strlen(pfx_str); index2++)
+	pfx_str[index2]= ' ';
+    } else {
+      stream_printf(stream, "\n%s", pfx_str);
+    }
+    cr= 1;
+    stream_printf(stream, "\t");
+    rt_entry_dump(stream, rtentry);
+    stream_printf(stream, "\t%u\t", rtinfo->metric);
+    net_route_type_dump(stream, rtinfo->type);
+    if ((rtentry->oif != NULL) && !net_iface_is_enabled(rtentry->oif)) {
+      stream_printf(stream, "\t[DOWN]");
+    }
   }
 }
 
@@ -647,12 +856,12 @@ void net_route_info_dump(SLogStream * stream, rt_info_t * rtinfo)
 static int _rt_dump_for_each(uint32_t key, uint8_t key_len,
 			     void * item, void * ctx)
 {
-  SLogStream * stream= (SLogStream *) ctx;
-  rt_info_list_t * list= (rt_info_list_t *) item;
+  gds_stream_t * stream= (gds_stream_t *) ctx;
+  rt_infos_t * list= (rt_infos_t *) item;
   ip_pfx_t pfx;
   
-  pfx.tNetwork= key;
-  pfx.uMaskLen= key_len;
+  pfx.network= key;
+  pfx.mask= key_len;
   
   _rt_info_list_dump(stream, pfx, list);
   return 0;
@@ -663,31 +872,31 @@ static int _rt_dump_for_each(uint32_t key, uint8_t key_len,
  * Dump the routing table for the given destination. The destination
  * can be of type NET_DEST_ANY, NET_DEST_ADDRESS and NET_DEST_PREFIX.
  */
-void rt_dump(SLogStream * stream, net_rt_t * rt, SNetDest dest)
+void rt_dump(gds_stream_t * stream, net_rt_t * rt, ip_dest_t dest)
 {
   rt_info_t * rtinfo;
 
   //fprintf(pStream, "DESTINATION\tNEXTHOP\tIFACE\tMETRIC\tTYPE\n");
 
-  switch (dest.tType) {
+  switch (dest.type) {
 
   case NET_DEST_ANY:
-    trie_for_each((STrie *) rt, _rt_dump_for_each, stream);
+    trie_for_each(rt, _rt_dump_for_each, stream);
     break;
 
   case NET_DEST_ADDRESS:
-    rtinfo= rt_find_best(rt, dest.uDest.sPrefix.tNetwork, NET_ROUTE_ANY);
+    rtinfo= rt_find_best(rt, dest.prefix.network, NET_ROUTE_ANY);
     if (rtinfo != NULL) {
       net_route_info_dump(stream, rtinfo);
-      log_printf(stream, "\n");
+      stream_printf(stream, "\n");
     }
     break;
 
   case NET_DEST_PREFIX:
-    rtinfo= rt_find_exact(rt, dest.uDest.sPrefix, NET_ROUTE_ANY);
+    rtinfo= rt_find_exact(rt, dest.prefix, NET_ROUTE_ANY);
     if (rtinfo != NULL) {
       net_route_info_dump(stream, rtinfo);
-      log_printf(stream, "\n");
+      stream_printf(stream, "\n");
     }
     break;
 

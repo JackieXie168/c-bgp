@@ -3,8 +3,14 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing.h,v 1.19 2008-06-11 15:13:45 bqu Exp $
+// $Id: routing.h,v 1.20 2009-03-24 16:24:35 bqu Exp $
 // ==================================================================
+
+/**
+ * \file
+ * Provide data structures and functions to handle a node routing and
+ * forwarding table.
+ */
 
 #ifndef __NET_ROUTING_H__
 #define __NET_ROUTING_H__
@@ -12,39 +18,63 @@
 #include <stdio.h>
 
 #include <libgds/array.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/types.h>
 
 #include <net/prefix.h>
 #include <net/link.h>
 #include <net/routing_t.h>
 
-typedef SPtrArray rt_info_list_t;
 
 // -----[ rt_entry_t ]-----------------------------------------------
 /**
- * This type defines a route next-hop. It is composed of the outgoing
- * link (iface) as well as the address of the destination node.
+ * Definition of a routing table entry.
  *
- * If the outgoing link (iface) is a point-to-point link, the next-hop
- * address need not be specified. To the contrary, the next-hop
+ * A routing table entry is composed of an outgoing network interface
+ * and an optionnal gateway (IP_ADDR_ANY if unspecified). A routing
+ * table entry tells how to forward an IP packet (network message) to
+ * its destination.
+ *
+ * If the outgoing link (iface) is a point-to-point link, the gateway
+ * address needs not be specified. To the contrary, the gateway
  * address is mandatory for a multi-point link such as a subnet.
  */
 typedef struct {
-  net_addr_t    gateway;
-  net_iface_t * oif;
+  /** Outgoing network interface. */
+  net_iface_t  * oif;
+  /** Optionnal gateway (IP_ADDR_ANY if unspecified). */
+  net_addr_t     gateway;
+  /** Reference count (for memory management purposes). */
+  unsigned int   ref_cnt;
 } rt_entry_t;
 
-//typedef SPtrArray SNetRouteNextHops;
 
-// ----- rt_info_t ----------------------------------------------
+// -----[ rt_info_t ]------------------------------------------------
+/**
+ * Definition of routing table information data structure.
+ *
+ * A routing table information tells how to reach a destination
+ * specified as an IP prefix. The IP prefix is associated to a list
+ * of routing table entries that tell exactly where to send a packet
+ * to get it closer (hopefully) to this prefix.
+ */
 typedef struct {
+  /** Destination IP prefix. */
   ip_pfx_t         prefix;
+  /** Metric. */
   uint32_t         metric;
-  rt_entry_t       next_hop;
-  //SNetRouteNextHops * pNextHops;
+  /** Array of routing table entries. */
+  rt_entries_t   * entries;
+  /** How the route was learned (routing protocol). */
   net_route_type_t type;
 } rt_info_t;
+
+
+// -----[ rt_infos_t ]-----------------------------------------------
+/** Definition of an array of routing table informations. */
+typedef ptr_array_t rt_infos_t;
+typedef rt_infos_t rt_info_list_t;
+
 
 #include <net/rt_filter.h>
 
@@ -53,22 +83,48 @@ extern "C" {
 #endif
 
   ///////////////////////////////////////////////////////////////////
+  // RT ENTRY (rt_entry_t)
+  ///////////////////////////////////////////////////////////////////
+
+  rt_entry_t * rt_entry_create(net_iface_t * oif, net_addr_t gateway);
+  void rt_entry_destroy(rt_entry_t ** entry_ref);
+  rt_entry_t * rt_entry_add_ref(rt_entry_t * entry);
+  rt_entry_t * rt_entry_copy(const rt_entry_t * entry);
+  void rt_entry_dump(gds_stream_t * stream, const rt_entry_t * entry);
+  int rt_entry_compare(const rt_entry_t * entry1,
+		       const rt_entry_t * entry2);
+
+  ///////////////////////////////////////////////////////////////////
+  // RT ENTRIES (rt_entries_t)
+  ///////////////////////////////////////////////////////////////////
+  
+  rt_entries_t * rt_entries_create();
+  void rt_entries_destroy(rt_entries_t ** entries);
+  int rt_entries_contains(const rt_entries_t * entries, rt_entry_t * entry);
+  int rt_entries_add(const rt_entries_t * entries, rt_entry_t * entry);
+  int rt_entries_del(const rt_entries_t * entries, rt_entry_t * entry);
+  unsigned int rt_entries_size(const rt_entries_t * entries);
+  rt_entry_t * rt_entries_get_at(const rt_entries_t * entries,
+				 unsigned int index);
+  int rt_entries_remove_at(const rt_entries_t * entries, unsigned int index);
+  rt_entries_t * rt_entries_copy(const rt_entries_t * entries);
+
+  ///////////////////////////////////////////////////////////////////
   // ROUTE (rt_info_t)
   ///////////////////////////////////////////////////////////////////
 
-  // ----- route_nexthop_compare ------------------------------------
-  int route_nexthop_compare(rt_entry_t sNH1,
-			    rt_entry_t sNH2);
-  // ----- net_route_info_create ------------------------------------
-  rt_info_t * net_route_info_create(ip_pfx_t prefix,
-				    net_iface_t * oif,
-				    net_addr_t next_hop,
-				    uint32_t metric,
-				    net_route_type_t type);
-  // ----- net_route_info_destroy -----------------------------------
-  void net_route_info_destroy(rt_info_t ** rtinfo_ref);
-  // ----- net_route_info_dump --------------------------------------
-  void net_route_info_dump(SLogStream * stream, rt_info_t * rtinfo);
+  // -----[ rt_info_create ]-----------------------------------------
+  rt_info_t * rt_info_create(ip_pfx_t prefix, uint32_t metric,
+			     net_route_type_t type);
+  // -----[ rt_info_destroy ]----------------------------------------
+  void rt_info_destroy(rt_info_t ** rtinfo_ref);
+  // -----[ rt_info_add_entry ]----------------------------------------
+  int rt_info_add_entry(rt_info_t * rtinfo,
+			net_iface_t * oif, net_addr_t gateway);
+  // -----[ rt_info_set_entries ]--------------------------------------
+  int rt_info_set_entries(rt_info_t * rtinfo, rt_entries_t * entries);
+  // -----[ rt_info_dump ]-------------------------------------------
+  void net_route_info_dump(gds_stream_t * stream, rt_info_t * rtinfo);
 
 
   ///////////////////////////////////////////////////////////////////
@@ -95,12 +151,12 @@ extern "C" {
 		   net_iface_t * oif, net_addr_t * next_hop,
 		   net_route_type_t type);
   // ----- net_route_type_dump --------------------------------------
-  void net_route_type_dump(SLogStream * stream, net_route_type_t type);
+  void net_route_type_dump(gds_stream_t * stream, net_route_type_t type);
   // ----- rt_dump --------------------------------------------------
-  void rt_dump(SLogStream * stream, net_rt_t * rt, SNetDest dest);
+  void rt_dump(gds_stream_t * stream, net_rt_t * rt, ip_dest_t dest);
   
   // ----- rt_for_each ----------------------------------------------
-  int rt_for_each(net_rt_t * rt, FRadixTreeForEach fForEach,
+  int rt_for_each(net_rt_t * rt, FRadixTreeForEach for_each,
 		  void * ctx);
   
 #ifdef __cplusplus
