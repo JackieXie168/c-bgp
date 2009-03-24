@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/02/2002
-// $Id: domain.c,v 1.10 2008-04-11 11:03:06 bqu Exp $
+// $Id: domain.c,v 1.11 2009-03-24 14:11:53 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,8 +16,9 @@
 
 #include <bgp/as.h>
 #include <bgp/domain.h>
+#include <bgp/peer.h>
+#include <net/icmp.h>
 #include <net/network.h>
-#include <net/record-route.h>
 
 #define BGP_DOMAINS_MAX 65536
 static bgp_domain_t * _domains[BGP_DOMAINS_MAX];
@@ -82,7 +83,7 @@ int bgp_domains_for_each(FBGPDomainsForEach for_each, void * ctx)
  */
 void bgp_domain_add_router(bgp_domain_t * domain, bgp_router_t * router)
 {
-  radix_tree_add(domain->routers, router->pNode->addr, 32, router);
+  radix_tree_add(domain->routers, router->node->rid, 32, router);
   router->domain= domain;
 }
 
@@ -153,36 +154,36 @@ int bgp_domain_rescan(bgp_domain_t * domain)
 }
 
 typedef struct {
-  SLogStream * stream;
-  SNetDest     dest;
-  uint8_t      options;
+  gds_stream_t * stream;
+  ip_dest_t      dest;
+  ip_opt_t     * opts;
 } _record_route_ctx_t;
 
 // -----[ _record_route_for_each ]-----------------------------------
 static int _record_route_for_each(uint32_t key, uint8_t key_len,
 				  void * item, void * ctx)
 {
-  net_node_t * node = ((bgp_router_t *)item)->pNode;
+  net_node_t * node = ((bgp_router_t *)item)->node;
   _record_route_ctx_t * rr_ctx = (_record_route_ctx_t *) ctx;
   
-  node_dump_recorded_route(rr_ctx->stream, node,
-			   rr_ctx->dest, 0, rr_ctx->options, 0);
+  icmp_record_route(rr_ctx->stream, node, IP_ADDR_ANY, rr_ctx->dest,
+		    0, rr_ctx->opts);
   return 0;
 }
 
-// ----- bgp_domain_record_route -------------------------------------
+// -----[ bgp_domain_record_route ]----------------------------------
 /**
  *
  */
-int bgp_domain_dump_recorded_route(SLogStream * stream,
-				   bgp_domain_t * domain, 
-				   SNetDest dest,
-				   uint8_t options)
+int bgp_domain_record_route(gds_stream_t * stream,
+			    bgp_domain_t * domain, 
+			    ip_dest_t dest,
+			    ip_opt_t * opts)
 {
   _record_route_ctx_t ctx=  {
     .stream = stream,
     .dest   = dest,
-    .options= options
+    .opts= opts
   };
 
   return bgp_domain_routers_for_each(domain,
@@ -194,7 +195,7 @@ int bgp_domain_dump_recorded_route(SLogStream * stream,
 static int _build_router_list(uint32_t key, uint8_t key_len,
 			      void * item, void * ctx)
 {
-  SPtrArray * list= (SPtrArray *) ctx;
+  ptr_array_t * list= (ptr_array_t *) ctx;
   bgp_router_t * router= (bgp_router_t *) item;
   
   ptr_array_append(list, router);
@@ -203,9 +204,9 @@ static int _build_router_list(uint32_t key, uint8_t key_len,
 }
 
 // -----[ _bgp_domain_routers_list ]---------------------------------
-static inline SPtrArray * _bgp_domain_routers_list(bgp_domain_t * domain)
+static inline ptr_array_t * _bgp_domain_routers_list(bgp_domain_t * domain)
 {
-  SPtrArray * list= ptr_array_create_ref(0);
+  ptr_array_t * list= ptr_array_create_ref(0);
 
   // Build list of BGP routers
   radix_tree_for_each(domain->routers, _build_router_list, list);
@@ -220,21 +221,31 @@ static inline SPtrArray * _bgp_domain_routers_list(bgp_domain_t * domain)
 int bgp_domain_full_mesh(bgp_domain_t * domain)
 {
   unsigned int index1, index2;
-  SPtrArray * routers;
+  ptr_array_t * routers;
   bgp_router_t * router1, * router2;
+  bgp_peer_t * peer;
 
   /* Get the list of routers */
   routers= _bgp_domain_routers_list(domain);
 
-  /* Build the full-mesh of sessions */
+  // Build the full-mesh of sessions
   for (index1= 0; index1 < ptr_array_length(routers); index1++) {
     router1= routers->data[index1];
     for (index2= 0; index2 < ptr_array_length(routers); index2++) {
       if (index1 == index2)
 	continue;
       router2= routers->data[index2];
+
+      // Add the peer
       bgp_router_add_peer(router1, domain->asn,
-			  router2->pNode->addr, NULL);
+			  router2->node->rid, &peer);
+
+      // Set the source address of BGP messages sent from
+      // this router to the RID of this router. We SHOULD
+      // be using an existing interface address (the RID
+      // is only an identifier !)
+      bgp_peer_set_source(peer, router1->node->rid);
+
     }
     bgp_router_start(router1);
   }

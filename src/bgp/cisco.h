@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: cisco.h,v 1.2 2008-04-14 09:14:35 bqu Exp $
+// $Id: cisco.h,v 1.3 2009-03-24 14:11:11 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_CISCO_H__
@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
 // ----- Error codes -----
 #define CISCO_SUCCESS          0
@@ -24,11 +24,11 @@ extern "C" {
 #endif
 
   // -----[ cisco_perror ]-------------------------------------------
-  void cisco_perror(SLogStream * pStream, int iErrorCode);
+  void cisco_perror(gds_stream_t * stream, int error);
   // -----[ cisco_parser ]-------------------------------------------
-  int cisco_parser(FILE * pStream);
+  int cisco_parser(FILE * stream);
   // -----[ cisco_load ]---------------------------------------------
-  int cisco_load(const char * pcFileName);
+  int cisco_load(const char * filename);
 
 #ifdef __cplusplus
 }

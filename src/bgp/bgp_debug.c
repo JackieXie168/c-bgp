@@ -5,99 +5,102 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 09/04/2004
-// $Id: bgp_debug.c,v 1.14 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp_debug.c,v 1.15 2009-03-24 14:10:35 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <stdio.h>
+
 #include <bgp/as.h>
 #include <bgp/bgp_debug.h>
 #include <bgp/dp_rules.h>
 #include <bgp/peer.h>
+#include <bgp/peer-list.h>
 #include <bgp/rib.h>
-#include <bgp/route_t.h>
+#include <bgp/route.h>
 #include <bgp/routes_list.h>
-#include <stdio.h>
 
 // ----- bgp_debug_dp -----------------------------------------------
 /**
  *
  */
-void bgp_debug_dp(SLogStream * stream, bgp_router_t * router, ip_pfx_t prefix)
+void bgp_debug_dp(gds_stream_t * stream, bgp_router_t * router,
+		  ip_pfx_t prefix)
 {
   bgp_route_t * pOldRoute;
-  bgp_routes_t * pRoutes;
-  bgp_peer_t * pPeer;
-  bgp_route_t * pRoute;
+  bgp_routes_t * routes;
+  bgp_peer_t * peer;
+  bgp_route_t * route;
   unsigned int index;
   int iNumRoutes, iOldNumRoutes;
   int iRule;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   uint16_t uIndex;
-  bgp_routes_t * pRoutesRIBIn;
+  bgp_routes_t * routesRIBIn;
 #endif
 
-  log_printf(stream, "Debug Decision Process\n");
-  log_printf(stream, "----------------------\n");
-  log_printf(stream, "AS%u, ", router->uASN);
-  ip_address_dump(stream, router->pNode->addr);
-  log_printf(stream, ", ");
+  stream_printf(stream, "Debug Decision Process\n");
+  stream_printf(stream, "----------------------\n");
+  stream_printf(stream, "AS%u, ", router->asn);
+  bgp_router_dump_id(stream, router);
+  stream_printf(stream, ", ");
   ip_prefix_dump(stream, prefix);
-  log_printf(stream, "\n\n");
+  stream_printf(stream, "\n\n");
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pOldRoute= rib_find_one_exact(router->pLocRIB, prefix, NULL);
+  pOldRoute= rib_find_one_exact(router->loc_rib, prefix, NULL);
 #else
-  pOldRoute= rib_find_exact(router->pLocRIB, prefix);
+  pOldRoute= rib_find_exact(router->loc_rib, prefix);
 #endif
 
   /* Display current best route: */
-  log_printf(stream, "[ Current Best route: ]\n");
+  stream_printf(stream, "[ Current Best route: ]\n");
   if (pOldRoute != NULL) {
     route_dump(stream, pOldRoute);
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   } else
-    log_printf(stream, "<none>\n");
+    stream_printf(stream, "<none>\n");
 
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
 
-  log_printf(stream, "[ Eligible routes: ]\n");
+  stream_printf(stream, "[ Eligible routes: ]\n");
   /* If there is a LOCAL route: */
   if ((pOldRoute != NULL) &&
       route_flag_get(pOldRoute, ROUTE_FLAG_INTERNAL)) {
     route_dump(stream, pOldRoute);
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   }
 
   // Build list of eligible routes received from peers
-  pRoutes= routes_list_create(ROUTES_LIST_OPTION_REF);
-  for (index= 0; index < bgp_peers_size(router->pPeers); index++) {
-    pPeer= bgp_peers_at(router->pPeers, index);
+  routes= routes_list_create(ROUTES_LIST_OPTION_REF);
+  for (index= 0; index < bgp_peers_size(router->peers); index++) {
+    peer= bgp_peers_at(router->peers, index);
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoutesRIBIn = rib_find_exact(pPeer->pAdjRIB[RIB_IN], prefix);
-    if (pRoutesRIBIn != NULL) {
-      for (uIndex = 0; uIndex < routes_list_get_num(pRoutesRIBIn); uIndex++) {
-	pRoute = routes_list_get_at(pRoutesRIBIn, uIndex);
+    routesRIBIn = rib_find_exact(peer->adj_rib[RIB_IN], prefix);
+    if (routesRIBIn != NULL) {
+      for (uIndex = 0; uIndex < routes_list_get_num(routesRIBIn); uIndex++) {
+	route = routes_list_get_at(routesRIBIn, uIndex);
 #else
-    pRoute= rib_find_exact(pPeer->pAdjRIB[RIB_IN], prefix);
+    route= rib_find_exact(peer->adj_rib[RIB_IN], prefix);
 #endif
-    if ((pRoute != NULL) &&
-	(route_flag_get(pRoute, ROUTE_FLAG_FEASIBLE)))
-      routes_list_append(pRoutes, pRoute);
+    if ((route != NULL) &&
+	(route_flag_get(route, ROUTE_FLAG_FEASIBLE)))
+      routes_list_append(routes, route);
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
       }
     }
 #endif
   }
 
-  routes_list_dump(stream, pRoutes);
-  iNumRoutes= ptr_array_length(pRoutes);
+  routes_list_dump(stream, routes);
+  iNumRoutes= ptr_array_length(routes);
   iOldNumRoutes= iNumRoutes;
 
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
 
   // Start decision process
   if ((pOldRoute == NULL) ||
@@ -107,27 +110,27 @@ void bgp_debug_dp(SLogStream * stream, bgp_router_t * router, ip_pfx_t prefix)
       if (iNumRoutes <= 1)
 	break;
       iOldNumRoutes= iNumRoutes;
-      log_printf(stream, "[ %s ]\n", DP_RULES[iRule].pcName);
+      stream_printf(stream, "[ %s ]\n", DP_RULES[iRule].name);
 
-      DP_RULES[iRule].fRule(router, pRoutes);
+      DP_RULES[iRule].rule(router, routes);
 
-      iNumRoutes= ptr_array_length(pRoutes);
+      iNumRoutes= ptr_array_length(routes);
       if (iNumRoutes < iOldNumRoutes)
-	routes_list_dump(stream, pRoutes);
+	routes_list_dump(stream, routes);
     }
 
   } else
-    log_printf(stream, "*** local route is preferred ***\n");
+    stream_printf(stream, "*** local route is preferred ***\n");
 
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
 
-  log_printf(stream, "[ Best route ]\n");
+  stream_printf(stream, "[ Best route ]\n");
   if (iNumRoutes > 0)
-    routes_list_dump(stream, pRoutes);
+    routes_list_dump(stream, routes);
   else
-    log_printf(stream, "<none>\n");
+    stream_printf(stream, "<none>\n");
   
-  routes_list_destroy(&pRoutes);
+  routes_list_destroy(&routes);
 
 }
 
