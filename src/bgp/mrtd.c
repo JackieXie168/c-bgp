@@ -1,15 +1,16 @@
 // ==================================================================
 // @(#)mrtd.c
 //
-// Interface with MRT data (ASCII and binary). The importation of
-// binary MRT data is based on Dan Ardelean's library (libbgpdump).
+// Interface with MRT data (ASCII and binary). The import of
+// binary MRT data is based on Dan Ardelean's library (libbgpdump)
+// now maintained by RIPE.
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Dan Ardelean (dan@ripe.net, dardelea@cs.purdue.edu)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// $Id: mrtd.c,v 1.25 2008-04-11 11:03:06 bqu Exp $
+// $Id: mrtd.c,v 1.26 2009-03-24 14:27:18 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,27 +18,34 @@
 #endif
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <libgds/tokenizer.h>
 #include <libgds/tokens.h>
 
-#include <bgp/as_t.h>
-#include <bgp/as.h>
-#include <bgp/filter.h>
-#include <bgp/peer.h>
-#include <bgp/comm.h>
-#include <bgp/mrtd.h>
-#include <bgp/path.h>
-#include <bgp/path_segment.h>
-#include <bgp/route.h>
-#include <bgp/routes_list.h>
 #include <net/network.h>
 #include <net/node.h>
 #include <net/prefix.h>
 #include <net/protocol.h>
 #include <net/util.h>
+
+#include <bgp/as.h>
+#include <bgp/filter/filter.h>
+#include <bgp/peer.h>
+#include <bgp/attr/comm.h>
+#include <bgp/attr/origin.h>
+#include <bgp/attr/path.h>
+#include <bgp/attr/path_segment.h>
+#include <bgp/mrtd.h>
+#include <bgp/route.h>
+#include <bgp/routes_list.h>
+
+//#define DEBUG
+#include <libgds/debug.h>
+
+#define MRT_MAX_LINE_LEN 1024
 
 #ifdef HAVE_LIBZ
 # include <zlib.h>
@@ -56,8 +64,80 @@ typedef FILE FILE_TYPE;
 # define FILE_EOF(F) feof(F)
 #endif
 
+#define MRT_UPDATE_MIN_FIELDS   11
+#define MRT_WITHDRAW_MIN_FIELDS 5
+
 // ----- Local tokenizers -----
-static STokenizer * pLineTokenizer= NULL;
+static gds_tokenizer_t * line_tokenizer= NULL;
+
+
+
+// -----[ mrtd_strerror ]------------------------------------------
+const char * mrtd_strerror(int error)
+{
+  switch (error) {
+  case MRTD_ERROR:
+    return "error";
+  case MRTD_INVALID_PEER_ADDR:
+    return "invalid peer IP";
+  case MRTD_INVALID_PEER_ASN:
+    return "invalid peer ASN";
+  case MRTD_INVALID_ORIGIN:
+    return "invalid origin";
+  case MRTD_INVALID_ASPATH:
+    return "invalid AS-path";
+  case MRTD_INVALID_LOCALPREF:
+    return "invalid local-pref";
+  case MRTD_INVALID_MED:
+    return "invalid MED";
+  case MRTD_INVALID_COMMUNITIES:
+    return "invalid communities";
+  case MRTD_INVALID_RECORD_TYPE:
+    return "invalid record type";
+  case MRTD_INVALID_PREFIX:
+    return "invalid prefix";
+  case MRTD_INVALID_NEXTHOP:
+    return "invalid nexthop";
+  case MRTD_INVALID_PROTOCOL:
+    return "invalid protocol";
+  case MRTD_MISSING_FIELDS:
+    return "not enough fields";
+  default:
+    return NULL;
+  }
+  return NULL;
+}
+
+static char * _user_error= NULL;
+static unsigned int _line_number;
+static inline void _set_user_error(const char * format, ...)
+{
+  va_list ap;
+  
+  if (_user_error != NULL)
+    free(_user_error);
+
+  va_start(ap, format);
+  vasprintf(&_user_error, format, ap);
+  va_end(ap);
+}
+
+// -----[ mrtd_perror ]----------------------------------------------
+void mrtd_perror(gds_stream_t * stream, int error)
+{
+  const char * error_str;
+  if (error <= MRTD_ERROR) {
+    error_str= mrtd_strerror(error);
+  } else {
+    error_str= _user_error;
+  }
+  if (error_str != NULL)
+    stream_printf(stream, error_str);
+  else
+    stream_printf(stream, "unknown error (%i)", error);
+  if (_line_number > 0)
+    stream_printf(stream, ", at line %u", _line_number);
+}
 
 
 /////////////////////////////////////////////////////////////////////
@@ -65,24 +145,6 @@ static STokenizer * pLineTokenizer= NULL;
 // ASCII MRT FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
-
-// -----[ _mrtd_get_origin ]-----------------------------------------
-/**
- * This function converts the origin field of an MRT record to the
- * route origin. If the route origin is unknown, -1 is returned.
- */
-static bgp_origin_t _mrtd_get_origin(const char * pcField)
-{
-  if (!strcmp(pcField, "IGP")) {
-    return ROUTE_ORIGIN_IGP;
-  } else if (!strcmp(pcField, "EGP")) {
-    return ROUTE_ORIGIN_EGP;
-  } else if (!strcmp(pcField, "INCOMPLETE")) {
-    return ROUTE_ORIGIN_INCOMPLETE;
-  }
-
-  return 255;
-}
 
 // -----[ _mrtd_check_type ]-----------------------------------------
 /**
@@ -95,12 +157,12 @@ static bgp_origin_t _mrtd_get_origin(const char * pcField)
  * For messages (MRTD_TYPE_MSG), the protocol field is expected to
  * contain 'BGP' or 'BGP4'.
  */
-static inline int _mrtd_check_type(char * pcField, mrtd_input_t tType)
+static inline int _mrtd_check_type(const char * field, mrtd_input_t type)
 {
-  return (((tType == MRTD_TYPE_RIB) &&
-	   !strcmp(pcField, "TABLE_DUMP")) ||
-	  ((tType != MRTD_TYPE_RIB) &&
-	   (!strcmp(pcField, "BGP") || !strcmp(pcField, "BGP4")))
+  return (((type == MRTD_TYPE_RIB) &&
+	   !strcmp(field, "TABLE_DUMP")) ||
+	  ((type != MRTD_TYPE_RIB) &&
+	   (!strcmp(field, "BGP") || !strcmp(field, "BGP4")))
 	  );
 }
 
@@ -110,68 +172,67 @@ static inline int _mrtd_check_type(char * pcField, mrtd_input_t tType)
  * which is one of 'A' (update message), 'W' (withdraw message) and
  * 'B' (best route).
  */
-static inline mrtd_input_t _mrtd_check_header(STokens * pTokens)
+static inline int _mrtd_check_header(const gds_tokens_t * tokens,
+				     mrtd_input_t * type_ref)
 {
-  unsigned int uNumTokens, uReqTokens;
-  mrtd_input_t tType;
-  char * pcTemp;
+  unsigned int num_tokens, req_tokens;
+  mrtd_input_t type;
+  const char * token;
 
-  uNumTokens= tokens_get_num(pTokens);
+  num_tokens= tokens_get_num(tokens);
 
-  /* Check the number of fields (at least 5 for the "header") */
-  if (uNumTokens < 5) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: not enough fields in MRT input (%d/5)\n", 
-	    uNumTokens);
-    return MRTD_TYPE_INVALID;
+  // Check the number of fields (at least 5 for the header)
+  if (num_tokens < MRT_WITHDRAW_MIN_FIELDS) {
+    _set_user_error("not enough fields in MRT input (%d/5)", num_tokens);
+    return MRTD_MISSING_FIELDS;
   }
 
-  /* Check the type field. This field must contain
-     - B for best routes in table dumps
-     - A for updates in messages
-     - W for withdraws in messages
-  */
-  pcTemp= tokens_get_string_at(pTokens, 2);
-  if ((strlen(pcTemp) != 1) || (strchr("ABW", pcTemp[0]) == NULL)) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: invalid MRT record type field \"%s\"\n", pcTemp);
-    return MRTD_TYPE_INVALID;
+  // Check the type field. This field must contain:
+  //   - B for best routes in table dumps
+  //   - A for updates in messages
+  //   - W for withdraws in messages
+  token= tokens_get_string_at(tokens, 2);
+  if ((strlen(token) != 1) || (strchr("ABW", token[0]) == NULL)) {
+    _set_user_error("invalid MRT record type field \"%s\"", token);
+    return MRTD_INVALID_RECORD_TYPE;
   }
-  tType= pcTemp[0];
+  type= token[0];
 
-  /* Check the protocol field. This field must contain
-     - TABLE_DUMP for table dumps
-     - BGP / BGP4 for messages
-  */
-  pcTemp= tokens_get_string_at(pTokens, 0);
-  if (!_mrtd_check_type(pcTemp, tType)) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: incorrect MRT record protocol \"%s\"\n", pcTemp);
-    return MRTD_TYPE_INVALID;
+  // Check the protocol field. This field must contain:
+  //   - TABLE_DUMP for table dumps
+  //   - BGP / BGP4 for messages
+  token= tokens_get_string_at(tokens, 0);
+  if (!_mrtd_check_type(token, type)) {
+    _set_user_error("incorrect MRT record protocol \"%s\"", token);
+    return MRTD_INVALID_PROTOCOL;
   }
   
-  /* Check the timestamp field */
-  if (tType == 'W')
-    uReqTokens= 5;
-  else
-    uReqTokens= 11;
+  // Check the timestamp field
+  // TO BE DONE (?)
 
-  if (uNumTokens < uReqTokens) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: not enough fields in MRT input (%d/%d)\n",
-	    uNumTokens, uReqTokens);
-    return MRTD_TYPE_INVALID;
+  // Check the number of fields (again)
+  if (type == 'W')
+    req_tokens= MRT_WITHDRAW_MIN_FIELDS;
+  else
+    req_tokens= MRT_UPDATE_MIN_FIELDS;
+
+  if (num_tokens < req_tokens) {
+    _set_user_error("not enough fields in MRT input (%d/%d)",
+		    num_tokens, req_tokens);
+    return MRTD_MISSING_FIELDS;
   }
 
-  return tType;
+  *type_ref= type;
+  return MRTD_SUCCESS;
 }
 
 // -----[ _mrtd_create_route ]---------------------------------------
 /*
  * This function builds a route from the given set of tokens. The
- * function requires at least 11 tokens for a route that belongs to a
- * routing table dump or an update message (communities are
- * optional). The function requires 6 tokens for a withdraw message.
+ * function requires at least MRT_UPDATE_MIN_FIELDS (11) tokens for a
+ * route that belongs to a routing table dump or an update message
+ * (communities are optional). The function requires 6 tokens for a
+ * withdraw message. 
  * The set of tokens must be composed of the following fields (see the
  * MRT user's manual for more information):
  *
@@ -183,7 +244,7 @@ static inline mrtd_input_t _mrtd_check_header(STokens * pTokens)
  *       5     -> Prefix
  *       6     -> AS-Path
  *       7     -> Origin
- *       8     -> NextHop
+ *       8     -> NextHop (all fields mandatory up to next-hop)
  *       9     -> Local_Pref
  *       10    -> MED
  *       11    -> Community
@@ -197,7 +258,7 @@ static inline mrtd_input_t _mrtd_check_header(STokens * pTokens)
  *
  * Return values:
  *    0 in case of success (and ppRoute points to a valid BGP route)
- *   -1 in case of failure
+ *   <0 in case of failure
  *
  * Note: the router field must be specified (i.e. be != NULL) when the
  * MRT record contains a BGP message. In this case, the peer
@@ -208,141 +269,148 @@ static inline mrtd_input_t _mrtd_check_header(STokens * pTokens)
  * If no BGP router is specified, the route is considered as locally
  * originated.
  */
-static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
-			      net_addr_t * ptPeerAddr,
-			      unsigned int * puPeerAS,
-			      bgp_route_t ** ppRoute)
+static int _mrtd_create_route(const char * line, ip_pfx_t * prefix,
+			      net_addr_t * peer_addr_ref,
+			      asn_t * peer_asn_ref,
+			      bgp_route_t ** route_ref)
 {
-  mrtd_input_t tType;
-  STokens * pTokens;
-  bgp_route_t * pRoute;
-  bgp_origin_t tOrigin;
-  net_addr_t tNextHop;
-  unsigned long ulLocalPref;
-  unsigned long ulMed;
-  char * pcTemp;
-  char * pcEndPtr;
-  SBGPPath * pPath= NULL;
-  SCommunities * pComm= NULL;
+  mrtd_input_t type;
+  const gds_tokens_t * tokens;
+  bgp_origin_t origin;
+  net_addr_t next_hop;
+  unsigned long pref;
+  unsigned long med;
+  const char * token;
+  bgp_path_t * path= NULL;
+  bgp_comms_t * comm= NULL;
+  int result;
+  net_addr_t peer_addr;
+  asn_t peer_asn;
 
-  /* No route built until now */
-  *ppRoute= NULL;
+  if (line_tokenizer == NULL) {
+    line_tokenizer= tokenizer_create("|", NULL, NULL);
+    tokenizer_set_flag(line_tokenizer, TOKENIZER_OPT_SINGLE_DELIM);
+  }
 
-  if (pLineTokenizer == NULL)
-    pLineTokenizer= tokenizer_create("|", 1, NULL, NULL);
-
-  /* Really parse the line... */
-  if (tokenizer_run(pLineTokenizer, (char *) pcLine) != TOKENIZER_SUCCESS) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: could not parse line in MRTD RIB\n");
-    return -1;
+  // Parse the current line
+  result= tokenizer_run(line_tokenizer, line);
+  if (result != TOKENIZER_SUCCESS) {
+    _set_user_error("unable to parse line (%s)", tokenizer_strerror(result));
+    return MRTD_ERROR_SYNTAX;
   }
       
-  pTokens= tokenizer_get_tokens(pLineTokenizer);
+  tokens= tokenizer_get_tokens(line_tokenizer);
 
-  /* Check header, length and get type (route/update/withdraw) */
-  tType= _mrtd_check_header(pTokens);
-  if (tType == MRTD_TYPE_INVALID) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid headers\n");
-    return -1;
+  // Check header, length and get type (route/update/withdraw)
+  result= _mrtd_check_header(tokens, &type);
+  if (result != MRTD_SUCCESS)
+    return result;
+
+  // Check the peer IP address field
+  token= tokens_get_string_at(tokens, 3);
+  if (str2address(token, &peer_addr)) {
+    _set_user_error("invalid peer IP address \"%s\"", token);
+    return MRTD_INVALID_PEER_ADDR;
   }
-
-  /* Check the PeerIP field */
-  pcTemp= tokens_get_string_at(pTokens, 3);
-  if (str2address(pcTemp, ptPeerAddr) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: invalid PeerIP field \"%s\"\n", pcTemp);
-    return -1;
-  }  
   
-  /* Check the PeerAS field */
-  if (tokens_get_uint_at(pTokens, 4, puPeerAS) ||
-      (*puPeerAS > 65535)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid PeerAS field \"%s\"\n",
-	       tokens_get_string_at(pTokens, 4));
-    return -1;
+  // Check the peer ASN field
+  token= tokens_get_string_at(tokens, 4);
+  if (str2asn(token, &peer_asn) < 0) {
+    _set_user_error("invalid peer ASN \"%s\"", token);
+    return MRTD_INVALID_PEER_ASN;
   }
 
-  /* Check the prefix */
-  pcTemp= tokens_get_string_at(pTokens, 5);
-  if (str2prefix(pcTemp, pPrefix) != 0) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid prefix \"%s\"\n", pcTemp);
-    return -1;
+  // Check the prefix
+  token= tokens_get_string_at(tokens, 5);
+  if (str2prefix(token, prefix)) {
+    _set_user_error("invalid prefix \"%s\"", token);
+    return MRTD_INVALID_PREFIX;
   }
 
-  if (tType == MRTD_TYPE_WITHDRAW)
-    return tType;
+  if (type == MRTD_TYPE_WITHDRAW)
+    return type;
 
-  /* Check the AS-PATH */
-  pcTemp= tokens_get_string_at(pTokens, 6);
-  pPath= path_from_string(pcTemp);
-  if (pPath == NULL) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid AS-Path \"%s\"\n", pcTemp);
-    return -1;
+  // Check the AS-PATH
+  token= tokens_get_string_at(tokens, 6);
+  path= path_from_string(token);
+  if (path == NULL) {
+    _set_user_error("invalid AS-Path \"%s\"", token);
+    return MRTD_INVALID_ASPATH;
   }
 
-  /* Check ORIGIN (currently, the origin is always IGP) */
-  pcTemp= tokens_get_string_at(pTokens, 7);
-  tOrigin= _mrtd_get_origin(pcTemp);
-  if (tOrigin == 255) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid origin \"%s\"\n", pcTemp);
-    return -1;
+  // Check ORIGIN
+  token= tokens_get_string_at(tokens, 7);
+  if (bgp_origin_from_str(token, &origin) < 0) {
+    _set_user_error("invalid origin \"%s\"", token);
+    path_destroy(&path);
+    return MRTD_INVALID_ORIGIN;
   }
 
-  /* Check the NEXT-HOP */
-  pcTemp= tokens_get_string_at(pTokens, 8);
-  if (ip_string_to_address(pcTemp, &pcEndPtr, &tNextHop) ||
-      (*pcEndPtr != 0)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid next-hop \"%s\"\n", pcTemp);
-    path_destroy(&pPath);
-    return -1;
+  // Check the NEXT-HOP
+  token= tokens_get_string_at(tokens, 8);
+  if (str2address(token, &next_hop)) {
+    _set_user_error("invalid next-hop \"%s\"", token);
+    path_destroy(&path);
+    return MRTD_INVALID_NEXTHOP;
   }
 
-  /* Check the LOCAL-PREF */
-  if (tokens_get_ulong_at(pTokens, 9, &ulLocalPref)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: not a valid local-preference \"%s\"\n",
-	       tokens_get_string_at(pTokens, 9));
-    path_destroy(&pPath);
-    return -1;
-  }
+  // Check the LOCAL-PREF
+  token= tokens_get_string_at(tokens, 9);
+  if (*token != '\0') {
+    if (str_as_ulong(token, &pref) < 0) {
+      _set_user_error("invalid local-preference \"%s\"", token);
+      path_destroy(&path);
+      return MRTD_INVALID_LOCALPREF;
+    }
+  } else
+    pref= 0;
 
-  /* Check the MED */
-  if (tokens_get_ulong_at(pTokens, 10, &ulMed)) {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: not a valid multi-exit-discriminator \"%s\"\n",
-	    tokens_get_string_at(pTokens, 10));
-    path_destroy(&pPath);
-    return -1;
-  }
+  // Check the MED
+  token= tokens_get_string_at(tokens, 10);
+  if (*token != '\0') {
+    if (str_as_ulong(token, &med) < 0) {
+      _set_user_error("invalid multi-exit-discriminator \"%s\"\n",
+		      tokens_get_string_at(tokens, 10));
+      path_destroy(&path);
+      return MRTD_INVALID_MED;
+    }
+  } else
+    med= ROUTE_MED_MISSING;
 
-  /* Check the COMMUNITIES (if present) */
-  if (tokens_get_num(pTokens) > 11) {
-    pcTemp= tokens_get_string_at(pTokens, 11);
-    pComm= comm_from_string(pcTemp);
-    if (pComm == NULL) {
-      LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid communities \"%s\"\n", pcTemp);
-      path_destroy(&pPath);
-      return -1;
+  // Check the COMMUNITIES (if present)
+  if (tokens_get_num(tokens) > MRT_UPDATE_MIN_FIELDS) {
+    token= tokens_get_string_at(tokens, 11);
+    comm= comm_from_string(token);
+    if (comm == NULL) {
+      _set_user_error("invalid communities \"%s\"", token);
+      path_destroy(&path);
+      return MRTD_INVALID_COMMUNITIES;
     }
   }
 
-  /* Build route */
-  pRoute= route_create(*pPrefix, NULL, tNextHop, tOrigin);
-  route_localpref_set(pRoute, ulLocalPref);
-  route_med_set(pRoute, ulMed);
-  route_set_path(pRoute, pPath);
-  route_set_comm(pRoute, pComm);
-  route_flag_set(pRoute, ROUTE_FLAG_BEST, 1);
-  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 1);
-  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE, 1);
+  // Build route
+  if (route_ref != NULL) {
+    *route_ref= route_create(*prefix, NULL, next_hop, origin);
+    route_localpref_set(*route_ref, pref);
+    route_med_set(*route_ref, med);
+    route_set_path(*route_ref, path);
+    route_set_comm(*route_ref, comm);
+    route_flag_set(*route_ref, ROUTE_FLAG_BEST, 1);
+    route_flag_set(*route_ref, ROUTE_FLAG_ELIGIBLE, 1);
+    route_flag_set(*route_ref, ROUTE_FLAG_FEASIBLE, 1);
+  }
 
-  *ppRoute= pRoute;
+  if (peer_addr_ref != NULL)
+    *peer_addr_ref= peer_addr;
+  if (peer_asn_ref != NULL)
+    *peer_asn_ref= peer_asn;
 
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "ROUTE CREATED FROM MRT RECORD :-)\n");
+  __debug("route created from MRT record.\n");
   
-  return tType;
+  return type;
 }
 
-// ----- mrtd_route_from_line ---------------------------------------
+// -----[ mrtd_route_from_line ]-------------------------------------
 /**
  * This function parses a string that contains an MRT record. Based on
  * the record's content, a BGP route is created. For more information
@@ -351,25 +419,35 @@ static int _mrtd_create_route(const char * pcLine, SPrefix * pPrefix,
  * Parameters:
  *
  */
-bgp_route_t * mrtd_route_from_line(const char * pcLine,
-				   net_addr_t * ptPeerAddr,
-				   unsigned int * puPeerAS)
+int mrtd_route_from_line(const char * line,
+			 net_addr_t * peer_addr_ref,
+			 asn_t * peer_asn_ref,
+			 bgp_route_t ** route_ref)
 {
-  bgp_route_t * pRoute;
-  ip_pfx_t sPrefix;
+  bgp_route_t * route= NULL;
+  ip_pfx_t prefix;
+  int result;
 
-  if (_mrtd_create_route(pcLine, &sPrefix, ptPeerAddr, puPeerAS, &pRoute)
-      == MRTD_TYPE_RIB) {
-    return pRoute;
-  } else {
-    LOG_ERR(LOG_LEVEL_SEVERE,
-	    "Error: could not build route from line:\n\"%s\"\n", pcLine);
+  result= _mrtd_create_route(line, &prefix, peer_addr_ref, peer_asn_ref,
+			     &route);
+  if (result < 0) {
+    __debug("could not create route from MRT record\n"
+	    "  +-- line  :\"%s\"\n"
+	    "  +-- result:%d (%s)\n",
+	    line, result, mrtd_strerror(result));
+    return result;
   }
 
-  if (pRoute != NULL)
-    route_destroy(&pRoute);
+  if (result != MRTD_TYPE_RIB) {
+    route_destroy(&route);
+  }
+
+  if (route_ref != NULL) {
+    *route_ref= route;
+    route= NULL;
+  }
   
-  return NULL;
+  return result;
 }
 
 // ----- mrtd_msg_from_line -----------------------------------------
@@ -386,36 +464,49 @@ bgp_route_t * mrtd_route_from_line(const char * pcLine,
  * the function checks that the message comes from a valid peer of the
  * router.
  */
-bgp_msg_t * mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * pPeer,
-			     const char * pcLine)
+int mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * peer,
+		       const char * line, bgp_msg_t ** msg_ref)
 {
-  bgp_msg_t * pMsg= NULL;
-  bgp_route_t * pRoute;
-  ip_pfx_t sPrefix;
-  net_addr_t tPeerAddr;
-  unsigned int uPeerAS;
+  bgp_msg_t * msg= NULL;
+  bgp_route_t * route= NULL;
+  ip_pfx_t prefix;
+  net_addr_t peer_addr;
+  asn_t peer_asn;
+  int result;
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
-  net_addr_t tNextHop;
+  net_addr_t nexthop;
 #endif
 
-  switch (_mrtd_create_route(pcLine, &sPrefix, &tPeerAddr, &uPeerAS, &pRoute)) {
+  result= _mrtd_create_route(line, &prefix, &peer_addr, &peer_asn, &route);
+  if (result < 0)
+    return result;
+
+  switch (result) {
   case MRTD_TYPE_UPDATE:
-    pMsg= bgp_msg_update_create(pPeer->uRemoteAS, pRoute);
+    msg= bgp_msg_update_create(peer->asn, route);
     break;
   case MRTD_TYPE_WITHDRAW:
 #if defined __EXPERIMENTAL__ && __EXPERIMENTAL_WALTON__
     //TODO: Is it possible to change the MRT format to adapt to Walton ?
-    tNextHop = route_get_nexthop(pRoute);
-    pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix, &tNextHop);
+    nexthop = route_get_nexthop(route);
+    msg= bgp_msg_withdraw_create(peer->addr, prefix, &nexthop);
 #else
-    pMsg= bgp_msg_withdraw_create(pPeer->tAddr, sPrefix);
+    msg= bgp_msg_withdraw_create(peer->addr, prefix);
 #endif
     break;
   default:
-    route_destroy(&pRoute);
+    route_destroy(&route);
   }
   
-  return pMsg;
+  if (msg_ref != NULL) {
+    *msg_ref= msg;
+    msg= NULL;
+  }
+
+  if (msg != NULL)
+    bgp_msg_destroy(&msg);
+
+  return MRTD_SUCCESS;
 }
 
 // -----[ mrtd_ascii_load ]------------------------------------------
@@ -424,52 +515,55 @@ bgp_msg_t * mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * pPeer,
  * format. The filename must have previously been converted to ASCII
  * using 'route_btoa -m'.
  */
-int mrtd_ascii_load(const char * pcFileName, FBGPRouteHandler fHandler,
-		    void * pContext)
+int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
+		    void * ctx)
 {
-  FILE_TYPE * pFile;
-  unsigned int uLineNumber= 0;
-  char acFileLine[1024];
-  bgp_route_t * pRoute;
-  int iError= BGP_ROUTES_INPUT_SUCCESS;
-  net_addr_t tPeerAddr;
-  unsigned int uPeerAS;
-  int iStatus;
+  FILE_TYPE * file;
+  char line[MRT_MAX_LINE_LEN];
+  bgp_route_t * route;
+  int error= BGP_ROUTES_INPUT_SUCCESS;
+  net_addr_t peer_addr;
+  asn_t peer_asn;
+  int result;
+  int status;
+
+  _line_number= 0;
 
   // Open input file
-  if ((pcFileName == NULL) || !strcmp(pcFileName, "-")) {
-    pFile= FILE_DOPEN(0, "r");
+  if ((filename == NULL) || !strcmp(filename, "-")) {
+    file= FILE_DOPEN(0, "r");
   } else {
-    pFile= FILE_OPEN(pcFileName, "r");
-    if (pFile == NULL)
+    file= FILE_OPEN(filename, "r");
+    if (file == NULL)
       return -1;
   }
 
-  while ((!FILE_EOF(pFile)) && (!iError)) {
-    if (FILE_GETS(pFile, acFileLine, sizeof(acFileLine)) == NULL)
+  while (!FILE_EOF(file)) {
+    if (FILE_GETS(file, line, sizeof(line)) == NULL)
       break;
-    uLineNumber++;
 
-    /* Create a route from the file line */
-    pRoute= mrtd_route_from_line(acFileLine, &tPeerAddr, &uPeerAS);
+    _line_number++;
+
+    // Create a route from the file line
+    result= mrtd_route_from_line(line, &peer_addr, &peer_asn, &route);
     
-    /* In case of error, the MRT record is ignored */
-    if (pRoute == NULL) {
-      iError= BGP_ROUTES_INPUT_ERROR_SYNTAX;
+    // In case of error, the MRT record is ignored
+    if (result < 0) {
+      error= BGP_ROUTES_INPUT_ERROR_SYNTAX;
       break;
     }
 
-    iStatus= BGP_ROUTES_INPUT_STATUS_OK;
-    if (fHandler(iStatus, pRoute, tPeerAddr, uPeerAS, pContext) != 0) {
-      iError= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
+    status= BGP_ROUTES_INPUT_STATUS_OK;
+    if (handler(status, route, peer_addr, peer_asn, ctx) != 0) {
+      error= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
       break;
     }
     
   }
   
-  FILE_CLOSE(pFile);
+  FILE_CLOSE(file);
 
-  return iError;
+  return error;
 }
 
 
@@ -493,23 +587,19 @@ int mrtd_ascii_load(const char * pcFileName, FBGPRouteHandler fHandler,
  *
  */
 #ifdef HAVE_BGPDUMP
-SCommunities * mrtd_process_community(struct community * com)
+bgp_comms_t * mrtd_process_community(struct community * com)
 {
-  SCommunities * pCommunities= NULL;
-  int iIndex;
+  bgp_comms_t * comms= NULL;
+  unsigned int index;
   uint32_t comval;
 
-  for (iIndex = 0; iIndex < com->size; iIndex++) {
-
-    if (pCommunities == NULL)
-      pCommunities= comm_create();
-    
-    memcpy(&comval, com_nthval(com, iIndex), sizeof (uint32_t));
-    comm_add(&pCommunities, ntohl(comval));
-    
+  for (index= 0; index < com->size; index++) {
+    if (comms == NULL)
+      comms= comms_create();
+    memcpy(&comval, com_nthval(com, index), sizeof (uint32_t));
+    comms_add(&comms, ntohl(comval));
   }
-
-  return pCommunities;
+  return comms;
 }
 #endif
 
@@ -522,16 +612,16 @@ SCommunities * mrtd_process_community(struct community * com)
  * is found, the function will fail (and return NULL).
  */
 #ifdef HAVE_BGPDUMP
-SBGPPath * mrtd_process_aspath(struct aspath * path)
+bgp_path_t * mrtd_process_aspath(const struct aspath * path)
 {
-  SBGPPath * pPath= NULL;
-  SPathSegment * pSegment;
+  bgp_path_t * cbgp_path= NULL;
+  bgp_path_seg_t * seg;
   void * pnt;
   void * end;
   int asn_pos;
   struct assegment *assegment;
-  int iIndex;
-  int iResult= 0;
+  unsigned int index;
+  int result= 0;
 
   /* empty AS-path */
   if (path->length == 0)
@@ -539,7 +629,7 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
 
   /* ASN size == 32 bits (not supported by c-bgp) */
   if (path->asn_len != ASN16_LEN) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "32-bits ASN are not supported.\n");
+    STREAM_ERR(STREAM_LEVEL_SEVERE, "32-bits ASN are not supported.\n");
     return NULL;
   }
 
@@ -554,45 +644,44 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
     
     /* Get the AS-path segment type. */
     if (assegment->type == AS_SET) {
-      pSegment= path_segment_create(AS_PATH_SEGMENT_SET,
-				    assegment->length);
+      seg= path_segment_create(AS_PATH_SEGMENT_SET, assegment->length);
     } else if (assegment->type == AS_SEQUENCE) {
-      pSegment= path_segment_create(AS_PATH_SEGMENT_SEQUENCE,
-				    assegment->length);
+      seg= path_segment_create(AS_PATH_SEGMENT_SEQUENCE,
+			       assegment->length);
     } else {
-      iResult= -1;
+      result= -1;
       break;
     }
     
     /* Check the AS-path segment length. */
     if ((pnt + (assegment->length * path->asn_len) + AS_HEADER_SIZE) > end) {
-      iResult= -1;
+      result= -1;
       break;
     }
 
     /* Copy each AS number into the AS-path segment */
-    for (iIndex= 0; iIndex < assegment->length; iIndex++) {
-      asn_pos = iIndex * path->asn_len;
-      pSegment->auValue[assegment->length-iIndex-1]=
+    for (index= 0; index < assegment->length; index++) {
+      asn_pos = index * path->asn_len;
+      seg->asns[assegment->length-index-1]=
 	ntohs(*(u_int16_t *) (assegment->data + asn_pos));
     }
 
     /* Add the segment to the AS-path */
-    if (pPath == NULL)
-      pPath= path_create();
-    path_add_segment(pPath, pSegment);
+    if (cbgp_path == NULL)
+      cbgp_path= path_create();
+    path_add_segment(cbgp_path, seg);
 
     /* Go to next segment... */
     pnt+= (assegment->length * path->asn_len) + AS_HEADER_SIZE;
   }
 
   /* If something went wrong, clean current AS-path */
-  if ((iResult != 0) && (pPath != NULL)) {
-    path_destroy(&pPath);
-    pPath= NULL;
+  if ((result != 0) && (cbgp_path != NULL)) {
+    path_destroy(&cbgp_path);
+    cbgp_path= NULL;
   }
 
-  return pPath;
+  return cbgp_path;
 }
 #endif
 
@@ -607,63 +696,48 @@ SBGPPath * mrtd_process_aspath(struct aspath * path)
  * todo: conversion of communities
  */
 #ifdef HAVE_BGPDUMP
-bgp_route_t * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
+bgp_route_t * mrtd_process_table_dump(BGPDUMP_ENTRY * entry)
 {
-  BGPDUMP_MRTD_TABLE_DUMP * pTableDump= &pEntry->body.mrtd_table_dump;
-  bgp_route_t * pRoute= NULL;
-  ip_pfx_t sPrefix;
-  bgp_origin_t tOrigin;
-  net_addr_t tNextHop;
+  BGPDUMP_MRTD_TABLE_DUMP * table_dump= &entry->body.mrtd_table_dump;
+  bgp_route_t * route= NULL;
+  ip_pfx_t prefix;
+  bgp_origin_t origin;
+  net_addr_t next_hop;
 
-  if (pEntry->subtype == AFI_IP) {
+  if (entry->subtype == AFI_IP) {
 
-    sPrefix.tNetwork= ntohl(pTableDump->prefix.v4_addr.s_addr);
-    sPrefix.uMaskLen= pTableDump->mask;
-    if (pEntry->attr == NULL)
+    prefix.network= ntohl(table_dump->prefix.v4_addr.s_addr);
+    prefix.mask= table_dump->mask;
+    if (entry->attr == NULL)
       return NULL;
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0)
-      tOrigin= (bgp_origin_t) pEntry->attr->origin;
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0)
+      origin= (bgp_origin_t) entry->attr->origin;
     else
       return NULL;
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0)
-      tNextHop= ntohl(pEntry->attr->nexthop.s_addr);
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0)
+      next_hop= ntohl(entry->attr->nexthop.s_addr);
     else
       return NULL;
 
-    pRoute= route_create(sPrefix, NULL, tNextHop, tOrigin);
+    route= route_create(prefix, NULL, next_hop, origin);
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
-      route_set_path(pRoute, mrtd_process_aspath(pEntry->attr->aspath));
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
+      route_set_path(route, mrtd_process_aspath(entry->attr->aspath));
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
-      route_localpref_set(pRoute, pEntry->attr->local_pref);
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
+      route_localpref_set(route, entry->attr->local_pref);
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
-      route_med_set(pRoute, pEntry->attr->med);
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
+      route_med_set(route, entry->attr->med);
 
-    if ((pEntry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
-      route_set_comm(pRoute, mrtd_process_community(pEntry->attr->community));
+    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
+      route_set_comm(route, mrtd_process_community(entry->attr->community));
 
-    /*
-    // DEBUG 2007/12/21
-    if (ptr_array_length(pRoute->pAttr->pASPathRef) > 0) {
-      int i= 0;
-      unsigned int uIndex;
-      for (uIndex= 0; uIndex < ptr_array_length(pRoute->pAttr->pASPathRef); uIndex++) {
-	if (((SPathSegment *) pRoute->pAttr->pASPathRef->data[uIndex])->uType == 0)
-	  i= 1;
-      }
-      if (i) {
-	fprintf(stderr, "*** AS-PATH ERROR !!!\n");
-	abort();
-      }
-    }
-    */
   }
 
-  return pRoute;
+  return route;
 }
 #endif
 
@@ -673,21 +747,20 @@ bgp_route_t * mrtd_process_table_dump(BGPDUMP_ENTRY * pEntry)
  * TABLE DUMP, for adress family AF_IP (IPv4).
  */
 #ifdef HAVE_BGPDUMP
-bgp_route_t * mrtd_process_entry(BGPDUMP_ENTRY * pEntry,
-				 net_addr_t * ptPeerAddr,
-				 unsigned int * puPeerAS)
+bgp_route_t * mrtd_process_entry(BGPDUMP_ENTRY * entry,
+				 net_addr_t * peer_addr_ref,
+				 unsigned int * peer_asn_ref)
 {
-  bgp_route_t * pRoute= NULL;
+  bgp_route_t * route= NULL;
 
-  if (pEntry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
-    pRoute= mrtd_process_table_dump(pEntry);
-    *ptPeerAddr= ntohl(pEntry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
-    *puPeerAS= pEntry->body.mrtd_table_dump.peer_as;
+  if (entry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
+    route= mrtd_process_table_dump(entry);
+    *peer_addr_ref= ntohl(entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
+    *peer_asn_ref= entry->body.mrtd_table_dump.peer_as;
   } else {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: mrtd input contains an unsupported entry.\n");
+    STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported entry.\n");
   }
-
-  return pRoute;
+  return route;
 }
 #endif
 
@@ -696,47 +769,48 @@ bgp_route_t * mrtd_process_entry(BGPDUMP_ENTRY * pEntry,
  *
  */
 #ifdef HAVE_BGPDUMP
-int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
-		     void * pContext)
+int mrtd_binary_load(const char * filename, bgp_route_handler_f handler,
+		     void * ctx)
 {
-  BGPDUMP * fDump;
-  BGPDUMP_ENTRY * pDumpEntry= NULL;
-  bgp_route_t * pRoute;
-  int iError= BGP_ROUTES_INPUT_SUCCESS;
-  int iStatus;
-  net_addr_t tPeerAddr;
-  unsigned int uPeerAS;
+  BGPDUMP * dump;
+  BGPDUMP_ENTRY * entry= NULL;
+  bgp_route_t * route;
+  int error= BGP_ROUTES_INPUT_SUCCESS;
+  int status;
+  net_addr_t peer_addr;
+  unsigned int peer_asn;
 
-  if ((fDump= bgpdump_open_dump((char *) pcFileName)) == NULL)
+  if ((dump= bgpdump_open_dump((char *) filename)) == NULL)
     return BGP_ROUTES_INPUT_ERROR_FILE_OPEN;
 
   do {
 
-    tPeerAddr= 0;
-    uPeerAS= 0;
-    pRoute= NULL;
+    peer_addr= IP_ADDR_ANY;
+    peer_asn= 0;
+    route= NULL;
 
-    pDumpEntry= bgpdump_read_next(fDump);
-    if (pDumpEntry != NULL) {
-      pRoute= mrtd_process_entry(pDumpEntry, &tPeerAddr, &uPeerAS);
-      bgpdump_free_mem(pDumpEntry);
+    entry= bgpdump_read_next(dump);
+    if (entry == NULL)
+      continue;
 
-      if (pRoute == NULL)
-	iStatus= BGP_ROUTES_INPUT_STATUS_IGNORED;
-      else
-	iStatus= BGP_ROUTES_INPUT_STATUS_OK;
+    route= mrtd_process_entry(entry, &peer_addr, &peer_asn);
+    bgpdump_free_mem(entry);
+
+    if (route == NULL)
+      status= BGP_ROUTES_INPUT_STATUS_IGNORED;
+    else
+      status= BGP_ROUTES_INPUT_STATUS_OK;
       
-      if (fHandler(iStatus, pRoute, tPeerAddr, uPeerAS, pContext) != 0) {
-	iError= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
-	break;
-      }
+    if (handler(status, route, peer_addr, peer_asn, ctx) != 0) {
+      error= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
+      break;
     }
       
-  } while (fDump->eof == 0);
+  } while (dump->eof == 0);
   
-  bgpdump_close_dump(fDump);
+  bgpdump_close_dump(dump);
 
-  return iError;
+  return error;
 }
 #endif
 
@@ -750,5 +824,7 @@ int mrtd_binary_load(const char * pcFileName, FBGPRouteHandler fHandler,
 // -----[ _mrtd_destroy ]--------------------------------------------
 void _mrtd_destroy()
 {
-  tokenizer_destroy(&pLineTokenizer);
+  tokenizer_destroy(&line_tokenizer);
+  if (_user_error != NULL)
+    free(_user_error);
 }
