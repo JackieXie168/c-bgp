@@ -5,13 +5,13 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 11/03/2008
+// $Id: error.h,v 1.7 2009-03-24 16:06:30 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_ERROR_H__
 #define __NET_ERROR_H__
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
 // -----[ Error codes ]----------------------------------------------
 typedef enum {
@@ -32,6 +32,8 @@ typedef enum {
   ENET_SUBNET_DUPLICATE   = -201,
   ENET_PROTO_UNKNOWN      = -202,
   ENET_PROTO_DUPLICATE    = -203,
+  ENET_IGP_DOMAIN_UNKNOWN = -204,
+  ENET_IGP_DOMAIN_DUPLICATE = -205,
 
   ENET_IFACE_UNKNOWN      = -300,
   ENET_IFACE_DUPLICATE    = -301,
@@ -63,6 +65,7 @@ typedef enum {
   ENET_PROTOCOL_ERROR     = -605,
   ENET_NO_REPLY           = -606,
   ENET_FWD_LOOP           = -607,
+  ENET_PFX_REACHED        = -608,
 
   ENET_NODE_INVALID_ID    = -700,
 
@@ -74,11 +77,13 @@ extern "C" {
 #endif
 
   // ----- network_perror -------------------------------------------
-  void network_perror(SLogStream * pStream, int iErrorCode);
+  void network_perror(gds_stream_t * stream, int error);
   // ----- network_strerror -----------------------------------------
-  const char * network_strerror(int iErrorCode);
-  // -----[ fatal ]--------------------------------------------------
-  void fatal(const char * msg, ...);
+  const char * network_strerror(int error);
+  // -----[ cbgp_fatal ]---------------------------------------------
+  void cbgp_fatal(const char * msg, ...);
+  // -----[ cbgp_warn ]----------------------------------------------
+  void cbgp_warn(const char * msg, ...);
 
 #ifdef __cplusplus
 }
