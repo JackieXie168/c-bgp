@@ -5,7 +5,7 @@
 # routes) from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Functions.pm,v 1.3 2008-06-11 15:22:28 bqu Exp $
+# $Id: Functions.pm,v 1.4 2009-03-24 16:31:12 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Functions;
@@ -484,7 +484,7 @@ sub cbgp_get_rt($$;$)
 	show_error("invalid next-hop (show rt): $fields[1]");
 	exit(-1);
       }
-      if (!($fields[2] =~ m/^[0-9.\/]+$/)) {
+      if (($fields[2] ne '---') && (!($fields[2] =~ m/^[0-9.\/]+$/))) {
 	show_error("invalid interface (show rt): $fields[2]");
 	exit(-1);
       }
@@ -679,7 +679,7 @@ sub cbgp_get_rib_in($$;$)
       $destination= "*";
     }
 
-    $cbgp->send_cmd("bgp router $node show rib-in * $destination");
+    $cbgp->send_cmd("bgp router $node show adj-rib in * $destination");
     $cbgp->send_cmd("print \"done\\n\"");
     while ((my $result= $cbgp->expect(1)) ne "done") {
       if ($result =~ m/^([i*>]+)\s+([0-9.\/]+)\s+([0-9.]+)\s+([0-9]+)\s+([0-9]+)\s+([^\t]+)\s+([ie\?])$/) {
@@ -729,7 +729,7 @@ sub cbgp_get_rib_custom($$;$)
       $destination= "*";
     }
 
-    $cbgp->send_cmd("bgp options show-mode custom \"?|%i|%a|%p|%P|%o|%n|%l|%m|%c|%e|%O|%C|\"");
+    $cbgp->send_cmd("bgp options show-mode \"?|%i|%a|%p|%P|%o|%n|%l|%m|%c|%e|%O|%C|\"");
     $cbgp->send_cmd("bgp router $node show rib $destination");
     $cbgp->send_cmd("print \"done\\n\"");
     $cbgp->send_cmd("bgp options show-mode cisco");
@@ -848,36 +848,24 @@ sub cbgp_bgp_router_info($$) {
 #
 #####################################################################
 
-# -----[ cbgp_record_route ]-----------------------------------------
-# Record the route from a source node to a destination node or
-# prefix. The function can optionaly request that the route's IGP
-# weight and delay be recorded.
-#
-# Arguments:
-#   $cbgp : CBGP instance
-#   $src  : IP address of source node
-#   $dst  : IP address or IP prefix
-#   %args:
-#     -capacity=>1  : record max-capacity
-#     -checkloop=>1 : check for forwarding loop
-#     -delay=>1     : record delay
-#     -load=>LOAD   : load path with LOAD
-#     -weight=>1    : record IGP weight
-# -------------------------------------------------------------------
-sub cbgp_record_route($$$;%)
-  {
-    my ($cbgp, $src, $dst, %args)= @_;
-    my $options= "";
+# -----[ _net_record_route_options ]---------------------------------
+sub _net_record_route_options(%) {
+  my (%args)= @_;
+  my $options= "";
+  (exists($args{-capacity})) and $options.= "--capacity ";
+  (exists($args{-checkloop})) and $options.= "--check-loop ";
+  (exists($args{-delay})) and $options.= "--delay ";
+  (exists($args{-weight})) and $options.= "--weight ";
+  (exists($args{-load})) and $options.= "--load=".$args{-load}." ";
+  (exists($args{-ecmp})) and $options.= "--ecmp ";
+  return $options;
+}
+
+# -----[ _net_record_route_parser ]----------------------------------
+sub _net_record_route_parser($;%) {
+  my ($result, %args)= @_;
     my @trace;
 
-    (exists($args{-capacity})) and $options.= "--capacity ";
-    (exists($args{-checkloop})) and $options.= "--check-loop ";
-    (exists($args{-delay})) and $options.= "--delay ";
-    (exists($args{-weight})) and $options.= "--weight ";
-    (exists($args{-load})) and $options.= "--load=".$args{-load};
-
-    $cbgp->send_cmd("net node $src record-route $options $dst");
-    my $result= $cbgp->expect(1);
     my @fields= split /\s/, $result;
     if (scalar(@fields) < 4) {
       show_error("not enough fields (record-route): \"$result\"");
@@ -951,7 +939,46 @@ sub cbgp_record_route($$$;%)
     }
 
     return \@trace;
+}
+
+# -----[ cbgp_record_route ]-----------------------------------------
+# Record the route from a source node to a destination node or
+# prefix. The function can optionaly request that the route's IGP
+# weight and delay be recorded.
+#
+# Arguments:
+#   $cbgp : CBGP instance
+#   $src  : IP address of source node
+#   $dst  : IP address or IP prefix
+#   %args:
+#     -capacity=>1  : record max-capacity
+#     -checkloop=>1 : check for forwarding loop
+#     -delay=>1     : record delay
+#     -load=>LOAD   : load path with LOAD
+#     -weight=>1    : record IGP weight
+#     -ecmp=>1      : record all equal-cost paths
+#
+# Note: if the -ecmp option is set, the function will return a
+#       reference to an anonymous array that contains all the traces.
+# -------------------------------------------------------------------
+sub cbgp_record_route($$$;%) {
+  my ($cbgp, $src, $dst, %args)= @_;
+  my $options= _net_record_route_options(%args);
+  my $result;
+
+  $cbgp->send_cmd("net node $src record-route $options $dst");
+  if (exists($args{-ecmp})) {
+    $cbgp->send_cmd("print \"CHECKPOINT\\n\"");
+    my @traces;
+    while (($result= $cbgp->expect(1)) ne "CHECKPOINT") {
+      push @traces, _net_record_route_parser($result, %args);
+    }
+    return \@traces;
+  } else {
+    $result= $cbgp->expect(1);
+    return _net_record_route_parser($result, %args);
   }
+}
 
 # -----[ cbgp_bgp_record_route ]-------------------------------------
 sub cbgp_bgp_record_route($$$)
