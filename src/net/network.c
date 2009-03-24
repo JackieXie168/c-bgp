@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// $Id: network.c,v 1.57 2008-04-11 11:03:06 bqu Exp $
+// $Id: network.c,v 1.58 2009-03-24 16:20:17 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,16 +14,17 @@
 #include <string.h>
 
 #include <libgds/fifo.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
-#include <libgds/patricia-tree.h>
 #include <libgds/stack.h>
 #include <libgds/str_util.h>
+#include <libgds/trie.h>
 
 #include <net/error.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 #include <net/icmp.h>
+#include <net/igp_domain.h>
 #include <net/ipip.h>
 #include <net/link-list.h>
 #include <net/network.h>
@@ -33,12 +34,65 @@
 #include <net/ospf_rt.h>
 #include <net/subnet.h>
 #include <bgp/message.h>
-#include <bgp/as_t.h>
-#include <bgp/rib.h>
 #include <ui/output.h>
+#include <util/str_format.h>
 
 static network_t  * _default_network= NULL;
 static simulator_t * _thread_sim= NULL;
+
+//#define NETWORK_DEBUG
+
+#ifdef NETWORK_DEBUG
+static int _network_debug_for_each(gds_stream_t * stream, void * context,
+				   char format)
+{
+  va_list * ap= (va_list*) context;
+  net_node_t * node;
+  net_addr_t addr;
+  net_msg_t * msg;
+  net_iface_t * iface;
+  int error;
+
+  switch (format) {
+  case 'a':
+    addr= va_arg(*ap, net_addr_t);
+    ip_address_dump(stream, addr);
+    break;
+  case 'e':
+    error= va_arg(*ap, int);
+    network_perror(stream, error);
+    break;
+  case 'i':
+    iface= va_arg(*ap, net_iface_t *);
+    net_iface_dump_id(stream, iface);
+    break;
+  case 'm':
+    msg= va_arg(*ap, net_msg_t *);
+    stream_printf(stream, "[");
+    message_dump(stream, msg);
+    stream_printf(stream, "]");
+    break;
+  case 'n':
+    node= va_arg(*ap, net_node_t *);
+    node_dump_id(stream, node);
+    break;
+  }
+  return 0;
+}
+#endif /* NETWORK_DEBUG */
+
+static inline void ___network_debug(const char * msg, ...)
+{
+#ifdef NETWORK_DEBUG
+  va_list ap;
+
+  va_start(ap, msg);
+  stream_printf(gdsout, "NET_DBG::");
+  str_format_for_each(gdsout, _network_debug_for_each, &ap, msg);
+  stream_flush(gdsout);
+  va_end(ap);
+#endif /* NETWORK_DEBUG */
+}
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -105,23 +159,15 @@ static int _network_send_callback(simulator_t * sim,
  * Callback function used to dump the content of a message event. See
  * also 'simulator_dump_events' (sim/simulator.c).
  */
-static void _network_send_ctx_dump(SLogStream * stream, void * ctx)
+static void _network_send_ctx_dump(gds_stream_t * stream, void * ctx)
 {
   net_send_ctx_t * send_ctx= (net_send_ctx_t *) ctx;
 
-  log_printf(stream, "net-msg n-h:");
-  ip_address_dump(stream, send_ctx->dst_iface->src_node->addr);
-  log_printf(stream, " [");
+  stream_printf(stream, "net-msg n-h:");
+  node_dump_id(stream, send_ctx->dst_iface->owner);
+  stream_printf(stream, " [");
   message_dump(stream, send_ctx->msg);
-  log_printf(stream, "]");
-
-  switch (send_ctx->msg->protocol) {
-  case NET_PROTOCOL_BGP:
-    bgp_msg_dump(stream, NULL, send_ctx->msg->payload);
-    break;
-  default:
-    log_printf(stream, "opaque");
-  }
+  stream_printf(stream, "]");
 }
 
 // -----[ _network_send_ctx_create ]---------------------------------
@@ -168,17 +214,23 @@ static sim_event_ops_t _network_send_ops= {
  * The function can write an optional error message on the standard
  * output stream.
  */
-void network_drop(net_msg_t * msg)
+void network_drop(net_msg_t * msg, const char * reason, ...)
 {
+  va_list ap;
+
+  va_start(ap, reason);
+
+  ip_opt_hook_msg_error(msg, ENET_NO_REPLY);
   /*
-    LOG_ERR_ENABLED(LOG_LEVEL_SEVERE) {
-    log_printf(pLogErr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
-    log_printf(pLogErr, "message: ");
-    message_dump(pLogErr, msg);
-    log_printf(pLogErr, "\n");
-    }
+  stream_printf(gdserr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
+  stream_printf(gdserr, "message: ");
+  message_dump(gdserr, msg);
+  stream_printf(gdserr, "\nreason : ");
+  stream_vprintf(gdserr, reason, ap);
+  stream_printf(gdserr, "\n");
   */
   message_destroy(&msg);
+  va_end(ap);
 }
 
 // -----[ network_send ]---------------------------------------------
@@ -192,14 +244,14 @@ void network_send(net_iface_t * dst_iface, net_msg_t * msg)
   assert(!sim_post_event(_thread_get_simulator(),
 			 &_network_send_ops,
 			 _network_send_ctx_create(dst_iface, msg),
-			 0, SIM_TIME_REL));
+			 dst_iface->phys.delay, SIM_TIME_REL));
 }
 
 // -----[ network_get_simulator ]------------------------------------
 simulator_t * network_get_simulator(network_t * network)
 {
   if (network->sim == NULL)
-    network->sim= sim_create(SCHEDULER_STATIC);
+    network->sim= sim_create(sim_get_default_scheduler());
   return network->sim;
 }
 
@@ -263,59 +315,14 @@ int node_del_tunnel(net_node_t * node, net_addr_t addr)
  */
 int node_ipip_enable(net_node_t * node)
 {
-  return node_register_protocol(node, NET_PROTOCOL_IPIP,
-				node, NULL,
-				ipip_event_handler);
-}
-
-// ----- node_igp_domain_add -------------------------------------------
-int node_igp_domain_add(net_node_t * pNode, uint16_t uDomainNumber)
-{
-  return _array_add((SArray*)(pNode->pIGPDomains), &uDomainNumber);
-}
-
-// ----- node_belongs_to_igp_domain ---------------------------------
-/**
- * Test if a node belongs to a given IGP domain.
- *
- * Return value:
- *   TRUE (1) if node belongs to the given IGP domain
- *   FALSE (0) otherwise.
- */
-int node_belongs_to_igp_domain(net_node_t * node, uint16_t uDomainNumber)
-{
-  unsigned int index;
-
-  if (_array_sorted_find_index((SArray*)(node->pIGPDomains),
-			       &uDomainNumber, &index) == 0)
-    return 1;
-  return 0;
+  return node_register_protocol(node, NET_PROTOCOL_IPIP, node);
 }
 
 // ----- node_links_for_each ----------------------------------------
-int node_links_for_each(net_node_t * node, FArrayForEach for_each,
+int node_links_for_each(net_node_t * node, gds_array_foreach_f foreach,
 			void * ctx)
 {
-  return _array_for_each((SArray *) node->ifaces, for_each, ctx);
-}
-
-// ----- node_rt_lookup ---------------------------------------------
-/**
- * This function looks for the next-hop that must be used to reach a
- * destination address. The function looks up the static/IGP/BGP
- * routing table.
- */
-const rt_entry_t * node_rt_lookup(net_node_t * node, net_addr_t dst_addr)
-{
-  rt_entry_t * rtentry= NULL;
-  rt_info_t * rtinfo;
-
-  if (node->rt != NULL) {
-    rtinfo= rt_find_best(node->rt, dst_addr, NET_ROUTE_ANY);
-    if (rtinfo != NULL)
-      rtentry= &rtinfo->next_hop;
-  }
-  return rtentry;
+  return _array_for_each((array_t *) node->ifaces, foreach, ctx);
 }
 
 
@@ -325,22 +332,28 @@ const rt_entry_t * node_rt_lookup(net_node_t * node, net_addr_t dst_addr)
 //
 /////////////////////////////////////////////////////////////////////
 
+static inline
+net_error_t _node_ip_input(net_node_t * node,
+			   net_iface_t * iif,
+			   net_iface_t * lif,
+			   net_msg_t * msg);
+
 // -----[ _node_error_dump ]-----------------------------------------
 static inline void _node_error_dump(net_node_t * node, net_error_t error)
 {
-  SLogStream * syslog= node_syslog(node);
+  gds_stream_t * syslog= node_syslog(node);
 
-  log_printf(syslog, "@");
-  ip_address_dump(syslog, node->addr);
-  log_printf(syslog, ": ");
+  stream_printf(syslog, "@");
+  node_dump_id(syslog, node);
+  stream_printf(syslog, ": ");
   network_perror(syslog, error);
-  log_printf(syslog, "\n");
+  stream_printf(syslog, "\n");
 }
 
 // -----[ _node_ip_fwd_error ]---------------------------------------
 /**
  * This function is responsible for handling errors that occur during
- * the procedding of IP messages. An error message is displayed
+ * the processing of IP messages. An error message is displayed
  * (delegated to _node_error_dump()).
  *
  * If the IP message that caused the error is not ICMP and if an ICMP
@@ -351,13 +364,19 @@ static inline net_error_t
 _node_ip_fwd_error(net_node_t * node,
 		   net_msg_t * msg,
 		   net_error_t error,
-		   uint8_t uICMPError)
+		   uint8_t icmp_error)
 {
   _node_error_dump(node, error);
-  if ((uICMPError != 0) && !is_icmp_error(msg))
+
+  ___network_debug("node_ip_fwd_error node=%n error=%e\n", node, error);
+
+  ip_opt_hook_msg_error(msg, error);
+
+  if ((icmp_error != 0) && !is_icmp_error(msg))
     icmp_send_error(node, NET_ADDR_ANY, msg->src_addr,
-		    uICMPError, _thread_get_simulator());
-  message_destroy(&msg);
+		    icmp_error, _thread_get_simulator());
+
+  network_drop(msg, "forwarding error \"%s\"", network_strerror(error));
   return error;
 }
 
@@ -392,20 +411,89 @@ _node_ip_process_msg(net_node_t * node, net_msg_t * msg)
   return error;
 }
 
+// -----[ _node_ip_input ]-------------------------------------------
+static inline
+net_error_t _node_ip_input(net_node_t * node, net_iface_t * iif,
+			   net_iface_t * lif, net_msg_t * msg)
+{
+  net_error_t error;
+
+  if (iif == lif) {
+
+  ___network_debug("node_ip_input [process] node=%n, lif=%i\n", node, lif);
+
+    // Process ICMP options
+    error= ip_opt_hook_msg_rcvd(node, iif, msg);
+    if (error != ESUCCESS)
+      return error;
+
+    _node_ip_process_msg(node, msg);
+
+  } else {
+
+    ___network_debug("node_ip_input [loopback] node=%n, lif=%i\n", node, lif);
+
+    net_iface_recv(lif, msg);
+
+  }
+  return ESUCCESS;
+}
+
 // -----[ _node_ip_output ]------------------------------------------
 /**
- * This function forwards a message through the given output
- * interface.
+ * This function forwards a message through a specific output
+ * interface of one node.
+ *
+ * \param node      is the source node.
+ * \param iif       is the interface that initially received the
+ *                  message
+ *                  (NULL if the message is not being forwarded).
+ * \param rtentries is the set of routing entries (and outgoing
+ *                  interfaces) used to forward the message.
+ * \param msg       is the message to be sent.
+ * \retval ESUCCESS in case of success, a negative error code
+ *         otherwize.
  */
 static inline net_error_t
-_node_ip_output(net_node_t * node, const rt_entry_t * rtentry,
+_node_ip_output(net_node_t * node, net_iface_t * iif,
+		const rt_entries_t * rtentries,
 		net_msg_t * msg)
 {
-  net_addr_t l2_addr= rtentry->gateway;
+  const rt_entry_t * rtentry;
+  net_addr_t dst= msg->dst_addr;
+  net_addr_t l2_addr;
+  net_error_t error;
 
-  // Note: we don't support recursive routing table lookups in C-BGP
-  //       resolving the real outgoing interface is done by the
-  //       routing protocols themselves (e.g. BGP)
+  ___network_debug("node_ip_output from:%n msg:%m\n", node, msg);
+
+  // Default is to use entry 0
+  rtentry= rt_entries_get_at(rtentries, 0);
+
+  // Process RT entries (in case of ECMP)
+  error= ip_opt_hook_msg_ecmp(node, msg, &rtentries);
+  if (error != ESUCCESS)
+    return error;
+
+  // Recursive lookup ? resolving the real outgoing interface
+  // is done for protocols such as BGP
+  if (rtentry->oif == NULL) {
+    dst= rtentry->gateway;
+    rtentries= node_rt_lookup(node, dst);
+    if (rtentries == NULL)
+      return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
+
+    // Default is to use entry 0
+    rtentry= rt_entries_get_at(rtentries, 0);
+  }
+
+  // Check that the outgoing interface is different from the
+  // incoming interface. A normal router should send an ICMP Redirect
+  // if it is the first hop. We don't handle this case in C-BGP.
+  if (iif == rtentry->oif)
+    return _node_ip_fwd_error(node, msg, ENET_FWD_LOOP,
+			      ICMP_ERROR_NET_UNREACH);
+
+  l2_addr= rtentry->gateway;
 
   // Fix source address (if not already set)
   if (msg->src_addr == NET_ADDR_ANY)
@@ -418,16 +506,18 @@ _node_ip_output(net_node_t * node, const rt_entry_t * rtentry,
     // interface IP address. Note: this will not work with unnumbered
     // interfaces !
     if (l2_addr == NET_ADDR_ANY)
-      l2_addr= msg->dst_addr;
+      l2_addr= dst;
     // should be written as
-    //   l2_addr= net_iface_map_l2(msg->tDstAddr);
+    //   l2_addr= net_iface_map_l2(msg->dst_addr);
   }
 
   // Process ICMP options
-  if (msg->protocol == NET_PROTOCOL_ICMP)
-    icmp_process_options(1, node, rtentry->oif, msg, NULL);
+  error= ip_opt_hook_msg_out(node, rtentry->oif, msg);
+  if (error != ESUCCESS)
+    return error;
 
   // Forward along this link...
+  ___network_debug("node_ip_output oif:%i\n", rtentry->oif);
   return net_iface_send(rtentry->oif, l2_addr, msg);
 }
 
@@ -450,8 +540,11 @@ net_error_t node_recv_msg(net_node_t * node,
 			  net_iface_t * iif,
 			  net_msg_t * msg)
 {
-  const rt_entry_t * rtentry= NULL;
+  const rt_entries_t * rtentries= NULL;
+  net_iface_t * lif;
   net_error_t error;
+
+  ___network_debug("node_recv_msg node:%n msg:%m iif:%i\n", node, msg, iif);
 
   // Incoming interface must be fixed
   assert(iif != NULL);
@@ -460,10 +553,9 @@ net_error_t node_recv_msg(net_node_t * node,
   assert(msg->ttl > 0);
 
   // Process ICMP options
-  if (msg->protocol == NET_PROTOCOL_ICMP)
-    if ((error= icmp_process_options(ICMP_OPT_STATE_INCOMING, node,
-				     iif, msg, &rtentry)) != ESUCCESS)
-      return _node_ip_fwd_error(node, msg, error, 0);
+  error= ip_opt_hook_msg_in(node, iif, msg, &rtentries);
+  if (error != ESUCCESS)
+    return error;
 
   /********************
    * Local delivery ? *
@@ -471,8 +563,11 @@ net_error_t node_recv_msg(net_node_t * node,
 
   // Check list of interface addresses to see if the packet
   // is for this node.
-  if (node_has_address(node, msg->dst_addr))
-    return _node_ip_process_msg(node, msg);
+  if (rtentries == NULL) {
+    lif= node_has_address(node, msg->dst_addr);
+    if (lif != NULL)
+      return _node_ip_input(node, iif, lif, msg);
+  }
 
   /**********************
    * IP Forwarding part *
@@ -488,29 +583,60 @@ net_error_t node_recv_msg(net_node_t * node,
 
   // Find route to destination (if no route is found,
   // discard and raise ICMP host unreachable message)
-  if (rtentry == NULL) {
-    rtentry= node_rt_lookup(node, msg->dst_addr);
-    if (rtentry == NULL)
+  if (rtentries == NULL) {
+    rtentries= node_rt_lookup(node, msg->dst_addr);
+    if (rtentries == NULL)
       return _node_ip_fwd_error(node, msg,
 				ENET_HOST_UNREACH,
 				ICMP_ERROR_HOST_UNREACH);
   }
 
-  // Check that the outgoing interface is different from the
-  // incoming interface. Anormal router should send an ICMP Redirect
-  // if it is the first hop. We don't handle this case in C-BGP.
-  if (iif == rtentry->oif)
-    return _node_ip_fwd_error(node, msg, EUNEXPECTED, 0);
+  return _node_ip_output(node, iif, rtentries, msg);
+}
 
-  return _node_ip_output(node, rtentry, msg);
+// -----[ node_send ]------------------------------------------------
+net_error_t node_send(net_node_t * node, net_msg_t * msg,
+		      const rt_entries_t * rtentries,
+		      simulator_t * sim)
+{
+  net_error_t error;
+  net_iface_t * lif;
+
+  if (sim != NULL)
+    _thread_set_simulator(sim);
+
+  // Process IP options
+  error= ip_opt_hook_msg_sent(node, msg, &rtentries);
+  if (error != ESUCCESS)
+    return error;
+
+  // Check source address (if specified, must belong to node)
+  if ((msg->src_addr != IP_ADDR_ANY) &&
+      (node_has_address(node, msg->src_addr) == NULL))
+    return ENET_IFACE_UNKNOWN;
+
+  // Local delivery ?
+  if (rtentries == NULL) {
+    lif= node_has_address(node, msg->dst_addr);
+    if (lif != NULL) {
+      // Set source address (if unspecified)
+      if (msg->src_addr == NET_ADDR_ANY)
+	msg->src_addr= lif->addr;
+      return _node_ip_input(node, lif, lif, msg);
+    }
+  }
+  
+  // Find outgoing interface & next-hop
+  if (rtentries == NULL) {
+    rtentries= node_rt_lookup(node, msg->dst_addr);
+    if (rtentries == NULL)
+      return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
+  }
+
+  return _node_ip_output(node, NULL, rtentries, msg);
 }
 
 // -----[ node_send_msg ]--------------------------------------------
-/**
- * Send a message to a node.
- * The node must be directly connected to the sender node or there
- * must be a route towards the node in the sender's routing table.
- */
 net_error_t node_send_msg(net_node_t * node,
 			  net_addr_t src_addr,
 			  net_addr_t dst_addr,
@@ -518,43 +644,22 @@ net_error_t node_send_msg(net_node_t * node,
 			  uint8_t ttl,
 			  void * payload,
 			  FPayLoadDestroy f_destroy,
+			  ip_opt_t * opts,
 			  simulator_t * sim)
 {
-  const rt_entry_t * rtentry= NULL;
   net_msg_t * msg;
-  net_error_t error;
 
-  if (sim != NULL)
-    _thread_set_simulator(sim);
+  ___network_debug("node_send_msg from:%n src:%a dst:%a\n",
+		   node, src_addr, dst_addr);
 
   if (ttl == 0)
     ttl= 255;
 
   // Build "IP" message
   msg= message_create(src_addr, dst_addr, proto, ttl, payload, f_destroy);
+  message_set_options(msg, opts);
 
-  // Process ICMP options
-  if (msg->protocol == NET_PROTOCOL_ICMP)
-    if ((error= icmp_process_options(ICMP_OPT_STATE_INCOMING, node,
-				     NULL, msg, &rtentry)) != ESUCCESS)
-      return _node_ip_fwd_error(node, msg, error, 0);
-
-  // Local delivery ?
-  if (node_has_address(node, msg->dst_addr)) {
-    // Set source address as the node's loopback address (if unspecified)
-    if (msg->src_addr == NET_ADDR_ANY)
-      msg->src_addr= node->addr;
-    return _node_ip_process_msg(node, msg);
-  }
-  
-  // Find outgoing interface & next-hop
-  if (rtentry == NULL) {
-    rtentry= node_rt_lookup(node, dst_addr);
-    if (rtentry == NULL)
-      return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
-  }
-
-  return _node_ip_output(node, rtentry, msg);
+  return node_send(node, msg, NULL, sim);
 }
 
 
@@ -578,6 +683,7 @@ network_t * network_create()
 {
   network_t * network= (network_t *) MALLOC(sizeof(network_t));
   
+  network->domains= igp_domains_create();
   network->nodes= trie_create(network_nodes_destroy);
   network->subnets= subnets_create();
   network->sim= NULL;
@@ -590,11 +696,15 @@ network_t * network_create()
  */
 void network_destroy(network_t ** network_ref)
 {
+  network_t * network;
+
   if (*network_ref != NULL) {
-    trie_destroy(&(*network_ref)->nodes);
-    subnets_destroy(&(*network_ref)->subnets);
-    if ((*network_ref)->sim != NULL)
-      sim_destroy(&(*network_ref)->sim);
+    network= *network_ref;
+    igp_domains_destroy(&network->domains);
+    trie_destroy(&network->nodes);
+    subnets_destroy(&network->subnets);
+    if (network->sim != NULL)
+      sim_destroy(&network->sim);
     FREE(*network_ref);
     *network_ref= NULL;
   }
@@ -617,11 +727,11 @@ network_t * network_get_default()
 net_error_t network_add_node(network_t * network, net_node_t * node)
 {
    // Check that node does not already exist
-  if (network_find_node(network, node->addr) != NULL)
+  if (network_find_node(network, node->rid) != NULL)
     return ENET_NODE_DUPLICATE;
 
   node->network= network;
-  if (trie_insert(network->nodes, node->addr, 32, node) != 0)
+  if (trie_insert(network->nodes, node->rid, 32, node, 0) != 0)
     return EUNEXPECTED;
   return ESUCCESS;
 }
@@ -641,6 +751,18 @@ net_error_t network_add_subnet(network_t * network, net_subnet_t * subnet)
   return ESUCCESS;
 }
 
+// -----[ network_add_igp_domain ]-----------------------------------
+net_error_t network_add_igp_domain(network_t * network,
+				   igp_domain_t * domain)
+{
+  if (network_find_igp_domain(network, domain->id) != NULL)
+    return ENET_IGP_DOMAIN_DUPLICATE;
+  
+  if (igp_domains_add(network->domains, domain) < 0)
+    return EUNEXPECTED;
+  return ESUCCESS;
+}
+
 // ----- network_find_node ------------------------------------------
 /**
  *
@@ -650,74 +772,46 @@ net_node_t * network_find_node(network_t * network, net_addr_t addr)
   return (net_node_t *) trie_find_exact(network->nodes, addr, 32);
 }
 
-// ----- network_find_subnet ----------------------------------------
-/**
- *
- */
+// -----[ network_find_subnet ]--------------------------------------
 net_subnet_t * network_find_subnet(network_t * network, ip_pfx_t prefix)
 { 
   return subnets_find(network->subnets, prefix);
 }
 
-// ----- _network_nodes_to_file -------------------------------------
-/*
-static int _network_nodes_to_file(uint32_t uKey, uint8_t uKeyLen,
-				  void * pItem, void * pContext)
+// -----[ network_find_igp_domain ]----------------------------------
+igp_domain_t * network_find_igp_domain(network_t * network,
+				       uint16_t id)
 {
-  net_node_t * pNode= (net_node_t *) pItem;
-  SLogStream * stream= (SLogStream *) pContext;
-  net_iface_t * pLink;
-  int iLinkIndex;
-
-  for (iLinkIndex= 0; iLinkIndex < ptr_array_length(pNode->ifaces);
-       iLinkIndex++) {
-    pLink= (net_iface_t *) pNode->ifaces->data[iLinkIndex];
-    link_dump(stream, pLink);
-    log_printf(stream, "\n");
-  }
-  return 0;
+  return igp_domains_find(network->domains, id);
 }
-*/
 
-// ----- network_to_file --------------------------------------------
-/**
- *
- */
-int network_to_file(SLogStream * stream, network_t * network)
+// -----[ network_to_file ]------------------------------------------
+int network_to_file(gds_stream_t * stream, network_t * network)
 {
-  enum_t * pEnum= trie_get_enum(network->nodes);
+  gds_enum_t * nodes= trie_get_enum(network->nodes);
   net_node_t * node;
-  /*
-  return trie_for_each(pNetwork->nodes, _network_nodes_to_file,
-		       stream);
-  */
-  while (enum_has_next(pEnum)) {
-    node= *(net_node_t **) enum_get_next(pEnum);
+
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
     node_dump(stream, node);
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&nodes);
   return 0;
 }
 
-typedef struct {
-  net_addr_t addr;
-  SNetPath * pPath;
-  net_link_delay_t tDelay;
-} SContext;
-
-//---- network_dump_subnets ---------------------------------------------
-void network_dump_subnets(SLogStream * stream, network_t * network)
+// -----[ network_dump_subnets ]-------------------------------------
+void network_dump_subnets(gds_stream_t * stream, network_t * network)
 {
-  //  int iIndex, /*totSub*/;
-  net_subnet_t * subnet = NULL;
-  enum_t * pEnum= _array_get_enum((SArray*) network->subnets);
-  while (enum_has_next(pEnum)) {
-    subnet= *(net_subnet_t **) enum_get_next(pEnum);
+  gds_enum_t * subnets= _array_get_enum((array_t*) network->subnets);
+  net_subnet_t * subnet;
+
+  while (enum_has_next(subnets)) {
+    subnet= (net_subnet_t *) enum_get_next(subnets);
     ip_prefix_dump(stream, subnet->prefix);
-    log_printf(stream, "\n");
+    stream_printf(stream, "\n");
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&subnets);
 }
 
 // -----[ network_ifaces_load_clear ]----------------------------------
@@ -726,32 +820,30 @@ void network_dump_subnets(SLogStream * stream, network_t * network)
  */
 void network_ifaces_load_clear(network_t * network)
 {
-  enum_t * pEnum= NULL;
+  gds_enum_t * nodes= trie_get_enum(network->nodes);
   net_node_t * node;
   
-  pEnum= trie_get_enum(network->nodes);
-  while (enum_has_next(pEnum)) {
-    node= *((net_node_t **) enum_get_next(pEnum));
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
     node_ifaces_load_clear(node);
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&nodes);
 }
 
-// ----- network_links_save -----------------------------------------
+// -----[ network_links_save ]---------------------------------------
 /**
  * Save the load of all links in the topology.
  */
-int network_links_save(SLogStream * stream)
+int network_links_save(gds_stream_t * stream, network_t * network)
 {
-  enum_t * pEnum= NULL;
+  gds_enum_t * nodes= trie_get_enum(network->nodes);
   net_node_t * node;
 
-  pEnum= trie_get_enum(_default_network->nodes);
-  while (enum_has_next(pEnum)) {
-    node= *((net_node_t **) enum_get_next(pEnum));
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
     node_links_save(stream, node);
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&nodes);
   return 0;
 }
 
@@ -762,17 +854,14 @@ int network_links_save(SLogStream * stream)
 //
 /////////////////////////////////////////////////////////////////////
 
-// ----- _network_create --------------------------------------------
-void _network_create()
+// -----[ _network_init ]--------------------------------------------
+void _network_init()
 {
   _default_network= network_create();
 }
 
-// ----- _network_destroy -------------------------------------------
-/**
- *
- */
-void _network_destroy()
+// -----[ _network_done ]--------------------------------------------
+void _network_done()
 {
   if (_default_network != NULL)
     network_destroy(&_default_network);
