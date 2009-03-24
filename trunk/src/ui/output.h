@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)output.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/06/2004
-// @lastdate 16/01/2007
+// $Id: output.h,v 1.4 2009-03-24 16:29:41 bqu Exp $
 // ==================================================================
 
 #ifndef __UI_OUTPUT_H__
