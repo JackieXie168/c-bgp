@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)qos.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 13/11/2002
-// @lastdate 28/02/2006
+// $Id: qos.c,v 1.10 2009-03-24 15:49:01 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -18,8 +18,8 @@
 
 #include <bgp/as.h>
 #include <bgp/dp_rules.h>
-#include <bgp/path.h>
-#include <bgp/path_segment.h>
+#include <bgp/attr/path.h>
+#include <bgp/attr/path_segment.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
 

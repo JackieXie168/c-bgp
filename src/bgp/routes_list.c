@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 20/02/2004
-// @lastdate 11/03/2008
+// $Id: routes_list.c,v 1.9 2009-03-24 15:53:12 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,9 +16,9 @@
 #include <bgp/routes_list.h>
 
 // -----[ _routes_list_item_destroy ]--------------------------------
-static void _routes_list_item_destroy(void * pItem)
+static void _routes_list_item_destroy(void * item, const void * ctx)
 {
-  route_destroy((bgp_route_t **) pItem);
+  route_destroy((bgp_route_t **) item);
 }
 
 // ----- routes_list_create -----------------------------------------
@@ -31,13 +31,14 @@ static void _routes_list_item_destroy(void * pItem)
  *                           an array of references to existing
  *                           routes.
  */
-bgp_routes_t * routes_list_create(uint8_t uOptions)
+bgp_routes_t * routes_list_create(uint8_t options)
 {
-  if (uOptions & ROUTES_LIST_OPTION_REF) {
+  if (options & ROUTES_LIST_OPTION_REF) {
     return (bgp_routes_t *) ptr_array_create_ref(0);
   } else {
     return (bgp_routes_t *) ptr_array_create(0, NULL,
-					     _routes_list_item_destroy);
+					     _routes_list_item_destroy,
+					     NULL);
   }
 }
 
@@ -45,40 +46,40 @@ bgp_routes_t * routes_list_create(uint8_t uOptions)
 /**
  *
  */
-void routes_list_destroy(bgp_routes_t ** ppRoutes)
+void routes_list_destroy(bgp_routes_t ** routes_ref)
 {
-  ptr_array_destroy((SPtrArray **) ppRoutes);
+  ptr_array_destroy((ptr_array_t **) routes_ref);
 }
 
 // ----- routes_list_append -----------------------------------------
 /**
  *
  */
-void routes_list_append(bgp_routes_t * pRoutes, bgp_route_t * pRoute)
+void routes_list_append(bgp_routes_t * routes, bgp_route_t * route)
 {
-  assert(ptr_array_append((SPtrArray *) pRoutes, pRoute) >= 0);
+  assert(ptr_array_append((ptr_array_t *) routes, route) >= 0);
 }
 
 // ----- routes_list_remove_at --------------------------------------
 /**
  *
  */
-void routes_list_remove_at(bgp_routes_t * pRoutes, unsigned int uIndex)
+void routes_list_remove_at(bgp_routes_t * routes, unsigned int index)
 {
-  ptr_array_remove_at((SPtrArray *) pRoutes, uIndex);
+  ptr_array_remove_at((ptr_array_t *) routes, index);
 }
 
 // ----- routes_list_dump -------------------------------------------
 /**
  *
  */
-void routes_list_dump(SLogStream * pStream, bgp_routes_t * pRoutes)
+void routes_list_dump(gds_stream_t * stream, bgp_routes_t * routes)
 {
-  unsigned int uIndex;
+  unsigned int index;
 
-  for (uIndex= 0; uIndex < bgp_routes_size(pRoutes); uIndex++) {
-    route_dump(pStream, bgp_routes_at(pRoutes, uIndex));
-    log_printf(pStream, "\n");
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route_dump(stream, bgp_routes_at(routes, index));
+    stream_printf(stream, "\n");
   }
 }
 
@@ -86,8 +87,8 @@ void routes_list_dump(SLogStream * pStream, bgp_routes_t * pRoutes)
 /**
  * Call the given function for each route contained in the list.
  */
-int routes_list_for_each(bgp_routes_t * pRoutes, FArrayForEach fForEach,
-			 void * pContext)
+int routes_list_for_each(bgp_routes_t * routes, gds_array_foreach_f foreach,
+			 void * ctx)
 {
-  return _array_for_each((SArray *) pRoutes, fForEach, pContext);
+  return _array_for_each((array_t *) routes, foreach, ctx);
 }

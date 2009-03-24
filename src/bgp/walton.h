@@ -3,7 +3,7 @@
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/02/2006
-// @lastdate 22/01/2007
+// $Id: walton.h,v 1.5 2009-03-24 15:55:46 bqu Exp $
 // ==================================================================
 
 #ifndef __WALTON_H__
@@ -38,7 +38,7 @@ extern "C" {
   // ----- bgp_router_walton_dp_disseminate --------------------------
   void bgp_router_walton_dp_disseminate(bgp_router_t * pRouter, 
 					bgp_peers_t * pPeers,
-					SPrefix sPrefix,
+					ip_pfx_t prefix,
 					bgp_routes_t * pRoutes);
   // ---- bgp_router_walton_disseminate_select_peers -----------------
   void bgp_router_walton_disseminate_select_peers(bgp_router_t * pRouter, 

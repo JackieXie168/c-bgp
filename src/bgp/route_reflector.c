@@ -1,31 +1,31 @@
 // ==================================================================
 // @(#)route_reflector.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/12/2003
-// @lastdate 23/07/2007
+// $Id: route_reflector.c,v 1.8 2009-03-24 15:52:37 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <bgp/route_reflector.h>
 
 #include <net/prefix.h>
 
 // -----[ cluster_list_append ]--------------------------------------
-int cluster_list_append(SClusterList * pClusterList,
-			cluster_id_t tClusterID)
+int cluster_list_append(bgp_cluster_list_t * cl,
+			bgp_cluster_id_t cluster_id)
 {
-  return _array_append((SArray *) pClusterList, &tClusterID);
+  return uint32_array_append(cl, cluster_id);
 }
 
 // ----- cluster_list_destroy ---------------------------------------
-void cluster_list_destroy(SClusterList ** ppClusterList)
+void cluster_list_destroy(bgp_cluster_list_t ** pcl)
 {
-  _array_destroy((SArray **) ppClusterList);
+  uint32_array_destroy(pcl);
 }
 
 // ----- cluster_list_dump ------------------------------------------
@@ -33,14 +33,14 @@ void cluster_list_destroy(SClusterList ** ppClusterList)
  * This function dumps the cluster-IDs contained in the given list to
  * the given stream.
  */
-void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList)
+void cluster_list_dump(gds_stream_t * stream, bgp_cluster_list_t * cl)
 {
-  int iIndex;
+  unsigned int index;
 
-  for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList); iIndex++) {
-    if (iIndex > 0)
-      log_printf(pStream, " ");
-    ip_address_dump(pStream, pClusterList->data[iIndex]);
+  for (index= 0; index < uint32_array_size(cl); index++) {
+    if (index > 0)
+      stream_printf(stream, " ");
+    ip_address_dump(stream, cl->data[index]);
   }
 }
 
@@ -52,20 +52,20 @@ void cluster_list_dump(SLogStream * pStream, SClusterList * pClusterList)
  *    1  if they are equal
  *    0  otherwise
  */
-int cluster_list_equals(SClusterList * pClusterList1,
-			SClusterList * pClusterList2)
+int cluster_list_equals(bgp_cluster_list_t * cl1,
+			bgp_cluster_list_t * cl2)
 {
-  int iIndex;
+  unsigned int index;
 
-  if (pClusterList1 == pClusterList2)
+  if (cl1 == cl2)
     return 1;
-  if ((pClusterList1 == NULL) || (pClusterList2 == NULL))
+  if ((cl1 == NULL) || (cl2 == NULL))
     return 0;
-  if (_array_length((SArray *) pClusterList1) !=
-      _array_length((SArray *) pClusterList2))
+  if (uint32_array_size(cl1) !=
+      uint32_array_size(cl2))
     return 0;
-  for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList1); iIndex++)
-    if (pClusterList1->data[iIndex] != pClusterList2->data[iIndex])
+  for (index= 0; index < uint32_array_size(cl1); index++)
+    if (cl1->data[index] != cl2->data[index])
       return 0;
   return 1;
 }
@@ -74,22 +74,13 @@ int cluster_list_equals(SClusterList * pClusterList1,
 /**
  *
  */
-int cluster_list_contains(SClusterList * pClusterList,
-			  cluster_id_t tClusterID)
+int cluster_list_contains(bgp_cluster_list_t * cl,
+			  bgp_cluster_id_t cluster_id)
 {
-  int iIndex;
+  unsigned int index;
 
-  /*
-  ip_address_dump(stderr, tClusterID);
-  fprintf(stderr, " in ");
-  cluster_list_dump(stderr, pClusterList);
-  fprintf(stderr, " ?\n");*/
-
-  for (iIndex= 0; iIndex < _array_length((SArray *) pClusterList);
-       iIndex++) {
-    /*ip_address_dump(stderr, pClusterList->data[iIndex]);
-      fprintf(stderr, "\n");*/
-    if (pClusterList->data[iIndex] == tClusterID)
+  for (index= 0; index < uint32_array_size(cl); index++) {
+    if (cl->data[index] == cluster_id)
       return 1;
   }
   return 0;
@@ -103,13 +94,13 @@ int cluster_list_contains(SClusterList * pClusterList,
  *   1  if they are equal
  *   0  otherwise
  */
-int originator_equals(net_addr_t * pOrig1, net_addr_t * pOrig2)
+int originator_equals(bgp_originator_t * orig1, bgp_originator_t * orig2)
 {  
-  if (pOrig1 == pOrig2)
+  if (orig1 == orig2)
     return 1;
-  if ((pOrig1 == NULL) ||
-      (pOrig2 == NULL) ||
-      (*pOrig1 != *pOrig2))
+  if ((orig1 == NULL) ||
+      (orig2 == NULL) ||
+      (*orig1 != *orig2))
       return 0;
   return 1;
 }

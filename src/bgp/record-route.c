@@ -3,20 +3,21 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/05/2007
-// $Id: record-route.c,v 1.4 2008-06-13 14:27:12 bqu Exp $
+// $Id: record-route.c,v 1.5 2009-03-24 15:49:39 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
-#include <bgp/as_t.h>
-#include <bgp/record-route.h>
-#include <bgp/rib.h>
+#include <net/node.h>
 #include <net/prefix.h>
 #include <net/protocol.h>
+#include <bgp/attr/path.h>
+#include <bgp/record-route.h>
+#include <bgp/rib.h>
 
 // -----[ bgp_record_route ]-----------------------------------------
 /**
@@ -26,18 +27,18 @@
  * - records ASes once (do not record iBGP session crossing)
  */
 int bgp_record_route(bgp_router_t * router,
-		     ip_pfx_t sPrefix,
-		     SBGPPath ** path_ref,
+		     ip_pfx_t prefix,
+		     bgp_path_t ** path_ref,
 		     int iPreserveDups)
 {
   bgp_router_t * cur_router= router;
   bgp_router_t * prev_router= NULL;
   bgp_route_t * route;
-  SBGPPath * path= path_create();
+  bgp_path_t * path= path_create();
   net_node_t * node;
   net_protocol_t * protocol;
   int result= AS_RECORD_ROUTE_UNREACH;
-  network_t * network= router->pNode->network;
+  network_t * network= router->node->network;
 
   *path_ref= NULL;
 
@@ -46,17 +47,17 @@ int bgp_record_route(bgp_router_t * router,
     // Is there, in the current node, a BGP route towards the given
     // prefix ?
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    route= rib_find_one_best(cur_router->pLocRIB, sPrefix);
+    route= rib_find_one_best(cur_router->loc_rib, prefix);
 #else
-    route= rib_find_best(cur_router->pLocRIB, sPrefix);
+    route= rib_find_best(cur_router->loc_rib, prefix);
 #endif
     if (route != NULL) {
       
       // Record current node's AS-Num ??
       if ((prev_router == NULL) ||
 	  (iPreserveDups ||
-	   (prev_router->uASN != cur_router->uASN))) {
-	if (path_append(&path, cur_router->uASN) < 0) {
+	   (prev_router->asn != cur_router->asn))) {
+	if (path_append(&path, cur_router->asn) < 0) {
 	  result= AS_RECORD_ROUTE_TOO_LONG;
 	  break;
 	}
@@ -64,13 +65,13 @@ int bgp_record_route(bgp_router_t * router,
       
       // If the route's next-hop is this router, then the function
       // terminates.
-      if (route->pAttr->tNextHop == cur_router->pNode->addr) {
+      if (node_has_address(cur_router->node, route->attr->next_hop)) {
 	result= AS_RECORD_ROUTE_SUCCESS;
 	break;
       }
       
       // Otherwize, looks for next-hop router
-      node= network_find_node(network, route->pAttr->tNextHop);
+      node= network_find_node(network, route->attr->next_hop);
       if (node == NULL)
 	break;
       
@@ -85,7 +86,6 @@ int bgp_record_route(bgp_router_t * router,
       break;
   }
   *path_ref= path;
-
   return result;
 }
 
@@ -94,25 +94,25 @@ int bgp_record_route(bgp_router_t * router,
  * This function dumps the result of a call to
  * 'bgp_router_record_route'.
  */
-void bgp_dump_recorded_route(SLogStream * stream, bgp_router_t * router,
-			     ip_pfx_t sPrefix, SBGPPath * path,
+void bgp_dump_recorded_route(gds_stream_t * stream, bgp_router_t * router,
+			     ip_pfx_t prefix, bgp_path_t * path,
 			     int result)
 {
   // Display record-route results
-  ip_address_dump(stream, router->pNode->addr);
-  log_printf(stream, "\t");
-  ip_prefix_dump(stream, sPrefix);
-  log_printf(stream, "\t");
+  node_dump_id(stream, router->node);
+  stream_printf(stream, "\t");
+  ip_prefix_dump(stream, prefix);
+  stream_printf(stream, "\t");
   switch (result) {
-  case AS_RECORD_ROUTE_SUCCESS: log_printf(stream, "SUCCESS"); break;
-  case AS_RECORD_ROUTE_TOO_LONG: log_printf(stream, "TOO_LONG"); break;
-  case AS_RECORD_ROUTE_UNREACH: log_printf(stream, "UNREACHABLE"); break;
+  case AS_RECORD_ROUTE_SUCCESS: stream_printf(stream, "SUCCESS"); break;
+  case AS_RECORD_ROUTE_TOO_LONG: stream_printf(stream, "TOO_LONG"); break;
+  case AS_RECORD_ROUTE_UNREACH: stream_printf(stream, "UNREACHABLE"); break;
   default:
-    log_printf(stream, "UNKNOWN_ERROR");
+    stream_printf(stream, "UNKNOWN_ERROR");
   }
-  log_printf(stream, "\t");
+  stream_printf(stream, "\t");
   path_dump(stream, path, 0);
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
 
-  log_flush(stream);
+  stream_flush(stream);
 }
