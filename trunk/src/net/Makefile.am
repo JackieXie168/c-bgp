@@ -13,8 +13,13 @@ endif
 
 AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 
+SUBDIRS = traffic
+DIST_SUBDIRS = traffic
+
 noinst_LTLIBRARIES = libnet.la
 libnet_la_CFLAGS= $(LIBGDS_CFLAGS)
+libnet_la_LIBADD = \
+	traffic/libnet_traffic.la
 
 INCLUDES = -I..
 
@@ -25,8 +30,12 @@ libnet_la_SOURCES = \
 	export.h \
 	export_cli.c \
 	export_cli.h \
+	export_graphviz.c \
+	export_graphviz.h \
 	export_ntf.c \
 	export_ntf.h \
+	ez_topo.c \
+	ez_topo.h \
 	icmp.c \
 	icmp.h \
 	icmp_options.c \
@@ -78,13 +87,13 @@ libnet_la_SOURCES = \
 	prefix.h \
 	protocol.c \
 	protocol.h \
-	record-route.c \
-	record-route.h \
 	routing.c \
 	routing.h \
 	routing_t.h \
 	rt_filter.c \
 	rt_filter.h \
+	spt.c \
+	spt.h \
 	spt_vertex.c \
 	spt_vertex.h \
 	subnet.c \
