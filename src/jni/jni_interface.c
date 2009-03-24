@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.50 2008-06-12 09:41:18 bqu Exp $
+// $Id: jni_interface.c,v 1.51 2009-03-24 16:01:35 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -16,7 +16,7 @@
 
 #include <libgds/cli_ctx.h>
 #include <libgds/gds.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/str_util.h>
 
 /*** jni_md.h ***
@@ -56,15 +56,11 @@
 #include <net/routing.h>
 #include <net/subnet.h>
 
+#include <bgp/types.h>
 #include <bgp/as.h>
-#include <bgp/as_t.h>
 #include <bgp/domain.h>
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
-#include <bgp/filter.h>
-#include <bgp/filter_t.h>
-#include <bgp/filter_registry.h>
-#include <bgp/rexford.h>
 #include <bgp/route_map.h>
 
 #include <sim/simulator.h>
@@ -79,8 +75,8 @@ static SJNIListener sBGPListener;
 
 static jobject joGlobalCBGP= NULL;
 
-static SLogStream * pSavedLogErr= NULL;
-static SLogStream * pSavedLogOut= NULL;
+static gds_stream_t * _saved_err= NULL;
+static gds_stream_t * _saved_out= NULL;
 
 
 /////////////////////////////////////////////////////////////////////
@@ -144,10 +140,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
 
   // Delete global references to console listeners
   bgp_router_set_msg_listener(NULL, NULL);
-  log_destroy(&pLogOut);
-  log_destroy(&pLogErr);
-  pLogOut= log_create_stream(stdout);
-  pLogErr= log_create_stream(stderr);
+  stream_destroy(&gdsout);
+  stream_destroy(&gdserr);
+  gdsout= stream_create(stdout);
+  gdserr= stream_create(stderr);
   jni_listener_unset(&sConsoleOutListener, jEnv);
   jni_listener_unset(&sConsoleErrListener, jEnv);
   jni_listener_unset(&sBGPListener, jEnv);
@@ -172,7 +168,7 @@ jobject get_Global_CBGP()
 }
 
 // -----[ _console_listener ]----------------------------------------
-static void _console_listener(void * pContext, char * pcBuffer)
+static int _console_listener(void * pContext, char * pcBuffer)
 {
   SJNIListener * pListener= (SJNIListener *) pContext;
   JavaVM * jVM= pListener->jVM;
@@ -187,18 +183,19 @@ static void _console_listener(void * pContext, char * pcBuffer)
   // console listener object.
   if ((*jVM)->AttachCurrentThread(jVM, pTmp, NULL) != 0) {
     fprintf(stderr, "ERROR: AttachCurrentThread failed in JNI::_console_listener\n");
-    return;
+    return -1;
   }
 
   // Create new ConsoleEvent object.
   if ((joEvent= cbgp_jni_new_ConsoleEvent(jEnv, pcBuffer)) == NULL)
-    return;
+    return -1;
 
   // Call the listener "eventFired" method.
   cbgp_jni_call_void(jEnv, pListener->joListener,
 		     "eventFired",
 		     "(Lbe/ac/ucl/ingi/cbgp/ConsoleEvent;)V",
 		     joEvent);
+  return strlen(pcBuffer);
 }
 
 // -----[ consoleSetOutListener ]------------------------------------
@@ -216,12 +213,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
   jni_lock(jEnv);
 
   if (joListener != NULL) {
-    pSavedLogOut= pLogOut;
+    _saved_out= gdsout;
     jni_listener_set(&sConsoleOutListener, jEnv, joListener);
-    pLogOut= log_create_callback(_console_listener, &sConsoleOutListener);
+    gdsout= stream_create_callback(_console_listener, &sConsoleOutListener);
   } else {
     jni_listener_unset(&sConsoleOutListener, jEnv);
-    pLogOut= pSavedLogOut;
+    gdsout= _saved_out;
   }
 
   jni_unlock(jEnv);
@@ -242,12 +239,12 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetErrListener
   jni_lock(jEnv);
   
   if (joListener != NULL) {
-    pSavedLogErr= pLogErr;
+    _saved_err= gdserr;
     jni_listener_set(&sConsoleErrListener, jEnv, joListener);
-    pLogErr= log_create_callback(_console_listener, &sConsoleErrListener);
+    gdserr= stream_create_callback(_console_listener, &sConsoleErrListener);
   } else {
     jni_listener_unset(&sConsoleErrListener, jEnv);
-    pLogErr= pSavedLogErr;
+    gdserr= _saved_err;
   }
 
   jni_unlock(jEnv);
@@ -294,6 +291,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
 {
   igp_domain_t * domain= NULL;
   jobject joDomain;
+  net_error_t result;
 
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
@@ -305,13 +303,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddDomain
     return_jni_unlock(jEnv, NULL);
   }
 
-  if (exists_igp_domain((uint16_t) jiDomain)) {
-    throw_CBGPException(jEnv, "domain already exists %i", jiDomain);
+  domain= igp_domain_create((uint16_t) jiDomain, IGP_DOMAIN_IGP);
+  result= network_add_igp_domain(network_get_default(), domain);
+  if (result != ESUCCESS) {
+    igp_domain_destroy(&domain);
+    throw_CBGPException(jEnv, "could not create domain (%s)",
+			network_strerror(result));
     return_jni_unlock(jEnv, NULL);
   }
-
-  domain= igp_domain_create((uint16_t) jiDomain, IGP_DOMAIN_IGP);
-  register_igp_domain(domain);
 
   joDomain= cbgp_jni_new_net_IGPDomain(jEnv, joCBGP, domain);
 
@@ -340,7 +339,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomain
     return_jni_unlock(jEnv, NULL);
   }
 
-  domain= get_igp_domain((uint16_t) jiDomain);
+  domain= network_find_igp_domain(network_get_default(),
+				  (uint16_t) jiDomain);
   if (domain == NULL)
     return NULL;
 
@@ -351,7 +351,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomain
 // -----[ _netGetDomains ]-------------------------------------------
 static int _netGetDomains(igp_domain_t * domain, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) ctx;
+  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
   jobject joDomain;
 
   // Create IGPDomain instance
@@ -377,7 +377,7 @@ static int _netGetDomains(igp_domain_t * domain, void * ctx)
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
   jobject joVector;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -393,7 +393,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetDomains
   sCtx.joVector= joVector;
   sCtx.joCBGP= joCBGP;
 
-  if (igp_domains_for_each(_netGetDomains, &sCtx) != 0) {
+  if (igp_domains_for_each(network_get_default()->domains,
+			   _netGetDomains, &sCtx) != 0) {
     throw_CBGPException(jEnv, "could not get list of domains");
     return_jni_unlock(jEnv, NULL);
   }
@@ -425,7 +426,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
     return_jni_unlock(jEnv, NULL);
 
   // Create new subnet
-  subnet= subnet_create(prefix.tNetwork, prefix.uMaskLen, 0);
+  subnet= subnet_create(prefix.network, prefix.mask, 0);
   if (subnet == NULL) {
     throw_CBGPException(jEnv, "subnet cound notbe created");
     return_jni_unlock(jEnv, NULL);
@@ -460,7 +461,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddSubnet
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 (JNIEnv * jEnv, jobject joCBGP, jstring jsAddr, jint iDomain)
 {
-  igp_domain_t * domain;
+  igp_domain_t * domain= NULL;
   net_node_t * node; 
   net_addr_t addr;
   jobject joNode;
@@ -472,9 +473,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
   jni_lock(jEnv);
 
   // Check that the domain is valid
-  domain= cbgp_jni_net_domain_from_int(jEnv, iDomain);
-  if (domain == NULL)
-    return_jni_unlock(jEnv, NULL);
+  if (iDomain >= 0) {
+    domain= cbgp_jni_net_domain_from_int(jEnv, iDomain);
+    if (domain == NULL)
+      return_jni_unlock(jEnv, NULL);
+  }
 
   if (ip_jstring_to_address(jEnv, jsAddr, &addr) != 0)
     return_jni_unlock(jEnv, NULL);
@@ -493,7 +496,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
     return_jni_unlock(jEnv, NULL);
   }
 
-  igp_domain_add_router(domain, node);
+  if (domain != NULL)
+    igp_domain_add_router(domain, node);
 
   joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node);
   return_jni_unlock(jEnv, joNode);
@@ -508,7 +512,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddNode
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  enum_t * pEnum;
+  gds_enum_t * nodes;
   net_node_t * node;
   jobject joVector;
   jobject joNode;
@@ -518,14 +522,14 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
 
   jni_lock(jEnv);
 
-  pEnum= trie_get_enum(network_get_default()->nodes);
+  nodes= trie_get_enum(network_get_default()->nodes);
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  while (enum_has_next(pEnum)) {
-    node= *(net_node_t **) enum_get_next(pEnum);
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
 
     // Create Node object
     if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node)) == NULL) {
@@ -536,7 +540,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
     // Add to Vector
     cbgp_jni_Vector_add(jEnv, joVector, joNode);
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&nodes);
 
   return_jni_unlock(jEnv, joVector);
 }
@@ -584,7 +588,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
   (JNIEnv * jEnv, jobject joCBGP, jstring jsSrcAddr, jstring jsDstAddr,
    jint jiWeight)
 {
-  net_node_t * pNodeSrc, * pNodeDst;
+  net_node_t * nodeSrc, * nodeDst;
   net_iface_t * pIface;
   jobject joIface;
   int iResult;
@@ -594,13 +598,13 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
 
   jni_lock(jEnv);
 
-  if ((pNodeSrc= cbgp_jni_net_node_from_string(jEnv, jsSrcAddr)) == NULL)
+  if ((nodeSrc= cbgp_jni_net_node_from_string(jEnv, jsSrcAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  if ((pNodeDst= cbgp_jni_net_node_from_string(jEnv, jsDstAddr)) == NULL)
+  if ((nodeDst= cbgp_jni_net_node_from_string(jEnv, jsDstAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  iResult= net_link_create_rtr(pNodeSrc, pNodeDst, BIDIR, &pIface);
+  iResult= net_link_create_rtr(nodeSrc, nodeDst, BIDIR, &pIface);
   if (iResult != ESUCCESS) {
     throw_CBGPException(jEnv, "could not create link (%s)",
 			network_strerror(iResult));
@@ -627,7 +631,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netAddLink
 // -----[ _bgpGetDomains ]-------------------------------------------
 static int _bgpGetDomains(bgp_domain_t * domain, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) ctx;
+  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
   jobject joDomain;
 
   // Create BGPDomain instance
@@ -654,7 +658,7 @@ static int _bgpGetDomains(bgp_domain_t * domain, void * ctx)
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpGetDomains
   (JNIEnv * jEnv, jobject joCBGP)
 {
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
   jobject joVector= NULL;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -693,8 +697,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   (JNIEnv * jEnv, jobject joCBGP, jstring jsName, jstring jsAddr,
    jint jiASNumber)
 {
-  net_node_t * pNode;
-  bgp_router_t * pRouter;
+  net_node_t * node;
+  bgp_router_t * router;
   jobject joRouter;
   net_error_t error;
 
@@ -704,11 +708,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   jni_lock(jEnv);
 
   /* Try to find related router. */
-  if ((pNode= cbgp_jni_net_node_from_string(jEnv, jsAddr)) == NULL)
+  if ((node= cbgp_jni_net_node_from_string(jEnv, jsAddr)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
   /* Create BGP router, and register. */
-  error= bgp_add_router(jiASNumber, pNode, &pRouter);
+  error= bgp_add_router(jiASNumber, node, &router);
   if (error != ESUCCESS) {
     throw_CBGPException(jEnv, "Could not create BGP router (%s)",
 			network_strerror(error));
@@ -718,11 +722,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
   /*
   if (jsName != NULL) {
     pcName = (*env)->GetStringUTFChars(env, jsName, NULL);
-    bgp_router_set_name(pRouter, str_create((char *) pcName));
+    bgp_router_set_name(router, str_create((char *) pcName));
     (*env)->ReleaseStringUTFChars(env, jsName, pcName);
     }*/
 
-  joRouter= cbgp_jni_new_bgp_Router(jEnv, joCBGP, pRouter);
+  joRouter= cbgp_jni_new_bgp_Router(jEnv, joCBGP, router);
 
   return_jni_unlock(jEnv, joRouter);
 }
@@ -731,6 +735,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_bgpAddRouter
 /////////////////////////////////////////////////////////////////////
 // Simulation queue management
 /////////////////////////////////////////////////////////////////////
+
+// -----[ simCancel ]------------------------------------------------
+/**
+ *
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simCancel
+(JNIEnv * jEnv, jobject joCBGP)
+{
+  if (jni_check_null(jEnv, joCBGP))
+    return;
+
+  sim_cancel(network_get_simulator(network_get_default()));
+}
 
 // -----[ simRun ]---------------------------------------------------
 /*
@@ -806,11 +823,12 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
   if (jni_check_null(jEnv, joCBGP))
     return -1;
 
-  jni_lock(jEnv);
+  //jni_lock(jEnv);
 
   jlResult= (jlong) sim_get_num_events(network_get_simulator(network_get_default()));
 
-  return_jni_unlock(jEnv, jlResult); 
+  //return_jni_unlock(jEnv, jlResult); 
+  return jlResult;
 }
 
 // -----[ simGetEvent ]----------------------------------------------
@@ -857,8 +875,8 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
   (JNIEnv * jEnv, jobject joCBGP, jstring jsCommand)
 {
   char * cCommand;
-  SCliErrorDetails sErrorDetails;
-  char * pcMsg;
+  cli_error_t cli_error;
+  const char * msg;
 
   if (jni_check_null(jEnv, joCBGP))
     return;
@@ -870,17 +888,17 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
 
   cCommand= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsCommand, NULL);
   if (libcbgp_exec_cmd(cCommand) != CLI_SUCCESS) {
-    cli_get_error_details(cli_get(), &sErrorDetails);
+    cli_get_error_details(cli_get(), &cli_error);
 
-    // If there is a detailled user error message, then generate the
+    // If there is a detailled user error message, then generate
     // an exception with this message. Otherwise, throw an exception
     // with the default CLI error message.
-    if (sErrorDetails.pcUserError != NULL)
-      pcMsg= sErrorDetails.pcUserError;
+    if (cli_error.user_msg != NULL)
+      msg= cli_error.user_msg;
     else
-      pcMsg= cli_strerror(sErrorDetails.iErrorCode);
-    throw_CBGPScriptException(jEnv, pcMsg, NULL,
-			      sErrorDetails.iLineNumber);
+      msg= cli_strerror(cli_error.error);
+    throw_CBGPScriptException(jEnv, msg, NULL,
+			      cli_error.line_number);
   }
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsCommand, cCommand);
 
@@ -896,31 +914,31 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runCmd
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_runScript
   (JNIEnv * jEnv, jobject joCBGP, jstring jsFileName)
 {
-  char * pcFileName;
+  char * filename;
   int iResult;
-  SCliErrorDetails sErrorDetails;
-  char * pcMsg;
+  cli_error_t cli_error;
+  const char * msg;
 
   if (jni_check_null(jEnv, joCBGP))
     return;
 
   jni_lock(jEnv);
 
-  pcFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
-  if ((iResult= libcbgp_exec_file(pcFileName)) != CLI_SUCCESS) {
-    cli_get_error_details(cli_get(), &sErrorDetails);
+  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  if ((iResult= libcbgp_exec_file(filename)) != CLI_SUCCESS) {
+    cli_get_error_details(cli_get(), &cli_error);
 
     // If there is a detailled user error message, then generate the
     // an exception with this message. Otherwise, throw an exception
     // with the default CLI error message.
-    if (sErrorDetails.pcUserError != NULL)
-      pcMsg= sErrorDetails.pcUserError;
+    if (cli_error.user_msg != NULL)
+      msg= cli_error.user_msg;
     else
-      pcMsg= cli_strerror(sErrorDetails.iErrorCode);
-    throw_CBGPScriptException(jEnv, pcMsg, NULL,
-			      sErrorDetails.iLineNumber);
+      msg= cli_strerror(cli_error.error);
+    throw_CBGPScriptException(jEnv, msg, NULL,
+			      cli_error.line_number);
   }
-  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
 
   jni_unlock(jEnv);
 }
@@ -942,35 +960,10 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_cliGetPrompt
 
   jni_lock(jEnv);
 
-  pcPrompt= cli_context_to_string(cli_get()->pCtx, "cbgp");
+  pcPrompt= cli_context_to_string(cli_get()->ctx, "cbgp");
   jsPrompt= cbgp_jni_new_String(jEnv, pcPrompt);
 
   return_jni_unlock(jEnv, jsPrompt);
-}
-
-// -----[ getVersion ]-----------------------------------------------
-/*
- * Class:     be_ac_ucl_ingi_cbgp_CBGP
- * Method:    getVersion
- * Signature: ()Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getVersion
-  (JNIEnv * jEnv, jobject joCBGP)
-{
-  if (jni_check_null(jEnv, joCBGP))
-    return NULL;
-
-  return cbgp_jni_new_String(jEnv, PACKAGE_VERSION);
-}
-
-// -----[ getErrorMsg ]----------------------------------------------
-JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getErrorMsg
-  (JNIEnv * jEnv, jobject joCBGP, jint iErrorCode)
-{
-  if (jni_check_null(jEnv, joCBGP))
-    return NULL;
-
-  return cbgp_jni_net_error_str(jEnv, iErrorCode);
 }
 
 
@@ -980,30 +973,30 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getErrorMsg
 
 // -----[ _cbgp_jni_load_mrt_handler ]-------------------------------
 #ifdef HAVE_BGPDUMP
-static int _cbgp_jni_load_mrt_handler(int iStatus,
-				      SRoute * pRoute,
-				      net_addr_t tPeerAddr,
-				      unsigned int uPeerAS,
-				      void * pContext)
+static int _cbgp_jni_load_mrt_handler(int status,
+				      bgp_route_t * route,
+				      net_addr_t peer_addr,
+				      asn_t peer_asn,
+				      void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
+  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
   jobject joRoute;
-  int iResult;
+  int result;
 
   // Check that there is a route to handle (according to API)
-  if (iStatus != BGP_ROUTES_INPUT_STATUS_OK)
+  if (status != BGP_ROUTES_INPUT_STATUS_OK)
     return BGP_ROUTES_INPUT_SUCCESS;
 
   // Create Java object for route
-  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, pRoute,
+  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, route,
 				      pCtx->joHashtable)) == NULL)
     return -1;
 
   // Destroy converted route
-  route_destroy(&pRoute);
+  route_destroy(&route);
 
   // Add the route object to the list
-  iResult= cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
+  result= cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
 
   // if there is a large number of objects, we should remove the
   // reference to the route as soon as it is added to the Vector
@@ -1011,7 +1004,7 @@ static int _cbgp_jni_load_mrt_handler(int iStatus,
   // instances, the performance will quickly decrease!
   (*(pCtx->jEnv))->DeleteLocalRef(pCtx->jEnv, joRoute);
 
-  return iResult;
+  return result;
 }
 #endif /* HAVE_BGPDUMP */
 
@@ -1026,9 +1019,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 {
 #ifdef HAVE_BGPDUMP
   jobject joVector= NULL;
-  const char * pcFileName;
-  SJNIContext sCtx;
-  int iResult;
+  const char * filename;
+  jni_ctx_t sCtx;
+  int result;
   jobject joPathHash;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -1038,7 +1031,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 
   joPathHash= cbgp_jni_new_Hashtable(jEnv);
 
-  pcFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
 
   joVector= cbgp_jni_new_Vector(jEnv);
   sCtx.jEnv= jEnv;
@@ -1046,15 +1039,15 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
   sCtx.joHashtable= joPathHash;
 
   // Load routes
-  iResult= bgp_routes_load(pcFileName,
-			   BGP_ROUTES_INPUT_MRT_BIN,
-			   _cbgp_jni_load_mrt_handler,
-			   &sCtx);
+  result= bgp_routes_load(filename,
+			  BGP_ROUTES_INPUT_MRT_BIN,
+			  _cbgp_jni_load_mrt_handler,
+			  &sCtx);
   //(*jEnv)->DeleteLocalRef(jEnv, joVector);
-  if (iResult != BGP_ROUTES_INPUT_SUCCESS)
+  if (result != BGP_ROUTES_INPUT_SUCCESS)
     joVector= NULL;
 
-  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
 
   return_jni_unlock(jEnv, joVector);
 
@@ -1064,9 +1057,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 }
 
 // -----[ _bgp_msg_listener ]----------------------------------------
-static void _bgp_msg_listener(net_msg_t * pMessage, void * pContext)
+static void _bgp_msg_listener(net_msg_t * msg, void * ctx)
 {
-  SJNIListener * pListener= (SJNIListener *) pContext;
+  SJNIListener * pListener= (SJNIListener *) ctx;
   JavaVM * jVM= pListener->jVM;
   JNIEnv * jEnv= NULL;
   void * pTmp= &jEnv; // Need this unless GCC will complain about the
@@ -1083,7 +1076,7 @@ static void _bgp_msg_listener(net_msg_t * pMessage, void * pContext)
   }
 
   // Create new Message instance.
-  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, pMessage)) == NULL)
+  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, msg)) == NULL)
     return;
 
   // Call the listener's method.
@@ -1125,42 +1118,72 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
  * Signature: ()Ljava/util/Vector;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
-  (JNIEnv * jEnv, jobject joCBGP)
+  (JNIEnv * env, jobject joCBGP)
 {
   jobject joVector, joLink;
-  enum_t * pEnum= NULL, * pEnumLinks= NULL;
+  gds_enum_t * nodes= NULL, * links= NULL;
   net_node_t * node;
-  net_iface_t * pLink;
+  net_iface_t * link;
 
-  jni_lock(jEnv);
+  jni_lock(env);
 
-  joVector= cbgp_jni_new_Vector(jEnv);
+  joVector= cbgp_jni_new_Vector(env);
     
-  pEnum= trie_get_enum(network_get_default()->nodes);
-  while (enum_has_next(pEnum)) {
-    node= *((net_node_t **) enum_get_next(pEnum));
+  nodes= trie_get_enum(network_get_default()->nodes);
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
     
-    pEnumLinks= net_links_get_enum(node->ifaces);
-    while (enum_has_next(pEnumLinks)) {
-      pLink= *((net_iface_t **) enum_get_next(pEnumLinks));
+    links= net_links_get_enum(node->ifaces);
+    while (enum_has_next(links)) {
+      link= (net_iface_t *) enum_get_next(links);
 
-      if ((pLink->type == NET_IFACE_LOOPBACK) ||
-	  (pLink->type == NET_IFACE_VIRTUAL))
+      if ((link->type == NET_IFACE_LOOPBACK) ||
+	  (link->type == NET_IFACE_VIRTUAL))
 	continue;
 
-      joLink= cbgp_jni_new_net_Interface(jEnv, joCBGP, pLink);
+      joLink= cbgp_jni_new_net_Interface(env, joCBGP, link);
       if (joLink == NULL)
-	return_jni_unlock(jEnv, NULL);
-      if (cbgp_jni_Vector_add(jEnv, joVector, joLink))
-	return_jni_unlock(jEnv, NULL);
-      //(*jEnv)->DeleteLocalRef(jEnv, joLink);
+	return_jni_unlock(env, NULL);
+      if (cbgp_jni_Vector_add(env, joVector, joLink))
+	return_jni_unlock(env, NULL);
+      //(*env)->DeleteLocalRef(env, joLink);
     }
-    enum_destroy(&pEnumLinks);
-
+    enum_destroy(&links);
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&nodes);
 
-  return_jni_unlock(jEnv, joVector);
+  return_jni_unlock(env, joVector);
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// CBGP STATIC METHODS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ getVersion ]-----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    getVersion
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getVersion
+  (JNIEnv * env, jclass cls)
+{
+  return cbgp_jni_new_String(env, PACKAGE_VERSION);
+}
+
+// -----[ getErrorMsg ]----------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    getErrorMsg
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getErrorMsg
+  (JNIEnv * env, jclass cls, jint error)
+{
+  return cbgp_jni_net_error_str(env, error);
 }
 
 
@@ -1236,3 +1259,19 @@ JNI_OnUnload(JavaVM * jVM, void *reserved)
 }
 
 
+#include <bgp/dp_rules.h>
+
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Route
+ * Method:    rankToString
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Route_rankToString
+(JNIEnv * jEnv, jclass jcRoute, jint jiRank) {
+  if (jiRank == 0) {
+    return cbgp_jni_new_String(jEnv, "Single Choice");
+  } else if (jiRank < DP_NUM_RULES) {
+    return cbgp_jni_new_String(jEnv, DP_RULES[jiRank-1].name);
+  }
+  return NULL;
+}
