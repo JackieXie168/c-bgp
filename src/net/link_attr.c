@@ -2,8 +2,8 @@
 // @(#)link_attr.c
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-// @lastdate 12/01/2007
-// $Id: link_attr.c,v 1.2 2008-04-11 11:03:06 bqu Exp $
+// @date 12/01/2007
+// $Id: link_attr.c,v 1.3 2009-03-24 16:17:11 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,27 +17,16 @@
 #include <net/link_attr.h>
 
 // -----[ net_igp_weights_create ]-----------------------------------
-igp_weights_t * net_igp_weights_create(net_tos_t depth)
+igp_weights_t * net_igp_weights_create(net_tos_t depth,
+				       igp_weight_t dflt)
 {
   unsigned int index;
-  igp_weights_t * weights= (igp_weights_t *) uint32_array_create(0);
+  igp_weights_t * weights;
   assert((depth > 0) && (depth < NET_LINK_MAX_DEPTH));
-  _array_set_length((SArray *) weights, depth);
+  weights= (igp_weights_t *) uint32_array_create(depth);
   for (index= 0; index < depth; index++)
-    weights->data[index]= IGP_MAX_WEIGHT;
+    weights->data[index]= dflt;
   return weights;
-}
-
-// -----[ net_igp_weights_destroy ]----------------------------------
-void net_igp_weights_destroy(igp_weights_t ** weights_ref)
-{
-  _array_destroy((SArray **) weights_ref);
-}
-
-// -----[ net_igp_weights_depth ]------------------------------------
-unsigned int net_igp_weights_depth(igp_weights_t * weights)
-{
-  return _array_length((SArray *) weights);
 }
 
 // -----[ net_igp_add_weights ]------------------------------------
