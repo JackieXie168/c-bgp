@@ -7,7 +7,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/01/2007
-// $Id: dp_rt.c,v 1.6 2008-05-20 11:58:15 bqu Exp $
+// $Id: dp_rt.c,v 1.7 2009-03-24 14:13:05 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,32 +17,26 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <net/link.h>
 #include <net/node.h>
 #include <bgp/as.h>
-#include <bgp/as_t.h>
 #include <bgp/dp_rt.h>
 #include <bgp/route.h>
 
 // ----- _bgp_router_rt_add_route_error -----------------------------
 static void _bgp_router_rt_add_route_error(bgp_router_t * router,
 					   bgp_route_t * route,
-					   const rt_entry_t * rtentry,
-					   int iErrorCode)
+					   net_error_t error)
 {
-  if (log_enabled(pLogErr, LOG_LEVEL_FATAL)) {
-    log_printf(pLogErr, "Error: could not install BGP route in RT of ");
-    bgp_router_dump_id(pLogErr, router);
-    log_printf(pLogErr, "\n  BGP route: ");
-    route_dump(pLogErr, route);
-    log_printf(pLogErr, ")\n  RT entry : nh:");
-    ip_address_dump(pLogErr, rtentry->gateway);
-    log_printf(pLogErr, ", if:");
-    net_iface_dump_id(pLogErr, rtentry->oif);
-    log_printf(pLogErr, ")\n  reason   : ");
-    network_perror(pLogErr, iErrorCode);
-    log_printf(pLogErr, ")\n");
+  if (stream_enabled(gdserr, STREAM_LEVEL_FATAL)) {
+    stream_printf(gdserr, "Error: could not install BGP route in RT of ");
+    bgp_router_dump_id(gdserr, router);
+    stream_printf(gdserr, "\n  BGP route: ");
+    route_dump(gdserr, route);
+    stream_printf(gdserr, "\n  reason   : ");
+    network_perror(gdserr, error);
+    stream_printf(gdserr, "\n");
   }
   abort();
 }
@@ -55,36 +49,29 @@ static void _bgp_router_rt_add_route_error(bgp_router_t * router,
 void bgp_router_rt_add_route(bgp_router_t * router, bgp_route_t * route)
 {
   rt_info_t * old_rtinfo;
-  const rt_entry_t * rtentry= node_rt_lookup(router->pNode,
-					     route->pAttr->tNextHop);
-  net_addr_t gateway;
   int result;
+  rt_info_t * rtinfo;
 
-  /* Check that the next-hop is reachable. It MUST be reachable at
-     this point (checked upon route reception). */
-  assert(rtentry != NULL);
-  
-  /* Get the previous route if it exists */
-  old_rtinfo= rt_find_exact(router->pNode->rt, route->sPrefix,
+  // Get the previous route if it exists.
+  old_rtinfo= rt_find_exact(router->node->rt, route->prefix,
 			    NET_ROUTE_BGP);
+
   if (old_rtinfo != NULL) {
-    if (!route_nexthop_compare(old_rtinfo->next_hop, *rtentry))
-      return;
-    // Remove the previous route (if it exists)
-    node_rt_del_route(router->pNode, &route->sPrefix,
+    // Remove the previous route.
+    node_rt_del_route(router->node, &route->prefix,
 		      NULL, NULL, NET_ROUTE_BGP);
   }
-  
-  // Insert the route
-  gateway= rtentry->gateway;
-  if (rtentry->oif->type == NET_IFACE_PTMP)
-    gateway= route->pAttr->tNextHop;
 
-  result= node_rt_add_route_link(router->pNode, route->sPrefix,
-				 rtentry->oif, gateway,
-				 0, NET_ROUTE_BGP);
+  // Add a route with BGP nexthop as gateway and no outgoing
+  // interface. Upon forwarding, a recursive lookup will be
+  // performed.
+  rtinfo= rt_info_create(route->prefix, 0, NET_ROUTE_BGP);
+  rt_entries_add(rtinfo->entries,
+		 rt_entry_create(NULL, route->attr->next_hop));
+  result= rt_add_route(router->node->rt, route->prefix, rtinfo);
+
   if (result)
-    _bgp_router_rt_add_route_error(router, route, rtentry, result);
+    _bgp_router_rt_add_route_error(router, route, result);
 }
 
 // ----- bgp_router_rt_del_route ------------------------------------
@@ -97,9 +84,9 @@ void bgp_router_rt_del_route(bgp_router_t * router, ip_pfx_t prefix)
   /*rt_info_t * pRouteInfo;
 
   fprintf(stderr, "DEL ROUTE towards ");
-  ip_prefix_dump(stderr, sPrefix);
+  ip_prefix_dump(stderr, prefix);
   fprintf(stderr, " ");
-  pRouteInfo= rt_find_exact(router->pNode->rt, sPrefix, NET_ROUTE_ANY);
+  pRouteInfo= rt_find_exact(router->node->rt, prefix, NET_ROUTE_ANY);
   if (pRouteInfo != NULL) {
     net_route_info_dump(stderr, pRouteInfo);
     fprintf(stderr, "\n");
@@ -107,6 +94,6 @@ void bgp_router_rt_del_route(bgp_router_t * router, ip_pfx_t prefix)
     fprintf(stderr, "*** NONE ***\n");
     }*/
 
-  assert(!node_rt_del_route(router->pNode, &prefix,
+  assert(!node_rt_del_route(router->node, &prefix,
 			    NULL, NULL, NET_ROUTE_BGP));
 }
