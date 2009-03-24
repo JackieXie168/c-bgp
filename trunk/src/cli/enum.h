@@ -6,14 +6,14 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// $Id: enum.h,v 1.5 2008-04-11 11:03:06 bqu Exp $
+// $Id: enum.h,v 1.6 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_ENUM_H__
 #define __CLI_ENUM_H__
 
-#include <bgp/as_t.h>
 #include <net/net_types.h>
+#include <bgp/types.h>
 
 #ifdef __cplusplus
 extern "C" {

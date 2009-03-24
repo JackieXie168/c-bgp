@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/07/2003
-// @lastdate 03/04/2008
+// $Id: sim.h,v 1.3 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_SIM_H__
@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
   // ----- cli_register_sim -----------------------------------------
-  int cli_register_sim(SCli * pCli);
+  void cli_register_sim(cli_cmd_t * parent);
 
 #ifdef __cplusplus
 }

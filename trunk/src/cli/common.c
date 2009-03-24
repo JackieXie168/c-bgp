@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)common.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 21/11/2007
+// $Id: common.c,v 1.30 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -17,21 +17,29 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <libgds/assoc_array.h>
+#include <libgds/cli.h>
+#include <libgds/cli_commands.h>
+#include <libgds/cli_params.h>
 #include <libgds/gds.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/tokenizer.h>
 
-#include <bgp/comm_hash.h>
+#include <api.h>
+
+#include <net/prefix.h>
+#include <net/util.h>
+
+#include <bgp/aslevel/as-level.h>
+#include <bgp/attr/comm_hash.h>
+#include <bgp/attr/path_hash.h>
+#include <bgp/filter/predicate_parser.h>
 #include <bgp/mrtd.h>
-#include <bgp/path_hash.h>
-#include <bgp/predicate_parser.h>
 #include <bgp/routes_list.h>
 #include <cli/bgp.h>
 #include <cli/common.h>
 #include <cli/net.h>
 #include <cli/sim.h>
-#include <net/prefix.h>
-#include <net/util.h>
 #include <ui/output.h>
 #include <ui/rl.h>
 
@@ -49,109 +57,235 @@
 # endif
 #endif
 
-static SCli * pTheCli= NULL;
+
+static cli_t * _main_cli= NULL;
+
+// -----[ str2out_stream ]-------------------------------------------
+/*gds_stream_t * str2out_stream(const char * str)
+  {
+  if (strcmp("stdout", str)) {
+  stream= stream_create_file(str);
+  if (stream == NULL) {
+  cli_set_user_error(cli_get(), "unable to create file \"%s\"", str);
+  return CLI_ERROR_COMMAND_FAILED;
+  }
+  }
+  return NULL;
+  }
+*/
+
+static inline
+char * _arg_enum_array(const char * text, int state,
+		       const char * values[], unsigned int num_values)
+{
+  size_t len= strlen(text);
+  static unsigned int index;
+  if (state == 0)
+    index= 0;
+  while (index < num_values) {
+    if (!strncmp(values[index], text, len))
+      return strdup(values[index++]);
+    index++;
+  }
+  return NULL;
+}
+
+#define DEF_ENUM(NAME,VALUES,SIZE)			    \
+  static char * NAME(const char * text, int state) {	    \
+    return _arg_enum_array(text, state, VALUES, SIZE);	    \
+  }
+
+static const char * ARRAY_ENUM_ON_OFF[2]= { "on", "off" };
+DEF_ENUM(_arg_enum_on_off, ARRAY_ENUM_ON_OFF, 2);
+/*static const char * ARRAY_ENUM_IN_OUT[2]= { "in", "out" };
+  DEF_ENUM(_arg_enum_in_out, ARRAY_ENUM_IN_OUT, 2);*/
+
+// -----[ cli_opt_on_off ]-------------------------------------------
+cli_arg_t * cli_opt_on_off(const char * name)
+{
+  return cli_opt2(name, NULL, _arg_enum_on_off);
+}
+
+// -----[ cli_arg_on_off ]-------------------------------------------
+cli_arg_t * cli_arg_on_off(const char * name)
+{
+  if (name == NULL)
+    return cli_arg2("on|off", NULL, _arg_enum_on_off);
+  return cli_arg(name, NULL);
+}
 
 // ----- str2boolean ------------------------------------------------
-int str2boolean(const char * pcValue, int * piOptionValue)
+int str2boolean(const char * str, int * value)
 {
-  if (!strcmp(pcValue, "on")) {
-    *piOptionValue= 1;
+  if (!strcmp(str, "on")) {
+    *value= 1;
     return 0;
-  } else if (!strcmp(pcValue, "off")) {
-    *piOptionValue= 0;
+  } else if (!strcmp(str, "off")) {
+    *value= 0;
     return 0;
   }
   return -1;
 }
 
 // ----- parse_version ----------------------------------------------
-int parse_version(char * pcVersion, unsigned int * puVersion)
+/**
+ * Parse a C-BGP version.
+ *
+ * A C-BGP version must have the following format:
+ *
+ *   <major> . <minor> . <revision> [- <name> ]
+ *
+ * where <major>, <minor> and <revision> are positive integers and
+ * <name> is a non-empty string of non-white space characters.
+ */
+int parse_version(const char * str, unsigned int * version)
 {
-  STokenizer * pTokenizer;
-  STokens * pTokens;
-  int iResult= 0;
-  unsigned int uSubVersion;
-  unsigned int uVersion= 0;
-  unsigned int uFactor= 1000000;
-  unsigned int uIndex;
+  gds_tokenizer_t * tk= NULL;
+  const gds_tokens_t * tks;
+  char * str2;
+  unsigned int sub_version;
+  unsigned int factor= 1000000;
+  unsigned int index;
 
-  pTokenizer= tokenizer_create("-", 1, NULL, NULL);
-  if ((tokenizer_run(pTokenizer, pcVersion) != TOKENIZER_SUCCESS) ||
-      (tokenizer_get_num_tokens(pTokenizer) < 1)) {
-    iResult= -1;
-  } else {
-    pTokens= tokenizer_get_tokens(pTokenizer);
-    pcVersion= strdup(tokens_get_string_at(pTokens, 0));
+  *version= 0;
+
+  // Remove version suffix ("rc0", "beta", ...)
+  tk= tokenizer_create("-", NULL, NULL);
+  tokenizer_set_flag(tk, TOKENIZER_OPT_SINGLE_DELIM);
+  if (tokenizer_run(tk, str) != TOKENIZER_SUCCESS) {
+    tokenizer_destroy(&tk);
+    return -1;
   }
-  tokenizer_destroy(&pTokenizer);
-  if (iResult)
-    return iResult;
+  tks= tokenizer_get_tokens(tk);
+  if ((tokens_get_num(tks) < 1) ||
+      (tokens_get_num(tks) > 2)) {
+    tokenizer_destroy(&tk);
+    return -1;
+  }
+  str2= str_create(tokens_get_string_at(tks, 0));
+  tokenizer_destroy(&tk);
 
-  pTokenizer= tokenizer_create(".", 1, NULL, NULL);
-  if (tokenizer_run(pTokenizer, pcVersion) != TOKENIZER_SUCCESS) {
-    iResult= -1;
-  } else {
-    pTokens= tokenizer_get_tokens(pTokenizer);
-    for (uIndex= 0; uIndex < tokens_get_num(pTokens); uIndex++) {
-      if (tokens_get_uint_at(pTokens, uIndex, &uSubVersion) ||
-	  (uSubVersion >= 100)) {
-	iResult= -1;
-	break;
-      }
-      uVersion+= uFactor * uSubVersion;
-      uFactor/= 100;
+  // Split version in sub-versions
+  tk= tokenizer_create(".", NULL, NULL);
+  tokenizer_set_flag(tk, TOKENIZER_OPT_SINGLE_DELIM);
+  if (tokenizer_run(tk, str2) != TOKENIZER_SUCCESS) {
+    tokenizer_destroy(&tk);
+    return -1;
+  }
+  tks= tokenizer_get_tokens(tk);
+  if (tokens_get_num(tks) != 3) {
+    tokenizer_destroy(&tk);
+    return -1;
+  }
+  for (index= 0; index < 3; index++) {
+    if (tokens_get_uint_at(tks, index, &sub_version) ||
+	(sub_version >= 100)) {
+      tokenizer_destroy(&tk);
+      return -1;
     }
-    if (!iResult)
-      *puVersion= uVersion;
+    (*version)+= factor * sub_version;
+    factor/= 100;
   }
-  free(pcVersion);
-  tokenizer_destroy(&pTokenizer);
-  return iResult;
+  str_destroy(&str2);
+  tokenizer_destroy(&tk);
+  return 0;
 }
 
-// -----[ cli_net_node_by_addr ]-------------------------------------
-net_node_t * cli_net_node_by_addr(char * pcAddr)
+// -----[ str2node ]-------------------------------------------------
+int str2node(const char * str, net_node_t ** node)
 {
-  net_addr_t tAddr;
+  net_addr_t addr;
 
-  if (str2address(pcAddr, &tAddr))
-    return NULL;
-  return network_find_node(network_get_default(), tAddr);
+  if (str2address(str, &addr))
+    return -1;
+  *node= network_find_node(network_get_default(), addr);
+  if (*node == NULL)
+    return -1;
+  return 0;
 }
 
-// -----[ cli_params_add_file ]--------------------------------------
-int cli_params_add_file(SCliParams * pParams, const char * pcName,
-			FCliCheckParam fCheck)
+// -----[ str2node_id ]----------------------------------------------
+int str2node_id(const char * str, net_node_t ** node)
+{
+  as_level_topo_t * topo;
+  unsigned int asn;
+  net_addr_t addr;
+  
+  // Node address
+  if (strncmp("AS", str, 2))
+    return str2node(str, node);
+
+  // Node ASN
+  str+= 2;
+  if (str_as_uint(str, &asn))
+    return -1;
+  topo= aslevel_get_topo();
+  if (topo == NULL)
+    return -1;
+  addr= topo->addr_mapper(asn);
+  *node= network_find_node(network_get_default(), addr);
+  if (*node == NULL)
+    return -1;
+  return 0;
+}
+
+// -----[ str2subnet ]-----------------------------------------------
+int str2subnet(const char * str, net_subnet_t ** subnet)
+{
+  ip_pfx_t prefix;
+
+  if (str2prefix(str, &prefix))
+    return -1;
+  *subnet= network_find_subnet(network_get_default(), prefix);
+  if (*subnet == NULL)
+    return -1;
+  return 0;
+}
+
+// -----[ cli_arg_file ]---------------------------------------------
+cli_arg_t * cli_arg_file(const char * name, cli_arg_check_f check)
 {
 #ifdef _FILENAME_COMPLETION_FUNCTION
-  return cli_params_add2(pParams, (char *) pcName, fCheck,
-			 _FILENAME_COMPLETION_FUNCTION);
+  return cli_arg2(name, check, _FILENAME_COMPLETION_FUNCTION);
 #else
-  return cli_params_add(pParams, (char *) pcName, fCheck);
+  return cli_arg(name, check);
 #endif
 }
 
-// ----- cli_require_version ----------------------------------------
-int cli_require_version(SCliContext * pContext, SCliCmd * pCmd)
+// -----[ cli_require_param ]----------------------------------------
+/**
+ * context: {}
+ * tokens : {name}
+ */
+int cli_require_param(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcVersion;
-  unsigned int uRequiredVersion;
-  unsigned int uVersion;
-  
-  // Get required version
-  pcVersion= tokens_get_string_at(pCmd->pParamValues, 0);
-
-  if (parse_version(pcVersion, &uRequiredVersion)) {
-    cli_set_user_error(cli_get(), "invalid version \"\".", pcVersion);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  if (!libcbgp_has_param(arg)) {
+    cli_set_user_error(cli_get(), "parameter required \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  if (parse_version(PACKAGE_VERSION, &uVersion)) {
+  return CLI_SUCCESS;
+}
+
+// ----- cli_require_version ----------------------------------------
+int cli_require_version(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned int req_version;
+  unsigned int version;
+  
+  // Get required version
+  if (parse_version(arg, &req_version)) {
+    cli_set_user_error(cli_get(), "invalid version \"\".", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  if (parse_version(PACKAGE_VERSION, &version)) {
     cli_set_user_error(cli_get(), "invalid version \"\".", PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
-  if (uRequiredVersion > uVersion) {
+  if (req_version > version) {
     cli_set_user_error(cli_get(), "version %s > version %s.",
-		       pcVersion, PACKAGE_VERSION);
+		       arg, PACKAGE_VERSION);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
@@ -159,48 +293,43 @@ int cli_require_version(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // ----- cli_set_autoflush ------------------------------------------
-int cli_set_autoflush(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_autoflush(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcTemp;
-
-  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str2boolean(pcTemp, &iOptionAutoFlush) != 0) {
-    cli_set_user_error(cli_get(), "invalid value \"%s\" for option autoflush",
-		       pcTemp);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  if (str2boolean(arg, &iOptionAutoFlush) != 0) {
+    cli_set_user_error(cli_get(), "invalid value \"%s\" for option "
+		       "autoflush", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-
   return CLI_SUCCESS;
 }
 
 // ----- cli_set_exitonerror ----------------------------------------
-int cli_set_exitonerror(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_exitonerror(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcTemp;
-
-  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str2boolean(pcTemp, &iOptionExitOnError) != 0) {
-    cli_set_user_error(cli_get(), "invalid value \"%s\" for option exit-on-error", pcTemp);
+  const char * arg= cli_get_arg_value(cmd, 0);
+  if (str2boolean(arg, &iOptionExitOnError) != 0) {
+    cli_set_user_error(cli_get(), "invalid value \"%s\" for option "
+		       "exit-on-error", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-
   return CLI_SUCCESS;
 }
 
 // ----- cli_set_comm_hash_size -------------------------------------
-int cli_set_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_comm_hash_size(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  unsigned long ulSize;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned long size;
 
-  /* Get the hash size */
-  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
-    cli_set_user_error(cli_get(), "invalid size \"%s\"",
-		       tokens_get_string_at(pCmd->pParamValues, 0));
+  // Get the hash size
+  if (str_as_ulong(arg, &size) < 0) {
+    cli_set_user_error(cli_get(), "invalid size \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  /* Set the hash size */
-  if (comm_hash_set_size(ulSize) != 0) {
+  // Set the hash size
+  if (comm_hash_set_size(size) != 0) {
     cli_set_user_error(cli_get(), "could not set comm-hash size");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -209,75 +338,68 @@ int cli_set_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // -----[ cli_show_comm_hash_content ]-------------------------------
-int cli_show_comm_hash_content(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_comm_hash_content(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcFileName;
-  SLogStream * pStream= pLogOut;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  gds_stream_t * stream= gdsout;
 
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp("stdout", pcFileName)) {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
-			 pcFileName);
+  if (strcmp(arg, "stdout")) {
+    stream= stream_create_file(arg);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"", arg);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
-  comm_hash_content(pStream);
-  if (pStream != pLogOut)
-    log_destroy(&pStream);
+  comm_hash_content(stream);
+  if (stream != gdsout)
+    stream_destroy(&stream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_comm_hash_size ------------------------------------
-int cli_show_comm_hash_size(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_comm_hash_size(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  log_printf(pLogOut, "%u\n", comm_hash_get_size());
+  stream_printf(gdsout, "%u\n", comm_hash_get_size());
   return CLI_SUCCESS;
 }
 
 // -----[ cli_show_comm_hash_stat ]----------------------------------
-int cli_show_comm_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_comm_hash_stat(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcFileName;
-  SLogStream * pStream= pLogOut;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  gds_stream_t * stream= gdsout;
 
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp("stdout", pcFileName)) {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
-			 pcFileName);
+  if (strcmp(arg, "stdout")) {
+    stream= stream_create_file(arg);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"", arg);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
-  comm_hash_statistics(pStream);
-  if (pStream != pLogOut)
-    log_destroy(&pStream);
+  comm_hash_statistics(stream);
+  if (stream != gdsout)
+    stream_destroy(&stream);
   return CLI_SUCCESS;
 }
 
 // -----[ cli_show_commands ]----------------------------------------
-int cli_show_commands(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_commands(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  cli_cmd_dump(pLogOut, "  ", pTheCli->pBaseCommand);
+  cli_cmd_dump(gdsout, "  ", _main_cli->root_cmd, 1);
   return CLI_SUCCESS;
 }
 
 // ----- cli_set_debug ----------------------------------------------
-int cli_set_debug(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_debug(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcTemp;
-
-  pcTemp= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (str2boolean(pcTemp, &iOptionDebug) != 0) {
+  const char * arg= cli_get_arg_value(cmd, 0);
+  if (str2boolean(arg, &iOptionDebug) != 0) {
     cli_set_user_error(cli_get(), "invalid value \"%s\" for option debug",
-		       pcTemp);
+		       arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-
   return CLI_SUCCESS;
 }
 
@@ -286,7 +408,7 @@ int cli_set_debug(SCliContext * pContext, SCliCmd * pCmd)
  * context: {}
  * tokens: {filename, predicate}
  */
-int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_mrt(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
 #ifdef HAVE_BGPDUMP
   /*
@@ -294,17 +416,18 @@ int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
   SFilterMatcher * pMatcher;
 
   // Parse predicate
-  pcPredicate= tokens_get_string_at(pCmd->pParamValues, 1);
+  pcPredicate= tokens_get_string_at(cmd->arg_values, 1);
   if (predicate_parse(&pcPredicate, &pMatcher)) {
-    LOG_ERR(LOG_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n",
+    STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: invalid predicate \"%s\"\n",
 	    pcPredicate);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Dump routes that match the given predicate
-  mrtd_load_routes(tokens_get_string_at(pCmd->pParamValues, 0), 1, pMatcher);
+  mrtd_load_routes(tokens_get_string_at(cmd->arg_values, 0), 1, pMatcher);
 */
-  return CLI_SUCCESS;
+  cli_set_user_error(cli_get(), "this command has been removed.");
+  return CLI_ERROR_COMMAND_FAILED;
 #else
   cli_set_user_error(cli_get(), "compiled without bgpdump.");
   return CLI_ERROR_COMMAND_FAILED;
@@ -312,7 +435,7 @@ int cli_show_mrt(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // ----- cli_show_mem_limit -----------------------------------------
-int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_mem_limit(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
 #ifdef HAVE_GETRLIMIT
   struct rlimit rlim;
@@ -322,20 +445,20 @@ int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  log_printf(pLogOut, "soft limit: ");
+  stream_printf(gdsout, "soft limit: ");
   if (rlim.rlim_cur == RLIM_INFINITY) {
-    log_printf(pLogOut, "unlimited\n");
+    stream_printf(gdsout, "unlimited\n");
   } else {
-    log_printf(pLogOut, "%u byte(s)\n", (unsigned int) rlim.rlim_cur);
+    stream_printf(gdsout, "%u byte(s)\n", (unsigned int) rlim.rlim_cur);
   }
-  log_printf(pLogOut, "hard limit: ");
+  stream_printf(gdsout, "hard limit: ");
   if (rlim.rlim_max == RLIM_INFINITY) {
-    log_printf(pLogOut, "unlimited\n");
+    stream_printf(gdsout, "unlimited\n");
   } else {
-    log_printf(pLogOut, "%u byte(s)\n", (unsigned int) rlim.rlim_max);
+    stream_printf(gdsout, "%u byte(s)\n", (unsigned int) rlim.rlim_max);
   }
 
-  log_flush(pLogOut);
+  stream_flush(gdsout);
 
   return CLI_SUCCESS;
 #else
@@ -345,37 +468,35 @@ int cli_show_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // ----- cli_set_mem_limit ------------------------------------------
-int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_mem_limit(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
 #if defined(HAVE_SETRLIMIT) && defined(HAVE_GETRLIMIT)
-  unsigned long ulLimit;
-  rlim_t tLimit;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned long l_limit;
+  rlim_t limit;
   struct rlimit rlim;
 
-  /* Get the value of the memory-limit */
-  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulLimit) < 0) {
-    if (!strcmp(tokens_get_string_at(pCmd->pParamValues, 0), "unlimited")) {
-      tLimit= RLIM_INFINITY;
-    } else {
-      cli_set_user_error(cli_get(), "invalid mem limit \"%s\"",
-			 tokens_get_string_at(pCmd->pParamValues, 0));
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-  } else {
-    if (sizeof(tLimit) < sizeof(ulLimit)) {
-      LOG_ERR(LOG_LEVEL_WARNING,
+  // Get the value of the memory-limit
+  if (!strcmp(arg, "unlimited")) {
+      limit= RLIM_INFINITY;
+  } else if (!str_as_ulong(arg, &l_limit)) {
+    if (sizeof(limit) < sizeof(l_limit)) {
+      STREAM_ERR(STREAM_LEVEL_WARNING,
 	      "Warning: limit may be larger than supported by system.\n");
     }
-    tLimit= (rlim_t) ulLimit;
+    limit= (rlim_t) l_limit;
+  } else {
+    cli_set_user_error(cli_get(), "invalid mem limit \"%s\"", arg);
+    return CLI_ERROR_COMMAND_FAILED;
   }
 
-  /* Get the soft limit on the process's size of virtual memory */
+  // Get the soft limit on the process's size of virtual memory
   if (getrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
     cli_set_user_error(cli_get(), "getrlimit failed (%s)", strerror(errno));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  rlim.rlim_cur= tLimit;
+  rlim.rlim_cur= limit;
 
   /* Set new soft limit on the process's size of virtual memory */
   if (setrlimit(_RLIMIT_RESOURCE, &rlim) < 0) {
@@ -391,19 +512,19 @@ int cli_set_mem_limit(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // ----- cli_set_path_hash_size -------------------------------------
-int cli_set_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
+int cli_set_path_hash_size(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  unsigned long ulSize;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  unsigned long size;
 
-  /* Get the hash size */
-  if (tokens_get_ulong_at(pCmd->pParamValues, 0, &ulSize) < 0) {
-    cli_set_user_error(cli_get(), "invalid size \"%s\"",
-		       tokens_get_string_at(pCmd->pParamValues, 0));
+  // Get the hash size
+  if (str_as_ulong(arg, &size)) {
+    cli_set_user_error(cli_get(), "invalid size \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  /* Set the hash size */
-  if (path_hash_set_size(ulSize) != 0) {
+  // Set the hash size
+  if (path_hash_set_size(size) != 0) {
     cli_set_user_error(cli_get(), "could not set path-hash size");
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -412,427 +533,369 @@ int cli_set_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
 }
 
 // -----[ cli_show_path_hash_content ]-------------------------------
-int cli_show_path_hash_content(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_path_hash_content(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcFileName;
-  SLogStream * pStream= pLogOut;
+  const char * arg= cli_get_arg_value(cmd, 0);;
+  gds_stream_t * stream= gdsout;
 
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp("stdout", pcFileName)) {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
-			 pcFileName);
+  if (strcmp(arg, "stdout")) {
+    stream= stream_create_file(arg);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"", arg);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
-  path_hash_content(pStream);
-  if (pStream != pLogOut)
-    log_destroy(&pStream);
+  path_hash_content(stream);
+  if (stream != gdsout)
+    stream_destroy(&stream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_path_hash_size ------------------------------------
-int cli_show_path_hash_size(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_path_hash_size(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  log_printf(pLogOut, "%u\n", path_hash_get_size());
+  stream_printf(gdsout, "%u\n", path_hash_get_size());
   return CLI_SUCCESS;
 }
 
 // -----[ cli_show_path_hash_stat ]----------------------------------
-int cli_show_path_hash_stat(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_path_hash_stat(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcFileName;
-  SLogStream * pStream= pLogOut;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  gds_stream_t * stream= gdsout;
 
-  pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (strcmp("stdout", pcFileName)) {
-    pStream= log_create_file(pcFileName);
-    if (pStream == NULL) {
-      cli_set_user_error(cli_get(), "unable to create file \"%s\"",
-			 pcFileName);
+  if (strcmp(arg, "stdout")) {
+    stream= stream_create_file(arg);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "unable to create file \"%s\"", arg);
       return CLI_ERROR_COMMAND_FAILED;
     }
   }
 
-  path_hash_statistics(pStream);
-  if (pStream != pLogOut)
-    log_destroy(&pStream);
+  path_hash_statistics(stream);
+  if (stream != gdsout)
+    stream_destroy(&stream);
   return CLI_SUCCESS;
 }
 
 // ----- cli_show_version -------------------------------------------
-int cli_show_version(SCliContext * pContext, SCliCmd * pCmd)
+int cli_show_version(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  log_printf(pLogOut, "%s version: %s", PACKAGE_NAME, PACKAGE_VERSION);
+  stream_printf(gdsout, "%s version: %s", PACKAGE_NAME, PACKAGE_VERSION);
 #ifdef __EXPERIMENTAL__ 
-  log_printf(pLogOut, " [experimental]");
+  stream_printf(gdsout, " [experimental]");
 #endif
 #ifdef HAVE_LIBZ
-  log_printf(pLogOut, " [zlib]");
+  stream_printf(gdsout, " [zlib]");
 #endif
 #ifdef HAVE_JNI
-  log_printf(pLogOut, " [jni]");
+  stream_printf(gdsout, " [jni]");
 #endif
 #ifdef HAVE_BGPDUMP
-  log_printf(pLogOut, " [bgpdump]");
+  stream_printf(gdsout, " [bgpdump]");
 #endif
 #ifdef __ROUTER_LIST_ENABLE__
-  log_printf(pLogOut, " [router-list]");
+  stream_printf(gdsout, " [router-list]");
 #endif
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-  log_printf(pLogOut, " [external-best]");
+  stream_printf(gdsout, " [external-best]");
 #endif
-  log_printf(pLogOut, "\n");
+  stream_printf(gdsout, "\n");
 
-  log_printf(pLogOut, "libgds version: %s\n", gds_version());
+  stream_printf(gdsout, "libgds version: %s\n", gds_version());
 
-  log_flush(pLogOut);
+  stream_flush(gdsout);
 
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_define ]-----------------------------------------------
+/**
+ * context: {}
+ * tokens : {name, value}
+ */
+static int cli_define(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  cli_set_param(cli_get_arg_value(cmd, 0),
+		cli_get_arg_value(cmd, 1));
   return CLI_SUCCESS;
 }
 
 // ----- cli_include ------------------------------------------------
-int cli_include(SCliContext * pContext, SCliCmd * pCmd)
+/**
+ * context: {}
+ * tokens : {filename}
+ */
+static int cli_include(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  FILE * pFile;
-  SCliErrorDetails sDetails;
-  int iResult= CLI_ERROR_COMMAND_FAILED;
-  char * pcFileName= tokens_get_string_at(pCmd->pParamValues, 0);
-  int iLineNumber;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  FILE * file;
+  cli_error_t cli_error;
+  int result;
+  int line_number;
 
-  pFile= fopen(pcFileName, "r");
-  if (pFile != NULL) {
-    cli_get_error_details(cli_get(), &sDetails);
-    iLineNumber= sDetails.iLineNumber;
-    iResult= cli_execute_file(pTheCli, pFile);
-    if (iResult != CLI_SUCCESS) {
-      cli_get_error_details(cli_get(), &sDetails);
-      cli_set_user_error(cli_get(), "in file \"%s\", line %d (%s)",
-			 pcFileName, sDetails.iLineNumber,
-			 sDetails.pcUserError);
-      // Beeeerk, I shouldn't do that...
-      cli_get()->sErrorDetails.iLineNumber= iLineNumber;
-    }
-    fclose(pFile);
-  } else
-    cli_set_user_error(cli_get(), "unable to load file \"%s\"",
-		       pcFileName);
-  return iResult;
+  file= fopen(arg, "r");
+  if (file == NULL) {
+    cli_set_user_error(cli_get(), "unable to load file \"%s\"", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  cli_get_error_details(cli_get(), &cli_error);
+  line_number= cli_error.line_number;
+  result= cli_execute_stream(_main_cli, file);
+  if (result != CLI_SUCCESS) {
+    cli_get_error_details(cli_get(), &cli_error);
+    cli_set_user_error(cli_get(), "in file \"%s\", line %d (%s)",
+		       arg, cli_error.line_number,
+		       cli_error.user_msg);
+    // Beeeerk, I shouldn't do that...
+    cli_get()->error.line_number= line_number;
+  }
+  fclose(file);
+  return result;
 }
 
 // ----- cli_pause --------------------------------------------------
-int cli_pause(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_pause(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  log_printf(pLogOut, "Paused: hit 'Enter' to continue...");
-  log_flush(pLogOut);
+  stream_printf(gdsout, "Paused: hit 'Enter' to continue...");
+  stream_flush(gdsout);
   fgetc(stdin);
-  log_printf(pLogOut, "\n");
-
+  stream_printf(gdsout, "\n");
   return CLI_SUCCESS;
 }
 
 // ----- cli_print --------------------------------------------------
-int cli_print(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_print(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  log_printf(pLogOut, tokens_get_string_at(pCmd->pParamValues, 0));
-  
-  log_flush(pLogOut);
-
+  stream_printf(gdsout, cli_get_arg_value(cmd, 0));
+  stream_flush(gdsout);
   return CLI_SUCCESS;
 }
 
-// ----- cli_quit ---------------------------------------------------
-int cli_quit(SCliContext * pContext, SCliCmd * pCmd)
+// -----[ cli_quit ]-------------------------------------------------
+static int cli_quit(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   return CLI_SUCCESS_TERMINATE;
 }
 
 // -----[ cli_time_diff ]--------------------------------------------
-static time_t tSavedTime= 0;
-int cli_time_diff(SCliContext * pContext, SCliCmd * pCmd)
+static time_t saved_time= 0;
+static int cli_time_diff(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  time_t tCurrentTime= time(NULL);
+  time_t current_time= time(NULL);
 
-  if (tSavedTime == 0) {
+  if (saved_time == 0) {
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  log_printf(pLogOut, "%f\n", difftime(tCurrentTime, tSavedTime));
+  stream_printf(gdsout, "%f\n", difftime(current_time, saved_time));
   return CLI_SUCCESS;
 }
 
 // -----[ cli_time_save ]--------------------------------------------
-int cli_time_save(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_time_save(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  tSavedTime= time(NULL);
+  saved_time= time(NULL);
   return CLI_SUCCESS;
 }
 
 // -----[ cli_chdir ]------------------------------------------------
-int cli_chdir(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_chdir(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  
-  if (chdir(tokens_get_string_at(pCmd->pParamValues, 0)) < 0) {
-    cli_set_user_error(cli_get(), "unable to change directory: %s",
-		       strerror(errno));
+  const char * arg= cli_get_arg_value(cmd, 0);
+  if (chdir(arg) < 0) {
+    cli_set_user_error(cli_get(), "unable to change directory \"%s\" (%s)",
+		       arg, strerror(errno));
     return CLI_ERROR_COMMAND_FAILED;
   }
   return CLI_SUCCESS;
 }
 
 
-// void cli_register_set --------------------------------------------
-void cli_register_set(SCli * pCli)
-{
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+/////////////////////////////////////////////////////////////////////
+//
+// CLI COMMANDS REGISTRATION
+//
+/////////////////////////////////////////////////////////////////////
 
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<on|off>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("autoflush", cli_set_autoflush,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<size>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-size",
-					cli_set_comm_hash_size,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<on|off>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("debug", cli_set_debug,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<on|off>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("exit-on-error", cli_set_exitonerror,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<value>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_set_mem_limit,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<size>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-size",
-					cli_set_path_hash_size,
-					NULL, pParams));
-//  pParams= cli_params_create();
-//  cli_params_add(pParams, "<time>", NULL);
-//  cli_cmds_add(pSubCmds, cli_cmd_create("time-limit", cli_set_time_limit,
-//					NULL, pParams));
-  cli_register_cmd(pCli, cli_cmd_create("set", NULL, pSubCmds, NULL));
+// -----[ _register_set ]--------------------------------------------
+static void _register_set(cli_cmd_t * parent)
+{
+  cli_cmd_t * group, * cmd;
+
+  group= cli_add_cmd(parent, cli_cmd_group("set"));
+  cmd= cli_add_cmd(group, cli_cmd("autoflush", cli_set_autoflush));
+  cli_add_arg(cmd, cli_arg_on_off(NULL));
+  cmd= cli_add_cmd(group, cli_cmd("comm-hash-size", cli_set_comm_hash_size));
+  cli_add_arg(cmd, cli_arg("size", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("debug", cli_set_debug));
+  cli_add_arg(cmd, cli_arg_on_off(NULL));
+  cmd= cli_add_cmd(group, cli_cmd("exit-on-error", cli_set_exitonerror));
+  cli_add_arg(cmd, cli_arg_on_off(NULL));
+  cmd= cli_add_cmd(group, cli_cmd("mem-limit", cli_set_mem_limit));
+  cli_add_arg(cmd, cli_arg("value", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("path-hash-size", cli_set_path_hash_size));
+  cli_add_arg(cmd, cli_arg("size", NULL));
+//  cmd= cli_add_cmd(group, cli_cmd("time-limit", cli_set_time_limit));
+//  cli_add_arg(cmd, cli_arg("time", NULL));
 }
 
-// void cli_register_show -------------------------------------------
-void cli_register_show(SCli * pCli)
+//-----[ _register_show ]--------------------------------------------
+static void _register_show(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * group, * cmd;
 
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add_file(pParams, "<filename>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-content",
-					cli_show_comm_hash_content,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-size",
-					cli_show_comm_hash_size,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add_file(pParams, "<filename>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("comm-hash-stat",
-					cli_show_comm_hash_stat,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("commands",
-					cli_show_commands,
-					NULL, NULL));  
-  pParams= cli_params_create();
-  cli_params_add_file(pParams, "<filename>", NULL);
-  cli_params_add(pParams, "<predicate>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("mrt", cli_show_mrt,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_mem_limit,
-					NULL, NULL));
-//  cli_cmds_add(pSubCmds, cli_cmd_create("mem-limit", cli_show_time_limit,
-//					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add_file(pParams, "<filename>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-content",
-					cli_show_path_hash_content,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-size",
-					cli_show_path_hash_size,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add_file(pParams, "<filename>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("path-hash-stat",
-					cli_show_path_hash_stat,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_show_version,
-					NULL, NULL));
-  cli_register_cmd(pCli, cli_cmd_create("show", NULL, pSubCmds, NULL));
+  group= cli_add_cmd(parent, cli_cmd_group("show"));
+  cmd= cli_add_cmd(group, cli_cmd("comm-hash-content",
+				  cli_show_comm_hash_content));
+  cli_add_arg(cmd, cli_arg_file("output", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("comm-hash-size", cli_show_comm_hash_size));
+  cmd= cli_add_cmd(group, cli_cmd("comm-hash-stat", cli_show_comm_hash_stat));
+  cli_add_arg(cmd, cli_arg_file("output", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("commands", cli_show_commands));
+  cmd= cli_add_cmd(group, cli_cmd("mrt", cli_show_mrt));
+  cli_add_arg(cmd, cli_arg_file("file", NULL));
+  cli_add_arg(cmd, cli_arg("predicate", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("mem-limit", cli_show_mem_limit));
+  cmd= cli_add_cmd(group, cli_cmd("path-hash-content",
+				  cli_show_path_hash_content));
+  cli_add_arg(cmd, cli_arg("output", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("path-hash-size", cli_show_path_hash_size));
+  cmd= cli_add_cmd(group, cli_cmd("path-hash-stat", cli_show_path_hash_stat));
+  cli_add_arg(cmd, cli_arg("output", NULL));
+  cli_add_cmd(group, cli_cmd("version", cli_show_version));
 }
 
-// ----- cli_register_include ---------------------------------------
-void cli_register_include(SCli * pCli)
+// -----[ _register_define ]-----------------------------------------
+static void _register_define(cli_cmd_t * parent)
 {
-  SCliParams * pParams= cli_params_create();
-
-  cli_params_add_file(pParams, "<file>", NULL);
-  cli_register_cmd(pCli, cli_cmd_create("include", cli_include,
-					NULL, pParams));
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("define", cli_define));
+  cli_add_arg(cmd, cli_arg("name", NULL));
+  cli_add_arg(cmd, cli_arg("value", NULL));
+}
+// -----[ _register_include ]----------------------------------------
+static void _register_include(cli_cmd_t * parent)
+{
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("include", cli_include));
+  cli_add_arg(cmd, cli_arg_file("file", NULL));
 }
 
-// ----- cli_register_pause -----------------------------------------
-void cli_register_pause(SCli * pCli)
+// -----[ _register_pause ]------------------------------------------
+static void _register_pause(cli_cmd_t * parent)
 {
-  cli_register_cmd(pCli, cli_cmd_create("pause", cli_pause,
-					NULL, NULL));
+  cli_add_cmd(parent, cli_cmd("pause", cli_pause));
 }
 
-// ----- cli_register_print -----------------------------------------
-void cli_register_print(SCli * pCli)
+// -----[ _register_print ]------------------------------------------
+static void _register_print(cli_cmd_t * parent)
 {
-  SCliParams * pParams;
-
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<message>", NULL);
-  cli_register_cmd(pCli, cli_cmd_create("print", cli_print,
-					NULL, pParams));
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("print", cli_print));
+  cli_add_arg(cmd, cli_arg("message", NULL));
 }
 
-// ----- cli_register_quit ------------------------------------------
-void cli_register_quit(SCli * pCli)
+// -----[ _register_quit ]-------------------------------------------
+static void _register_quit(cli_cmd_t * parent)
 {
-  cli_register_cmd(pCli, cli_cmd_create("quit", cli_quit,
-					NULL, NULL));
+  cli_add_cmd(parent, cli_cmd("quit", cli_quit));
 }
 
-// ----- cli_register_require ---------------------------------------
-void cli_register_require(SCli * pCli)
+// -----[ _register_require ]----------------------------------------
+static void _register_require(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<version>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("version", cli_require_version,
-					NULL, pParams));
-  cli_register_cmd(pCli, cli_cmd_create("require", cli_quit,
-					pSubCmds, NULL));
-}
-
-// ----- cli_register_time ------------------------------------------
-void cli_register_time(SCli * pCli)
-{
-  SCliCmds * pSubCmds;
-
-  pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create("diff", cli_time_diff,
-					NULL, NULL));
-  cli_cmds_add(pSubCmds, cli_cmd_create("save", cli_time_save,
-					NULL, NULL));
-  cli_register_cmd(pCli, cli_cmd_create("time", cli_quit,
-					pSubCmds, NULL));
-}
-
-// -----[ cli_register_chdir ]---------------------------------------
-void cli_register_chdir(SCli * pCli)
-{
-  SCliParams * pParams;
+  cli_cmd_t * group, * cmd;
   
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<dir>", NULL);
-  cli_register_cmd(pCli, cli_cmd_create("chdir", cli_chdir, NULL, pParams));
+  group= cli_add_cmd(parent, cli_cmd_group("require"));
+  cmd= cli_add_cmd(group, cli_cmd("param", cli_require_param));
+  cli_add_arg(cmd, cli_arg("name", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("version", cli_require_version));
+  cli_add_arg(cmd, cli_arg("version", NULL));
 }
 
-// ----- cli_exit_on_error ------------------------------------------
-/**
- *
- */
-static int _cli_exit_on_error(int iResult)
+// -----[ _register_time ]-------------------------------------------
+static void _register_time(cli_cmd_t * parent)
 {
-  return (iOptionExitOnError?iResult:CLI_SUCCESS);
+  cli_cmd_t * group;
+  
+  group= cli_add_cmd(parent, cli_cmd_group("time"));
+  cli_add_cmd(group, cli_cmd("diff", cli_time_diff));
+  cli_add_cmd(group, cli_cmd("save", cli_time_save));
 }
 
-// ----- cli_get ----------------------------------------------------
-/**
- *
- */
-SCli * cli_get()
+// -----[ _register_chdir ]------------------------------------------
+static void _register_chdir(cli_cmd_t * parent)
 {
-  if (pTheCli == NULL) {
-    pTheCli= cli_create();
-    cli_set_exit_callback(pTheCli, _cli_exit_on_error);
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("chdir", cli_chdir));
+  cli_add_arg(cmd, cli_arg("dir", NULL));
+}
+
+// -----[ _cli_on_error ]--------------------------------------------
+static int _cli_on_error(cli_t * cli, int result)
+{
+  cli_dump_error(gdserr, cli);
+  return (iOptionExitOnError?result:CLI_SUCCESS);
+}
+
+// -----[ cli_get ]--------------------------------------------------
+cli_t * cli_get()
+{
+  cli_cmd_t * root;
+
+  if (_main_cli == NULL) {
+
+    _main_cli= cli_create();
+    cli_set_param_lookup(_main_cli, libcbgp_get_param_lookup());
+    cli_set_on_error(_main_cli, _cli_on_error);
+
+    root= cli_get_root_cmd(_main_cli);
 
     /* Command classes */
-    cli_register_bgp(pTheCli);
-    cli_register_net(pTheCli);
-    cli_register_sim(pTheCli);
+    cli_register_bgp(root);
+    cli_register_net(root);
+    cli_register_sim(root);
 
-    /* Miscelaneous commands */
-    cli_register_include(pTheCli);
-    cli_register_pause(pTheCli);
-    cli_register_print(pTheCli);
-    cli_register_quit(pTheCli);
-    cli_register_require(pTheCli);
-    cli_register_set(pTheCli);
-    cli_register_show(pTheCli);
-    cli_register_time(pTheCli);
-    cli_register_chdir(pTheCli);
+    // Miscelaneous commands
+    _register_define(root);
+    _register_include(root);
+    _register_pause(root);
+    _register_print(root);
+    _register_require(root);
+    _register_set(root);
+    _register_show(root);
+    _register_time(root);
+    _register_chdir(root);
+
+    // Omnipresent commands
+    _register_quit(cli_get_omni_cmd(_main_cli));
   }
-  return pTheCli;
+  return _main_cli;
 }
 
-// ----- cli_common_check_addr --------------------------------------
-/**
- *
- */
-int cli_common_check_addr(char * pcValue)
+// -----[ cli_set_param ]------------------------------------------
+void cli_set_param(const char * name, const char * value)
 {
-  net_addr_t tAddr;
-  char * pcEndPtr;
-
-  if (!ip_string_to_address(pcValue, &pcEndPtr, &tAddr) && (*pcEndPtr == 0))
-    return CLI_SUCCESS;
-  else
-    return CLI_ERROR_BAD_PARAM;
+  libcbgp_set_param(name, value);
 }
 
-// ----- cli_common_check_prefix ------------------------------------
-/**
- *
- */
-int cli_common_check_prefix(char * pcValue)
+// -----[ cli_get_param ]------------------------------------------
+const char * cli_get_param(const char * name)
 {
-  SPrefix sPrefix;
-  char * pcEndPtr;
-
-  if (!ip_string_to_prefix(pcValue, &pcEndPtr, &sPrefix) && (*pcEndPtr == 0))
-    return CLI_SUCCESS;
-  else
-    return CLI_ERROR_BAD_PARAM;
+  return libcbgp_get_param(name);
 }
 
-// ----- cli_common_check_uint --------------------------------------
-/**
- *
- */
-int cli_common_check_uint(char * pcValue)
-{
-  return CLI_SUCCESS;
-}
 
 /////////////////////////////////////////////////////////////////////
 // INITIALIZATION AND FINALIZATION SECTION
 /////////////////////////////////////////////////////////////////////
 
-// ----- _cli_common_destroy ----------------------------------------
-/**
- *
- */
+// -----[ _cli_common_init ]-----------------------------------------
+void _cli_common_init()
+{
+}
+
+// -----[ _cli_common_destroy ]--------------------------------------
 void _cli_common_destroy()
 {
-  cli_destroy(&pTheCli);
+  cli_destroy(&_main_cli);
 }

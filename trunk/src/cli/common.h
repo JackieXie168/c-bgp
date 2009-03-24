@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)common.h
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// @lastdate 15/05/2007
+// $Id: common.h,v 1.7 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_COMMON_H__
@@ -12,29 +12,34 @@
 #include <libgds/cli.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
+#include <bgp/types.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  // -----[ cli_params_add_file ]------------------------------------
-  int cli_params_add_file(SCliParams * pParams, const char * pcName,
-			  FCliCheckParam fCheck);
-  // -----[ cli_net_node_by_addr ]-----------------------------------
-  net_node_t * cli_net_node_by_addr(char * pcAddr);
+  // -----[ str2node ]-----------------------------------------------
+  int str2node(const char * addr, net_node_t ** node);
+  // -----[ str2node_id ]--------------------------------------------
+  int str2node_id(const char * id, net_node_t ** node);
+  // -----[ str2subnet ]---------------------------------------------
+  int str2subnet(const char * str, net_subnet_t ** subnet);
+
+  // -----[ cli_arg_file ]-------------------------------------------
+  cli_arg_t * cli_arg_file(const char * name, cli_arg_check_f check);
 
   // ----- cli_get --------------------------------------------------
-  SCli * cli_get();
+  cli_t * cli_get();
   
-  // ----- cli_common_check_addr ------------------------------------
-  int cli_common_check_addr(char * pcValue);
-  // ----- cli_common_check_prefix ----------------------------------
-  int cli_common_check_prefix(char * pcValue);
-  // ----- cli_common_check_uint ------------------------------------
-  int cli_common_check_uint(char * pcValue);
-  
+  // -----[ _cli_common_init ]---------------------------------------
+  void _cli_common_init();
   // ----- _cli_destroy ---------------------------------------------
   void _cli_common_destroy();
+
+  // -----[ cli_set_param ]------------------------------------------
+  void cli_set_param(const char * param, const char * value);
+  // -----[ cli_get_param ]------------------------------------------
+  const char * cli_get_param(const char * param);
   
 #ifdef __cplusplus
 }

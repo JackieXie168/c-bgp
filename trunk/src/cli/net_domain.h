@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/07/2005
-// $Id: net_domain.h,v 1.4 2008-04-11 11:03:06 bqu Exp $
+// $Id: net_domain.h,v 1.5 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_NET_DOMAIN_H__
@@ -16,9 +16,9 @@ extern "C" {
 #endif
 
   // ----- cli_net_add_domain ---------------------------------------
-  int cli_net_add_domain(SCliContext * pContext, SCliCmd * pCmd);
+  int cli_net_add_domain(cli_ctx_t * ctx, cli_cmd_t * cmd);
   // ----- cli_register_net_domain ----------------------------------
-  int cli_register_net_domain(SCliCmds * pCmds);
+  void cli_register_net_domain(cli_cmd_t * parent);
 
 #ifdef __cplusplus
 }

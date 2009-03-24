@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 15/07/2003
-// @lastdate 21/11/2007
+// $Id: net_ospf.c,v 1.7 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,7 +20,7 @@
 #include <net/igp_domain.h>
 #include <net/net_types.h>
 #include <ui/rl.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
 
 #ifdef OSPF_SUPPORT

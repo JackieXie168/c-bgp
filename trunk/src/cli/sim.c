@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/07/2003
-// @lastdate 03/04/2008
+// $Id: sim.c,v 1.14 2009-03-24 15:58:43 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,7 +12,8 @@
 
 #include <libgds/cli.h>
 #include <libgds/cli_ctx.h>
-#include <libgds/log.h>
+#include <libgds/cli_params.h>
+#include <libgds/stream.h>
 #include <libgds/str_util.h>
 
 #include <cli/common.h>
@@ -20,16 +21,25 @@
 #include <net/network.h>
 #include <sim/simulator.h>
 
-static SCli * _cli= NULL;
+// -----[ cli_sim_clear ]--------------------------------------------
+/**
+ * context: {}
+ * tokens : {}
+ */
+static int cli_sim_clear(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  sim_clear(network_get_simulator(network_get_default()));
+  return CLI_SUCCESS;
+}
 
-// ----- cli_sim_debug_queue ----------------------------------------
+// -----[ cli_sim_debug_queue ]--------------------------------------
 /**
  * context: {}
  * tokens: {}
  */
-int cli_sim_debug_queue(SCliContext * pContext, SCliCmd * pCmd)
+static int cli_sim_debug_queue(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  sim_dump_events(pLogErr, network_get_simulator(network_get_default()));
+  sim_dump_events(gdserr, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
@@ -38,13 +48,14 @@ static int _cli_sim_event_callback(simulator_t * sim,
 				   void * ctx)
 {
   char * cmd= (char *) ctx;
-  int iResult= 0;
+  int result= 0;
+  cli_t * cli= cli_get();
 
-  if (_cli != NULL)
-    if (cli_execute(_cli, cmd) < 0)
-      iResult= -1;
+  if (cli != NULL)
+    if (cli_execute(cli, cmd) < 0)
+      result= -1;
   str_destroy(&cmd);
-  return iResult;
+  return result;
 }
 
 // -----[ _cli_sim_event_destroy ]-----------------------------------
@@ -55,10 +66,10 @@ static void _cli_sim_event_destroy(void * ctx)
 }
 
 // -----[ _cli_sim_event_dump ]--------------------------------------
-static void _cli_sim_event_dump(SLogStream * stream, void * ctx)
+static void _cli_sim_event_dump(gds_stream_t * stream, void * ctx)
 {
   char * cmd= (char *) ctx;
-  log_printf(stream, "cli-event [%s]\n", cmd);
+  stream_printf(stream, "cli-event [%s]\n", cmd);
 }
 
 static sim_event_ops_t _sim_event_ops= {
@@ -72,17 +83,20 @@ static sim_event_ops_t _sim_event_ops= {
  * context: {}
  * tokens: {time, command}
  */
-int cli_sim_event(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_event(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  double dTime;
+  const char * arg_time= cli_get_arg_value(cmd, 0);
+  const char * arg_event= cli_get_arg_value(cmd, 1);
+  double time;
 
-  if (tokens_get_double_at(pCmd->pParamValues, 0, &dTime))
+  if (str_as_double(arg_time, &time)) {
+    cli_set_user_error(cli_get(), "Invalid simulation time \"%s\"", arg_time);
     return CLI_ERROR_COMMAND_FAILED;
+  }
   sim_post_event(network_get_simulator(network_get_default()),
 		 &_sim_event_ops,
-		 str_create(tokens_get_string_at(pCmd->pParamValues, 1)),
-		 dTime,
-		 SIM_TIME_ABS);
+		 str_create(arg_event),
+		 time, SIM_TIME_ABS);
   return CLI_SUCCESS;
 }
 
@@ -91,12 +105,10 @@ int cli_sim_event(SCliContext * pContext, SCliCmd * pCmd)
  * context: {}
  * tokens: {log-level}
  */
-int cli_sim_options_loglevel(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_options_loglevel(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcParam;
-
-  pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
-  log_set_level(pLogDebug, log_str2level(pcParam));
+  const char * arg= cli_get_arg_value(cmd, 0);
+  stream_set_level(gdsdebug, stream_str2level(arg));
   return CLI_SUCCESS;
 }
 
@@ -105,17 +117,16 @@ int cli_sim_options_loglevel(SCliContext * pContext, SCliCmd * pCmd)
  * context: {}
  * tokens: {function}
  */
-int cli_sim_options_scheduler(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_options_scheduler(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  char * pcParam;
+  const char * arg= cli_get_arg_value(cmd, 0);
+  sched_type_t type;
 
-  pcParam= tokens_get_string_at(pCmd->pParamValues, 0);
-  if (!strcmp(pcParam, "static"))
-    SIM_OPTIONS_SCHEDULER= SCHEDULER_STATIC;
-  else if (!strcmp(pcParam, "dynamic"))
-    SIM_OPTIONS_SCHEDULER= SCHEDULER_DYNAMIC;
-  else
+  if (sim_str2sched(arg, &type) < 0) {
+    cli_set_user_error(cli_get(), "invalid scheduler \"%s\"", arg);
     return CLI_ERROR_COMMAND_FAILED;
+  }
+  sim_set_default_scheduler(type);
   return CLI_SUCCESS;
 }
 
@@ -123,9 +134,9 @@ int cli_sim_options_scheduler(SCliContext * pContext, SCliCmd * pCmd)
 /**
  *
  */
-int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_queue_info(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  sim_show_infos(pLogOut, network_get_simulator(network_get_default()));
+  sim_show_infos(gdsout, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
@@ -133,10 +144,10 @@ int cli_sim_queue_info(SCliContext * pContext, SCliCmd * pCmd)
 /**
  *
  */
-int cli_sim_queue_log(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_queue_log(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  sim_set_log_progress(network_get_simulator(network_get_default()),
-		       tokens_get_string_at(pCmd->pParamValues, 0));
+  const char * arg= cli_get_arg_value(cmd, 0);
+  sim_set_log_progress(network_get_simulator(network_get_default()), arg);
   return CLI_SUCCESS;
 }
 
@@ -144,18 +155,27 @@ int cli_sim_queue_log(SCliContext * pContext, SCliCmd * pCmd)
 /**
  *
  */
-int cli_sim_queue_show(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_queue_show(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  sim_dump_events(pLogOut, network_get_simulator(network_get_default()));
+  sim_dump_events(gdsout, network_get_simulator(network_get_default()));
   return CLI_SUCCESS;
 }
 
 
 // ----- cli_sim_run ------------------------------------------------
-int cli_sim_run(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_run(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  if (sim_run(network_get_simulator(network_get_default())))
+  simulator_t * sim= network_get_simulator(network_get_default());
+  int error= sim_run(sim);
+  if (error) {
+    if (error == ESIM_TIME_LIMIT) {
+      cbgp_warn("simulation stopped @ %2.2f.\n", sim_get_time(sim));
+      return CLI_SUCCESS;
+    }
+    cli_set_user_error(cli_get(), "could not run simulation (%s)",
+		       network_strerror(error));
     return CLI_ERROR_COMMAND_FAILED;
+  }
   return CLI_SUCCESS;
 }
 
@@ -164,162 +184,129 @@ int cli_sim_run(SCliContext * pContext, SCliCmd * pCmd)
  * context: {}
  * tokens: {num-steps}
  */
-int cli_sim_step(SCliContext * pContext, SCliCmd * pCmd)
+int cli_sim_step(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
+  const char * arg= cli_get_arg_value(cmd, 0);
   unsigned int num_steps;
 
   // Get number of steps
-  if (tokens_get_uint_at(pCmd->pParamValues, 0, &num_steps)) {
-    cli_set_user_error(cli_get(), "invalid number of steps \"%s\".",
-		       tokens_get_string_at(pCmd->pParamValues, 0));
+  if (str_as_uint(arg, &num_steps)) {
+    cli_set_user_error(cli_get(), "invalid number of steps \"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
   // Run the simulator for the given number of steps
-  if (sim_step(network_get_simulator(network_get_default()),
-	       num_steps))
+  if (sim_step(network_get_simulator(network_get_default()), num_steps))
     return CLI_ERROR_COMMAND_FAILED;
 
-  return CLI_SUCCESS;
-}
-
-// ----- cli_sim_stop_at --------------------------------------------
-/**
- * context: {}
- * tokens: {max-time}
- */
-int cli_sim_stop_at(SCliContext * pContext, SCliCmd * pCmd)
-{
-  double max_time;
-
-  if (tokens_get_double_at(pCmd->pParamValues, 0, &max_time))
-    return CLI_ERROR_COMMAND_FAILED;
-  sim_set_max_time(network_get_simulator(network_get_default()),
-		   max_time);
   return CLI_SUCCESS;
 }
 
 // ----- cli_sim_stop -----------------------------------------------
-int cli_sim_stop(SCliContext * pContext, SCliCmd * pCmd)
+/**
+ * context: {}
+ * tokens : {}
+ * options: {--at=<time>}
+ */
+int cli_sim_stop(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  return CLI_ERROR_COMMAND_FAILED;
+  const char * opt= cli_get_opt_value(cmd, "at");
+  double time;
+
+  if (opt != NULL) {
+    if (str_as_double(opt, &time)) {
+      cli_set_user_error(cli_get(), "Invalid simulation time \"%s\"", opt);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  } else {
+    cli_set_user_error(cli_get(), "Option --at=<time> must be specified.");
+    return CLI_ERROR_COMMAND_FAILED;    
+  }
+
+  sim_set_max_time(network_get_simulator(network_get_default()), time);
+  return CLI_SUCCESS;
 }
 
-// ----- cli_register_sim_debug -------------------------------------
-int cli_register_sim_debug(SCliCmds * pCmds)
-{
-  SCliCmds * pSubCmds;
 
-  pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create("queue", cli_sim_debug_queue,
-					NULL, NULL));
-  return cli_cmds_add(pCmds, cli_cmd_create("debug", NULL,
-					    pSubCmds, NULL));
+/////////////////////////////////////////////////////////////////////
+//
+// CLI COMMANDS REGISTRATION
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ _register_sim_clear ]--------------------------------------
+static void _register_sim_clear(cli_cmd_t * parent)
+{
+  cli_add_cmd(parent, cli_cmd("clear", cli_sim_clear));
 }
 
-// ----- cli_register_sim_event -------------------------------------
-int cli_register_sim_event(SCliCmds * pCmds)
+// -----[ _register_sim_debug ]--------------------------------------
+static void _register_sim_debug(cli_cmd_t * parent)
 {
-  SCliParams * pParams;
-
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<time>", NULL);
-  cli_params_add(pParams, "<event>", NULL);
-  return cli_cmds_add(pCmds, cli_cmd_create("event", cli_sim_event,
-					    NULL, pParams));
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("debug"));
+  cli_add_cmd(group, cli_cmd("queue", cli_sim_debug_queue));
 }
 
-// ----- cli_register_sim_options -----------------------------------
-int cli_register_sim_options(SCliCmds * pCmds)
+// -----[ _register_sim_event ]--------------------------------------
+static void _register_sim_event(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<level>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("log-level",
-					cli_sim_options_loglevel,
-					NULL, pParams));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<scheduler>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("scheduler",
-					cli_sim_options_scheduler,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("options", NULL,
-					    pSubCmds, NULL));
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("event", cli_sim_event));
+  cli_add_arg(cmd, cli_arg("time", NULL));
+  cli_add_arg(cmd, cli_arg("event", NULL));
 }
 
-// ----- cli_register_sim_queue -------------------------------------
-int cli_register_sim_queue(SCliCmds * pCmds)
+// -----[ _register_sim_options ]------------------------------------
+static void _register_sim_options(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
-
-  pSubCmds= cli_cmds_create();
-  cli_cmds_add(pSubCmds, cli_cmd_create("info", cli_sim_queue_info,
-					NULL, NULL));
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<file>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("log", cli_sim_queue_log,
-					NULL, pParams));
-  cli_cmds_add(pSubCmds, cli_cmd_create("show",	cli_sim_queue_show,
-					NULL, NULL));
-  return cli_cmds_add(pCmds, cli_cmd_create("queue", NULL,
-					    pSubCmds, NULL));
+  cli_cmd_t * group, * cmd;
+  group= cli_add_cmd(parent, cli_cmd_group("options"));
+  cmd= cli_add_cmd(group, cli_cmd("log-level", cli_sim_options_loglevel));
+  cli_add_arg(cmd, cli_arg("level", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("scheduler", cli_sim_options_scheduler));
+  cli_add_arg(cmd, cli_arg("scheduler", NULL));
 }
 
-// ----- cli_register_sim_run ---------------------------------------
-int cli_register_sim_run(SCliCmds * pCmds)
+// -----[ _register_sim_queue ]--------------------------------------
+static void _register_sim_queue(cli_cmd_t * parent)
 {
-  return cli_cmds_add(pCmds, cli_cmd_create("run", cli_sim_run,
-					    NULL, NULL));
+  cli_cmd_t * group, * cmd;
+  group= cli_add_cmd(parent, cli_cmd_group("queue"));
+  cmd= cli_add_cmd(group, cli_cmd("info", cli_sim_queue_info));
+  cmd= cli_add_cmd(group, cli_cmd("log", cli_sim_queue_log));
+  cli_add_arg(cmd, cli_arg_file("file", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("show", cli_sim_queue_show));
 }
 
-// ----- cli_register_sim_step ---------------------------------------
-int cli_register_sim_step(SCliCmds * pCmds)
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_sim_run(cli_cmd_t * parent)
 {
-  SCliParams * pParams;
-
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<num-steps>", NULL);
-  return cli_cmds_add(pCmds, cli_cmd_create("step", cli_sim_step,
-					    NULL, pParams));
+  cli_add_cmd(parent, cli_cmd("run", cli_sim_run));
 }
 
-// ----- cli_register_sim_stop --------------------------------------
-int cli_register_sim_stop(SCliCmds * pCmds)
+// -----[ _register_sim_step ]---------------------------------------
+static void _register_sim_step(cli_cmd_t * parent)
 {
-  SCliCmds * pSubCmds;
-  SCliParams * pParams;
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("step", cli_sim_step));
+  cli_add_arg(cmd, cli_arg("num-steps", NULL));
+}
 
-  pSubCmds= cli_cmds_create();
-  pParams= cli_params_create();
-  cli_params_add(pParams, "<time>", NULL);
-  cli_cmds_add(pSubCmds, cli_cmd_create("at", cli_sim_stop_at,
-					NULL, pParams));
-  return cli_cmds_add(pCmds, cli_cmd_create("stop", cli_sim_stop,
-					    pSubCmds, NULL));
+// -----[ _register_sim_stop ]---------------------------------------
+static void _register_sim_stop(cli_cmd_t * parent)
+{
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("stop", cli_sim_stop));
+  cli_add_opt(cmd, cli_opt("at=", NULL));
 }
 
 // ----- cli_register_sim -------------------------------------------
-/**
- *
- */
-int cli_register_sim(SCli * pCli)
+void cli_register_sim(cli_cmd_t * parent)
 {
-  SCliCmds * pCmds;
-
-  _cli= pCli;
-
-  pCmds= cli_cmds_create();
-  cli_register_sim_debug(pCmds);
-  cli_register_sim_event(pCmds);
-  cli_register_sim_options(pCmds);
-  cli_register_sim_queue(pCmds);
-  cli_register_sim_run(pCmds);
-  cli_register_sim_step(pCmds);
-  cli_register_sim_stop(pCmds);
-  cli_register_cmd(pCli, cli_cmd_create("sim", NULL, pCmds, NULL));
-  return 0;
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("sim"));
+  _register_sim_clear(group);
+  _register_sim_debug(group);
+  _register_sim_event(group);
+  _register_sim_options(group);
+  _register_sim_queue(group);
+  _register_sim_run(group);
+  _register_sim_step(group);
+  _register_sim_stop(group);
 }
