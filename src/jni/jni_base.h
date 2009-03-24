@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 03/03/2008
+// $Id: jni_base.h,v 1.7 2009-03-24 16:00:41 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_BASE_H__
@@ -78,6 +78,9 @@ extern "C" {
   // -----[ cbgp_jni_ArrayList_add ]---------------------------------
   int cbgp_jni_ArrayList_add(JNIEnv * jEnv, jobject joArrayList,
 			     jobject joItem);
+  // -----[ jni_new_ObjectArray ]------------------------------------
+  jobjectArray jni_new_ObjectArray(JNIEnv * jEnv, unsigned int size,
+				   char * object_class);
   
 #ifdef __cplusplus
 }
