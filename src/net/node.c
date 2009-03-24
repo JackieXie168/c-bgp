@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.17 2008-06-11 15:13:45 bqu Exp $
+// $Id: node.c,v 1.18 2009-03-24 16:20:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,29 +14,27 @@
 #include <libgds/str_util.h>
 
 #include <net/error.h>
+#include <net/icmp.h>
 #include <net/link.h>
 #include <net/link-list.h>
 #include <net/net_types.h>
 #include <net/netflow.h>
 #include <net/network.h>
 #include <net/node.h>
-#include <net/record-route.h>
 #include <net/subnet.h>
 
 // ----- node_create ------------------------------------------------
-/**
- *
- */
-net_error_t node_create(net_addr_t addr, net_node_t ** node_ref,
+net_error_t node_create(net_addr_t rid, net_node_t ** node_ref,
 			int options)
 {
-  net_node_t * node= (net_node_t *) MALLOC(sizeof(net_node_t));
+  net_node_t * node;
   net_error_t error;
 
-  if (addr == NET_ADDR_ANY)
+  if (rid == NET_ADDR_ANY)
     return ENET_NODE_INVALID_ID;
 
-  node->addr= addr;
+  node=(net_node_t *) MALLOC(sizeof(net_node_t));
+  node->rid= rid;
   node->name= NULL;
   node->ifaces= net_links_create();
   node->protocols= protocols_create();
@@ -44,24 +42,26 @@ net_error_t node_create(net_addr_t addr, net_node_t ** node_ref,
   node->coord.latitude= 0;
   node->coord.longitude= 0;
   node->syslog_enabled= 0;
-  node->pIGPDomains= uint16_array_create(ARRAY_OPTION_SORTED|
-					 ARRAY_OPTION_UNIQUE);
+  node->domains= uint16_array_create2(0,
+				      ARRAY_OPTION_UNIQUE|
+				      ARRAY_OPTION_SORTED);
+  node->spt= NULL;
 
   // Activate ICMP protocol
-  error= node_register_protocol(node, NET_PROTOCOL_ICMP, node, NULL,
-				icmp_event_handler);
+  error= node_register_protocol(node, NET_PROTOCOL_ICMP, node);
   if (error != ESUCCESS)
     return error;
 
   // Create loopback interface with node's RID
   if (options & NODE_OPTIONS_LOOPBACK) {
-    error= node_add_iface(node, net_iface_id_addr(addr), NET_IFACE_LOOPBACK);
+    error= node_add_iface(node, net_iface_id_addr(rid), NET_IFACE_LOOPBACK);
     if (error != ESUCCESS)
       return error;
   }
 
 #ifdef OSPF_SUPPORT
-  node->pOSPFAreas= uint32_array_create(ARRAY_OPTION_SORTED|
+  node->pOSPFAreas= uint32_array_create2(0,
+					 ARRAY_OPTION_SORTED|
 					 ARRAY_OPTION_UNIQUE);
   node->pOspfRT= OSPF_rt_create();
 #endif
@@ -82,11 +82,11 @@ void node_destroy(net_node_t ** node_ref)
     net_links_destroy(&(*node_ref)->ifaces);
 
 #ifdef OSPF_SUPPORT
-    _array_destroy((SArray **)(&(*node_ref)->pOSPFAreas));
+    _array_destroy((array_t **)(&(*node_ref)->pOSPFAreas));
     OSPF_rt_destroy(&(*node_ref)->pOspfRT);
 #endif
 
-    uint16_array_destroy(&(*node_ref)->pIGPDomains);
+    uint16_array_destroy(&(*node_ref)->domains);
     if ((*node_ref)->name)
       str_destroy(&(*node_ref)->name);
     FREE(*node_ref);
@@ -128,36 +128,45 @@ void node_get_coord(net_node_t * node, float * latitude, float * longitude)
     *longitude= node->coord.longitude;
 }
 
+// -----[ node_dump_id ]-------------------------------------------
+void node_dump_id(gds_stream_t * stream, net_node_t * node)
+{
+  ip_address_dump(stream, node->rid);
+}
+
+
 // ----- node_dump ---------------------------------------------------
 /**
  *
  */
-void node_dump(SLogStream * stream, net_node_t * node)
+void node_dump(gds_stream_t * stream, net_node_t * node)
 { 
-  ip_address_dump(stream, node->addr);
+  node_dump_id(stream, node);
 }
 
 // ----- node_info --------------------------------------------------
 /**
  *
  */
-void node_info(SLogStream * stream, net_node_t * node)
+void node_info(gds_stream_t * stream, net_node_t * node)
 {
-  unsigned int uIndex;
+  unsigned int index;
 
-  log_printf(stream, "loopback : ");
-  ip_address_dump(stream, node->addr);
-  log_printf(stream, "\n");
-  log_printf(stream, "domain   :");
-  for (uIndex= 0; uIndex < uint16_array_length(node->pIGPDomains); uIndex++) {
-    log_printf(stream, " %d", node->pIGPDomains->data[uIndex]);
+  stream_printf(stream, "id       : ");
+  ip_address_dump(stream, node->rid);
+  stream_printf(stream, "\n");
+  stream_printf(stream, "domain   :");
+  for (index= 0; index < uint16_array_size(node->domains); index++) {
+    stream_printf(stream, " %d", node->domains->data[index]);
   }
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
   if (node->name != NULL)
-    log_printf(stream, "name     : %s\n", node->name);
-  log_printf(stream, "addresses: ");
+    stream_printf(stream, "name     : %s\n", node->name);
+  stream_printf(stream, "addresses: ");
   node_addresses_dump(stream, node);
-  log_printf(stream, "\n");
+  stream_printf(stream, "\n");
+  stream_printf(stream, "latitude : %f\n", node->coord.latitude);
+  stream_printf(stream, "longitude: %f\n", node->coord.longitude);
 }
 
 
@@ -220,35 +229,94 @@ net_iface_t * node_find_iface(net_node_t * node, net_iface_id_t tIfaceID)
   return net_links_find(node->ifaces, tIfaceID);
 }
 
+// -----[ node_find_iface_to ]-------------------------------------
+net_iface_t * node_find_iface_to(net_node_t * node, net_elem_t * to)
+{
+  unsigned int index;
+  net_iface_t * iface;
+
+  /* TBR stream_printf(logout, "node_find_iface_to(");
+  node_dump_id(logout, node);
+  stream_printf(logout, ", ");
+  switch (to->type) {
+  case LINK:
+    stream_printf(logout, "LINK:");
+    net_iface_dump_id(logout, to->link);
+    break;
+  case NODE:
+    stream_printf(logout, "NODE:");
+    node_dump_id(logout, to->node);
+    break;
+  case SUBNET:
+    stream_printf(logout, "SUBNET:");
+    subnet_dump_id(logout, to->subnet);
+    break;
+  }
+  stream_printf(logout, ")\n");*/
+
+  for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
+    iface= (net_iface_t *) node->ifaces->data[index];
+    /* TBR stream_printf(logout, "\t");
+    net_iface_dump_id(logout, iface);
+    stream_printf(logout, " ??\n");*/
+    if (!net_iface_is_connected(iface))
+      continue;
+    switch (to->type) {
+    case LINK:
+      if (iface->type != NET_IFACE_PTP)
+	continue;
+      if (iface->dest.iface == to->link)
+	return iface;
+      break;
+    case NODE:
+      if (iface->type != NET_IFACE_RTR)
+	continue;
+      if (iface->dest.iface->owner == to->node)
+	return iface;
+      break;
+    case SUBNET:
+      if (iface->type != NET_IFACE_PTMP)
+	continue;
+      if (iface->dest.subnet == to->subnet)
+	return iface;
+      break;
+    default:
+      abort();
+    }
+  }
+  return NULL;
+}
+
+
 // -----[ node_ifaces_dump ]-----------------------------------------
 /**
  * This function shows the list of interfaces of a given node's, along
  * with their type.
  */
-void node_ifaces_dump(SLogStream * stream, net_node_t * node)
+void node_ifaces_dump(gds_stream_t * stream, net_node_t * node)
 {
-  unsigned int uIndex;
-  net_iface_t * pIface;
+  unsigned int index;
+  net_iface_t * iface;
 
   // Show network interfaces
-  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
-    pIface= net_ifaces_at(node->ifaces, uIndex);
-    net_iface_dump(stream, pIface, 0);
-    log_printf(stream, "\n");
+  for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
+    iface= net_ifaces_at(node->ifaces, index);
+    net_iface_dump(stream, iface, 0);
+    stream_printf(stream, "\n");
   }
 }
 
 // -----[ node_ifaces_load_clear ]-----------------------------------
 void node_ifaces_load_clear(net_node_t * node)
 {
-  enum_t * pEnum= net_links_get_enum(node->ifaces);
-  net_iface_t * pIface;
+  gds_enum_t * links= net_links_get_enum(node->ifaces);
+  net_iface_t * iface;
 
-  while (enum_has_next(pEnum)) {
-    pIface= *((net_iface_t **) enum_get_next(pEnum));
-    net_iface_set_load(pIface, 0);
+  while (enum_has_next(links)) {
+    iface= (net_iface_t *) enum_get_next(links);
+    net_iface_set_load(iface, 0);
   }
-  enum_destroy(&pEnum);
+  enum_destroy(&links);
 }
 
 
@@ -265,17 +333,17 @@ void node_ifaces_load_clear(net_node_t * node)
  * dumped, by using a "link dump" function (i.e. net_link_dump()
  * defined in src/net/link.h).
  */
-void node_links_dump(SLogStream * stream, net_node_t * node)
+void node_links_dump(gds_stream_t * stream, net_node_t * node)
 {
-  unsigned int uIndex;
-  net_iface_t * pIface;
+  unsigned int index;
+  net_iface_t * iface;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
-    pIface= net_ifaces_at(node->ifaces, uIndex);
-    if (!net_iface_is_connected(pIface))
+  for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
+    iface= net_ifaces_at(node->ifaces, index);
+    if (!net_iface_is_connected(iface))
       continue;
-    net_link_dump(stream, pIface);
-    log_printf(stream, "\n");
+    net_link_dump(stream, iface);
+    stream_printf(stream, "\n");
   }
 }
 
@@ -284,13 +352,13 @@ void node_links_dump(SLogStream * stream, net_node_t * node)
  * THIS SHOULD BE MOVED TO src/cli/enum.c
 net_iface_t * node_links_enum(net_node_t * node, int state)
 {
-  static enum_t * pEnum;
+  static gds_enum_t * pEnum;
   net_iface_t * pIface;
 
   if (state == 0)
     pEnum= net_links_get_enum(node->ifaces);
   if (enum_has_next(pEnum)) {
-    pIface= *((net_iface_t **) enum_get_next(pEnum));
+    pIface= (net_iface_t *) enum_get_next(pEnum);
     return pIface;
   }
   enum_destroy(&pEnum);
@@ -299,45 +367,53 @@ net_iface_t * node_links_enum(net_node_t * node, int state)
 */
 
 // ----- node_links_save --------------------------------------------
-void node_links_save(SLogStream * stream, net_node_t * node)
+void node_links_save(gds_stream_t * stream, net_node_t * node)
 {
-  enum_t * pEnum= net_links_get_enum(node->ifaces);
+  gds_enum_t * ifaces= net_links_get_enum(node->ifaces);
   net_iface_t * iface;
 
-  while (enum_has_next(pEnum)) {
-    iface= *((net_iface_t **) enum_get_next(pEnum));
+  while (enum_has_next(ifaces)) {
+    iface= (net_iface_t *) enum_get_next(ifaces);
   
     // Skip tunnels
-    if (iface->type == NET_IFACE_VIRTUAL)
+    if ((iface->type == NET_IFACE_VIRTUAL) ||
+	(iface->type == NET_IFACE_LOOPBACK))
       continue;
   
     // This side of the link
-    ip_address_dump(stream, node->addr);
-    log_printf(stream, "\t");
+    ip_address_dump(stream, node->rid);
+    stream_printf(stream, "\t");
     net_iface_dump_id(stream, iface);
-    log_printf(stream, "\t");
+    stream_printf(stream, "\t");
 
     // Other side of the link
     switch (iface->type) {
     case NET_IFACE_RTR:
-      ip_address_dump(stream, iface->dest.iface->src_node->addr);
-      log_printf(stream, "\t");
-      ip_address_dump(stream, node->addr);
-      log_printf(stream, "/32");
+      ip_address_dump(stream, iface->dest.iface->owner->rid);
+      stream_printf(stream, "\t");
+      ip_address_dump(stream, node->rid);
+      stream_printf(stream, "/32");
+      break;
+    case NET_IFACE_PTP:
+      ip_address_dump(stream, iface->dest.iface->owner->rid);
+      stream_printf(stream, "\t");
+      ip_address_dump(stream, node->rid);
+      stream_printf(stream, "/32");      
       break;
     case NET_IFACE_PTMP:
       ip_prefix_dump(stream, iface->dest.subnet->prefix);
-      log_printf(stream, "\t---");
+      stream_printf(stream, "\t---");
       break;
     default:
       abort();
     }
 
     // Link load
-    log_printf(stream, "\t%u\n", iface->phys.load);
+    stream_printf(stream, "\t%u", iface->phys.load);
+    stream_printf(stream, "\t%u\n", iface->phys.capacity);
   }
     
-  enum_destroy(&pEnum);
+  enum_destroy(&ifaces);
 }
 
 // -----[ node_has_address ]-----------------------------------------
@@ -351,17 +427,17 @@ void node_links_save(SLogStream * stream, net_node_t * node)
  * 1 if the node has the given address
  * 0 otherwise
  */
-int node_has_address(net_node_t * node, net_addr_t addr)
+net_iface_t * node_has_address(net_node_t * node, net_addr_t addr)
 {
-  unsigned int uIndex;
-  net_iface_t * pIface;
+  unsigned int index;
+  net_iface_t * iface;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(node->ifaces); uIndex++) {
-    pIface= net_ifaces_at(node->ifaces, uIndex);
-    if (net_iface_has_address(pIface, addr))
-      return 1;
+  for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
+    iface= net_ifaces_at(node->ifaces, index);
+    if (net_iface_has_address(iface, addr))
+      return iface;
   }
-  return 0;
+  return NULL;
 }
 
 // -----[ node_has_prefix ]------------------------------------------
@@ -385,10 +461,10 @@ net_iface_t * node_has_prefix(net_node_t * node, ip_pfx_t pfx)
  * (its identifier). The other addresses are the interface addresses
  * (that are set on multi-point links, for instance).
  */
-int node_addresses_for_each(net_node_t * node, FArrayForEach fForEach,
+int node_addresses_for_each(net_node_t * node, gds_array_foreach_f foreach,
 			    void * ctx)
 {
-  int iResult;
+  int result;
   unsigned int index;
   net_iface_t * iface;
 
@@ -396,8 +472,8 @@ int node_addresses_for_each(net_node_t * node, FArrayForEach fForEach,
     iface= net_ifaces_at(node->ifaces, index);
     if (iface->type == NET_IFACE_RTR)
       continue;
-    if ((iResult= fForEach(&iface->tIfaceAddr, ctx)) != 0)
-      return iResult;
+    if ((result= foreach(&iface->addr, ctx)) != 0)
+      return result;
   }
   return 0;
 }
@@ -409,18 +485,21 @@ int node_addresses_for_each(net_node_t * node, FArrayForEach fForEach,
  * other addresses are the interface addresses (that are set on
  * multi-point links, for instance).
  */
-void node_addresses_dump(SLogStream * stream, net_node_t * node)
+void node_addresses_dump(gds_stream_t * stream, net_node_t * node)
 {
   unsigned int index;
   net_iface_t * iface;
+  int space= 0;
 
   // Show interface addresses
   for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
     iface= net_ifaces_at(node->ifaces, index);
     if (iface->type == NET_IFACE_RTR)
       continue;
-    log_printf(stream, " ");
-    ip_address_dump(stream, iface->tIfaceAddr);
+    if (space)
+      stream_printf(stream, " ");
+    ip_address_dump(stream, iface->addr);
+    space= 1;
   }
 }
 
@@ -439,22 +518,22 @@ void node_addresses_dump(SLogStream * stream, net_node_t * node)
  * outgoing link's weight.
  */
 int node_rt_add_route(net_node_t * node, ip_pfx_t pfx,
-		      net_iface_id_t oif_id, net_addr_t next_hop,
+		      net_iface_id_t oif_id, net_addr_t gateway,
 		      uint32_t weight, uint8_t type)
 {
-  net_iface_t * iface;
+  net_iface_t * oif;
 
   // Lookup the next-hop's interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  iface= node_find_iface(node, oif_id);
-  if (iface == NULL)
+  oif= node_find_iface(node, oif_id);
+  if (oif == NULL)
     return ENET_IFACE_UNKNOWN;
 
   // The interface cannot be a loopback interface
-  if (iface->type == NET_IFACE_LOOPBACK)
+  if (oif->type == NET_IFACE_LOOPBACK)
     return ENET_IFACE_INCOMPATIBLE;
 
-  return node_rt_add_route_link(node, pfx, iface, next_hop,
+  return node_rt_add_route_link(node, pfx, oif, gateway,
 				weight, type);
 }
 
@@ -467,27 +546,28 @@ int node_rt_add_route(net_node_t * node, ip_pfx_t pfx,
  * Pre: the outgoing link (next-hop interface) must exist in the node.
  */
 int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
-			   net_iface_t * iface, net_addr_t next_hop,
+			   net_iface_t * oif, net_addr_t gateway,
 			   uint32_t weight, uint8_t type)
 {
   rt_info_t * rtinfo;
   net_iface_t * sub_link;
+  net_error_t result;
 
   // If a next-hop has been specified, check that it is reachable
   // through the given interface.
-  if (next_hop != 0) {
-    switch (iface->type) {
+  if (gateway != 0) {
+    switch (oif->type) {
     case NET_IFACE_RTR:
-      if (iface->dest.iface->src_node->addr != next_hop)
+      if (oif->dest.iface->owner->rid != gateway)
 	return ENET_RT_NH_UNREACH;
       break;
     case NET_IFACE_PTP:
-      if (!node_has_address(iface->dest.iface->src_node, next_hop))
+      if (!node_has_address(oif->dest.iface->owner, gateway))
 	return ENET_RT_NH_UNREACH;
       break;
     case NET_IFACE_PTMP:
-      sub_link= net_subnet_find_link(iface->dest.subnet, next_hop);
-      if ((sub_link == NULL) || (sub_link->tIfaceAddr == iface->tIfaceAddr))
+      sub_link= net_subnet_find_link(oif->dest.subnet, gateway);
+      if ((sub_link == NULL) || (sub_link->addr == oif->addr))
 	return ENET_RT_NH_UNREACH;
       break;
     default:
@@ -495,11 +575,22 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
     }
   }
 
-  // Build route info
-  rtinfo= net_route_info_create(pfx, iface, next_hop,
-				weight, type);
+  // Check if route info already exists (if we add a parallel path)
+  rtinfo= rt_find_exact(node->rt, pfx, type);
 
-  return rt_add_route(node->rt, pfx, rtinfo);
+  // Build route info
+  if (rtinfo == NULL) {
+    rtinfo= rt_info_create(pfx, weight, type);
+    result= rt_info_add_entry(rtinfo, oif, gateway);
+    if (result != ESUCCESS) {
+      rt_info_destroy(&rtinfo);
+      return result;
+    }
+    result= rt_add_route(node->rt, pfx, rtinfo);
+  } else
+    result= rt_info_add_entry(rtinfo, oif, gateway);
+
+  return result;
 }
 
 // ----- node_rt_del_route ------------------------------------------
@@ -529,11 +620,29 @@ int node_rt_del_route(net_node_t * node, ip_pfx_t * pfx,
 /**
  * Dump the node's routing table.
  */
-void node_rt_dump(SLogStream * stream, net_node_t * node, SNetDest sDest)
+void node_rt_dump(gds_stream_t * stream, net_node_t * node, ip_dest_t dest)
 {
   if (node->rt != NULL)
-    rt_dump(stream, node->rt, sDest);
-  log_flush(stream);
+    rt_dump(stream, node->rt, dest);
+  stream_flush(stream);
+}
+
+// ----- node_rt_lookup ---------------------------------------------
+/**
+ * This function looks for the next-hop that must be used to reach a
+ * destination address. The function looks up the static/IGP/BGP
+ * routing table.
+ */
+const rt_entries_t * node_rt_lookup(net_node_t * node, net_addr_t dst_addr)
+{
+  rt_info_t * rtinfo;
+
+  if (node->rt != NULL) {
+    rtinfo= rt_find_best(node->rt, dst_addr, NET_ROUTE_ANY);
+    if (rtinfo != NULL)
+      return rtinfo->entries;
+  }
+  return NULL;
 }
 
 
@@ -554,12 +663,9 @@ void node_rt_dump(SLogStream * stream, net_node_t * node, SNetDest sDest)
  * callback function and the handler context pointer.
  */
 int node_register_protocol(net_node_t * node, net_protocol_id_t id,
-			   void * handler,
-			   FNetProtoHandlerDestroy destroy,
-			   FNetProtoHandleEvent handle_event)
+			   void * handler)
 {
-  return protocols_register(node->protocols, id, handler,
-			    destroy, handle_event);
+  return protocols_add(node->protocols, id, handler);
 }
 
 // -----[ node_get_protocol ]----------------------------------------
@@ -576,98 +682,131 @@ net_protocol_t * node_get_protocol(net_node_t * node,
 
 /////////////////////////////////////////////////////////////////////
 //
+// IGP DOMAIN MEMBERSHIP FUNCTIONS
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ node_igp_domain_add ]--------------------------------------
+int node_igp_domain_add(net_node_t * node, uint16_t id)
+{
+  return uint16_array_add(node->domains, id);
+}
+
+// -----[ node_belongs_to_igp_domain ]-------------------------------
+/**
+ * Test if a node belongs to a given IGP domain.
+ *
+ * Return value:
+ *   TRUE (1) if node belongs to the given IGP domain
+ *   FALSE (0) otherwise.
+ */
+int node_belongs_to_igp_domain(net_node_t * node, uint16_t id)
+{
+  unsigned int index;
+
+  if (uint16_array_index_of(node->domains, id, &index) == 0)
+    return 1;
+  return 0;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // TRAFFIC LOAD FUNCTIONS
 //
 /////////////////////////////////////////////////////////////////////
 
+// -----[ node_load_flow ]-------------------------------------------
+int node_load_flow(net_node_t * node, net_addr_t src_addr,
+		   net_addr_t dst_addr, unsigned int bytes,
+		   flow_stats_t * stats, ip_trace_t ** trace_ref)
+{
+  ip_opt_t * opts;
+  ip_trace_t * trace;
+  net_error_t result= ESUCCESS;
+
+  flow_stats_count(stats, bytes);
+
+  opts= ip_options_create();
+  ip_options_load(opts, bytes);
+  icmp_trace_send(node, dst_addr, 255, opts, &trace);
+
+  // No trace returned. Update statistics.
+  if (trace == NULL) {
+    flow_stats_failure(stats, bytes);
+    return -1;
+  }
+
+  if (trace->status != ESUCCESS)
+    result= trace->status;
+
+  // If trace not requested by caller, free
+  if (trace_ref == NULL)
+    ip_trace_destroy(&trace);
+  else
+    *trace_ref= trace;
+
+  /**
+   * \todo In the future, additional checks could be added here...
+   * \li destination reached ?
+   */
+
+  if (result != ESUCCESS)
+    flow_stats_failure(stats, bytes);
+  else
+    flow_stats_success(stats, bytes);
+  return 0;
+}
+
 typedef struct {
-  net_node_t *   pTargetNode;
-  uint8_t      uOptions;
-  unsigned int uFlowsTotal;
-  unsigned int uFlowsOk;
-  unsigned int uFlowsError;
-  unsigned int uOctetsTotal;
-  unsigned int uOctetsOk;
-  unsigned int uOctetsError;
-} SNET_NODE_NETFLOW_CTX;
+  net_node_t   * target_node;
+  uint8_t        options;
+  flow_stats_t * stats;
+} _netflow_ctx_t;
 
 // -----[ _node_netflow_handler ]------------------------------------
-static int _node_netflow_handler(net_addr_t tSrc, net_addr_t tDst,
-				 unsigned int uOctets, void * pContext)
+static int _node_netflow_handler(net_addr_t src_addr, net_addr_t dst_addr,
+				 unsigned int bytes, void * context)
 {
-  SNET_NODE_NETFLOW_CTX * pCtx= (SNET_NODE_NETFLOW_CTX *) pContext;
-  net_node_t * node= pCtx->pTargetNode;
-  SNetRecordRouteInfo * pRRInfo;
-  SNetDest sDst= { .tType= NET_DEST_ADDRESS, .uDest.tAddr= tDst };
+  _netflow_ctx_t * ctx= (_netflow_ctx_t *) context;
+  net_node_t * node= ctx->target_node;
+  ip_trace_t * trace;
 
-  pCtx->uFlowsTotal++;
-  pCtx->uOctetsTotal+= uOctets;
-
-  pRRInfo= node_record_route(node, sDst, 0,
-			     NET_RECORD_ROUTE_OPTION_LOAD,
-			     uOctets);
-
-  if (pCtx->uOptions & NET_NODE_NETFLOW_OPTIONS_DETAILS) {
-    log_printf(pLogOut, "src:");
-    ip_address_dump(pLogOut, tSrc);
-    log_printf(pLogOut, " dst:");
-    ip_address_dump(pLogOut, tDst);
-    log_printf(pLogOut, " octets:%u ", uOctets);
-    if (pRRInfo != NULL) {
-      log_printf(pLogOut, "status:%d\n", pRRInfo->iResult);
-    } else {
-      log_printf(pLogOut, "status:?\n");
-    }
-  }
-  
-  if (pRRInfo == NULL) {
-    pCtx->uFlowsError++;
-    pCtx->uOctetsError+= uOctets;
-    return NETFLOW_ERROR_UNEXPECTED;
+  if (ctx->options & NET_NODE_NETFLOW_OPTIONS_DETAILS) {
+    stream_printf(gdsout, "src:");
+    ip_address_dump(gdsout, src_addr);
+    stream_printf(gdsout, " dst:");
+    ip_address_dump(gdsout, dst_addr);
+    stream_printf(gdsout, " octets:%u ", bytes);
   }
 
-  /** IN THE FUTURE, WE SHOULD CHECK TRAFFIC MATRIX ERRORS
-      if (pRRInfo->iResult == NET_RECORD_ROUTE_TO_HOST) {
-      iError= NET_TM_ERROR_ROUTE;
-      break;
-      }
-  */
-  net_record_route_info_destroy(&pRRInfo);
+  if (node_load_flow(node, src_addr, dst_addr,
+		     bytes, ctx->stats, &trace) < 0) {
+    if (ctx->options & NET_NODE_NETFLOW_OPTIONS_DETAILS)
+      stream_printf(gdsout, "failed\n");
+    return NETFLOW_ERROR;
+  }
 
-  pCtx->uFlowsOk++;
-  pCtx->uOctetsOk+= uOctets;
-  
+  if (ctx->options & NET_NODE_NETFLOW_OPTIONS_DETAILS) {
+    stream_printf(gdsout, "status: ");
+    network_perror(gdsout, trace->status);
+    stream_printf(gdsout, "\n");
+  }
+
+  ip_trace_destroy(&trace);
   return NETFLOW_SUCCESS;
 }
 
 // -----[ node_load_netflow ]----------------------------------------
-int node_load_netflow(net_node_t * node, const char * pcFileName,
-		      uint8_t uOptions)
+int node_load_netflow(net_node_t * node, const char * filename,
+		      uint8_t options, flow_stats_t * stats)
 {
-  int iResult;
-  SNET_NODE_NETFLOW_CTX sCtx= {
-    .pTargetNode= node,
-    .uOptions= uOptions,
-    .uFlowsTotal= 0,
-    .uFlowsOk= 0,
-    .uFlowsError= 0,
-    .uOctetsTotal= 0,
-    .uOctetsOk= 0,
-    .uOctetsError= 0,
+  _netflow_ctx_t ctx= {
+    .target_node= node,
+    .options    = options,
+    .stats      = stats,
   };
-
-  iResult= netflow_load(pcFileName, _node_netflow_handler, &sCtx);
-
-  if (uOptions & NET_NODE_NETFLOW_OPTIONS_SUMMARY) {
-    log_printf(pLogOut, "Flows total : %u\n", sCtx.uFlowsTotal);
-    log_printf(pLogOut, "Flows ok    : %u\n", sCtx.uFlowsOk);
-    log_printf(pLogOut, "Flows error : %u\n", sCtx.uFlowsError);
-    log_printf(pLogOut, "Octets total: %u\n", sCtx.uOctetsTotal);
-    log_printf(pLogOut, "Octets ok   : %u\n", sCtx.uOctetsOk);
-    log_printf(pLogOut, "Octets error: %u\n", sCtx.uOctetsError);
-  }
-
-  return iResult;
+  return netflow_load(filename, _node_netflow_handler, &ctx);
 }
 
 
@@ -678,10 +817,10 @@ int node_load_netflow(net_node_t * node, const char * pcFileName,
 /////////////////////////////////////////////////////////////////////
 
 // -----[ node_syslog ]--------------------------------------------
-SLogStream * node_syslog(net_node_t * self)
+gds_stream_t * node_syslog(net_node_t * self)
 {
   if (self->syslog_enabled)
-    return pLogErr;
+    return gdserr;
   return NULL;
 }
 
