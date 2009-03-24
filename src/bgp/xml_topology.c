@@ -2,9 +2,9 @@
 // @(#)xml_topology.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/09/2003
-// @lastdate 12/02/2005
+// $Id: xml_topology.c,v 1.7 2009-03-24 15:56:22 bqu Exp $
 // ==================================================================
 
 //TODO :  1) spf-prefix has to be done !

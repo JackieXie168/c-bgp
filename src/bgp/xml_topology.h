@@ -2,9 +2,9 @@
 // @(#)xml_topology.h
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/09/2003
-// @lastdate 27/01/2005
+// $Id: xml_topology.h,v 1.4 2009-03-24 15:56:22 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_XML_H__
