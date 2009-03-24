@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/08/2003
-// $Id: iface.c,v 1.5 2008-05-20 12:17:06 bqu Exp $
+// $Id: iface.c,v 1.6 2009-03-24 16:10:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,35 +47,38 @@ static char * net_iface_type2name(net_iface_type_t type, int short_name)
 
 // -----[ _iface_recv ]----------------------------------------------
 static int _iface_recv(net_iface_t *  iface, net_msg_t * msg) {
-  return node_recv_msg(iface->src_node, iface, msg);
+  return node_recv_msg(iface->owner, iface, msg);
 }
 
 // -----[ net_iface_new ]--------------------------------------------
 net_iface_t * net_iface_new(net_node_t * node,
 			    net_iface_type_t type)
 {
+  igp_weight_t dflt_weight= IGP_MAX_WEIGHT;
   net_iface_t * iface= (net_iface_t *) MALLOC(sizeof(net_iface_t));
-  iface->src_node= node;
+  iface->owner= node;
   iface->type= type;
-  iface->tIfaceAddr= 0;
-  iface->tIfaceMask= 0;
+  iface->addr= 0;
+  iface->mask= 0;
   iface->connected= 0;
   iface->flags= NET_LINK_FLAG_UP;
   iface->user_data= NULL;
 
-  /* Operations */
+  // Operations
   iface->ops.send= NULL;
   iface->ops.recv= _iface_recv;
   iface->ops.destroy= NULL;
 
-  /* Physical attributes */
+  // Physical attributes
   iface->phys.delay= 0;
   iface->phys.capacity= 0;
   iface->phys.load= 0;
 
-  /* IGP attributes */
-  iface->pWeights= NULL;
-  iface->pWeights= net_igp_weights_create(1/*tDepth*/);
+  // IGP attributes
+  if ((type == NET_IFACE_LOOPBACK) ||
+      (type == NET_IFACE_VIRTUAL))
+    dflt_weight= 0;
+  iface->weights= net_igp_weights_create(1, dflt_weight);
 
 #ifdef OSPF_SUPPORT
   iface->tArea= OSPF_NO_AREA;
@@ -88,8 +91,8 @@ net_iface_t * net_iface_new(net_node_t * node,
 static net_iface_t * _iface_new_loopback(net_node_t * node, net_addr_t addr)
 {
   net_iface_t * iface= net_iface_new(node, NET_IFACE_LOOPBACK);
-  iface->tIfaceAddr= addr;
-  iface->tIfaceMask= 32;
+  iface->addr= addr;
+  iface->mask= 32;
   return iface;
 }
 
@@ -97,8 +100,8 @@ static net_iface_t * _iface_new_loopback(net_node_t * node, net_addr_t addr)
 static net_iface_t * _iface_new_virtual(net_node_t * node, net_addr_t addr)
 {
   net_iface_t * iface= net_iface_new(node, NET_IFACE_VIRTUAL);
-  iface->tIfaceAddr= addr;
-  iface->tIfaceMask= 32;
+  iface->addr= addr;
+  iface->mask= 32;
   return iface;
 }
 
@@ -106,6 +109,7 @@ static net_iface_t * _iface_new_virtual(net_node_t * node, net_addr_t addr)
 void net_iface_destroy(net_iface_t ** iface_ref)
 {
   if (*iface_ref != NULL) {
+    net_igp_weights_destroy(&(*iface_ref)->weights);
     FREE(*iface_ref);
     *iface_ref= NULL;
   }    
@@ -137,8 +141,8 @@ int net_iface_connect_iface(net_iface_t * iface, net_iface_t * dst)
     return ENET_IFACE_INCOMPATIBLE;
 
   // Check that endpoint addresses are different
-  if ((iface->tIfaceAddr == dst->tIfaceAddr) ||
-      (iface->src_node == dst->src_node))
+  if ((iface->addr == dst->addr) ||
+      (iface->owner == dst->owner))
     return ENET_LINK_LOOP;
 
   iface->dest.iface= dst;
@@ -179,7 +183,7 @@ int net_iface_has_address(net_iface_t * iface, net_addr_t addr)
   if (iface->type == NET_IFACE_RTR)
     return 0;
 
-  if (iface->tIfaceAddr == addr)
+  if (iface->addr == addr)
     return 1;
   return 0;
 }
@@ -199,8 +203,8 @@ int net_iface_has_prefix(net_iface_t * iface, ip_pfx_t prefix)
 net_addr_t net_iface_src_address(net_iface_t * iface)
 {
   if (iface->type == NET_IFACE_RTR)
-    return iface->src_node->addr;
-  return iface->tIfaceAddr;
+    return iface->owner->rid;
+  return iface->addr;
 }
 
 // -----[ net_iface_dst_prefix ]-------------------------------------
@@ -209,12 +213,37 @@ ip_pfx_t net_iface_dst_prefix(net_iface_t * iface)
   return net_iface_id(iface);
 }
 
+// -----[ net_iface_dst_elem ]---------------------------------------
+int net_iface_dst_elem(net_iface_t * iface, net_elem_t * elem)
+{
+  switch (iface->type) {
+  case NET_IFACE_LOOPBACK:
+  case NET_IFACE_VIRTUAL:
+    return -1;
+  case NET_IFACE_PTMP:
+    elem->type= SUBNET;
+    elem->subnet= iface->dest.subnet;
+    break;
+  case NET_IFACE_RTR:
+    elem->type= NODE;
+    elem->node= iface->dest.iface->owner;
+    break;
+  case NET_IFACE_PTP:
+    elem->type= LINK;
+    elem->link= iface->dest.iface;
+    break;
+  default:
+    abort();
+  }
+  return 0;
+}
+
 // -----[ net_iface_id ]---------------------------------------------
 net_iface_id_t net_iface_id(net_iface_t * iface)
 {
   net_iface_id_t tID;
-  tID.tNetwork= iface->tIfaceAddr;
-  tID.uMaskLen= iface->tIfaceMask;
+  tID.network= iface->addr;
+  tID.mask= iface->mask;
   return tID;
 }
 
@@ -234,33 +263,33 @@ int net_iface_factory(net_node_t * node, net_iface_id_t id,
 {
   switch (type) {
   case NET_IFACE_LOOPBACK:
-    if (id.uMaskLen != 32)
+    if (id.mask != 32)
       return ENET_IFACE_INVALID_ID;
-    *iface_ref= _iface_new_loopback(node, id.tNetwork);
+    *iface_ref= _iface_new_loopback(node, id.network);
     break;
 
   case NET_IFACE_RTR:
-    if (id.uMaskLen != 32)
+    if (id.mask != 32)
       return ENET_IFACE_INVALID_ID;
-    *iface_ref= net_iface_new_rtr(node, id.tNetwork);
+    *iface_ref= net_iface_new_rtr(node, id.network);
     break;
 
   case NET_IFACE_PTP:
-    if (id.uMaskLen >= 32)
+    if (id.mask >= 32)
       return ENET_IFACE_INVALID_ID;
     *iface_ref= net_iface_new_ptp(node, id);
     break;
 
   case NET_IFACE_PTMP:
-    if (id.uMaskLen >= 32)
+    if (id.mask >= 32)
       return ENET_IFACE_INVALID_ID;
     *iface_ref= net_iface_new_ptmp(node, id);
     break;
 
   case NET_IFACE_VIRTUAL:
-    if (id.uMaskLen != 32)
+    if (id.mask != 32)
       return ENET_IFACE_INVALID_ID;
-    *iface_ref= _iface_new_virtual(node, id.tNetwork);
+    *iface_ref= _iface_new_virtual(node, id.network);
     break;
 
   default:
@@ -314,7 +343,7 @@ int net_iface_send(net_iface_t * iface, net_addr_t l2_addr,
   // Check link's state
   if (!net_iface_is_connected(iface) ||
       !net_iface_is_enabled(iface)) {
-    network_drop(msg);
+    network_drop(msg, "link not connected or disabled");
     return ENET_LINK_DOWN;
   }
   
@@ -360,14 +389,14 @@ void net_iface_set_enabled(net_iface_t * iface, int enabled)
  */
 igp_weight_t net_iface_get_metric(net_iface_t * iface, net_tos_t tos)
 {
-  if (iface->pWeights == NULL)
+  if (iface->weights == NULL)
     return IGP_MAX_WEIGHT;
-  return iface->pWeights->data[tos];
+  return iface->weights->data[tos];
 }
 
 // -----[ net_iface_set_metric ]-------------------------------------
 /**
- * To-do: return error if (pWeights == NULL) or if (depth <= tTOS)
+ * To-do: return error if (weights == NULL) or if (depth <= tTOS)
  */
 int net_iface_set_metric(net_iface_t * iface, net_tos_t tos,
 			 igp_weight_t weight, net_iface_dir_t dir)
@@ -375,8 +404,8 @@ int net_iface_set_metric(net_iface_t * iface, net_tos_t tos,
   net_error_t error;
   net_iface_t * rev_iface;
 
-  assert(iface->pWeights != NULL);
-  assert(tos < net_igp_weights_depth(iface->pWeights));
+  assert(iface->weights != NULL);
+  assert(tos < net_igp_weights_depth(iface->weights));
 
   if (dir == BIDIR) {
     error= _net_iface_get_reverse(iface, &rev_iface);
@@ -387,7 +416,7 @@ int net_iface_set_metric(net_iface_t * iface, net_tos_t tos,
       return error;
   }
 
-  iface->pWeights->data[tos]= weight;
+  iface->weights->data[tos]= weight;
   return ESUCCESS;
 }
 
@@ -470,34 +499,34 @@ void net_iface_add_load(net_iface_t * iface, net_link_load_t inc_load)
 /////////////////////////////////////////////////////////////////////
 
 // -----[ net_iface_dump_type ]--------------------------------------
-void net_iface_dump_type(SLogStream * stream, net_iface_t * iface)
+void net_iface_dump_type(gds_stream_t * stream, net_iface_t * iface)
 {
   char * name= net_iface_type2name(iface->type, 1);
   assert(name != NULL);
-  log_printf(stream, "%s", name);
+  stream_printf(stream, "%s", name);
 }
 
 // -----[ net_iface_dump_id ]----------------------------------------
-void net_iface_dump_id(SLogStream * stream, net_iface_t * iface)
+void net_iface_dump_id(gds_stream_t * stream, net_iface_t * iface)
 {
   ip_prefix_dump(stream, net_iface_id(iface));
 }
 
 // -----[ net_iface_dump_dest ]--------------------------------------
-void net_iface_dump_dest(SLogStream * stream, net_iface_t * iface)
+void net_iface_dump_dest(gds_stream_t * stream, net_iface_t * iface)
 {
   if (!iface->connected) {
-    log_printf(stream, "not-connected");
+    stream_printf(stream, "not-connected");
     return;
   }
   switch (iface->type) {
   case NET_IFACE_RTR:
-    ip_address_dump(stream, iface->tIfaceAddr);
+    ip_address_dump(stream, iface->addr);
     break;
   case NET_IFACE_PTP:
     net_iface_dump_id(stream, iface->dest.iface);
-    log_printf(stream, "\t");
-    ip_address_dump(stream, iface->dest.iface->src_node->addr);
+    stream_printf(stream, "\t");
+    node_dump_id(stream, iface->dest.iface->owner);
     break;
   case NET_IFACE_PTMP:
     ip_prefix_dump(stream, iface->dest.subnet->prefix);
@@ -510,13 +539,13 @@ void net_iface_dump_dest(SLogStream * stream, net_iface_t * iface)
 }
 
 // -----[ net_iface_dump ]-------------------------------------------
-void net_iface_dump(SLogStream * stream, net_iface_t * iface, int with_dest)
+void net_iface_dump(gds_stream_t * stream, net_iface_t * iface, int with_dest)
 {
   net_iface_dump_type(stream, iface);
-  log_printf(stream, "\t");
+  stream_printf(stream, "\t");
   net_iface_dump_id(stream, iface);
   if (with_dest) {
-    log_printf(stream, "\t");
+    stream_printf(stream, "\t");
     net_iface_dump_dest(stream, iface);
   }
 }
@@ -533,7 +562,7 @@ void net_iface_dump(SLogStream * stream, net_iface_t * iface, int with_dest)
  * %s             | state (up/down)
  * %w             | IGP weight
  */
-static int _net_iface_dumpf(SLogStream * stream, void * ctx,
+static int _net_iface_dumpf(gds_stream_t * stream, void * ctx,
 			    char format)
 {
   net_iface_t * iface= (net_iface_t *) ctx;
@@ -545,25 +574,25 @@ static int _net_iface_dumpf(SLogStream * stream, void * ctx,
     net_iface_dump_id(stream, iface);
     break;
   case 'c':
-    log_printf(stream, "%u", iface->phys.capacity);
+    stream_printf(stream, "%u", iface->phys.capacity);
     break;
   case 'd':
-    log_printf(stream, "%u", iface->phys.delay);
+    stream_printf(stream, "%u", iface->phys.delay);
     break;
   case 'l':
-    log_printf(stream, "%u", iface->phys.load);
+    stream_printf(stream, "%u", iface->phys.load);
     break;
   case 's':
     if (_net_iface_get_flag(iface, NET_LINK_FLAG_UP))
-      log_printf(stream, "UP");
+      stream_printf(stream, "UP");
     else
-      log_printf(stream, "DOWN");
+      stream_printf(stream, "DOWN");
     break;
   case 'w':
-    if (iface->pWeights != NULL)
-      log_printf(stream, "%u", iface->pWeights->data[0]);
+    if (iface->weights != NULL)
+      stream_printf(stream, "%u", iface->weights->data[0]);
     else
-      log_printf(stream, "undef");
+      stream_printf(stream, "undef");
     break;
   default:
     return -1;
@@ -572,7 +601,7 @@ static int _net_iface_dumpf(SLogStream * stream, void * ctx,
 }
 
 // -----[ net_iface_dumpf ]------------------------------------------
-void net_iface_dumpf(SLogStream * stream, net_iface_t * iface,
+void net_iface_dumpf(gds_stream_t * stream, net_iface_t * iface,
 		     const char * format)
 {
   assert(str_format_for_each(stream, _net_iface_dumpf, iface, format) == 0);
@@ -585,7 +614,8 @@ void net_iface_dumpf(SLogStream * stream, net_iface_t * iface,
 /////////////////////////////////////////////////////////////////////
 
 // -----[ net_iface_str2type ]---------------------------------------
-net_error_t net_iface_str2type(char * str, net_iface_type_t * ptr_type)
+net_error_t net_iface_str2type(const char * str,
+			       net_iface_type_t * ptr_type)
 {
   net_iface_type_t type= 0;
   while (type < NET_IFACE_MAX) {
@@ -612,21 +642,21 @@ const char * net_iface_type2str(net_iface_type_t type)
  * Convert a string to an interface identifier (ID). The string can
  * be an IP address or a prefix.
  */
-net_error_t net_iface_str2id(char * str, net_iface_id_t * ptr_id)
+net_error_t net_iface_str2id(const char * str, net_iface_id_t * ptr_id)
 {
-  SNetDest id;
+  ip_dest_t id;
 
   // Destination must be an IP address or an IP prefix
   if ((ip_string_to_dest(str, &id) < 0) ||
-      (id.tType == NET_DEST_ANY) ||
-      (id.tType == NET_DEST_INVALID)) {
+      (id.type == NET_DEST_ANY) ||
+      (id.type == NET_DEST_INVALID)) {
     return ENET_IFACE_INVALID_ID;
   }
 
-  if (((id.tType == NET_DEST_ADDRESS) &&
-       (id.uDest.tAddr == NET_ADDR_ANY)) ||
-      ((id.tType == NET_DEST_PREFIX) &&
-       (id.uDest.sPrefix.tNetwork == NET_ADDR_ANY)))
+  if (((id.type == NET_DEST_ADDRESS) &&
+       (id.addr == NET_ADDR_ANY)) ||
+      ((id.type == NET_DEST_PREFIX) &&
+       (id.prefix.network == NET_ADDR_ANY)))
     return ENET_IFACE_INVALID_ID;
 
   // Convert destination to prefix (interface ID)
