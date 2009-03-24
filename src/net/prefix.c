@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/11/2002
-// $Id: prefix.c,v 1.22 2008-04-10 11:27:00 bqu Exp $
+// $Id: prefix.c,v 1.23 2009-03-24 16:22:30 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,7 +12,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 #include <net/prefix.h>
 
@@ -26,47 +26,47 @@
  *   -1    if buffer too small
  *   >= 0  number of characters written
  */
-int ip_address_to_string(net_addr_t tAddr, char * pcAddr, size_t tDstSize)
+int ip_address_to_string(net_addr_t addr, char * pcAddr, size_t tDstSize)
 {
-  int iResult= snprintf(pcAddr, tDstSize, "%u.%u.%u.%u",
-			(unsigned int) (tAddr >> 24),
-			(unsigned int) (tAddr >> 16) & 255, 
-			(unsigned int) (tAddr >> 8) & 255,
-			(unsigned int) tAddr & 255);
-  return ((iResult < 0) || (iResult >= tDstSize)) ? -1 : iResult;
+  int result= snprintf(pcAddr, tDstSize, "%u.%u.%u.%u",
+			(unsigned int) (addr >> 24),
+			(unsigned int) (addr >> 16) & 255, 
+			(unsigned int) (addr >> 8) & 255,
+			(unsigned int) addr & 255);
+  return ((result < 0) || (result >= tDstSize)) ? -1 : result;
 }
 
 // ----- ip_address_dump --------------------------------------------
 /**
  *
  */
-void ip_address_dump(SLogStream * pStream, net_addr_t tAddr)
+void ip_address_dump(gds_stream_t * stream, net_addr_t addr)
 {
-  log_printf(pStream, "%u.%u.%u.%u",
-	     (tAddr >> 24), (tAddr >> 16) & 255,
-	     (tAddr >> 8) & 255, tAddr & 255);
+  stream_printf(stream, "%u.%u.%u.%u",
+	     (addr >> 24), (addr >> 16) & 255,
+	     (addr >> 8) & 255, addr & 255);
 }
 
 // ----- ip_string_to_address ---------------------------------------
 /**
  *
  */
-int ip_string_to_address(char * pcString, char ** ppcEndPtr,
-			 net_addr_t * ptAddr)
+int ip_string_to_address(const char * str, char ** end_ptr,
+			 net_addr_t * addr)
 {
-  unsigned long int ulDigit;
-  uint8_t uNumDigits= 4;
+  unsigned long int digit;
+  uint8_t num_digits= 4;
 
-  if (ptAddr == NULL)
+  if (addr == NULL)
     return -1;
-  *ptAddr= 0;
-  while (uNumDigits-- > 0) {
-    ulDigit= strtoul(pcString, ppcEndPtr, 10);
-    if ((pcString == *ppcEndPtr) || (ulDigit > 255) ||
-	((uNumDigits > 0) && (**ppcEndPtr != '.')))
+  *addr= 0;
+  while (num_digits-- > 0) {
+    digit= strtoul(str, end_ptr, 10);
+    if ((str == *end_ptr) || (digit > 255) ||
+	((num_digits > 0) && (**end_ptr != '.')))
       return -1;
-    pcString= *ppcEndPtr+1;
-    *ptAddr= (*ptAddr << 8)+ulDigit;
+    str= *end_ptr+1;
+    *addr= (*addr << 8)+digit;
   }
   return 0;
 }
@@ -81,11 +81,11 @@ int ip_string_to_address(char * pcString, char ** ppcEndPtr,
  *  -1 if A1 < A2
  */
 static inline
-int _ip_address_cmp(net_addr_t tAddr1, net_addr_t tAddr2)
+int _ip_address_cmp(net_addr_t addr1, net_addr_t addr2)
 {
-  if (tAddr1 > tAddr2)
+  if (addr1 > addr2)
     return 1;
-  if (tAddr1 < tAddr2)
+  if (addr1 < addr2)
     return -1;
   return 0;
 }
@@ -97,48 +97,48 @@ int _ip_address_cmp(net_addr_t tAddr1, net_addr_t tAddr2)
  * Pre: mask length in range [0,32]
  */
 static inline
-net_addr_t _ip_address_mask(net_mask_t tMaskLen)
+net_addr_t _ip_address_mask(net_mask_t mask)
 {
-  assert(tMaskLen <= 32);
+  assert(mask <= 32);
   // Warning, shift on 32-bit int is only defined if operand in [0-31]
   // Thus, special case for mask-length value of 0
-  if (tMaskLen == 0)
+  if (mask == 0)
     return 0;
-  return (0xffffffff << (32-tMaskLen));
+  return (0xffffffff << (32-mask));
 }
 
 // ----- uint32_to_prefix -------------------------------------------
 /**
  *
  */
-ip_pfx_t uint32_to_prefix(net_addr_t tPrefix, net_mask_t tMaskLen)
+ip_pfx_t uint32_to_prefix(net_addr_t addr, net_mask_t mask)
 {
-  ip_pfx_t sPrefix;
-  sPrefix.tNetwork= tPrefix;
-  sPrefix.uMaskLen= tMaskLen;
-  return sPrefix;
+  ip_pfx_t prefix;
+  prefix.network= addr;
+  prefix.mask= mask;
+  return prefix;
 }
 
 
 // ----- create_ip_prefix -------------------------------------------
-ip_pfx_t * create_ip_prefix(net_addr_t tAddr, net_mask_t tMaskLen)
+ip_pfx_t * create_ip_prefix(net_addr_t addr, net_mask_t mask)
 {
-  ip_pfx_t * pPrefix = (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
-  pPrefix->tNetwork= tAddr;
-  pPrefix->uMaskLen= tMaskLen;
-  return pPrefix;
+  ip_pfx_t * prefix = (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
+  prefix->network= addr;
+  prefix->mask= mask;
+  return prefix;
 }
 
 // ----- ip_prefix_dump ---------------------------------------------
 /**
  *
  */
-void ip_prefix_dump(SLogStream * pStream, ip_pfx_t sPrefix)
+void ip_prefix_dump(gds_stream_t * stream, ip_pfx_t prefix)
 {
-  log_printf(pStream, "%u.%u.%u.%u/%u",
-	     sPrefix.tNetwork >> 24, (sPrefix.tNetwork >> 16) & 255,
-	     (sPrefix.tNetwork >> 8) & 255, (sPrefix.tNetwork & 255),
-	     sPrefix.uMaskLen);
+  stream_printf(stream, "%u.%u.%u.%u/%u",
+	     prefix.network >> 24, (prefix.network >> 16) & 255,
+	     (prefix.network >> 8) & 255, (prefix.network & 255),
+	     prefix.mask);
 }
 
 // ----- ip_prefix_to_string ----------------------------------------
@@ -146,49 +146,49 @@ void ip_prefix_dump(SLogStream * pStream, ip_pfx_t sPrefix)
  *
  *
  */
-int ip_prefix_to_string(ip_pfx_t * pPrefix, char * pcPrefix, size_t tDstSize)
+int ip_prefix_to_string(ip_pfx_t * prefix, char * pcPrefix, size_t tDstSize)
 {
-  int iResult= snprintf(pcPrefix, tDstSize, "%u.%u.%u.%u/%u", 
-			(unsigned int) pPrefix->tNetwork >> 24,
-			(unsigned int) (pPrefix->tNetwork >> 16) & 255,
-			(unsigned int) (pPrefix->tNetwork >> 8) & 255,
-			(unsigned int) pPrefix->tNetwork & 255,
-			pPrefix->uMaskLen);
-  return ((iResult < 0) || (iResult >= tDstSize)) ? -1 : iResult;
+  int result= snprintf(pcPrefix, tDstSize, "%u.%u.%u.%u/%u", 
+			(unsigned int) prefix->network >> 24,
+			(unsigned int) (prefix->network >> 16) & 255,
+			(unsigned int) (prefix->network >> 8) & 255,
+			(unsigned int) prefix->network & 255,
+			prefix->mask);
+  return ((result < 0) || (result >= tDstSize)) ? -1 : result;
 }
 
 // ----- ip_string_to_prefix ----------------------------------------
 /**
  *
  */
-int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
-			ip_pfx_t * pPrefix)
+int ip_string_to_prefix(const char * str, char ** end_ptr,
+			ip_pfx_t * prefix)
 {
-  unsigned long int ulDigit;
-  uint8_t uNumDigits= 4;
+  unsigned long int digit;
+  uint8_t num_digits= 4;
 
-  if (pPrefix == NULL)
+  if (prefix == NULL)
     return -1;
-  pPrefix->tNetwork= 0;
-  while (uNumDigits-- > 0) {
-    ulDigit= strtoul(pcString, ppcEndPtr, 10);
-    if ((ulDigit > 255) || (pcString == *ppcEndPtr))
+  prefix->network= 0;
+  while (num_digits-- > 0) {
+    digit= strtoul(str, end_ptr, 10);
+    if ((digit > 255) || (str == *end_ptr))
       return -1;
-    pcString= *ppcEndPtr+1;
-    pPrefix->tNetwork= (pPrefix->tNetwork << 8)+ulDigit;
-    if (**ppcEndPtr == '/')
+    str= *end_ptr+1;
+    prefix->network= (prefix->network << 8)+digit;
+    if (**end_ptr == '/')
       break;
-    if (**ppcEndPtr != '.')
+    if (**end_ptr != '.')
       return -1;
   }
-  if (**ppcEndPtr != '/')
+  if (**end_ptr != '/')
     return -1;
-  while (uNumDigits-- > 0)
-    pPrefix->tNetwork<<= 8;
-  ulDigit= strtoul(pcString, ppcEndPtr, 10);
-  if (ulDigit > 32)
+  while (num_digits-- > 0)
+    prefix->network<<= 8;
+  digit= strtoul(str, end_ptr, 10);
+  if (digit > 32)
     return -1;
-  pPrefix->uMaskLen= ulDigit;
+  prefix->mask= digit;
   return 0;
 }
 
@@ -207,50 +207,49 @@ int ip_string_to_prefix(char * pcString, char ** ppcEndPtr,
  * If the destination is an IP address, the function returns a
  * destination whose type is NET_DEST_ADDRESS.
  */
-int ip_string_to_dest(char * pcPrefix, SNetDest * psDest)
+int ip_string_to_dest(const char * str, ip_dest_t * dest)
 {
-  char * pcEndChar;
+  char * endptr;
 
-  if (!strcmp(pcPrefix, "*")) {
-    psDest->tType= NET_DEST_ANY;
-    psDest->uDest.sPrefix.uMaskLen= 0;
-  } else if (!ip_string_to_prefix(pcPrefix, &pcEndChar,
-				  &psDest->uDest.sPrefix) &&
-	     (*pcEndChar == 0)) {
-    psDest->tType= NET_DEST_PREFIX;
-  } else if (!ip_string_to_address(pcPrefix, &pcEndChar,
-				   &psDest->uDest.sPrefix.tNetwork) &&
-	     (*pcEndChar == 0)) {
-    psDest->tType= NET_DEST_ADDRESS;
+  if (!strcmp(str, "*")) {
+    dest->type= NET_DEST_ANY;
+    dest->prefix.mask= 0;
+  } else if (!ip_string_to_prefix(str, &endptr, &dest->prefix) &&
+	     (*endptr == 0)) {
+    dest->type= NET_DEST_PREFIX;
+  } else if (!ip_string_to_address(str, &endptr,
+				   &dest->prefix.network) &&
+	     (*endptr == 0)) {
+    dest->type= NET_DEST_ADDRESS;
   } else {
-    psDest->tType= NET_DEST_INVALID;
+    dest->type= NET_DEST_INVALID;
     return -1;
   }
   return 0;
 }
 
 //---------- ip_prefix_to_dest ----------------------------------------------
-SNetDest ip_prefix_to_dest(ip_pfx_t sPrefix)
+ip_dest_t ip_prefix_to_dest(ip_pfx_t prefix)
 {
-  SNetDest sDest;
-  if (sPrefix.uMaskLen == 32){
-    sDest.tType = NET_DEST_ADDRESS;
-    sDest.uDest.tAddr = sPrefix.tNetwork;
+  ip_dest_t dest;
+  if (prefix.mask == 32){
+    dest.type= NET_DEST_ADDRESS;
+    dest.addr= prefix.network;
   }
   else {
-    sDest.tType = NET_DEST_PREFIX;
-    sDest.uDest.sPrefix = sPrefix;
+    dest.type= NET_DEST_PREFIX;
+    dest.prefix= prefix;
   }
-  return sDest;
+  return dest;
 }
 
 //---------- ip_address_to_dest ----------------------------------------------
-SNetDest ip_address_to_dest(net_addr_t tAddress)
+ip_dest_t ip_address_to_dest(net_addr_t addr)
 {
-  SNetDest sDest;
-  sDest.tType = NET_DEST_ADDRESS;
-  sDest.uDest.tAddr = tAddress;
-  return sDest;
+  ip_dest_t dest;
+  dest.type= NET_DEST_ADDRESS;
+  dest.addr= addr;
+  return dest;
 }
 
 
@@ -258,20 +257,20 @@ SNetDest ip_address_to_dest(net_addr_t tAddress)
 /**
  *
  */
-void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
+void ip_dest_dump(gds_stream_t * stream, ip_dest_t dest)
 {
-  switch (sDest.tType) {
+  switch (dest.type) {
   case NET_DEST_ADDRESS:
-    ip_address_dump(pStream, sDest.uDest.tAddr);
+    ip_address_dump(stream, dest.addr);
     break;
   case NET_DEST_PREFIX:
-    ip_prefix_dump(pStream, sDest.uDest.sPrefix);
+    ip_prefix_dump(stream, dest.prefix);
     break;
   case NET_DEST_ANY:
-    log_printf(pStream, "*");
+    stream_printf(stream, "*");
     break;
   default:
-    log_printf(pStream, "???");
+    stream_printf(stream, "???");
   }
 }
 
@@ -285,24 +284,24 @@ void ip_dest_dump(SLogStream * pStream, SNetDest sDest)
  *   0   if P1 == P2
  *   1   if P1 > P2
  */
-int ip_prefix_cmp(ip_pfx_t * pPrefix1, ip_pfx_t * pPrefix2)
+int ip_prefix_cmp(ip_pfx_t * prefix1, ip_pfx_t * prefix2)
 {
-  net_addr_t tMask;
+  net_addr_t mask;
 
   // Pointers are equal ?
-  if (pPrefix1 == pPrefix2)
+  if (prefix1 == prefix2)
     return 0;
   
   // Compare mask length
-  if (pPrefix1->uMaskLen < pPrefix2->uMaskLen) 
+  if (prefix1->mask < prefix2->mask) 
     return -1;
-  else if (pPrefix1->uMaskLen > pPrefix2->uMaskLen)
+  else if (prefix1->mask > prefix2->mask)
     return  1;
 
   // Compare masked network part
-  tMask= _ip_address_mask(pPrefix1->uMaskLen);
-  return _ip_address_cmp(pPrefix1->tNetwork & tMask,
-			 pPrefix2->tNetwork & tMask);
+  mask= _ip_address_mask(prefix1->mask);
+  return _ip_address_cmp(prefix1->network & mask,
+			 prefix2->network & mask);
 }
 
 // ----- ip_address_in_prefix ---------------------------------------
@@ -314,17 +313,17 @@ int ip_prefix_cmp(ip_pfx_t * pPrefix1, ip_pfx_t * pPrefix2)
  *   != 0  if address is in prefix
  *   0     otherwise
  */
-int ip_address_in_prefix(net_addr_t tAddr, ip_pfx_t sPrefix)
+int ip_address_in_prefix(net_addr_t addr, ip_pfx_t prefix)
 {
-  assert(sPrefix.uMaskLen <= 32);
+  assert(prefix.mask <= 32);
 
   // Warning, shift on 32-bit int is only defined if operand in [0-31]
   // Thus, special case for 0 mask-length (match everything)
-  if (sPrefix.uMaskLen == 0)
+  if (prefix.mask == 0)
     return 1;
 
-  return ((tAddr >> (32-sPrefix.uMaskLen)) ==
-	  (sPrefix.tNetwork >> (32-sPrefix.uMaskLen)));
+  return ((addr >> (32-prefix.mask)) ==
+	  (prefix.network >> (32-prefix.mask)));
 }
 
 // ----- ip_prefix_in_prefix ----------------------------------------
@@ -335,23 +334,23 @@ int ip_address_in_prefix(net_addr_t tAddr, ip_pfx_t sPrefix)
  *   != 0  if P1 is in P2
  *   0     otherwise
  */
-int ip_prefix_in_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2)
+int ip_prefix_in_prefix(ip_pfx_t prefix1, ip_pfx_t prefix2)
 {
-  assert(sPrefix2.uMaskLen <= 32);
+  assert(prefix2.mask <= 32);
 
   // Warning, shift on 32-bit int is only defined if operand in [0-31]
   // Thus, special case for 0 mask-length (match everything)
-  if (sPrefix2.uMaskLen == 0)
+  if (prefix2.mask == 0)
     return 1;
 
   // P1.masklen must be >= P2.masklen
-  if (sPrefix1.uMaskLen < sPrefix2.uMaskLen)
+  if (prefix1.mask < prefix2.mask)
     return 0;
 
   // Compare bits masked with less specific (P2)
   // Warning, shift on 32-bit int is only defined if operand in [0-31]
-  return ((sPrefix1.tNetwork >> (32-sPrefix2.uMaskLen)) ==
-          (sPrefix2.tNetwork >> (32-sPrefix2.uMaskLen)));
+  return ((prefix1.network >> (32-prefix2.mask)) ==
+          (prefix2.network >> (32-prefix2.mask)));
 }
 
 // ----- ip_prefix_ge_prefix ----------------------------------------
@@ -359,48 +358,48 @@ int ip_prefix_in_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2)
  * Test if P1 matches P2 and its prefix length is greater than or
  * equal to L.
  */
-int ip_prefix_ge_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2,
-			uint8_t uMaskLen)
+int ip_prefix_ge_prefix(ip_pfx_t prefix1, ip_pfx_t prefix2,
+			uint8_t mask)
 {
-  if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
+  if (!ip_prefix_in_prefix(prefix1, prefix2))
     return 0;
 
-  return (sPrefix1.uMaskLen >= uMaskLen);
+  return (prefix1.mask >= mask);
 }
 
 // ----- ip_prefix_le_prefix ----------------------------------------
 /**
  * Test if P1 is less or equal than P2.
  */
-int ip_prefix_le_prefix(ip_pfx_t sPrefix1, ip_pfx_t sPrefix2,
-			uint8_t uMaskLen)
+int ip_prefix_le_prefix(ip_pfx_t prefix1, ip_pfx_t prefix2,
+			uint8_t mask)
 {
-  if (!ip_prefix_in_prefix(sPrefix1, sPrefix2))
+  if (!ip_prefix_in_prefix(prefix1, prefix2))
     return 0;
 
-  return (sPrefix1.uMaskLen <= uMaskLen);
+  return (prefix1.mask <= mask);
 }
 
 // ----- ip_prefix_copy ---------------------------------------------
 /**
  * Make a copy of the given IP prefix.
  */
-ip_pfx_t * ip_prefix_copy(ip_pfx_t * pPrefix)
+ip_pfx_t * ip_prefix_copy(ip_pfx_t * prefix)
 {
-  ip_pfx_t * pPrefixCopy= (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
-  memcpy(pPrefixCopy, pPrefix, sizeof(ip_pfx_t));
-  return pPrefixCopy;
+  ip_pfx_t * prefix_copy= (ip_pfx_t *) MALLOC(sizeof(ip_pfx_t));
+  memcpy(prefix_copy, prefix, sizeof(ip_pfx_t));
+  return prefix_copy;
 }
 
 // ----- ip_prefix_destroy ------------------------------------------
 /**
  *
  */
-void ip_prefix_destroy(ip_pfx_t ** ppPrefix)
+void ip_prefix_destroy(ip_pfx_t ** prefix_ref)
 {
-  if (*ppPrefix != NULL) {
-    FREE(*ppPrefix);
-    *ppPrefix= NULL;
+  if (*prefix_ref != NULL) {
+    FREE(*prefix_ref);
+    *prefix_ref= NULL;
   }
 }
 
@@ -408,8 +407,8 @@ void ip_prefix_destroy(ip_pfx_t ** ppPrefix)
 /**
  * This function masks the remaining bits of the prefix's address.
  */
-void ip_prefix_mask(ip_pfx_t * pPrefix)
+void ip_prefix_mask(ip_pfx_t * prefix)
 {
-  pPrefix->tNetwork&= _ip_address_mask(pPrefix->uMaskLen);
+  prefix->network&= _ip_address_mask(prefix->mask);
 }
 

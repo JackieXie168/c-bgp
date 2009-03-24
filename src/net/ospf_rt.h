@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 14/06/2005
-// @lastdate 14/05/2005
+// $Id: ospf_rt.h,v 1.13 2009-03-24 16:22:02 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_OSPF_RT_H__
@@ -86,7 +86,7 @@ extern void ospf_nh_list_dump(FILE * pStream, next_hops_list_t * pNHList,
 extern void OSPF_rt_perror(FILE * pStream, int iErrorCode);
 // ----- route_info_create ------------------------------------------
 extern SOSPFRouteInfo * OSPF_route_info_create(ospf_dest_type_t  tOSPFDestinationType,
-                                       SPrefix            sPrefix,
+                                       ip_pfx_t prefix,
 				       uint32_t           uWeight,
 				       ospf_area_t        tOSPFArea,
 				       ospf_path_type_t   tOSPFPathType,
@@ -97,7 +97,7 @@ int OSPF_route_info_add_nextHop(SOSPFRouteInfo * pRouteInfo, SOSPFNextHop * pNH)
 // ----- OSPF_route_info_dump ------------------------------------------------
 extern void OSPF_route_info_dump(FILE * pStream, SOSPFRouteInfo * pRouteInfo);
 // ----- OSPF_rt_find_exact --------------------------------------------------
-//extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
+//extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, ip_pfx_t prefix,
 //			      net_route_type_t tType, ospf_area_t tArea);
 // ----- OSPF_rt_dump -------------------------------------------------------------
 extern int OSPF_rt_dump(FILE * pStream, SOSPFRT * pRT, int iOption, ospf_path_type_t tPathType, 
@@ -115,13 +115,13 @@ extern void OSPF_rt_destroy(SOSPFRT ** ppRT);
 extern SOSPFRouteInfo * OSPF_rt_find_best(SOSPFRT * pRT, net_addr_t tAddr,
 				    net_route_type_t tType);
 // ----- rt_find_exact ----------------------------------------------
-extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, SPrefix sPrefix,
+extern SOSPFRouteInfo * OSPF_rt_find_exact(SOSPFRT * pRT, ip_pfx_t prefix,
 				     net_route_type_t tType, ospf_area_t tArea);
 // ----- rt_add_route -----------------------------------------------
-extern int OSPF_rt_add_route(SOSPFRT * pRT, SPrefix sPrefix,
+extern int OSPF_rt_add_route(SOSPFRT * pRT, ip_pfx_t prefix,
 			SOSPFRouteInfo * pRouteInfo);
 // ----- rt_del_route -----------------------------------------------
-extern int OSPF_rt_del_route(SOSPFRT * pRT, SPrefix * pPrefix, SOSPFNextHop * pNextHop,
+extern int OSPF_rt_del_route(SOSPFRT * pRT, ip_pfx_t * prefix, SOSPFNextHop * pNextHop,
 		 net_route_type_t tType);
 
 

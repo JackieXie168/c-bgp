@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/01/2007
-// $Id: tm.c,v 1.5 2008-06-12 07:50:23 bqu Exp $
+// $Id: tm.c,v 1.6 2009-03-24 16:28:11 bqu Exp $
 // ==================================================================
 // TODO:
 //   - what action must be taken in case of incomplete record-route
@@ -26,37 +26,38 @@
 #include <libgds/str_util.h>
 #include <libgds/tokenizer.h>
 #include <net/network.h>
+#include <net/node.h>
 #include <net/icmp.h>
 #include <net/icmp_options.h>
 #include <net/tm.h>
 #include <net/util.h>
+#include <util/lrp.h>
 
-#define __VERBOSE
+#define MAX_TM_LINE_LEN 80
+
+static lrp_t * _parser= NULL;
+
+#define DEBUG
+#include <libgds/debug.h>
 
 // -----[ net_tm_perror ]--------------------------------------------
-/**
- *
- */
-void net_tm_perror(SLogStream * stream, int error)
+void net_tm_perror(gds_stream_t * stream, int error)
 {
   char * error_str= net_tm_strerror(error);
   if (error_str != NULL)
-    log_printf(stream, error_str);
+    stream_printf(stream, error_str);
   else
-    log_printf(stream, "unknown error (%d)", error);
+    stream_printf(stream, "unknown error (%d)", error);
 }
 
 // -----[ net_tm_strerror ]--------------------------------------------
-/**
- *
- */
 char * net_tm_strerror(int error)
 {
   switch (error) {
   case NET_TM_SUCCESS:
     return "success";
-  case NET_TM_ERROR_UNEXPECTED:
-    return "unexpected error";
+  case NET_TM_ERROR:
+    return "undefined error";
   case NET_TM_ERROR_OPEN:
     return "failed to open file";
   case NET_TM_ERROR_NUM_PARAMS:
@@ -73,143 +74,101 @@ char * net_tm_strerror(int error)
   return NULL;
 }
 
-// -----[ net_tm_parser ]--------------------------------------------
-/**
- * Parse a traffic matrix.
- *
- * Format:
- *   <in-rt> <in-if> <dst-pfx> <V> [<tos>]
- *
- * where <in-rt>   is the source router
- *       <in-if>   is it's source interface
- *       <dst-pfx> is the destination
- *       <load>    is the volume of traffic
- *       <tos>     is the TOS (optional)
- */
-int net_tm_parser(FILE * stream)
+// -----[ _parse ]---------------------------------------------------
+static inline int _parse(lrp_t * parser)
 {
-  char acFileLine[80];
-  STokenizer * pTokenizer;
-  STokens * pTokens;
-  int error= NET_TM_SUCCESS;
-  char * pcValue;
-  unsigned int uValue;
-  uint32_t uLineNumber= 0;
+  unsigned int num_fields;
+  const char * field;
+  const char * field_src, * field_dst;
+  int result;
   net_addr_t src_addr;
   net_node_t * node;
-  //SPrefix sSrcIface;
-  //net_iface_t * pSrcLink;
-  SNetDest sDst;
+  ip_dest_t dest;
   net_link_load_t load;
-  //net_tos_t tos= 0;
   network_t * network= network_get_default();
-  uint8_t options= ICMP_RR_OPTION_LOAD;
 
-  pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
-  
-  while ((!feof(stream)) && (error == NET_TM_SUCCESS)) {
-    if (fgets(acFileLine, sizeof(acFileLine), stream) == NULL)
-      break;
-
-    uLineNumber++;
-
-    // Split the line in tokens
-    if (tokenizer_run(pTokenizer, acFileLine)) {
-      error= NET_TM_ERROR_UNEXPECTED;
-      break;
-    }
-
-    pTokens= tokenizer_get_tokens(pTokenizer);
+  while (lrp_get_next_line(parser)) {
+    if (lrp_get_num_fields(parser, &num_fields) < 0)
+      return -1;
 
     // We should have at least 4 tokens
-    if (tokens_get_num(pTokens) < 4) {
-      error= NET_TM_ERROR_NUM_PARAMS;
-      break;
+    if (num_fields != 4) {
+      lrp_set_user_error(parser, "incorrect number of fields (4 expected)");
+      return NET_TM_ERROR_NUM_PARAMS;
     }
 
     // Source node
-    pcValue= tokens_get_string_at(pTokens, 0);
-    if (str2address(pcValue, &src_addr) < 0) {
-      error= NET_TM_ERROR_INVALID_SRC;
-      break;
+    field_src= lrp_get_field(parser, 0);
+    if (str2address(field_src, &src_addr) < 0) {
+      lrp_set_user_error(parser, "invalid source \"%s\"", field_src);
+      return NET_TM_ERROR_INVALID_SRC;
     }
     node= network_find_node(network, src_addr);
     if (node == NULL) {
-      error= NET_TM_ERROR_UNKNOWN_SRC;
-      break;
+      lrp_set_user_error(parser, "unknown source \"%s\"", field_src);
+      return NET_TM_ERROR_UNKNOWN_SRC;
     }
     
     // Source interface
-    pcValue= tokens_get_string_at(pTokens, 1);
+    field= lrp_get_field(parser, 1);
     // Not used for forwarding (yet)
 
     // Destination prefix
-    pcValue= tokens_get_string_at(pTokens, 2);
-    if (ip_string_to_dest(pcValue, &sDst) < 0) {
-      error= NET_TM_ERROR_INVALID_DST;
-      break;
+    field_dst= lrp_get_field(parser, 2);
+    if (ip_string_to_dest(field_dst, &dest) < 0) {
+      lrp_set_user_error(parser, "invalid destination \"%s\"", field_dst);
+      return NET_TM_ERROR_INVALID_DST;
     }
 
     // Load (volume of traffic)
-    pcValue= tokens_get_string_at(pTokens, 3);
-    if (str_as_uint(pcValue, &uValue) < 0) {
-      error= NET_TM_ERROR_INVALID_LOAD;
-      break;
+    field= lrp_get_field(parser, 3);
+    if (str2capacity(field, &load) < 0) {
+      lrp_set_user_error(parser, "invalid load \"%s\"", field);
+      return NET_TM_ERROR_INVALID_LOAD;
     }
-    load= uValue;
 
     // Optional TOS ?
     // --> Not supported (yet)
-    
-    if (sDst.tType == NET_DEST_PREFIX)
-      options|= ICMP_RR_OPTION_ALT_DEST;
 
-#ifdef __VERBOSE
-    fprintf(stderr, "load traffic from ");
-    ip_address_dump(pLogErr, node->addr);
-    fprintf(stderr, " to ");
-    ip_dest_dump(pLogErr, sDst);
-    fprintf(stderr, ", volume=%u\n", (unsigned int) load);
-#endif /* __VERBOSE */
+    __debug("load traffic\n"
+	    "  +-- from  :%s\n"
+	    "  +-- to    :%s\n",
+	    "  +-- volume:%u\n", 
+	    field_src, field_dst, (unsigned int) load);
 
-    // Trace route and load traffic
-    ip_trace_t * trace;
-    error= icmp_record_route(node, sDst.uDest.tAddr,
-			     &sDst.uDest.sPrefix,
-			     255, options, &trace, load);
-    if (error != ESUCCESS) {
-      error= NET_TM_ERROR_UNEXPECTED;
-      break;
-    }
-
-#ifdef __VERBOSE
-    fprintf(stderr, "--> ");
-    ip_trace_dump(pLogErr, trace, IP_TRACE_DUMP_LENGTH|IP_TRACE_DUMP_SUBNETS);
-    fprintf(stderr, "\n");
-#endif /* __VERBOSE */
-
-    ip_trace_destroy(&trace);
+    result= node_load_flow(node, IP_ADDR_ANY, dest.addr, load, NULL, NULL);
+    if (result < 0)
+      return NET_TM_ERROR;
   }
-  
-  tokenizer_destroy(&pTokenizer);
-  return error;
+  return NET_TM_SUCCESS;
+}
+
+// -----[ net_tm_parser ]--------------------------------------------
+int net_tm_parser(FILE * stream)
+{
+  lrp_set_stream(_parser, stream);
+  return _parse(_parser);
 }
 
 // -----[ net_tm_load ]----------------------------------------------
-/**
- * Load a traffic matrix.
- */
 int net_tm_load(const char * filename)
 {
-  FILE * pFile;
-  int error;
+  int result= lrp_open(_parser, filename);
+  if (result == 0)
+    result= _parse(_parser);
+  lrp_close(_parser);
+  return result;
+}
 
-  pFile= fopen(filename, "r");
-  if (pFile == NULL)
-    return NET_TM_ERROR_OPEN;
+// -----[ _tm_init ]-------------------------------------------------
+void _tm_init()
+{
+  _parser= lrp_create(MAX_TM_LINE_LEN, " \t");
+}
 
-  error= net_tm_parser(pFile);
-
-  fclose(pFile);
-  return error;
+// -----[ _tm_done ]-------------------------------------------------
+void _tm_done()
+{
+  if (_parser != NULL)
+    lrp_destroy(&_parser);
 }

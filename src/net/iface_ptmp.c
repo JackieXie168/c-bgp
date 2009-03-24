@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// $Id: iface_ptmp.c,v 1.5 2008-06-13 14:26:23 bqu Exp $
+// $Id: iface_ptmp.c,v 1.6 2009-03-24 16:11:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,17 +28,17 @@ static net_error_t _net_iface_ptmp_send(net_iface_t * self,
   net_subnet_t * subnet;
   net_iface_t * dst_iface;
   net_error_t error;
+  int reached= 0;
 
   assert(self->type == NET_IFACE_PTMP);
   
   subnet= self->dest.subnet;
 
-  if ((msg != NULL) && (msg->protocol == NET_PROTOCOL_ICMP))
-    if ((error= icmp_process_options(ICMP_OPT_STATE_SUBNET,
-				     (net_node_t *) subnet,
-				     self, msg, NULL)) != ESUCCESS)
-      return error;
-
+  error= ip_opt_hook_msg_subnet(subnet, msg, &reached);
+  if (error != ESUCCESS)
+    return error;
+  if (reached)
+    return ESUCCESS;
 
   // Find destination node (based on "physical address")
   dst_iface= net_subnet_find_link(subnet, l2_addr);
@@ -57,8 +57,8 @@ static net_error_t _net_iface_ptmp_send(net_iface_t * self,
 net_iface_t * net_iface_new_ptmp(net_node_t * node, ip_pfx_t pfx)
 {
   net_iface_t * iface= net_iface_new(node, NET_IFACE_PTMP);
-  iface->tIfaceAddr= pfx.tNetwork;
-  iface->tIfaceMask= pfx.uMaskLen;
+  iface->addr= pfx.network;
+  iface->mask= pfx.mask;
   iface->ops.send= _net_iface_ptmp_send;
   return iface;
 }

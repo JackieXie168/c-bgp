@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 05/08/2003
-// @lastdate 11/03/2008
+// $Id: link-list.c,v 1.12 2009-03-24 16:14:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -40,35 +40,36 @@
  * Links in this list are ordered based on their IDs. A link identifier
  * depends on the interface id (see net_iface_id()).
  */
-static int _net_links_link_compare(void * pItem1, void * pItem2,
-				   unsigned int uEltSize)
+static int _net_links_link_compare(const void * item1,
+				   const void * item2,
+				   unsigned int elt_size)
 {
-  net_iface_t * pIface1= *((net_iface_t **) pItem1);
-  net_iface_t * pIface2= *((net_iface_t **) pItem2);
+  net_iface_t * iface1= *((net_iface_t **) item1);
+  net_iface_t * iface2= *((net_iface_t **) item2);
 
 #ifdef __IFACE_ID_ADDR_MASK
 
-  SPrefix sId1= net_iface_id(pIface1);
-  SPrefix sId2= net_iface_id(pIface2);
+  ip_pfx_t sId1= net_iface_id(iface1);
+  ip_pfx_t sId2= net_iface_id(iface2);
 
   // Lexicographic order based on (addr, mask)
-  // Note that we MUST rely on the unmasked address (tNetwork)
+  // Note that we MUST rely on the unmasked address (network)
   // We cannot use the ip_prefixes_compare() function !!!
-  if (sId1.tNetwork > sId2.tNetwork)
+  if (sId1.network > sId2.network)
     return 1;
-  else if (sId1.tNetwork < sId2.tNetwork)
+  else if (sId1.network < sId2.network)
     return -1;
 
-  if (sId1.uMaskLen > sId2.uMaskLen)
+  if (sId1.mask > sId2.mask)
     return 1;
-  else if (sId1.uMaskLen < sId2.uMaskLen)
+  else if (sId1.mask < sId2.mask)
     return -1;
 
 #else
 
-  if (pIface1->tIfaceAddr > pIface2->tIfaceAddr)
+  if (iface1->addr > iface2->addr)
     return 1;
-  if (pIface1->tIfaceAddr < pIface2->tIfaceAddr)
+  if (iface1->addr < iface2->addr)
     return -1;
 
 #endif /* __IFACE_ID_ADDR_MASK */
@@ -77,10 +78,10 @@ static int _net_links_link_compare(void * pItem1, void * pItem2,
 }
 
 // ----- _net_links_link_destroy -------------------------------------
-static void _net_links_link_destroy(void * pItem)
+static void _net_links_link_destroy(void * item, const void * ctx)
 {
-  net_iface_t ** ppLink= (net_iface_t **) pItem;
-  net_link_destroy(ppLink);
+  net_iface_t ** link_ref= (net_iface_t **) item;
+  net_link_destroy(link_ref);
 }
 
 // ----- net_links_create -------------------------------------------
@@ -88,13 +89,14 @@ net_ifaces_t * net_links_create()
 {
   return ptr_array_create(ARRAY_OPTION_SORTED|ARRAY_OPTION_UNIQUE,
 			  _net_links_link_compare,
-			  _net_links_link_destroy);
+			  _net_links_link_destroy,
+			  NULL);
 }
 
 // ----- net_links_destroy ------------------------------------------
-void net_links_destroy(net_ifaces_t ** ppLinks)
+void net_links_destroy(net_ifaces_t ** links_ref)
 {
-  ptr_array_destroy(ppLinks);
+  ptr_array_destroy(links_ref);
 }
 
 // -----[ net_ifaces_add ]-------------------------------------------
@@ -105,21 +107,21 @@ void net_links_destroy(net_ifaces_t ** ppLinks)
  *   ESUCCESS if the interface could be added
  *   < 0 in case of error (duplicate)
  */
-net_error_t net_links_add(net_ifaces_t * pLinks, net_iface_t * pIface)
+net_error_t net_links_add(net_ifaces_t * links, net_iface_t * iface)
 {
-  if (ptr_array_add(pLinks, &pIface) < 0)
+  if (ptr_array_add(links, &iface) < 0)
     return ENET_IFACE_DUPLICATE;
   return ESUCCESS;
 }
 
 // ----- net_links_dump ---------------------------------------------
-void net_links_dump(SLogStream * pStream, net_ifaces_t * pIfaces)
+void net_links_dump(gds_stream_t * stream, net_ifaces_t * ifaces)
 {
-  unsigned int uIndex;
+  unsigned int index;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(pIfaces); uIndex++) {
-    net_link_dump(pStream, net_ifaces_at(pIfaces, uIndex));
-    log_printf(pStream, "\n");
+  for (index= 0; index < net_ifaces_size(ifaces); index++) {
+    net_link_dump(stream, net_ifaces_at(ifaces, index));
+    stream_printf(stream, "\n");
   }
 }
 
@@ -127,42 +129,42 @@ void net_links_dump(SLogStream * pStream, net_ifaces_t * pIfaces)
 /**
  * Find an interface based on its ID.
  */
-net_iface_t * net_links_find(net_ifaces_t * pIfaces, net_iface_id_t tIfaceID)
+net_iface_t * net_links_find(net_ifaces_t * ifaces, net_iface_id_t tIfaceID)
 {
   // Identification in this case is only the destination address
   net_iface_t sWrapIface= {
-    .tIfaceAddr= tIfaceID.tNetwork,
+    .addr= tIfaceID.network,
 #ifdef __IFACE_ID_ADDR_MASK
-    .tIfaceMask= tIfaceID.uMaskLen,
+    .mask= tIfaceID.mask,
 #endif /* __IFACE_ID_ADDR_MASK */
   };
   net_iface_t * pWrapIface= &sWrapIface;
-  unsigned int uIndex;
+  unsigned int index;
 
-  if (ptr_array_sorted_find_index(pIfaces, &pWrapIface, &uIndex) == 0)
-    return net_ifaces_at(pIfaces, uIndex);
+  if (ptr_array_sorted_find_index(ifaces, &pWrapIface, &index) == 0)
+    return net_ifaces_at(ifaces, index);
   return NULL;
 }
 
-// ----- net_links_get_enum -----------------------------------------
-enum_t * net_links_get_enum(net_ifaces_t * pIfaces)
+// -----[ net_links_get_enum ]---------------------------------------
+gds_enum_t * net_links_get_enum(net_ifaces_t * ifaces)
 {
-  return _array_get_enum((SArray *) pIfaces);
+  return _array_get_enum((array_t *) ifaces);
 }
 
 // -----[ net_links_find_iface ]-------------------------------------
-net_iface_t * net_links_find_iface(net_ifaces_t * pIfaces,
-				   net_addr_t tIfaceAddr)
+net_iface_t * net_links_find_iface(net_ifaces_t * ifaces,
+				   net_addr_t addr)
 {
-  net_iface_t * pIface;
-  unsigned int uIndex;
-  SPrefix sPrefix;
+  net_iface_t * iface;
+  unsigned int index;
+  ip_pfx_t prefix;
 
-  for (uIndex= 0; uIndex < net_ifaces_size(pIfaces); uIndex++) {
-    pIface= net_ifaces_at(pIfaces, uIndex);
-    sPrefix= net_iface_id(pIface);
-    if (tIfaceAddr == sPrefix.tNetwork)
-      return pIface;
+  for (index= 0; index < net_ifaces_size(ifaces); index++) {
+    iface= net_ifaces_at(ifaces, index);
+    prefix= net_iface_id(iface);
+    if (addr == prefix.network)
+      return iface;
   }
   return NULL;
 }

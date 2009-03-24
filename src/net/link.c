@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// $Id: link.c,v 1.26 2008-05-20 12:17:06 bqu Exp $
+// $Id: link.c,v 1.27 2009-03-24 16:15:26 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -13,7 +13,7 @@
 
 #include <assert.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 
 #include <net/error.h>
@@ -46,7 +46,7 @@ void net_link_destroy(net_iface_t ** link_ref)
     //  (*ppLink)->fDestroy((*ppLink)->pContext);
 
     // Destroy IGP weights
-    //net_igp_weights_destroy(&(*ppLink)->pWeights);
+    //net_igp_weights_destroy(&(*ppLink)->weights);
 
     net_iface_destroy(link_ref);
   }
@@ -110,13 +110,13 @@ net_error_t net_link_create_rtr(net_node_t * src_node,
     return ENET_LINK_LOOP;
 
   // Create source network interface
-  error= _net_link_create_iface(src_node, net_iface_id_addr(dst_node->addr),
+  error= _net_link_create_iface(src_node, net_iface_id_addr(dst_node->rid),
 				NET_IFACE_RTR, &src_iface);
   if (error != ESUCCESS)
     return error;
 
   // Create destination network interface
-  error= _net_link_create_iface(dst_node, net_iface_id_addr(src_node->addr),
+  error= _net_link_create_iface(dst_node, net_iface_id_addr(src_node->rid),
 				NET_IFACE_RTR, &dst_iface);
   if (error != ESUCCESS)
     return error;
@@ -153,7 +153,7 @@ net_error_t net_link_create_ptp(net_node_t * src_node,
     return ENET_LINK_LOOP;
 
   // Check that both prefixes have the same length
-  if (tSrcIfaceID.uMaskLen != tDstIfaceID.uMaskLen)
+  if (tSrcIfaceID.mask != tDstIfaceID.mask)
     return EUNEXPECTED;
 
   // Check that both masked prefixes are equal
@@ -161,7 +161,7 @@ net_error_t net_link_create_ptp(net_node_t * src_node,
     return EUNEXPECTED;
 
   // Check that both interfaces are different
-  if (tSrcIfaceID.tNetwork == tDstIfaceID.tNetwork)
+  if (tSrcIfaceID.network == tDstIfaceID.network)
     return EUNEXPECTED;
 
   // Create source network interface (if it does not exist)
@@ -200,7 +200,7 @@ net_error_t net_link_create_ptmp(net_node_t * src_node,
 				 net_addr_t iface_addr,
 				 net_iface_t ** iface_ref)
 {
-  ip_pfx_t tIfaceID= net_iface_id_pfx(iface_addr, subnet->prefix.uMaskLen);
+  ip_pfx_t tIfaceID= net_iface_id_pfx(iface_addr, subnet->prefix.mask);
   net_iface_t * src_iface;
   net_error_t error;
 
@@ -217,7 +217,9 @@ net_error_t net_link_create_ptmp(net_node_t * src_node,
     return error;
 
   // Connect subnet to interface
-  subnet_add_link(subnet, src_iface);
+  error= subnet_add_link(subnet, src_iface);
+  if (error != ESUCCESS)
+    return error;
 
   if (iface_ref != NULL)
     *iface_ref= src_iface;
@@ -260,28 +262,28 @@ net_error_t net_link_set_phys_attr(net_iface_t * iface,
  *   <igp-adv> is either YES or NO
  *   <ospf-area> is an integer
  */
-void net_link_dump(SLogStream * stream, net_iface_t * link)
+void net_link_dump(gds_stream_t * stream, net_iface_t * link)
 {
   net_iface_dump(stream, link, 1);
 
   /* Link delay */
-  log_printf(stream, "\t%u", link->phys.delay);
+  stream_printf(stream, "\t%u", link->phys.delay);
 
   /* Link weight */
-  if (link->pWeights != NULL)
-    log_printf(stream, "\t%u", link->pWeights->data[0]);
+  if (link->weights != NULL)
+    stream_printf(stream, "\t%u", link->weights->data[0]);
   else
-    log_printf(stream, "\t---");
+    stream_printf(stream, "\t---");
 
   /* Link state (up/down) */
   if (net_iface_is_enabled(link))
-    log_printf(stream, "\tUP");
+    stream_printf(stream, "\tUP");
   else
-    log_printf(stream, "\tDOWN");
+    stream_printf(stream, "\tDOWN");
 
 #ifdef OSPF_SUPPORT
   if (link->tArea != OSPF_NO_AREA)
-    log_printf(stream, "\tarea:%u", link->tArea);
+    stream_printf(stream, "\tarea:%u", link->tArea);
 #endif
 }
 
@@ -291,33 +293,33 @@ void net_link_dump(SLogStream * stream, net_iface_t * link)
  *
  * Format: <load> <capacity>
  */
-void net_link_dump_load(SLogStream * stream, net_iface_t * link)
+void net_link_dump_load(gds_stream_t * stream, net_iface_t * link)
 {
-  log_printf(stream, "%u\t%u", link->phys.load, link->phys.capacity);
+  stream_printf(stream, "%u\t%u", link->phys.load, link->phys.capacity);
 }
 
 // ----- net_link_dump_info -----------------------------------------
 /**
  * 
  */
-void net_link_dump_info(SLogStream * stream, net_iface_t * link)
+void net_link_dump_info(gds_stream_t * stream, net_iface_t * link)
 {
-  unsigned int uIndex;
+  unsigned int index;
 
-  log_printf(stream, "iface    : ");
+  stream_printf(stream, "iface    : ");
   net_iface_dump_id(stream, link);
-  log_printf(stream, "\ntype     : ");
+  stream_printf(stream, "\ntype     : ");
   net_iface_dump_type(stream, link);
-  log_printf(stream, "\ndest     : ");
+  stream_printf(stream, "\ndest     : ");
   net_iface_dump_dest(stream, link);
-  log_printf(stream, "\ncapacity : %u", link->phys.capacity);
-  log_printf(stream, "\ndelay    : %u", link->phys.delay);
-  log_printf(stream, "\nload     : %u\n", link->phys.load);
-  if (link->pWeights != NULL) {
-    log_printf(stream, "igp-depth: %u\n",
-	       net_igp_weights_depth(link->pWeights));
-    for (uIndex= 0; uIndex < net_igp_weights_depth(link->pWeights); uIndex++)
-      log_printf(stream, "tos%.2u    : %u\n", uIndex,
-		 link->pWeights->data[uIndex]);
+  stream_printf(stream, "\ncapacity : %u", link->phys.capacity);
+  stream_printf(stream, "\ndelay    : %u", link->phys.delay);
+  stream_printf(stream, "\nload     : %u\n", link->phys.load);
+  if (link->weights != NULL) {
+    stream_printf(stream, "igp-depth: %u\n",
+	       net_igp_weights_depth(link->weights));
+    for (index= 0; index < net_igp_weights_depth(link->weights); index++)
+      stream_printf(stream, "tos%.2u    : %u\n", index,
+		 link->weights->data[index]);
   }
 }

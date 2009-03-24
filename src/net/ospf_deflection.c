@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 8/09/2005
-// @lastdate 08/09/2005
+// $Id: ospf_deflection.c,v 1.4 2009-03-24 16:22:01 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

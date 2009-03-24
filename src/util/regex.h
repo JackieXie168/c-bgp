@@ -4,7 +4,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/09/2004
-// @lastdate 03/01/2008
+// $Id: regex.h,v 1.4 2009-03-24 16:30:03 bqu Exp $
 // ==================================================================
 
 #ifndef __UTIL_REGEX_H__
@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
   // ----- regex_int ------------------------------------------------
-  SRegEx * regex_init(char * pattern, const unsigned int uMaxResult);
+  SRegEx * regex_init(const char * pattern, const unsigned int uMaxResult);
   // ----- regex_reinit ---------------------------------------------
   void regex_reinit(SRegEx * pRegEx);
   // ----- regex_search ---------------------------------------------
