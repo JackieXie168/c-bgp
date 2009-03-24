@@ -3,15 +3,14 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// $Id: auto-config.h,v 1.2 2008-04-07 10:01:51 bqu Exp $
+// $Id: auto-config.h,v 1.3 2009-03-24 13:56:45 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_AUTO_CONFIG_H__
 #define __BGP_AUTO_CONFIG_H__
 
-#include <bgp/as_t.h>
-#include <bgp/peer_t.h>
 #include <net/prefix.h>
+#include <bgp/types.h>
 
 #ifdef __cplusplus
 extern "C" {

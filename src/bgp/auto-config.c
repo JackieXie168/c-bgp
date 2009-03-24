@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/11/2005
-// $Id: auto-config.c,v 1.10 2008-05-20 11:58:15 bqu Exp $
+// $Id: auto-config.c,v 1.11 2009-03-24 13:56:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -14,7 +14,7 @@
 
 #include <assert.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
 #include <bgp/as.h>
 #include <bgp/peer.h>
@@ -52,34 +52,34 @@
  * node supports BGP, the BGP session must be added on both
  * sides. Otherwise, it must only be added on the local router's side.
  */
-int bgp_auto_config_session(bgp_router_t * pRouter,
+int bgp_auto_config_session(bgp_router_t * router,
 			    net_addr_t tRemoteAddr,
 			    uint16_t uRemoteAS,
-			    bgp_peer_t ** ppPeer)
+			    bgp_peer_t ** peer_ref)
 {
-  net_node_t * pNode;
-  net_iface_t * pIface;
-  SPrefix sPrefix;
+  net_node_t * node;
+  net_iface_t * iface;
+  ip_pfx_t prefix;
   int iUseNextHopSelf= 0;
-  bgp_peer_t * pPeer;
+  bgp_peer_t * peer;
   net_error_t error;
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "AUTO-CONFIG ");
-    bgp_router_dump_id(pLogDebug, pRouter);
-    log_printf(pLogDebug, " NEIGHBOR AS%d:", uRemoteAS);
-    ip_address_dump(pLogDebug, tRemoteAddr);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "AUTO-CONFIG ");
+    bgp_router_dump_id(gdsdebug, router);
+    stream_printf(gdsdebug, " NEIGHBOR AS%d:", uRemoteAS);
+    ip_address_dump(gdsdebug, tRemoteAddr);
+    stream_printf(gdsdebug, "\n");
   }
 
   // (1). If node does not exist, create it.
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
-  pNode= network_find_node(network_get_default(), tRemoteAddr);
-  if (pNode == NULL) {
-    error= node_create(tRemoteAddr, &pNode, NODE_OPTIONS_LOOPBACK);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
+  node= network_find_node(network_get_default(), tRemoteAddr);
+  if (node == NULL) {
+    error= node_create(tRemoteAddr, &node, NODE_OPTIONS_LOOPBACK);
     if (error != ESUCCESS)
       return error;
-    error= network_add_node(network_get_default(), pNode);
+    error= network_add_node(network_get_default(), node);
     if (error != ESUCCESS)
       return error;
   }
@@ -88,70 +88,70 @@ int bgp_auto_config_session(bgp_router_t * pRouter,
   // reason for this choice is that we create the neighbors based on a
   // RIB dump and the neighbors are supposed to be connected over
   // single-hop eBGP sessions.
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (2) CHECK LINK EXISTENCE\n");
-  pIface= node_find_iface(pRouter->pNode, net_iface_id_rtr(pNode));
-  if (pIface == NULL) {
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "PHASE (2) CHECK LINK EXISTENCE\n");
+  iface= node_find_iface(router->node, net_iface_id_addr(node->rid));
+  if (iface == NULL) {
     
     // Create the link in one direction only. IGP weight is set
     // to AUTO_CONFIG_LINK_WEIGHT. The IGP_ADV flag is also removed
     // from the new link.
-    assert(net_link_create_rtr(pRouter->pNode, pNode, UNIDIR, &pIface)
+    assert(net_link_create_rtr(router->node, node, UNIDIR, &iface)
 	   == ESUCCESS);
-    assert(net_iface_set_metric(pIface, 0, AUTO_CONFIG_LINK_WEIGHT, UNIDIR)
+    assert(net_iface_set_metric(iface, 0, AUTO_CONFIG_LINK_WEIGHT, UNIDIR)
 	   == ESUCCESS);
   }
 
   // (3). Check if there is a route towards the remote node.
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (3) CHECK ROUTE EXISTENCE\n");
-  if (node_rt_lookup(pRouter->pNode, tRemoteAddr) == NULL) {
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "PHASE (3) CHECK ROUTE EXISTENCE\n");
+  if (node_rt_lookup(router->node, tRemoteAddr) == NULL) {
     // We should also add a route towards this node. Let's
     // assume that 'next-hop-self' will be used for this session
     // and add a static route towards the next-hop. The link is
     // therefore not advertised within the IGP domain.
-    sPrefix.tNetwork= tRemoteAddr;
-    sPrefix.uMaskLen= 32;
-    assert(node_rt_add_route_link(pRouter->pNode, sPrefix, pIface,
+    prefix.network= tRemoteAddr;
+    prefix.mask= 32;
+    assert(node_rt_add_route_link(router->node, prefix, iface,
 				  tRemoteAddr, AUTO_CONFIG_LINK_WEIGHT,
 				  NET_ROUTE_STATIC) == 0);
     iUseNextHopSelf= 1;
   }
   
   // Add a new BGP session.
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION ");
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    ip_address_dump(pLogDebug, pRouter->pNode->addr);
-    log_printf(pLogDebug, " --> ");
-    ip_address_dump(pLogDebug, tRemoteAddr);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "PHASE (4) ADD BGP SESSION ");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    bgp_router_dump_id(gdsdebug, router);
+    stream_printf(gdsdebug, " --> ");
+    ip_address_dump(gdsdebug, tRemoteAddr);
+    stream_printf(gdsdebug, "\n");
   }
-  if (bgp_router_add_peer(pRouter, uRemoteAS, tRemoteAddr, &pPeer) != 0) {
-    LOG_ERR(LOG_LEVEL_FATAL, "ERROR: could not create peer\n");
+  if (bgp_router_add_peer(router, uRemoteAS, tRemoteAddr, &peer) != 0) {
+    STREAM_ERR(STREAM_LEVEL_FATAL, "ERROR: could not create peer\n");
     abort();
   }
-  bgp_peer_flag_set(pPeer, PEER_FLAG_AUTOCONF, 1);
+  bgp_peer_flag_set(peer, PEER_FLAG_AUTOCONF, 1);
   
   // If peer does not support BGP, create it virtual. Otherwise, also
   // create the session in the remote BGP router.
-  if (protocols_get(pNode->protocols, NET_PROTOCOL_BGP) == NULL)
-    bgp_peer_flag_set(pPeer, PEER_FLAG_VIRTUAL, 1);
+  if (protocols_get(node->protocols, NET_PROTOCOL_BGP) == NULL)
+    bgp_peer_flag_set(peer, PEER_FLAG_VIRTUAL, 1);
   else {
     // TODO: we should create the BGP session in the reverse
     // direction...
-    LOG_ERR(LOG_LEVEL_FATAL, "ERROR: Code not implemented\n");
+    STREAM_ERR(STREAM_LEVEL_FATAL, "ERROR: Code not implemented\n");
     abort();
   }
   
   // Set the next-hop-self flag (this is required since the
   // next-hop is not advertised in the IGP).
   if (iUseNextHopSelf)
-    bgp_peer_flag_set(pPeer, PEER_FLAG_NEXT_HOP_SELF, 1);
+    bgp_peer_flag_set(peer, PEER_FLAG_NEXT_HOP_SELF, 1);
   
   // Open the BGP session.
-  assert(bgp_peer_open_session(pPeer) == 0);
+  assert(bgp_peer_open_session(peer) == 0);
 
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "DONE :-)\n");
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "DONE :-)\n");
 
-  *ppPeer= pPeer;
+  *peer_ref= peer;
 
   return ESUCCESS;
 }
