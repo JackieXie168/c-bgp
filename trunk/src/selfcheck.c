@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: selfcheck.c,v 1.3 2009-03-10 13:57:19 bqu Exp $
+// $Id: selfcheck.c,v 1.4 2009-03-24 13:21:43 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -1651,7 +1651,7 @@ static int test_net_network_add_subnet_dup()
 		"subnet addition should succeed");
   UTEST_ASSERT(network_add_subnet(network, subnet2)
 		== ENET_SUBNET_DUPLICATE,
-		"duplicate subnet addision should fail");
+		"duplicate subnet addition should fail");
   network_destroy(&network);
   return UTEST_SUCCESS;
 }
@@ -1666,8 +1666,9 @@ static int test_net_network_node_send()
 				  NULL, NULL);
   ez_topo_igp_compute(eztopo, 1);
   UTEST_ASSERT(node_send(ez_topo_get_node(eztopo, 0), msg, NULL,
-			  network_get_simulator(eztopo->network)) == ESUCCESS,
-		"node_send() should succeed");
+			 network_get_simulator(eztopo->network)) == ESUCCESS,
+	       "node_send() should succeed");
+  sim_clear(network_get_simulator(eztopo->network)),
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -1684,6 +1685,7 @@ static int test_net_network_node_send_src()
   UTEST_ASSERT(node_send(ez_topo_get_node(eztopo, 0), msg, NULL,
 			  network_get_simulator(eztopo->network)) == ESUCCESS,
 		"node_send() should succeed");
+  sim_clear(network_get_simulator(eztopo->network));
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;  
 }
@@ -1691,9 +1693,9 @@ static int test_net_network_node_send_src()
 // -----[ test_net_network_node_send_src_invalid ]-------------------
 static int test_net_network_node_send_src_invalid()
 {
-  /*  ez_topo_t * eztopo= _ez_topo_line_rtr();
+  ez_topo_t * eztopo= _ez_topo_line_rtr();
   net_msg_t * msg= message_create(IPV4(1,2,3,4),
-				  ez_topo_get_node(eztopo, 1)->rid,
+	 			  ez_topo_get_node(eztopo, 1)->rid,
 				  NET_PROTOCOL_RAW, 255,
 				  NULL, NULL);
   ez_topo_igp_compute(eztopo, 1);
@@ -1702,8 +1704,6 @@ static int test_net_network_node_send_src_invalid()
 		"node_send() should fail");
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
-  */
-  return UTEST_SKIPPED;
 }
 
 
@@ -1859,7 +1859,7 @@ static int test_net_igp_compute()
   igp_domain_add_router(domain, node1);
   igp_domain_add_router(domain, node2);
   igp_domain_add_router(domain, node3);
-  igp_domain_compute(domain);
+  igp_domain_compute(domain, 0);
   network_destroy(&network);
   return UTEST_SUCCESS;
 }
@@ -1937,10 +1937,24 @@ static int test_net_igp_compute_link_weight_max()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_net_igp_compute_link_domain_limit ]-------------------
-static int test_net_igp_compute_link_domain_limit()
+// -----[ test_net_igp_compute_link_domain_boundary ]-------------------
+static int test_net_igp_compute_link_domain_boundary()
 {
-  return UTEST_SKIPPED;
+  ez_node_t nodes[]= {
+    { .type=NODE, .domain=1, .options=EZ_NODE_OPT_NO_LOOPBACK },
+    { .type=NODE, .domain=2, .options=EZ_NODE_OPT_NO_LOOPBACK },
+  };
+  ez_edge_t edges[]= {
+    { .src= 0, .dst= 1, .weight=1 },
+  };
+  ez_topo_t * eztopo= ez_topo_builder(2, nodes, 1, edges);
+  rt_info_t * rtinfo;
+  ez_topo_igp_compute(eztopo, 1);
+  rtinfo= rt_find_exact(ez_topo_get_node(eztopo, 0)->rt, IPV4PFX(0,0,0,2,32),
+			NET_ROUTE_IGP);
+  UTEST_ASSERT(rtinfo == NULL, "RT info should not exist for 0.0.0.2/32");
+  ez_topo_destroy(&eztopo);
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_igp_compute_line_ptp ]----------------------------
@@ -2007,7 +2021,7 @@ static int test_net_igp_compute_triangle_ptp()
   spt_bfs(ez_topo_get_node(eztopo, 0), domain, &spt);
   spt_to_graphviz(gdsout, spt);
   rt_info_t * rtinfo;
-  igp_domain_compute(domain);
+  igp_domain_compute(domain, 0);
   //ip_dest_t dest= { .type=NET_DEST_ANY };
   //rt_dump(gdsout, ez_topo_get_node(eztopo, 0)->rt, dest);
   rtinfo= rt_find_exact(ez_topo_get_node(eztopo, 0)->rt,
@@ -2118,7 +2132,7 @@ static int test_net_igp_compute_loopback()
 			       NET_IFACE_LOOPBACK) == ESUCCESS,
 		"creation of loopback should succeed");
   igp_domain_t * domain= network_find_igp_domain(eztopo->network, 1);
-  igp_domain_compute(domain);
+  igp_domain_compute(domain, 0);
   UTEST_ASSERT(rt_find_exact(ez_topo_get_node(eztopo, 0)->rt,
 			      IPV4PFX(2,0,0,0,32), NET_ROUTE_IGP) != NULL,
 		"RT entry for 2.0.0.0/32 should exist in 0.0.0.1");
@@ -4180,8 +4194,37 @@ static int test_traffic_replay()
 {
   ez_topo_t * topo= _ez_topo_triangle_rtr();
   ez_topo_igp_compute(topo, 1);
+
+  UTEST_ASSERT(node_load_flow(ez_topo_get_node(topo, 0), IP_ADDR_ANY,
+			      ez_topo_get_node(topo, 1)->rid,
+			      1234, NULL, NULL) == ESUCCESS,
+	       "node_load_flow() should succeed");
+
+  UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(topo, 1)) == 1234,
+	       "incorrect load for link [1] 0->2");
+  UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(topo, 2)->dest.iface)
+	       == 1234,
+	       "incorrect load for link [2'] 2->1");
   ez_topo_destroy(&topo);
-  return UTEST_SKIPPED;
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_traffic_replay_unreach ]------------------------------
+static int test_traffic_replay_unreach()
+{
+  ez_topo_t * topo= _ez_topo_triangle_rtr();
+  flow_stats_t stats;
+  ez_topo_igp_compute(topo, 1);
+
+  flow_stats_init(&stats);
+  UTEST_ASSERT(node_load_flow(ez_topo_get_node(topo, 0), IP_ADDR_ANY,
+			      IPV4(192,168,1,1),
+			      1234, &stats, NULL) == ESUCCESS,
+	       "node_load_flow() should succeed");
+  UTEST_ASSERT(stats.flows_error == 1,
+	       "One flow should be reported as failure");
+  ez_topo_destroy(&topo);
+  return UTEST_SUCCESS;
 }
 
 
@@ -4306,7 +4349,8 @@ unit_test_t TEST_NET_RT_IGP[]= {
   {test_net_igp_compute_link_down, "igp compute (link down)"},
   {test_net_igp_compute_link_weight_0, "igp compute (link weight=0)"},
   {test_net_igp_compute_link_weight_max, "igp compute (link weight=max)"},
-  {test_net_igp_compute_link_domain_limit, "igp compute (domain limit)"},
+  {test_net_igp_compute_link_domain_boundary,
+   "igp compute (domain boundary)"},
   {test_net_igp_compute_triangle_rtr, "igp compute (triangle rtr)"},
   {test_net_igp_compute_triangle_ptp, "igp compute (triangle ptp)"},
   {test_net_igp_compute_subnet, "igp compute (subnet)"},
@@ -4469,6 +4513,7 @@ unit_test_t TEST_CLI[]= {
 
 unit_test_t TEST_TRAFFIC[]= {
   {test_traffic_replay, "replay"},
+  {test_traffic_replay_unreach, "replay (unreach)"},
 };
 #define TEST_TRAFFIC_SIZE ARRAY_SIZE(TEST_TRAFFIC)
 
