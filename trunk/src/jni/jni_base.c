@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/03/2006
-// @lastdate 03/03/2008
+// $Id: jni_base.c,v 1.6 2009-03-24 16:00:41 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -318,4 +318,14 @@ int cbgp_jni_ArrayList_add(JNIEnv * jEnv, jobject joArrayList,
   return cbgp_jni_call_boolean(jEnv, joArrayList, "add",
 			       "(Ljava/lang/Object;)Z",
 			       joItem);
+}
+
+// -----[ jni_new_ObjectArray ]--------------------------------------
+jobjectArray jni_new_ObjectArray(JNIEnv * jEnv, unsigned int size,
+				 char * object_class)
+{
+  jclass jcObjectClass= (*jEnv)->FindClass(jEnv, object_class);
+  if ((jcObjectClass == NULL) || (*jEnv)->ExceptionOccurred(jEnv))
+    return NULL;
+  return (*jEnv)->NewObjectArray(jEnv, size,jcObjectClass , NULL);
 }
