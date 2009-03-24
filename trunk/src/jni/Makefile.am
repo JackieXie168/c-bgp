@@ -32,6 +32,8 @@ libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -Werror -O2 -g
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
 
+PKG_DIR=be/ac/ucl/ingi/cbgp
+
 JAVA_PACKAGES = \
 	be.ac.ucl.ingi.cbgp \
 	be.ac.ucl.ingi.cbgp.bgp \
@@ -39,54 +41,60 @@ JAVA_PACKAGES = \
 	be.ac.ucl.ingi.cbgp.net
 
 JAVAFILES= \
-	be/ac/ucl/ingi/cbgp/BGPMsgListener.java \
-	be/ac/ucl/ingi/cbgp/CBGP.java \
-	be/ac/ucl/ingi/cbgp/exceptions/CBGPException.java \
-	be/ac/ucl/ingi/cbgp/exceptions/CBGPScriptException.java \
-	be/ac/ucl/ingi/cbgp/exceptions/InvalidDestinationException.java \
-	be/ac/ucl/ingi/cbgp/ConsoleEvent.java \
-	be/ac/ucl/ingi/cbgp/ConsoleEventListener.java \
-	be/ac/ucl/ingi/cbgp/AbstractConsoleEventListener.java \
-	be/ac/ucl/ingi/cbgp/IPAddress.java \
-	be/ac/ucl/ingi/cbgp/IPPrefix.java \
-	be/ac/ucl/ingi/cbgp/IPRoute.java \
-	be/ac/ucl/ingi/cbgp/IPTrace.java \
-	be/ac/ucl/ingi/cbgp/IPTraceElement.java \
-	be/ac/ucl/ingi/cbgp/IPTraceNode.java \
-	be/ac/ucl/ingi/cbgp/IPTraceSubnet.java \
-	be/ac/ucl/ingi/cbgp/LinkMetrics.java \
-	be/ac/ucl/ingi/cbgp/exceptions/UnknownMetricException.java \
-	be/ac/ucl/ingi/cbgp/ProxyObject.java \
-	be/ac/ucl/ingi/cbgp/Route.java \
-	be/ac/ucl/ingi/cbgp/RouteInterface.java \
-	be/ac/ucl/ingi/cbgp/bgp/ASPath.java \
-	be/ac/ucl/ingi/cbgp/bgp/ASPathSegment.java \
-	be/ac/ucl/ingi/cbgp/bgp/Communities.java \
-	be/ac/ucl/ingi/cbgp/bgp/Domain.java \
-	be/ac/ucl/ingi/cbgp/bgp/Route.java \
-	be/ac/ucl/ingi/cbgp/bgp/Filter.java \
-	be/ac/ucl/ingi/cbgp/bgp/FilterRule.java \
-	be/ac/ucl/ingi/cbgp/bgp/MessageUpdate.java \
-	be/ac/ucl/ingi/cbgp/bgp/MessageWithdraw.java \
-	be/ac/ucl/ingi/cbgp/bgp/Peer.java \
-	be/ac/ucl/ingi/cbgp/bgp/Router.java \
-	be/ac/ucl/ingi/cbgp/net/Element.java \
-	be/ac/ucl/ingi/cbgp/net/IGPDomain.java \
-	be/ac/ucl/ingi/cbgp/net/Interface.java \
-	be/ac/ucl/ingi/cbgp/net/Message.java \
-	be/ac/ucl/ingi/cbgp/net/Node.java \
-	be/ac/ucl/ingi/cbgp/net/Subnet.java
+	BGPMsgListener.java \
+	CBGP.java \
+	exceptions/CBGPException.java \
+	exceptions/CBGPScriptException.java \
+	exceptions/InvalidDestinationException.java \
+	ConsoleEvent.java \
+	ConsoleEventListener.java \
+	AbstractConsoleEventListener.java \
+	IPAddress.java \
+	IPPrefix.java \
+	IPRoute.java \
+	IPTrace.java \
+	IPTraceElement.java \
+	IPTraceNode.java \
+	IPTraceSubnet.java \
+	IPTraceTrace.java \
+	LinkMetrics.java \
+	exceptions/UnknownMetricException.java \
+	ProxyObject.java \
+	Route.java \
+	RouteEntry.java \
+	RouteInterface.java \
+	bgp/ASPath.java \
+	bgp/ASPathSegment.java \
+	bgp/Communities.java \
+	bgp/Domain.java \
+	bgp/Route.java \
+	bgp/Filter.java \
+	bgp/FilterRule.java \
+	bgp/MessageUpdate.java \
+	bgp/MessageWithdraw.java \
+	bgp/Peer.java \
+	bgp/Router.java \
+	net/Element.java \
+	net/IGPDomain.java \
+	net/Interface.java \
+	net/Message.java \
+	net/Node.java \
+	net/Subnet.java
 
 JAVATESTFILES= \
-	be/ac/ucl/ingi/cbgp/testing/TestBGPDomain.java \
-	be/ac/ucl/ingi/cbgp/testing/TestBGPRouter.java \
-	be/ac/ucl/ingi/cbgp/testing/TestIGPDomain.java \
-	be/ac/ucl/ingi/cbgp/testing/TestLink.java \
-	be/ac/ucl/ingi/cbgp/testing/TestMisc.java \
-	be/ac/ucl/ingi/cbgp/testing/TestNode.java \
-	be/ac/ucl/ingi/cbgp/testing/TestSession.java \
-	be/ac/ucl/ingi/cbgp/testing/TestSubnet.java \
-	be/ac/ucl/ingi/cbgp/testing/AllTests.java
+	testing/TestBGPDomain.java \
+	testing/TestBGPRouter.java \
+	testing/TestIGPDomain.java \
+	testing/TestLink.java \
+	testing/TestMisc.java \
+	testing/TestNode.java \
+	testing/TestSession.java \
+	testing/TestSubnet.java \
+	testing/TestScript.java \
+	testing/TestBGPRoutes.java \
+	testing/TestRecordRoute.java \
+	testing/TestTraceRoute.java \
+	testing/AllTests.java
 
 # Java classes that need to be processed by javah to produce a
 # C header file must be listed below
@@ -98,6 +106,7 @@ JNICLASSFILES= \
 	be.ac.ucl.ingi.cbgp.bgp.Filter \
 	be.ac.ucl.ingi.cbgp.bgp.FilterRule \
 	be.ac.ucl.ingi.cbgp.bgp.Peer \
+	be.ac.ucl.ingi.cbgp.bgp.Route \
 	be.ac.ucl.ingi.cbgp.bgp.Router \
 	be.ac.ucl.ingi.cbgp.net.IGPDomain \
 	be.ac.ucl.ingi.cbgp.net.Interface \
@@ -106,10 +115,15 @@ JNICLASSFILES= \
 
 METAFILE= META-INF/MANIFEST.MF
 
-CLASSFILES = $(JAVAFILES:.java=.class) $(JAVATESTFILES:.java=.class)
-EXTRA_DIST = \
+ALLJAVAFILES=$(patsubst %,$(PKG_DIR)/%, \
 	$(JAVAFILES) \
 	$(JAVATESTFILES) \
+	)
+
+CLASSFILES=$(ALLJAVAFILES:%.java=%.class)
+
+EXTRA_DIST = \
+	$(ALLJAVAFILES) \
 	$(METAFILE) \
 	jni-test-wrapper.sh
 
@@ -157,4 +171,7 @@ CLEANFILES = $(JARFILE) $(CLASSFILES)
 
 doc:
 	$(JAVADOC) -d javadoc -classpath $(CLASSPATH) $(JAVA_PACKAGES)
+
+plop:
+	@echo "$(ALLJAVAFILES2)"
 
