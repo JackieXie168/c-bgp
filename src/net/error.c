@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 13/03/2008
+// $Id: error.c,v 1.7 2009-03-24 16:06:30 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,19 +21,19 @@
 /**
  * Dump an error message for the given error code.
  */
-void network_perror(SLogStream * pStream, int iErrorCode)
+void network_perror(gds_stream_t * stream, int error)
 {
-  const char * pcErrorStr= network_strerror(iErrorCode);
-  if (pcErrorStr != NULL)
-    log_printf(pStream, pcErrorStr);
+  const char * error_msg= network_strerror(error);
+  if (error_msg != NULL)
+    stream_printf(stream, error_msg);
   else
-    log_printf(pStream, "unknown error (%i)", iErrorCode);    
+    stream_printf(stream, "unknown error (%i)", error);    
 }
 
 // ----- network_strerror -------------------------------------------
-const char * network_strerror(int iErrorCode)
+const char * network_strerror(int error)
 {
-  switch (iErrorCode) {
+  switch (error) {
   case ESUCCESS:
     return "success";
   case EUNEXPECTED:
@@ -61,6 +61,8 @@ const char * network_strerror(int iErrorCode)
     return "icmp error (time-exceeded)";
   case ENET_NO_REPLY:
     return "no reply";
+  case ENET_FWD_LOOP:
+    return "forwarding loop";
   case ENET_LINK_DOWN:
     return "link down";
   case ENET_PROTOCOL_ERROR:
@@ -73,6 +75,8 @@ const char * network_strerror(int iErrorCode)
     return "link already exists";
   case ENET_LINK_LOOP:
     return "link endpoints are equal";
+  case ENET_IGP_DOMAIN_DUPLICATE:
+    return "igp domain already exists";
   case ENET_PROTO_UNKNOWN:
     return "invalid protocol ID";
   case ENET_PROTO_DUPLICATE:
@@ -121,14 +125,25 @@ const char * network_strerror(int iErrorCode)
   return NULL;
 }
 
-// -----[ fatal ]----------------------------------------------------
-void fatal(const char * msg, ...)
+// -----[ cbgp_fatal ]-----------------------------------------------
+void cbgp_fatal(const char * msg, ...)
 {
   va_list ap;
 
   va_start(ap, msg);
+  fprintf(stderr, "CBGP FATAL ERROR: ");
   vfprintf(stderr, msg, ap);
   va_end(ap);
   abort();
 }
 
+// -----[ cbgp_warn ]------------------------------------------------
+void cbgp_warn(const char * msg, ...)
+{
+  va_list ap;
+
+  va_start(ap, msg);
+  fprintf(stderr, "CBGP WARNING: ");
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+}
