@@ -4,9 +4,9 @@
 // Provides an interactive CLI, based on GNU readline. If GNU
 // readline isn't available, provides a basic replacement CLI.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// @lastdate 09/10/2007
+// $Id: rl.c,v 1.12 2009-03-24 16:29:41 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -34,15 +34,16 @@
 #include <readline/history.h>
 #endif
 
-#define CBGP_HISTFILE ".cbgp_history"
-#define MAX_LINE_READ 1024
+#define CBGP_HIST_FILE      ".cbgp_history"
+#define CBGP_HIST_FILE_SIZE 500
+#define MAX_LINE_READ       1024
 
 // A static variable for holding the line.
-static char * pcLineRead= NULL;
+static char * _line= NULL;
 
 // Maximum number of lines to hold in readline's history.
 #if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
-static int iHistFileSize= 500;
+static int _hist_file_size= CBGP_HIST_FILE_SIZE;
 #endif /* HAVE_LIBREADLINE */
 
 
@@ -59,37 +60,37 @@ char * rl_gets()
 
   // If the buffer has already been allocated,
   // return the memory to the free pool.
-  if (pcLineRead) {
-    free(pcLineRead);
-    pcLineRead= (char *) NULL;
+  if (_line) {
+    free(_line);
+    _line= (char *) NULL;
   }
 
   // Show the prompt and get a line from the user.
-  pcLineRead= readline(cli_context_to_string(cli_get()->pCtx, "cbgp"));
+  _line= readline(cli_context_to_string(cli_get()->ctx, "cbgp"));
 
   // If the line has any text in it, save it on the history.
-  if (pcLineRead && *pcLineRead) {
-    add_history(pcLineRead);
-    stifle_history((int) iHistFileSize);
+  if (_line && *_line) {
+    add_history(_line);
+    stifle_history((int) _hist_file_size);
   }
 
 #else
 
   // If the buffer has not yet been allocated, allocate it.
   // The buffer will be freed by the destructor function.
-  if (pcLineRead == NULL)
-    pcLineRead= (char *) malloc(MAX_LINE_READ*sizeof(char));
+  if (_line == NULL)
+    _line= (char *) malloc(MAX_LINE_READ*sizeof(char));
 
   // Print the prompt
-  fprintf(stdout, cli_context_to_string(cli_get()->pCtx, "cbgp"));
+  fprintf(stdout, cli_context_to_string(cli_get()->ctx, "cbgp"));
 
   // Get at most MAX_LINE_READ-1 characters from stdin
-  if (fgets(pcLineRead, MAX_LINE_READ, stdin) == NULL)
+  if (fgets(_line, MAX_LINE_READ, stdin) == NULL)
     return NULL;
 
 #endif
 
-  return (pcLineRead);
+  return (_line);
 }
 
 
@@ -100,45 +101,44 @@ char * rl_gets()
 // ----- _rl_init ---------------------------------------------------
 /**
  * Initializes the interactive CLI, using GNU readline. This function
- * loads the CLI history if the environment variable CBGP_HISTFILE is
+ * loads the CLI history if the environment variable CBGP_HIST_FILE is
  * defined.
  */
 void _rl_init()
 {
 #if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_HISTORY_H)
-  char * pcEnvHistFile;
-  char * pcEnvHistFileSize;
-  char * pcEnvHome;
+  char * env_hist_file;
+  char * env_hist_file_size;
+  char * home;
   char * endptr;
-  long int lTmp;
+  long int tmp;
 
-  pcEnvHistFile= getenv("CBGP_HISTFILE");
-  if (pcEnvHistFile != NULL) {
-    if (strlen(pcEnvHistFile) > 0) {
-      read_history(pcEnvHistFile);
+  env_hist_file= getenv("CBGP_HIST_FILE");
+  if (env_hist_file != NULL) {
+    if (strlen(env_hist_file) > 0) {
+      read_history(env_hist_file);
     } else {
-      pcEnvHome= getenv("HOME");
-      if (pcEnvHome != NULL) { /* use ~/.cbgp_history file */
-	pcEnvHistFile= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HISTFILE)+
-						     strlen(pcEnvHome)));
-	sprintf(pcEnvHistFile, "%s/%s", pcEnvHome, CBGP_HISTFILE);
-	read_history(pcEnvHistFile);
-	free(pcEnvHistFile);
+      home= getenv("HOME");
+      if (home != NULL) { /* use ~/.cbgp_history file */
+	env_hist_file= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HIST_FILE)+
+						     strlen(home)));
+	sprintf(env_hist_file, "%s/%s", home, CBGP_HIST_FILE);
+	read_history(env_hist_file);
+	free(env_hist_file);
       } else {
 	read_history(NULL); /* use default ~/.history file */
       }
     }
   }
 
-  pcEnvHistFileSize= getenv("CBGP_HISTFILESIZE");
-  if (pcEnvHistFileSize != NULL) {
-    lTmp= strtol(pcEnvHistFileSize, &endptr, 0);
-    if ((*endptr == '\0') && (lTmp < INT_MAX))
-      iHistFileSize= (int) lTmp;
+  env_hist_file_size= getenv("CBGP_HIST_FILESIZE");
+  if (env_hist_file_size != NULL) {
+    tmp= strtol(env_hist_file_size, &endptr, 0);
+    if ((*endptr == '\0') && (tmp < INT_MAX))
+      _hist_file_size= (int) tmp;
   }
 
   _rl_completion_init();
-  _rl_help_init();
 
 #endif
 }
@@ -147,29 +147,28 @@ void _rl_init()
 /**
  * Frees the resources used by the interactive CLI. This function
  * also stores the CLI history in a file if the environment variable
- * CBGP_HISTFILE is defined.
+ * CBGP_HIST_FILE is defined.
  */
 void _rl_destroy()
 {
 #if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_HISTORY_H)
-  char * pcEnvHistFile;
-  char * pcEnvHome;
+  char * env_hist_file;
+  char * home;
 
   _rl_completion_done();
-  _rl_help_done();
 
-  pcEnvHistFile= getenv("CBGP_HISTFILE");
-  if (pcEnvHistFile != NULL) {
-    if (strlen(pcEnvHistFile) > 0) {
-      write_history(pcEnvHistFile);
+  env_hist_file= getenv("CBGP_HIST_FILE");
+  if (env_hist_file != NULL) {
+    if (strlen(env_hist_file) > 0) {
+      write_history(env_hist_file);
     } else {
-      pcEnvHome= getenv("HOME");
-      if (pcEnvHome != NULL) { /* use ~/.cbgp_history file */
-	pcEnvHistFile= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HISTFILE)+
-						     strlen(pcEnvHome)));
-	sprintf(pcEnvHistFile, "%s/%s", pcEnvHome, CBGP_HISTFILE);
-	write_history(pcEnvHistFile);
-	free(pcEnvHistFile);
+      home= getenv("HOME");
+      if (home != NULL) { /* use ~/.cbgp_history file */
+	env_hist_file= (char *) malloc(sizeof(char)*(2+strlen(CBGP_HIST_FILE)+
+						     strlen(home)));
+	sprintf(env_hist_file, "%s/%s", home, CBGP_HIST_FILE);
+	write_history(env_hist_file);
+	free(env_hist_file);
       } else {
 	write_history(NULL); /* use default ~/.history file */
       }
@@ -177,8 +176,8 @@ void _rl_destroy()
   }
 #endif
 
-  if (pcLineRead != NULL) {
-    free(pcLineRead);
-    pcLineRead= NULL;
+  if (_line != NULL) {
+    free(_line);
+    _line= NULL;
   }
 }

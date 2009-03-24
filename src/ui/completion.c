@@ -4,36 +4,76 @@
 // Provides functions to auto-complete commands/parameters in the CLI
 // in interactive mode.
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/11/2002
-// @lastdate 26/07/2007
+// $Id: completion.c,v 1.3 2009-03-24 16:29:41 bqu Exp $
 // ==================================================================
+// NOTE 1:
+//   The CLI auto-completion feature will not work if called from
+//   multiple threads. This is due to how GNU readline handles the
+//   so-called completion generators.
+//
+//   For the time being, c-bgp has a single command-line interface at
+//   a time. However, in the future, it could evolve towards a
+//   route computation server with multiple clients.
+//
+// NOTE 2:
+//   The completion generators must use malloc() instead of libgds's
+//   MALLOC() since GNU readline is responsible for freeing the
+//   memory and will not make use of libgds's FREE(). The standard 
+//   strdup() function can be safely used.
+// ==================================================================
+
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <libgds/cli.h>
+#include <libgds/cli_commands.h>
 #include <libgds/cli_ctx.h>
+#include <libgds/cli_params.h>
 #include <libgds/memory.h>
 
 #include <cli/common.h>
+
+//#define DEBUG
+#include <libgds/debug.h>
 
 #ifdef HAVE_LIBREADLINE
 #ifdef HAVE_READLINE_READLINE_H
 #include <readline/readline.h>
 
-// -----[ completion state ]-----
-/* NOTE: this will not work in a multi-threaded environment. */
 #ifdef HAVE_RL_COMPLETION_MATCHES
-static SCliCmd * pComplCmd= NULL;       // Current command
-static SCliCmd * pComplCtxCmd= NULL;    // Context command
-static SCliParam * pComplParam= NULL;   // Current parameter
-static SCliOption * pComplOption= NULL; // Current option
-#endif /* HAVE_RL_COMPLETION_MATCHES */
+// -----[ completion state ]-----------------------------------------
+/**
+ * The following variables are used to communicate information to the
+ * completion generators. Due to the way GNU readline talks with
+ * completion generators, they need to keep state in static variables.
+ * This is not thread-safe and calling these functions from multiple
+ * threads at the same time will result in unpredictable behaviour.
+ *
+ * '_compl_elem' is the basis CLI element where completion starts
+ *    CLI_ELEM_CMD -> cmd
+ *    CLI_ELEM_ARG -> arg
+ */
+static cli_elem_t _compl_elem;
+
+/**
+ * '_compl_cmds' is a list of possible subcommands matching the
+ * current completion text.
+ *
+ * NOTE:
+ *   '_compl_cmds' need to be initialized to NULL by this object's
+ *   constructor (init function). It needs to be freed by this object's
+ *   destructor (destroy function)
+ */
+static cli_cmds_t * _compl_cmds;
+static cli_args_t * _compl_opts;
 
 // -----[ _cli_display_completion ]----------------------------------
 /**
@@ -47,14 +87,14 @@ static SCliOption * pComplOption= NULL; // Current option
  * matches. This is not explicitly explained in readline's
  * documentation.
  */
-static void _cli_display_completion(char **matches, int num_matches,
+static void _cli_display_completion(char ** matches, int num_matches,
 				    int max_length)
 {
-  int iIndex;
+  unsigned int index;
 
   fprintf(stdout, "\n");
-  for (iIndex= 1; iIndex <= num_matches; iIndex++) {
-    fprintf(stdout, "\t%s\n", matches[iIndex]);
+  for (index= 1; index <= num_matches; index++) {
+    fprintf(stdout, "\t%s\n", matches[index]);
   }
 #ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
@@ -66,123 +106,126 @@ static void _cli_display_completion(char **matches, int num_matches,
  * This function generates completion for CLI commands. It relies on
  * the list of sub-commands of the current command.
  *
- * Note: use malloc() instead of MALLOC() since GNU readline is
- * responsible for freeing the memory. Here strdup() is used.
  */
-#ifdef HAVE_RL_COMPLETION_MATCHES
-static char * _cli_compl_cmd_generator(const char * pcText, int iState)
+static char * _cli_compl_cmd_generator(const char * text, int state)
 {
-  static int iIndex;
-  SCliCmd * pCmd;
+  static int index;
+  cli_cmd_t * cmd;
+  char * result= NULL;
+
+  __debug("_cmd_gen\n");
 
   // Check that a command is to be completed.
-  if ((pComplCmd == NULL) || (pComplCmd->pSubCmds == NULL)) {
-    rl_attempted_completion_over= 1;
-    return NULL;
+  assert(_compl_elem.type == CLI_ELEM_CMD);
+
+  cli_get_cmd_context(cli_get(), &cmd, NULL);
+
+  // Initialize generator
+  if (state == 0) {
+    if (_compl_cmds != NULL)
+      cli_cmds_destroy(&_compl_cmds);
+    _compl_cmds= cli_matching_subcmds(cli_get(), _compl_elem.cmd, text,
+				      _compl_elem.cmd == cmd);
+    index= 0;
   }
 
-  // First call, initialize generator's state.
-  if (iState == 0)
-    iIndex= 0;
+  __debug(" +-- num_cmds:%u\n", cli_cmds_num(_compl_cmds));
 
-  // Obtain matching commands. List all commands, check if they match the
-  // given prefix.
-  while (iIndex < ptr_array_length(pComplCmd->pSubCmds)) {
-    pCmd= (SCliCmd *) pComplCmd->pSubCmds->data[iIndex];
-    iIndex++;
-    if (!strncmp(pcText, pCmd->pcName, strlen(pcText))) {
-      rl_attempted_completion_over= 0;
-      return strdup(pCmd->pcName);
-    }
+  // Generate a single completion (if available)
+  if ((_compl_cmds != NULL) && (index < cli_cmds_num(_compl_cmds))) {
+    cmd= cli_cmds_at(_compl_cmds, index++);
+    result= strdup(cmd->name);
   }
 
-  rl_attempted_completion_over= 1;
-  return NULL;
+  rl_attempted_completion_over= (result == NULL);
+  return result;
 }
-#endif /* HAVE_RL_COMPLETION_MATCHES */
 
-// -----[ _cli_compl_options_generator ]-----------------------------
+// -----[ _cli_compl_opt_generator ]---------------------------------
 /**
  * Generates the list of options of the current command.
- *
- * Note: use malloc() instead of MALLOC() since GNU readline is
- * responsible for freeing the memory.
  */
-#ifdef HAVE_RL_COMPLETION_MATCHES
-static char * _cli_compl_options_generator(const char * pcText, int iState)
+static char * _cli_compl_opt_generator(const char * text, int state)
 {
-  static int iIndex;
-  SCliOption * pOption;
-  char * pcOptionName;
+  static int index;
+  cli_arg_t * opt;
+  char * result= NULL;
+
+  __debug("_opt_gen\n");
 
   // Check that a command is to be completed.
-  if (pComplCmd == NULL) {
-    rl_attempted_completion_over= 1;
-    return NULL;
+  assert(_compl_elem.type == CLI_ELEM_CMD);
+
+  // Initialize generator
+  if (state == 0) {
+    if (_compl_opts != NULL)
+      cli_args_destroy(&_compl_opts);
+    _compl_opts= cli_matching_opts(_compl_elem.cmd, text);
+    index= 0;
   }
 
-  // Skip option name's prefix ("--") 
-  pcText+= 2;
+  __debug(" +-- num_opts:%u\n", cli_args_num(_compl_opts));
 
-  // First call, initialize generator's state.
-  if (iState == 0)
-    iIndex= 0;
+  // Generate a single completion (if available)
+  //  --opt
+  //  --opt= (if option needs a value)
+  if ((_compl_opts != NULL) && (index < cli_args_num(_compl_opts))) {
+    opt= cli_args_at(_compl_opts, index++);
+    result= (char *) malloc((strlen(opt->name)+3)*sizeof(char));
+    strcpy(result, "--");
+    strcpy(result+2, opt->name);
+    if (opt->need_value)
+      rl_completion_append_character= '=';
+    else
+      rl_completion_append_character= ' ';
+  }
 
-  // Obtain matching options. List all available options, check if
-  // they match the searched prefix, return "--" + option name.
-  while (iIndex < ptr_array_length(pComplCmd->pOptions)) {
-    pOption= (SCliOption *) pComplCmd->pOptions->data[iIndex];
-    iIndex++;
-    if (!strncmp(pcText, pOption->pcName, strlen(pcText))) {
-      pcOptionName= (char *) malloc((strlen(pOption->pcName)+3)*sizeof(char));
-      strcpy(pcOptionName, "--");
-      strcpy(pcOptionName+2, pOption->pcName);
-      rl_attempted_completion_over= 0;
-      return pcOptionName;
+  rl_attempted_completion_over= (result == NULL);
+  return result;
+}
+
+// -----[ _cli_compl_opt_value_generator ]---------------------------
+static char * _cli_compl_opt_value_generator(const char * text, int state)
+{
+  char * result;
+
+  __debug("_opt_value_gen\n");
+
+  // Check that a valid option is to be completed.
+  assert(_compl_elem.type == CLI_ELEM_ARG);
+
+  // Advance to value part (after first "=" char)
+  text= strchr(text, '=');
+  assert(text != NULL);
+  text++;
+  
+  __debug(" +-- state:%d\n", state);
+  __debug(" +-- text :\"%s\"\n", text);
+
+  if (_compl_elem.arg != NULL) {
+    if (_compl_elem.arg->ops.enumerate != NULL) {
+      result= _compl_elem.arg->ops.enumerate(text, state);
+      if (result != NULL) {
+	rl_attempted_completion_over= 0;
+	return result;
+      }
+    } else {
+      fprintf(stdout, "\n");
+#ifdef HAVE_RL_ON_NEW_LINE
+      rl_on_new_line();
+#endif
+      fprintf(stdout, "\t<option value>\n");
+#ifdef HAVE_RL_ON_NEW_LINE
+      rl_on_new_line();
+#endif
     }
   }
 
   rl_attempted_completion_over= 1;
   return NULL;
 }
-#endif /* HAVE_RL_COMPLETION_MATCHES */
 
-// -----[ _cli_compl_option_generator ]------------------------------
-/**
- *
- */
-#ifdef HAVE_RL_COMPLETION_MATCHES
-static char * _cli_compl_option_generator(const char * pcText, int iState)
-{
-  static int iIndex= 0;
-  //char * pcMatch;
-
-  // Check that a valid option is to be completed.
-  if (pComplOption == NULL) {
-    rl_attempted_completion_over= 1;
-    return NULL;
-  }
-
-  // First call, initialize generator's state
-  if (iState == 0)
-    iIndex= 0;
-
-  // If the option supports a completion function (not supported yet).
-  /*if (pComplOption->fEnum != NULL) {
-
-    if ((pcMatch= pComplParam->fEnum(pcText, iIndex)) == NULL)
-      rl_attempted_completion_over= 1;
-    iIndex++;
-    return pcMatch;
-
-    }*/
-
-  rl_attempted_completion_over= 1;
-  return NULL;
-}
-#endif /* HAVE_RL_COMPLETION_MATCHES */
-
-// -----[ _cli_compl_param_generator ]-------------------------------
+// -----[ _cli_compl_arg_generator ]---------------------------------
 /**
  * This function generates completion for CLI parameter values. The
  * generator first relies on a possible enumeration function [not
@@ -190,111 +233,105 @@ static char * _cli_compl_option_generator(const char * pcText, int iState)
  *
  * Note: use malloc() for the returned matches, not MALLOC().
  */
-#ifdef HAVE_RL_COMPLETION_MATCHES
-static char * _cli_compl_param_generator(const char * pcText, int iState)
+static char * _cli_compl_arg_generator(const char * text, int state)
 {
-  static int iIndex;
-  char * pcMatch= NULL;
+  char * result= NULL;
+
+  __debug("_arg_gen(%s, %d)\n", text, state);
 
   // Check that a valid parameter is to be completed.
-  if (pComplParam == NULL)
-    return NULL;
+  assert(_compl_elem.type == CLI_ELEM_ARG);
 
-  // If the parameter supports a completion function.
-  if (pComplParam->fEnum != NULL) {
+  __debug(" +-- state:%d\n", state);
+  __debug(" +-- text :\"%s\"\n", text);
 
-    if (iState == 0) {
-      iIndex= 0;
-    }
-    pcMatch= pComplParam->fEnum(pcText, iIndex);
-    if (pcMatch == NULL)
-      rl_attempted_completion_over= 1;
-    iIndex++;
-
-  } else {
-
-    if (iState == 0) {
-      if ((pComplParam->fCheck != NULL) &&
-	  (pComplParam->fCheck(pcText))) {
-
-	// If there is a parameter checker and the parameter value is
-	// accepted, perform the completion.
-	pcMatch= (char*) malloc((strlen(pcText)+1)*sizeof(char));
-	strcpy(pcMatch, pcText);
-	rl_attempted_completion_over= 1;
-
-      } else {
-
-	// Otherwize, prevent the completion.
-	rl_attempted_completion_over= 1;
-
+  if (_compl_elem.arg != NULL) {
+    if (_compl_elem.arg->ops.enumerate != NULL) {
+      result= _compl_elem.arg->ops.enumerate(text, state);
+      __debug(" +-- match:\"%s\"\n", result);
+      if (result != NULL) {
+	rl_attempted_completion_over= 0;
+	return result;
       }
-    }     
+    } else {
+      fprintf(stdout, "\n");
+#ifdef HAVE_RL_ON_NEW_LINE
+      rl_on_new_line();
+#endif
+      fprintf(stdout, "\t<%s>\n", _compl_elem.arg->name);
+#ifdef HAVE_RL_ON_NEW_LINE
+      rl_on_new_line();
+#endif
+    }
   }
-    
-  return pcMatch;
+
+  rl_attempted_completion_over= 1;
+  return NULL;
 }
-#endif /* HAVE_RL_COMPLETION_MATCHES */
 
 // -----[ _cli_compl ]-----------------------------------------------
 /**
  *
  */
-#ifdef HAVE_RL_COMPLETION_MATCHES
-static char ** _cli_compl (const char * pcText, int iStart, int iEnd)
+static char ** _cli_compl (const char * text, int start, int end)
 {
-  SCli * pCli= cli_get();
-  char * pcStartCmd;
-  char ** apcMatches= NULL;
-  int iStatus= 0;
-  void * pContext= NULL;
+  cli_t * cli= cli_get();
+  char * start_cmd;
+  char ** matches= NULL;
+  int status= CLI_SUCCESS;
 
   // Authorize readline's completion.
   rl_attempted_completion_over= 0;
+  rl_completion_append_character= ' ';
 
   // Find context command.
-  pComplCtxCmd= cli_get_cmd_context(pCli);
+  _compl_elem.type= CLI_ELEM_CMD;
+  cli_get_cmd_context(cli, &_compl_elem.cmd, NULL);
   
   // Match beginning of readline buffer.
-  if (iStart == 0) {
-    pContext= pComplCtxCmd;
-    iStatus= CLI_MATCH_COMMAND;
+  start_cmd= str_ncreate(rl_line_buffer, start);
+  status= cli_complete(cli, start_cmd, text, &_compl_elem);
+  str_destroy(&start_cmd);
 
-  } else {
-    pcStartCmd= (char *) MALLOC((iStart+1)*sizeof(char));
-    strncpy(pcStartCmd, rl_line_buffer, iStart);
-    pcStartCmd[iStart]= '\0';
+  __debug("_cli_compl\n"
+	  " +-- line  :\"%s\" ([%d-%d])\n"
+	  " +-- text:\"%s\"\n"
+	  " +-- status:%d\n"
+	  " +-- type:%d\n",
+	  rl_line_buffer, start, end, text, status, _compl_elem.type);
 
-    iStatus= cli_cmd_match(pCli, pComplCtxCmd, pcStartCmd,
-			   (char *) pcText, &pContext);
-    FREE(pcStartCmd);
-  }
+  switch (status) {
+    /*case CLI_SUCCESS:
+    fprintf(stdout, "DEFAULT cmd\n");
+    matches= rl_completion_matches(text, _cli_compl_default_generator);
+    break;*/
 
-  switch (iStatus) {
-  case CLI_MATCH_NOTHING:
+  case CLI_ERROR_UNKNOWN_CMD:
+    __debug("enumerate cmd\n");
+    matches= rl_completion_matches(text, _cli_compl_cmd_generator);
+    break;
+
+  case CLI_ERROR_MISSING_ARG:
+    __debug("enumerate arg\n");
+    matches= rl_completion_matches(text, _cli_compl_arg_generator);
+    break;
+
+  case CLI_ERROR_UNKNOWN_OPT:
+    __debug("enumerate opt\n");
+    matches= rl_completion_matches(text, _cli_compl_opt_generator);
+    break;
+
+  case CLI_ERROR_MISSING_OPT_VALUE:
+    __debug("enumerate opt-value\n");
+    matches= rl_completion_matches(text, _cli_compl_opt_value_generator);
+    break;
+
+  default:
+    matches= NULL;
     rl_attempted_completion_over= 1;
-    apcMatches= NULL;
-    break;
-  case CLI_MATCH_COMMAND:
-    pComplCmd= (SCliCmd *) pContext;
-    apcMatches= rl_completion_matches(pcText, _cli_compl_cmd_generator);
-    break;
-  case CLI_MATCH_OPTION_NAMES:
-    pComplCmd= (SCliCmd *) pContext;
-    apcMatches= rl_completion_matches(pcText, _cli_compl_options_generator);
-    break;
-  case CLI_MATCH_OPTION_VALUE:
-    pComplOption= (SCliOption *) pContext;
-    apcMatches= rl_completion_matches(pcText, _cli_compl_option_generator);
-    break;
-  case CLI_MATCH_PARAM_VALUE:
-    pComplParam= (SCliParam *) pContext;
-    apcMatches= rl_completion_matches(pcText, _cli_compl_param_generator);
-    break;
-  default: abort();
   }
 
-  return apcMatches;
+  return matches;
 }
 #endif /* HAVE_RL_COMPLETION_MATCHES */
 
@@ -319,12 +356,18 @@ void _rl_completion_init()
 #ifdef HAVE_READLINE_READLINE_H
 
 #ifdef HAVE_RL_COMPLETION_MATCHES
+  // Initialize static variables used by completion generators
+  _compl_cmds= NULL;
+  _compl_opts= NULL;
+
   // Setup alternate completion function.
   rl_attempted_completion_function= _cli_compl;
-#endif /* HAVE_RL_COMPLETION_MATCHES */
-
   // Setup alternate completion display function.
   rl_completion_display_matches_hook= _cli_display_completion;
+#endif /* HAVE_RL_COMPLETION_MATCHES */
+
+  // Break on space and tab
+  rl_basic_word_break_characters= " \t";
 
 #endif /* HAVE_READLINE_READLINE_H */
 #endif /* HAVE_LIBREADLINE */
@@ -336,4 +379,9 @@ void _rl_completion_init()
  */
 void _rl_completion_done()
 {
+#ifdef HAVE_RL_COMPLETION_MATCHES
+  // Destroy static variables used by completion generators
+  cli_cmds_destroy(&_compl_cmds);
+  cli_args_destroy(&_compl_opts);
+#endif /* HAVE_RL_COMPLETION_MATCHES */
 }

@@ -3,11 +3,12 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/11/2007
-// @lastdate 04/12/2007
+// $Id: pager.c,v 1.2 2009-03-24 16:29:41 bqu Exp $
 // ==================================================================
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -15,28 +16,33 @@
 #include <ui/pager.h>
 
 // -----[ pager_run ]------------------------------------------------
-int pager_run(char * pcFileName) {
-  int iResult;
-  int iStatus;
-  char * pcArgs[]= {
-    PAGER_CMD,
-    pcFileName,
+int pager_run(const char * filename) {
+  char * const args[]= {
+    (char *) PAGER_CMD,
+    (char *) filename,
     NULL
   };
+  int result;
+  int status;
+  struct stat sb;
 
-  iResult= fork();
-  if (iResult < 0)
+  // Check that file exists
+  if (stat(filename, &sb) < 0)
+    return -1;
+
+  result= fork();
+  if (result < 0)
     return -1;
 
   // Parent process (wait until child is terminated)
-  if (iResult > 0) {
-    waitpid(iResult, &iStatus, 0);
+  if (result > 0) {
+    waitpid(result, &status, 0);
     return PAGER_SUCCESS;
   }
 
   // Child process (pager)
-  iResult= execvp(PAGER_CMD, pcArgs);
-  if (iResult < 0)
+  result= execvp(PAGER_CMD, args);
+  if (result < 0)
     exit(EXIT_FAILURE);
   exit(EXIT_SUCCESS);
 }
