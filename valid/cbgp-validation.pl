@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: cbgp-validation.pl,v 1.42 2008-06-11 15:22:28 bqu Exp $
+# $Id: cbgp-validation.pl,v 1.43 2009-03-24 16:31:12 bqu Exp $
 # ===================================================================
 # Syntax:
 #
@@ -223,18 +223,24 @@ sub cbgp_checkpoint($)
 # -------------------------------------------------------------------
 sub cbgp_check_error($$) {
   my ($cbgp, $cmd)= @_;
-  my $result= "";
+  my $error= undef;
+  my $reason= undef;
 
   $cbgp->send_cmd("set exit-on-error off");
   $cbgp->send_cmd($cmd);
   $cbgp->send_cmd("print \"CHECKPOINT\\n\"");
   while ((my $line= $cbgp->expect(1)) ne "CHECKPOINT") {
-    $result.= $line;
+    if ($line =~ m/^.*Error\:\ (.+)/) {
+      (defined($error)) and die "Duplicate error returned";
+      $error= $1;
+    } elsif ($line =~ m/^\s\+\-\-\ reason\:\ (.+)$/) {
+      (!defined($error)) and die "Reason without error";
+      (defined($reason)) and die "Duplicate error reason returned";
+      $reason= $1;
+    }
   }
-  if ($result =~ m/^Error\:(.*)$/) {
-    return $1;
-  }
-  return undef;
+
+  return $reason;
 }
 
 # -----[ check_has_error ]-------------------------------------------
@@ -281,7 +287,7 @@ sub cbgp_topo_filter($)
 
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 2.0.0.1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0");
     $cbgp->send_cmd("bgp add router 1 1.0.0.1");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "virtual");
@@ -307,7 +313,7 @@ sub cbgp_topo_dp($$)
       my $asn= $index+2;
       my $peer= "$asn.0.0.1";
       $cbgp->send_cmd("net add node $peer");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer 0");
+      $cbgp->send_cmd("net add link 1.0.0.1 $peer");
       $cbgp->send_cmd("net node 1.0.0.1 route add $peer/32 $peer 0");
       cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
@@ -323,7 +329,7 @@ sub cbgp_topo_dp2($$)
     for (my $index= 0; $index < $num_peers; $index++) {
       my $peer= "1.0.0.".($index+2);
       $cbgp->send_cmd("net add node $peer");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer ".($index+1)."");
+      $cbgp->send_cmd("net add link 1.0.0.1 $peer");
       $cbgp->send_cmd("net node 1.0.0.1 route add $peer/32 $peer 0");
       cbgp_peering($cbgp, "1.0.0.1", $peer, "1", "virtual");
     }
@@ -339,7 +345,7 @@ sub cbgp_topo_dp3($;@)
     for (my $index= 0; $index < @peers; $index++) {
       my ($peer, $asn, $weight)= @{$peers[$index]};
       $cbgp->send_cmd("net add node $peer\n");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer $weight\n");
+      $cbgp->send_cmd("net add link 1.0.0.1 $peer\n");
       $cbgp->send_cmd("net node 1.0.0.1 route add $peer/32 $peer $weight\n");
       cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual");
     }
@@ -365,7 +371,7 @@ sub cbgp_topo_dp4($;@)
       my $weight= shift @peer_record;
       my $virtual= shift @peer_record;
       $cbgp->send_cmd("net add node $peer");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer $weight");
+      $cbgp->send_cmd("net add link 1.0.0.1 $peer");
       $cbgp->send_cmd("net node 1.0.0.1 route add $peer/32 $peer $weight");
       if ($virtual) {
 	cbgp_peering($cbgp, "1.0.0.1", $peer, $asn, "virtual", @peer_record);
@@ -406,15 +412,15 @@ sub cbgp_topo_igp_bgp($;@)
       my $peer_weight= $peer_spec->[1];
       $cbgp->send_cmd("net add node $peer_ip");
       $cbgp->send_cmd("net node $peer_ip domain 1");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer_ip $peer_weight");
-      $cbgp->send_cmd("net link 1.0.0.1 $peer_ip igp-weight $peer_weight");
-      $cbgp->send_cmd("net link $peer_ip 1.0.0.1 igp-weight $peer_weight");
+      $cbgp->send_cmd("net add link 1.0.0.1 $peer_ip");
+      $cbgp->send_cmd("net link 1.0.0.1 $peer_ip".
+		      " igp-weight --bidir $peer_weight");
     }
     $cbgp->send_cmd("net domain 1 compute");
 
     $cbgp->send_cmd("net add node 2.0.0.1");
 
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0");
     $cbgp->send_cmd("net node 2.0.0.1 route add 1.0.0.1/32 1.0.0.1 0");
 
@@ -713,13 +719,8 @@ sub cbgp_topo_check_record_route($$$;$)
 	return 0
 	  if (!defined($trace));
 
-	# Result should be equal to the given status
-	if ($trace->[F_TR_STATUS] ne $status) {
-	  $tests->debug("ERROR incorrect status \"".
-			$trace->[F_TR_STATUS].
-			"\" (expected=\"$status\")");
-	  return 0;
-	}
+	return 0
+	  if (!check_recordroute($trace, -status=>$status));
 
 	# Check that destination matches in case of success
 	my @path= @{$trace->[F_TR_PATH]};
@@ -846,7 +847,7 @@ sub cbgp_filter($$$$$$)
     $cbgp->send_cmd("\tpeer $peer");
     $cbgp->send_cmd("\t\tfilter $direction");
     $cbgp->send_cmd("\t\t\tadd-rule");
-    $cbgp->send_cmd("\t\t\t\tmatch \"$predicate\"");
+    $cbgp->send_cmd("\t\t\t\tmatch '$predicate'");
     $cbgp->send_cmd("\t\t\t\taction \"$actions\"");
     $cbgp->send_cmd("\t\t\t\texit");
     $cbgp->send_cmd("\t\t\texit");
@@ -887,9 +888,10 @@ sub cbgp_topo_check_links($$)
 	  my $links_hash= cbgp_get_links($cbgp, $node1);
 	  my @links= values %$links_hash;
 	  foreach my $link (@links) {
-	    $cbgp_topo{$node1}{$link->[F_LINK_DST]}=
-	      [$link->[F_LINK_DELAY],
-	       $link->[F_LINK_WEIGHT]];
+	    my @attr= ();
+	    $attr[F_TOPO_LINK_DELAY]= $link->[F_LINK_DELAY];
+	    $attr[F_TOPO_LINK_WEIGHT]= $link->[F_LINK_WEIGHT];
+	    $cbgp_topo{$node1}{$link->[F_LINK_DST]}= \@attr;
 	  }
 	}
 	if (!exists($nodes{$node2})) {
@@ -897,9 +899,10 @@ sub cbgp_topo_check_links($$)
 	  my $links_hash= cbgp_get_links($cbgp, $node2);
 	  my @links= values %$links_hash;
 	  foreach my $link (@links) {
-	    $cbgp_topo{$node2}{$link->[F_LINK_DST]}=
-	      [$link->[F_LINK_DELAY],
-	       $link->[F_LINK_WEIGHT]];
+	    my @attr= ();
+	    $attr[F_TOPO_LINK_DELAY]= $link->[F_LINK_DELAY];
+	    $attr[F_TOPO_LINK_WEIGHT]= $link->[F_LINK_WEIGHT];
+	    $cbgp_topo{$node2}{$link->[F_LINK_DST]}= \@attr;
 	  }
 	}
       }
@@ -981,6 +984,38 @@ sub cbgp_valid_cli($) {
   return TEST_NOT_TESTED;
 }
 
+# -----[ cbgp_valid_cli_limit ]--------------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_cli_limit($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
+
+# -----[ cbgp_valid_cli_error ]--------------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_cli_error($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
+
+# -----[ cbgp_valid_cli_include ]------------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_cli_include($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
+
+# -----[ cbgp_valid_cli_include_error ]------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_cli_include_error($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
+
 # -----[ cbgp_valid_net_node ]---------------------------------------
 # Test ability to create new nodes.
 #
@@ -1055,10 +1090,10 @@ sub cbgp_valid_net_link($$) {
   $cbgp->send_cmd("net add node 1.0.0.1\n");
   $cbgp->send_cmd("net add node 1.0.0.2");
   $cbgp->send_cmd("net add node 1.0.0.3");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
   $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight 123");
   $cbgp->send_cmd("net link 1.0.0.2 1.0.0.1 igp-weight 123");
-  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
   $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight 321");
   $cbgp->send_cmd("net link 1.0.0.3 1.0.0.2 igp-weight 321");
   return TEST_FAILURE
@@ -1094,7 +1129,7 @@ sub cbgp_valid_net_link_loop($) {
 
   $cbgp->send_cmd("net add node 1.0.0.1");
 
-  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.1 10");
+  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.1");
   return TEST_FAILURE
     if (!check_has_error($msg, $CBGP_ERROR_LINK_ENDPOINTS));
   return TEST_SUCCESS;
@@ -1114,9 +1149,9 @@ sub cbgp_valid_net_link_duplicate($) {
 
   $cbgp->send_cmd("net add node 1.0.0.1");
   $cbgp->send_cmd("net add node 1.0.0.2");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
 
-  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.2");
   return TEST_FAILURE
     if (!check_has_error($msg, $CBGP_ERROR_LINK_EXISTS));
   return TEST_SUCCESS;
@@ -1135,7 +1170,7 @@ sub cbgp_valid_net_link_missing($) {
 
   $cbgp->send_cmd("net add node 1.0.0.1");
 
-  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.2 10");
+  my $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 1.0.0.2");
   return TEST_FAILURE
     if (!check_has_error($msg, $CBGP_ERROR_INVALID_LINK_TAIL));
   return TEST_SUCCESS;
@@ -1152,7 +1187,7 @@ sub cbgp_valid_net_link_weight_bidir($)
 
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
 
     $links= cbgp_get_links($cbgp, "1.0.0.1");
     return TEST_FAILURE
@@ -1212,7 +1247,7 @@ sub cbgp_valid_net_link_capacity($)
 
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
-    $cbgp->send_cmd("net add link --bw=12345678 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link --bw=12345678 1.0.0.1 1.0.0.2");
 
     # Check load and capacity of R1->R2
     $info= cbgp_link_info($cbgp, '1.0.0.1', '1.0.0.2');
@@ -1294,11 +1329,11 @@ sub cbgp_valid_net_subnet($$) {
   $cbgp->send_cmd("net add node 1.0.0.2");
   $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
   $cbgp->send_cmd("net add subnet 192.168.1/24 stub");
-  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24");
   $cbgp->send_cmd("net link 1.0.0.1 192.168.0.1/24 igp-weight 123");
-  $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24 20");
+  $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24");
   $cbgp->send_cmd("net link 1.0.0.2 192.168.0.2/24 igp-weight 321");
-  $cbgp->send_cmd("net add link 1.0.0.2 192.168.1.2/24 30");
+  $cbgp->send_cmd("net add link 1.0.0.2 192.168.1.2/24");
   $cbgp->send_cmd("net link 1.0.0.2 192.168.1.2/24 igp-weight 456");
 
   return TEST_FAILURE
@@ -1353,14 +1388,14 @@ sub cbgp_valid_net_subnet_misc($) {
   $cbgp->send_cmd("net add node 192.168.0.1");
   $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
   $cbgp->send_cmd("net add subnet 2.0.0/24 transit");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 10");
-  $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 10");
-  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24 10");
-  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.2/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
+  $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
+  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24");
+  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.2/24");
 
   # Add a mtp link to 1.0.0/24: it should succeed
-  $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 2.0.0.0/24 10");
+  $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 2.0.0.0/24");
   return TEST_FAILURE
     if (check_has_error($msg));
 
@@ -1390,7 +1425,7 @@ sub cbgp_valid_net_subnet_misc($) {
   # Add a ptp link to 192.168.0.1:
   #  - it should fail (default)
   #  - it should succeed if (IFACE_ID_ADDR_MASK is set in src/link-list.c)
-  $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 192.168.0.1 10");
+  $msg= cbgp_check_error($cbgp, "net add link 1.0.0.1 192.168.0.1");
   return TEST_FAILURE
     if (!check_has_error($msg, "incompatible interface"));
   return TEST_SUCCESS;
@@ -1434,19 +1469,19 @@ sub cbgp_valid_net_igp_overflow($$)
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
     $cbgp->send_cmd("net add node 1.0.0.3");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 4000000000");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 4000000000");
     $cbgp->send_cmd("net node 1.0.0.1 domain 1");
     $cbgp->send_cmd("net node 1.0.0.2 domain 1");
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net domain 1 compute");
     $rt= cbgp_get_rt($cbgp, "1.0.0.1", undef);
-    if (!exists($rt->{"1.0.0.3/32"}) ||
-	($rt->{"1.0.0.3/32"}->[F_RT_METRIC] != MAX_IGP_WEIGHT)) {
-      return TEST_FAILURE;
-    }
+    return TEST_FAILURE
+      if (!check_has_route($rt, '1.0.0.2/32', -metric=>4000000000));
+    return TEST_FAILURE
+      if (check_has_route($rt, '1.0.0.3/32'));
     return TEST_SUCCESS;
   }
 
@@ -1511,18 +1546,18 @@ sub cbgp_valid_net_igp_subnet($) {
   $cbgp->send_cmd("net node 1.0.0.2 domain 1");
   $cbgp->send_cmd("net add node 1.0.0.3");
   $cbgp->send_cmd("net node 1.0.0.3 domain 1");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 1");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
   $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight 1");
   $cbgp->send_cmd("net link 1.0.0.3 1.0.0.1 igp-weight 1");
-  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24");
   $cbgp->send_cmd("net link 1.0.0.1 192.168.0.1/24 igp-weight 10");
-  $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24");
   $cbgp->send_cmd("net link 1.0.0.2 192.168.0.2/24 igp-weight 10");
-  $cbgp->send_cmd("net add link 1.0.0.2 192.168.1.2/24 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 192.168.1.2/24");
   $cbgp->send_cmd("net link 1.0.0.2 192.168.1.2/24 igp-weight 1");
-  $cbgp->send_cmd("net add link 1.0.0.2 192.168.2.2/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.2 192.168.2.2/24");
   $cbgp->send_cmd("net link 1.0.0.2 192.168.2.2/24 igp-weight 10");
-  $cbgp->send_cmd("net add link 1.0.0.3 192.168.1.3/24 1");
+  $cbgp->send_cmd("net add link 1.0.0.3 192.168.1.3/24");
   $cbgp->send_cmd("net link 1.0.0.3 192.168.1.3/24 igp-weight 1");
   $cbgp->send_cmd("net domain 1 compute");
 
@@ -1556,6 +1591,29 @@ sub cbgp_valid_net_ntf_load($$) {
   return cbgp_topo_check_links($cbgp, $topo);
 }
 
+# -----[ cbgp_valid_net_ntf_load_error ]-----------------------------
+# Load a topology from an NTF file into C-BGP (using C-BGP 's "net
+# ntf load" command). Check that the links are correctly setup.
+#
+# Resources:
+#   [valid-record-route.ntf]
+# -------------------------------------------------------------------
+sub cbgp_valid_net_ntf_load_error($) {
+  my ($cbgp)= @_;
+  my $filename= "/tmp/net-ntf-load-error.ntf";
+
+  die if !open(NTF, ">$filename");
+  print NTF "1.0.0.1 1.0.0.0 2\n";
+  print NTF "1.0.0.A 1.0.0.0 3\n";
+  close(NTF);
+
+  my $msg= cbgp_check_error($cbgp, "net ntf load \"$filename\"");
+  (!check_has_error($msg, "invalid source .*, at line 2")) and
+    return TEST_FAILURE;
+  unlink $filename;
+  return TEST_SUCCESS;
+}
+
 # -----[ cbgp_valid_net_record_route ]-------------------------------
 # Create the given topology in C-BGP. Check that record-route
 # fails. Then, compute the IGP routes. Check that record-route are
@@ -1576,11 +1634,79 @@ sub cbgp_valid_net_record_route($$)
   }
 
 # -----[ cbgp_valid_net_record_route_delay ]-------------------------
+# Check that record-route is able to record the maximum bandwidth
+# available along a path.
+#
+# Setup:
+#   - R1 (1.0.0.4)
+#   - R2 (1.0.0.2)
+#   - R3 (1.0.0.3)
+#   - R4 (1.0.0.4)
+#   - R5 (1.0.0.5)
+#
+# Topology:
+#       10        1
+#   R1 ----- R2 ----- R3
+#            |\  100
+#            | \+---- R4
+#            |    1k
+#            +------- R5
+#
+# Scenario:
+#   * Setup topology, link delays and compute routes. Perform
+#     record-route from R1 to all nodes.
+#   * Check that delay(R1->R2) = 10
+#   * Check that delay(R1->R3) = 11
+#   * Check that delay(R1->R4) = 110
+#   * Check that delay(R1->R5) = 1010
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_delay($) {
+  my ($cbgp)= @_;
+  $cbgp->send_cmd("net add domain 1 igp");
+  $cbgp->send_cmd("net add node 1.0.0.1");
+  $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+  $cbgp->send_cmd("net add node 1.0.0.2");
+  $cbgp->send_cmd("net node 1.0.0.2 domain 1");
+  $cbgp->send_cmd("net add node 1.0.0.3");
+  $cbgp->send_cmd("net node 1.0.0.3 domain 1");
+  $cbgp->send_cmd("net add node 1.0.0.4");
+  $cbgp->send_cmd("net node 1.0.0.4 domain 1");
+  $cbgp->send_cmd("net add node 1.0.0.5");
+  $cbgp->send_cmd("net node 1.0.0.5 domain 1");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 --delay=10");
+  $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 --delay=1");
+  $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4 --delay=100");
+  $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.5 --delay=1000");
+  $cbgp->send_cmd("net link 1.0.0.2 1.0.0.5 igp-weight --bidir 1");
+  $cbgp->send_cmd("net domain 1 compute");
+
+  my $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.2", -delay=>1);
+  return TEST_FAILURE
+    if (!check_recordroute($trace, -status=>"SUCCESS",
+			   -delay=>10));
+  $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.3", -delay=>1);
+  return TEST_FAILURE
+    if (!check_recordroute($trace, -status=>"SUCCESS",
+			   -delay=>11));
+  $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.4", -delay=>1);
+  return TEST_FAILURE
+    if (!check_recordroute($trace, -status=>"SUCCESS",
+			   -delay=>110));
+  $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.5", -delay=>1);
+  return TEST_FAILURE
+    if (!check_recordroute($trace, -status=>"SUCCESS",
+			   -delay=>1010));
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_record_route_delay_topo ]--------------------
 # Create the given topology in C-BGP. Check that record-route
 # correctly records the path's IGP weight and delay.
 # -------------------------------------------------------------------
-sub cbgp_valid_net_record_route_delay($$)
-  {
+sub cbgp_valid_net_record_route_delay_topo($$) {
     my ($cbgp, $topo)= @_;
     cbgp_topo($cbgp, $topo, 1);
     cbgp_topo_igp_compute($cbgp, $topo, 1);
@@ -1633,13 +1759,13 @@ sub cbgp_valid_net_record_route_capacity($)
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.5");
     $cbgp->send_cmd("net node 1.0.0.5 domain 1");
-    $cbgp->send_cmd("net add link --bw=2000 1.0.0.1 1.0.0.2 1");
+    $cbgp->send_cmd("net add link --bw=2000 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link --bw=3000 1.0.0.2 1.0.0.3 1");
+    $cbgp->send_cmd("net add link --bw=3000 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link --bw=100 1.0.0.2 1.0.0.4 1");
+    $cbgp->send_cmd("net add link --bw=100 1.0.0.2 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link --bw=1000 1.0.0.2 1.0.0.5 1");
+    $cbgp->send_cmd("net add link --bw=1000 1.0.0.2 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.5 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -1678,7 +1804,7 @@ sub cbgp_valid_net_record_route_capacity($)
 #
 #   R1 --(1)--*             *--(1)-- R5
 #              \           /
-#     *--(2)-- R2 --(1)-- R4 --(1)--*
+#     *--(2)-- R2 --(1)-- R4 --(2)--*
 #    /                               \
 #   R3 -------------(2)------------- R6
 #
@@ -1714,18 +1840,18 @@ sub cbgp_valid_net_record_route_load($) {
   $cbgp->send_cmd("net node 1.0.0.5 domain 1");
   $cbgp->send_cmd("net add node 1.0.0.6");
   $cbgp->send_cmd("net node 1.0.0.6 domain 1");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 1");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
   $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
   $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 2");
-  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4 1");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
   $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
-  $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.6 1");
+  $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.6");
   $cbgp->send_cmd("net link 1.0.0.3 1.0.0.6 igp-weight --bidir 2");
-  $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5 1");
+  $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5");
   $cbgp->send_cmd("net link 1.0.0.4 1.0.0.5 igp-weight --bidir 1");
-  $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.6 1");
-  $cbgp->send_cmd("net link 1.0.0.4 1.0.0.6 igp-weight --bidir 1");
+  $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.6");
+  $cbgp->send_cmd("net link 1.0.0.4 1.0.0.6 igp-weight --bidir 2");
   $cbgp->send_cmd("net domain 1 compute");
 
   cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.5", -load=>1000);
@@ -1742,30 +1868,20 @@ sub cbgp_valid_net_record_route_load($) {
     return TEST_FAILURE;
   }
   $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.4");
-  if (!exists($info->{load}) || ($info->{load} != 1875)) {
-    $tests->debug("Error: load of R2->R4 should be 1875");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1875));
   $info= cbgp_link_info($cbgp, "1.0.0.3", "1.0.0.2");
-  if (!exists($info->{load}) || ($info->{load} != 125)) {
-    $tests->debug("Error: load of R3->R2 should be 125");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>125));
   $info= cbgp_link_info($cbgp, "1.0.0.3", "1.0.0.6");
-  if (!exists($info->{load}) || ($info->{load} != 1000)) {
-    $tests->debug("Error: load of R3->R6 should be 1000");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1000));
   $info= cbgp_link_info($cbgp, "1.0.0.4", "1.0.0.5");
-  if (!exists($info->{load}) || ($info->{load} != 1125)) {
-    $tests->debug("Error: load of R4->R5 should be 1125");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1125));
   $info= cbgp_link_info($cbgp, "1.0.0.4", "1.0.0.6");
-  if (!exists($info->{load}) || ($info->{load} != 500)) {
-    $tests->debug("Error: load of R4->R6 should be 500");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>500));
   return TEST_SUCCESS;
 }
 
@@ -1789,18 +1905,18 @@ sub cbgp_valid_net_record_route_loop($)
   {
     my ($cbgp)= @_;
 
-    $cbgp->send_cmd("net add domain 1 igp\n");
-    $cbgp->send_cmd("net add node 1.0.0.1\n");
-    $cbgp->send_cmd("net add node 1.0.0.2\n");
-    $cbgp->send_cmd("net node 1.0.0.1 domain 1\n");
-    $cbgp->send_cmd("net node 1.0.0.2 domain 1\n");
+    $cbgp->send_cmd("net add domain 1 igp");
+    $cbgp->send_cmd("net add node 1.0.0.1");
+    $cbgp->send_cmd("net add node 1.0.0.2");
+    $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.2 domain 1");
 
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 1\n");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
 
-    $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 1.0.0.2 1\n");
-    $cbgp->send_cmd("net node 1.0.0.2 route add 2.0.0.1/32 1.0.0.1 1\n");
+    $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 1.0.0.2 1");
+    $cbgp->send_cmd("net node 1.0.0.2 route add 2.0.0.1/32 1.0.0.1 1");
 
-    $cbgp->send_cmd("net domain 1 compute\n");
+    $cbgp->send_cmd("net domain 1 compute");
 
     my $trace= cbgp_record_route($cbgp, "1.0.0.1", "2.0.0.1",
 					 -checkloop=>1);
@@ -1815,17 +1931,17 @@ sub cbgp_valid_net_record_route_loop($)
 sub cbgp_valid_net_record_route_prefix($)
   {
     my ($cbgp)= @_;
-    $cbgp->send_cmd("net add domain 1 igp\n");
-    $cbgp->send_cmd("net add node 1.0.0.1\n");
-    $cbgp->send_cmd("net add node 1.0.0.2\n");
-    $cbgp->send_cmd("net add subnet 192.168.0/24 stub\n");
-    $cbgp->send_cmd("net node 1.0.0.1 domain 1\n");
-    $cbgp->send_cmd("net node 1.0.0.2 domain 1\n");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 1\n");
-    $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1\n");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24 1\n");
-    $cbgp->send_cmd("net link 1.0.0.2 192.168.0.2/24 igp-weight 1\n");
-    $cbgp->send_cmd("net domain 1 compute\n");
+    $cbgp->send_cmd("net add domain 1 igp");
+    $cbgp->send_cmd("net add node 1.0.0.1");
+    $cbgp->send_cmd("net add node 1.0.0.2");
+    $cbgp->send_cmd("net add subnet 192.168.0/24 stub");
+    $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.2 domain 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+    $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.2/24");
+    $cbgp->send_cmd("net link 1.0.0.2 192.168.0.2/24 igp-weight 1");
+    $cbgp->send_cmd("net domain 1 compute");
 
     my $trace= cbgp_record_route($cbgp, "1.0.0.1", "192.168.0/24");
     return TEST_FAILURE
@@ -1838,6 +1954,131 @@ sub cbgp_valid_net_record_route_prefix($)
       if (!check_recordroute($trace, -status=>"SUCCESS"));
     return TEST_SUCCESS;
   }
+
+# -----[ cbgp_valid_net_record_route_ecmp ]--------------------------
+# Test that record-route enumerates all possible paths
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1)
+#   - R4 (1.0.0.4, AS1)
+#   - IGP weight equals 1 on all links
+#
+# Topology:
+#
+#     *-- R2 --*
+#    /          \
+#   R1          R4
+#    \          /
+#     *-- R3 --*
+#
+# Scenario:
+#   * Record route from node 1.0.0.1 towards 1.0.0.4 w/ ECMP
+#   * Check that two paths are found
+#   * Check that path 0 goes through 1.0.0.2
+#   * Check that path 1 goes through 1.0.0.3
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_ecmp($) {
+  my ($cbgp)= @_;
+  $cbgp->send_cmd("net add node 1.0.0.1");
+  $cbgp->send_cmd("net add node 1.0.0.2");
+  $cbgp->send_cmd("net add node 1.0.0.3");
+  $cbgp->send_cmd("net add node 1.0.0.4");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
+  $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
+  $cbgp->send_cmd("net add domain 1 igp");
+  $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.2 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.3 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.4 domain 1");
+  $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net domain 1 compute");
+  my $traces= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.4", -ecmp=>1);
+  return TEST_FAILURE
+    if (scalar(@$traces) != 2);
+  return TEST_FAILURE
+    if (!check_recordroute($traces->[0],
+			   -status=>'SUCCESS',
+			   -path=>[[0,'1.0.0.1'],
+				   [1,'1.0.0.2'],
+				   [2,'1.0.0.4']]));
+  return TEST_FAILURE
+    if (!check_recordroute($traces->[1],
+			   -status=>'SUCCESS',
+			   -path=>[[0,'1.0.0.1'],
+				   [1,'1.0.0.3'],
+				   [2,'1.0.0.4']]));
+  return TEST_SUCCESS;
+}
+
+# -----[ cbgp_valid_net_record_route_ecmp_load ]---------------------
+# Test that record-route enumerates all possible paths, and that the
+# load is correctly splitted among the various paths.
+#
+# Setup:
+#   - R1 (1.0.0.1, AS1)
+#   - R2 (1.0.0.2, AS1)
+#   - R3 (1.0.0.3, AS1)
+#   - R4 (1.0.0.4, AS1)
+#   - IGP weight equals 1 on all links
+#
+# Topology:
+#
+#     *-- R2 --*
+#    /          \
+#   R1          R4
+#    \          /
+#     *-- R3 --*
+#
+# Scenario:
+#   * Record route from node 1.0.0.1 towards 1.0.0.4 w/ ECMP
+#     and loads 1000 units of traffic
+#   * Check that the load on every link is 500
+# -------------------------------------------------------------------
+sub cbgp_valid_net_record_route_ecmp_load($) {
+  my ($cbgp)= @_;
+  $cbgp->send_cmd("net add node 1.0.0.1");
+  $cbgp->send_cmd("net add node 1.0.0.2");
+  $cbgp->send_cmd("net add node 1.0.0.3");
+  $cbgp->send_cmd("net add node 1.0.0.4");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
+  $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
+  $cbgp->send_cmd("net add domain 1 igp");
+  $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.2 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.3 domain 1");
+  $cbgp->send_cmd("net node 1.0.0.4 domain 1");
+  $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net domain 1 compute");
+  my $traces= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.4",
+				-ecmp=>1, -load=>1000);
+  return TEST_FAILURE
+    if (scalar(@$traces) != 2);
+  my $info= cbgp_link_info($cbgp, "1.0.0.1", "1.0.0.2");
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>500)); 
+  $info= cbgp_link_info($cbgp, "1.0.0.1", "1.0.0.3");
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>500));
+  $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.4");
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>500));
+  $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.4");
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>500));
+  return TEST_SUCCESS;
+}
 
 # -----[ cbgp_valid_net_icmp_ping ]---------------------------------
 # Test the behaviour of the ping command.
@@ -1891,15 +2132,15 @@ sub cbgp_valid_net_icmp_ping($)
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
     $cbgp->send_cmd("net add subnet 192.168.1/24 transit");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.1 192.168.1.1/24 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 192.168.1.1/24");
     $cbgp->send_cmd("net link 1.0.0.1 192.168.1.1/24 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24");
     $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/24 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4 10");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -1963,15 +2204,15 @@ sub cbgp_valid_net_icmp_traceroute($)
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
     $cbgp->send_cmd("net add subnet 192.168.1/24 transit");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.1 192.168.1.1/24 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 192.168.1.1/24");
     $cbgp->send_cmd("net link 1.0.0.1 192.168.1.1/24 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24");
     $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/24 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4 10");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -2061,19 +2302,19 @@ sub cbgp_valid_net_tunnel($)
     $cbgp->send_cmd("net add node 1.0.0.4");
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
-    $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.1 1");
+    $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.0 1.0.0.1 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.2 1");
+    $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.0 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24 1");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24");
     $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/24 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 192.168.0.2/24 1");
+    $cbgp->send_cmd("net add link 1.0.0.3 192.168.0.2/24");
     $cbgp->send_cmd("net link 1.0.0.3 192.168.0.2/24 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.4 192.168.0.3/24 1");
+    $cbgp->send_cmd("net add link 1.0.0.4 192.168.0.3/24");
     $cbgp->send_cmd("net link 1.0.0.4 192.168.0.3/24 igp-weight 1");
 
     # Domain 2
@@ -2081,7 +2322,7 @@ sub cbgp_valid_net_tunnel($)
     $cbgp->send_cmd("net add node 2.0.0.0");
 
     # Interdomain link (+ static route in reverse direction)
-    $cbgp->send_cmd("net add link 1.0.0.3 2.0.0.0 1");
+    $cbgp->send_cmd("net add link 1.0.0.3 2.0.0.0");
     $cbgp->send_cmd("net link 1.0.0.3 2.0.0.0 igp-weight 1");
     $cbgp->send_cmd("net node 2.0.0.0 route add 1.0.0/24 1.0.0.3 1");
 
@@ -2198,7 +2439,7 @@ sub cbgp_valid_net_static_routes($)
 
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
 
     # Test without static route: should fail
     $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.2");
@@ -2214,7 +2455,7 @@ sub cbgp_valid_net_static_routes($)
     }
 
     # Remove route and test: should fail
-    $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.2/32 1.0.0.2 1.0.0.2");
+    $cbgp->send_cmd("net node 1.0.0.1 route del --gw=1.0.0.2 1.0.0.2/32 1.0.0.2");
     $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.2");
     if ($trace->[F_TR_STATUS] eq "SUCCESS") {
       return TEST_FAILURE;
@@ -2239,9 +2480,9 @@ sub cbgp_valid_net_static_routes_wildcards($)
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
     $cbgp->send_cmd("net add node 1.0.0.3");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 20");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 20");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
 
     # Test with static towards each node: should succeed
     $cbgp->send_cmd("net node 1.0.0.1 route add 1.0.0.2/32 1.0.0.2 10");
@@ -2258,7 +2499,7 @@ sub cbgp_valid_net_static_routes_wildcards($)
     }
 
     # Remove routes using wildcard: should succeed
-    $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.2/32 * *");
+    $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.2/32 *");
     $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.2");
     if ($trace->[F_TR_STATUS] eq "SUCCESS") {
       $tests->debug("=> ERROR TEST(3)");
@@ -2271,7 +2512,7 @@ sub cbgp_valid_net_static_routes_wildcards($)
     }
 
     # Remove routes using wildcard: should succeed
-    $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.3/32 * *");
+    $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.3/32 *");
     $trace= cbgp_record_route($cbgp, "1.0.0.1", "1.0.0.2");
     if ($trace->[F_TR_STATUS] eq "SUCCESS") {
       $tests->debug("=> ERROR TEST(5)");
@@ -2301,9 +2542,9 @@ sub cbgp_valid_net_static_routes_duplicate($) {
   $cbgp->send_cmd("net add node 1.0.0.1");
   $cbgp->send_cmd("net add node 1.0.0.2");
   $cbgp->send_cmd("net add node 1.0.0.3");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 10");
-  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
+  $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
   # Adding a single route: should succeed
   my $msg= cbgp_check_error($cbgp, "net node 1.0.0.1 ".
 			    "route add 1.0.0.2/32 1.0.0.2 10");
@@ -2354,14 +2595,14 @@ sub cbgp_valid_net_static_routes_errors($) {
     if (!check_has_error($msg, "unknown interface"));
   # Should not be able to add a route with a next-hop that is not
   # reachable through the outgoing interface.
-  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
   $msg= cbgp_check_error($cbgp, "net node 1.0.0.1 ".
 			 "route add --gw=1.0.0.3 1.0.0.2/32 1.0.0.2 10");
   return TEST_FAILURE
     if (!check_has_error($msg, $CBGP_ERROR_ROUTE_NH_UNREACH));
   # Should not be able to add a route through a subnet, with a next-hop
   # equal to the outgoing interface
-  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24 10");
+  $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24");
   $msg= cbgp_check_error($cbgp, "net node 1.0.0.1 route add ".
 			 "--gw=192.168.0.1 1.0.0.2/32 192.168.0.1/24 10");
   return TEST_FAILURE
@@ -2672,8 +2913,8 @@ sub cbgp_valid_bgp_options_showmode_custom($)
     $cbgp->send_cmd("net add node 123.0.0.234");
     $cbgp->send_cmd("bgp add router 255 123.0.0.234");
     $cbgp->send_cmd("bgp router 123.0.0.234 add network 192.168.0/24");
-    $cbgp->send_cmd("bgp options show-mode custom \"ROUTE:%i;%a;%p;%P;%C;%O;%n\"");
-   $cbgp->send_cmd("bgp router 123.0.0.234 show rib *");
+    $cbgp->send_cmd("bgp options show-mode \"ROUTE:%i;%a;%p;%P;%C;%O;%n\"");
+    $cbgp->send_cmd("bgp router 123.0.0.234 show rib *");
     $cbgp->send_cmd("print \"done\\n\"");
 
     while ((my $result= $cbgp->expect(1)) ne "done") {
@@ -3516,11 +3757,11 @@ sub cbgp_valid_bgp_session_nexthop_subnet($)
     $cbgp->send_cmd("net add node 2.0.0.1");
     $cbgp->send_cmd("net node 2.0.0.1 domain 2");
     $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.1/24");
     $cbgp->send_cmd("net link 1.0.0.1 192.168.0.1/24 igp-weight 10");
-    $cbgp->send_cmd("net add link 2.0.0.1 192.168.0.2/24 0");
+    $cbgp->send_cmd("net add link 2.0.0.1 192.168.0.2/24");
     $cbgp->send_cmd("net link 2.0.0.1 192.168.0.2/24 igp-weight 10");
     $cbgp->send_cmd("net domain 1 compute");
     $cbgp->send_cmd("net domain 2 compute");
@@ -3542,13 +3783,18 @@ sub cbgp_valid_bgp_session_nexthop_subnet($)
 
     return TEST_FAILURE
       if (!cbgp_check_route($cbgp, '1.0.0.2', '255.0.0.0/8',
-			    -iface=>'1.0.0.1',
-			    -nexthop=>'0.0.0.0'));
+			    -iface=>'---',
+			    -nexthop=>'192.168.0.2'));
     return TEST_FAILURE
       if (!cbgp_check_route($cbgp, '1.0.0.1', '255.0.0.0/8',
-			    -iface=>'192.168.0.1',
+			    -iface=>'---',
 			    -nexthop=>'192.168.0.2'));
 
+    my $tr= cbgp_record_route($cbgp, '1.0.0.2', '255.0.0.0');
+    return TEST_FAILURE
+      if (!check_recordroute($tr, -status=>"UNREACH",
+			     -path=>[[1,'1.0.0.1'],
+				     [2,'2.0.0.1']]));
     return TEST_SUCCESS;
   }
 
@@ -3563,8 +3809,8 @@ sub cbgp_valid_bgp_session_router_id($)
     $cbgp->send_cmd("net add node 1.0.0.1");
     $cbgp->send_cmd("net add node 1.0.0.2");
     $cbgp->send_cmd("net add node 1.0.0.3");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net domain 1 compute");
     $cbgp->send_cmd("bgp add router 1 1.0.0.1");
     $cbgp->send_cmd("bgp router 1.0.0.1");
@@ -3621,7 +3867,7 @@ sub cbgp_valid_bgp_session_sm()
     $cbgp->send_cmd("net node 1.0.0.1 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.2");
     $cbgp->send_cmd("net node 1.0.0.2 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
     $cbgp->send_cmd("bgp add router 1 1.0.0.1");
     $cbgp->send_cmd("bgp router 1.0.0.1 add peer 1 1.0.0.2");
@@ -3817,9 +4063,9 @@ sub cbgp_valid_bgp_router_up_down($)
     $cbgp->send_cmd("net node 1.0.0.2 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.3");
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
     $cbgp->send_cmd("bgp add router 1 1.0.0.1");
@@ -3927,7 +4173,7 @@ sub cbgp_valid_bgp_peering_nexthopself($)
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     $cbgp->send_cmd("bgp domain 1 full-mesh");
     $cbgp->send_cmd("net add node 2.0.0.1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0");
     $cbgp->send_cmd("net node 2.0.0.1 route add 1.0.0.1/32 1.0.0.1 0");
     $cbgp->send_cmd("bgp add router 2 2.0.0.1");
@@ -3978,7 +4224,7 @@ sub cbgp_valid_bgp_virtual_peer($)
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
-    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
+    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1\n");
     die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
     $cbgp->send_cmd("sim run");
@@ -4016,7 +4262,7 @@ sub cbgp_valid_bgp_recv_mrt($)
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     $cbgp->send_cmd("bgp domain 1 full-mesh");
     $cbgp->send_cmd("net add node 2.0.0.1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
     $cbgp->send_cmd("sim run");
@@ -4112,7 +4358,7 @@ sub cbgp_valid_bgp_aspath_as_set($)
     #    cbgp_topo_bgp_routers($cbgp, $topo, 1);
     #    die if $cbgp->send("bgp domain 1 full-mesh\n");
     #    die if $cbgp->send("net add node 2.0.0.1\n");
-    #    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
+    #    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1\n");
     #    die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
     #    cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2, "next-hop-self", "virtual");
     #    die if $cbgp->send("sim run\n");
@@ -4144,7 +4390,7 @@ sub cbgp_valid_bgp_soft_restart($)
     cbgp_topo_bgp_routers($cbgp, $topo, 1);
     die if $cbgp->send("bgp domain 1 full-mesh\n");
     die if $cbgp->send("net add node 2.0.0.1\n");
-    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 0\n");
+    die if $cbgp->send("net add link 1.0.0.1 2.0.0.1\n");
     die if $cbgp->send("net node 1.0.0.1 route add 2.0.0.1/32 2.0.0.1 0\n");
     cbgp_peering($cbgp, "1.0.0.1", "2.0.0.1", 2,
 		 "next-hop-self", "virtual", "soft-restart");
@@ -4236,10 +4482,10 @@ sub cbgp_valid_bgp_ssld($) {
   die if $cbgp->send("net add node 1.0.0.1\n");
   die if $cbgp->send("net add node 2.0.0.1\n");
   die if $cbgp->send("net add node 3.0.0.1\n");
-  die if $cbgp->send("net add link 1.0.0.1 2.0.0.1 10\n");
+  die if $cbgp->send("net add link 1.0.0.1 2.0.0.1\n");
   die if $cbgp->send("net link 1.0.0.1 2.0.0.1 igp-weight 10\n");
   die if $cbgp->send("net link 2.0.0.1 1.0.0.1 igp-weight 10\n");
-  die if $cbgp->send("net add link 1.0.0.1 3.0.0.1 10\n");
+  die if $cbgp->send("net add link 1.0.0.1 3.0.0.1\n");
   die if $cbgp->send("net link 1.0.0.1 3.0.0.1 igp-weight 10\n");
   die if $cbgp->send("net link 3.0.0.1 1.0.0.1 igp-weight 10\n");
   die if $cbgp->send("net node 1.0.0.1 domain 1\n");
@@ -4523,7 +4769,7 @@ sub cbgp_valid_bgp_dp_med($)
     my ($cbgp)= @_;
     cbgp_topo_dp3($cbgp, ["2.0.0.1", 2, 0], ["2.0.0.2", 2, 0],
 		  ["3.0.0.1", 3, 0], ["3.0.0.2", 3, 0]);
-    die if $cbgp->send("bgp options med deterministic\n");
+    $cbgp->send_cmd("bgp options med deterministic");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
 		     "255/16|2 4|IGP|2.0.0.1|0|80");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.2",
@@ -4532,7 +4778,7 @@ sub cbgp_valid_bgp_dp_med($)
 		     "255/16|3 4|IGP|3.0.0.1|0|40");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "3.0.0.2",
 		     "255/16|3 4|IGP|3.0.0.2|0|20");
-    die if $cbgp->send("sim run\n");
+    $cbgp->send_cmd("sim run");
     my $rib;
     my @routes;
     $rib= cbgp_get_rib($cbgp, "1.0.0.1", "255/16");
@@ -4543,12 +4789,12 @@ sub cbgp_valid_bgp_dp_med($)
     if ($routes[0]->[F_RIB_NEXTHOP] ne "2.0.0.2") {
       return TEST_FAILURE;
     }
-    die if $cbgp->send("bgp options med always-compare\n");
+    $cbgp->send_cmd("bgp options med always-compare");
     cbgp_recv_withdraw($cbgp, "1.0.0.1", 1, "2.0.0.1", "255/16");
     cbgp_recv_withdraw($cbgp, "1.0.0.1", 1, "2.0.0.2", "255/16");
     cbgp_recv_withdraw($cbgp, "1.0.0.1", 1, "3.0.0.1", "255/16");
     cbgp_recv_withdraw($cbgp, "1.0.0.1", 1, "3.0.0.2", "255/16");
-    die if $cbgp->send("sim run\n");
+    $cbgp->send_cmd("sim run");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.1",
 		     "255/16|2 4|IGP|2.0.0.1|0|80");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "2.0.0.2",
@@ -4557,7 +4803,7 @@ sub cbgp_valid_bgp_dp_med($)
 		     "255/16|3 4|IGP|3.0.0.1|0|40");
     cbgp_recv_update($cbgp, "1.0.0.1", 1, "3.0.0.2",
 		     "255/16|3 4|IGP|3.0.0.2|0|20");
-    die if $cbgp->send("sim run\n");
+    $cbgp->send_cmd("sim run");
     $rib= cbgp_get_rib($cbgp, "1.0.0.1", "255/16");
     @routes= values %$rib; 
     if (scalar(@routes) < 1) {
@@ -4645,15 +4891,15 @@ sub cbgp_valid_bgp_rr_dp_cluster_id_list($)
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.5");
     $cbgp->send_cmd("net node 1.0.0.5 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.5 0");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.5 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5 0");
+    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.4 1.0.0.5 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -4769,13 +5015,13 @@ sub cbgp_valid_bgp_rr_dp_originator_id($)
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net node 1.0.0.5 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.4 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.5 0");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.5 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5 0");
+    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.4 1.0.0.5 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
     $cbgp->send_cmd("bgp add router 1 1.0.0.3");
@@ -4857,15 +5103,15 @@ sub cbgp_valid_bgp_dp_neighbor_address($)
     $cbgp->send_cmd("net node 2.0.0.1 domain 1");
     $cbgp->send_cmd("net add subnet 192.168.0.0/31 transit");
     $cbgp->send_cmd("net add subnet 192.168.0.2/31 transit");
-    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.0/31 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.0/31");
     $cbgp->send_cmd("net link 1.0.0.1 192.168.0.0/31 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.2/31 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 192.168.0.2/31");
     $cbgp->send_cmd("net link 1.0.0.1 192.168.0.2/31 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/31 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/31");
     $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/31 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.3/31 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.3/31");
     $cbgp->send_cmd("net link 1.0.0.2 192.168.0.3/31 igp-weight 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.1 2.0.0.1 igp-weight 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -5398,10 +5644,10 @@ sub cbgp_valid_bgp_filter_match_aspath_regex($)
 
     cbgp_topo_dp3($cbgp, ["2.0.0.1", 2, 0], ["3.0.0.1", 3, 0]);
     cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in",
-		"path \\\"^2 .*\\\"",
+		"path \"^2 .*\"",
 		"community add 1:1");
     cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in",
-		"path \\\".* 254\$\\\"",
+		"path \".* 254\\\$\"",
 		"community add 1:2");
     cbgp_filter($cbgp, "1.0.0.1", "2.0.0.1", "in",
 		"path \\\".* 255\$\\\"",
@@ -5814,7 +6060,7 @@ sub cbgp_valid_bgp_load_rib($)
     $cbgp->send_cmd("net node 1.0.0.1 domain 1");
     $cbgp->send_cmd("net add node 2.0.0.1");
     $cbgp->send_cmd("net node 2.0.0.1 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.1 2.0.0.1 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
     $cbgp->send_cmd("bgp add router 1 1.0.0.1");
@@ -6016,19 +6262,19 @@ sub cbgp_valid_bgp_rr($)
     $cbgp->send_cmd("net node 3.0.0.1 domain 1");
     $cbgp->send_cmd("net add node 4.0.0.1");
     $cbgp->send_cmd("net node 4.0.0.1 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.1 2.0.0.1 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.5 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.5 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 3.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 3.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.2 3.0.0.1 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4 0");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 4.0.0.1 0");
+    $cbgp->send_cmd("net add link 1.0.0.3 4.0.0.1");
     $cbgp->send_cmd("net link 1.0.0.3 4.0.0.1 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -6209,15 +6455,15 @@ sub cbgp_valid_bgp_rr_stateful($)
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net node 1.0.0.5 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4 0");
+    $cbgp->send_cmd("net add link 1.0.0.3 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.3 1.0.0.4 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5 1");
+    $cbgp->send_cmd("net add link 1.0.0.4 1.0.0.5");
     $cbgp->send_cmd("net link 1.0.0.4 1.0.0.5 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -6318,11 +6564,11 @@ sub cbgp_valid_bgp_rr_ossld($)
     $cbgp->send_cmd("net node 1.0.0.1 domain 1");
     $cbgp->send_cmd("net node 1.0.0.2 domain 1");
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 0");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 1");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -6533,17 +6779,17 @@ sub cbgp_valid_net_traffic_load($)
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.4");
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.4 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.1 130.104.10.10/16 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 130.104.10.10/16");
     $cbgp->send_cmd("net link 1.0.0.1 130.104.10.10/16 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.3 138.48.4.4/16 10");
+    $cbgp->send_cmd("net add link 1.0.0.3 138.48.4.4/16");
     $cbgp->send_cmd("net link 1.0.0.3 138.48.4.4/16 igp-weight 10");
-    $cbgp->send_cmd("net add link 1.0.0.4 172.13.16.1/24 10");
+    $cbgp->send_cmd("net add link 1.0.0.4 172.13.16.1/24");
     $cbgp->send_cmd("net link 1.0.0.4 172.13.16.1/24 igp-weight 10");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -6628,20 +6874,20 @@ sub cbgp_valid_abilene($)
     }
 
     # Internal links
-    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.41 1295");
-    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.105 366");
-    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.153 861");
-    $cbgp->send_cmd("net add link 198.32.12.41 198.32.12.153 2095");
-    $cbgp->send_cmd("net add link 198.32.12.153 198.32.12.89 639");
-    $cbgp->send_cmd("net add link 198.32.12.105 198.32.12.57 1893");
-    $cbgp->send_cmd("net add link 198.32.12.89 198.32.12.57 902");
-    $cbgp->send_cmd("net add link 198.32.12.89 198.32.12.177 548");
-    $cbgp->send_cmd("net add link 198.32.12.57 198.32.12.9 1176");
-    $cbgp->send_cmd("net add link 198.32.12.9 198.32.12.177 587");
-    $cbgp->send_cmd("net add link 198.32.12.9 198.32.12.169 846");
-    $cbgp->send_cmd("net add link 198.32.12.25 198.32.12.177 260");
-    $cbgp->send_cmd("net add link 198.32.12.25 198.32.12.121 700");
-    $cbgp->send_cmd("net add link 198.32.12.169 198.32.12.121 233");
+    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.41");
+    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.105");
+    $cbgp->send_cmd("net add link 198.32.12.137 198.32.12.153");
+    $cbgp->send_cmd("net add link 198.32.12.41 198.32.12.153");
+    $cbgp->send_cmd("net add link 198.32.12.153 198.32.12.89");
+    $cbgp->send_cmd("net add link 198.32.12.105 198.32.12.57");
+    $cbgp->send_cmd("net add link 198.32.12.89 198.32.12.57");
+    $cbgp->send_cmd("net add link 198.32.12.89 198.32.12.177");
+    $cbgp->send_cmd("net add link 198.32.12.57 198.32.12.9");
+    $cbgp->send_cmd("net add link 198.32.12.9 198.32.12.177");
+    $cbgp->send_cmd("net add link 198.32.12.9 198.32.12.169");
+    $cbgp->send_cmd("net add link 198.32.12.25 198.32.12.177");
+    $cbgp->send_cmd("net add link 198.32.12.25 198.32.12.121");
+    $cbgp->send_cmd("net add link 198.32.12.169 198.32.12.121");
 
     # Compute IGP routes
     $cbgp->send_cmd("net link 198.32.12.137 198.32.12.41 igp-weight --bidir 1295");
@@ -6716,11 +6962,11 @@ sub cbgp_valid_enst($)
     $cbgp->send_cmd("net add node 4.1.1.1");
     $cbgp->send_cmd("net add node 62.229.1.1");
 
-    $cbgp->send_cmd("net add link 137.194.1.1 212.27.32.1 0");
-    $cbgp->send_cmd("net add link 137.194.1.1 134.157.1.1 0");
-    $cbgp->send_cmd("net add link 212.27.32.1 4.1.1.1 0");
-    $cbgp->send_cmd("net add link 62.229.1.1 134.157.1.1 0");
-    $cbgp->send_cmd("net add link 62.229.1.1 4.1.1.1 0");
+    $cbgp->send_cmd("net add link 137.194.1.1 212.27.32.1");
+    $cbgp->send_cmd("net add link 137.194.1.1 134.157.1.1");
+    $cbgp->send_cmd("net add link 212.27.32.1 4.1.1.1");
+    $cbgp->send_cmd("net add link 62.229.1.1 134.157.1.1");
+    $cbgp->send_cmd("net add link 62.229.1.1 4.1.1.1");
 
     $cbgp->send_cmd("net node 137.194.1.1 route add --gw=134.157.1.1 134.157.0.0/14 134.157.1.1 5");
     $cbgp->send_cmd("net node 137.194.1.1 route add --gw=212.27.32.1 212.27.32.0/19 212.27.32.1 5");
@@ -6837,7 +7083,7 @@ sub cbgp_valid_nasty_bgp_peering_1w_down($)
 
     $cbgp->send_cmd("net add node 0.1.0.0");
     $cbgp->send_cmd("net add node 0.2.0.0");
-    $cbgp->send_cmd("net add link 0.1.0.0 0.2.0.0 10");
+    $cbgp->send_cmd("net add link 0.1.0.0 0.2.0.0");
     $cbgp->send_cmd("net node 0.1.0.0 route add 0.2/16 0.2.0.0 10");
     $cbgp->send_cmd("net node 0.2.0.0 route add 0.1/16 0.1.0.0 10");
 
@@ -6864,7 +7110,7 @@ sub cbgp_valid_nasty_bgp_peering_1w_down($)
       if (!check_has_peer($peers, "0.1.0.0",
 			  -state=>C_PEER_ESTABLISHED));
 
-    $cbgp->send_cmd("net node 0.1.0.0 route del 0.2/16 * *");
+    $cbgp->send_cmd("net node 0.1.0.0 route del 0.2/16 *");
     $cbgp->send_cmd("bgp router 0.1.0.0 rescan");
     $cbgp->send_cmd("bgp router 0.2.0.0 rescan");
 
@@ -6893,11 +7139,11 @@ sub cbgp_valid_nasty_bgp_session_segment_ordering($)
     $cbgp->send_cmd("net node 1.0.0.2 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.3");
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 2");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 2");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 10");
-    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3 10");
+    $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -6942,11 +7188,11 @@ sub cbgp_valid_nasty_bgp_med_ordering($)
     $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.4");
     $cbgp->send_cmd("net node 1.0.0.4 domain 1");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.2");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.2 igp-weight --bidir 20");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 5");
-    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.4 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.4");
     $cbgp->send_cmd("net link 1.0.0.1 1.0.0.4 igp-weight --bidir 10");
     $cbgp->send_cmd("net domain 1 compute");
 
@@ -7036,46 +7282,56 @@ sub cbgp_valid_nasty_bgp_med_ordering($)
     return TEST_SUCCESS;
   }
 
-# -----[ cbgp_valid_bgp_clearadjrib ]--------------------------------
-#
-# -------------------------------------------------------------------
-sub cbgp_valid_bgp_clearadjrib($)
-  {
-    my ($cbgp)= @_;
-    return TEST_NOT_TESTED;
-  }
-
 # -----[ cbgp_valid_bgp_router_show_filter ]-------------------------
 #
 # -------------------------------------------------------------------
-sub cbgp_valid_bgp_router_show_filter($)
-  {
-    my ($cbgp)= @_;
-    return TEST_NOT_TESTED;
-  }
+sub cbgp_valid_bgp_router_show_filter($) {
+  my ($cbgp)= @_;
+  $cbgp->send_cmd("net add node 1.0.0.0");
+  $cbgp->send_cmd("bgp add router 1 1.0.0.0");
+  $cbgp->send_cmd("bgp router 1.0.0.0");
+  $cbgp->send_cmd("  add peer 2 2.0.0.0");
+  $cbgp->send_cmd("  peer 2.0.0.0");
+  $cbgp->send_cmd("    filter in");
+  $cbgp->send_cmd("      add-rule");
+  $cbgp->send_cmd("        match any");
+  $cbgp->send_cmd("        action \"local-pref 100, metric 200\"");
+  $cbgp->send_cmd("");
+  $cbgp->send_cmd("bgp router 1.0.0.0 peer 2.0.0.0 filter in show");
+  cbgp_checkpoint($cbgp);
+  return TEST_SUCCESS;
+}
 
 # -----[ cbgp_valid_bgp_options_autocreate ]-------------------------
 #
 # -------------------------------------------------------------------
-sub cbgp_valid_bgp_options_autocreate($)
-  {
-    my ($cbgp)= @_;
-    return TEST_NOT_TESTED;
-  }
+sub cbgp_valid_bgp_options_autocreate($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
 
 # -----[ cbgp_valid_net_node_traffic_load ]--------------------------
 #
 # -------------------------------------------------------------------
-sub cbgp_valid_net_node_traffic_load($)
-  {
-    my ($cbgp)= @_;
-    return TEST_NOT_TESTED;
-  }
+sub cbgp_valid_net_node_traffic_load($) {
+  my ($cbgp)= @_;
+  my $filename= "";
+  $cbgp->send_cmd("net traffic load \"$filename\"");
+  return TEST_NOT_TESTED;
+}
 
 # -----[ cbgp_valid_net_node_traffic_load_netflow ]------------------
 #
 # -------------------------------------------------------------------
-sub cbgp_valid_net_node_traffic_load_netflow($)
+sub cbgp_valid_net_node_traffic_load_netflow($) {
+  my ($cbgp)= @_;
+  return TEST_NOT_TESTED;
+}
+
+# -----[ cbgp_valid_bgp_clearadjrib ]--------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_bgp_clearadjrib($)
   {
     my ($cbgp)= @_;
     return TEST_NOT_TESTED;
@@ -7090,17 +7346,73 @@ sub cbgp_valid_bgp_router_load_cisco($)
     return TEST_NOT_TESTED;
   }
 
-# -----[ test_set_result ]-------------------------------------------
-sub test_set_result($$;$)
-  {
-    my ($test_id, $result, $duration)= @_;
+# -----[ cbgp_valid_net_igp_ecmp ]-----------------------------------
+#
+# -------------------------------------------------------------------
+sub cbgp_valid_net_igp_ecmp($) {
+  my ($cbgp)= @_;
+  $cbgp->send_cmd("net add node 0.0.0.1");
+  $cbgp->send_cmd("net add node 0.0.0.2");
+  $cbgp->send_cmd("net add node 0.0.0.3");
+  $cbgp->send_cmd("net add node 0.0.0.4");
+  $cbgp->send_cmd("net add node 0.0.0.5");
+  $cbgp->send_cmd("net add node 0.0.0.6");
+  $cbgp->send_cmd("net add node 0.0.0.7");
+  $cbgp->send_cmd("net add node 0.0.0.8");
+  $cbgp->send_cmd("net add node 0.0.0.9");
+  $cbgp->send_cmd("net add link 0.0.0.1 0.0.0.2");
+  $cbgp->send_cmd("net add link 0.0.0.2 0.0.0.3");
+  $cbgp->send_cmd("net add link 0.0.0.2 0.0.0.4");
+  $cbgp->send_cmd("net add link 0.0.0.3 0.0.0.5");
+  $cbgp->send_cmd("net add link 0.0.0.4 0.0.0.5");
+  $cbgp->send_cmd("net add link 0.0.0.5 0.0.0.6");
+  $cbgp->send_cmd("net add link 0.0.0.5 0.0.0.7");
+  $cbgp->send_cmd("net add link 0.0.0.6 0.0.0.8");
+  $cbgp->send_cmd("net add link 0.0.0.7 0.0.0.8");
+  $cbgp->send_cmd("net add link 0.0.0.8 0.0.0.9");
+  $cbgp->send_cmd("net add link 0.0.0.4 0.0.0.7");
 
-    my $test= $validation->{'tests_list'}->[$test_id];
-    $test->[TEST_FIELD_RESULT]= $result;
-    (defined($duration)) and
-      $test->[TEST_FIELD_DURATION]= $duration;
+  $cbgp->send_cmd("net add domain 1 igp");
+  $cbgp->send_cmd("net node 0.0.0.1 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.2 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.3 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.4 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.5 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.6 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.7 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.8 domain 1");
+  $cbgp->send_cmd("net node 0.0.0.9 domain 1");
+  $cbgp->send_cmd("net link 0.0.0.1 0.0.0.2 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.2 0.0.0.3 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.2 0.0.0.4 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.3 0.0.0.5 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.4 0.0.0.5 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.5 0.0.0.6 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.5 0.0.0.7 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.6 0.0.0.8 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.7 0.0.0.8 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.8 0.0.0.9 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.4 0.0.0.7 igp-weight --bidir 2");
+  $cbgp->send_cmd("net domain 1 compute");
+
+  my $traces= cbgp_record_route($cbgp, '0.0.0.1', '0.0.0.9', -ecmp=>1);
+  return TEST_FAILURE
+    if (scalar(@$traces) != 5);
+  foreach my $trace (@$traces) {
   }
 
+  return TEST_SUCCESS;
+}
+
+# -----[ test_set_result ]-------------------------------------------
+sub test_set_result($$;$) {
+  my ($test_id, $result, $duration)= @_;
+
+  my $test= $validation->{'tests_list'}->[$test_id];
+  $test->[TEST_FIELD_RESULT]= $result;
+  (defined($duration)) and
+    $test->[TEST_FIELD_DURATION]= $duration;
+}
 
 
 #####################################################################
@@ -7119,6 +7431,9 @@ my $topo= topo_3nodes_triangle();
 # -----------------------------------------------------------------
 $tests->register("show version", "cbgp_valid_version");
 $tests->register("cli", "cbgp_valid_cli");
+$tests->register("cli error", "cbgp_valid_cli_error");
+$tests->register("cli include", "cbgp_valid_cli_include");
+$tests->register("cli include error", "cbgp_valid_cli_include_error");
 $tests->register("net node", "cbgp_valid_net_node");
 $tests->register("net node duplicate", "cbgp_valid_net_node_duplicate");
 $tests->register("net node name", "cbgp_valid_net_node_name");
@@ -7140,9 +7455,12 @@ $tests->register("net igp unknown domain",
 $tests->register("net igp subnet", "cbgp_valid_net_igp_subnet");
 $tests->register("net ntf load", "cbgp_valid_net_ntf_load",
 		 $resources_path."valid-record-route.ntf");
+$tests->register("net ntf load (error)", "cbgp_valid_net_ntf_load_error");
 $tests->register("net record-route", "cbgp_valid_net_record_route", $topo);
 $tests->register("net record-route delay",
-		 "cbgp_valid_net_record_route_delay", $topo);
+		 "cbgp_valid_net_record_route_delay");
+$tests->register("net record-route delay (topo)",
+		 "cbgp_valid_net_record_route_delay_topo", $topo);
 $tests->register("net record-route capacity",
 		 "cbgp_valid_net_record_route_capacity");
 $tests->register("net record-route load",
@@ -7150,6 +7468,10 @@ $tests->register("net record-route load",
 $tests->register("net record-route loop", "cbgp_valid_net_record_route_loop");
 $tests->register("net record-route prefix",
 		 "cbgp_valid_net_record_route_prefix");
+$tests->register("net record-route ecmp",
+		 "cbgp_valid_net_record_route_ecmp");
+$tests->register("net record-route ecmp (load)",
+		 "cbgp_valid_net_record_route_ecmp_load");
 $tests->register("net icmp ping", "cbgp_valid_net_icmp_ping");
 $tests->register("net icmp traceroute", "cbgp_valid_net_icmp_traceroute");
 $tests->register("net tunnel", "cbgp_valid_net_tunnel");
@@ -7319,6 +7641,7 @@ $tests->register("net node traffic load (netflow)",
 		 "cbgp_valid_net_node_traffic_load_netflow");
 $tests->register("bgp router load cisco",
 		 "cbgp_valid_bgp_router_load_cisco");
+$tests->register("net igp ecmp", "cbgp_valid_net_igp_ecmp");
 
 my $return_value= 0;
 if ($tests->run() > 0) {
