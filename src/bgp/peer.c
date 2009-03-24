@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// $Id: peer.c,v 1.43 2008-06-11 15:14:52 bqu Exp $
+// $Id: peer.c,v 1.44 2009-03-24 14:29:05 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,21 +15,23 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 
 #include <net/error.h>
 #include <net/icmp.h>
-#include <net/record-route.h>
+#include <net/network.h>
+#include <net/node.h>
+
 #include <bgp/as.h>
-#include <bgp/comm.h>
-#include <bgp/ecomm.h>
+#include <bgp/attr/comm.h>
+#include <bgp/attr/ecomm.h>
+#include <bgp/filter/filter.h>
 #include <bgp/message.h>
 #include <bgp/peer.h>
 #include <bgp/qos.h>
+#include <bgp/rib.h>
 #include <bgp/route.h>
-#include <net/network.h>
-#include <net/node.h>
 
 char * SESSION_STATES[SESSION_STATE_MAX]= {
   "IDLE",
@@ -43,8 +45,9 @@ static inline void _bgp_peer_rescan_adjribin(bgp_peer_t * peer,
 					     int clear);
 static inline void _bgp_peer_process_update(bgp_peer_t * peer,
 					    bgp_msg_update_t * msg);
-static inline void _bgp_peer_process_withdraw(bgp_peer_t * pPeer,
+static inline void _bgp_peer_process_withdraw(bgp_peer_t * peer,
 					      bgp_msg_withdraw_t * msg);
+static inline int _bgp_peer_send(bgp_peer_t * peer, bgp_msg_t * msg);
 
 
 // -----[ bgp_peer_create ]------------------------------------------
@@ -54,49 +57,52 @@ static inline void _bgp_peer_process_withdraw(bgp_peer_t * pPeer,
  *   - default input/output filters (accept everything)
  *   - input/output adjacent RIBs
  */
-bgp_peer_t * bgp_peer_create(uint16_t uRemoteAS, net_addr_t tAddr,
-			     bgp_router_t * pLocalRouter)
+bgp_peer_t * bgp_peer_create(uint16_t asn, net_addr_t addr,
+			     bgp_router_t * router)
 {
-  bgp_peer_t * pPeer= (bgp_peer_t *) MALLOC(sizeof(bgp_peer_t));
-  pPeer->uRemoteAS= uRemoteAS;
-  pPeer->tAddr= tAddr;
-  pPeer->tSrcAddr= NET_ADDR_ANY;
-  pPeer->tRouterID= 0;
-  pPeer->pLocalRouter= pLocalRouter;
-  pPeer->pFilter[FILTER_IN]= NULL; // Default = ACCEPT ANY
-  pPeer->pFilter[FILTER_OUT]= NULL; // Default = ACCEPT ANY
-  pPeer->pAdjRIB[RIB_IN]= rib_create(0);
-  pPeer->pAdjRIB[RIB_OUT]= rib_create(0);
-  pPeer->tSessionState= SESSION_STATE_IDLE;
-  pPeer->uFlags= 0;
-  pPeer->tNextHop= NET_ADDR_ANY;
-  pPeer->pRecordStream= NULL;
+  bgp_peer_t * peer= (bgp_peer_t *) MALLOC(sizeof(bgp_peer_t));
+  peer->asn= asn;
+  peer->addr= addr;
+  peer->router= router;
+  peer->router_id= NET_ADDR_ANY;
+  peer->filter[FILTER_IN]= NULL; // Default = ACCEPT ANY
+  peer->filter[FILTER_OUT]= NULL; // Default = ACCEPT ANY
+  peer->adj_rib[RIB_IN]= rib_create(0);
+  peer->adj_rib[RIB_OUT]= rib_create(0);
+  peer->session_state= SESSION_STATE_IDLE;
+  peer->flags= 0;
+
+  // Options
+  peer->next_hop= NET_ADDR_ANY;
+  peer->src_addr= NET_ADDR_ANY;
+
+  peer->pRecordStream= NULL;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  pPeer->uWaltonLimit = 1;
-  bgp_router_walton_peer_set(pPeer, 1);
+  peer->uWaltonLimit = 1;
+  bgp_router_walton_peer_set(peer, 1);
 #endif
-  pPeer->last_error= ESUCCESS;
-  return pPeer;
+  peer->last_error= ESUCCESS;
+  return peer;
 }
 
 // -----[ bgp_peer_destroy ]-----------------------------------------
 /**
  * Destroy the given peer structure and free the related memory.
  */
-void bgp_peer_destroy(bgp_peer_t ** ppPeer)
+void bgp_peer_destroy(bgp_peer_t ** ppeer)
 {
-  if (*ppPeer != NULL) {
+  if (*ppeer != NULL) {
 
     /* Free input and output filters */
-    filter_destroy(&(*ppPeer)->pFilter[FILTER_IN]);
-    filter_destroy(&(*ppPeer)->pFilter[FILTER_OUT]);
+    filter_destroy(&(*ppeer)->filter[FILTER_IN]);
+    filter_destroy(&(*ppeer)->filter[FILTER_OUT]);
 
     /* Free input and output adjacent RIBs */
-    rib_destroy(&(*ppPeer)->pAdjRIB[RIB_IN]);
-    rib_destroy(&(*ppPeer)->pAdjRIB[RIB_OUT]);
+    rib_destroy(&(*ppeer)->adj_rib[RIB_IN]);
+    rib_destroy(&(*ppeer)->adj_rib[RIB_OUT]);
 
-    FREE(*ppPeer);
-    *ppPeer= NULL;
+    FREE(*ppeer);
+    *ppeer= NULL;
   }
 }
 
@@ -105,42 +111,42 @@ void bgp_peer_destroy(bgp_peer_t ** ppPeer)
 /**
  * Change the state of a flag of this peer.
  */
-void bgp_peer_flag_set(bgp_peer_t * pPeer, uint8_t uFlag, int iState)
+void bgp_peer_flag_set(bgp_peer_t * peer, uint8_t flag, int state)
 {
-  if (iState)
-    pPeer->uFlags|= uFlag;
+  if (state)
+    peer->flags|= flag;
   else
-    pPeer->uFlags&= ~uFlag;
+    peer->flags&= ~flag;
 }
 
 // ----- bgp_peer_flag_get ------------------------------------------
 /**
  * Return the state of a flag of this peer.
  */
-int bgp_peer_flag_get(bgp_peer_t * pPeer, uint8_t uFlag)
+int bgp_peer_flag_get(bgp_peer_t * peer, uint8_t flag)
 {
-  return (pPeer->uFlags & uFlag) != 0;
+  return (peer->flags & flag) != 0;
 }
 
 // ----- bgp_peer_set_nexthop ---------------------------------------
 /**
  * Set the next-hop to be sent for routes advertised to this peer.
  */
-int bgp_peer_set_nexthop(bgp_peer_t * pPeer, net_addr_t tNextHop)
+int bgp_peer_set_nexthop(bgp_peer_t * peer, net_addr_t next_hop)
 {
   // Check that the local router has this address
-  if (!node_has_address(pPeer->pLocalRouter->pNode, tNextHop))
+  if (!node_has_address(peer->router->node, next_hop))
     return -1;
 
-  pPeer->tNextHop= tNextHop;
+  peer->next_hop= next_hop;
 
   return 0;
 }
 
 // -----[ bgp_peer_set_source ]--------------------------------------
-int bgp_peer_set_source(bgp_peer_t * pPeer, net_addr_t tSrcAddr)
+int bgp_peer_set_source(bgp_peer_t * peer, net_addr_t src_addr)
 {
-  pPeer->tSrcAddr= tSrcAddr;
+  peer->src_addr= src_addr;
 
   return 0;
 }
@@ -152,12 +158,12 @@ int bgp_peer_set_source(bgp_peer_t * pPeer, net_addr_t tSrcAddr)
 static int _bgp_peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
 					void * pItem, void * pContext)
 {
-  bgp_peer_t * pPeer= (bgp_peer_t *) pContext;
-  bgp_route_t * pRoute= (bgp_route_t *) pItem;
+  bgp_peer_t * peer= (bgp_peer_t *) pContext;
+  bgp_route_t * route= (bgp_route_t *) pItem;
 
-  bgp_router_decision_process_disseminate_to_peer(pPeer->pLocalRouter,
-						  pRoute->sPrefix,
-						  pRoute, pPeer);
+  bgp_router_decision_process_disseminate_to_peer(peer->router,
+						  route->prefix,
+						  route, peer);
   return 0;
 }
 
@@ -184,28 +190,28 @@ static int _bgp_peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
  * the function checks if the resulting link is up. If both conditions
  * are met, the BGP session is considered OK.
  */
-int bgp_peer_session_ok(bgp_peer_t * pPeer)
+int bgp_peer_session_ok(bgp_peer_t * peer)
 {
-  int iResult;
-  SNetDest sDest;
-  ip_trace_t * pTrace;
+  int result;
+  ip_dest_t dest;
+  ip_trace_t * trace= NULL;
 
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    sDest.tType= NET_DEST_ADDRESS;
-    sDest.uDest.tAddr= pPeer->tAddr;
+  if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+    dest.type= NET_DEST_ADDRESS;
+    dest.addr= peer->addr;
 
     // This must be updated: the router is not necessarily
     // adjacent... need to perform a kind of traceroute...
-    iResult= icmp_record_route(pPeer->pLocalRouter->pNode,
-			       pPeer->tAddr, NULL, 255, 0, &pTrace, 0);
-    iResult= (iResult == ESUCCESS);
-    ip_trace_destroy(&pTrace);
+    result= icmp_trace_send(peer->router->node,
+			    peer->addr, 255, NULL, &trace);
+    result= (result == ESUCCESS) && (trace->status == ESUCCESS);
+    ip_trace_destroy(&trace);
   } else {
-    iResult= icmp_ping_send_recv(pPeer->pLocalRouter->pNode,
-				 0, pPeer->tAddr, 0);
-    iResult= (iResult == ESUCCESS);
+    result= icmp_ping_send_recv(peer->router->node,
+				 0, peer->addr, 0);
+    result= (result == ESUCCESS);
   }
-  return iResult;
+  return result;
 }
 
 // ----- bgp_peer_session_refresh -----------------------------------
@@ -215,24 +221,24 @@ int bgp_peer_session_ok(bgp_peer_t * pPeer)
  * operational. If the session is in ACTIVE state, test if it must be
  * restarted.
  */
-void bgp_peer_session_refresh(bgp_peer_t * pPeer)
+void bgp_peer_session_refresh(bgp_peer_t * peer)
 {
-  if ((pPeer->tSessionState == SESSION_STATE_ESTABLISHED) ||
-      (pPeer->tSessionState == SESSION_STATE_OPENWAIT)) {
+  if ((peer->session_state == SESSION_STATE_ESTABLISHED) ||
+      (peer->session_state == SESSION_STATE_OPENWAIT)) {
 
     /* Check that the peer is reachable (that is, there is a route
        towards the peer). If not, shutdown the peering. */
-    if (!bgp_peer_session_ok(pPeer)) {
-      assert(!bgp_peer_close_session(pPeer));
-      pPeer->tSessionState= SESSION_STATE_ACTIVE;
+    if (!bgp_peer_session_ok(peer)) {
+      assert(!bgp_peer_close_session(peer));
+      peer->session_state= SESSION_STATE_ACTIVE;
     }
 
-  } else if (pPeer->tSessionState == SESSION_STATE_ACTIVE) {
+  } else if (peer->session_state == SESSION_STATE_ACTIVE) {
     
     /* Check that the peer is reachable (that is, there is a route
        towards the peer). If yes, open the session. */
-    if (bgp_peer_session_ok(pPeer))
-      assert(!bgp_peer_open_session(pPeer));
+    if (bgp_peer_session_ok(peer))
+      assert(!bgp_peer_open_session(peer));
     
   }
 }
@@ -257,54 +263,56 @@ void bgp_peer_session_refresh(bgp_peer_t * pPeer)
  * - the session must be in IDLE or ACTIVE state or an error will be
  *   issued.
  */
-int bgp_peer_open_session(bgp_peer_t * pPeer)
+int bgp_peer_open_session(bgp_peer_t * peer)
 {
-  bgp_msg_t * pMsg;
+  bgp_msg_t * msg;
   int error;
 
   // Check that operation is permitted in this state
-  if ((pPeer->tSessionState != SESSION_STATE_IDLE) &
-      (pPeer->tSessionState != SESSION_STATE_ACTIVE)) {
-    LOG_ERR(LOG_LEVEL_WARNING, "Warning: session already opened\n");
+  if ((peer->session_state != SESSION_STATE_IDLE) &
+      (peer->session_state != SESSION_STATE_ACTIVE)) {
+    STREAM_ERR(STREAM_LEVEL_WARNING, "Warning: session already opened\n");
     return EBGP_PEER_INVALID_STATE;
   }
 
-  // Initialize "TCP" sequence numbers
-  pPeer->uSendSeqNum= 0;
-  pPeer->uRecvSeqNum= 0;
+  // Initialize "TCP" sequence numbers and router-id
+  peer->router_id= NET_ADDR_ANY;
+  peer->send_seq_num= 0;
+  peer->recv_seq_num= 0;
 
   /* Send an OPEN message to the peer (except for virtual peers) */
-  if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    pMsg= bgp_msg_open_create(pPeer->pLocalRouter->uASN,
-			      pPeer->pLocalRouter->tRouterID);
-    error= bgp_peer_send(pPeer, pMsg);
+  if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+    msg= bgp_msg_open_create(peer->router->asn,
+			     peer->router->rid);
+    error= _bgp_peer_send(peer, msg);
     if (error == ESUCCESS) {
-      pPeer->tSessionState= SESSION_STATE_OPENWAIT;
+      peer->session_state= SESSION_STATE_OPENWAIT;
     } else {
-      pPeer->tSessionState= SESSION_STATE_ACTIVE;
-      pPeer->uSendSeqNum= 0;
-      pPeer->uRecvSeqNum= 0;
+      peer->session_state= SESSION_STATE_ACTIVE;
+      peer->router_id= NET_ADDR_ANY;
+      peer->send_seq_num= 0;
+      peer->recv_seq_num= 0;
     }
-    pPeer->last_error= error;
+    peer->last_error= error;
   } else {
     
     /* For virtual peers, we check that the peer is reachable
      * through the IGP. If so, the state directly goes to
      * ESTABLISHED. Otherwise, the state goes to ACTIVE. */
-    if (bgp_peer_session_ok(pPeer)) {
-      pPeer->tSessionState= SESSION_STATE_ESTABLISHED;
-      pPeer->tRouterID= pPeer->tAddr;
+    if (bgp_peer_session_ok(peer)) {
+      peer->session_state= SESSION_STATE_ESTABLISHED;
+      peer->router_id= peer->addr;
       
       /* If the virtual peer is configured with the soft-restart
 	 option, scan the Adj-RIB-in and run the decision process
 	 for each route. */
-      if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART))
-	_bgp_peer_rescan_adjribin(pPeer, 0);
+      if (bgp_peer_flag_get(peer, PEER_FLAG_SOFT_RESTART))
+	_bgp_peer_rescan_adjribin(peer, 0);
       
-      pPeer->last_error= ESUCCESS;
+      peer->last_error= ESUCCESS;
     } else {
-      pPeer->tSessionState= SESSION_STATE_ACTIVE;
-      pPeer->last_error= EBGP_PEER_UNREACHABLE;
+      peer->session_state= SESSION_STATE_ACTIVE;
+      peer->last_error= EBGP_PEER_UNREACHABLE;
     }
   }
   
@@ -320,47 +328,47 @@ int bgp_peer_open_session(bgp_peer_t * pPeer)
  * Precondition:
  * - the peer must not be in IDLE state.
  */
-int bgp_peer_close_session(bgp_peer_t * pPeer)
+int bgp_peer_close_session(bgp_peer_t * peer)
 {
-  bgp_msg_t * pMsg;
+  bgp_msg_t * msg;
   int iClear;
 
   // Check that operation is permitted in this state
-  if (pPeer->tSessionState == SESSION_STATE_IDLE) {
-    LOG_ERR(LOG_LEVEL_WARNING, "Warning: session not opened\n");
+  if (peer->session_state == SESSION_STATE_IDLE) {
+    STREAM_ERR(STREAM_LEVEL_WARNING, "Warning: session not opened\n");
     return EBGP_PEER_INVALID_STATE;
   }
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "> AS%d.peer_close_session.begin\n",
-	       pPeer->pLocalRouter->uASN);
-    log_printf(pLogDebug, "\tpeer: AS%d\n", pPeer->uRemoteAS);
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "> AS%d.peer_close_session.begin\n",
+		  peer->router->asn);
+    stream_printf(gdsdebug, "\tpeer: AS%d\n", peer->asn);
   }
 
   /* If the session is in OPENWAIT or ESTABLISHED state, send a
      CLOSE message to the peer (except for virtual peers). */
-  if ((pPeer->tSessionState == SESSION_STATE_OPENWAIT) ||
-      (pPeer->tSessionState == SESSION_STATE_ESTABLISHED)) {
+  if ((peer->session_state == SESSION_STATE_OPENWAIT) ||
+      (peer->session_state == SESSION_STATE_ESTABLISHED)) {
     
-    if (!bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-      pMsg= bgp_msg_close_create(pPeer->pLocalRouter->uASN);
-      bgp_peer_send(pPeer, pMsg);
+    if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+      msg= bgp_msg_close_create(peer->router->asn);
+      _bgp_peer_send(peer, msg);
     }
     
   }    
-  pPeer->tSessionState= SESSION_STATE_IDLE;
-  pPeer->tRouterID= 0;
-  pPeer->uSendSeqNum= 0;
-  pPeer->uRecvSeqNum= 0;
+  peer->session_state= SESSION_STATE_IDLE;
+  peer->router_id= NET_ADDR_ANY;
+  peer->send_seq_num= 0;
+  peer->recv_seq_num= 0;
   
   /* For virtual peers configured with the soft-restart option, do
      not clear the Adj-RIB-in. */
-  iClear= !(bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL) &&
-	    bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART));
-  _bgp_peer_rescan_adjribin(pPeer, iClear);
+  iClear= !(bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL) &&
+	    bgp_peer_flag_get(peer, PEER_FLAG_SOFT_RESTART));
+  _bgp_peer_rescan_adjribin(peer, iClear);
   
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "< AS%d.peer_close_session.end\n",
-	    pPeer->pLocalRouter->uASN);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "< AS%d.peer_close_session.end\n",
+	    peer->router->asn);
   
   return ESUCCESS;
 }
@@ -371,109 +379,110 @@ int bgp_peer_close_session(bgp_peer_t * pPeer)
  * (the AS number and the IP address of the local router and the peer
  * router).
  */
-void bgp_peer_session_error(bgp_peer_t * pPeer)
+void bgp_peer_session_error(bgp_peer_t * peer)
 {
-  LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
-    log_printf(pLogErr, "Error: peer=");
-    bgp_peer_dump_id(pLogErr, pPeer);
-    log_printf(pLogErr, "\nError: router=");
-    bgp_router_dump_id(pLogErr, pPeer->pLocalRouter);
-    log_printf(pLogErr, "\n");
+  STREAM_ERR_ENABLED(STREAM_LEVEL_FATAL) {
+    stream_printf(gdserr, "Error: peer=");
+    bgp_peer_dump_id(gdserr, peer);
+    stream_printf(gdserr, "\nError: router=");
+    bgp_router_dump_id(gdserr, peer->router);
+    stream_printf(gdserr, "\n");
   }
 }
 
 // ----- _bgp_peer_session_open_rcvd --------------------------------
-static inline void _bgp_peer_session_open_rcvd(bgp_peer_t * pPeer,
+static inline void _bgp_peer_session_open_rcvd(bgp_peer_t * peer,
 					       bgp_msg_open_t * msg)
 {
   /* Check that the message does not come from a virtual peer */
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_ERR(LOG_LEVEL_FATAL,
+  if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+    STREAM_ERR(STREAM_LEVEL_FATAL,
 	    "Error: OPEN message received from virtual peer\n");
-    bgp_peer_session_error(pPeer);
+    bgp_peer_session_error(peer);
     abort();
   }
 
-  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: OPEN\n");
-  switch (pPeer->tSessionState) {
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "BGP_MSG_RCVD: OPEN\n");
+  switch (peer->session_state) {
   case SESSION_STATE_ACTIVE:
-    pPeer->tSessionState= SESSION_STATE_ESTABLISHED;
-    bgp_peer_send(pPeer,
-		  bgp_msg_open_create(pPeer->pLocalRouter->uASN,
-				      pPeer->pLocalRouter->tRouterID));
+    peer->session_state= SESSION_STATE_ESTABLISHED;
+    _bgp_peer_send(peer,
+		   bgp_msg_open_create(peer->router->asn,
+				       peer->router->rid));
 
-    rib_for_each(pPeer->pLocalRouter->pLocRIB,
-		 _bgp_peer_prefix_disseminate, pPeer);
+    rib_for_each(peer->router->loc_rib,
+		 _bgp_peer_prefix_disseminate, peer);
     break;
   case SESSION_STATE_OPENWAIT:
-    pPeer->tSessionState= SESSION_STATE_ESTABLISHED;
-    pPeer->tRouterID= msg->router_id;
-    rib_for_each(pPeer->pLocalRouter->pLocRIB,
-		 _bgp_peer_prefix_disseminate, pPeer);
+    peer->session_state= SESSION_STATE_ESTABLISHED;
+    peer->router_id= msg->router_id;
+    rib_for_each(peer->router->loc_rib,
+		 _bgp_peer_prefix_disseminate, peer);
     break;
   default:
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: OPEN received while in %s state\n",
-	    SESSION_STATES[pPeer->tSessionState]);
-    bgp_peer_session_error(pPeer);
+    STREAM_ERR(STREAM_LEVEL_FATAL, "Error: OPEN received while in %s state\n",
+	    SESSION_STATES[peer->session_state]);
+    bgp_peer_session_error(peer);
     abort();
   }
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
-	    SESSION_STATES[pPeer->tSessionState]);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[peer->session_state]);
 }
 
 // ----- _bgp_peer_session_close_rcvd -------------------------------
-static inline void _bgp_peer_session_close_rcvd(bgp_peer_t * pPeer)
+static inline void _bgp_peer_session_close_rcvd(bgp_peer_t * peer)
 {
   /* Check that the message does not come from a virtual peer */
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    LOG_ERR(LOG_LEVEL_FATAL,
+  if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+    STREAM_ERR(STREAM_LEVEL_FATAL,
 	    "Error: CLOSE message received from virtual peer\n");
-    bgp_peer_session_error(pPeer);
+    bgp_peer_session_error(peer);
     abort();
   }
 
-  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: CLOSE\n");
-  switch (pPeer->tSessionState) {
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "BGP_MSG_RCVD: CLOSE\n");
+  switch (peer->session_state) {
   case SESSION_STATE_ESTABLISHED:
   case SESSION_STATE_OPENWAIT:
-    pPeer->tSessionState= SESSION_STATE_ACTIVE;
-    pPeer->uSendSeqNum= 0;
-    pPeer->uRecvSeqNum= 0;
-    _bgp_peer_rescan_adjribin(pPeer, !bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL));
+    peer->session_state= SESSION_STATE_ACTIVE;
+    peer->router_id= NET_ADDR_ANY;
+    peer->send_seq_num= 0;
+    peer->recv_seq_num= 0;
+    _bgp_peer_rescan_adjribin(peer, !bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL));
     break;
   case SESSION_STATE_ACTIVE:
   case SESSION_STATE_IDLE:
     break;
   default:
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: CLOSE received while in %s state\n",
-	      SESSION_STATES[pPeer->tSessionState]);
-    bgp_peer_session_error(pPeer);
+    STREAM_ERR(STREAM_LEVEL_FATAL, "Error: CLOSE received while in %s state\n",
+	      SESSION_STATES[peer->session_state]);
+    bgp_peer_session_error(peer);
     abort();    
   }
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
-	    SESSION_STATES[pPeer->tSessionState]);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[peer->session_state]);
 }
 
 // ----- _bgp_peer_session_update_rcvd ------------------------------
 static inline void _bgp_peer_session_update_rcvd(bgp_peer_t * peer,
 						 bgp_msg_update_t * msg)
 {
-  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: UPDATE\n");
-  switch (peer->tSessionState) {
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "BGP_MSG_RCVD: UPDATE\n");
+  switch (peer->session_state) {
   case SESSION_STATE_OPENWAIT:
-    peer->tSessionState= SESSION_STATE_ESTABLISHED;
+    peer->session_state= SESSION_STATE_ESTABLISHED;
     break;
   case SESSION_STATE_ESTABLISHED:
     break;
   default:
-    LOG_ERR(LOG_LEVEL_WARNING,
+    STREAM_ERR(STREAM_LEVEL_WARNING,
 	    "Warning: UPDATE received while in %s state\n",
-	    SESSION_STATES[peer->tSessionState]);
+	    SESSION_STATES[peer->session_state]);
     bgp_peer_session_error(peer);
     abort();
   }
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
-	    SESSION_STATES[peer->tSessionState]);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[peer->session_state]);
 
   /* Process UPDATE message */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -488,21 +497,21 @@ static inline void _bgp_peer_session_update_rcvd(bgp_peer_t * peer,
 static inline void _bgp_peer_session_withdraw_rcvd(bgp_peer_t * peer,
 						   bgp_msg_withdraw_t * msg)
 {
-  LOG_DEBUG(LOG_LEVEL_INFO, "BGP_MSG_RCVD: WITHDRAW\n");
-  switch (peer->tSessionState) {
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "BGP_MSG_RCVD: WITHDRAW\n");
+  switch (peer->session_state) {
   case SESSION_STATE_OPENWAIT:
-    peer->tSessionState= SESSION_STATE_ESTABLISHED;
+    peer->session_state= SESSION_STATE_ESTABLISHED;
     break;
   case SESSION_STATE_ESTABLISHED:
     break;
   default:
-    LOG_ERR(LOG_LEVEL_FATAL, "Error: WITHDRAW received while in %s state\n",
-	    SESSION_STATES[peer->tSessionState]);
+    STREAM_ERR(STREAM_LEVEL_FATAL, "Error: WITHDRAW received while in %s state\n",
+	    SESSION_STATES[peer->session_state]);
     bgp_peer_session_error(peer);
     abort();    
   }
-  LOG_DEBUG(LOG_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
-	    SESSION_STATES[peer->tSessionState]);
+  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "BGP_FSM_STATE: %s\n",
+	    SESSION_STATES[peer->session_state]);
 
   /* Process WITHDRAW message */
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -520,22 +529,22 @@ static inline void _bgp_peer_session_withdraw_rcvd(bgp_peer_t * peer,
 static int _bgp_peer_disable_adjribin(uint32_t uKey, uint8_t uKeyLen,
 				      void * pItem, void * pContext)
 {
-  bgp_route_t * pRoute= (bgp_route_t *) pItem;
-  bgp_peer_t * pPeer= (bgp_peer_t *) pContext;
+  bgp_route_t * route= (bgp_route_t *) pItem;
+  bgp_peer_t * peer= (bgp_peer_t *) pContext;
 
-  //route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+  //route_flag_set(route, ROUTE_FLAG_ELIGIBLE, 0);
 
   /* Since the ROUTE_FLAG_BEST is handled in the Adj-RIB-In, we only
      need to run the decision process if the route is installed in the
      Loc-RIB (i.e. marked as best) */
-  if (route_flag_get(pRoute, ROUTE_FLAG_BEST)) {
+  if (route_flag_get(route, ROUTE_FLAG_BEST)) {
 
-    LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-      log_printf(pLogDebug, "\trescan: ", pPeer->pLocalRouter->uASN);
-      route_dump(pLogDebug, pRoute);
-      log_printf(pLogDebug, "\n");
+    STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+      stream_printf(gdsdebug, "\trescan: ", peer->router->asn);
+      route_dump(gdsdebug, route);
+      stream_printf(gdsdebug, "\n");
     }
-    bgp_router_decision_process(pPeer->pLocalRouter, pPeer, pRoute->sPrefix);
+    bgp_router_decision_process(peer->router, peer, route->prefix);
 
   }
 
@@ -549,12 +558,12 @@ static int _bgp_peer_disable_adjribin(uint32_t uKey, uint8_t uKeyLen,
 static int _bgp_peer_enable_adjribin(uint32_t uKey, uint8_t uKeyLen,
 				     void * pItem, void * pContext)
 {
-  bgp_route_t * pRoute= (bgp_route_t *) pItem;
-  bgp_peer_t * pPeer= (bgp_peer_t *) pContext;
+  bgp_route_t * route= (bgp_route_t *) pItem;
+  bgp_peer_t * peer= (bgp_peer_t *) pContext;
 
-  //route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+  //route_flag_set(route, ROUTE_FLAG_ELIGIBLE, 0);
 
-  bgp_router_decision_process(pPeer->pLocalRouter, pPeer, pRoute->sPrefix);
+  bgp_router_decision_process(peer->router, peer, route->prefix);
 
   return 0;
 }
@@ -563,33 +572,33 @@ static int _bgp_peer_enable_adjribin(uint32_t uKey, uint8_t uKeyLen,
 /**
  * TODO: write documentation...
  */
-static void _bgp_peer_adjrib_clear(bgp_peer_t * pPeer, bgp_rib_dir_t dir)
+static void _bgp_peer_adjrib_clear(bgp_peer_t * peer, bgp_rib_dir_t dir)
 {
-  rib_destroy(&pPeer->pAdjRIB[dir]);
-  pPeer->pAdjRIB[dir]= rib_create(0);
+  rib_destroy(&peer->adj_rib[dir]);
+  peer->adj_rib[dir]= rib_create(0);
 }
 
 // ----- _bgp_peer_rescan_adjribin ----------------------------------
 /**
  * TODO: write documentation...
  */
-static inline void _bgp_peer_rescan_adjribin(bgp_peer_t * pPeer, int iClear)
+static inline void _bgp_peer_rescan_adjribin(bgp_peer_t * peer, int iClear)
 {
-  if (pPeer->tSessionState == SESSION_STATE_ESTABLISHED) {
+  if (peer->session_state == SESSION_STATE_ESTABLISHED) {
 
-    rib_for_each(pPeer->pAdjRIB[RIB_IN], _bgp_peer_enable_adjribin,
-		 pPeer);
+    rib_for_each(peer->adj_rib[RIB_IN], _bgp_peer_enable_adjribin,
+		 peer);
 
   } else {
 
     // For each route in Adj-RIB-In, mark as unfeasible
     // and run decision process for each route marked as best
-    rib_for_each(pPeer->pAdjRIB[RIB_IN], _bgp_peer_disable_adjribin,
-		 pPeer);
+    rib_for_each(peer->adj_rib[RIB_IN], _bgp_peer_disable_adjribin,
+		 peer);
     
     // Clear Adj-RIB-In ?
     if (iClear)
-      _bgp_peer_adjrib_clear(pPeer, 1);
+      _bgp_peer_adjrib_clear(peer, 1);
 
   }
 
@@ -605,22 +614,22 @@ static inline void _bgp_peer_rescan_adjribin(bgp_peer_t * pPeer, int iClear)
 /**
  * Change a filter of this peer. The previous filter is destroyed.
  */
-void bgp_peer_set_filter(bgp_peer_t * pPeer, bgp_filter_dir_t dir,
-			 bgp_filter_t * pFilter)
+void bgp_peer_set_filter(bgp_peer_t * peer, bgp_filter_dir_t dir,
+			 bgp_filter_t * filter)
 {
-  if (pPeer->pFilter[dir] != NULL)
-    filter_destroy(&pPeer->pFilter[dir]);
-  pPeer->pFilter[dir]= pFilter;
+  if (peer->filter[dir] != NULL)
+    filter_destroy(&peer->filter[dir]);
+  peer->filter[dir]= filter;
 }
 
 // -----[ bgp_peer_filter_get ]--------------------------------------
 /**
  * Return a filter of this peer.
  */
-bgp_filter_t * bgp_peer_filter_get(bgp_peer_t * pPeer,
+bgp_filter_t * bgp_peer_filter_get(bgp_peer_t * peer,
 				   bgp_filter_dir_t dir)
 {
-  return pPeer->pFilter[dir];
+  return peer->filter[dir];
 }
 
 
@@ -640,22 +649,22 @@ bgp_filter_t * bgp_peer_filter_get(bgp_peer_t * pPeer,
  * Note: if the route is not delivered (for instance in the case of
  * a virtual peer), the given route is freed.
  */
-void bgp_peer_announce_route(bgp_peer_t * pPeer, bgp_route_t * pRoute)
+void bgp_peer_announce_route(bgp_peer_t * peer, bgp_route_t * route)
 {
-  bgp_msg_t * pMsg;
+  bgp_msg_t * msg;
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "announce_route to ");
-    bgp_peer_dump_id(pLogDebug, pPeer);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "announce_route to ");
+    bgp_peer_dump_id(gdsdebug, peer);
+    stream_printf(gdsdebug, "\n");
   }
 
-  route_peer_set(pRoute, pPeer);
-  pMsg= bgp_msg_update_create(pPeer->pLocalRouter->uASN, pRoute);
+  route_peer_set(route, peer);
+  msg= bgp_msg_update_create(peer->router->asn, route);
 
   /* Send the message to the peer */
-  if (bgp_peer_send(pPeer, pMsg) < 0)
-    route_destroy(&pRoute);
+  if (_bgp_peer_send(peer, msg) < 0)
+    route_destroy(&route);
 }
 
 // ----- bgp_peer_withdraw_prefix -----------------------------------
@@ -664,12 +673,12 @@ void bgp_peer_announce_route(bgp_peer_t * pPeer, bgp_route_t * pRoute)
  *
  * Note: withdraws are not sent to virtual peers.
  */
-void bgp_peer_withdraw_prefix(bgp_peer_t * pPeer, SPrefix sPrefix)
+void bgp_peer_withdraw_prefix(bgp_peer_t * peer, ip_pfx_t prefix)
 {
   // Send the message to the peer (except if this is a virtual peer)
-  bgp_peer_send(pPeer,
-		bgp_msg_withdraw_create(pPeer->pLocalRouter->uASN,
-					sPrefix));
+  _bgp_peer_send(peer,
+		 bgp_msg_withdraw_create(peer->router->asn,
+					 prefix));
 }
 
 // ----- peer_route_delay_update ------------------------------------
@@ -679,21 +688,21 @@ void bgp_peer_withdraw_prefix(bgp_peer_t * pPeer, SPrefix sPrefix)
  * and the next-hop but in the future such a direct link may not exist
  * and the information should be taken from the IGP.
  */
-void peer_route_delay_update(bgp_peer_t * pPeer, bgp_route_t * pRoute)
+void peer_route_delay_update(bgp_peer_t * peer, bgp_route_t * route)
 {
   net_iface_t * iface;
 
-  LOG_ERR(LOG_LEVEL_FATAL,
+  STREAM_ERR(STREAM_LEVEL_FATAL,
 	  "Error: peer_route_delay_update MUST be modified\n"
 	  "Error: to support route-reflection !!!");
   abort();
 
-  /*pLink= node_find_link_to_router(pPeer->pLocalRouter->pNode,
-    pRoute->tNextHop);*/
+  /*pLink= node_find_link_to_router(peer->router->node,
+    route->next_hop);*/
   assert(iface != NULL);
 
 #ifdef BGP_QOS
-  qos_route_update_delay(pRoute, iface->tDelay);
+  qos_route_update_delay(route, iface->tDelay);
 #endif
 }
 
@@ -704,10 +713,10 @@ void peer_route_delay_update(bgp_peer_t * pPeer, bgp_route_t * pRoute)
  * of the redistribution step of the BGP decision process [as.c,
  * bgp_router_advertise_to_peer]
  */
-void peer_route_rr_client_update(bgp_peer_t * pPeer, bgp_route_t * pRoute)
+void peer_route_rr_client_update(bgp_peer_t * peer, bgp_route_t * route)
 {
-  route_flag_set(pRoute, ROUTE_FLAG_RR_CLIENT,
-		 bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT));
+  route_flag_set(route, ROUTE_FLAG_RR_CLIENT,
+		 bgp_peer_flag_get(peer, PEER_FLAG_RR_CLIENT));
 }
 
 // ----- peer_comm_process ------------------------------------------
@@ -720,29 +729,30 @@ void peer_route_rr_client_update(bgp_peer_t * pPeer, bgp_route_t * pRoute)
  *   0 => Ignore route (destroy)
  *   1 => Redistribute
  */
-int peer_comm_process(bgp_route_t * pRoute)
+int peer_comm_process(bgp_route_t * route)
 {
-  int iIndex;
+  unsigned int index;
+  bgp_ecomm_t * ecomm;
 
   /* Classical communities */
-  if (pRoute->pAttr->pCommunities != NULL) {
+  if (route->attr->comms != NULL) {
 #ifdef __EXPERIMENTAL__
-    if (route_comm_contains(pRoute, COMM_DEPREF)) {
-      route_localpref_set(pRoute, 0);
+    if (route_comm_contains(route, COMM_DEPREF)) {
+      route_localpref_set(route, 0);
     }
 #endif
   }
 
   /* Extended communities */
-  if (pRoute->pAttr->pECommunities != NULL) {
+  if (route->attr->ecomms != NULL) {
 
-    for (iIndex= 0; iIndex < ecomm_length(pRoute->pAttr->pECommunities); iIndex++) {
-      SECommunity * pComm= ecomm_get_index(pRoute->pAttr->pECommunities, iIndex);
-      switch (pComm->uTypeHigh) {
+    for (index= 0; index < ecomms_length(route->attr->ecomms); index++) {
+      ecomm= ecomms_get_at(route->attr->ecomms, index);
+      switch (ecomm->type_high) {
 
 #ifdef __EXPERIMENTAL__
       case ECOMM_PREF:
-	route_localpref_set(pRoute, ecomm_pref_get(pComm));
+	route_localpref_set(route, ecomm_pref_get(ecomm));
 	break;
 #endif
 
@@ -759,40 +769,40 @@ int peer_comm_process(bgp_route_t * pRoute)
  * filters are applied first. Then, extended communities actions are
  * taken if any (see 'peer_ecomm_process').
  */
-int bgp_peer_route_eligible(bgp_peer_t * pPeer, bgp_route_t * pRoute)
+int bgp_peer_route_eligible(bgp_peer_t * peer, bgp_route_t * route)
 {
   // Check that the route's AS-path does not contain the local AS
   // number.
-  if (route_path_contains(pRoute, pPeer->pLocalRouter->uASN)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(as-path loop)\n");
+  if (route_path_contains(route, peer->router->asn)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "in-filtered(as-path loop)\n");
     return 0;
   }
 
   // Route-Reflection: deny routes with an originator-ID equal to local
   // router-ID [RFC2796, section7].
-  if ((pRoute->pAttr->pOriginator != NULL) &&
-      (*pRoute->pAttr->pOriginator == pPeer->pLocalRouter->tRouterID)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(RR: originator-id)\n");
+  if ((route->attr->originator != NULL) &&
+      (*route->attr->originator == peer->router->rid)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "in-filtered(RR: originator-id)\n");
     return 0;
   }
 
   // Route-Reflection: Avoid cluster-loop creation (MUST be done
   // before local cluster-ID is appended) [RFC2796, section7].
-  if ((pRoute->pAttr->pClusterList != NULL) &&
-      (route_cluster_list_contains(pRoute, pPeer->pLocalRouter->tClusterID))) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(RR: cluster-loop)\n");
+  if ((route->attr->cluster_list != NULL) &&
+      (route_cluster_list_contains(route, peer->router->cluster_id))) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "in-filtered(RR: cluster-loop)\n");
     return 0;
   }
   
   // Apply the input filters.
-  if (!filter_apply(pPeer->pFilter[FILTER_IN], pPeer->pLocalRouter, pRoute)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(filter)\n");
+  if (!filter_apply(peer->filter[FILTER_IN], peer->router, route)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "in-filtered(filter)\n");
     return 0;
   }
 
   // Process communities.
-  if (!peer_comm_process(pRoute)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "in-filtered(community)\n");
+  if (!peer_comm_process(route)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "in-filtered(community)\n");
     return 0;
   }
 
@@ -804,11 +814,11 @@ int bgp_peer_route_eligible(bgp_peer_t * pPeer, bgp_route_t * pRoute)
  * The route is feasible if and only if the next-hop is reachable
  * (through a STATIC, IGP or BGP route).
  */
-int bgp_peer_route_feasible(bgp_peer_t * self, bgp_route_t * pRoute)
+int bgp_peer_route_feasible(bgp_peer_t * self, bgp_route_t * route)
 {
-  const rt_entry_t * rtentry= node_rt_lookup(self->pLocalRouter->pNode,
-					     pRoute->pAttr->tNextHop);
-  return (rtentry != NULL);
+  const rt_entries_t * rtentries=
+    node_rt_lookup(self->router->node, route->attr->next_hop);
+  return (rtentries != NULL);
 }
 
 // -----[ _bgp_peer_process_update ]----------------------------------
@@ -827,66 +837,66 @@ int bgp_peer_route_feasible(bgp_peer_t * self, bgp_route_t * pRoute)
 static inline void _bgp_peer_process_update(bgp_peer_t * peer,
 					    bgp_msg_update_t * msg)
 {
-  bgp_route_t * pRoute= msg->pRoute;
+  bgp_route_t * route= msg->route;
   bgp_route_t * pOldRoute= NULL;
-  SPrefix sPrefix;
+  ip_pfx_t prefix;
   int need_DP_run;
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "\tupdate: ");
-    route_dump(pLogDebug, pRoute);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "\tupdate: ");
+    route_dump(gdsdebug, route);
+    stream_printf(gdsdebug, "\n");
   }
 
   // Tag the route as received from this peer
-  route_peer_set(pRoute, peer);
+  route_peer_set(route, peer);
 
   // If route learned over eBGP, clear LOCAL-PREF
-  if (peer->uRemoteAS != peer->pLocalRouter->uASN)
-    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
+  if (peer->asn != peer->router->asn)
+    route_localpref_set(route, bgp_options_get_local_pref());
 
   // Check route against import filter
-  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-  route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
-  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		 bgp_peer_route_eligible(peer, pRoute));
-  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		 bgp_peer_route_feasible(peer, pRoute));
+  route_flag_set(route, ROUTE_FLAG_BEST, 0);
+  route_flag_set(route, ROUTE_FLAG_INTERNAL, 0);
+  route_flag_set(route, ROUTE_FLAG_ELIGIBLE,
+		 bgp_peer_route_eligible(peer, route));
+  route_flag_set(route, ROUTE_FLAG_FEASIBLE,
+		 bgp_peer_route_feasible(peer, route));
   
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+    route_flag_set(route, ROUTE_FLAG_EXTERNAL_BEST, 0);
 #endif
 
   // Update route delay attribute (if BGP-QoS)
-  //peer_route_delay_update(pPeer, pRoute);
+  //peer_route_delay_update(peer, route);
 
   // Update route RR-client flag
-  peer_route_rr_client_update(peer, pRoute);
+  peer_route_rr_client_update(peer, route);
 
   // The decision process need only be run in the following cases:
   // - the old route was the best
   // - the new route is eligible
   need_DP_run= 0;
-  pOldRoute= rib_find_exact(peer->pAdjRIB[RIB_IN], pRoute->sPrefix);
+  pOldRoute= rib_find_exact(peer->adj_rib[RIB_IN], route->prefix);
   if (((pOldRoute != NULL) &&
        route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) ||
-      route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) 
+      route_flag_get(route, ROUTE_FLAG_ELIGIBLE)) 
     need_DP_run= 1;
 
-  sPrefix= pRoute->sPrefix;
+  prefix= route->prefix;
   
   // Replace former route in Adj-RIB-In
-  if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
-    assert(rib_replace_route(peer->pAdjRIB[RIB_IN], pRoute) == 0);
+  if (route_flag_get(route, ROUTE_FLAG_ELIGIBLE)) {
+    assert(rib_replace_route(peer->adj_rib[RIB_IN], route) == 0);
   } else {
     if (pOldRoute != NULL)
-      assert(rib_remove_route(peer->pAdjRIB[RIB_IN], pRoute->sPrefix) == 0);
-    route_destroy(&pRoute);
+      assert(rib_remove_route(peer->adj_rib[RIB_IN], route->prefix) == 0);
+    route_destroy(&route);
   }
   
   // Run decision process for this route
   if (need_DP_run)
-    bgp_router_decision_process(peer->pLocalRouter, peer, sPrefix);
+    bgp_router_decision_process(peer->router, peer, prefix);
 }
 
 // -----[ _bgp_peer_process_withdraw ]--------------------------------
@@ -902,31 +912,31 @@ static inline void _bgp_peer_process_update(bgp_peer_t * peer,
 static inline void _bgp_peer_process_withdraw(bgp_peer_t * peer,
 					      bgp_msg_withdraw_t * msg)
 {
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   
   // Identifiy route to be removed based on destination prefix
-  pRoute= rib_find_exact(peer->pAdjRIB[RIB_IN], msg->sPrefix);
+  route= rib_find_exact(peer->adj_rib[RIB_IN], msg->prefix);
   
   // If there was no previous route, do nothing
   // Note: we should probably trigger an error/warning message in this case
-  if (pRoute == NULL)
+  if (route == NULL)
     return;
 
   // Flag the route as un-eligible
-  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+  route_flag_set(route, ROUTE_FLAG_ELIGIBLE, 0);
 
   // Run decision process in case this route is the best route
   // towards this prefix
-  bgp_router_decision_process(peer->pLocalRouter, peer,
-			      msg->sPrefix);
+  bgp_router_decision_process(peer->router, peer,
+			      msg->prefix);
   
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "\tremove: ");
-    route_dump(pLogDebug, pRoute);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "\tremove: ");
+    route_dump(gdsdebug, route);
+    stream_printf(gdsdebug, "\n");
   }
   
-  assert(rib_remove_route(peer->pAdjRIB[RIB_IN], msg->sPrefix) == 0);
+  assert(rib_remove_route(peer->adj_rib[RIB_IN], msg->prefix) == 0);
 }
 
 
@@ -946,24 +956,24 @@ static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
 					  bgp_msg_t * msg)
 {
   if ((bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL) == 0) &&
-      (peer->uRecvSeqNum != msg->uSeqNum)) {
+      (peer->recv_seq_num != msg->seq_num)) {
     if (msg->type != BGP_MSG_TYPE_CLOSE) {
-      bgp_peer_dump_id(pLogErr, peer);
-      log_printf(pLogErr, ": out-of-sequence BGP message (%d)", msg->uSeqNum);
-      log_printf(pLogErr, " - expected (%d)", peer->uRecvSeqNum);
-      log_printf(pLogErr,  " [state=%s]\n",
-		 SESSION_STATES[peer->tSessionState]);
-      bgp_msg_dump(pLogErr, peer->pLocalRouter->pNode, msg);
-      log_printf(pLogErr, "\n");
+      bgp_peer_dump_id(gdserr, peer);
+      stream_printf(gdserr, ": out-of-sequence BGP message (%d)", msg->seq_num);
+      stream_printf(gdserr, " - expected (%d)", peer->recv_seq_num);
+      stream_printf(gdserr,  " [state=%s]\n",
+		 SESSION_STATES[peer->session_state]);
+      bgp_msg_dump(gdserr, peer->router->node, msg);
+      stream_printf(gdserr, "\n");
       
-      log_printf(pLogErr, "\n");
-      log_printf(pLogErr, "It is likely that this error occurs due to an "
+      stream_printf(gdserr, "\n");
+      stream_printf(gdserr, "It is likely that this error occurs due to an "
 		 "incorrect setup of the simulation. The most common case "
 		 "for this error is when the underlying route of a BGP "
 		 "session changes during the simulation convergence (sim "
 		 "run). This might also occur with multi-hop eBGP sessions "
 		 "where the session is routed over another BGP session.");
-      log_printf(pLogErr, "\n");
+      stream_printf(gdserr, "\n");
       abort();
     }
   }
@@ -976,16 +986,16 @@ static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
  */
 int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
 {
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "HANDLE_MESSAGE from ");
-    bgp_peer_dump_id(pLogDebug, peer);
-    log_printf(pLogDebug, " in ");
-    bgp_router_dump_id(pLogDebug, peer->pLocalRouter);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "HANDLE_MESSAGE from ");
+    bgp_peer_dump_id(gdsdebug, peer);
+    stream_printf(gdsdebug, " in ");
+    bgp_router_dump_id(gdsdebug, peer->router);
+    stream_printf(gdsdebug, "\n");
   }
 
   _bgp_peer_seqnum_check(peer, msg);
-  peer->uRecvSeqNum++;
+  peer->recv_seq_num++;
 
   switch (msg->type) {
   case BGP_MSG_TYPE_UPDATE:
@@ -1004,7 +1014,7 @@ int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
 
   default:
     bgp_peer_session_error(peer);
-    LOG_ERR(LOG_LEVEL_FATAL, "Unknown BGP message type received (%d)\n",
+    STREAM_ERR(STREAM_LEVEL_FATAL, "Unknown BGP message type received (%d)\n",
 	    msg->type);
     abort();
   }
@@ -1012,7 +1022,7 @@ int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
   return 0;
 }
 
-// -----[ bgp_peer_send ]--------------------------------------------
+// -----[ _bgp_peer_send ]-------------------------------------------
 /**
  * Send a BGP message to the given peer. If activated, this function
  * will tap BGP messages and record them to a file (see
@@ -1021,22 +1031,22 @@ int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
  * Note: if the peer is virtual, the message will be discarded and the
  * function will return an error.
  */
-int bgp_peer_send(bgp_peer_t * peer, bgp_msg_t * msg)
+static inline int _bgp_peer_send(bgp_peer_t * peer, bgp_msg_t * msg)
 {
-  msg->uSeqNum= peer->uSendSeqNum++;
+  msg->seq_num= peer->send_seq_num++;
   
   // Record BGP messages (optional)
   if (peer->pRecordStream != NULL) {
     bgp_msg_dump(peer->pRecordStream, NULL, msg);
-    log_printf(peer->pRecordStream, "\n");
-    log_flush(peer->pRecordStream);
+    stream_printf(peer->pRecordStream, "\n");
+    stream_flush(peer->pRecordStream);
   }
 
   // Send the message
   if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
-    return bgp_msg_send(peer->pLocalRouter->pNode,
-			peer->tSrcAddr,
-			peer->tAddr, msg);
+    return bgp_msg_send(peer->router->node,
+			peer->src_addr,
+			peer->addr, msg);
   } else {
     bgp_msg_destroy(&msg);
     return EBGP_PEER_INCOMPATIBLE;
@@ -1071,56 +1081,93 @@ int bgp_peer_send_enabled(bgp_peer_t * peer)
 /**
  *
  */
-void bgp_peer_dump_id(SLogStream * pStream, bgp_peer_t * pPeer)
+void bgp_peer_dump_id(gds_stream_t * stream, bgp_peer_t * peer)
 {
-  log_printf(pStream, "AS%d:", pPeer->uRemoteAS);
-  ip_address_dump(pStream, pPeer->tAddr);
+  stream_printf(stream, "AS%d:", peer->asn);
+  ip_address_dump(stream, peer->addr);
 }
 
 // ----- bgp_peer_dump ----------------------------------------------
 /**
  *
  */
-void bgp_peer_dump(SLogStream * pStream, bgp_peer_t * pPeer)
+void bgp_peer_dump(gds_stream_t * stream, bgp_peer_t * peer)
 {
   int iOptions= 0;
 
-  ip_address_dump(pStream, pPeer->tAddr);
-  log_printf(pStream, "\tAS%d\t%s\t", pPeer->uRemoteAS,
-	  SESSION_STATES[pPeer->tSessionState]);
-  ip_address_dump(pStream, pPeer->tRouterID);
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_RR_CLIENT)) {
-    log_printf(pStream, (iOptions++)?",":"\t(");
-    log_printf(pStream, "rr-client");
+  ip_address_dump(stream, peer->addr);
+  stream_printf(stream, "\tAS%d\t%s\t", peer->asn,
+	  SESSION_STATES[peer->session_state]);
+  ip_address_dump(stream, peer->router_id);
+  if (bgp_peer_flag_get(peer, PEER_FLAG_RR_CLIENT)) {
+    stream_printf(stream, (iOptions++)?",":"\t(");
+    stream_printf(stream, "rr-client");
   }
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_NEXT_HOP_SELF)) {
-    log_printf(pStream, (iOptions++)?",":"\t(");
-    log_printf(pStream, "next-hop-self");
+  if (bgp_peer_flag_get(peer, PEER_FLAG_NEXT_HOP_SELF)) {
+    stream_printf(stream, (iOptions++)?",":"\t(");
+    stream_printf(stream, "next-hop-self");
   }
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_VIRTUAL)) {
-    log_printf(pStream, (iOptions++)?",":"\t(");
-    log_printf(pStream, "virtual");
+  if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
+    stream_printf(stream, (iOptions++)?",":"\t(");
+    stream_printf(stream, "virtual");
   }
-  if (bgp_peer_flag_get(pPeer, PEER_FLAG_SOFT_RESTART)) {
-    log_printf(pStream, (iOptions++)?",":"\t(");
-    log_printf(pStream, "soft-restart");
+  if (bgp_peer_flag_get(peer, PEER_FLAG_SOFT_RESTART)) {
+    stream_printf(stream, (iOptions++)?",":"\t(");
+    stream_printf(stream, "soft-restart");
   }
-  log_printf(pStream, (iOptions)?")":"");
+  stream_printf(stream, (iOptions)?")":"");
 
   // Session state
-  if (pPeer->tSessionState == SESSION_STATE_ESTABLISHED) {
-    if (!bgp_peer_session_ok(pPeer)) {
-      log_printf(pStream, "\t[DOWN]");
+  if (peer->session_state == SESSION_STATE_ESTABLISHED) {
+    if (!bgp_peer_session_ok(peer)) {
+      stream_printf(stream, "\t[DOWN]");
     }
   }
 
-  log_printf(pStream, "\tsnd-seq:%d\trcv-seq:%d", pPeer->uSendSeqNum,
-	     pPeer->uRecvSeqNum);
+  stream_printf(stream, "\tsnd-seq:%d\trcv-seq:%d", peer->send_seq_num,
+	     peer->recv_seq_num);
+}
+
+// -----[ bgp_peer_show_info ]---------------------------------------
+void bgp_peer_show_info(gds_stream_t * stream, bgp_peer_t * peer)
+{
+  stream_printf(stream, "address    : ");
+  ip_address_dump(stream, peer->addr);
+  stream_printf(stream, "\n");
+  stream_printf(stream, "asn        : %u\n", peer->asn);
+  stream_printf(stream, "router-id  : ");
+  ip_address_dump(stream, peer->router_id);
+  stream_printf(stream, "\n");
+  stream_printf(stream, "state      : %s\n",
+		SESSION_STATES[peer->session_state]);
+  if (peer->flags & PEER_FLAG_NEXT_HOP_SELF)
+    stream_printf(stream, "flag       : next-hop-self\n");
+  if (peer->flags & PEER_FLAG_RR_CLIENT)
+    stream_printf(stream, "flag       : rr-client\n");
+  if (peer->flags & PEER_FLAG_SOFT_RESTART)
+    stream_printf(stream, "flag       : soft-restart\n");
+  if (peer->flags & PEER_FLAG_VIRTUAL)
+    stream_printf(stream, "flag       : virtual\n");
+  stream_printf(stream, "snd-seq    : %u\n", peer->send_seq_num);
+  stream_printf(stream, "rcv-seq    : %u\n", peer->recv_seq_num);
+  if (peer->next_hop != NET_ADDR_ANY) {
+    stream_printf(stream, "next-hop   : ");
+    ip_address_dump(stream, peer->next_hop);
+    stream_printf(stream, "\n");
+  }
+  if (peer->src_addr != NET_ADDR_ANY) {
+    stream_printf(stream, "source-addr: ");
+    ip_address_dump(stream, peer->src_addr);
+    stream_printf(stream, "\n");
+  }
+  stream_printf(stream, "last-error : ");
+  network_perror(stream, peer->last_error);
+  stream_printf(stream, "\n");
 }
 
 typedef struct {
-  bgp_peer_t * pPeer;
-  SLogStream * pStream;
+  bgp_peer_t * peer;
+  gds_stream_t * stream;
 } bgp_route_tDumpCtx;
 
 // ----- bgp_peer_dump_route ----------------------------------------
@@ -1132,8 +1179,8 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
 {
   bgp_route_tDumpCtx * pCtx= (bgp_route_tDumpCtx *) pContext;
 
-  route_dump(pCtx->pStream, (bgp_route_t *) pItem);
-  log_printf(pCtx->pStream, "\n");
+  route_dump(pCtx->stream, (bgp_route_t *) pItem);
+  stream_printf(pCtx->stream, "\n");
   return 0;
 }
 
@@ -1144,33 +1191,33 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
  * Parameters:
  * - iInOut, if 1, dump Adj-RIB-In, otherwize, dump Adj-RIB-Out.
  */
-void bgp_peer_dump_adjrib(SLogStream * pStream, bgp_peer_t * pPeer,
-			  ip_pfx_t sPrefix, bgp_rib_dir_t dir)
+void bgp_peer_dump_adjrib(gds_stream_t * stream, bgp_peer_t * peer,
+			  ip_pfx_t prefix, bgp_rib_dir_t dir)
 {
   bgp_route_tDumpCtx sCtx;
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-  bgp_route_ts * pRoutes;
+  bgp_route_ts * routes;
   uint16_t uIndexRoute;
 #endif
 
-  sCtx.pStream= pStream;
-  sCtx.pPeer= pPeer;
+  sCtx.stream= stream;
+  sCtx.peer= peer;
 
-  if (sPrefix.uMaskLen == 0) {
-    rib_for_each(pPeer->pAdjRIB[dir], bgp_peer_dump_route, &sCtx);
-  } else if (sPrefix.uMaskLen >= 32) {
+  if (prefix.mask == 0) {
+    rib_for_each(peer->adj_rib[dir], bgp_peer_dump_route, &sCtx);
+  } else if (prefix.mask >= 32) {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoutes = rib_find_best(pPeer->pAdjRIB[dir], sPrefix);
-    if (pRoutes != NULL) {
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) {
-	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+    routes = rib_find_best(peer->adj_rib[dir], prefix);
+    if (routes != NULL) {
+      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(routes); uIndexRoute++) {
+	route = routes_list_get_at(routes, uIndexRoute);
 #else
-    pRoute= rib_find_best(pPeer->pAdjRIB[dir], sPrefix);
+    route= rib_find_best(peer->adj_rib[dir], prefix);
 #endif
-    if (pRoute != NULL) {
-      route_dump(pStream, pRoute);
-      log_printf(pStream, "\n");
+    if (route != NULL) {
+      route_dump(stream, route);
+      stream_printf(stream, "\n");
     }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
       }
@@ -1178,16 +1225,16 @@ void bgp_peer_dump_adjrib(SLogStream * pStream, bgp_peer_t * pPeer,
 #endif
   } else {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    pRoutes = rib_find_exact(pPeer->pAdjRIB[dir], sPrefix);
-    if (pRoutes != NULL) {
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pRoutes); uIndexRoute++) {
-	pRoute = routes_list_get_at(pRoutes, uIndexRoute);
+    routes = rib_find_exact(peer->adj_rib[dir], prefix);
+    if (routes != NULL) {
+      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(routes); uIndexRoute++) {
+	route = routes_list_get_at(routes, uIndexRoute);
 #else
-    pRoute= rib_find_exact(pPeer->pAdjRIB[dir], sPrefix);
+    route= rib_find_exact(peer->adj_rib[dir], prefix);
 #endif
-    if (pRoute != NULL) {
-      route_dump(pStream, pRoute);
-      log_printf(pStream, "\n");
+    if (route != NULL) {
+      route_dump(stream, route);
+      stream_printf(stream, "\n");
     }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
       }
@@ -1200,10 +1247,10 @@ void bgp_peer_dump_adjrib(SLogStream * pStream, bgp_peer_t * pPeer,
 /**
  *
  */
-void bgp_peer_dump_filters(SLogStream * pStream, bgp_peer_t * pPeer,
+void bgp_peer_dump_filters(gds_stream_t * stream, bgp_peer_t * peer,
 			   bgp_filter_dir_t dir)
 {
-  filter_dump(pStream, pPeer->pFilter[dir]);
+  filter_dump(stream, peer->filter[dir]);
 }
 
 // -----[ bgp_peer_set_record_stream ]-------------------------------
@@ -1211,14 +1258,14 @@ void bgp_peer_dump_filters(SLogStream * pStream, bgp_peer_t * pPeer,
  * Set a stream for recording the messages sent to this neighbor. If
  * the given stream is NULL, the recording will be stopped.
  */
-int bgp_peer_set_record_stream(bgp_peer_t * pPeer, SLogStream * pStream)
+int bgp_peer_set_record_stream(bgp_peer_t * peer, gds_stream_t * stream)
 {
-  if (pPeer->pRecordStream != NULL) {
-    log_destroy(&(pPeer->pRecordStream));
-    pPeer->pRecordStream= NULL;
+  if (peer->pRecordStream != NULL) {
+    stream_destroy(&(peer->pRecordStream));
+    peer->pRecordStream= NULL;
   }
-  if (pStream != NULL)
-    pPeer->pRecordStream= pStream;
+  if (stream != NULL)
+    peer->pRecordStream= stream;
   return 0;
 }
 
@@ -1243,59 +1290,59 @@ int bgp_peer_set_record_stream(bgp_peer_t * pPeer, SLogStream * pStream)
  *     it accordingly.
  * 5). The decision process is run.
  */
-static void _bgp_peer_process_update_walton(bgp_peer_t * pPeer,
+static void _bgp_peer_process_update_walton(bgp_peer_t * peer,
 					    bgp_msg_update_t * msg)
 {
-  bgp_route_t * pRoute= msg->pRoute;
+  bgp_route_t * route= msg->route;
   bgp_route_t * pOldRoute= NULL;
-  SPrefix sPrefix;
+  ip_pfx_t prefix;
   int iNeedDecisionProcess;
   bgp_route_ts * pOldRoutes;
   uint16_t uIndexRoute;
-  net_addr_t tNextHop;
+  net_addr_t next_hop;
 
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "\tupdate: ");
-    route_dump(pLogDebug, pRoute);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "\tupdate: ");
+    route_dump(gdsdebug, route);
+    stream_printf(gdsdebug, "\n");
   }
 
   // Tag the route as received from this peer
-  route_peer_set(pRoute, peer);
+  route_peer_set(route, peer);
 
   // If route learned over eBGP, clear LOCAL-PREF
-  if (peer->uRemoteAS != peer->pLocalRouter->uASN)
-    route_localpref_set(pRoute, BGP_OPTIONS_DEFAULT_LOCAL_PREF);
+  if (peer->asn != peer->router->asn)
+    route_localpref_set(route, bgp_options_get_local_pref());
 
   // Check route against import filter
-  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-  route_flag_set(pRoute, ROUTE_FLAG_INTERNAL, 0);
-  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE,
-		 bgp_peer_route_eligible(peer, pRoute));
-  route_flag_set(pRoute, ROUTE_FLAG_FEASIBLE,
-		 bgp_peer_route_feasible(peer, pRoute));
+  route_flag_set(route, ROUTE_FLAG_BEST, 0);
+  route_flag_set(route, ROUTE_FLAG_INTERNAL, 0);
+  route_flag_set(route, ROUTE_FLAG_ELIGIBLE,
+		 bgp_peer_route_eligible(peer, route));
+  route_flag_set(route, ROUTE_FLAG_FEASIBLE,
+		 bgp_peer_route_feasible(peer, route));
   
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
-    route_flag_set(pRoute, ROUTE_FLAG_EXTERNAL_BEST, 0);
+    route_flag_set(route, ROUTE_FLAG_EXTERNAL_BEST, 0);
 #endif
 
   // Update route RR-client flag
-  peer_route_rr_client_update(peer, pRoute);
+  peer_route_rr_client_update(peer, route);
 
   // The decision process need only be run in the following cases:
   // - the old route was the best
   // - the new route is eligible
   iNeedDecisionProcess= 0;
-  route_flag_set(pRoute, ROUTE_FLAG_BEST, 0);
-  pOldRoutes = rib_find_exact(peer->pAdjRIB[RIB_IN], pRoute->sPrefix);
+  route_flag_set(route, ROUTE_FLAG_BEST, 0);
+  pOldRoutes = rib_find_exact(peer->adj_rib[RIB_IN], route->prefix);
   if (pOldRoutes != NULL) {
     for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(pOldRoutes);
 	 uIndexRoute++) {
       pOldRoute = routes_list_get_at(pOldRoutes, uIndexRoute);
-      LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-	log_printf(pLogDebug, "\tupdate: ");
-	route_dump(pLogDebug, pOldRoute);
-	log_printf(pLogDebug, "\n");
+      STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+	stream_printf(gdsdebug, "\tupdate: ");
+	route_dump(gdsdebug, pOldRoute);
+	stream_printf(gdsdebug, "\n");
       }
       if ((pOldRoute != NULL) &&
 	  route_flag_get(pOldRoute, ROUTE_FLAG_BEST)) {
@@ -1304,27 +1351,27 @@ static void _bgp_peer_process_update_walton(bgp_peer_t * pPeer,
 	break;
       }
     }
-  } else if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
+  } else if (route_flag_get(route, ROUTE_FLAG_ELIGIBLE)) {
     iNeedDecisionProcess = 1;
   }
 
-  sPrefix= pRoute->sPrefix;
+  prefix= route->prefix;
   
   // Replace former route in Adj-RIB-In
-  if (route_flag_get(pRoute, ROUTE_FLAG_ELIGIBLE)) {
-    assert(rib_replace_route(peer->pAdjRIB[RIB_IN], pRoute) == 0);
+  if (route_flag_get(route, ROUTE_FLAG_ELIGIBLE)) {
+    assert(rib_replace_route(peer->adj_rib[RIB_IN], route) == 0);
   } else {
     if (pOldRoute != NULL) {
-      tNextHop = route_get_nexthop(pRoute);
-      assert(rib_remove_route(peer->pAdjRIB[RIB_IN], pRoute->sPrefix, &tNextHop)
+      next_hop = route_get_nexthop(route);
+      assert(rib_remove_route(peer->adj_rib[RIB_IN], route->prefix, &next_hop)
 	     == 0);
     }
-    route_destroy(&pRoute);
+    route_destroy(&route);
   }
   
   // Run decision process for this route
   if (iNeedDecisionProcess)
-    bgp_router_decision_process(peer->pLocalRouter, peer, sPrefix);
+    bgp_router_decision_process(peer->router, peer, prefix);
 }
 
 // -----[ _bgp_peer_process_withdraw_walton ]------------------------
@@ -1340,51 +1387,51 @@ static void _bgp_peer_process_update_walton(bgp_peer_t * pPeer,
 static void _bgp_peer_process_walton_withdraw(bgp_peer_t * peer,
 					      bgp_msg_withdraw_t * msg)
 {
-  bgp_route_t * pRoute;
-  net_addr_t tNextHop;
+  bgp_route_t * route;
+  net_addr_t next_hop;
 
-  //LOG_DEBUG("walton-withdraw: next-hop=");
-  //LOG_ENABLED_DEBUG() ip_address_dump(log_get_stream(pMainLog),
-  //      			      pMsgWithdraw->tNextHop);
-  //LOG_DEBUG("\n");
+  //STREAM_DEBUG("walton-withdraw: next-hop=");
+  //STREAM_ENABLED_DEBUG() ip_address_dump(stream_get_stream(pMainLog),
+  //      			      pMsgWithdraw->next_hop);
+  //STREAM_DEBUG("\n");
 
 
   // Identifiy route to be removed based on destination prefix and next-hop
-  pRoute= rib_find_one_exact(peer->pAdjRIB[RIB_IN], msg->sPrefix,
-			     msg->tNextHop);
+  route= rib_find_one_exact(peer->adj_rib[RIB_IN], msg->prefix,
+			     msg->next_hop);
 
   // If there was no previous route, do nothing
   // Note: we should probably trigger an error/warning message in this case
-  if (pRoute == NULL)
+  if (route == NULL)
     return;
   
   // Flag the route as un-eligible
-  route_flag_set(pRoute, ROUTE_FLAG_ELIGIBLE, 0);
+  route_flag_set(route, ROUTE_FLAG_ELIGIBLE, 0);
 
   // Run decision process in case this route is the best route
   // towards this prefix
-  bgp_router_decision_process(peer->pLocalRouter, peer,
-			      msg->sPrefix);
+  bgp_router_decision_process(peer->router, peer,
+			      msg->prefix);
   
-  LOG_DEBUG_ENABLED(LOG_LEVEL_DEBUG) {
-    log_printf(pLogDebug, "\tremove: ");
-    route_dump(pLogDebug, pRoute);
-    log_printf(pLogDebug, "\n");
+  STREAM_DEBUG_ENABLED(STREAM_LEVEL_DEBUG) {
+    stream_printf(gdsdebug, "\tremove: ");
+    route_dump(gdsdebug, route);
+    stream_printf(gdsdebug, "\n");
   }
 
-  assert(rib_remove_route(peer->pAdjRIB[RIB_IN], msg->sPrefix,
-			  msg->tNextHop) == 0);
+  assert(rib_remove_route(peer->adj_rib[RIB_IN], msg->prefix,
+			  msg->next_hop) == 0);
 }
 
 void bgp_peer_withdraw_prefix_walton(bgp_peer_t * peer,
-				     SPrefix sPrefix,
-				     net_addr_t * tNextHop)
+				     ip_pfx_t prefix,
+				     net_addr_t * next_hop)
 {
   // Send the message to the peer (except if this is a virtual peer)
   if (!bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL))
-    bgp_peer_send(peer,
-		  bgp_msg_withdraw_create(peer->pLocalRouter->uASN,
-					  sPrefix, tNextHop));
+    _bgp_peer_send(peer,
+		   bgp_msg_withdraw_create(peer->router->asn,
+					   prefix, next_hop));
 }
 
 // -----[ bgp_peer_set_walton_limit ]--------------------------------
@@ -1396,9 +1443,9 @@ void bgp_peer_set_walton_limit(bgp_peer_t * peer, unsigned int uWaltonLimit)
 }
 
 // -----[ bgp_peer_get_walton_limit ]--------------------------------
-uint16_t bgp_peer_get_walton_limit(bgp_peer_t * pPeer)
+uint16_t bgp_peer_get_walton_limit(bgp_peer_t * peer)
 {
-  return pPeer->uWaltonLimit;
+  return peer->uWaltonLimit;
 }
 
 #endif

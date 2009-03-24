@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)attr.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/11/2005
-// @lastdate 23/11/2007
+// $Id: attr.c,v 1.9 2009-03-24 14:25:33 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -12,46 +12,48 @@
 
 #include <assert.h>
 
+#include <libgds/memory.h>
+
 #include <bgp/attr.h>
-#include <bgp/comm_hash.h>
-#include <bgp/path_hash.h>
+#include <bgp/attr/comm_hash.h>
+#include <bgp/attr/path_hash.h>
 
 // -----[ Forward prototypes declaration ]---------------------------
 /* Note: functions starting with underscore (_) are intended to be
  * used inside this file only (private). These functions should be
  * static and should not appear in the .h file.
  */
-static inline void _bgp_attr_path_destroy(SBGPAttr * pAttr);
-static inline void _bgp_attr_comm_destroy(SBGPAttr ** ppAttr);
-static inline void _bgp_attr_ecomm_destroy(SBGPAttr * pAttr);
+static inline void _bgp_attr_path_destroy(bgp_attr_t * attr);
+static inline void _bgp_attr_comm_destroy(bgp_attr_t ** pattr);
+static inline void _bgp_attr_ecomm_destroy(bgp_attr_t * attr);
 
 // -----[ bgp_attr_set_nexthop ]-------------------------------------
 /**
  *
  */
-void bgp_attr_set_nexthop(SBGPAttr ** ppAttr,
-				 net_addr_t tNextHop)
+void bgp_attr_set_nexthop(bgp_attr_t ** attr_ref,
+			  net_addr_t next_hop)
 {
-  (*ppAttr)->tNextHop= tNextHop;
+  (*attr_ref)->next_hop= next_hop;
 }
 
 // -----[ bgp_attr_get_nexthop ]-------------------------------------
 /**
  *
  */
-net_addr_t bgp_attr_get_nexthop(SBGPAttr * pAttr)
+net_addr_t bgp_attr_get_nexthop(bgp_attr_t * attr)
 {
-  return pAttr->tNextHop;
+  return attr->next_hop;
 }
 
 // -----[ bgp_attr_set_origin ]--------------------------------------
 /**
  *
  */
-void bgp_attr_set_origin(SBGPAttr ** ppAttr,
-				      bgp_origin_t tOrigin)
+void bgp_attr_set_origin(bgp_attr_t ** attr_ref,
+			 bgp_origin_t origin)
 {
-  (*ppAttr)->tOrigin= tOrigin;
+  (*attr_ref)->origin= origin;
 }
 
 
@@ -70,30 +72,30 @@ void bgp_attr_set_origin(SBGPAttr ** ppAttr,
  *   the source AS-path must be intern, that is it must already be in
  *   the global AS-Path repository.
  */
-static inline void _bgp_attr_path_copy(SBGPAttr * pAttr, SBGPPath * pPath)
+static inline void _bgp_attr_path_copy(bgp_attr_t * attr, bgp_path_t * path)
 {
   /*log_printf(pLogErr, "-->PATH_COPY [%p]\n", pPath);*/
 
-  pAttr->pASPathRef= path_hash_add(pPath);
+  attr->path_ref= path_hash_add(path);
 
   // Check that the referenced path is equal to the source path
   // (if not, that means that the source path was not intern)
-  assert(pAttr->pASPathRef == pPath);
+  assert(attr->path_ref == path);
 
-  /*log_printf(pLogErr, "<--PATH_COPY [%p]\n", pAttr->pASPathRef);*/
+  /*log_printf(pLogErr, "<--PATH_COPY [%p]\n", attr->pASPathRef);*/
 }
 
 // -----[ _bgp_attr_path_destroy ]-----------------------------------
 /**
  * Destroy the AS-Path and removes the global reference.
  */
-static inline void _bgp_attr_path_destroy(SBGPAttr * pAttr)
+static inline void _bgp_attr_path_destroy(bgp_attr_t * attr)
 {
-  /*log_printf(pLogErr, "-->PATH_DESTROY [%p]\n", pAttr->pASPathRef);*/
-  if (pAttr->pASPathRef != NULL) {
-    /*log_printf(pLogErr, "attr-remove (%p)\n", pAttr->pASPathRef);*/
-    path_hash_remove(pAttr->pASPathRef);
-    pAttr->pASPathRef= NULL;
+  /*log_printf(pLogErr, "-->PATH_DESTROY [%p]\n", attr->pASPathRef);*/
+  if (attr->path_ref != NULL) {
+    /*log_printf(pLogErr, "attr-remove (%p)\n", attr->pASPathRef);*/
+    path_hash_remove(attr->path_ref);
+    attr->path_ref= NULL;
   }
   /*log_printf(pLogErr, "<--PATH_DESTROY [---]\n");*/
 }
@@ -104,18 +106,18 @@ static inline void _bgp_attr_path_destroy(SBGPAttr * pAttr)
  * already exists in the repository, the external path is destroyed.
  * Otherwize, it is internalized (put in the repository).
  */
-void bgp_attr_set_path(SBGPAttr ** ppAttr, SBGPPath * pPath)
+void bgp_attr_set_path(bgp_attr_t ** attr_ref, bgp_path_t * path)
 {
   /*log_printf(pLogErr, "-->PATH_SET [%p]\n", pPath);*/
-  _bgp_attr_path_destroy(*ppAttr);
-  if (pPath != NULL) {
-    (*ppAttr)->pASPathRef= path_hash_add(pPath);
-    assert((*ppAttr)->pASPathRef != NULL);
-    if ((*ppAttr)->pASPathRef != pPath)
-      path_destroy(&pPath);
+  _bgp_attr_path_destroy(*attr_ref);
+  if (path != NULL) {
+    (*attr_ref)->path_ref= path_hash_add(path);
+    assert((*attr_ref)->path_ref != NULL);
+    if ((*attr_ref)->path_ref != path)
+      path_destroy(&path);
   }
 
-  /*log_printf(pLogErr, "<--PATH_SET [%p]\n", (*ppAttr)->pASPathRef);*/
+  /*log_printf(pLogErr, "<--PATH_SET [%p]\n", (*pattr)->pASPathRef);*/
 }
 
 // -----[ bgp_attr_path_prepend ]------------------------------------
@@ -123,50 +125,51 @@ void bgp_attr_set_path(SBGPAttr ** ppAttr, SBGPPath * pPath)
  * Copy the given AS-Path and update the references into the global
  * path repository.
  */
-int bgp_attr_path_prepend(SBGPAttr ** ppAttr, uint16_t uAS, uint8_t uAmount)
+int bgp_attr_path_prepend(bgp_attr_t ** attr_ref,
+			  asn_t asn, uint8_t amount)
 {
-  SBGPPath * pPath;
+  bgp_path_t * path;
 
-  /*log_printf(pLogErr, "-->PATH_PREPEND [%p]\n", (*ppAttr)->pASPathRef);*/
+  /*log_printf(pLogErr, "-->PATH_PREPEND [%p]\n", (*pattr)->pASPathRef);*/
 
   // Create extern AS-Path copy
-  if ((*ppAttr)->pASPathRef == NULL)
-    pPath= path_create();
+  if ((*attr_ref)->path_ref == NULL)
+    path= path_create();
   else
-    pPath= path_copy((*ppAttr)->pASPathRef);
+    path= path_copy((*attr_ref)->path_ref);
 
   // Prepend
-  while (uAmount-- > 0) {
-    if (path_append(&pPath, uAS) < 0)
+  while (amount-- > 0) {
+    if (path_append(&path, asn) < 0)
       return -1;
   }
 
   // Intern path
-  bgp_attr_set_path(ppAttr, pPath);
+  bgp_attr_set_path(attr_ref, path);
 
-  /*log_printf(pLogErr, "<--PATH_PREPEND [%p]\n", (*ppAttr)->pASPathRef);*/
+  /*log_printf(pLogErr, "<--PATH_PREPEND [%p]\n", (*pattr)->pASPathRef);*/
   return 0;
 }
 
 // -----[ bgp_attr_path_rem_private ]--------------------------------
-int bgp_attr_path_rem_private(SBGPAttr ** ppAttr)
+int bgp_attr_path_rem_private(bgp_attr_t ** attr_ref)
 {
-  SBGPPath * pPath;
+  bgp_path_t * path;
 
-  /*log_printf(pLogErr, "-->PATH_REM_PRIVATE [%p]\n", (*ppAttr)->pASPathRef);*/
+  /*log_printf(pLogErr, "-->PATH_REM_PRIVATE [%p]\n", (*pattr)->pASPathRef);*/
 
   // Create extern AS-Path copy
-  if ((*ppAttr)->pASPathRef == NULL)
-    pPath= path_create();
+  if ((*attr_ref)->path_ref == NULL)
+    path= path_create();
   else
-    pPath= path_copy((*ppAttr)->pASPathRef);
+    path= path_copy((*attr_ref)->path_ref);
 
-  path_remove_private(pPath);
+  path_remove_private(path);
 
   // Intern path
-  bgp_attr_set_path(ppAttr, pPath);
+  bgp_attr_set_path(attr_ref, path);
 
-  /*log_printf(pLogErr, "<--PATH_REM_PRIVATE [%p]\n", (*ppAttr)->pASPathRef);*/
+  /*log_printf(pLogErr, "<--PATH_REM_PRIVATE [%p]\n", (*pattr)->pASPathRef);*/
   return 0;
 }
 
@@ -186,15 +189,15 @@ int bgp_attr_path_rem_private(SBGPAttr ** ppAttr)
  *   the source Communities must be intern, that is it must already be in
  *   the global Communities repository.
  */
-static inline void _bgp_attr_comm_copy(SBGPAttr * pAttr,
-				       SCommunities * pCommunities)
+static inline void _bgp_attr_comm_copy(bgp_attr_t * attr,
+				       bgp_comms_t * comms)
 {
-  pAttr->pCommunities= comm_hash_add(pCommunities);
+  attr->comms= comm_hash_add(comms);
 
   // Check that the referenced Communities is equal to the source
   // Communities (if not, that means that the source Communities was
   // not intern)
-  assert(pAttr->pCommunities == pCommunities);
+  assert(attr->comms == comms);
 }
 
 // -----[ _bgp_attr_comm_destroy ]-----------------------------------
@@ -202,11 +205,11 @@ static inline void _bgp_attr_comm_copy(SBGPAttr * pAttr,
  * Destroy the Communities attribute and removes the global
  * reference.
  */
-static inline void _bgp_attr_comm_destroy(SBGPAttr ** ppAttr)
+static inline void _bgp_attr_comm_destroy(bgp_attr_t ** attr_ref)
 {
-  if ((*ppAttr)->pCommunities != NULL) {
-    comm_hash_remove((*ppAttr)->pCommunities);
-    (*ppAttr)->pCommunities= NULL;
+  if ((*attr_ref)->comms != NULL) {
+    comm_hash_remove((*attr_ref)->comms);
+    (*attr_ref)->comms= NULL;
   }
 }
 
@@ -214,15 +217,15 @@ static inline void _bgp_attr_comm_destroy(SBGPAttr ** ppAttr)
 /**
  *
  */
-void bgp_attr_set_comm(SBGPAttr ** ppAttr,
-			      SCommunities * pCommunities)
+void bgp_attr_set_comm(bgp_attr_t ** attr_ref,
+		       bgp_comms_t * comms)
 {
-  _bgp_attr_comm_destroy(ppAttr);
-  if (pCommunities != NULL) {
-    (*ppAttr)->pCommunities= comm_hash_add(pCommunities);
-    assert((*ppAttr)->pCommunities != NULL);
-    if ((*ppAttr)->pCommunities != pCommunities)
-      comm_destroy(&pCommunities);
+  _bgp_attr_comm_destroy(attr_ref);
+  if (comms != NULL) {
+    (*attr_ref)->comms= comm_hash_add(comms);
+    assert((*attr_ref)->comms != NULL);
+    if ((*attr_ref)->comms != comms)
+      comms_destroy(&comms);
   }
 }
 
@@ -230,24 +233,24 @@ void bgp_attr_set_comm(SBGPAttr ** ppAttr,
 /**
  *
  */
-int bgp_attr_comm_append(SBGPAttr ** ppAttr, comm_t tCommunity)
+int bgp_attr_comm_append(bgp_attr_t ** attr_ref, bgp_comm_t comm)
 {
-  SCommunities * pCommunities;
+  bgp_comms_t * comms;
 
   // Create extern Communities copy
-  if ((*ppAttr)->pCommunities == NULL)
-    pCommunities= comm_create();
+  if ((*attr_ref)->comms == NULL)
+    comms= comms_create();
   else
-    pCommunities= comm_copy((*ppAttr)->pCommunities);
+    comms= comms_dup((*attr_ref)->comms);
 
   // Add new community value
-  if (comm_add(&pCommunities, tCommunity)) {
-    comm_destroy(&pCommunities);
+  if (comms_add(&comms, comm)) {
+    comms_destroy(&comms);
     return -1;
   }
 
   // Intern Communities
-  bgp_attr_set_comm(ppAttr, pCommunities);
+  bgp_attr_set_comm(attr_ref, comms);
   return 0;
 }
 
@@ -255,31 +258,31 @@ int bgp_attr_comm_append(SBGPAttr ** ppAttr, comm_t tCommunity)
 /**
  *
  */
-void bgp_attr_comm_remove(SBGPAttr ** ppAttr, comm_t tCommunity)
+void bgp_attr_comm_remove(bgp_attr_t ** attr_ref, bgp_comm_t comm)
 {
-  SCommunities * pCommunities;
+  bgp_comms_t * comms;
 
-  if ((*ppAttr)->pCommunities == NULL)
+  if ((*attr_ref)->comms == NULL)
     return;
 
   // Create extern Communities copy
-  pCommunities= comm_copy((*ppAttr)->pCommunities);
+  comms= comms_dup((*attr_ref)->comms);
 
   // Remove given community (this will destroy the Communities if
   // needed)
-  comm_remove(&pCommunities, tCommunity);
+  comms_remove(&comms, comm);
 
   // Intern Communities
-  bgp_attr_set_comm(ppAttr, pCommunities);
+  bgp_attr_set_comm(attr_ref, comms);
 }
 
 // -----[ bgp_attr_comm_strip ]--------------------------------------
 /**
  *
  */
-void bgp_attr_comm_strip(SBGPAttr ** ppAttr)
+void bgp_attr_comm_strip(bgp_attr_t ** attr_ref)
 {
-  _bgp_attr_comm_destroy(ppAttr);
+  _bgp_attr_comm_destroy(attr_ref);
 }
 
 
@@ -290,32 +293,32 @@ void bgp_attr_comm_strip(SBGPAttr ** ppAttr)
 /////////////////////////////////////////////////////////////////////
 
 // -----[ _bgp_attr_ecomm_copy ]-------------------------------------
-static inline void _bgp_attr_ecomm_copy(SBGPAttr * pAttr,
-					SECommunities * pCommunities)
+static inline void _bgp_attr_ecomm_copy(bgp_attr_t * attr,
+					bgp_ecomms_t * ecomms)
 {
-  _bgp_attr_ecomm_destroy(pAttr);
-  if (pCommunities != NULL)
-    pAttr->pECommunities= ecomm_copy(pCommunities);
+  _bgp_attr_ecomm_destroy(attr);
+  if (ecomms != NULL)
+    attr->ecomms= ecomms_dup(ecomms);
 }
 
 // -----[ _bgp_attr_ecomm_destroy ]----------------------------------
 /**
  * Destroy the extended-communities attribute.
  */
-static inline void _bgp_attr_ecomm_destroy(SBGPAttr * pAttr)
+static inline void _bgp_attr_ecomm_destroy(bgp_attr_t * attr)
 {
-  ecomm_destroy(&pAttr->pECommunities);
+  ecomms_destroy(&attr->ecomms);
 }
 
 // -----[ bgp_attr_ecomm_append ]------------------------------------
 /**
  *
  */
-int bgp_attr_ecomm_append(SBGPAttr ** ppAttr, SECommunity * pComm)
+int bgp_attr_ecomm_append(bgp_attr_t ** attr_ref, bgp_ecomm_t * ecomm)
 {
-  if ((*ppAttr)->pECommunities == NULL)
-    (*ppAttr)->pECommunities= ecomm_create();
-  return ecomm_add(&(*ppAttr)->pECommunities, pComm);
+  if ((*attr_ref)->ecomms == NULL)
+    (*attr_ref)->ecomms= ecomms_create();
+  return ecomms_add(&(*attr_ref)->ecomms, ecomm);
 }
 
 
@@ -329,14 +332,14 @@ int bgp_attr_ecomm_append(SBGPAttr ** ppAttr, SECommunity * pComm)
 /**
  *
  */
-static inline void _bgp_attr_originator_copy(SBGPAttr * pAttr,
-					     net_addr_t * pOriginator)
+static inline void _bgp_attr_originator_copy(bgp_attr_t * attr,
+					     bgp_originator_t * originator)
 {
-  if (pOriginator == NULL)
-    pAttr->pOriginator= NULL;
+  if (originator == NULL)
+    attr->originator= NULL;
   else {
-    pAttr->pOriginator= (net_addr_t *) MALLOC(sizeof(net_addr_t));
-    *pAttr->pOriginator= *pOriginator;
+    attr->originator= (bgp_originator_t *) MALLOC(sizeof(bgp_originator_t));
+    *attr->originator= *originator;
   }
 }
 
@@ -344,11 +347,11 @@ static inline void _bgp_attr_originator_copy(SBGPAttr * pAttr,
 /**
  *
  */
-void bgp_attr_originator_destroy(SBGPAttr * pAttr)
+void bgp_attr_originator_destroy(bgp_attr_t * attr)
 {
-  if (pAttr->pOriginator != NULL) {
-    FREE(pAttr->pOriginator);
-    pAttr->pOriginator= NULL;
+  if (attr->originator != NULL) {
+    FREE(attr->originator);
+    attr->originator= NULL;
   }
 }
 
@@ -363,22 +366,22 @@ void bgp_attr_originator_destroy(SBGPAttr * pAttr)
 /**
  *
  */
-static inline void _bgp_attr_cluster_list_copy(SBGPAttr * pAttr,
-					       SClusterList * pClusterList)
+static inline void _bgp_attr_cluster_list_copy(bgp_attr_t * attr,
+					       bgp_cluster_list_t * cl)
 {
-  if (pClusterList == NULL)
-    pAttr->pClusterList= NULL;
+  if (cl == NULL)
+    attr->cluster_list= NULL;
   else
-    pAttr->pClusterList= cluster_list_copy(pClusterList);
+    attr->cluster_list= cluster_list_copy(cl);
 }
 
 // -----[ bgp_attr_cluster_list_destroy ]----------------------------
 /**
  *
  */
-void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr)
+void bgp_attr_cluster_list_destroy(bgp_attr_t * attr)
 {
-  cluster_list_destroy(&pAttr->pClusterList);
+  cluster_list_destroy(&attr->cluster_list);
 }
 
 
@@ -392,42 +395,42 @@ void bgp_attr_cluster_list_destroy(SBGPAttr * pAttr)
 /**
  *
  */
-SBGPAttr * bgp_attr_create(net_addr_t tNextHop,
-			   bgp_origin_t tOrigin,
-			   uint32_t uLocalPref,
-			   uint32_t uMED)
+bgp_attr_t * bgp_attr_create(net_addr_t next_hop,
+			     bgp_origin_t origin,
+			     uint32_t local_pref,
+			     uint32_t med)
 {
-  SBGPAttr * pAttr= (SBGPAttr *) MALLOC(sizeof(SBGPAttr));
-  pAttr->tNextHop= tNextHop;
-  pAttr->tOrigin= tOrigin;
-  pAttr->uLocalPref= uLocalPref;
-  pAttr->uMED= uMED;
-  pAttr->pASPathRef= NULL;
-  pAttr->pCommunities= NULL;
-  pAttr->pECommunities= NULL;
+  bgp_attr_t * attr= (bgp_attr_t *) MALLOC(sizeof(bgp_attr_t));
+  attr->next_hop= next_hop;
+  attr->origin= origin;
+  attr->local_pref= local_pref;
+  attr->med= med;
+  attr->path_ref= NULL;
+  attr->comms= NULL;
+  attr->ecomms= NULL;
 
   /* Route-reflection related fields */
-  pAttr->pOriginator= NULL;
-  pAttr->pClusterList= NULL;
+  attr->originator= NULL;
+  attr->cluster_list= NULL;
 
-  return pAttr;
+  return attr;
 }
 
 // -----[ bgp_attr_destroy ]-----------------------------------------
 /**
  *
  */
-void bgp_attr_destroy(SBGPAttr ** ppAttr)
+void bgp_attr_destroy(bgp_attr_t ** attr_ref)
 {
-  if (*ppAttr != NULL) {
-    _bgp_attr_path_destroy(*ppAttr);
-    _bgp_attr_comm_destroy(ppAttr);
-    _bgp_attr_ecomm_destroy(*ppAttr);
+  if (*attr_ref != NULL) {
+    _bgp_attr_path_destroy(*attr_ref);
+    _bgp_attr_comm_destroy(attr_ref);
+    _bgp_attr_ecomm_destroy(*attr_ref);
 
     /* Route-reflection */
-    bgp_attr_originator_destroy(*ppAttr);
-    bgp_attr_cluster_list_destroy(*ppAttr);
-    FREE(*ppAttr);
+    bgp_attr_originator_destroy(*attr_ref);
+    bgp_attr_cluster_list_destroy(*attr_ref);
+    FREE(*attr_ref);
   }
 }
 
@@ -435,20 +438,20 @@ void bgp_attr_destroy(SBGPAttr ** ppAttr)
 /**
  *
  */
-SBGPAttr * bgp_attr_copy(SBGPAttr * pAttr)
+bgp_attr_t * bgp_attr_copy(bgp_attr_t * attr)
 {
-  SBGPAttr * pAttrCopy= bgp_attr_create(pAttr->tNextHop,
-					pAttr->tOrigin,
-					pAttr->uLocalPref,
-					pAttr->uMED);
-  _bgp_attr_path_copy(pAttrCopy, pAttr->pASPathRef);
-  _bgp_attr_comm_copy(pAttrCopy, pAttr->pCommunities);
-  _bgp_attr_ecomm_copy(pAttrCopy, pAttr->pECommunities);
+  bgp_attr_t * attr_copy= bgp_attr_create(attr->next_hop,
+					  attr->origin,
+					  attr->local_pref,
+					  attr->med);
+  _bgp_attr_path_copy(attr_copy, attr->path_ref);
+  _bgp_attr_comm_copy(attr_copy, attr->comms);
+  _bgp_attr_ecomm_copy(attr_copy, attr->ecomms);
 
   /* Route-Reflection attributes */
-  _bgp_attr_originator_copy(pAttrCopy, pAttr->pOriginator);
-  _bgp_attr_cluster_list_copy(pAttrCopy, pAttr->pClusterList);
-  return pAttrCopy;
+  _bgp_attr_originator_copy(attr_copy, attr->originator);
+  _bgp_attr_cluster_list_copy(attr_copy, attr->cluster_list);
+  return attr_copy;
 }
 
 // -----[ bgp_attr_cmp ]---------------------------------------------
@@ -460,63 +463,63 @@ SBGPAttr * bgp_attr_copy(SBGPAttr * pAttr)
  *   1  if attributes are equal
  *   0  otherwise
  */
-int bgp_attr_cmp(SBGPAttr * pAttr1, SBGPAttr * pAttr2)
+int bgp_attr_cmp(bgp_attr_t * attr1, bgp_attr_t * attr2)
 {
   // If both pointers are equal, the content must also be equal.
-  if (pAttr1 == pAttr2)
+  if (attr1 == attr2)
     return 1;
 
   // NEXT-HOP attributes must be equal
-  if (pAttr1->tNextHop != pAttr2->tNextHop) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different NEXT-HOP\n");
+  if (attr1->next_hop != attr2->next_hop) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different NEXT-HOP\n");
     return 0;
   }
 
   // LOCAL-PREF attributes must be equal
-  if (pAttr1->uLocalPref != pAttr2->uLocalPref) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different LOCAL-PREFs\n");
+  if (attr1->local_pref != attr2->local_pref) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different LOCAL-PREFs\n");
     return 0;
   }
 
   // AS-PATH attributes must be equal
-  if (!path_equals(pAttr1->pASPathRef, pAttr2->pASPathRef)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different AS-PATHs\n");
+  if (!path_equals(attr1->path_ref, attr2->path_ref)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different AS-PATHs\n");
     return 0;
   }
 
   // ORIGIN attributes must be equal
-  if (pAttr1->tOrigin != pAttr2->tOrigin) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different ORIGINs\n");
+  if (attr1->origin != attr2->origin) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different ORIGINs\n");
     return 0;
   }
 
   // MED attributes must be equal
-  if (pAttr1->uMED != pAttr2->uMED) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different MEDs\n");
+  if (attr1->med != attr2->med) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different MEDs\n");
     return 0;
   }
 
   // COMMUNITIES attributes must be equal
-  if (!comm_equals(pAttr1->pCommunities, pAttr2->pCommunities)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different COMMUNITIES\n");
+  if (!comms_equals(attr1->comms, attr2->comms)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different COMMUNITIES\n");
     return 0;
   }
 
   // EXTENDED-COMMUNITIES attributes must be equal
-  if (!ecomm_equals(pAttr1->pECommunities, pAttr2->pECommunities)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different EXTENDED-COMMUNITIES\n");
+  if (!ecomm_equals(attr1->ecomms, attr2->ecomms)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different EXTENDED-COMMUNITIES\n");
     return 0;
   }
 
   // ORIGINATOR-ID attributes must be equal
-  if (!originator_equals(pAttr1->pOriginator, pAttr2->pOriginator)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different ORIGINATOR-ID\n");
+  if (!originator_equals(attr1->originator, attr2->originator)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different ORIGINATOR-ID\n");
     return 0;
   }
  
   // CLUSTER-ID-LIST attributes must be equal
-  if (!cluster_list_equals(pAttr1->pClusterList, pAttr2->pClusterList)) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG, "different CLUSTER-ID-LIST\n");
+  if (!cluster_list_equals(attr1->cluster_list, attr2->cluster_list)) {
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "different CLUSTER-ID-LIST\n");
     return 0;
   }
   

@@ -3,16 +3,16 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/11/2002
-// $Id: dp_rules.c,v 1.21 2008-04-11 11:03:06 bqu Exp $
+// $Id: dp_rules.c,v 1.22 2009-03-24 14:20:33 bqu Exp $
 // ==================================================================
-// to-do: these routines could be optimized
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
 #include <assert.h>
-#include <libgds/log.h>
+#include <string.h>
+#include <libgds/stream.h>
 
 #include <bgp/as.h>
 #include <bgp/dp_rules.h>
@@ -38,10 +38,35 @@ struct dp_rule_t DP_RULES[DP_NUM_RULES]= {
 #endif
 };
 
+typedef struct _options_t {
+  bgp_med_type_t med_type;
+} _options_t;
+static _options_t _default_options= {
+  .med_type= BGP_MED_TYPE_DETERMINISTIC,
+};
+
+// -----[ dp_rules_options_set_med_type ]----------------------------
+void dp_rules_options_set_med_type(bgp_med_type_t med_type)
+{
+  _default_options.med_type= med_type;
+}
+
+// -----[ dp_rules_str2med_type ]------------------------------------
+net_error_t dp_rules_str2med_type(const char * str, bgp_med_type_t * med_type)
+{
+  if (!strcmp(str, "deterministic")) {
+    *med_type= BGP_MED_TYPE_DETERMINISTIC;
+    return ESUCCESS;
+  } else if (!strcmp(str, "always-compare")) {
+    *med_type= BGP_MED_TYPE_ALWAYS_COMPARE;
+    return ESUCCESS;
+  }
+  return EUNSPECIFIED;
+}
+
 // -----[ function prototypes ]--------------------------------------
-static uint32_t _dp_rule_igp_cost(bgp_router_t * pRouter, net_addr_t tNextHop);
-
-
+static uint32_t _dp_rule_igp_cost(bgp_router_t * router,
+				  net_addr_t next_hop);
 
 // ----- bgp_dp_rule_generic ----------------------------------------
 /**
@@ -51,31 +76,31 @@ static uint32_t _dp_rule_igp_cost(bgp_router_t * pRouter, net_addr_t tNextHop);
  *
  * PRE: fCompare must not be NULL
  */
-static inline void bgp_dp_rule_generic(bgp_router_t * pRouter,
-				   bgp_routes_t * pRoutes,
-				   FDPRouteCompare fCompare)
+static inline void bgp_dp_rule_generic(bgp_router_t * router,
+				       bgp_routes_t * routes,
+				       FDPRouteCompare compare)
 {
   unsigned int index;
-  int iResult;
-  bgp_route_t * pBestRoute= NULL;
-  bgp_route_t * pRoute;
+  int result;
+  bgp_route_t * best_route= NULL;
+  bgp_route_t * route;
 
   // Determine the best route. This loop already eliminates all the
   // routes that are not as best as the current best route.
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (pBestRoute != NULL) {
-      iResult= fCompare(pRouter, pBestRoute, pRoute);
-      if (iResult < 0) {
-	pBestRoute= pRoute;
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
+    if (best_route != NULL) {
+      result= compare(router, best_route, route);
+      if (result < 0) {
+	best_route= route;
 	index++;
-      } else if (iResult > 0) {
-	routes_list_remove_at(pRoutes, index);
+      } else if (result > 0) {
+	routes_list_remove_at(routes, index);
       } else
 	index++;
     } else {
-      pBestRoute= pRoute;
+      best_route= route;
       index++;
     }
   }
@@ -83,24 +108,24 @@ static inline void bgp_dp_rule_generic(bgp_router_t * pRouter,
   // Eliminates remaining routes that are not as best as the best
   // route.
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    if (fCompare(pRouter, bgp_routes_at(pRoutes, index), pBestRoute) < 0)
-      routes_list_remove_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    if (compare(router, bgp_routes_at(routes, index), best_route) < 0)
+      routes_list_remove_at(routes, index);
     else
       index++;
   }
 }
 
 // ----- bgp_dp_rule_local_route_cmp --------------------------------
-static int bgp_dp_rule_local_route_cmp(bgp_router_t * pRouter,
-				       bgp_route_t * pRoute1,
-				       bgp_route_t * pRoute2)
+static int bgp_dp_rule_local_route_cmp(bgp_router_t * router,
+				       bgp_route_t * route1,
+				       bgp_route_t * route2)
 {
   // If both routes are INTERNAL, returns 0
   // If route1 is INTERNAL and route2 is not, returns 1
   // Otherwize, returns -1
-  return route_flag_get(pRoute1, ROUTE_FLAG_INTERNAL)-
-    route_flag_get(pRoute2, ROUTE_FLAG_INTERNAL);
+  return (route_flag_get(route1, ROUTE_FLAG_INTERNAL)-
+	  route_flag_get(route2, ROUTE_FLAG_INTERNAL));
 }
 
 // ----- bgp_dp_rule_local ------------------------------------------
@@ -108,19 +133,20 @@ static int bgp_dp_rule_local_route_cmp(bgp_router_t * pRouter,
  * This function prefers routes that are locally originated,
  * i.e. inserted with the bgp_router_add_network() function.
  */
-void bgp_dp_rule_local(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+void bgp_dp_rule_local(bgp_router_t * router,
+		       bgp_routes_t * routes)
 {
-  if (pRouter->uASN == 1) {
-    log_printf(pLogOut, "before:\n");
-    routes_list_dump(pLogOut, pRoutes);
+  if (router->asn == 1) {
+    stream_printf(gdsout, "before:\n");
+    routes_list_dump(gdsout, routes);
   }
 
-  bgp_dp_rule_generic(pRouter, pRoutes,
+  bgp_dp_rule_generic(router, routes,
 		      bgp_dp_rule_local_route_cmp);
 
-  if (pRouter->uASN == 1) {
-    log_printf(pLogOut, "after:\n");
-    routes_list_dump(pLogOut, pRoutes);
+  if (router->asn == 1) {
+    stream_printf(gdsout, "after:\n");
+    routes_list_dump(gdsout, routes);
   }
 }
 
@@ -144,15 +170,15 @@ void dp_rule_nexthop_destroy(SIntArray ** ppiNextHop)
   int_array_destroy(ppiNextHop);
 }
 
-int dp_rule_no_selection(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_no_selection(bgp_router_t * router, bgp_routes_t * routes)
 {
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
   unsigned int index;
   int iNextHopCount;
 
-  for (index = 0; index < bgp_routes_size(pRoutes); index++) {
+  for (index = 0; index < bgp_routes_size(routes); index++) {
     dp_rule_nexthop_add(piNextHopCounter,
-			route_get_nexthop(bgp_routes_at(pRoutes, index)));
+			route_get_nexthop(bgp_routes_at(routes, index)));
   }
     
   iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
@@ -161,33 +187,33 @@ int dp_rule_no_selection(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 
 }
 
-int dp_rule_lowest_nh(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_nh(bgp_router_t * router, bgp_routes_t * routes)
 {
   net_addr_t tLowestNextHop= MAX_ADDR;
   net_addr_t tNH;
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   unsigned int index;
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
   int iNextHopCount;
 
   // Calculate lowest NextHop
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index); 
-    tNH= route_get_nexthop(pRoute); 
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index); 
+    tNH= route_get_nexthop(route); 
     if (tNH < tLowestNextHop)
       tLowestNextHop= tNH;
   }
 
   // Discard routes from neighbors with an higher NextHop
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    tNH= route_get_nexthop(pRoute); 
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
+    tNH= route_get_nexthop(route); 
     if (tNH > tLowestNextHop)
-      ptr_array_remove_at(pRoutes, index);
+      ptr_array_remove_at(routes, index);
     else
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
   }
@@ -197,13 +223,13 @@ int dp_rule_lowest_nh(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   return iNextHopCount;
 }
 
-int dp_rule_lowest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_path(bgp_router_t * router, bgp_routes_t * routes)
 { 
   unsigned int index;
-  bgp_route_t * pRoute;
-  SBGPPath * tPath;
-  SBGPPath * tLowestPath;
-  SBGPPath * tPathMax;
+  bgp_route_t * route;
+  bgp_path_t * tPath;
+  bgp_path_t * tLowestPath;
+  bgp_path_t * tPathMax;
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
   int iNextHopCount;
   bgp_route_t * pSavedRoute= NULL;
@@ -212,12 +238,12 @@ int dp_rule_lowest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   tLowestPath = tPathMax;
   
   // Calculate lowest AS-PATH
-  for (index = 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute = bgp_routes_at(pRoutes, index);
-    tPath = route_get_path(pRoute); 
+  for (index = 0; index < bgp_routes_size(routes); index++) {
+    route = bgp_routes_at(routes, index);
+    tPath = route_get_path(route); 
     if (path_comparison(tPath, tLowestPath) <= 0) {
       tLowestPath = tPath;
-      pSavedRoute = pRoute;
+      pSavedRoute = route;
     }
   } 
 
@@ -236,10 +262,10 @@ int dp_rule_lowest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 /**
  * Remove routes that do not have the highest LOCAL-PREF.
  */
-int dp_rule_highest_pref(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_highest_pref(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index;
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   uint32_t uHighestPref= 0;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -248,21 +274,21 @@ int dp_rule_highest_pref(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 #endif
   
   // Calculate highest degree of preference
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (route_localpref_get(pRoute) > uHighestPref)
-      uHighestPref= route_localpref_get(pRoute);
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
+    if (route_localpref_get(route) > uHighestPref)
+      uHighestPref= route_localpref_get(route);
   }
   // Exclude routes with a lower preference
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    if (route_localpref_get(bgp_routes_at(pRoutes, index))
+  while (index < bgp_routes_size(routes)) {
+    if (route_localpref_get(bgp_routes_at(routes, index))
 	< uHighestPref)
-      ptr_array_remove_at(pRoutes, index);
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -283,7 +309,7 @@ int dp_rule_highest_pref(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 /**
  * Remove routes that do not have the shortest AS-PATH.
  */
-int dp_rule_shortest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_shortest_path(bgp_router_t * router, bgp_routes_t * routes)
 {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
@@ -291,24 +317,24 @@ int dp_rule_shortest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 #endif
 
   unsigned int index;
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   uint8_t uMinLen= 255;
 
   // Calculate shortest AS-Path length
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (route_path_length(pRoute) < uMinLen)
-      uMinLen= route_path_length(pRoute);
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
+    if (route_path_length(route) < uMinLen)
+      uMinLen= route_path_length(route);
   }
   // Exclude routes with a longer AS-Path
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    if (route_path_length(bgp_routes_at(pRoutes, index)) > uMinLen)
-      ptr_array_remove_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    if (route_path_length(bgp_routes_at(routes, index)) > uMinLen)
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -329,11 +355,11 @@ int dp_rule_shortest_path(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
  * Remove routes that do not have the lowest ORIGIN (IGP < EGP <
  * INCOMPLETE).
  */
-int dp_rule_lowest_origin(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_origin(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index;
-  bgp_route_t * pRoute;
-  bgp_origin_t tLowestOrigin= ROUTE_ORIGIN_INCOMPLETE;
+  bgp_route_t * route;
+  bgp_origin_t tLowestOrigin= BGP_ORIGIN_INCOMPLETE;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
@@ -341,20 +367,20 @@ int dp_rule_lowest_origin(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 #endif
 
   // Calculate lowest Origin
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (route_get_origin(pRoute) < tLowestOrigin)
-      tLowestOrigin= route_get_origin(pRoute);
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
+    if (route_get_origin(route) < tLowestOrigin)
+      tLowestOrigin= route_get_origin(route);
   }
   // Exclude routes with a greater Origin
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    if (route_get_origin(bgp_routes_at(pRoutes, index))	> tLowestOrigin)
-      ptr_array_remove_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    if (route_get_origin(bgp_routes_at(routes, index))	> tLowestOrigin)
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       iidex++;
     }
 #else
@@ -379,11 +405,11 @@ int dp_rule_lowest_origin(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
  * received from teh same neighbor AS. With the always-compare way,
  * MED can always be compared.
  */
-int dp_rule_lowest_med(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_med(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index, index2;
   int iLastAS;
-  bgp_route_t * pRoute, * pRoute2;
+  bgp_route_t * route, * route2;
   uint32_t uMinMED= UINT_MAX;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
@@ -405,24 +431,24 @@ int dp_rule_lowest_med(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   // WARNING : if the two options are set, the MED of the best routes of each
   // group has to be compared too.
 
-  switch (BGP_OPTIONS_MED_TYPE) {
+  switch (_default_options.med_type) {
   case BGP_MED_TYPE_ALWAYS_COMPARE:
    
     // Calculate lowest MED
-    for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-      pRoute= bgp_routes_at(pRoutes, index);
-      if (route_med_get(pRoute) < uMinMED)
-	uMinMED= route_med_get(pRoute);
+    for (index= 0; index < bgp_routes_size(routes); index++) {
+      route= bgp_routes_at(routes, index);
+      if (route_med_get(route) < uMinMED)
+	uMinMED= route_med_get(route);
     }
     // Discard routes with an higher MED
     index= 0;
-    while (index < bgp_routes_size(pRoutes)) {
-      if (route_med_get(bgp_routes_at(pRoutes, index)) > uMinMED)
-	ptr_array_remove_at(pRoutes, index);
+    while (index < bgp_routes_size(routes)) {
+      if (route_med_get(bgp_routes_at(routes, index)) > uMinMED)
+	ptr_array_remove_at(routes, index);
       else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -434,55 +460,25 @@ int dp_rule_lowest_med(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   case BGP_MED_TYPE_DETERMINISTIC:
 
     index= 0;
-    while (index < bgp_routes_size(pRoutes)) {
-      pRoute= bgp_routes_at(pRoutes, index);
+    while (index < bgp_routes_size(routes)) {
+      route= bgp_routes_at(routes, index);
       
-      if (pRoute != NULL) {
+      if (route != NULL) {
       
-	iLastAS= route_path_last_as(pRoute);
+	iLastAS= route_path_last_as(route);
 	
 	index2= index+1;
-	while (index2 < bgp_routes_size(pRoutes)) {
-	  pRoute2= bgp_routes_at(pRoutes, index2);
+	while (index2 < bgp_routes_size(routes)) {
+	  route2= bgp_routes_at(routes, index2);
 	  
-	  if (pRoute2 != NULL) {
-	  
-	    /* DEBUG-BEGIN */
-	    /*
-	    printf("route1: ");
-	    route_dump(pLogOut, pRoute);
-	    printf("\nroute2: ");
-	    route_dump(pLogOut, pRoute2);
-	    printf("\n");
-	    printf("last-AS: %u\n", iLastAS);
-	    */
-	    /* DEBUG-END */
-	    
-	    if (iLastAS == route_path_last_as(pRoute2)) {
-	      
-	      /* DEBUG-BEGIN */
-	      /*
-	      printf("compare...[%u <-> %u]\n", pRoute->pAttr->uMED, pRoute2->pAttr->uMED);
-	      */
-	      /* DEBUG-END */
-	      
-	      if (pRoute->pAttr->uMED < pRoute2->pAttr->uMED) {
-		/* DEBUG-BEGIN */
-		/*
-		printf("route1 < route2 => remove route2\n");
-		*/
-		/* DEBUG-END */
-		pRoutes->data[index2]= NULL;
-	      } else if (pRoute->pAttr->uMED > pRoute2->pAttr->uMED) {
-		/* DEBUG-BEGIN */
-		/*
-		printf("(route2 < route1) => remove route1\n");
-		*/
-		/* DEBUG-END */
-		pRoutes->data[index]= NULL;
+	  if (route2 != NULL) {
+	    if (iLastAS == route_path_last_as(route2)) {
+	      if (route->attr->med < route2->attr->med) {
+		routes->data[index2]= NULL;
+	      } else if (route->attr->med > route2->attr->med) {
+		routes->data[index]= NULL;
 		break;
 	      }
-	      
 	    }
 	  }
 	  
@@ -492,20 +488,22 @@ int dp_rule_lowest_med(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
       index++;
     }
     index= 0;
-    while (index < bgp_routes_size(pRoutes)) {
-      if (pRoutes->data[index] == NULL) {
-	ptr_array_remove_at(pRoutes, index);
+    while (index < bgp_routes_size(routes)) {
+      if (routes->data[index] == NULL) {
+	ptr_array_remove_at(routes, index);
       } else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
       index++;
 #endif
     }
-
+    break;
+  default:
+    abort();
   }
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   iNextHopCount = dp_rule_nexthop_get_count(piNextHopCounter);
@@ -520,7 +518,7 @@ int dp_rule_lowest_med(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 /**
  * If there is an eBGP route, remove all the iBGP routes.
  */
-int dp_rule_ebgp_over_ibgp(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_ebgp_over_ibgp(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index;
   int iEBGP= 0;
@@ -531,8 +529,8 @@ int dp_rule_ebgp_over_ibgp(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 
   // Detect if there is at least one route learned through an eBGP
   // session:
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    if (bgp_routes_at(pRoutes, index)->pPeer->uRemoteAS != pRouter->uASN) {
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    if (bgp_routes_at(routes, index)->peer->asn != router->asn) {
       iEBGP= 1;
       break;
     }
@@ -541,13 +539,13 @@ int dp_rule_ebgp_over_ibgp(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   // routes learned over an iBGP session:
   if (iEBGP) {
     index= 0;
-    while (index < bgp_routes_size(pRoutes)) {
-      if (bgp_routes_at(pRoutes, index)->pPeer->uRemoteAS == pRouter->uASN)
-	ptr_array_remove_at(pRoutes, index);
+    while (index < bgp_routes_size(routes)) {
+      if (bgp_routes_at(routes, index)->peer->asn == router->asn)
+	ptr_array_remove_at(routes, index);
       else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -573,16 +571,16 @@ static uint32_t _dp_rule_igp_cost(bgp_router_t * router, net_addr_t next_hop)
   rt_info_t * rtinfo;
 
   /* Is there a route towards the destination ? */
-  rtinfo= rt_find_best(router->pNode->rt, next_hop, NET_ROUTE_ANY);
+  rtinfo= rt_find_best(router->node->rt, next_hop, NET_ROUTE_ANY);
   if (rtinfo != NULL)
     return rtinfo->metric;
 
-  LOG_ERR_ENABLED(LOG_LEVEL_FATAL) {
-    log_printf(pLogErr, "Error: unable to compute IGP cost to next-hop (");
-    ip_address_dump(pLogErr, next_hop);
-    log_printf(pLogErr, ")\nError: ");
-    ip_address_dump(pLogErr, router->pNode->addr);
-    log_printf(pLogErr, "\n");
+  STREAM_ERR_ENABLED(STREAM_LEVEL_FATAL) {
+    stream_printf(gdserr, "Error: unable to compute IGP cost to next-hop (");
+    ip_address_dump(gdserr, next_hop);
+    stream_printf(gdserr, ")\nError: ");
+    bgp_router_dump_id(gdserr, router);
+    stream_printf(gdserr, "\n");
   }
   abort();
   return -1;
@@ -593,10 +591,10 @@ static uint32_t _dp_rule_igp_cost(bgp_router_t * router, net_addr_t next_hop)
  * Remove the routes that do not have the lowest IGP cost to the BGP
  * next-hop.
  */
-int dp_rule_nearest_next_hop(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_nearest_next_hop(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index;
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   uint32_t uLowestCost= UINT_MAX;
   uint32_t uIGPcost;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -605,31 +603,31 @@ int dp_rule_nearest_next_hop(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 #endif
 
   // Calculate lowest IGP-cost
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
 
-    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->pAttr->tNextHop);
+    uIGPcost= _dp_rule_igp_cost(router, route->attr->next_hop);
     if (uIGPcost < uLowestCost)
       uLowestCost= uIGPcost;
 
     /* Mark route as depending on the IGP weight. This is done in
        order to more efficiently react to IGP changes. See
        'bgp_router_scan_rib' for more information. */
-    route_flag_set(pRoute, ROUTE_FLAG_DP_IGP, 1);
+    route_flag_set(route, ROUTE_FLAG_DP_IGP, 1);
 
   }
 
   // Discard routes with an higher IGP-cost 
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    uIGPcost= _dp_rule_igp_cost(pRouter, pRoute->pAttr->tNextHop);
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
+    uIGPcost= _dp_rule_igp_cost(router, route->attr->next_hop);
     if (uIGPcost > uLowestCost) {
-      ptr_array_remove_at(pRoutes, index);
+      ptr_array_remove_at(routes, index);
     } else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -650,12 +648,12 @@ int dp_rule_nearest_next_hop(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
  * Remove routes that do not have the lowest ROUTER-ID (or
  * ORIGINATOR-ID if the route is reflected).
  */
-int dp_rule_lowest_router_id(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_router_id(bgp_router_t * router, bgp_routes_t * routes)
 {
-  net_addr_t tLowestRouterID= MAX_ADDR;
+  net_addr_t lowest_router_id= MAX_ADDR;
   net_addr_t tID;
   /*net_addr_t tOriginatorID;*/
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   unsigned int index;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
@@ -663,33 +661,33 @@ int dp_rule_lowest_router_id(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 #endif
 
   // Calculate lowest ROUTER-ID (or ORIGINATOR-ID)
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
 
     /* DEBUG-BEGIN */
     /*
     printf("router-ID: ");
-    ip_address_dump(pLogOut, route_peer_get(pRoute)->tRouterID);
-    printf("\noriginator-ID-ptr: %p\n", pRoute->pAttr->pOriginator);
-    if (route_originator_get(pRoute, &tOriginatorID) == 0) {
+    ip_address_dump(gdsout, route_peer_get(route)->router_id);
+    printf("\noriginator-ID-ptr: %p\n", route->attr->pOriginator);
+    if (route_originator_get(route, &tOriginatorID) == 0) {
       printf("originator-ID: ");
-      ip_address_dump(pLogOut, tOriginatorID);
+      ip_address_dump(gdsout, tOriginatorID);
       printf("\n");
       }
     */
     /* DEBUG-END */
 
     /* Originator-ID or Router-ID ? (< 0 => use router-ID) */
-    if (route_originator_get(pRoute, &tID) < 0)
-      tID= route_peer_get(pRoute)->tRouterID;
-    if (tID < tLowestRouterID)
-      tLowestRouterID= tID;
+    if (route_originator_get(route, &tID) < 0)
+      tID= route_peer_get(route)->router_id;
+    if (tID < lowest_router_id)
+      lowest_router_id= tID;
   }
 
   /* DEBUG-BEGIN */
   /*
   printf("max-addr: ");
-  ip_address_dump(pLogOut, tLowestRouterID);
+  ip_address_dump(gdsout, tLowestRouterID);
   printf("\n");
   */
   /* DEBUG-END */
@@ -697,17 +695,17 @@ int dp_rule_lowest_router_id(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
   // Discard routes from neighbors with an higher ROUTER-ID (or
   // ORIGINATOR-ID)
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
     /* Originator-ID or Router-ID ? (< 0 => use router-ID) */
-    if (route_originator_get(pRoute, &tID) < 0)
-      tID= route_peer_get(pRoute)->tRouterID; 
-    if (tID > tLowestRouterID)
-      ptr_array_remove_at(pRoutes, index);
+    if (route_originator_get(route, &tID) < 0)
+      tID= route_peer_get(route)->router_id;
+    if (tID > lowest_router_id)
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -727,9 +725,9 @@ int dp_rule_lowest_router_id(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
 /**
  * Remove the routes that do not have the shortest CLUSTER-ID-LIST.
  */
-int dp_rule_shortest_cluster_list(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_shortest_cluster_list(bgp_router_t * router, bgp_routes_t * routes)
 {
-  bgp_route_t * pRoute;
+  bgp_route_t * route;
   unsigned int index;
   uint8_t uMinLen= 255;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -738,24 +736,24 @@ int dp_rule_shortest_cluster_list(bgp_router_t * pRouter, bgp_routes_t * pRoutes
 #endif
 
   // Calculate shortest cluster-ID-list
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (pRoute->pAttr->pClusterList == NULL)
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
+    if (route->attr->cluster_list == NULL)
       uMinLen= 0;
     else
-      uMinLen= cluster_list_length(pRoute->pAttr->pClusterList);    
+      uMinLen= cluster_list_length(route->attr->cluster_list);    
   }
   // Discard routes with a longer cluster-ID-list
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if ((pRoute->pAttr->pClusterList != NULL) &&
-	(cluster_list_length(pRoute->pAttr->pClusterList) > uMinLen))
-      ptr_array_remove_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
+    if ((route->attr->cluster_list != NULL) &&
+	(cluster_list_length(route->attr->cluster_list) > uMinLen))
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -776,10 +774,11 @@ int dp_rule_shortest_cluster_list(bgp_router_t * pRouter, bgp_routes_t * pRoutes
  * Remove routes that are not learned through the peer with the lowest
  * IP address.
  */
-int dp_rule_lowest_neighbor_address(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_lowest_neighbor_address(bgp_router_t * router,
+				    bgp_routes_t * routes)
 {
-  net_addr_t tLowestAddr= MAX_ADDR;
-  bgp_route_t * pRoute;
+  net_addr_t lowest_addr= MAX_ADDR;
+  bgp_route_t * route;
   unsigned int index;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
@@ -787,21 +786,21 @@ int dp_rule_lowest_neighbor_address(bgp_router_t * pRouter, bgp_routes_t * pRout
 #endif
 
   // Calculate lowest neighbor address
-  for (index= 0; index < bgp_routes_size(pRoutes); index++) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (route_peer_get(pRoute)->tAddr < tLowestAddr)
-      tLowestAddr= route_peer_get(pRoute)->tAddr;
+  for (index= 0; index < bgp_routes_size(routes); index++) {
+    route= bgp_routes_at(routes, index);
+    if (route_peer_get(route)->addr < lowest_addr)
+      lowest_addr= route_peer_get(route)->addr;
   }
   // Discard routes from neighbors with an higher address
   index= 0;
-  while (index < bgp_routes_size(pRoutes)) {
-    pRoute= bgp_routes_at(pRoutes, index);
-    if (route_peer_get(pRoute)->tAddr > tLowestAddr)
-      ptr_array_remove_at(pRoutes, index);
+  while (index < bgp_routes_size(routes)) {
+    route= bgp_routes_at(routes, index);
+    if (route_peer_get(route)->addr > lowest_addr)
+      ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     {
-      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(pRoutes, index)));
+      dp_rule_nexthop_add(piNextHopCounter, route_get_nexthop(bgp_routes_at(routes, index)));
       index++;
     }
 #else
@@ -822,20 +821,20 @@ int dp_rule_lowest_neighbor_address(bgp_router_t * pRouter, bgp_routes_t * pRout
  *
  */
 /*
-int dp_rule_final(bgp_router_t * pRouter, bgp_routes_t * pRoutes)
+int dp_rule_final(bgp_router_t * router, bgp_routes_t * routes)
 {
   int iResult;
 
   // *** final tie-break ***
-  while (bgp_routes_size(pRoutes) > 1) {
-    iResult= pRouter->fTieBreak(bgp_routes_at(pRoutes, 0),
-				bgp_routes_at(pRoutes, 1));
+  while (bgp_routes_size(routes) > 1) {
+    iResult= router->fTieBreak(bgp_routes_at(routes, 0),
+				bgp_routes_at(routes, 1));
     if (iResult == 1) // Prefer ROUTE1
-      ptr_array_remove_at(pRoutes, 1);
+      ptr_array_remove_at(routes, 1);
     else if (iResult == -1) // Prefer ROUTE2
-      ptr_array_remove_at(pRoutes, 0);
+      ptr_array_remove_at(routes, 0);
     else {
-      LOG_ERR(LOG_LEVEL_FATAL, "Error: final tie-break can not decide\n");
+      STREAM_ERR(STREAM_LEVEL_FATAL, "Error: final tie-break can not decide\n");
       abort(); // Can not decide !!!
     }
   }
