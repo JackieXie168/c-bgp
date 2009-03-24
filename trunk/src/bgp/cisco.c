@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: cisco.c,v 1.2 2008-04-14 09:14:35 bqu Exp $
+// $Id: cisco.c,v 1.3 2009-03-24 14:11:11 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -31,10 +31,10 @@
 #define CISCO_STATE_RECORDS 1
 
 // -----[ cisco_perror ]---------------------------------------------
-void cisco_perror(SLogStream * pStream, int iErrorCode)
+void cisco_perror(gds_stream_t * stream, int error)
 {
-#define LOG(M) log_printf(pStream, M); break;
-  switch (iErrorCode) {
+#define LOG(M) stream_printf(stream, M); break;
+  switch (error) {
   case CISCO_SUCCESS:
     LOG("success");
   case CISCO_ERROR_UNEXPECTED:
@@ -44,16 +44,16 @@ void cisco_perror(SLogStream * pStream, int iErrorCode)
   case CISCO_ERROR_NUM_FIELDS:
     LOG("incorrect number of fields");
   default:
-    log_printf(pStream, "unknown error (%i)", iErrorCode);
+    stream_printf(stream, "unknown error (%i)", error);
   }
 #undef LOG
 }
 
 // -----[ cisco_record_parser ]--------------------------------------
-int cisco_record_parser(const char * pcLine)
+int cisco_record_parser(const char * line)
 {
   // First field
-  switch (pcLine[0]) {
+  switch (line[0]) {
   case '*':
     break;
   case ' ':
@@ -63,7 +63,7 @@ int cisco_record_parser(const char * pcLine)
   }
 
   // Second field
-  switch (pcLine[1]) {
+  switch (line[1]) {
   case '>':
     break;
   case ' ':
@@ -73,7 +73,7 @@ int cisco_record_parser(const char * pcLine)
   }
 
   // Space separator
-  if (pcLine[2] != ' ')
+  if (line[2] != ' ')
     return CISCO_ERROR_UNEXPECTED;
 
   // Get "Network" field (length=19)
@@ -94,46 +94,46 @@ int cisco_record_parser(const char * pcLine)
 }
 
 // -----[ cisco_parser ]---------------------------------------------
-int cisco_parser(FILE * pStream)
+int cisco_parser(FILE * stream)
 {
-  STokenizer * pTokenizer;
-  STokens * pTokens;
-  char acFileLine[80];
-  unsigned int uLineNumber= 0;
-  int iError= CISCO_SUCCESS;
+  gds_tokenizer_t * tokenizer;
+  const gds_tokens_t * tokens;
+  char line[80];
+  unsigned int line_number= 0;
+  int error= CISCO_SUCCESS;
 
-  pTokenizer= tokenizer_create(" \t", 0, NULL, NULL);
+  tokenizer= tokenizer_create(" \t", NULL, NULL);
 
-  while ((!feof(pStream)) && (!iError)) {
-    if (fgets(acFileLine, sizeof(acFileLine), pStream) == NULL)
+  while ((!feof(stream)) && (!error)) {
+    if (fgets(line, sizeof(line), stream) == NULL)
       break;
-    uLineNumber++;
+    line_number++;
 
     // Skip comments starting with '#'
-    if (acFileLine[0] == '#')
+    if (line[0] == '#')
       continue;
 
     
-    pTokens= tokenizer_get_tokens(pTokenizer);
+    tokens= tokenizer_get_tokens(tokenizer);
 
   }
-  tokenizer_destroy(&pTokenizer);
+  tokenizer_destroy(&tokenizer);
 
-  return iError;
+  return error;
 }
 
 // -----[ cisco_load ]-----------------------------------------------
-int cisco_load(const char * pcFileName)
+int cisco_load(const char * filename)
 {
   FILE * pFile;
-  int iResult;
+  int result;
 
-  pFile= fopen(pcFileName, "r");
+  pFile= fopen(filename, "r");
   if (pFile == NULL)
     return -1;
 
-  iResult= cisco_parser(pFile);
+  result= cisco_parser(pFile);
 
   fclose(pFile);
-  return iResult;
+  return result;
 }
