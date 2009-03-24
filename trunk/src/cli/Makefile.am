@@ -26,7 +26,7 @@ endif
 AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) $(OPT_WITH_OSPF)
 
 noinst_LTLIBRARIES = libcli.la
-libcli_la_CFLAGS = $(LIBGDS_CFLAGS) $(READLINE_CFLAGS)
+libcli_la_CFLAGS = $(LIBGDS_CFLAGS) $(READLINE_CFLAGS) $(AM_CFLAGS)
 
 INCLUDES = -I..
 
@@ -41,6 +41,7 @@ libcli_la_SOURCES = \
 	bgp_topology.h \
 	common.c \
 	common.h \
+	context.h \
 	enum.c \
 	enum.h \
 	net.c \
