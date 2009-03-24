@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 24/02/2004
-// $Id: link.h,v 1.22 2008-05-20 12:17:06 bqu Exp $
+// $Id: link.h,v 1.23 2009-03-24 16:15:26 bqu Exp $
 // ===========================================================
 
 #ifndef __NET_LINK_H__
@@ -18,7 +18,7 @@
 #include <net/prefix.h>
 #include <libgds/types.h>
 #include <libgds/array.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <libgds/memory.h>
 
 #define NET_LINK_FLAG_UP      0x01
@@ -59,11 +59,11 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // ----- net_link_dump --------------------------------------------
-  void net_link_dump(SLogStream * stream, net_iface_t * link);
+  void net_link_dump(gds_stream_t * stream, net_iface_t * link);
   // ----- net_link_dump_load ---------------------------------------
-  void net_link_dump_load(SLogStream * stream, net_iface_t * link);
+  void net_link_dump_load(gds_stream_t * stream, net_iface_t * link);
   // ----- net_link_dump_info ---------------------------------------
-  void net_link_dump_info(SLogStream * stream, net_iface_t * link);
+  void net_link_dump_info(gds_stream_t * stream, net_iface_t * link);
 
 
 #ifdef __cplusplus

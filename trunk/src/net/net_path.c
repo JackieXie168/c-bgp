@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)net_path.c
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 09/07/2003
-// @lastdate 21/07/2007
+// $Id: net_path.c,v 1.9 2009-03-24 16:18:21 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -15,48 +15,42 @@
 #include <string.h>
 
 // ----- net_path_create --------------------------------------------
-/**
- *
- */
-SNetPath * net_path_create()
+net_path_t * net_path_create()
 {
-  return (SNetPath *) uint32_array_create(0);
+  return uint32_array_create(0);
 }
 
 // ----- net_path_destroy -------------------------------------------
-/**
- *
- */
-void net_path_destroy(SNetPath ** ppPath)
+void net_path_destroy(net_path_t ** path_ref)
 {
-  _array_destroy((SArray **) ppPath);
+  uint32_array_destroy(path_ref);
 }
 
 // ----- net_path_append --------------------------------------------
 /**
  *
  */
-int net_path_append(SNetPath * pPath, net_addr_t tAddr)
+int net_path_append(net_path_t * path, net_addr_t addr)
 {
-  return _array_append((SArray *) pPath, &tAddr);
+  return uint32_array_append(path, addr);
 }
 
 // ----- net_path_copy ----------------------------------------------
 /**
  *
  */
-SNetPath * net_path_copy(SNetPath * pPath)
+net_path_t * net_path_copy(net_path_t * path)
 {
-  return (SNetPath *) _array_copy((SArray *) pPath);
+  return uint32_array_copy(path);
 }
 
 // ----- net_path_length --------------------------------------------
 /**
  *
  */
-int net_path_length(SNetPath * pPath)
+int net_path_length(net_path_t * path)
 {
-  return _array_length((SArray *) pPath);
+  return uint32_array_size(path);
 }
 
 // ----- net_path_for_each ------------------------------------------
@@ -65,24 +59,24 @@ int net_path_length(SNetPath * pPath)
  * the given path. Each element is an IP address (i.e. has the
  * 'net_addr_t' type).
  */
-int net_path_for_each(SNetPath *pPath, FArrayForEach fForEach,
-		      void * pContext)
+int net_path_for_each(net_path_t * path, gds_array_foreach_f foreach,
+		      void * ctx)
 {
-  return _array_for_each((SArray *) pPath, fForEach, pContext);
+  return uint32_array_for_each(path, foreach, ctx);
 }
 
 // ----- net_path_dump ----------------------------------------------
 /**
  *
  */
-void net_path_dump(SLogStream * pStream, SNetPath * pPath)
+void net_path_dump(gds_stream_t * stream, net_path_t * path)
 {
-  int iIndex;
+  unsigned int index;
 
-  for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
-    if (iIndex > 0)
-      log_printf(pStream, " ");
-    ip_address_dump(pStream, pPath->data[iIndex]);
+  for (index= 0; index < uint32_array_size(path); index++) {
+    if (index > 0)
+      stream_printf(stream, " ");
+    ip_address_dump(stream, path->data[index]);
   }
 }
 
@@ -90,13 +84,13 @@ void net_path_dump(SLogStream * pStream, SNetPath * pPath)
 /**
  *
  */
-int net_path_search(SNetPath * pPath, net_addr_t tAddr)
+int net_path_search(net_path_t * path, net_addr_t addr)
 {
-  int iIndex;
+  unsigned int index;
   int iRet = 0;
 
-  for (iIndex= 0; iIndex < _array_length((SArray *) pPath); iIndex++) {
-    if (tAddr == pPath->data[iIndex]) {
+  for (index= 0; index < uint32_array_size(path); index++) {
+    if (addr == path->data[index]) {
       iRet = 1;
       break;
     }

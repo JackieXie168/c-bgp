@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/06/2008
-// $Id: rt_filter.c,v 1.1 2008-06-12 07:22:28 bqu Exp $
+// $Id: rt_filter.c,v 1.2 2009-03-24 16:26:53 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -53,13 +53,14 @@ void rt_filter_destroy(rt_filter_t ** filter_ptr)
  */
 int rt_filter_matches(rt_info_t * rtinfo, rt_filter_t * filter)
 {
-  
+  const rt_entry_t * rtentry= rt_entries_get_at(rtinfo->entries, 0);
+
   if ((filter->oif != NULL) &&
-      (filter->oif != rtinfo->next_hop.oif))
+      (filter->oif != rtentry->oif))
     return 0;
 
   if ((filter->gateway != NULL) &&
-      (*filter->gateway != rtinfo->next_hop.gateway))
+      (*filter->gateway != rtentry->gateway))
     return 0;
 
   if ((filter->type != NET_ROUTE_ANY) &&

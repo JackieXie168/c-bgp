@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 4 July 2005
-// @lastdate 22/01/2007
+// $Id: spt_vertex.h,v 1.8 2009-03-24 16:27:19 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_SPT_VERTEX_H__
@@ -52,7 +52,7 @@ int spt_vertex_compare(void * pItem1, void * pItem2, unsigned int uEltSize);
 // ----- spt_vertex_get_links ---------------------------------------
 SPtrArray * spt_vertex_get_links(SSptVertex * pVertex);
 // ----- spt_vertex_get_id ---------------------------------------
-SPrefix spt_vertex_get_id(SSptVertex * pVertex);
+ip_pfx_t spt_vertex_get_id(SSptVertex * pVertex);
 // ----- spt_vertex_add_subnet ---------------------------------------------------
 int spt_vertex_add_subnet(SSptVertex * pCurrentVertex, net_iface_t * pCurrentLink);
 

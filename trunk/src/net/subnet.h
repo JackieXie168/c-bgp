@@ -4,7 +4,7 @@
 // @author Stefano Iasi (stefanoia@tin.it)
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/06/2005
-// $Id: subnet.h,v 1.12 2008-04-11 11:03:07 bqu Exp $
+// $Id: subnet.h,v 1.13 2009-03-24 16:27:50 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_SUBNET_H__
@@ -12,7 +12,7 @@
 
 #include <libgds/types.h>
 #include <libgds/array.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 #include <net/net_types.h>
 #include <net/prefix.h>
 
@@ -24,7 +24,9 @@ extern "C" {
   net_subnet_t * subnet_create(net_addr_t network, uint8_t len,
 			       net_subnet_type_t type);
   // ----- subnet_dump ----------------------------------------------
-  void subnet_dump(SLogStream * stream, net_subnet_t * subnet);
+  void subnet_dump(gds_stream_t * stream, net_subnet_t * subnet);
+  // -----[ subnet_dump_id ]-----------------------------------------
+  void subnet_dump_id(gds_stream_t * stream, net_subnet_t * subnet);
   // ----- subnet_get_Prefix ----------------------------------------
   ip_pfx_t * subnet_get_prefix(net_subnet_t * subnet);
   // ----- subnet_is_transit ----------------------------------------
@@ -37,7 +39,10 @@ extern "C" {
   net_iface_t * net_subnet_find_link(net_subnet_t * subnet,
 				     net_addr_t dst_addr);
   // ----- subnet_get_links -----------------------------------------
-  SPtrArray * subnet_get_links(net_subnet_t * subnet);
+  ptr_array_t * subnet_get_links(net_subnet_t * subnet);
+  // -----[ subnet_find_iface_to ]-----------------------------------
+  net_iface_t * subnet_find_iface_to(net_subnet_t * subnet,
+				     net_elem_t * to);
   // ----- subnet_destroy -------------------------------------------
   void subnet_destroy(net_subnet_t ** subnet_ref);
   

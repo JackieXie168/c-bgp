@@ -3,7 +3,7 @@
 //
 // @author Stefano Iasi (stefanoia@tin.it)
 // @date 14/06/2005
-// @lastdate 14/05/2005
+// $Id: ospf.h,v 1.9 2009-03-24 16:21:28 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_OSPF_H__
@@ -56,7 +56,7 @@ extern int node_is_BorderRouter(net_node_t * pNode);
 extern int node_is_InternalRouter(net_node_t * pNode);
 // ----- node_ospf_rt_add_route --------------------------------------------
 extern int node_ospf_rt_add_route(net_node_t     * pNode,     ospf_dest_type_t  tOSPFDestinationType,
-                       SPrefix        sPrefix,   net_link_delay_t        uWeight,
+                       ip_pfx_t prefix,   net_link_delay_t        uWeight,
 		       ospf_area_t    tOSPFArea, ospf_path_type_t  tOSPFPathType,
 		       next_hops_list_t * pNHList);
 // ----- node_belongs_to_area -----------------------------------------------

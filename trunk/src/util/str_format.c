@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/02/2008
-// @lastdate 22/02/2008
+// $Id: str_format.c,v 1.2 2009-03-24 16:30:03 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -19,7 +19,7 @@ typedef enum {
 } EFormatState;
 
 // -----[ str_format_for_each ]--------------------------------------
-int str_format_for_each(SLogStream * pStream,
+int str_format_for_each(gds_stream_t * stream,
 			FFormatForEach fFunction,
 			void * pContext,
 			const char * pcFormat)
@@ -34,17 +34,17 @@ int str_format_for_each(SLogStream * pStream,
       if (*pPos == '%') {
 	eState= ESCAPED;
       } else {
-	log_printf(pStream, "%c", *pPos);
+	stream_printf(stream, "%c", *pPos);
       }
       break;
 
     case ESCAPED:
       if (*pPos != '%') {
-	iResult= fFunction(pStream, pContext, *pPos);
+	iResult= fFunction(stream, pContext, *pPos);
 	if (iResult != 0)
 	  return iResult;
       } else
-	log_printf(pStream, "%");
+	stream_printf(stream, "%");
       eState= NORMAL;
       break;
 

@@ -11,6 +11,10 @@ noinst_LTLIBRARIES = libutil.la
 libutil_la_CFLAGS = $(LIBGDS_CFLAGS) $(PCRE_CFLAGS)
 
 libutil_la_SOURCES = \
+	lrp.c \
+	lrp.h \
+	reader.c \
+	reader.h \
 	regex.c \
 	regex.h \
 	str_format.c \

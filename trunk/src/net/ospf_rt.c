@@ -2,9 +2,9 @@
 // @(#)ospf_rt.c
 //
 // @author Stefano Iasi (stefanoia@tin.it)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/06/2005
-// @lastdate 02/08/2005
+// $Id: ospf_rt.c,v 1.16 2009-03-24 16:22:01 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

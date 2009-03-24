@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/06/2008
-// $Id: rt_filter.h,v 1.1 2008-06-12 07:22:28 bqu Exp $
+// $Id: rt_filter.h,v 1.2 2009-03-24 16:26:53 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_RT_FILTER_H__
@@ -30,7 +30,7 @@ typedef struct {
   net_addr_t       * gateway;
   net_route_type_t   type;
   int                matches;
-  SPtrArray        * del_list;
+  ptr_array_t      * del_list;
 } rt_filter_t;
 
 #ifdef __cplusplus

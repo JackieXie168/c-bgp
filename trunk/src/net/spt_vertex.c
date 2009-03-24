@@ -2,9 +2,9 @@
 // @(#)spt_vertex.c
 //
 // @author Stefano Iasi (stefanoia@tin.it), (C) 2005
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4 July 2005
-// @lastdate 22/07/2007
+// $Id: spt_vertex.c,v 1.12 2009-03-24 16:27:19 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H

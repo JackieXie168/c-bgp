@@ -2,9 +2,9 @@
 // @(#)regex.c
 //
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/09/2004
-// @lastdate 03/03/2006
+// $Id: regex.c,v 1.5 2009-03-24 16:30:03 bqu Exp $
 // ==================================================================
 
 #include <config.h>
@@ -18,7 +18,7 @@
 #include <string.h>
 
 #include <libgds/memory.h>
-#include <libgds/log.h>
+#include <libgds/stream.h>
 
 #include <util/regex.h>
 
@@ -45,7 +45,7 @@ struct RegEx {
  *
  *
  */
-SRegEx * regex_init(char * pattern, const unsigned int uMaxResult)
+SRegEx * regex_init(const char * pattern, const unsigned int uMaxResult)
 {
   SRegEx * pRegEx = MALLOC(sizeof(SRegEx));
 
@@ -57,7 +57,7 @@ SRegEx * regex_init(char * pattern, const unsigned int uMaxResult)
 			  &sError, &iErrorOffset,
 			  NULL);
   if (pRegEx == NULL) {
-    LOG_DEBUG(LOG_LEVEL_DEBUG,
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG,
 	      "regex_compile> PCRE compilation failed at offset"
 	      "%d : %s\n", iErrorOffset, sError);
     FREE(pRegEx);
@@ -133,13 +133,13 @@ void regex_next_search(SRegEx * pRegEx, const char * sExp)
   } else {
     /* Other matching errors are not recoverable. */
     if (pRegEx->iNbrResult < 0) {
-      LOG_DEBUG(LOG_LEVEL_DEBUG,
+      STREAM_DEBUG(STREAM_LEVEL_DEBUG,
 		"regex_get_next_result> Matching error %d\n", pRegEx->iNbrResult);
     }
     /* The match succeeded, but the output vector wasn't big enough. */
     /* if it does not happens before when calling regex_search, it would normally not happen here!*/
     if (pRegEx->iNbrResult == 0) {
-      LOG_DEBUG(LOG_LEVEL_DEBUG,
+      STREAM_DEBUG(STREAM_LEVEL_DEBUG,
 		"regex_get_next_result> Match succeeded but no enough place to store results\n");
     }
   }
@@ -174,7 +174,7 @@ void regex_first_search(SRegEx * pRegEx, const char * sExp)
      * PCRE_ERROR_BADCOUNT
      */
       default: 
-	LOG_DEBUG(LOG_LEVEL_DEBUG,
+	STREAM_DEBUG(STREAM_LEVEL_DEBUG,
 		  "regex_exec>Matching error %d\n", pRegEx->iNbrResult);
     }
     FREE(pRegEx->iVectorResult);

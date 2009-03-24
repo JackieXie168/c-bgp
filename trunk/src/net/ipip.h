@@ -3,15 +3,18 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: ipip.h,v 1.4 2008-04-07 09:42:04 bqu Exp $
+// $Id: ipip.h,v 1.5 2009-03-24 16:14:28 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IPIP_H__
 #define __NET_IPIP_H__
 
-#include <net/prefix.h>
 #include <net/message.h>
 #include <net/network.h>
+#include <net/prefix.h>
+#include <net/protocol.h>
+
+extern const net_protocol_def_t PROTOCOL_IPIP;
 
 #ifdef __cplusplus
 extern "C" {
