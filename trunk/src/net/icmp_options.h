@@ -3,79 +3,123 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/0/2008
-// $Id: icmp_options.h,v 1.2 2008-05-20 12:17:06 bqu Exp $
+// $Id: icmp_options.h,v 1.3 2009-03-24 16:10:03 bqu Exp $
 // ==================================================================
 
-#ifndef __NET_ICMP_OPTIONS_H__
-#define __NET_ICMP_OPTIONS_H__
+#ifndef __NET_IP_OPTIONS_H__
+#define __NET_IP_OPTIONS_H__
+
+#include <assert.h>
+
+#include <libgds/fifo.h>
+#include <libgds/stack.h>
 
 #include <net/error.h>
 #include <net/ip_trace.h>
 #include <net/net_types.h>
 #include <net/routing.h>
 
-#define ICMP_RR_OPTION_DELAY      0x01 /* Record total delay */
-#define ICMP_RR_OPTION_WEIGHT     0x02 /* Record total weight */
-#define ICMP_RR_OPTION_CAPACITY   0x04 /* Record max capacity */
-#define ICMP_RR_OPTION_LOAD       0x08 /* Load traversed interfaces */
-#define ICMP_RR_OPTION_LOOPBACK   0x10
-#define ICMP_RR_OPTION_DEFLECTION 0x20 /* Check for deflection */
-#define ICMP_RR_OPTION_QUICK_LOOP 0x40 /* Check for forwarding loops */
-#define ICMP_RR_OPTION_ALT_DEST   0x80 /* Use alternate destination */
+#define IP_OPT_DELAY      0x0001 /* Record total delay */
+#define IP_OPT_WEIGHT     0x0002 /* Record total weight */
+#define IP_OPT_CAPACITY   0x0004 /* Record max capacity */
+#define IP_OPT_LOAD       0x0008 /* Load traversed interfaces */
+#define IP_OPT_LOOPBACK   0x0010
+#define IP_OPT_DEFLECTION 0x0020 /* Check for deflection */
+#define IP_OPT_QUICK_LOOP 0x0040 /* Check for forwarding loops */
+#define IP_OPT_ALT_DEST   0x0080 /* Use alternate destination (prefix) */
+#define IP_OPT_ECMP       0x0100 /* Enumerate equal-cost paths */
+#define IP_OPT_TUNNEL     0x0200 /* Show path inside tunnels */
+#define IP_OPT_TRACE      0x0400 /* Record trace */
 
-typedef enum {
-  ICMP_OPT_STATE_INCOMING, /* Node and incoming iface are known (msg rcvd) */
-  ICMP_OPT_STATE_OUTGOING, /* Outgoing iface is known (after lookup) */
-  ICMP_OPT_STATE_SUBNET,   /* Subnet traversal */
-  ICMP_OPT_STATE_ENCAP,    /* Probe packet is encapsulated */
-  ICMP_OPT_STATE_DECAP,    /* Probe packet is decapsulated */
-} icmp_opt_state_t;
-
-typedef struct icmp_msg_opt_t {
-  ip_trace_t * trace;    /* Record-route trace */
-  uint8_t      options;  /* Record-route options */
-  ip_pfx_t     alt_dest; /* Alternate destination for lookup */
-} icmp_msg_opt_t;
+typedef struct ip_opt_t {
+  uint16_t          flags;
+  net_link_load_t   load;      /* Amount of traffic to load accross path */
+  ip_pfx_t          alt_dest;  /* Alternate destination for lookup */
+  unsigned int      ref_cnt;
+  ip_trace_t      * trace;
+  gds_fifo_t      * fifo_trace;
+} ip_opt_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  // -----[ icmp_process_options ]-------------------------------------
-  /**
-   * Process the options of an ICMP message. The function can be
-   * invoked at different times of the IP processing (states):
-   *   1). when the message is received by the IP forwarding process;
-   *       in this case, the state is ICMP_OPT_STATE_INCOMING
-   *   2). when the message is send by the IP forwarding process;
-   *       in this case, the state is ICMP_OPT_STATE_OUTGOING
-   *
-   * The parameters are as follows:
-   *   - node   : is the node where the IP processing occurs
-   *   - iface  : is the incoming/outgoing interface (depending on
-   *              state)
-   *   - msg    : is the ICMP message
-   *   - rtentry: is a reference to the current routing table entry;
-   *              (it can be modified in order to perform RT lookups
-   *              based on exact prefix matching)
-   */
-  net_error_t icmp_process_options(icmp_opt_state_t state,
-				   net_node_t * node,
-				   net_iface_t * iface,
+  ///////////////////////////////////////////////////////////////////
+  // IP OPTIONS SETUP
+  ///////////////////////////////////////////////////////////////////
+
+  // -----[ ip_options_init ]----------------------------------------
+  void ip_options_init(ip_opt_t * opts);
+  // -----[ ip_options_create ]--------------------------------------
+  ip_opt_t * ip_options_create();
+  // -----[ ip_options_destroy ]-------------------------------------
+  void ip_options_destroy(ip_opt_t ** opts_ref);
+  // -----[ ip_options_copy ]----------------------------------------
+  ip_opt_t * ip_options_copy(ip_opt_t * opts);
+  // -----[ ip_options_add_ref ]-------------------------------------
+  void ip_options_add_ref(ip_opt_t * opts);
+  // -----[ ip_options_set ]-----------------------------------------
+  void ip_options_set(ip_opt_t * opts, uint16_t flag);
+  // -----[ ip_options_load ]----------------------------------------
+  void ip_options_load(ip_opt_t * opts, net_link_load_t load);
+  // -----[ ip_options_alt_dest ]------------------------------------
+  void ip_options_alt_dest(ip_opt_t * opts, ip_pfx_t alt_dest);
+  // -----[ ip_options_trace ]---------------------------------------
+  void ip_options_trace(ip_opt_t * opts);
+
+
+  ///////////////////////////////////////////////////////////////////
+  // IP OPTIONS PROCESSING
+  ///////////////////////////////////////////////////////////////////
+
+  // -----[ ip_opt_hook_msg_error ]----------------------------------
+  net_error_t ip_opt_hook_msg_error(net_msg_t * msg,
+				    net_error_t error);
+  // -----[ ip_opt_hook_msg_sent ]-----------------------------------
+  net_error_t ip_opt_hook_msg_sent(net_node_t * node,
 				   net_msg_t * msg,
-				   const rt_entry_t ** rtentry);
+				   const rt_entries_t ** rtentries);
+  // -----[ ip_opt_hook_msg_rcvd ]-----------------------------------
+  net_error_t ip_opt_hook_msg_rcvd(net_node_t * node,
+				   net_iface_t * iif,
+				   net_msg_t * msg);
+  // -----[ ip_opt_hook_msg_in ]-------------------------------------
+  net_error_t ip_opt_hook_msg_in(net_node_t * node,
+				 net_iface_t * iif,
+				 net_msg_t * msg,
+				 const rt_entries_t ** rtentries);
+  // -----[ ip_opt_hook_msg_out ]------------------------------------
+  net_error_t ip_opt_hook_msg_out(net_node_t * node,
+				  net_iface_t * oif,
+				  net_msg_t * msg);
+  // -----[ ip_opt_hook_msg_subnet ]---------------------------------
+  net_error_t ip_opt_hook_msg_subnet(net_subnet_t * subnet,
+				     net_msg_t * msg,
+				     int * reached);
+  // -----[ ip_opt_hook_msg_encap ]----------------------------------
+  net_error_t ip_opt_hook_msg_encap(net_node_t * node,
+				    net_msg_t * outer_msg,
+				    net_msg_t * inner_msg);
+  // -----[ ip_opt_hook_msg_decap ]----------------------------------
+  net_error_t ip_opt_hook_msg_decap(net_node_t * node,
+				    net_msg_t * outer_msg,
+				    net_msg_t * inner_msg);
+  // -----[ ip_opt_hook_msg_ecmp ]-----------------------------------
+  net_error_t ip_opt_hook_msg_ecmp(net_node_t * node,
+				   net_msg_t * msg,
+				   const rt_entries_t ** rtentries);
+
+  // -----[ ip_opt_ecmp_push ]---------------------------------------
+  void ip_opt_ecmp_push(ip_opt_t * opts, net_node_t * node,
+			net_msg_t * msg, rt_entry_t * rtentry);
+  // -----[ ip_opt_ecmp_has_next ]-----------------------------------
+  int ip_opt_ecmp_has_next(ip_opt_t * opts);
+  // -----[ ip_opt_ecmp_get_next ]-----------------------------------
+  ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts);
 
 #ifdef __cplusplus
 }
 #endif
 
-static inline void icmp_options_init(uint8_t * options) {
-  *options= 0;
-}
-
-static inline void icmp_options_add(uint8_t * options, uint8_t option) {
-  *options |= option;
-}
-
-#endif /* __NET_ICMP_OPTIONS_H__ */
+#endif /* __NET_IP_OPTIONS_H__ */
 
