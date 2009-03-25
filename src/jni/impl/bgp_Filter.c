@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/04/2006
-// $Id: bgp_Filter.c,v 1.6 2008-06-11 15:21:47 bqu Exp $
+// $Id: bgp_Filter.c,v 1.7 2009-03-25 07:49:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -30,12 +30,12 @@
  * a CBGP filter.
  */
 jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
-				bgp_filter_t * pFilter)
+				bgp_filter_t * filter)
 {
   jobject joFilter;
 
   /* Java proxy object already existing ? */
-  joFilter= jni_proxy_get(jEnv, pFilter);
+  joFilter= jni_proxy_get(jEnv, filter);
   if (joFilter != NULL)
     return joFilter;
 
@@ -45,7 +45,7 @@ jobject cbgp_jni_new_bgp_Filter(JNIEnv * jEnv, jobject joCBGP,
     return NULL;
 
   // Add reference into proxy repository
-  jni_proxy_add(jEnv, joFilter, pFilter);
+  jni_proxy_add(jEnv, joFilter, filter);
 
   return joFilter;
 }
@@ -61,7 +61,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter_getRules
 {
   bgp_filter_t * filter;
   bgp_ft_rule_t * rule;
-  int index;
+  unsigned int index;
   jobject joRule;
   jobject joVector;
 
@@ -74,8 +74,8 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Filter_getRules
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
     return_jni_unlock(jEnv, NULL);
 
-  for (index= 0; index < filter->pSeqRules->iSize; index++) {
-    rule= (bgp_ft_rule_t *) filter->pSeqRules->ppItems[index];
+  for (index= 0; index < filter->rules->size; index++) {
+    rule= (bgp_ft_rule_t *) filter->rules->items[index];
     joRule= cbgp_jni_new_bgp_FilterRule(jEnv, NULL, rule);
     if (joRule == NULL)
       return_jni_unlock(jEnv, NULL);

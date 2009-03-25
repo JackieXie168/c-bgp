@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/04/2006
-// $Id: bgp_Peer.h,v 1.2 2008-06-11 15:21:47 bqu Exp $
+// $Id: bgp_Peer.h,v 1.3 2009-03-25 07:49:45 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_BGP_PEER_H__
@@ -14,8 +14,10 @@
 
 #include <jni/headers/be_ac_ucl_ingi_cbgp_bgp_Peer.h>
 
+#include <bgp/types.h>
+
 // -----[ cbgp_jni_new_bgp_Peer ]------------------------------------
 jobject cbgp_jni_new_bgp_Peer(JNIEnv * jEnv, jobject joCBGP,
-			      SBGPPeer * pPeer);
+			      bgp_peer_t * peer);
 
 #endif /* __JNI_BGP_PEER_H__ */

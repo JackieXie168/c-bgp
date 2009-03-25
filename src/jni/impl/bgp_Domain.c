@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// $Id: bgp_Domain.c,v 1.7 2008-04-11 11:03:06 bqu Exp $
+// $Id: bgp_Domain.c,v 1.8 2009-03-25 07:49:45 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -55,7 +55,7 @@ jobject cbgp_jni_new_bgp_Domain(JNIEnv * jEnv, jobject joCBGP,
 static int _bgpDomainGetRouters(uint32_t key, uint8_t key_len,
 				void * item, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) ctx;
+  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
   bgp_router_t * router= (bgp_router_t * ) item;
   jobject joRouter;
 
@@ -77,7 +77,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Domain_getRouters
   (JNIEnv * jEnv, jobject joDomain)
 {
   jobject joVector= NULL;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
   bgp_domain_t * domain;
 
   jni_lock(jEnv);
