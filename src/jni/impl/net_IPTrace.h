@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 05/09/2007
-// @lastdate 03/03/2008
+// $Id: net_IPTrace.h,v 1.2 2009-03-25 07:51:59 bqu Exp $
 // ==================================================================
 
 #ifndef __JNI_NET_IPTRACE_H__
@@ -20,10 +20,11 @@ extern "C" {
 #endif
 
   // -----[ cbgp_jni_new_IPTrace ]-----------------------------------
-  jobject cbgp_jni_new_IPTrace(JNIEnv * jEnv,
-			       net_node_t * pNode,
-			       net_addr_t tDst,
-			       ip_trace_t * trace);
+  jobject cbgp_jni_new_IPTrace(JNIEnv * env, ip_trace_t * trace);
+  // -----[ cbgp_jni_new_IPTraces ]------------------------------------
+  jobjectArray cbgp_jni_new_IPTraces(JNIEnv * env,
+				     ip_trace_t ** traces,
+				     unsigned int num_traces);
   
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/04/2006
-// $Id: net_Node.c,v 1.20 2008-06-13 14:27:53 bqu Exp $
+// $Id: net_Node.c,v 1.21 2009-03-25 07:51:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -24,9 +24,9 @@
 #include <jni/impl/bgp_Router.h>
 
 #include <net/error.h>
+#include <net/icmp.h>
 #include <net/igp_domain.h>
 #include <net/node.h>
-#include <net/record-route.h>
 
 #define CLASS_Node "be/ac/ucl/ingi/cbgp/net/Node"
 #define CONSTR_Node "(Lbe/ac/ucl/ingi/cbgp/CBGP;" \
@@ -49,7 +49,7 @@ jobject cbgp_jni_new_net_Node(JNIEnv * jEnv, jobject joCBGP,
     return joNode;
 
   /* Convert node attributes to Java objects */
-  joAddress= cbgp_jni_new_IPAddress(jEnv, node->addr);
+  joAddress= cbgp_jni_new_IPAddress(jEnv, node->rid);
 
   /* Check that the conversion was successful */
   if (joAddress == NULL)
@@ -88,9 +88,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getDomain
     return_jni_unlock(jEnv, NULL);
 
   /* Get the domain */
-  if ((node->pIGPDomains != NULL) &&
-      (_array_length((SArray *) node->pIGPDomains) > 0)) {
-    domain=  get_igp_domain(node->pIGPDomains->data[0]);
+  if ((node->domains != NULL) &&
+      (uint16_array_size(node->domains) > 0)) {
+    domain= network_find_igp_domain(node->network,
+				    node->domains->data[0]);
     joDomain= cbgp_jni_new_net_IGPDomain(jEnv, NULL, domain);
   }
 
@@ -161,49 +162,70 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setName
  * Method:    recordRoute
  * Signature: (Ljava/lang/String;)Lbe/ac/ucl/ingi/cbgp/IPTrace;
  */
-JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
-  (JNIEnv * jEnv, jobject joNode, jstring jsDestination)
+JNIEXPORT jobjectArray JNICALL
+Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
+(
+ JNIEnv * env,
+ jobject joNode,
+ jstring jsDestination
+)
 {
-  net_node_t * pNode;
-  jobject joIPTrace;
-  SNetDest sDest;
+  net_node_t * node;
+  jobject joVector;
+  jobject joTrace;
+  ip_dest_t dest;
   ip_trace_t * trace;
-  net_error_t error;
-  uint8_t options;
+  gds_enum_t * traces;
+  ip_opt_t * opts;
 
-  jni_lock(jEnv);
+  jni_lock(env);
 
   /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
-    return_jni_unlock(jEnv, NULL);
+  node= (net_node_t*) jni_proxy_lookup(env, joNode);
+  if (node == NULL)
+    return_jni_unlock(env, NULL);
 
   /* Get the destination */
-  if (ip_jstring_to_dest(jEnv, jsDestination, &sDest) != 0)
-    return_jni_unlock(jEnv, NULL);
+  if (ip_jstring_to_dest(env, jsDestination, &dest) != 0)
+    return_jni_unlock(env, NULL);
 
   /* "Any" destination not allowed here */
-  if (sDest.tType == NET_DEST_ANY) {
-    throw_CBGPException(jEnv, "invalid destination (*)");
-    return_jni_unlock(jEnv, NULL);
+  if (dest.type == NET_DEST_ANY) {
+    throw_CBGPException(env, "invalid destination (*)");
+    return_jni_unlock(env, NULL);
   }
 
   /* Trace the IP-level route */
-  icmp_options_init(&options);
-  icmp_options_add(&options, ICMP_RR_OPTION_DELAY);
-  icmp_options_add(&options, ICMP_RR_OPTION_WEIGHT);
-  if (sDest.tType == NET_DEST_PREFIX)
-    icmp_options_add(&options, ICMP_RR_OPTION_ALT_DEST);
-  error= icmp_record_route(pNode, sDest.uDest.tAddr,
-			   &sDest.uDest.sPrefix,
-			   255, options, &trace, 0);
+  opts= ip_options_create();
+  ip_options_set(opts, IP_OPT_CAPACITY);
+  ip_options_set(opts, IP_OPT_DELAY);
+  ip_options_set(opts, IP_OPT_WEIGHT);
+  ip_options_set(opts, IP_OPT_TUNNEL);
+  ip_options_set(opts, IP_OPT_ECMP);
+  if (dest.type == NET_DEST_PREFIX)
+    ip_options_alt_dest(opts, dest.prefix);
 
-  /* Convert to an IPTrace object */
-  joIPTrace= cbgp_jni_new_IPTrace(jEnv, pNode, sDest.uDest.tAddr, trace);
+  traces= icmp_trace_send2(node, dest.addr, 255, opts);
 
-  ip_trace_destroy(&trace);
+  joVector= cbgp_jni_new_Vector(env);
+  if (joVector == NULL)
+    return_jni_unlock(env, NULL);
 
-  return_jni_unlock(jEnv, joIPTrace);
+  while (enum_has_next(traces)) {
+    trace= (ip_trace_t *) enum_get_next(traces);
+
+    joTrace= cbgp_jni_new_IPTrace(env, trace);
+    if (joTrace == NULL)
+      return_jni_unlock(env, NULL);
+
+    if (cbgp_jni_Vector_add(env, joVector, joTrace) < 0)
+      return_jni_unlock(env, NULL);
+    
+    ip_trace_destroy(&trace);
+  }
+  enum_destroy(&traces);
+
+  return_jni_unlock(env, joVector);
 }
 
 // -----[ traceRoute ]-----------------------------------------------
@@ -215,30 +237,30 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_traceRoute
   (JNIEnv * jEnv, jobject joNode, jstring jsDestination)
 {
-  net_node_t * pNode;
+  net_node_t * node;
   jobject joIPTrace;
-  SNetDest sDest;
+  ip_dest_t dest;
   ip_trace_t * trace;
   net_error_t error;
 
   jni_lock(jEnv);
 
   /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
     return_jni_unlock(jEnv, NULL);
 
   /* Convert the destination */
-  if (ip_jstring_to_address(jEnv, jsDestination, &sDest.uDest.tAddr) != 0)
+  if (ip_jstring_to_address(jEnv, jsDestination, &dest.addr) != 0)
     return_jni_unlock(jEnv, NULL);
-  sDest.tType= NET_DEST_ADDRESS;
+  dest.type= NET_DEST_ADDRESS;
 
   /* Trace the IP-level route */
-  error= icmp_trace_route(NULL, pNode, NET_ADDR_ANY,
-			  sDest.uDest.tAddr, 0, &trace);
+  error= icmp_trace_route(NULL, node, NET_ADDR_ANY,
+			  dest.addr, 0, &trace);
 
   /* Convert to an IPTrace object */
-  joIPTrace= cbgp_jni_new_IPTrace(jEnv, pNode, sDest.uDest.tAddr, trace);
+  joIPTrace= cbgp_jni_new_IPTrace(jEnv, trace);
 
   ip_trace_destroy(&trace);
 
@@ -249,16 +271,16 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_traceRoute
 /**
  *
  */
-static int _getAddresses(void * pItem, void * pContext)
+static int _getAddresses(const void * item, const void * ctx)
 {
-  net_addr_t * pAddr= (net_addr_t *) pItem;
-  SJNIContext * pCtx= (SJNIContext *) pContext;
+  net_addr_t * addr= (net_addr_t *) item;
+  jni_ctx_t * jni_ctx= (jni_ctx_t *) ctx;
   jobject joAddress;
 
-  if ((joAddress= cbgp_jni_new_IPAddress(pCtx->jEnv, *pAddr)) == NULL)
+  if ((joAddress= cbgp_jni_new_IPAddress(jni_ctx->jEnv, *addr)) == NULL)
     return -1;
   
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joAddress);
+  return cbgp_jni_Vector_add(jni_ctx->jEnv, jni_ctx->joVector, joAddress);
 }
 
 // -----[ getAddresses ]---------------------------------------------
@@ -272,7 +294,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getAddresses
 {
   net_node_t * pNode;
   jobject joVector= NULL;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
 
   jni_lock(jEnv);
 
@@ -442,21 +464,21 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addPTMPLink
 }
 
 // -----[ _cbgp_jni_get_link ]---------------------------------------
-static int _cbgp_jni_get_link(void * pItem, void * pContext)
+static int _cbgp_jni_get_link(const void * item, const void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
-  net_iface_t * iface= *((net_iface_t **) pItem);
+  jni_ctx_t * jni_ctx= (jni_ctx_t *) ctx;
+  net_iface_t * iface= *((net_iface_t **) item);
   jobject joLink;
 
   if (!net_iface_is_connected(iface))
     return 0;
 
-  if ((joLink= cbgp_jni_new_net_Interface(pCtx->jEnv,
-					  pCtx->joCBGP,
+  if ((joLink= cbgp_jni_new_net_Interface(jni_ctx->jEnv,
+					  jni_ctx->joCBGP,
 					  iface)) == NULL)
     return -1;
 
-  return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joLink);
+  return cbgp_jni_Vector_add(jni_ctx->jEnv, jni_ctx->joVector, joLink);
 }
 
 // -----[ getLinks ]-------------------------------------------------
@@ -470,7 +492,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
 {
   net_node_t * node;
   jobject joVector;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
 
   jni_lock(jEnv);
 
@@ -493,19 +515,19 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getLinks
 }
 
 // -----[ _cbgp_jni_get_iface ]--------------------------------------
-static int _cbgp_jni_get_iface(void * item, void * context)
+static int _cbgp_jni_get_iface(const void * item, const void * ctx)
 {
-  SJNIContext * ctx= (SJNIContext *) context;
+  jni_ctx_t * jni_ctx= (jni_ctx_t *) ctx;
   net_iface_t * iface= *((net_iface_t **) item);
   jobject joLink;
 
 
-  if ((joLink= cbgp_jni_new_net_Interface(ctx->jEnv,
-					  ctx->joCBGP,
+  if ((joLink= cbgp_jni_new_net_Interface(jni_ctx->jEnv,
+					  jni_ctx->joCBGP,
 					  iface)) == NULL)
     return -1;
 
-  return cbgp_jni_Vector_add(ctx->jEnv, ctx->joVector, joLink);
+  return cbgp_jni_Vector_add(jni_ctx->jEnv, jni_ctx->joVector, joLink);
 }
 
 // -----[ getInterfaces ]--------------------------------------------
@@ -519,7 +541,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getInterfaces
 {
   net_node_t * node;
   jobject joVector;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
 
   jni_lock(jEnv);
 
@@ -542,18 +564,18 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getInterfaces
 }
 
 // -----[ _cbgp_jni_get_rt_route ]------------------------------------
-static int _cbgp_jni_get_rt_route(uint32_t uKey, uint8_t uKeyLen,
+static int _cbgp_jni_get_rt_route(uint32_t key, uint8_t key_len,
 				  void * pItem, void * pContext)
 {
-  SJNIContext * pCtx= (SJNIContext *) pContext;
+  jni_ctx_t * pCtx= (jni_ctx_t *) pContext;
   rt_info_t * rtinfo= (rt_info_t *) pItem;
-  SPrefix sPrefix;
+  ip_pfx_t prefix;
   jobject joRoute;
 
-  sPrefix.tNetwork= uKey;
-  sPrefix.uMaskLen= uKeyLen;
+  prefix.network= key;
+  prefix.mask= key_len;
 
-  if ((joRoute= cbgp_jni_new_IPRoute(pCtx->jEnv, sPrefix, rtinfo)) == NULL)
+  if ((joRoute= cbgp_jni_new_IPRoute(pCtx->jEnv, prefix, rtinfo)) == NULL)
     return -1;
   return cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
 }
@@ -569,9 +591,9 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
 {
   net_node_t * node;
   jobject joVector;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
   rt_info_t * rtinfo;
-  SNetDest sDest;
+  ip_dest_t dest;
 
   jni_lock(jEnv);
 
@@ -582,10 +604,10 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
 
   /* Convert the destination specifier (*|address|prefix) */
   if (jsDest != NULL) {
-    if (ip_jstring_to_dest(jEnv, jsDest, &sDest) < 0)
+    if (ip_jstring_to_dest(jEnv, jsDest, &dest) < 0)
       return_jni_unlock(jEnv, NULL);
   } else
-    sDest.tType= NET_ADDR_ANY;
+    dest.type= NET_ADDR_ANY;
 
   /* Create new Vector */
   if ((joVector= cbgp_jni_new_Vector(jEnv)) == NULL)
@@ -595,25 +617,25 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_getRT
   sCtx.jEnv= jEnv;
   sCtx.joVector= joVector;
 
-  switch (sDest.tType) {
+  switch (dest.type) {
   case NET_DEST_ANY:
     if (rt_for_each(node->rt, _cbgp_jni_get_rt_route, &sCtx) != 0)
       return_jni_unlock(jEnv, NULL);
     break;
 
   case NET_DEST_ADDRESS:
-    rtinfo= rt_find_best(node->rt, sDest.uDest.tAddr, NET_ROUTE_ANY);
+    rtinfo= rt_find_best(node->rt, dest.addr, NET_ROUTE_ANY);
 
     if (rtinfo != NULL)
-      if (_cbgp_jni_get_rt_route(sDest.uDest.tAddr, 32, rtinfo, &sCtx) < 0)
+      if (_cbgp_jni_get_rt_route(dest.addr, 32, rtinfo, &sCtx) < 0)
 	return_jni_unlock(jEnv, NULL);
     break;
 
   case NET_DEST_PREFIX:
-    rtinfo= rt_find_exact(node->rt, sDest.uDest.sPrefix, NET_ROUTE_ANY);
+    rtinfo= rt_find_exact(node->rt, dest.prefix, NET_ROUTE_ANY);
     if (rtinfo != NULL)
-      if (_cbgp_jni_get_rt_route(sDest.uDest.sPrefix.tNetwork,
-				 sDest.uDest.sPrefix.uMaskLen,
+      if (_cbgp_jni_get_rt_route(dest.prefix.network,
+				 dest.prefix.mask,
 				 rtinfo, &sCtx) < 0)
 	return_jni_unlock(jEnv, NULL);
     break;
@@ -748,29 +770,32 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_addRoute
   (JNIEnv * jEnv, jobject joNode, jstring jsPrefix,
    jstring jsNexthop, jint jiWeight)
 {
-  net_node_t * pNode;
-  SPrefix sPrefix;
-  net_addr_t tNextHop;
+  net_node_t * node;
+  ip_pfx_t prefix;
+  net_addr_t next_hop;
   net_iface_id_t tIfaceID;
+  int error;
 
   jni_lock(jEnv);
 
   /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
     return_jni_unlock2(jEnv);
 
-  if (ip_jstring_to_prefix(jEnv, jsPrefix, &sPrefix) != 0)
+  if (ip_jstring_to_prefix(jEnv, jsPrefix, &prefix) != 0)
     return_jni_unlock2(jEnv);
 
-  if (ip_jstring_to_address(jEnv, jsNexthop, &tNextHop) != 0)
+  if (ip_jstring_to_address(jEnv, jsNexthop, &next_hop) != 0)
     return_jni_unlock2(jEnv);
 
-  tIfaceID.tNetwork= tNextHop;
-  tIfaceID.uMaskLen= 32;
-  if (node_rt_add_route(pNode, sPrefix, tIfaceID,
-			tNextHop, jiWeight, NET_ROUTE_STATIC) != 0) {
-    throw_CBGPException(jEnv, "could not add route");
+  tIfaceID.network= next_hop;
+  tIfaceID.mask= 32;
+  error= node_rt_add_route(node, prefix, tIfaceID,
+			   next_hop, jiWeight, NET_ROUTE_STATIC);
+  if (error != ESUCCESS) {
+    throw_CBGPException(jEnv, "could not add route (%s)",
+			network_strerror(error));
     return_jni_unlock2(jEnv);
   }
 
@@ -866,23 +891,23 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_setLongitude
 JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_loadTraffic
   (JNIEnv * jEnv, jobject joNode, jstring jsFileName)
 {
-  net_node_t * pNode;
-  const char * pcFileName;
-  uint8_t tOptions= 0;
-  int iResult;
+  net_node_t * node;
+  const char * filename;
+  uint8_t options= 0;
+  int result;
 
   jni_lock(jEnv);
 
-  /* Get the node */
-  pNode= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
-  if (pNode == NULL)
+  // Get the node
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
     return_jni_unlock2(jEnv);
 
-  /* Load Netflow from file */
-  pcFileName= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
-  iResult= node_load_netflow(pNode, pcFileName, tOptions);
-  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, pcFileName);
-  if (iResult != ESUCCESS) {
+  // Load Netflow from file
+  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  result= node_load_netflow(node, filename, options, NULL);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
+  if (result != ESUCCESS) {
     throw_CBGPException(jEnv, "could not load Netflow");
     return_jni_unlock2(jEnv);
   }

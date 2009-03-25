@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 05/09/2007
-// $Id: net_IPTrace.c,v 1.1 2008-06-12 09:29:10 bqu Exp $
+// $Id: net_IPTrace.c,v 1.2 2009-03-25 07:51:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -21,8 +21,7 @@
 #define BASE "be/ac/ucl/ingi/cbgp/";
 
 #define CLASS_IPTrace "be/ac/ucl/ingi/cbgp/IPTrace"
-#define CONSTR_IPTrace "(Lbe/ac/ucl/ingi/cbgp/net/Node;" \
-                       "Lbe/ac/ucl/ingi/cbgp/IPAddress;I)V"
+#define CONSTR_IPTrace "(IJJ)V"
 #define METHOD_IPTrace_append "(Lbe/ac/ucl/ingi/cbgp/IPTraceElement;)V"
 
 #define CLASS_IPTraceElement "be/ac/ucl/ingi/cbgp/IPTraceElement"
@@ -34,8 +33,11 @@
 #define CLASS_IPTraceElementSubnet "be/ac/ucl/ingi/cbgp/IPTraceSubnet"
 #define CONSTR_IPTraceElementSubnet "(Lbe/ac/ucl/ingi/cbgp/net/Subnet;)V"
 
+#define CLASS_IPTraceElementTrace "be/ac/ucl/ingi/cbgp/IPTraceTrace"
+#define CONSTR_IPTraceElementTrace "(Lbe/ac/ucl/ingi/cbgp/IPTrace;)V"
+
 // -----[ _new_IPTraceElementNode ]----------------------------------
-static inline jobject _new_IPTraceElementNode(JNIEnv * jEnv,
+static inline jobject _new_IPTraceElementNode(JNIEnv * env,
 					      net_node_t * node,
 					      net_iface_t * iif,
 					      net_iface_t * oif)
@@ -43,40 +45,51 @@ static inline jobject _new_IPTraceElementNode(JNIEnv * jEnv,
   jobject joNode= NULL, joInIface= NULL, joOutIface= NULL;
 
   if (node != NULL) {
-    joNode= cbgp_jni_new_net_Node(jEnv, NULL, node);
+    joNode= cbgp_jni_new_net_Node(env, NULL, node);
     if (joNode == NULL)
       return NULL;
     if (iif != NULL) {
-      joInIface= cbgp_jni_new_net_Interface(jEnv, NULL, iif);
+      joInIface= cbgp_jni_new_net_Interface(env, NULL, iif);
       if (joInIface == NULL)
 	return NULL;
     }
     if (oif != NULL) {
-      joOutIface= cbgp_jni_new_net_Interface(jEnv, NULL, oif);
+      joOutIface= cbgp_jni_new_net_Interface(env, NULL, oif);
       if (joOutIface == NULL)
 	return NULL;
     }
   }
 
-  return cbgp_jni_new(jEnv, CLASS_IPTraceElementNode,
+  return cbgp_jni_new(env, CLASS_IPTraceElementNode,
 		      CONSTR_IPTraceElementNode, joNode,
 		      joInIface, joOutIface);
 }
 
 // -----[ _new_IPTraceElementSubnet ]--------------------------------
-static inline jobject _new_IPTraceElementSubnet(JNIEnv * jEnv,
+static inline jobject _new_IPTraceElementSubnet(JNIEnv * env,
 						net_subnet_t * subnet)
 {
-  jobject joSubnet= cbgp_jni_new_net_Subnet(jEnv, NULL, subnet);
+  jobject joSubnet= cbgp_jni_new_net_Subnet(env, NULL, subnet);
   if (joSubnet == NULL)
     return NULL;
 
-  return cbgp_jni_new(jEnv, CLASS_IPTraceElementSubnet,
+  return cbgp_jni_new(env, CLASS_IPTraceElementSubnet,
 		      CONSTR_IPTraceElementSubnet, joSubnet);
 }
 
+// -----[ _new_IPTraceElementTrace ]---------------------------------
+static inline jobject _new_IPTraceElementTrace(JNIEnv * env,
+					       ip_trace_t * trace)
+{
+  jobject joTrace= cbgp_jni_new_IPTrace(env, trace);
+  if (joTrace == NULL)
+    return NULL;
+  return cbgp_jni_new(env, CLASS_IPTraceElementTrace,
+		      CONSTR_IPTraceElementTrace, joTrace);
+}
+
 // -----[ _new_IPTraceElement ]--------------------------------------
-static inline jobject _new_IPTraceElement(JNIEnv * jEnv,
+static inline jobject _new_IPTraceElement(JNIEnv * env,
 					  ip_trace_item_t * item,
 					  int * hop_count)
 {
@@ -87,44 +100,50 @@ static inline jobject _new_IPTraceElement(JNIEnv * jEnv,
 
   switch (item->elt.type) {
   case NODE:
-    element= _new_IPTraceElementNode(jEnv,
+    element= _new_IPTraceElementNode(env,
 				     item->elt.node,
 				     item->iif,
 				     item->oif);
     (*hop_count)++;
     break;
+
   case SUBNET:
-    element= _new_IPTraceElementSubnet(jEnv, item->elt.subnet);
+    element= _new_IPTraceElementSubnet(env, item->elt.subnet);
     break;
+
+  case TRACE:
+    element= _new_IPTraceElementTrace(env, (ip_trace_t *) item->elt.trace);
+    break;
+
   default:
-    fatal("invalid element type in IP Trace");
+    cbgp_fatal("invalid element type in IP Trace");
   }
-  if ((*jEnv)->ExceptionOccurred(jEnv))
+  if ((*env)->ExceptionOccurred(env))
     return NULL;
 
   /* Initialize "hop_count" field value (direct access) */
-  class= (*jEnv)->FindClass(jEnv, CLASS_IPTraceElement);
-  if ((class == NULL) || (*jEnv)->ExceptionOccurred(jEnv))
-    jni_abort(jEnv, "Could not get id of class \"IPTraceElement\"");
+  class= (*env)->FindClass(env, CLASS_IPTraceElement);
+  if ((class == NULL) || (*env)->ExceptionOccurred(env))
+    jni_abort(env, "Could not get id of class \"IPTraceElement\"");
 
-  field= (*jEnv)->GetFieldID(jEnv, class, "hop_count", "I");
-  if ((field == NULL) || (*jEnv)->ExceptionOccurred(jEnv))
-    jni_abort(jEnv, "Could not get id of field \"hop_count\" in class "
+  field= (*env)->GetFieldID(env, class, "hop_count", "I");
+  if ((field == NULL) || (*env)->ExceptionOccurred(env))
+    jni_abort(env, "Could not get id of field \"hop_count\" in class "
 	      "\"IPTraceElement\"");
   
-  (*jEnv)->SetIntField(jEnv, element, field, hop_count_val);
-  if ((*jEnv)->ExceptionOccurred(jEnv))
-    jni_abort(jEnv, "Could not get id of field \"hop_count\" in class "
+  (*env)->SetIntField(env, element, field, hop_count_val);
+  if ((*env)->ExceptionOccurred(env))
+    jni_abort(env, "Could not get id of field \"hop_count\" in class "
 	      "\"IPTraceElement\"");
 
   return element;
 }
 
 // -----[ _IPTrace_append ]------------------------------------------
-static inline int _IPTrace_append(JNIEnv * jEnv, jobject joTrace,
+static inline int _IPTrace_append(JNIEnv * env, jobject joTrace,
 				  jobject joElement)
 {
-  return cbgp_jni_call_void(jEnv, joTrace, "append",
+  return cbgp_jni_call_void(env, joTrace, "append",
 			    METHOD_IPTrace_append,
 			    joElement);
 }
@@ -133,40 +152,62 @@ static inline int _IPTrace_append(JNIEnv * jEnv, jobject joTrace,
 /**
  *
  */
-jobject cbgp_jni_new_IPTrace(JNIEnv * jEnv,
-			     net_node_t * pNode,
-			     net_addr_t tDst,
+jobject cbgp_jni_new_IPTrace(JNIEnv * env,
 			     ip_trace_t * trace)
 {
   jobject joTrace;
-  jobject joSrc;
-  jobject joDst;
   jobject joElement;
   unsigned int index;
   ip_trace_item_t * trace_item;
   int hop_count= 0;
 
-  // Convert src/dst to Java objects
-  if ((joSrc= cbgp_jni_new_net_Node(jEnv, NULL, pNode)) == NULL)
-    return NULL;
-  if ((joDst= cbgp_jni_new_IPAddress(jEnv, tDst)) == NULL)
-    return NULL;
-
   // Create new IPTrace object
-  if ((joTrace= cbgp_jni_new(jEnv, CLASS_IPTrace, CONSTR_IPTrace,
-			     joSrc, joDst, (jint) trace->status))
+  if ((joTrace= cbgp_jni_new(env, CLASS_IPTrace, CONSTR_IPTrace,
+			     (jint) trace->status,
+			     trace->delay,
+			     trace->capacity))
       == NULL)
     return NULL;
 
   // Add hops
   for (index= 0; index < ip_trace_length(trace); index++) {
     trace_item= ip_trace_item_at(trace, index);
-    joElement= _new_IPTraceElement(jEnv, trace_item, &hop_count);
+    joElement= _new_IPTraceElement(env, trace_item, &hop_count);
     if (joElement == NULL)
       return NULL;
-    if (_IPTrace_append(jEnv, joTrace, joElement))
+    if (_IPTrace_append(env, joTrace, joElement))
       return NULL;
   }
 
   return joTrace;
+}
+
+// -----[ cbgp_jni_new_IPTraces ]------------------------------------
+jobjectArray cbgp_jni_new_IPTraces(JNIEnv * env,
+				   ip_trace_t ** traces,
+				   unsigned int num_traces)
+{
+  jobject trace;
+  jobjectArray array;
+  unsigned int index;
+
+  array= jni_new_ObjectArray(env, num_traces, CLASS_IPTrace);
+  if ((array == NULL) || (*env)->ExceptionOccurred(env))
+    return NULL;
+
+  for (index= 0; index < num_traces; index++) {
+
+    // Convert to a Java IPTrace object
+    trace= cbgp_jni_new_IPTrace(env, traces[index]);
+    if (trace == NULL)
+      return NULL;
+
+    // Add to array
+    (*env)->SetObjectArrayElement(env, array, 0, trace);
+    if ((*env)->ExceptionOccurred(env))
+      return NULL;
+
+  }
+
+  return array;
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// $Id: net_IGPDomain.c,v 1.11 2008-04-14 09:15:09 bqu Exp $
+// $Id: net_IGPDomain.c,v 1.12 2009-03-25 07:51:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -104,7 +104,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_addNode
 static int _netDomainGetNodes(uint32_t key, uint8_t key_len,
 			      void * item, void * ctx)
 {
-  SJNIContext * pCtx= (SJNIContext *) ctx;
+  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
   net_node_t * node= (net_node_t * ) item;
   jobject joNode;
 
@@ -125,7 +125,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_getNodes
 (JNIEnv * jEnv, jobject joDomain)
 {
   jobject joVector;
-  SJNIContext sCtx;
+  jni_ctx_t sCtx;
   igp_domain_t * domain= NULL;
 
   jni_lock(jEnv);
@@ -165,7 +165,7 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_IGPDomain_compute
   if (domain == NULL)
     return_jni_unlock2(jEnv);
 
-  if (igp_domain_compute(domain) != 0) {
+  if (igp_domain_compute(domain, 0) != 0) {
     throw_CBGPException(jEnv, "could not compute IGP paths");
     return_jni_unlock2(jEnv);
   }
