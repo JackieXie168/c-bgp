@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: net_Link.c,v 1.14 2008-06-11 15:21:47 bqu Exp $
+// $Id: net_Link.c,v 1.15 2009-03-25 07:51:59 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -325,7 +325,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getHead
 
   joNode= cbgp_jni_new_net_Node(jEnv,
 				NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				iface->src_node);
+				iface->owner);
 
   return_jni_unlock(jEnv, joNode);
 }
@@ -356,13 +356,13 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getTail
   case NET_IFACE_RTR:
     joElement= cbgp_jni_new_net_Node(jEnv,
 				     NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				     iface->dest.iface->src_node);
+				     iface->dest.iface->owner);
     break;
 
   case NET_IFACE_PTP:
     joElement= cbgp_jni_new_net_Node(jEnv,
 				     NULL/*jni_proxy_get_CBGP(jEnv, joLink)*/,
-				     iface->dest.iface->src_node);
+				     iface->dest.iface->owner);
     break;
 
   case NET_IFACE_PTMP:
@@ -376,7 +376,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_net_Interface_getTail
     break;
 
   default:
-    fatal("invalid link type in getTail()");
+    cbgp_fatal("invalid link type in getTail()");
   }
 
   return_jni_unlock(jEnv, joElement);
@@ -422,7 +422,7 @@ Java_be_ac_ucl_ingi_cbgp_net_Interface_getTailInterface
     break;
 
   default:
-    fatal("invalid link type in getTailInterface()");
+    cbgp_fatal("invalid link type in getTailInterface()");
   }
 
   return_jni_unlock(jEnv, joElement);
