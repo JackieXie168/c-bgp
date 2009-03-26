@@ -3,12 +3,15 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.c,v 1.17 2009-03-24 16:02:11 bqu Exp $
+// $Id: jni_proxies.c,v 1.18 2009-03-26 13:21:47 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <assert.h>
 #include <jni.h>
@@ -560,7 +563,7 @@ void jni_lock(JNIEnv * env)
   jthrowable jtException= NULL;
 
 #ifdef DEBUG_LOCK
-  fprintf(stderr, "debug: monitor enter [%p]\n", joLockObj);
+  fprintf(stderr, "debug: monitor enter [%p] [pid=%d]\n", joLockObj, getpid());
   fflush(stderr);
 #endif /* DEBUG_LOCK */
 
@@ -583,7 +586,7 @@ void jni_lock(JNIEnv * env)
       jni_abort(env, "could not re-raise pending exception (lock)");
 
 #ifdef DEBUG_LOCK
-  fprintf(stderr, "debug: monitor entered\n");
+  fprintf(stderr, "debug: monitor entered [pid=%d]\n", getpid());
   fflush(stderr);
 #endif /* DEBUG_LOCK */
 }
