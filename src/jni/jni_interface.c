@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.51 2009-03-24 16:01:35 bqu Exp $
+// $Id: jni_interface.c,v 1.52 2009-03-26 13:25:40 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -59,6 +59,7 @@
 #include <bgp/types.h>
 #include <bgp/as.h>
 #include <bgp/domain.h>
+#include <bgp/dp_rules.h>
 #include <bgp/mrtd.h>
 #include <bgp/peer.h>
 #include <bgp/route_map.h>
@@ -69,9 +70,9 @@
 #include <api.h>
 
 // -----[ CBGP listeners ]-------------------------------------------
-static SJNIListener sConsoleOutListener;
-static SJNIListener sConsoleErrListener;
-static SJNIListener sBGPListener;
+static jni_listener_t sConsoleOutListener;
+static jni_listener_t sConsoleErrListener;
+static jni_listener_t sBGPListener;
 
 static jobject joGlobalCBGP= NULL;
 
@@ -168,30 +169,20 @@ jobject get_Global_CBGP()
 }
 
 // -----[ _console_listener ]----------------------------------------
-static int _console_listener(void * pContext, char * pcBuffer)
+static int _console_listener(void * ctx, char * pcBuffer)
 {
-  SJNIListener * pListener= (SJNIListener *) pContext;
-  JavaVM * jVM= pListener->jVM;
-  JNIEnv * jEnv= NULL;
-  void * pTmp= &jEnv; // Need this unless GCC will complain about the
-		      // typecast (void **) &jEnv
+  jni_listener_t * listener= (jni_listener_t *) ctx;
+  JNIEnv * env= NULL;
   jobject joEvent= NULL;
   
-  // Attach the current thread to the Java VM (and get a pointer to
-  // the JNI environment). This is required since the calling thread
-  // might be different from the one that initialized the related
-  // console listener object.
-  if ((*jVM)->AttachCurrentThread(jVM, pTmp, NULL) != 0) {
-    fprintf(stderr, "ERROR: AttachCurrentThread failed in JNI::_console_listener\n");
-    return -1;
-  }
+  jni_listener_get_env(listener, &env);
 
   // Create new ConsoleEvent object.
-  if ((joEvent= cbgp_jni_new_ConsoleEvent(jEnv, pcBuffer)) == NULL)
+  if ((joEvent= cbgp_jni_new_ConsoleEvent(env, pcBuffer)) == NULL)
     return -1;
 
   // Call the listener "eventFired" method.
-  cbgp_jni_call_void(jEnv, pListener->joListener,
+  cbgp_jni_call_void(env, listener->joListener,
 		     "eventFired",
 		     "(Lbe/ac/ucl/ingi/cbgp/ConsoleEvent;)V",
 		     joEvent);
@@ -840,7 +831,8 @@ JNIEXPORT jlong JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEventCount
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEvent
 (JNIEnv * jEnv, jobject joCBGP, jint i)
 {
-  net_send_ctx_t * pCtx;
+  net_send_ctx_t * ctx;
+  simulator_t * sim;
   jobject joMessage;
 
   if (jni_check_null(jEnv, joCBGP))
@@ -848,13 +840,13 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_simGetEvent
 
   jni_lock(jEnv);
 
-  // Note: we assume that only network events (SNetSendContext) are
-  // stored in the queue.
-  pCtx= (net_send_ctx_t *) sim_get_event(network_get_simulator(network_get_default()),
-					       (unsigned int) i);
+  // Note: we assume that only network events (net_send_ctx_t) are
+  // stored in the pending event set.
+  sim= network_get_simulator(network_get_default());
+  ctx= (net_send_ctx_t *) sim_get_event(sim, (unsigned int) i);
   
   // Create new Message instance.
-  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, pCtx->msg)) == NULL)
+  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, ctx->msg)) == NULL)
     return_jni_unlock(jEnv, NULL);
   
   return_jni_unlock(jEnv, joMessage);
@@ -1059,28 +1051,18 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
 // -----[ _bgp_msg_listener ]----------------------------------------
 static void _bgp_msg_listener(net_msg_t * msg, void * ctx)
 {
-  SJNIListener * pListener= (SJNIListener *) ctx;
-  JavaVM * jVM= pListener->jVM;
-  JNIEnv * jEnv= NULL;
-  void * pTmp= &jEnv; // Need this unless GCC will complain about the
-		      // typecast (void **) &jEnv
+  jni_listener_t * listener= (jni_listener_t *) ctx;
+  JNIEnv * env= NULL;
   jobject joMessage= NULL;
 
-  // Attach the current thread to the Java VM (and get a pointer to
-  // the JNI environment). This is required since the calling thread
-  // might be different from the one that initialized the related
-  // console listener object.
-  if ((*jVM)->AttachCurrentThread(jVM, pTmp, NULL) != 0) {
-    fprintf(stderr, "ERROR: AttachCurrentThread failed in JNI::_console_listener\n");
-    return;
-  }
+  jni_listener_get_env(listener, &env);
 
   // Create new Message instance.
-  if ((joMessage= cbgp_jni_new_BGPMessage(jEnv, msg)) == NULL)
+  if ((joMessage= cbgp_jni_new_BGPMessage(env, msg)) == NULL)
     return;
 
   // Call the listener's method.
-  cbgp_jni_call_void(jEnv, pListener->joListener,
+  cbgp_jni_call_void(env, listener->joListener,
 		     "handleMessage",
 		     "(Lbe/ac/ucl/ingi/cbgp/net/Message;)V",
 		     joMessage);
@@ -1186,6 +1168,22 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_getErrorMsg
   return cbgp_jni_net_error_str(env, error);
 }
 
+// -----[ rankToString ]---------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_bgp_Route
+ * Method:    rankToString
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Route_rankToString
+(JNIEnv * jEnv, jclass jcRoute, jint jiRank) {
+  if (jiRank == 0) {
+    return cbgp_jni_new_String(jEnv, "Single Choice");
+  } else if (jiRank < DP_NUM_RULES) {
+    return cbgp_jni_new_String(jEnv, DP_RULES[jiRank-1].name);
+  }
+  return NULL;
+}
+
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -1256,22 +1254,4 @@ JNI_OnUnload(JavaVM * jVM, void *reserved)
   _jni_lock_destroy(jEnv);
 
   gds_destroy();
-}
-
-
-#include <bgp/dp_rules.h>
-
-/*
- * Class:     be_ac_ucl_ingi_cbgp_bgp_Route
- * Method:    rankToString
- * Signature: (I)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Route_rankToString
-(JNIEnv * jEnv, jclass jcRoute, jint jiRank) {
-  if (jiRank == 0) {
-    return cbgp_jni_new_String(jEnv, "Single Choice");
-  } else if (jiRank < DP_NUM_RULES) {
-    return cbgp_jni_new_String(jEnv, DP_RULES[jiRank-1].name);
-  }
-  return NULL;
 }
