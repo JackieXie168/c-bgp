@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.76 2009-03-24 13:55:54 bqu Exp $
+// $Id: as.c,v 1.77 2009-03-26 13:27:28 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in local_nets a _copy_ of the BGP routes locally
@@ -1752,6 +1752,9 @@ int bgp_router_decision_process(bgp_router_t * router,
  * Handle a BGP message received from the lower layer (network layer
  * at this time). The function looks for the destination peer and
  * delivers it for processing...
+ * This function is responsible for freeing the BGP message (message
+ * payload). It should however not destroy the encapsulating network
+ * message !!!
  */
  int bgp_router_handle_message(simulator_t * sim,
 			       void * handler,
@@ -1764,6 +1767,7 @@ int bgp_router_decision_process(bgp_router_t * router,
   if ((peer= bgp_router_find_peer(router, msg->src_addr)) != NULL) {
     bgp_peer_handle_message(peer, bgp_msg);
     _bgp_router_msg_listener(msg);
+    bgp_msg_destroy(&bgp_msg);
   } else {
     STREAM_ERR_ENABLED(STREAM_LEVEL_WARNING) {
       stream_printf(gdserr, "WARNING: BGP message received from unknown peer !\n");

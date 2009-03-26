@@ -5,7 +5,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
-// $Id: peer.c,v 1.44 2009-03-24 14:29:05 bqu Exp $
+// $Id: peer.c,v 1.45 2009-03-26 13:27:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -983,6 +983,8 @@ static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
 /**
  * Handle received BGP messages (OPEN, CLOSE, UPDATE, WITHDRAW).
  * Check the sequence number of incoming messages.
+ * The caller is responsible for freeing the message. Don't destroy
+ * it here !!!
  */
 int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
 {
@@ -1018,7 +1020,6 @@ int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
 	    msg->type);
     abort();
   }
-  bgp_msg_destroy(&msg);
   return 0;
 }
 
