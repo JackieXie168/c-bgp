@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.c,v 1.18 2009-03-26 13:21:47 bqu Exp $
+// $Id: jni_proxies.c,v 1.19 2009-03-26 13:23:18 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -229,9 +229,6 @@ static uint32_t _jni_proxy_j2c_compute(const void * item,
 }
 
 // -----[ jni_proxy_add ]--------------------------------------------
-/**
- * Add a mapping between a JNI proxy and a native object.
- */
 void jni_proxy_add(JNIEnv * env, jobject jobj, void * cobj)
 {
   _proxy_t * proxy= _jni_proxy_create(env, cobj, jobj);

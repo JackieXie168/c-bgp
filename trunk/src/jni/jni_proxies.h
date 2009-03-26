@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 27/03/2006
-// $Id: jni_proxies.h,v 1.10 2009-03-26 13:21:47 bqu Exp $
+// $Id: jni_proxies.h,v 1.11 2009-03-26 13:23:18 bqu Exp $
 // ==================================================================
 
 /**
@@ -25,27 +25,27 @@ extern "C" {
   /**
    * Add a mapping between a Java object and a C object.
    *
-   * \param env      is the JNI environment.
-   * \param java_obj is the Java object.
-   * \param c_obj    is the C object (pointer).
+   * \param env  is the JNI environment.
+   * \param jobj is the Java object.
+   * \param cobj is the C object (pointer).
    */
-  void jni_proxy_add(JNIEnv * env, jobject java_obj, void * c_obj);
+  void jni_proxy_add(JNIEnv * env, jobject jobj, void * cobj);
 
   // -----[ jni_proxy_remove ]---------------------------------------
   /**
    * Remove the mapping between a Java object and a C object.
    *
-   * \param env      is the JNI environment.
-   * \param java_obj is the Java object.
+   * \param env  is the JNI environment.
+   * \param jobj is the Java object.
    */
-  void jni_proxy_remove(JNIEnv * env, jobject java_obj);
+  void jni_proxy_remove(JNIEnv * env, jobject jobj);
 
   // -----[ jni_proxy_lookup ]---------------------------------------
   /**
    * Get the C object mapped to a Java object.
    *
    * \param env      is the JNI environment.
-   * \param java_obj is the Java object.
+   * \param jobj     is the Java object.
    * \param filename is the source file name where the request was
    *                 issued (for debugging purposes).
    * \param line     is the source line where the request was
@@ -53,7 +53,7 @@ extern "C" {
    * \retval the corresponding C object, or NULL if there is no such
    *         mapping.
    */
-  void * jni_proxy_lookup2(JNIEnv * env, jobject java_obj,
+  void * jni_proxy_lookup2(JNIEnv * env, jobject jobj,
 			   const char * filename, int line);
 
   // -----[ jni_proxy_get ]------------------------------------------
@@ -61,7 +61,7 @@ extern "C" {
    * Get the Java object mapped to a C object.
    *
    * \param env      is the JNI environment.
-   * \param c_obj    is the C object.
+   * \param cobj     is the C object (pointer).
    * \param filename is the source file name where the request was
    *                 issued (for debugging purposes).
    * \param line     is the source line where the request was
@@ -69,7 +69,7 @@ extern "C" {
    * \retval the corresponding Java object, or NULL if there is no
    *         mapping.
    */
-  jobject jni_proxy_get2(JNIEnv * env, void * c_obj,
+  jobject jni_proxy_get2(JNIEnv * env, void * cobj,
 			const char * filename, int line);
 
   // -----[ jni_proxy_get_CBGP ]-------------------------------------
