@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/06/2007
-// $Id: listener.c,v 1.5 2008-05-20 12:11:38 bqu Exp $
+// $Id: listener.c,v 1.6 2009-03-26 13:24:14 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,40 +16,54 @@
 #include <jni/jni_util.h>
 
 // -----[ jni_listener_init ]----------------------------------------
-void jni_listener_init(SJNIListener * pListener)
+void jni_listener_init(jni_listener_t * listener)
 {
-  pListener->jVM= NULL;
-  pListener->joListener= NULL;
+  listener->jVM= NULL;
+  listener->joListener= NULL;
 }
 
 // -----[ jni_listener_set ]-----------------------------------------
-void jni_listener_set(SJNIListener * pListener, JNIEnv * jEnv,
-		      jobject joListener)
+void jni_listener_set(jni_listener_t * listener, JNIEnv * env,
+		      jobject java_listener)
 {
-  jni_listener_unset(pListener, jEnv);
+  jni_listener_unset(listener, env);
 
-  if (joListener == NULL)
+  if (java_listener == NULL)
     return;
 
   // Get reference to Java Virtual Machine (required by the JNI callback)
-  if (pListener->jVM == NULL)
-    if ((*jEnv)->GetJavaVM(jEnv, &pListener->jVM) != JNI_OK) {
-      throw_CBGPException(jEnv, "could not get reference to Java VM");
+  if (listener->jVM == NULL)
+    if ((*env)->GetJavaVM(env, &listener->jVM) != JNI_OK) {
+      throw_CBGPException(env, "could not get reference to Java VM");
       return;
     }
 
   // Add a global reference to the listener object (returns NULL if
   // system has run out of memory)
-  pListener->joListener= (*jEnv)->NewGlobalRef(jEnv, joListener);
-  if (pListener->joListener == NULL)
-    jni_abort(jEnv, "Could not obtain global reference in jni_set_listener()");
+  listener->joListener= (*env)->NewGlobalRef(env, java_listener);
+  if (listener->joListener == NULL)
+    jni_abort(env, "Could not obtain global reference in jni_set_listener()");
 }
 
 // -----[ jni_listener_unset ]---------------------------------------
-void jni_listener_unset(SJNIListener * pListener, JNIEnv * jEnv)
+void jni_listener_unset(jni_listener_t * listener, JNIEnv * env)
 {
   // Remove global reference to former listener (if applicable)
-  if (pListener->joListener != NULL)
-    (*jEnv)->DeleteGlobalRef(jEnv, pListener->joListener);
-  pListener->joListener= NULL;
+  if (listener->joListener != NULL)
+    (*env)->DeleteGlobalRef(env, listener->joListener);
+  listener->joListener= NULL;
+}
+
+// -----[ jni_listener_get_env ]-----------------------------------
+void jni_listener_get_env(jni_listener_t * listener, JNIEnv ** env_ref)
+{
+  JavaVM * java_vm= listener->jVM;
+  void ** env_ref_as_void= (void **) &(*env_ref);
+  
+  /* Attach the current thread to the Java VM (and get a pointer to
+   * the JNI environment). This is required since the calling thread
+   * might be different from the one that initialized the related
+   * listener object. */
+  if ((*java_vm)->AttachCurrentThread(java_vm, env_ref_as_void, NULL) != 0)
+    jni_abort(*env_ref, "AttachCurrentThread failed in JNI\n");
 }
