@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/10/2004
-// $Id: jni_interface.c,v 1.52 2009-03-26 13:25:40 bqu Exp $
+// $Id: jni_interface.c,v 1.53 2009-04-02 19:16:15 bqu Exp $
 // ==================================================================
 // TODO :
 //   cannot be used with Walton [ to be fixed by STA ]
@@ -70,9 +70,9 @@
 #include <api.h>
 
 // -----[ CBGP listeners ]-------------------------------------------
-static jni_listener_t sConsoleOutListener;
-static jni_listener_t sConsoleErrListener;
-static jni_listener_t sBGPListener;
+static jni_listener_t _out_listener;
+static jni_listener_t _err_listener;
+static jni_listener_t _bgp_msg_listener;
 
 static jobject joGlobalCBGP= NULL;
 
@@ -112,9 +112,9 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_init
   _jni_proxies_init();
 
   // Initialize console listeners contexts
-  jni_listener_init(&sConsoleOutListener);
-  jni_listener_init(&sConsoleErrListener);
-  jni_listener_init(&sBGPListener);
+  jni_listener_init(&_out_listener);
+  jni_listener_init(&_err_listener);
+  jni_listener_init(&_bgp_msg_listener);
 
   jni_unlock(jEnv);
 }
@@ -145,9 +145,9 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_destroy
   stream_destroy(&gdserr);
   gdsout= stream_create(stdout);
   gdserr= stream_create(stderr);
-  jni_listener_unset(&sConsoleOutListener, jEnv);
-  jni_listener_unset(&sConsoleErrListener, jEnv);
-  jni_listener_unset(&sBGPListener, jEnv);
+  jni_listener_unset(&_out_listener, jEnv);
+  jni_listener_unset(&_err_listener, jEnv);
+  jni_listener_unset(&_bgp_msg_listener, jEnv);
 
   // Invalidates all the C->Java mappings
   _jni_proxies_invalidate(jEnv);
@@ -205,10 +205,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetOutListener
 
   if (joListener != NULL) {
     _saved_out= gdsout;
-    jni_listener_set(&sConsoleOutListener, jEnv, joListener);
-    gdsout= stream_create_callback(_console_listener, &sConsoleOutListener);
+    jni_listener_set(&_out_listener, jEnv, joListener);
+    gdsout= stream_create_callback(_console_listener, &_out_listener);
   } else {
-    jni_listener_unset(&sConsoleOutListener, jEnv);
+    jni_listener_unset(&_out_listener, jEnv);
     gdsout= _saved_out;
   }
 
@@ -231,10 +231,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_consoleSetErrListener
   
   if (joListener != NULL) {
     _saved_err= gdserr;
-    jni_listener_set(&sConsoleErrListener, jEnv, joListener);
-    gdserr= stream_create_callback(_console_listener, &sConsoleErrListener);
+    jni_listener_set(&_err_listener, jEnv, joListener);
+    gdserr= stream_create_callback(_console_listener, &_err_listener);
   } else {
-    jni_listener_unset(&sConsoleErrListener, jEnv);
+    jni_listener_unset(&_err_listener, jEnv);
     gdserr= _saved_err;
   }
 
@@ -964,41 +964,39 @@ JNIEXPORT jstring JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_cliGetPrompt
 /////////////////////////////////////////////////////////////////////
 
 // -----[ _cbgp_jni_load_mrt_handler ]-------------------------------
-#ifdef HAVE_BGPDUMP
 static int _cbgp_jni_load_mrt_handler(int status,
 				      bgp_route_t * route,
 				      net_addr_t peer_addr,
 				      asn_t peer_asn,
 				      void * ctx)
 {
-  jni_ctx_t * pCtx= (jni_ctx_t *) ctx;
+  jni_ctx_t * jni_ctx= (jni_ctx_t *) ctx;
   jobject joRoute;
   int result;
 
   // Check that there is a route to handle (according to API)
-  if (status != BGP_ROUTES_INPUT_STATUS_OK)
-    return BGP_ROUTES_INPUT_SUCCESS;
+  if (status != BGP_INPUT_STATUS_OK)
+    return BGP_INPUT_SUCCESS;
 
   // Create Java object for route
-  if ((joRoute= cbgp_jni_new_BGPRoute(pCtx->jEnv, route,
-				      pCtx->joHashtable)) == NULL)
+  if ((joRoute= cbgp_jni_new_BGPRoute(jni_ctx->jEnv, route,
+				      jni_ctx->joHashtable)) == NULL)
     return -1;
 
   // Destroy converted route
   route_destroy(&route);
 
   // Add the route object to the list
-  result= cbgp_jni_Vector_add(pCtx->jEnv, pCtx->joVector, joRoute);
+  result= cbgp_jni_Vector_add(jni_ctx->jEnv, jni_ctx->joVector, joRoute);
 
   // if there is a large number of objects, we should remove the
   // reference to the route as soon as it is added to the Vector
   // object. If we keep a large number of references to Java
   // instances, the performance will quickly decrease!
-  (*(pCtx->jEnv))->DeleteLocalRef(pCtx->jEnv, joRoute);
+  (*(jni_ctx->jEnv))->DeleteLocalRef(jni_ctx->jEnv, joRoute);
 
   return result;
 }
-#endif /* HAVE_BGPDUMP */
 
 // -----[ loadMRT ]--------------------------------------------------
 /*
@@ -1007,49 +1005,55 @@ static int _cbgp_jni_load_mrt_handler(int status,
  * Signature: (Ljava/lang/String;)Ljava/util/Vector;
  */
 JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_loadMRT
-  (JNIEnv * jEnv , jobject joCBGP, jstring jsFileName)
+(JNIEnv * jEnv , jobject joCBGP, jstring jsFileName, jstring jsFormat)
 {
-#ifdef HAVE_BGPDUMP
   jobject joVector= NULL;
-  const char * filename;
-  jni_ctx_t sCtx;
+  const char * filename, * format_str;
+  bgp_input_type_t format= BGP_ROUTES_INPUT_MRT_ASC;
+  jni_ctx_t jni_ctx;
   int result;
   jobject joPathHash;
 
+  /* Check the input format */
+  format_str= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFormat, NULL);
+  result= bgp_routes_str2format(format_str, &format);
+  (*jEnv)->ReleaseStringUTFChars(jEnv, jsFormat, format_str);
+  if (result != 0)
+    throw_CBGPException(jEnv, "invalid format");
+
+  /* Check the CBGP instance */
   if (jni_check_null(jEnv, joCBGP))
     return NULL;
 
+  /* Lock instance */
   jni_lock(jEnv);
 
   joPathHash= cbgp_jni_new_Hashtable(jEnv);
 
-  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  filename= (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
 
   joVector= cbgp_jni_new_Vector(jEnv);
-  sCtx.jEnv= jEnv;
-  sCtx.joVector= joVector;
-  sCtx.joHashtable= joPathHash;
+  jni_ctx.jEnv= jEnv;
+  jni_ctx.joVector= joVector;
+  jni_ctx.joHashtable= joPathHash;
 
   // Load routes
-  result= bgp_routes_load(filename,
-			  BGP_ROUTES_INPUT_MRT_BIN,
+  result= bgp_routes_load(filename, format,
 			  _cbgp_jni_load_mrt_handler,
-			  &sCtx);
-  //(*jEnv)->DeleteLocalRef(jEnv, joVector);
-  if (result != BGP_ROUTES_INPUT_SUCCESS)
+			  &jni_ctx);
+  if (result != BGP_INPUT_SUCCESS) {
     joVector= NULL;
+    throw_CBGPException(jEnv, "Could not load BGP routes (%s)",
+			bgp_input_strerror(result));
+  }
 
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
 
   return_jni_unlock(jEnv, joVector);
-
-#else /* HAVE_BGPDUMP */
-  return NULL;
-#endif /* HAVE_BGPDUMP */
 }
 
-// -----[ _bgp_msg_listener ]----------------------------------------
-static void _bgp_msg_listener(net_msg_t * msg, void * ctx)
+// -----[ _bgp_msg_listener_cb ]-------------------------------------
+static void _bgp_msg_listener_cb(net_msg_t * msg, void * ctx)
 {
   jni_listener_t * listener= (jni_listener_t *) ctx;
   JNIEnv * env= NULL;
@@ -1083,10 +1087,10 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_setBGPMsgListener
   jni_lock(jEnv);
 
   if (joListener != NULL) {
-    jni_listener_set(&sBGPListener, jEnv, joListener);
-    bgp_router_set_msg_listener(_bgp_msg_listener, &sBGPListener);
+    jni_listener_set(&_bgp_msg_listener, jEnv, joListener);
+    bgp_router_set_msg_listener(_bgp_msg_listener_cb, &_bgp_msg_listener);
   } else {
-    jni_listener_unset(&sBGPListener, jEnv);
+    jni_listener_unset(&_bgp_msg_listener, jEnv);
     bgp_router_set_msg_listener(NULL, NULL);
   }
 
