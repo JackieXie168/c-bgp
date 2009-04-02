@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.77 2009-03-26 13:27:28 bqu Exp $
+// $Id: as.c,v 1.78 2009-04-02 19:12:27 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in local_nets a _copy_ of the BGP routes locally
@@ -2509,13 +2509,13 @@ int bgp_router_show_routes_info(gds_stream_t * stream, bgp_router_t * router,
 /////////////////////////////////////////////////////////////////////
 
 typedef struct {
-  bgp_router_t * router;           // Router where routes are loaded
-  uint8_t        options;          // Options
-  int            iReturnCode;      // Code to return in case of error
-  unsigned int   uRoutesOk;        // Number of routes loaded without error
-  unsigned int   uRoutesBadTarget; //                  with bad target
-  unsigned int   uRoutesBadPeer;   //                  with bad peer
-  unsigned int   uRoutesIgnored;   //                  ignored by API (ex: IP6)
+  bgp_router_t * router;            // Router where routes are loaded
+  uint8_t        options;           // Options
+  int            return_code;       // Code to return in case of error
+  unsigned int   routes_ok;         // Number of routes loaded without error
+  unsigned int   routes_bad_target; //                  with bad target
+  unsigned int   routes_bad_peer;   //                  with bad peer
+  unsigned int   routes_ignored;    //                  ignored by API (ex: IP6)
 } SBGP_LOAD_RIB_CTX;
   
 // -----[ _bgp_router_load_rib_handler ]-----------------------------
@@ -2543,9 +2543,9 @@ static int _bgp_router_load_rib_handler(int status,
   bgp_peer_t * peer= NULL;
 
   // Check that there is a route to handle (according to API)
-  if (status != BGP_ROUTES_INPUT_STATUS_OK) {
-    pCtx->uRoutesIgnored++;
-    return BGP_ROUTES_INPUT_SUCCESS;
+  if (status != BGP_INPUT_STATUS_OK) {
+    pCtx->routes_ignored++;
+    return BGP_INPUT_SUCCESS;
   }
 
   // 1). Check that the target router (addr/ASN) corresponds to the
@@ -2564,10 +2564,10 @@ static int _bgp_router_load_rib_handler(int status,
       stream_printf(gdserr, "\n");
     }
     route_destroy(&route);
-    pCtx->uRoutesBadTarget++;
-    return pCtx->iReturnCode;
+    pCtx->routes_bad_target++;
+    return pCtx->return_code;
   }
-  
+
   // 2). Check that the target router has a peer that corresponds
   //     to the route's next-hop.
   if (peer == NULL) {
@@ -2587,8 +2587,8 @@ static int _bgp_router_load_rib_handler(int status,
 	  stream_printf(gdserr, "\"\n");
 	}
 	route_destroy(&route);
-	pCtx->uRoutesBadPeer++;
-	return pCtx->iReturnCode;
+	pCtx->routes_bad_peer++;
+	return pCtx->return_code;
       }
     }
   }
@@ -2615,8 +2615,8 @@ static int _bgp_router_load_rib_handler(int status,
 
   bgp_router_decision_process(router, route->peer, route->prefix);
 
-  pCtx->uRoutesOk++;
-  return BGP_ROUTES_INPUT_SUCCESS;
+  pCtx->routes_ok++;
+  return BGP_INPUT_SUCCESS;
 }
 
 // -----[ bgp_router_load_rib ]--------------------------------------
@@ -2631,31 +2631,31 @@ int bgp_router_load_rib(bgp_router_t * router, const char * filename,
 {
   int result;
   SBGP_LOAD_RIB_CTX sCtx= {
-    .router          = router,
-    .options         = options,
-    .iReturnCode     = 0, // Ignore errors
-    .uRoutesOk       = 0,
-    .uRoutesBadTarget= 0,
-    .uRoutesBadPeer  = 0,
-    .uRoutesIgnored  = 0,
+    .router           = router,
+    .options          = options,
+    .return_code      = 0, // Ignore errors
+    .routes_ok        = 0,
+    .routes_bad_target= 0,
+    .routes_bad_peer  = 0,
+    .routes_ignored   = 0,
   };
 
   // Load routes
   result= bgp_routes_load(filename, format,
 			  _bgp_router_load_rib_handler, &sCtx);
-  if (result != 0)
-    return -1;
+  if (result != BGP_INPUT_SUCCESS)
+    return result;
 
   // Show summary
-  if (options & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
+  if (1 || options & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
     stream_printf(gdsout, "Source: %s\n", filename);
-    stream_printf(gdsout, "Routes loaded         : %u\n", sCtx.uRoutesOk);
-    stream_printf(gdsout, "Routes with bad target: %u\n", sCtx.uRoutesBadTarget);
-    stream_printf(gdsout, "Routes with bad peer  : %u\n", sCtx.uRoutesBadPeer);
-    stream_printf(gdsout, "Routes ignored        : %u\n", sCtx.uRoutesIgnored);
+    stream_printf(gdsout, "Routes loaded         : %u\n", sCtx.routes_ok);
+    stream_printf(gdsout, "Routes with bad target: %u\n", sCtx.routes_bad_target);
+    stream_printf(gdsout, "Routes with bad peer  : %u\n", sCtx.routes_bad_peer);
+    stream_printf(gdsout, "Routes ignored        : %u\n", sCtx.routes_ignored);
   }
 
-  return 0;
+  return ESUCCESS;
 }
 
 // -----[ _bgp_router_save_route_mrtd ]------------------------------
