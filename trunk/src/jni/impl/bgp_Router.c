@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/04/2006
-// $Id: bgp_Router.c,v 1.14 2009-03-25 07:49:45 bqu Exp $
+// $Id: bgp_Router.c,v 1.15 2009-04-02 19:17:04 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -497,13 +497,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_loadRib
 (JNIEnv * jEnv, jobject joRouter, jstring jsFileName, jboolean jbForce,
  jstring jsFormat)
 {
-  char * filename, * format_str;
+  const char * filename, * format_str;
   bgp_router_t * router;
   bgp_input_type_t format= BGP_ROUTES_INPUT_MRT_ASC;
   uint8_t options= 0;
   int result;
 
-  format_str= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFormat, NULL);
+  format_str= (*jEnv)->GetStringUTFChars(jEnv, jsFormat, NULL);
   result= bgp_routes_str2format(format_str, &format);
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFormat, format_str);
   if (result != 0)
@@ -523,13 +523,13 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_bgp_Router_loadRib
 
   options|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
-  filename= (char *) (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
-  result= bgp_router_load_rib(router, (char *) filename,
+  filename= (*jEnv)->GetStringUTFChars(jEnv, jsFileName, NULL);
+  result= bgp_router_load_rib(router, filename,
 			      format, options);
   (*jEnv)->ReleaseStringUTFChars(jEnv, jsFileName, filename);
   if (result != 0)
     throw_CBGPException(jEnv, "could not load RIB (%s)",
-			network_strerror(result));
+			bgp_input_strerror(result));
 
   jni_unlock(jEnv);
 }
