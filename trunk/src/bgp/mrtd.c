@@ -10,7 +10,7 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// $Id: mrtd.c,v 1.26 2009-03-24 14:27:18 bqu Exp $
+// $Id: mrtd.c,v 1.27 2009-04-02 19:13:44 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -521,7 +521,7 @@ int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
   FILE_TYPE * file;
   char line[MRT_MAX_LINE_LEN];
   bgp_route_t * route;
-  int error= BGP_ROUTES_INPUT_SUCCESS;
+  int error= BGP_INPUT_SUCCESS;
   net_addr_t peer_addr;
   asn_t peer_asn;
   int result;
@@ -534,9 +534,9 @@ int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
     file= FILE_DOPEN(0, "r");
   } else {
     file= FILE_OPEN(filename, "r");
-    if (file == NULL)
-      return -1;
   }
+  if (file == NULL)
+    return BGP_INPUT_ERROR_FILE_OPEN;
 
   while (!FILE_EOF(file)) {
     if (FILE_GETS(file, line, sizeof(line)) == NULL)
@@ -546,16 +546,18 @@ int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
 
     // Create a route from the file line
     result= mrtd_route_from_line(line, &peer_addr, &peer_asn, &route);
-    
+
     // In case of error, the MRT record is ignored
     if (result < 0) {
-      error= BGP_ROUTES_INPUT_ERROR_SYNTAX;
+      error= BGP_INPUT_ERROR_USER;
+      bgp_input_set_user_error("syntax error at line %d (%s)",
+			       _line_number, mrtd_strerror(result));
       break;
     }
 
-    status= BGP_ROUTES_INPUT_STATUS_OK;
+    status= BGP_INPUT_STATUS_OK;
     if (handler(status, route, peer_addr, peer_asn, ctx) != 0) {
-      error= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
+      error= BGP_INPUT_ERROR_UNEXPECTED;
       break;
     }
     
@@ -775,13 +777,13 @@ int mrtd_binary_load(const char * filename, bgp_route_handler_f handler,
   BGPDUMP * dump;
   BGPDUMP_ENTRY * entry= NULL;
   bgp_route_t * route;
-  int error= BGP_ROUTES_INPUT_SUCCESS;
+  int error= BGP_INPUT_SUCCESS;
   int status;
   net_addr_t peer_addr;
   unsigned int peer_asn;
 
   if ((dump= bgpdump_open_dump((char *) filename)) == NULL)
-    return BGP_ROUTES_INPUT_ERROR_FILE_OPEN;
+    return BGP_INPUT_ERROR_FILE_OPEN;
 
   do {
 
@@ -790,19 +792,25 @@ int mrtd_binary_load(const char * filename, bgp_route_handler_f handler,
     route= NULL;
 
     entry= bgpdump_read_next(dump);
-    if (entry == NULL)
+    if (entry == NULL) {
+      if (dump->parsed != dump->parsed_ok) {
+	error= BGP_INPUT_ERROR_USER;
+	bgp_input_set_user_error("malformed binary MRT entry");
+	break;
+      }
       continue;
+    }
 
     route= mrtd_process_entry(entry, &peer_addr, &peer_asn);
     bgpdump_free_mem(entry);
 
     if (route == NULL)
-      status= BGP_ROUTES_INPUT_STATUS_IGNORED;
+      status= BGP_INPUT_STATUS_IGNORED;
     else
-      status= BGP_ROUTES_INPUT_STATUS_OK;
+      status= BGP_INPUT_STATUS_OK;
       
     if (handler(status, route, peer_addr, peer_asn, ctx) != 0) {
-      error= BGP_ROUTES_INPUT_ERROR_UNEXPECTED;
+      error= BGP_INPUT_ERROR_UNEXPECTED;
       break;
     }
       
