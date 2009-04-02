@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 02/10/07
-// $Id: main-perf.c,v 1.7 2009-03-10 13:55:14 bqu Exp $
+// $Id: main-perf.c,v 1.8 2009-04-02 19:11:21 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -347,8 +347,8 @@ static int _route_handler(int status, bgp_route_t * route,
 {
   attr_info_t * attr_infos= (attr_info_t *) ctx;
 
-  if (status != BGP_ROUTES_INPUT_STATUS_OK)
-    return BGP_ROUTES_INPUT_SUCCESS;
+  if (status != BGP_INPUT_STATUS_OK)
+    return BGP_INPUT_SUCCESS;
 
   // AS-Path attribute
   ptr_array_add(attr_infos[0].array, &route->attr->path_ref);
@@ -359,7 +359,7 @@ static int _route_handler(int status, bgp_route_t * route,
   route->attr->comms= NULL;
 
   //route_destroy(&route);
-  return BGP_ROUTES_INPUT_SUCCESS;
+  return BGP_INPUT_SUCCESS;
 }
 #endif /* HAVE_BGPDUMP */
 
