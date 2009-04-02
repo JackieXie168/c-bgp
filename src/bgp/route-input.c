@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// $Id: route-input.c,v 1.4 2009-03-24 15:50:49 bqu Exp $
+// $Id: route-input.c,v 1.5 2009-04-02 19:15:00 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -70,10 +70,10 @@ static int _bgp_routes_load_list_handler(int status,
 {
   bgp_routes_t * routes= (bgp_routes_t *) ctx;
 
-  if (status == BGP_ROUTES_INPUT_STATUS_OK)
+  if (status == BGP_INPUT_STATUS_OK)
     routes_list_append(routes, route);
 
-  return BGP_ROUTES_INPUT_SUCCESS;
+  return BGP_INPUT_SUCCESS;
 }
 
 // -----[ bgp_routes_load_list ]-------------------------------------
@@ -89,7 +89,7 @@ bgp_routes_t * bgp_routes_load_list(const char * filename,
   result= bgp_routes_load(filename, format, _bgp_routes_load_list_handler,
 			  routes);  
   if (result != 0) {
-    // TODO: We MUST destroy all routes here !!!
+    /* TODO: We should destroy all routes here !!! */
     routes_list_destroy(&routes);
     return NULL;
   }
@@ -97,3 +97,49 @@ bgp_routes_t * bgp_routes_load_list(const char * filename,
   return routes;
 }
 
+static char * user_error= NULL;
+
+// -----[ bgp_input_strerror ]---------------------------------------
+const char * bgp_input_strerror(bgp_input_error_t error)
+{
+  switch (error) {
+  case BGP_INPUT_SUCCESS:
+    return "success";
+  case BGP_INPUT_ERROR_UNEXPECTED:
+    return "unexpected";
+  case BGP_INPUT_ERROR_FILE_OPEN:
+    return "file could not be opened";
+  case BGP_INPUT_ERROR_IGNORED:
+    return "route ignored";
+  case BGP_INPUT_ERROR_FILTERED:
+    return "route filtered";
+  case BGP_INPUT_ERROR_USER:
+    return user_error;
+  }
+  return NULL;
+}
+
+// -----[ bgp_input_perror ]-----------------------------------------
+void bgp_input_perror(gds_stream_t * stream,
+		      bgp_input_error_t error)
+{
+  const char * msg= bgp_input_strerror(error);
+  if (msg != NULL)
+    stream_printf(stream, "%s", msg);
+  else
+    stream_printf(stream, "unknown error code (%d)", error);
+}
+
+// -----[ bgp_input_set_user_error ]---------------------------------
+void bgp_input_set_user_error(const char * format, ...)
+{
+  va_list ap;
+
+  if (user_error != NULL)
+    free(user_error);
+
+  va_start(ap, format);
+  vasprintf(&user_error, format, ap);
+  assert(user_error != NULL);
+  va_end(ap);
+}
