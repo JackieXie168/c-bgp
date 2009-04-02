@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// $Id: main-dump.c,v 1.6 2009-03-10 13:55:14 bqu Exp $
+// $Id: main-dump.c,v 1.7 2009-04-02 19:10:55 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -96,16 +96,16 @@ static int _handler(int status, bgp_route_t * route,
   bgp_peer_t peer;
 
   // Maintain statistics for discarded routes
-  if (status != BGP_ROUTES_INPUT_STATUS_OK) {
+  if (status != BGP_INPUT_STATUS_OK) {
     switch (status) {
-    case BGP_ROUTES_INPUT_STATUS_IGNORED:
+    case BGP_INPUT_STATUS_IGNORED:
       ctx->num_routes_ignored++;
       break;
-    case BGP_ROUTES_INPUT_STATUS_FILTERED:
+    case BGP_INPUT_STATUS_FILTERED:
       ctx->num_routes_filtered++;
       break;
     }
-    return BGP_ROUTES_INPUT_SUCCESS;
+    return BGP_INPUT_SUCCESS;
   }
 
   // Filter route (if filter specified)
@@ -113,7 +113,7 @@ static int _handler(int status, bgp_route_t * route,
     if (filter_matcher_apply(ctx->matcher, NULL, route) != 1) {
       ctx->num_routes_filtered++;
       route_destroy(&route);
-      return BGP_ROUTES_INPUT_SUCCESS;
+      return BGP_INPUT_SUCCESS;
     }
   }
 
@@ -129,7 +129,7 @@ static int _handler(int status, bgp_route_t * route,
   stream_printf(gdsout, "\n");
   ctx->num_routes_ok++;
   route_destroy(&route);
-  return BGP_ROUTES_INPUT_SUCCESS;
+  return BGP_INPUT_SUCCESS;
 }
 
 // -----[ _main_done ]-----------------------------------------------
