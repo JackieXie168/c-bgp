@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.55 2009-03-24 15:57:51 bqu Exp $
+// $Id: bgp.c,v 1.56 2009-06-10 13:13:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -774,7 +774,7 @@ static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   arg= cli_get_arg_value(cmd, 1);
   if (!strcmp(arg, "*")) {
     peer= NULL;
-  } else if (str2address(arg, &peer_addr)) {
+  } else if (!str2address(arg, &peer_addr)) {
     peer= bgp_router_find_peer(router, peer_addr);
     if (peer == NULL) {
       cli_set_user_error(cli_get(), "unknown peer \"%s\"", arg);
