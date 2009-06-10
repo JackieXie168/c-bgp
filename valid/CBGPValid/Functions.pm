@@ -5,7 +5,7 @@
 # routes) from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Functions.pm,v 1.4 2009-03-24 16:31:12 bqu Exp $
+# $Id: Functions.pm,v 1.5 2009-06-10 13:11:46 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Functions;
@@ -670,25 +670,28 @@ sub cbgp_get_rib($$;$)
   }
 
 # -----[ cbgp_get_rib_in ]------------------------------------------
-sub cbgp_get_rib_in($$;$)
+sub cbgp_get_rib_in($$;$$)
   {
-    my ($cbgp, $node, $destination)= @_;
+    my ($cbgp, $node, $peer, $destination)= @_;
     my %rib;
 
-    if (!defined($destination)) {
-      $destination= "*";
+    if (!defined($peer)) {
+      $peer= '*';
     }
 
-    $cbgp->send_cmd("bgp router $node show adj-rib in * $destination");
+    if (!defined($destination)) {
+      $destination= '*';
+    }
+
+    $cbgp->send_cmd("bgp router $node show adj-rib in $peer $destination");
     $cbgp->send_cmd("print \"done\\n\"");
     while ((my $result= $cbgp->expect(1)) ne "done") {
-      if ($result =~ m/^([i*>]+)\s+([0-9.\/]+)\s+([0-9.]+)\s+([0-9]+)\s+([0-9]+)\s+([^\t]+)\s+([ie\?])$/) {
-	my @path= split /\s+/, $6;
-	$rib{$2}= [$1, $2, $3, $4, $5, \@path, $7];
-      } else {
-	show_error("incorrect format (show rib-in): \"$result\"");
+      my $route= bgp_route_parse_cisco($result);
+      if (!defined($route)) {
+	show_error("incorrect format (show rib): \"$result\"");
 	exit(-1);
       }
+      $rib{$route->[F_RIB_PREFIX]}= $route;
     }
     return \%rib;
   }
