@@ -27,7 +27,7 @@ return ["bgp topology load", "cbgp_valid_bgp_topology_load"];
 sub cbgp_valid_bgp_topology_load($) {
   my ($cbgp)= @_;
 
-  my $topo_file= $resources_path."valid-bgp-topology.subramanian";
+  my $topo_file= get_resource("valid-bgp-topology.subramanian");
 
   (-e $topo_file) or return TEST_SKIPPED;
 

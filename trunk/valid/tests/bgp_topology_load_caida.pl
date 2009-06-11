@@ -5,9 +5,8 @@ return ["bgp topology load (format=caida)", "cbgp_valid_bgp_topology_load_caida"
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load_caida($) {
   my ($cbgp)= @_;
-  my $filename= $resources_path."as-rel.20070416.a0.01000.txt";
-
-  (-e $filename) or return TEST_SKIPPED;
+  my $filename= get_resource("as-rel.20070416.a0.01000.txt");
+  (-e $filename) or return TEST_DISABLED;
 
   my $topo= topo_from_caida($filename);
   my $options= "--format=caida";

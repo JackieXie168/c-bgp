@@ -5,9 +5,8 @@ return ["bgp topology check (connectedness)", "cbgp_valid_bgp_topology_check_con
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_check_connectedness($) {
   my ($cbgp)= @_;
-  my $filename= $resources_path."as-level-disconnected.txt";
-
-  (-e $filename) or return TEST_SKIPPED;
+  my $filename= get_resource("as-level-disconnected.txt");
+  (-e $filename) or return TEST_DISABLED;
 
   my $options= "--addr-sch=local";
 

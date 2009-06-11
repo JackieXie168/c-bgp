@@ -1,4 +1,5 @@
-return ["bgp topology load (format=meulle)", "cbgp_valid_bgp_topology_load_meulle"];
+return ["bgp topology load (format=meulle)",
+	"cbgp_valid_bgp_topology_load_meulle"];
 
 # -----[ cbgp_valid_bgp_topology_load_meulle ]-----------------------
 # Test the ability to load AS-level topologies provided by Michael
@@ -10,7 +11,7 @@ return ["bgp topology load (format=meulle)", "cbgp_valid_bgp_topology_load_meull
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load_meulle($) {
   my ($cbgp)= @_;
-  my $filename= "/tmp/as-level-meulle.txt";
+  my $filename= get_tmp_resource("as-level-meulle.txt");
   my $options= "--format=meulle";
   my $error;
 

@@ -1,11 +1,12 @@
-return ["bgp topology load (loop)", "cbgp_valid_bgp_topology_load_loop"];
+return ["bgp topology load (loop)",
+	"cbgp_valid_bgp_topology_load_loop"];
 
 # -----[ cbgp_valid_bgp_topology_load_loop ]-------------------------
 #
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load_loop($) {
   my ($cbgp)= @_;
-  my $filename= "/tmp/as-level-loop.txt";
+  my $filename= get_tmp_resource("as-level-loop.txt");
   my $options= "--addr-sch=local --format=caida";
 
   die if !open(AS_LEVEL, ">$filename");

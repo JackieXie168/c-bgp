@@ -1,11 +1,12 @@
-return ["bgp topology load (duplicate)", "cbgp_valid_bgp_topology_load_duplicate"];
+return ["bgp topology load (duplicate)",
+	"cbgp_valid_bgp_topology_load_duplicate"];
 
 # -----[ cbgp_valid_bgp_topology_load_duplicate ]--------------------
 #
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load_duplicate($) {
   my ($cbgp)= @_;
-  my $filename= "/tmp/as-level-duplicate.txt";
+  my $filename= get_tmp_resource("as-level-duplicate.txt");
   my $options= "--addr-sch=local --format=caida";
 
   die if !open(AS_LEVEL, ">$filename");

@@ -5,9 +5,8 @@ return ["bgp topology load (consistency)", "cbgp_valid_bgp_topology_load_consist
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_topology_load_consistency($) {
   my ($cbgp)= @_;
-  my $filename= $resources_path."as-level-inconsistent.txt";
-
-  (-e $filename) or return TEST_SKIPPED;
+  my $filename= get_resource("as-level-inconsistent.txt");
+  (-e $filename) or return TEST_DISABLED;
 
   my $options= "--addr-sch=local --format=caida";
 

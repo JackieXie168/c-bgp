@@ -17,9 +17,8 @@ return ["bgp load rib", "cbgp_valid_bgp_load_rib"];
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_load_rib($) {
   my ($cbgp)= @_;
-  my $rib_file= $resources_path."simple-rib.ascii";
-
-  (-e $rib_file) or return TEST_SKIPPED;
+  my $rib_file= get_resource("simple-rib.ascii");
+  (-e $rib_file) or return TEST_DISABLED;
 
   $cbgp->send_cmd("net add domain 1 igp");
   $cbgp->send_cmd("net add node 1.0.0.1");
