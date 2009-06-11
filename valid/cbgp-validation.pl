@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: cbgp-validation.pl,v 1.44 2009-06-11 09:15:37 bqu Exp $
+# $Id: cbgp-validation.pl,v 1.45 2009-06-11 13:06:13 bqu Exp $
 # ===================================================================
 # Syntax:
 #
@@ -132,6 +132,7 @@ if (!GetOptions(\%opts,
 		"cbgp-path:s",
 		"cache!",
 		"debug!",
+		"help!",
 		"max-failures:i",
 		"max-warnings:i",
 		"include:s@",
@@ -141,6 +142,13 @@ if (!GetOptions(\%opts,
   show_error("Invalid command-line options");
   exit(-1);
 }
+
+if (exists($opts{'help'})) {
+  sub help();
+  help();
+  exit;
+}
+
 if (exists($opts{'cache'}) && !$opts{'cache'}) {
   $opts{'cache'}= undef;
 } else {
@@ -154,17 +162,8 @@ if (exists($opts{'cache'}) && !$opts{'cache'}) {
 ($validation->{'resources_path'} =~ s/^(.*[^\/])$/$1\//);
 (exists($opts{"max-failures"})) and
   $max_failures= $opts{"max-failures"};
-#(exists($opts{"max-warnings"})) and
-#  $max_failures= $opts{"max-warnings"};
-if (exists($opts{'include'})) {
-  my %include_index= ();
-  foreach my $test (@{$opts{'include'}}) {
-    $include_index{$test}= 1;
-  }
-  $opts{'include'}= \%include_index;
-} else {
-  $opts{'include'}= undef;
-}
+(exists($opts{"max-warnings"})) and
+  $max_failures= $opts{"max-warnings"};
 (exists($opts{"report-prefix"})) and
   $report_prefix= $opts{"report-prefix"};
 
@@ -177,11 +176,38 @@ my $tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
 CBGPValid::Checking::set_tests($tests);
 CBGPValid::Topologies::set_tests($tests);
 
+
+# -----[ help ]------------------------------------------------------
+#
+# -------------------------------------------------------------------
+sub help() {
+  print "\n";
+  print "Usage:\n";
+  print "  cbgp-validation.pl\n";
+  print "    [--cache|--no-cache]\n";
+  print "    [--cbgp-path=PATH]\n";
+  print "    [--debug]\n";
+  print "    [--help]\n";
+  print "    [--include=NAME]\n";
+  print "    [--max-failures=MAX]\n";
+  print "    [--max-warnings=MAX]\n";
+  print "    [--report=TYPE]\n";
+  print "    [--report-prefix=PREFIX]\n";
+  print "    [--resources-path=PATH]\n";
+  print "\n";
+}
+
+# -----[ get_resource ]----------------------------------------------
+#
+# -------------------------------------------------------------------
 sub get_resource($) {
   my ($filename)= @_;
   return $validation->{'resources_path'}.'/'.$filename;
 }
 
+# -----[ get_tmp_resource ]------------------------------------------
+#
+# -------------------------------------------------------------------
 sub get_tmp_resource($) {
   my ($filename)= @_;
   return $validation->{'tmp_path'}.'/'.$filename;
@@ -412,53 +438,52 @@ sub cbgp_topo_dp4($;@)
 #
 # Wi = weight of link
 # -------------------------------------------------------------------
-sub cbgp_topo_igp_bgp($;@)
-  {
-    my $cbgp= shift @_;
+sub cbgp_topo_igp_bgp($;@) {
+  my $cbgp= shift @_;
 
-    $cbgp->send_cmd("net add domain 1 igp");
-    $cbgp->send_cmd("net add node 1.0.0.1");
-    $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+  $cbgp->send_cmd("net add domain 1 igp");
+  $cbgp->send_cmd("net add node 1.0.0.1");
+  $cbgp->send_cmd("net node 1.0.0.1 domain 1");
 
-    foreach my $peer_spec (@_) {
-      my $peer_ip= $peer_spec->[0];
-      my $peer_weight= $peer_spec->[1];
-      $cbgp->send_cmd("net add node $peer_ip");
-      $cbgp->send_cmd("net node $peer_ip domain 1");
-      $cbgp->send_cmd("net add link 1.0.0.1 $peer_ip");
-      $cbgp->send_cmd("net link 1.0.0.1 $peer_ip".
-		      " igp-weight --bidir $peer_weight");
-    }
-    $cbgp->send_cmd("net domain 1 compute");
-
-    $cbgp->send_cmd("net add node 2.0.0.1");
-
-    $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
-    $cbgp->send_cmd("net node 1.0.0.1 route add --oif=2.0.0.1 2.0.0.1/32 0");
-    $cbgp->send_cmd("net node 2.0.0.1 route add --oif=1.0.0.1 1.0.0.1/32 0");
-
-    $cbgp->send_cmd("bgp add router 1 1.0.0.1");
-    $cbgp->send_cmd("bgp router 1.0.0.1");
-    foreach my $peer_spec (@_) {
-      my $peer_ip= $peer_spec->[0];
-      $cbgp->send_cmd("\tadd peer 1 $peer_ip");
-      $cbgp->send_cmd("\tpeer $peer_ip virtual");
-      for (my $index= 2; $index < scalar(@$peer_spec); $index++) {
-	my $peer_option= $peer_spec->[$index];
-	$cbgp->send_cmd("\tpeer $peer_ip $peer_option");
-      }
-      $cbgp->send_cmd("\tpeer $peer_ip up");
-    }
-    $cbgp->send_cmd("\tadd peer 2 2.0.0.1");
-    $cbgp->send_cmd("\tpeer 2.0.0.1 up");
-    $cbgp->send_cmd("\texit");
-
-    $cbgp->send_cmd("bgp add router 2 2.0.0.1");
-    $cbgp->send_cmd("bgp router 2.0.0.1");
-    $cbgp->send_cmd("\tadd peer 1 1.0.0.1");
-    $cbgp->send_cmd("\tpeer 1.0.0.1 up");
-    $cbgp->send_cmd("\texit");
+  foreach my $peer_spec (@_) {
+    my $peer_ip= $peer_spec->[0];
+    my $peer_weight= $peer_spec->[1];
+    $cbgp->send_cmd("net add node $peer_ip");
+    $cbgp->send_cmd("net node $peer_ip domain 1");
+    $cbgp->send_cmd("net add link 1.0.0.1 $peer_ip");
+    $cbgp->send_cmd("net link 1.0.0.1 $peer_ip".
+		    " igp-weight --bidir $peer_weight");
   }
+  $cbgp->send_cmd("net domain 1 compute");
+
+  $cbgp->send_cmd("net add node 2.0.0.1");
+
+  $cbgp->send_cmd("net add link 1.0.0.1 2.0.0.1");
+  $cbgp->send_cmd("net node 1.0.0.1 route add --oif=2.0.0.1 2.0.0.1/32 0");
+  $cbgp->send_cmd("net node 2.0.0.1 route add --oif=1.0.0.1 1.0.0.1/32 0");
+
+  $cbgp->send_cmd("bgp add router 1 1.0.0.1");
+  $cbgp->send_cmd("bgp router 1.0.0.1");
+  foreach my $peer_spec (@_) {
+    my $peer_ip= $peer_spec->[0];
+    $cbgp->send_cmd("\tadd peer 1 $peer_ip");
+    $cbgp->send_cmd("\tpeer $peer_ip virtual");
+    for (my $index= 2; $index < scalar(@$peer_spec); $index++) {
+      my $peer_option= $peer_spec->[$index];
+      $cbgp->send_cmd("\tpeer $peer_ip $peer_option");
+    }
+    $cbgp->send_cmd("\tpeer $peer_ip up");
+  }
+  $cbgp->send_cmd("\tadd peer 2 2.0.0.1");
+  $cbgp->send_cmd("\tpeer 2.0.0.1 up");
+  $cbgp->send_cmd("\texit");
+
+  $cbgp->send_cmd("bgp add router 2 2.0.0.1");
+  $cbgp->send_cmd("bgp router 2.0.0.1");
+  $cbgp->send_cmd("\tadd peer 1 1.0.0.1");
+  $cbgp->send_cmd("\tpeer 1.0.0.1 up");
+  $cbgp->send_cmd("\texit");
+}
 
 # -----[ cbgp_topo_igp_compute ]-------------------------------------
 sub cbgp_topo_igp_compute($$$)
@@ -997,17 +1022,6 @@ sub cbgp_valid_version($)
 	    defined($validation->{'libgds_version'}))?TEST_SUCCESS:TEST_FAILURE;
   }
 
-# -----[ test_set_result ]-------------------------------------------
-sub test_set_result($$;$) {
-  my ($test_id, $result, $duration)= @_;
-
-  my $test= $validation->{'tests_list'}->[$test_id];
-  $test->[TEST_FIELD_RESULT]= $result;
-  (defined($duration)) and
-    $test->[TEST_FIELD_DURATION]= $duration;
-}
-
-
 # -----[ load_tests ]------------------------------------------------
 # Tests are Perl scripts located in the ./tests subdirectory.
 # Each script provides a single test.
@@ -1040,7 +1054,7 @@ sub load_tests($) {
 
     # Register test
     $tests->debug("Loading \"$dir/$dir_entry\" ($result->[0])");
-    $tests->register(@$result);
+    $tests->register("$dir/$dir_entry", @$result);
   }
   closedir(TESTS);
 }
@@ -1063,17 +1077,23 @@ sub build_reports() {
   return
     if (!exists($opts{report}));
 
+  # Parse files for self-documentation
+  foreach my $test (@{$tests->{'list'}}) {
+    $test->{TEST_FIELD_DOC}=
+      CBGPValid::BaseReport::doc_from_script($test->{TEST_FIELD_FILE});
+  }
+
   if ($opts{report} eq "html") {
     CBGPValid::HTMLReport::report_write("$report_prefix",
 					$validation,
 					$tests);
-  }
-
-  if ($opts{report} eq "xml") {
+  } elsif ($opts{report} eq "xml") {
     CBGPValid::XMLReport::report_write("$report_prefix",
 				       $validation,
 				       $tests);
     CBGPValid::BaseReport::save_resources("$report_prefix.resources");
+  } else {
+    show_error("Unknown reporting type \"$opts{report}\"");
   }
 }
 
@@ -1085,16 +1105,14 @@ sub build_reports() {
 #####################################################################
 
 # -------------------------------------------------------------------
-# The "show version" test has a special treatment as it is used to
-# check that we can talk with a cbgp instance and to retrieve the
+# Note: the "show version" test has a special treatment as it is used
+# to check that we can talk with a cbgp instance and to retrieve the
 # instance's version.
 # -------------------------------------------------------------------
 show_info("Loading tests...");
-$tests->register("show version", "cbgp_valid_version");
+$tests->register("---", "show version", "cbgp_valid_version");
 load_tests("tests");
 my $return_value= run_tests();
 build_reports();
 show_info("done.");
 exit($return_value);
-
-
