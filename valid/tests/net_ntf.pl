@@ -1,4 +1,4 @@
-return ["net ntf load", "cbgp_valid_net_ntf_load", $resources_path."valid-record-route.ntf"];
+return ["net ntf load", "cbgp_valid_net_ntf_load", get_resource("valid-record-route.ntf")];
 
 # -----[ cbgp_valid_net_ntf_load ]-----------------------------------
 # Load a topology from an NTF file into C-BGP (using C-BGP 's "net

@@ -17,11 +17,11 @@ return ["bgp load rib (full,binary)", "cbgp_valid_bgp_load_rib_full_binary"];
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_load_rib_full_binary($) {
   my ($cbgp)= @_;
-  my $rib_file= $resources_path."abilene-rib.gz";
-  my $rib_file_ascii= $resources_path."abilene-rib.marco";
+  my $rib_file= get_resource("abilene-rib.gz");
+  my $rib_file_ascii= get_resource("abilene-rib.marco");
 
   ((-e $rib_file) and (-e $rib_file_ascii))
-    or return TEST_SKIPPED;
+    or return TEST_DISABLED;
 
   $cbgp->send_cmd("net add node 198.32.12.9");
   $cbgp->send_cmd("bgp add router 11537 198.32.12.9");

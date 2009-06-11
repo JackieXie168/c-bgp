@@ -9,7 +9,7 @@ return ["net ntf load (error)", "cbgp_valid_net_ntf_load_error"];
 # -------------------------------------------------------------------
 sub cbgp_valid_net_ntf_load_error($) {
   my ($cbgp)= @_;
-  my $filename= "/tmp/net-ntf-load-error.ntf";
+  my $filename= get_tmp_resource("net-ntf-load-error.ntf");
 
   die if !open(NTF, ">$filename");
   print NTF "1.0.0.1 1.0.0.0 2\n";

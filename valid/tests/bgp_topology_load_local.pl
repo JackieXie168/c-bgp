@@ -6,9 +6,8 @@ return ["bgp topology load (addr-sch=local)", "cbgp_valid_bgp_topology_load_loca
 sub cbgp_valid_bgp_topology_load_local($) {
   my ($cbgp)= @_;
 
-  my $topo_file= $resources_path."valid-bgp-topology.subramanian";
-
-  (-e $topo_file) or return TEST_SKIPPED;
+  my $topo_file= get_resource("valid-bgp-topology.subramanian");
+  (-e $topo_file) or return TEST_DISABLED;
 
   my $topo= topo_from_subramanian($topo_file, "local");
 

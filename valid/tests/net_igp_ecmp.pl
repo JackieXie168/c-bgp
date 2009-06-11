@@ -76,7 +76,8 @@ sub cbgp_valid_net_igp_ecmp($) {
   return TEST_FAILURE
     if (scalar(@$traces) != 5);
 
-  $cbgp->send_cmd("net export --format=dot --output=/tmp/cbgp-topology-ecmp.dot");
+  my $filename= get_tmp_resource("cbgp-topology-ecmp.dot");
+  $cbgp->send_cmd("net export --format=dot --output=$filename");
 
   foreach my $trace (@$traces) {
   }

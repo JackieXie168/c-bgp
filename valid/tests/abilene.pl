@@ -92,12 +92,12 @@ sub cbgp_valid_abilene($) {
 	    );
 
   foreach my $r (keys %ribs) {
-    my $rib= $resources_path."abilene/".$ribs{$r};
-    (-e $rib) or return TEST_SKIPPED;
+    my $rib= get_resource("abilene/".$ribs{$r});
+    (-e $rib) or return TEST_DISABLED;
   }
 
   foreach my $r (keys %ribs) {
-    my $rib= $resources_path."abilene/".$ribs{$r};
+    my $rib= get_resource("abilene/".$ribs{$r});
     $cbgp->send_cmd("bgp router $r load rib --autoconf \"$rib\"");
   }
   $cbgp->send_cmd("sim run");

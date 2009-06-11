@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 18/02/2008
+# lastdate 11/06/2009
 # ===================================================================
 #
 # Usage:
@@ -25,6 +25,7 @@ require Exporter;
 	    show_testing_failure
 	    show_testing_skipped
 	    show_testing_disabled
+	    show_testing_todo
 	   );
 
 use strict;
@@ -88,10 +89,16 @@ sub show_testing_skipped()
   print STDERR "\033[65G\033[31;1mNOT-TESTED\033[0m\n";
 }
 
-# -----[ show_testing_skipped ]--------------------------------------
+# -----[ show_testing_disabled ]-------------------------------------
 sub show_testing_disabled()
 {
   print STDERR "\033[65G\033[33;1mDISABLED\033[0m\n";
+}
+
+# -----[ show_testing_todo ]-----------------------------------------
+sub show_testing_todo()
+{
+  print STDERR "\033[65G\033[33;1mTO-DO \033[0m\n";
 }
 
 # -----[ debug ]-----------------------------------------------------
@@ -158,7 +165,7 @@ sub register($$$;@)
   my $name= shift(@_);
   my $func= shift(@_);
 
-  my $test_record= [$self->{id}++, $name, $func, TEST_NOT_TESTED, undef];
+  my $test_record= [$self->{id}++, $name, $func, TEST_SKIPPED, undef];
   while (@_) {
     push @$test_record, (shift(@_));
   }
@@ -251,9 +258,15 @@ sub run($)
 	if ($result == TEST_SUCCESS) {
 	  $self->{'num-success'}++;
 	  show_testing_success($test_time_duration);
-	} elsif ($result == TEST_NOT_TESTED) {
+	} elsif ($result == TEST_DISABLED) {
+	  $self->{'num-skipped'}++;
+	  show_testing_disabled();
+	} elsif ($result == TEST_SKIPPED) {
 	  $self->{'num-skipped'}++;
 	  show_testing_skipped();
+	} elsif ($result == TEST_TODO) {
+	  $self->{'num-skipped'}++;
+	  show_testing_todo();
 	} elsif ($result == TEST_FAILURE) {
 	  $self->{'num-failures'}++;
 	  show_testing_failure();

@@ -17,9 +17,8 @@ return ["bgp load rib (full)", "cbgp_valid_bgp_load_rib_full"];
 # -------------------------------------------------------------------
 sub cbgp_valid_bgp_load_rib_full($) {
   my ($cbgp)= @_;
-  my $rib_file= $resources_path."abilene-rib.ascii";
-
-  (-e $rib_file) or return TEST_SKIPPED;
+  my $rib_file= get_resource("abilene-rib.ascii");
+  (-e $rib_file) or return TEST_DISABLED;
 
   $cbgp->send_cmd("net add node 198.32.12.9");
   $cbgp->send_cmd("bgp add router 11537 198.32.12.9");

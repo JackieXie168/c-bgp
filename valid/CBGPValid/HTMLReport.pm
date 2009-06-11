@@ -110,7 +110,7 @@ sub doc_write_status($$)
   if ($status == TEST_DISABLED) {
     $color= "gray";
   } elsif (($status == TEST_FAILURE) ||
-	   ($status == TEST_NOT_TESTED) ||
+	   ($status == TEST_SKIPPED) ||
 	   ($status == TEST_CRASHED)) {
     $color= "red";
   } elsif ($status == TEST_SUCCESS) {
