@@ -1,4 +1,4 @@
-return ["bgp decision-process local-pref",
+return ["bgp decision process local-pref",
 	"cbgp_valid_bgp_dp_localpref"];
 
 # -----[ cbgp_valid_bgp_dp_localpref ]-------------------------------

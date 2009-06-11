@@ -220,8 +220,8 @@ sub report_write($$$)
     $tests_index{$test_record->[TEST_FIELD_FUNC]}= $test_record;
   }
 
-  my $doc= CBGPValid::BaseReport::doc_from_script($program_name,
-						  \%tests_index);
+  my $doc= CBGPValid::BaseReport::doc_from_script($program_name);
+#, \%tests_index);
   if (defined($doc)) {
     doc_write("$report_prefix-doc.xml", $program_version,
 	      $doc, \%tests_index);

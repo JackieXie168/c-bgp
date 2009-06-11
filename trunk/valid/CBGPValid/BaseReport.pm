@@ -1,8 +1,8 @@
 # ===================================================================
 # CBGPValid::BaseReport.pm
 #
-# author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 14/09/2006
+# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# lastdate 11/06/2009
 # ===================================================================
 
 package CBGPValid::BaseReport;
@@ -18,6 +18,16 @@ use CBGPValid::UI;
 my %resources= ();
 1;
 
+use constant STATE_INIT   => 0;
+use constant STATE_IN_DOC => 1;
+use constant STATE_FINAL  => 2;
+
+use constant DOC_DESCRIPTION => 'Description';
+use constant DOC_RESOURCES   => 'Resources';
+use constant DOC_SCENARIO    => 'Scenario';
+use constant DOC_SETUP       => 'Setup';
+use constant DOC_TOPOLOGY    => 'Topology';
+
 # -----[ doc_from_script ]-------------------------------------------
 # Parses the given Perl script in order to document the validation
 # tests.
@@ -29,67 +39,66 @@ my %resources= ();
 #   - Scenario: what is announced and what is tested
 #   - Resources: an optional list of resources (files/URLs)
 # -------------------------------------------------------------------
-sub doc_from_script($$)
+sub doc_from_script($)
 {
-  my ($script_name, $tests_index)= @_;
+  my ($script_name)= @_;
 
-  my %doc= ();
-
-  open(MYSELF, "<$script_name") or
-    die "unable to open \"$script_name\"";
-  my $state= 0;
+  return undef
+    if (!open(SCRIPT, "<$script_name"));
+  my $state= STATE_INIT;
   my $section= undef;
   my $name= undef;
-  my $record;
-  while (<MYSELF>) {
-    if ($state == 0) {
+  my $doc= undef;
+  while (<SCRIPT>) {
+    if ($state == STATE_INIT) {
       if (m/^# -----\[\s*cbgp_valid_([^ ]*)\s*\]/) {
 	my $func_name= "cbgp_valid_$1";
-	if (exists($tests_index->{$func_name})) {
-	  $state= 1;
-	  $section= 'Description';
-	  $name= $func_name;
-	  $record= { 'Name' => $1 };
-	}
+	#if (exists($tests_index->{$func_name})) {
+	$state= 1;
+	$section= DOC_DESCRIPTION;
+	$name= $func_name;
+	$doc= { 'Name' => $1 };
       }
-    } elsif ($state >= 1) {
+    } elsif ($state == STATE_IN_DOC) {
       if ((!m/^#/) || (m/^# ----------.*/)) {
-	$state= 0;
-	$doc{$name}= $record;
+	$state= STATE_FINAL;
       } elsif (m/^# Description\:/) {
-	$section= 'Description';
-	$record->{$section}= [];
+	$section= DOC_DESCRIPTION;
+	$doc->{$section}= [];
       } elsif (m/^# Setup\:/) {
-	$section= 'Setup';
-	$record->{$section}= [];
+	$section= DOC_SETUP;
+	$doc->{$section}= [];
       } elsif (m/^# Scenario\:/) {
-	$section= 'Scenario';
-	$record->{$section}= [];
+	$section= DOC_SCENARIO;
+	$doc->{$section}= [];
       } elsif (m/^# Topology\:/) {
-	$section= 'Topology';
-	$record->{$section}= [];
+	$section= DOC_TOPOLOGY;
+	$doc->{$section}= [];
       } elsif (m/^# Resources\:/) {
-	$section= 'Resources';
-	$record->{$section}= [];
+	$section= DOC_RESOURCES;
+	$doc->{$section}= [];
       } else {
 	if (m/^#(.*$)/) {
-	  push @{$record->{$section}}, ($1);
+	  push @{$doc->{$section}}, ($1);
 	} else {
 	  show_warning("I don't know how to handle \"$_\"\n");
 	}
       }
+    } elsif ($state == STATE_FINAL) {
+    } else {
+      die "invalid state \"$state\"";
     }
   }
-  close(MYSELF);
+  close(SCRIPT);
 
   # Post-processing
-  for my $doc_item (values %doc) {
-    (exists($doc_item->{'Resources'})) and
-      $doc_item->{'Resources'}=
-	parse_resources_section($doc_item->{'Resources'});
-  }
+  #for my $doc_item (values %doc) {
+  #  (exists($doc_item->{'Resources'})) and
+  #    $doc_item->{'Resources'}=
+  #      parse_resources_section($doc_item->{'Resources'});
+  #}
 
-  return \%doc;
+  return $doc;
 }
 
 # -----[ parse_resources_section ]-----------------------------------

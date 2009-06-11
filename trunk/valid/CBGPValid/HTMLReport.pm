@@ -1,8 +1,8 @@
 # ===================================================================
 # CBGPValid::HTMLReport.pm
 #
-# author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 19/01/2007
+# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# lastdate 11/06/2009
 # ===================================================================
 
 package CBGPValid::HTMLReport;
@@ -76,12 +76,12 @@ sub doc_write_section($$)
 # -------------------------------------------------------------------
 sub doc_write_resources($$)
 {
-  my ($stream, $resources)= @_;
-
-  foreach my $res (@$resources) {
-    my ($ref, $name)= @$res;
-    print $stream "<a href=\"$ref\">$name</a><br>\n";
-  }
+#  my ($stream, $resources)= @_;
+#
+#  foreach my $res (@$resources) {
+#    my ($ref, $name)= @$res;
+#    print $stream "<a href=\"$ref\">$name</a><br>\n";
+#  }
 }
 
 # -----[ doc_write_preformated ]-------------------------------------
@@ -135,12 +135,11 @@ sub doc_write_copyright($)
 # -----[ doc_write ]-------------------------------------------------
 # Generates the documentation file.
 # -------------------------------------------------------------------
-sub doc_write($$$$)
+sub doc_write($$$)
 {
   my ($filename,
       $script_version,
-      $doc,
-      $tests_index)= @_;
+      $tests)= @_;
 
   my $stream= gensym();
   open($stream, ">$filename") or
@@ -152,35 +151,39 @@ sub doc_write($$$$)
   print $stream "</head>\n";
   print $stream "<body>\n";
   print $stream "<h1>C-BGP validation (v$script_version): tests documentation</h1>\n";
-  foreach my $item (sort keys %$doc) {
+  foreach my $test (sort @$tests) {
+    my $func= $test->{TEST_FIELD_FUNC};
+    my $name= $test->{TEST_FIELD_NAME};
+    my $doc= $test->{TEST_FIELD_DOC};
+
     print $stream "<hr>\n";
-    print $stream "<a name=\"$item\"><h2>$doc->{$item}->{Name}</h2></a>\n";
+    print $stream "<a name=\"$func\"><h2>$name</h2></a>\n";
     print $stream "Status: ";
-    doc_write_status($stream, $tests_index->{$item}->[TEST_FIELD_RESULT]);
+    doc_write_status($stream, $test->{TEST_FIELD_RESULT});
     print $stream "\n";
     # -- Description --
     doc_write_section_title($stream, "Description:");
-    if (exists($doc->{$item}->{Description})) {
-      doc_write_section($stream, $doc->{$item}->{Description});
+    if (exists($doc->{DOC_DESCRIPTION})) {
+      doc_write_section($stream, $doc->{DOC_DESCRIPTION});
     }
     # -- Setup --
     doc_write_section_title($stream, "Setup:");
-    if (exists($doc->{$item}->{Setup})) {
-      doc_write_section($stream, $doc->{$item}->{Setup});
+    if (exists($doc->{Setup})) {
+      doc_write_section($stream, $doc->{Setup});
     }
     # -- Topology --
-    if (exists($doc->{$item}->{Topology})) {
-      doc_write_preformated($stream, $doc->{$item}->{Topology});
+    if (exists($doc->{Topology})) {
+      doc_write_preformated($stream, $doc->{Topology});
     }
     # -- Scenario --
     doc_write_section_title($stream, "Scenario:");
-    if (exists($doc->{$item}->{Scenario})) {
-      doc_write_section($stream, $doc->{$item}->{Scenario});
+    if (exists($doc->{Scenario})) {
+      doc_write_section($stream, $doc->{Scenario});
     }
     # -- Resources --
-    if (exists($doc->{$item}->{'Resources'})) {
+    if (exists($doc->{'Resources'})) {
       doc_write_section_title($stream, "Resources:");
-      doc_write_resources($stream, $doc->{$item}->{'Resources'});
+      doc_write_resources($stream, $doc->{'Resources'});
     }
   }
   print $stream "<hr>\n";
@@ -219,15 +222,10 @@ sub report_write($$$)
   # Build index of tests function names
   my %tests_index= ();
   foreach my $test_record (@{$tests->{'list'}}) {
-    $tests_index{$test_record->[TEST_FIELD_FUNC]}= $test_record;
+    $tests_index{$test_record->{TEST_FIELD_FUNC}}= $test_record;
   }
 
-  my $doc= CBGPValid::BaseReport::doc_from_script($program_name,
-						  \%tests_index);
-  if (defined($doc)) {
-    doc_write("$report_prefix-doc.html", $program_version,
-	      $doc, \%tests_index);
-  }
+  doc_write("$report_prefix-doc.html", $program_version, $tests->{'list'});
 
   my $report_file_name= "$report_prefix.html";
   open(REPORT, ">$report_file_name") or
@@ -271,17 +269,18 @@ sub report_write($$$)
   print REPORT "<th>Duration (s.)</th>\n";
   print REPORT "</tr>\n";
   foreach my $test_record (@{$tests->{'list'}}) {
-    my $test_id= $test_record->[TEST_FIELD_ID];
-    my $test_name= $test_record->[TEST_FIELD_NAME];
-    my $test_func= $test_record->[TEST_FIELD_FUNC];
-    my $test_result= $test_record->[TEST_FIELD_RESULT];
-    my $test_duration= $test_record->[TEST_FIELD_DURATION];
+    my $test_id= $test_record->{TEST_FIELD_ID};
+    my $test_name= $test_record->{TEST_FIELD_NAME};
+    my $test_func= $test_record->{TEST_FIELD_FUNC};
+    my $test_result= $test_record->{TEST_FIELD_RESULT};
+    my $test_duration= $test_record->{TEST_FIELD_DURATION};
+    my $test_doc= $test_record->{TEST_FIELD_DOC};
 
     my $doc_ref= undef;
-    if (defined($doc) && exists($doc->{$test_func})) {
+    if (defined($test_doc)) {
       $doc_ref= "$report_prefix-doc.html#$test_func";
     } else {
-      show_warning("no documentation for $test_name ($test_func)");
+      show_warning("no documentation for \"$test_name\" ($test_func)");
     }
 
     (!defined($test_duration)) and
