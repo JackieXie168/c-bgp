@@ -1,12 +1,8 @@
+SUBDIRS = CBGPValid tests
+
 EXTRA_DIST= \
 	cbgp-validation.pl \
 	CBGP.pm \
-	CBGPValid/BaseReport.pm \
-	CBGPValid/HTMLReport.pm \
-	CBGPValid/Tests.pm \
-	CBGPValid/TestConstants.pm \
-	CBGPValid/UI.pm \
-	CBGPValid/XMLReport.pm \
 	valid-record-route.ntf \
 	simple-rib.ascii \
 	abilene-rib.ascii \
