@@ -32,35 +32,36 @@ sub cbgp_valid_net_tunnel($)
   {
     my ($cbgp)= @_;
 
-    # Domain 1
-    $cbgp->send_cmd("net add domain 1 igp");
     $cbgp->send_cmd("net add node 1.0.0.0");
-    $cbgp->send_cmd("net node 1.0.0.0 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.1");
-    $cbgp->send_cmd("net node 1.0.0.1 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.2");
-    $cbgp->send_cmd("net node 1.0.0.2 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.3");
-    $cbgp->send_cmd("net node 1.0.0.3 domain 1");
     $cbgp->send_cmd("net add node 1.0.0.4");
-    $cbgp->send_cmd("net node 1.0.0.4 domain 1");
     $cbgp->send_cmd("net add subnet 192.168.0/24 transit");
     $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.1");
-    $cbgp->send_cmd("net link 1.0.0.0 1.0.0.1 igp-weight --bidir 1");
     $cbgp->send_cmd("net add link 1.0.0.0 1.0.0.2");
-    $cbgp->send_cmd("net link 1.0.0.0 1.0.0.2 igp-weight --bidir 1");
     $cbgp->send_cmd("net add link 1.0.0.1 1.0.0.3");
-    $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
     $cbgp->send_cmd("net add link 1.0.0.2 1.0.0.3");
-    $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
     $cbgp->send_cmd("net add link 1.0.0.2 192.168.0.1/24");
-    $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/24 igp-weight 1");
     $cbgp->send_cmd("net add link 1.0.0.3 192.168.0.2/24");
-    $cbgp->send_cmd("net link 1.0.0.3 192.168.0.2/24 igp-weight 1");
     $cbgp->send_cmd("net add link 1.0.0.4 192.168.0.3/24");
+
+    # IGP Domain 1
+    $cbgp->send_cmd("net add domain 1 igp");
+    $cbgp->send_cmd("net node 1.0.0.0 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.1 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.2 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.3 domain 1");
+    $cbgp->send_cmd("net node 1.0.0.4 domain 1");
+    $cbgp->send_cmd("net link 1.0.0.0 1.0.0.1 igp-weight --bidir 1");
+    $cbgp->send_cmd("net link 1.0.0.0 1.0.0.2 igp-weight --bidir 1");
+    $cbgp->send_cmd("net link 1.0.0.1 1.0.0.3 igp-weight --bidir 1");
+    $cbgp->send_cmd("net link 1.0.0.2 1.0.0.3 igp-weight --bidir 10");
+    $cbgp->send_cmd("net link 1.0.0.2 192.168.0.1/24 igp-weight 1");
+    $cbgp->send_cmd("net link 1.0.0.3 192.168.0.2/24 igp-weight 1");
     $cbgp->send_cmd("net link 1.0.0.4 192.168.0.3/24 igp-weight 1");
 
-    # Domain 2
+    # IGP Domain 2
     $cbgp->send_cmd("net add domain 2 igp");
     $cbgp->send_cmd("net add node 2.0.0.0");
 
@@ -68,7 +69,6 @@ sub cbgp_valid_net_tunnel($)
     $cbgp->send_cmd("net add link 1.0.0.3 2.0.0.0");
     $cbgp->send_cmd("net link 1.0.0.3 2.0.0.0 igp-weight 1");
     $cbgp->send_cmd("net node 2.0.0.0 route add --oif=1.0.0.3 1.0.0/24 1");
-
     $cbgp->send_cmd("net domain 1 compute");
 
     # Default route from R1 to R4 should be R1 R2 R4
@@ -104,6 +104,8 @@ sub cbgp_valid_net_tunnel($)
     $cbgp->send_cmd("  route add --oif=255.0.0.1 2.0.0/24 1");
     $cbgp->send_cmd("  route add --oif=255.0.0.2 1.0.0.1/32 1");
     $cbgp->send_cmd("  exit");
+
+    #???$cbgp->send_cmd("net domain 1 compute");
 
     # Path from R1 to R4 should be R1 R3 R4
     $trace= cbgp_traceroute($cbgp, "1.0.0.0", "1.0.0.3");
