@@ -128,7 +128,7 @@ sub doc_write_copyright($)
 {
   my ($stream)= @_;
 
-  print $stream "<i>(C) 2006, B. Quoitin<br>\n";
+  print $stream "<i>(C) 2006-2009, B. Quoitin<br>\n";
   print $stream "Generated on ".localtime(time())."</i>\n";
 }
 
@@ -163,27 +163,27 @@ sub doc_write($$$)
     print $stream "\n";
     # -- Description --
     doc_write_section_title($stream, "Description:");
-    if (exists($doc->{DOC_DESCRIPTION})) {
-      doc_write_section($stream, $doc->{DOC_DESCRIPTION});
+    if (exists($doc->{(DOC_DESCRIPTION)})) {
+      doc_write_section($stream, $doc->{(DOC_DESCRIPTION)});
     }
     # -- Setup --
     doc_write_section_title($stream, "Setup:");
-    if (exists($doc->{Setup})) {
-      doc_write_section($stream, $doc->{Setup});
+    if (exists($doc->{(DOC_SETUP)})) {
+      doc_write_section($stream, $doc->{(DOC_SETUP)});
     }
     # -- Topology --
-    if (exists($doc->{Topology})) {
-      doc_write_preformated($stream, $doc->{Topology});
+    if (exists($doc->{(DOC_TOPOLOGY)})) {
+      doc_write_preformated($stream, $doc->{(DOC_TOPOLOGY)});
     }
     # -- Scenario --
     doc_write_section_title($stream, "Scenario:");
-    if (exists($doc->{Scenario})) {
-      doc_write_section($stream, $doc->{Scenario});
+    if (exists($doc->{(DOC_SCENARIO)})) {
+      doc_write_section($stream, $doc->{(DOC_SCENARIO)});
     }
     # -- Resources --
-    if (exists($doc->{'Resources'})) {
+    if (exists($doc->{(DOC_RESOURCES)})) {
       doc_write_section_title($stream, "Resources:");
-      doc_write_resources($stream, $doc->{'Resources'});
+      doc_write_resources($stream, $doc->{(DOC_RESOURCES)});
     }
   }
   print $stream "<hr>\n";
