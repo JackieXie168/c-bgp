@@ -24,6 +24,12 @@ return ["net igp external", "cbgp_valid_net_igp_external"];
 #                \          /
 #                 *-- N1 --*
 #
+# Scenario:
+#   * Compute IGP routes
+#   * Check that R1 has a route towards N1, N2 and R2
+#   * Check that R1 has no route towards R3
+#   * Check that R2 has a route towards R1, N1 and N2 through R1
+#   * Check that R2 has no route towards R3
 # -------------------------------------------------------------------
 sub cbgp_valid_net_igp_external($) {
   my ($cbgp)= @_;
@@ -49,9 +55,30 @@ sub cbgp_valid_net_igp_external($) {
   $cbgp->send_cmd("net link 2.0.0.0 10.0.0.2/24 igp-weight 1");
   $cbgp->send_cmd("net domain 1 compute");
 
+  # Check routes in node R1
   my $rt= cbgp_get_rt($cbgp, '1.0.0.0');
+  return TEST_FAILURE
+    if (!check_has_route($rt, '1.0.0.1/32'));
+  return TEST_FAILURE
+    if (!check_has_route($rt, '192.168.0.0/30'));
+  return TEST_FAILURE
+    if (!check_has_route($rt, '10.0.0.0/24'));
+  return TEST_FAILURE
+    if (check_has_route($rt, '2.0.0.0/32'));
 
+  # Check routes in node R2
   $rt= cbgp_get_rt($cbgp, '1.0.0.1');
+  return TEST_FAILURE
+    if (!check_has_route($rt, '1.0.0.0/32',
+			 -iface=>'1.0.0.0'));
+  return TEST_FAILURE
+    if (!check_has_route($rt, '192.168.0.0/30',
+			 -iface=>'1.0.0.0'));
+  return TEST_FAILURE
+    if (!check_has_route($rt, '10.0.0.0/24',
+			 -iface=>'1.0.0.0'));
+  return TEST_FAILURE
+    if (check_has_route($rt, '2.0.0.0/32'));
 
   return TEST_SUCCESS;
 }
