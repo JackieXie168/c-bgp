@@ -9,6 +9,13 @@ package CBGPValid::BaseReport;
 
 require Exporter;
 @ISA= qw(Exporter);
+@EXPORT= qw(
+	    DOC_DESCRIPTION
+	    DOC_RESOURCES
+	    DOC_SCENARIO
+	    DOC_SETUP
+	    DOC_TOPOLOGY
+	   );
 
 use strict;
 use Symbol;
@@ -55,9 +62,10 @@ sub doc_from_script($)
 	my $func_name= "cbgp_valid_$1";
 	#if (exists($tests_index->{$func_name})) {
 	$state= 1;
-	$section= DOC_DESCRIPTION;
 	$name= $func_name;
 	$doc= { 'Name' => $1 };
+	$section= DOC_DESCRIPTION;
+	$doc->{$section}= [];
       }
     } elsif ($state == STATE_IN_DOC) {
       if ((!m/^#/) || (m/^# ----------.*/)) {
