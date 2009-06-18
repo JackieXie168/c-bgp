@@ -1,3 +1,5 @@
+use strict;
+
 return ["net igp subnet", "cbgp_valid_net_igp_subnet"];
 
 # -----[ cbgp_valid_net_igp_subnet ]---------------------------------

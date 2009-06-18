@@ -1,3 +1,5 @@
+use strict;
+
 return ["bgp decision process as-path",
 	"cbgp_valid_bgp_dp_aspath"];
 

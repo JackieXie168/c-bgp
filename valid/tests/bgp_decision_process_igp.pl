@@ -1,3 +1,5 @@
+use strict;
+
 return ["bgp decision process igp",
 	"cbgp_valid_bgp_dp_igp"];
 

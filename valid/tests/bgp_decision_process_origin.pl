@@ -1,3 +1,5 @@
+use strict;
+
 return ["bgp decision process origin",
 	"cbgp_valid_bgp_dp_origin"];
 

@@ -1,3 +1,5 @@
+use strict;
+
 return ["bgp decision process local-pref",
 	"cbgp_valid_bgp_dp_localpref"];
 
