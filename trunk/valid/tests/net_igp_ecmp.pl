@@ -1,3 +1,5 @@
+use strict;
+
 return ["net igp ecmp", "cbgp_valid_net_igp_ecmp"];
 
 # -----[ cbgp_valid_net_igp_ecmp ]-----------------------------------
@@ -8,23 +10,20 @@ return ["net igp ecmp", "cbgp_valid_net_igp_ecmp"];
 #   - R2 (0.0.0.2)
 #   - R3 (0.0.0.3)
 #   - R4 (0.0.0.4)
-#   - R5 (0.0.0.5)
-#   - R6 (0.0.0.6)
-#   - R7 (0.0.0.7)
-#   - R8 (0.0.0.8)
-#   - R9 (0.0.0.9)
-#   - all links have an IGP weight equal to 1 except R4-R7 where it is 2
+#   - all links have an IGP weight equal to 1
 #
 # Topology:
 #
-#            R3 --- R5 -- R6
-#           /     /   \     \
-#   R1 -- R2     /     \     R8 -- R9
-#           \   /       \   /
-#            R4 ---(2)--- R7
+#     *-- R2 --*
+#    /          \
+#   R1          R4
+#    \          /
+#     *-- R3 --*
 #
 # Scenario:
-#   * this setup should provide 5 different paths from R1 to R9
+#   * this setup should provide 2 different paths from R1 to R4
+#     (R1, R2, R4)
+#     (R1, R3, R4)
 # -------------------------------------------------------------------
 sub cbgp_valid_net_igp_ecmp($) {
   my ($cbgp)= @_;
@@ -32,55 +31,32 @@ sub cbgp_valid_net_igp_ecmp($) {
   $cbgp->send_cmd("net add node 0.0.0.2");
   $cbgp->send_cmd("net add node 0.0.0.3");
   $cbgp->send_cmd("net add node 0.0.0.4");
-  $cbgp->send_cmd("net add node 0.0.0.5");
-  $cbgp->send_cmd("net add node 0.0.0.6");
-  $cbgp->send_cmd("net add node 0.0.0.7");
-  $cbgp->send_cmd("net add node 0.0.0.8");
-  $cbgp->send_cmd("net add node 0.0.0.9");
   $cbgp->send_cmd("net add link 0.0.0.1 0.0.0.2");
-  $cbgp->send_cmd("net add link 0.0.0.2 0.0.0.3");
+  $cbgp->send_cmd("net add link 0.0.0.1 0.0.0.3");
   $cbgp->send_cmd("net add link 0.0.0.2 0.0.0.4");
-  $cbgp->send_cmd("net add link 0.0.0.3 0.0.0.5");
-  $cbgp->send_cmd("net add link 0.0.0.4 0.0.0.5");
-  $cbgp->send_cmd("net add link 0.0.0.5 0.0.0.6");
-  $cbgp->send_cmd("net add link 0.0.0.5 0.0.0.7");
-  $cbgp->send_cmd("net add link 0.0.0.6 0.0.0.8");
-  $cbgp->send_cmd("net add link 0.0.0.7 0.0.0.8");
-  $cbgp->send_cmd("net add link 0.0.0.8 0.0.0.9");
-  $cbgp->send_cmd("net add link 0.0.0.4 0.0.0.7");
+  $cbgp->send_cmd("net add link 0.0.0.3 0.0.0.4");
 
   $cbgp->send_cmd("net add domain 1 igp");
   $cbgp->send_cmd("net node 0.0.0.1 domain 1");
   $cbgp->send_cmd("net node 0.0.0.2 domain 1");
   $cbgp->send_cmd("net node 0.0.0.3 domain 1");
   $cbgp->send_cmd("net node 0.0.0.4 domain 1");
-  $cbgp->send_cmd("net node 0.0.0.5 domain 1");
-  $cbgp->send_cmd("net node 0.0.0.6 domain 1");
-  $cbgp->send_cmd("net node 0.0.0.7 domain 1");
-  $cbgp->send_cmd("net node 0.0.0.8 domain 1");
-  $cbgp->send_cmd("net node 0.0.0.9 domain 1");
   $cbgp->send_cmd("net link 0.0.0.1 0.0.0.2 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.2 0.0.0.3 igp-weight --bidir 1");
+  $cbgp->send_cmd("net link 0.0.0.1 0.0.0.3 igp-weight --bidir 1");
   $cbgp->send_cmd("net link 0.0.0.2 0.0.0.4 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.3 0.0.0.5 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.4 0.0.0.5 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.5 0.0.0.6 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.5 0.0.0.7 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.6 0.0.0.8 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.7 0.0.0.8 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.8 0.0.0.9 igp-weight --bidir 1");
-  $cbgp->send_cmd("net link 0.0.0.4 0.0.0.7 igp-weight --bidir 2");
+  $cbgp->send_cmd("net link 0.0.0.3 0.0.0.4 igp-weight --bidir 1");
   $cbgp->send_cmd("net domain 1 compute");
 
-  my $traces= cbgp_record_route($cbgp, '0.0.0.1', '0.0.0.9', -ecmp=>1);
+  my $rt= cbgp_get_rt($cbgp, '0.0.0.1', '0.0.0.4');
   return TEST_FAILURE
-    if (scalar(@$traces) != 5);
-
-  my $filename= get_tmp_resource("cbgp-topology-ecmp.dot");
-  $cbgp->send_cmd("net export --format=dot --output=$filename");
-
-  foreach my $trace (@$traces) {
-  }
+    if (!check_has_route($rt, '0.0.0.4/32',
+			 -nexthop=>'0.0.0.0',
+			 -iface=>'0.0.0.2',
+			 -ecmp=>{
+				 -nexthop=>'0.0.0.0',
+				 -iface=>'0.0.0.3'
+				 }
+			));
 
   return TEST_SUCCESS;
 }

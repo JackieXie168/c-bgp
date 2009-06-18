@@ -1,3 +1,5 @@
+use strict;
+
 return ["bgp decision process router-id",
 	"cbgp_valid_bgp_dp_router_id"];
 
