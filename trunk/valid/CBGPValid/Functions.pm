@@ -5,7 +5,7 @@
 # routes) from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Functions.pm,v 1.5 2009-06-10 13:11:46 bqu Exp $
+# $Id: Functions.pm,v 1.6 2009-06-19 14:55:56 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Functions;
@@ -31,6 +31,7 @@ require Exporter;
 	    F_RT_IFACE
 	    F_RT_METRIC
 	    F_RT_PROTO
+	    F_RT_ECMP
 
 	    F_PEER_IP
 	    F_PEER_AS
@@ -153,6 +154,7 @@ use constant F_RT_NEXTHOP => 1;
 use constant F_RT_IFACE   => 2;
 use constant F_RT_METRIC  => 3;
 use constant F_RT_PROTO   => 4;
+use constant F_RT_ECMP    => 5;
 
 # -----[ Fields : BGP peer ]-----
 use constant F_PEER_IP => 0;
@@ -462,6 +464,7 @@ sub cbgp_get_rt($$;$)
   {
     my ($cbgp, $node, $destination)= @_;
     my %routes;
+    my $last_pfx= undef;
 
     if (!defined($destination)) {
       $destination= "*";
@@ -471,15 +474,23 @@ sub cbgp_get_rt($$;$)
     $cbgp->send_cmd("print \"done\\n\"");
     while ((my $result= $cbgp->expect(1)) ne "done") {
       my @fields= split /\s+/, $result;
-      if (scalar(@fields) < 4) {
+      if (scalar(@fields) < 5) {
 	show_error("incorrect format (show rt): \"$result\"");
 	exit(-1);
       }
 
-      if (!($fields[0] =~ m/^[0-9.\/]+$/)) {
+      if ($fields[0] eq '') {
+	if (!defined($last_pfx)) {
+	  show_error("no destination (show rt): $fields[0]");
+	  exit(-1);
+	}
+	$fields[0]= $last_pfx;
+      } elsif (!($fields[0] =~ m/^[0-9.\/]+$/)) {
 	show_error("invalid destination (show rt): $fields[0]");
 	exit(-1);
       }
+      $last_pfx= $fields[0];
+
       if (!($fields[1] =~ m/^[0-9.]+$/)) {
 	show_error("invalid next-hop (show rt): $fields[1]");
 	exit(-1);
@@ -503,7 +514,15 @@ sub cbgp_get_rt($$;$)
       $route[F_RT_IFACE]= $fields[2];
       $route[F_RT_METRIC]= $fields[3];
       $route[F_RT_PROTO]= $fields[4];
-      $routes{$fields[F_RT_DEST]}= \@route;
+      if (!exists($routes{$fields[F_RT_DEST]})) {
+	$routes{$fields[F_RT_DEST]}= \@route;
+      } else {
+	my $prev_route= $routes{$fields[F_RT_DEST]};
+	while (defined($prev_route->[F_RT_ECMP])) {
+	  $prev_route= $prev_route->[F_RT_ECMP];
+	}
+	$prev_route->[F_RT_ECMP]= \@route;
+      }
     }
     return \%routes;
   }
@@ -861,87 +880,125 @@ sub _net_record_route_options(%) {
   (exists($args{-weight})) and $options.= "--weight ";
   (exists($args{-load})) and $options.= "--load=".$args{-load}." ";
   (exists($args{-ecmp})) and $options.= "--ecmp ";
+  (exists($args{-tunnel})) and $options.= "--tunnel ";
   return $options;
+}
+
+sub _net_record_route_parse_sub_trace($$);
+# -----[ _net_record_route_parse_sub_trace ]-------------------------
+sub _net_record_route_parse_sub_trace($$) {
+  my ($fields, $field_index)= @_;
+  my @trace= ();
+  my $finished= 0;
+  while (!$finished) {
+    my $hop= $fields->[$field_index];
+    if ($hop =~ m/^(.+)\]$/) {
+      $hop= $1;
+      $finished= 1;
+    } elsif ($hop =~ m/^\[(.+)$/) {
+      $fields->[$field_index]= $1;
+      $hop= _net_record_route_parse_sub_trace($fields, $field_index);
+      $field_index+= scalar(@$hop);
+    } else {
+      $field_index++;
+    }
+    push @trace, ($hop);
+  };
+  return \@trace;
 }
 
 # -----[ _net_record_route_parser ]----------------------------------
 sub _net_record_route_parser($;%) {
   my ($result, %args)= @_;
-    my @trace;
+  my @trace;
 
-    my @fields= split /\s/, $result;
-    if (scalar(@fields) < 4) {
-      show_error("not enough fields (record-route): \"$result\"");
-      return undef;
-    }
-    if (!($fields[0] =~ m/^[0-9.]+$/)) {
-      show_error("invalid source (record-route): \"$result\"");
-      return undef;
-    }
-    if (!($fields[1] =~ m/^[0-9.\/]+$/)) {
-      show_error("invalid destination (record-route): \"$result\"");
-      return undef;
-    }
-    if (!($fields[2] =~ m/^[A-Z_]+$/)) {
-      show_error("invalid status (record-route): \"$result\"");
-      return undef;
-    }
-    if (!($fields[3] =~ m/^[0-9]+$/)) {
-      show_error("invalid number of hops (record-route): \"$result\"");
-      return undef;
-    }
-    $trace[F_TR_SRC]= $fields[0];
-    $trace[F_TR_DST]= $fields[1];
-    $trace[F_TR_STATUS]= $fields[2];
-    $trace[F_TR_NUMHOPS]= $fields[3];
+  my @fields= split /\s/, $result;
+  if (scalar(@fields) < 4) {
+    show_error("not enough fields (record-route): \"$result\"");
+    return undef;
+  }
+  if (!($fields[0] =~ m/^[0-9.]+$/)) {
+    show_error("invalid source (record-route): \"$result\"");
+    return undef;
+  }
+  if (!($fields[1] =~ m/^[0-9.\/]+$/)) {
+    show_error("invalid destination (record-route): \"$result\"");
+    return undef;
+  }
+  if (!($fields[2] =~ m/^[A-Z_]+$/)) {
+    show_error("invalid status (record-route): \"$result\"");
+    return undef;
+  }
+  if (!($fields[3] =~ m/^[0-9]+$/)) {
+    show_error("invalid number of hops (record-route): \"$result\"");
+    return undef;
+  }
+  $trace[F_TR_SRC]= $fields[0];
+  $trace[F_TR_DST]= $fields[1];
+  $trace[F_TR_STATUS]= $fields[2];
+  $trace[F_TR_NUMHOPS]= $fields[3];
 
-    # Parse paths
-    my $field_index= 4;
-    my @path= ();
-    $trace[F_TR_PATH]= \@path;
-    for (my $index= 0; $index < $trace[F_TR_NUMHOPS]; $index++) {
-      if (($field_index >= scalar(@fields)) ||
-	  !($fields[$field_index] =~ m/^[0-9.]+$/)) {
-	show_error("invalid hop[$index] (record-route): \"$fields[$field_index]\"");
-	return undef;
-      }
-      push @path, ($fields[$field_index++]);
+  # Parse paths
+  my $field_index= 4;
+  my @path= ();
+  my $path_ref= \@path;
+  $trace[F_TR_PATH]= $path_ref;
+  my @stack= ();
+  for (my $index= 0; $index < $trace[F_TR_NUMHOPS]; $index++) {
+    if ($field_index >= scalar(@fields)) {
+      show_error("invalid hop[$index] (record-route)");
+      return undef;
     }
-
-    # Parse options
-    my %options;
-    while ($field_index < scalar(@fields)) {
-      if (!($fields[$field_index] =~ m/^([a-z]+)\:(.+)$/)) {
-	show_error("invalid option (record-route): \"$fields[$field_index]\"");
-	return undef;
-      }
-      $options{$1}= $2;
+    my $hop= $fields[$field_index];
+    if (!($hop =~ m/^(\[?)([0-9.]+)$/)) {
+      show_error("invalid hop[$index] (record-route): \"$hop\"");
+      return undef;
+    }
+    $hop= $2;
+    if ($1 ne '') {
+      $fields[$field_index]= $2;
+      $hop= _net_record_route_parse_sub_trace(\@fields, $field_index);
+      $field_index+= scalar(@$hop);
+    } else {
       $field_index++;
     }
+    push @$path_ref, ($hop);
+  }
 
-    if (exists($args{-capacity})) {
-      if (!exists($options{capacity})) {
-	show_error("missing option \"capacity\" (record-route): \"$result\"");
-	return undef;
-      }
-      $trace[F_TR_CAPACITY]= $options{capacity};
+  # Parse options
+  my %options;
+  while ($field_index < scalar(@fields)) {
+    if (!($fields[$field_index] =~ m/^([a-z]+)\:(.+)$/)) {
+      show_error("invalid option (record-route): \"$fields[$field_index]\"");
+      return undef;
     }
-    if (exists($args{-delay})) {
-      if (!exists($options{delay})) {
-	show_error("missing option \"delay\" (record-route): \"$result\"");
-	return undef;
-      }
-      $trace[F_TR_DELAY]= $options{delay};
-    }
-    if (exists($args{-weight})) {
-      if (!exists($options{weight})) {
-	show_error("missing option \"weight\" (record-route): \"$result\"");
-	return undef;
-      }
-      $trace[F_TR_WEIGHT]= $options{weight};
-    }
+    $options{$1}= $2;
+    $field_index++;
+  }
 
-    return \@trace;
+  if (exists($args{-capacity})) {
+    if (!exists($options{capacity})) {
+      show_error("missing option \"capacity\" (record-route): \"$result\"");
+      return undef;
+    }
+    $trace[F_TR_CAPACITY]= $options{capacity};
+  }
+  if (exists($args{-delay})) {
+    if (!exists($options{delay})) {
+      show_error("missing option \"delay\" (record-route): \"$result\"");
+      return undef;
+    }
+    $trace[F_TR_DELAY]= $options{delay};
+  }
+  if (exists($args{-weight})) {
+    if (!exists($options{weight})) {
+      show_error("missing option \"weight\" (record-route): \"$result\"");
+      return undef;
+    }
+    $trace[F_TR_WEIGHT]= $options{weight};
+  }
+
+  return \@trace;
 }
 
 # -----[ cbgp_record_route ]-----------------------------------------
