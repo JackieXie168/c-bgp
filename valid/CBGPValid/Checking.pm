@@ -5,7 +5,7 @@
 # routes) retrieved from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Checking.pm,v 1.3 2008-06-11 15:22:28 bqu Exp $
+# $Id: Checking.pm,v 1.4 2009-06-19 14:55:56 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Checking;
@@ -120,7 +120,10 @@ sub check_route($%) {
 	       -iface   => [F_RT_IFACE],
 	       -metric  => [F_RT_METRIC],
 	       -nexthop => [F_RT_NEXTHOP],
-	       -proto   => [F_RT_PROTO]
+	       -proto   => [F_RT_PROTO],
+	       -ecmp    => [F_RT_ECMP,
+			    \&rt_ecmp_equals,
+			    \&rt_ecmp_to_str],
 	      );
   $tests->debug("check_route($route->[F_RT_DEST], ".
 		__constraints_to_str(\%fields, \%args).")");
@@ -496,24 +499,34 @@ sub traceroute_hops_equals($$) {
 }
 
 # -----[ recordroute_hops_to_str ]-----------------------------------
+sub recordroute_hops_to_str($$);
 sub recordroute_hops_to_str($$) {
   my ($hop, $type)= @_;
   if ($type == VAL_FIELD) {
     my $str= "";
     for my $h (@$hop) {
-      $str= $str."($h)";
+      if (ref($h) eq 'ARRAY') {
+	$str= $str."{".recordroute_hops_to_str($h, $type)."}";
+      } else {
+	$str= $str."($h)";
+      }
     }
     return $str;
   } else {
     my $str= "";
     for my $h (@$hop) {
-      $str= $str."($h->[0],$h->[1])";
+      if (ref($h->[1]) eq 'ARRAY') {
+	$str= $str."{".recordroute_hops_to_str($h->[1], $type)."}";
+      } else {
+	$str= $str."($h->[0],$h->[1])";
+      }
     }
     return $str;
   }
   return undef;
 }
 
+sub recordroute_hops_equals($$);
 # -----[ recordroute_hops_equals ]-----------------------------------
 sub recordroute_hops_equals($$) {
   my ($path, $path_ct)= @_;
@@ -525,13 +538,37 @@ sub recordroute_hops_equals($$) {
       return 0;
     }
     my $chop= $path->[$index];
-    if ($chop ne $hop->[1]) {
-      $tests->debug("hop $index address ($chop) ".
-		    "does not match ($hop->[1])");
-      return 0;
+    if (ref($hop->[1]) eq 'ARRAY') {
+      (!recordroute_hops_equals($chop, $hop->[1])) and
+	return 0;
+    } else {
+      if ($chop ne $hop->[1]) {
+	$tests->debug("hop $index address ($chop) ".
+		      "does not match ($hop->[1])");
+	return 0;
+      }
     }
   }
   return 1;
+}
+
+sub rt_ecmp_equals($$) {
+  my ($value, $constraint)= @_;
+  return check_route($value, %$constraint);
+}
+
+sub rt_ecmp_to_str($$$$) {
+  my ($ecmp, $type, $fields, $args)= @_;
+  if ($type == VAL_FIELD) {
+    my $str= '';
+    foreach my $f (@$ecmp) {
+      ($str ne '') and $str.= ',';
+      $str.= $f;
+    }
+    return '('.$str.')';
+  } else {
+    return "(".__constraints_to_str($fields, $ecmp).")";
+  }
 }
 
 #####################################################################
@@ -541,14 +578,14 @@ sub recordroute_hops_equals($$) {
 #####################################################################
 
 # -----[ __constraints_val_to_str ]----------------------------------
-sub __constraints_val_to_str($$$$) {
-  my ($fields, $field, $value, $type)= @_;
+sub __constraints_val_to_str($$$$$) {
+  my ($fields, $args, $field, $value, $type)= @_;
   my $func= undef;
   if (exists($fields->{$field})) {
     my $data= $fields->{$field};
     $func= $data->[2];
     if (defined($func)) {
-      return &$func($value,$type);
+      return &$func($value,$type,$fields,$args);
     }
   }
   if (!defined($value)) {
@@ -565,8 +602,8 @@ sub __constraints_to_str($$) {
   foreach my $a (keys %$args) {
     ($str ne '') and $str.= ', ';
     my $value= $args->{$a};
-    $str.= "$a=".__constraints_val_to_str($fields, $a, $value,
-					    VAL_CONSTRAINT);
+    $str.= "$a=".__constraints_val_to_str($fields, $args, $a, $value,
+					  VAL_CONSTRAINT);
   }
   return $str;
 }
@@ -597,9 +634,9 @@ sub __constraints_check($$$) {
     }
 
     if ($test) {
-      my $field_val= __constraints_val_to_str($constraints, $a, $value,
+      my $field_val= __constraints_val_to_str($constraints, $args, $a, $value,
 					     VAL_FIELD);
-      my $cons_val= __constraints_val_to_str($constraints, $a, $cons,
+      my $cons_val= __constraints_val_to_str($constraints, $args, $a, $cons,
 					    VAL_CONSTRAINT);
       $tests->debug("$a \"$field_val\" does not match ".
 		    "constraint \"$cons_val\"");
