@@ -13,6 +13,7 @@ EXTRA_DIST= \
 	as-level-inconsistent.txt \
 	as-level-cycle.txt \
 	as-level-disconnected.txt \
+	as-level-topo-small.txt \
 	data/subra-2004.txt \
 	data/small.topology.txt \
 	data/large.topology.txt \

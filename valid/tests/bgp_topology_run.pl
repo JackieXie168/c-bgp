@@ -15,7 +15,7 @@ sub cbgp_valid_bgp_topology_run($) {
   my $topo_file= get_resource("valid-bgp-topology.subramanian");
   (-e $topo_file) or return TEST_DISABLED;
 
-  my $topo= topo_from_subramanian($topo_file);
+  my $topo= topo_from_subramanian_file($topo_file);
 
   $cbgp->send_cmd("bgp topology load \"$topo_file\"");
   $cbgp->send_cmd("bgp topology install");

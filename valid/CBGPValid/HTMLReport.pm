@@ -2,7 +2,7 @@
 # CBGPValid::HTMLReport.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 11/06/2009
+# $Id: HTMLReport.pm,v 1.9 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::HTMLReport;
@@ -36,6 +36,11 @@ sub doc_write_section($$)
   foreach my $line (@$section) {
     #print "line(state:$state) [$line]\n";
     if ($state == 0) {
+
+      # Escape special characters
+      $line=~ s/</&lt;/g;
+      $line=~ s/>/&gt;/g;
+
       if ($line =~ m/^\s*-(.*)$/) {
 	$state= 1;
 	print $stream "<ul>\n";
@@ -107,7 +112,11 @@ sub doc_write_status($$)
 
   my $color= "black";
 
-  if ($status == TEST_DISABLED) {
+  die "undefined status"
+    if (!defined($status));
+
+  if (($status == TEST_DISABLED) ||
+      ($status == TEST_TODO)) {
     $color= "gray";
   } elsif (($status == TEST_FAILURE) ||
 	   ($status == TEST_SKIPPED) ||
@@ -115,8 +124,10 @@ sub doc_write_status($$)
     $color= "red";
   } elsif ($status == TEST_SUCCESS) {
     $color= "green";
+  } else {
+    die "invalid status code \"$status\"";
   }
-  $status= TEST_RESULT_MSG->{$status};
+  $status= (TEST_RESULT_MSG)->{$status};
 
   print $stream "<b><font color=\"$color\">$status</font></b>";
 }
@@ -152,6 +163,7 @@ sub doc_write($$$)
   print $stream "<body>\n";
   print $stream "<h1>C-BGP validation (v$script_version): tests documentation</h1>\n";
   foreach my $test (sort @$tests) {
+
     my $func= $test->{TEST_FIELD_FUNC};
     my $name= $test->{TEST_FIELD_NAME};
     my $doc= $test->{TEST_FIELD_DOC};
@@ -164,26 +176,26 @@ sub doc_write($$$)
     # -- Description --
     doc_write_section_title($stream, "Description:");
     if (exists($doc->{(DOC_DESCRIPTION)})) {
-      doc_write_section($stream, $doc->{(DOC_DESCRIPTION)});
+      doc_write_section($stream, $doc->{DOC_DESCRIPTION()});
     }
     # -- Setup --
     doc_write_section_title($stream, "Setup:");
     if (exists($doc->{(DOC_SETUP)})) {
-      doc_write_section($stream, $doc->{(DOC_SETUP)});
+      doc_write_section($stream, $doc->{DOC_SETUP()});
     }
     # -- Topology --
     if (exists($doc->{(DOC_TOPOLOGY)})) {
-      doc_write_preformated($stream, $doc->{(DOC_TOPOLOGY)});
+      doc_write_preformated($stream, $doc->{DOC_TOPOLOGY()});
     }
     # -- Scenario --
     doc_write_section_title($stream, "Scenario:");
     if (exists($doc->{(DOC_SCENARIO)})) {
-      doc_write_section($stream, $doc->{(DOC_SCENARIO)});
+      doc_write_section($stream, $doc->{DOC_SCENARIO()});
     }
     # -- Resources --
     if (exists($doc->{(DOC_RESOURCES)})) {
       doc_write_section_title($stream, "Resources:");
-      doc_write_resources($stream, $doc->{(DOC_RESOURCES)});
+      doc_write_resources($stream, $doc->{DOC_RESOURCES()});
     }
   }
   print $stream "<hr>\n";
@@ -219,12 +231,6 @@ sub report_write($$$)
     $report_intro.= "<b><font color=\"red\">SOME TESTS FAILED :-(</font></b>\n";
   }
 
-  # Build index of tests function names
-  my %tests_index= ();
-  foreach my $test_record (@{$tests->{'list'}}) {
-    $tests_index{$test_record->{TEST_FIELD_FUNC}}= $test_record;
-  }
-
   doc_write("$report_prefix-doc.html", $program_version, $tests->{'list'});
 
   my $report_file_name= "$report_prefix.html";
@@ -253,7 +259,7 @@ sub report_write($$$)
     print REPORT " (max: ".$tests->{'max-warnings'}.")";
   print REPORT "</li>\n";
   print REPORT "<li>From cache: ".
-    (defined($tests->{'cache-file'})?"yes":"no").
+    (defined($tests->{'cache-enabled'})?"yes":"no").
       "</li>\n";
   print REPORT "<li>Test duration: ".$tests->{'duration'}." secs.</li>\n";
   my $time= POSIX::strftime("%Y/%m/%d %H:%M", localtime(time()));

@@ -8,7 +8,7 @@ sub cbgp_valid_bgp_topology_largetopo($) {
   my $topo_file= get_resource("data/large.topology-nz.txt");
   (-e $topo_file) or return TEST_DISABLED;
 
-  my $topo= topo_from_subramanian($topo_file);
+  my $topo= topo_from_subramanian_file($topo_file);
 
   $cbgp->send_cmd("bgp topology load \"$topo_file\"");
   $cbgp->send_cmd("bgp topology install");
