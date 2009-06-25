@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 28/07/2003
-// $Id: rexford.h,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: rexford.h,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_REXFORD_H__
@@ -23,7 +23,7 @@ extern "C" {
 
   // -----[ rexford_parser ]-----------------------------------------
   int rexford_parser(FILE * file, as_level_topo_t * topo,
-		     unsigned int * line_number);
+		     int * line_number);
 
 #ifdef __cplusplus
 }

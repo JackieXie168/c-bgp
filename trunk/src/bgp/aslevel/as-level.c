@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.c,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: as-level.c,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -233,6 +233,12 @@ static inline void _aslevel_topo_cache_init(as_level_topo_t * topo)
     topo->cached_domains[index]= NULL;
 }
 
+// -----[ _aslevel_topo_cache_invalidate ]---------------------------
+static inline void _aslevel_topo_cache_invalidate(as_level_topo_t * topo)
+{
+  _aslevel_topo_cache_init(topo);
+}
+
 // -----[ _aslevel_topo_cache_update_as ]----------------------------
 static inline void _aslevel_topo_cache_update_as(as_level_topo_t * topo,
 						 as_level_domain_t * domain)
@@ -325,6 +331,43 @@ as_level_domain_t * aslevel_topo_add_as(as_level_topo_t * topo, uint16_t asn)
 
   _aslevel_topo_cache_update_as(topo, domain);
   return domain;
+}
+
+// -----[ aslevel_topo_remove_as ]-----------------------------------
+int aslevel_topo_remove_as(as_level_topo_t * topo, asn_t asn)
+{
+  as_level_domain_t dummy_domain= { .asn= asn };
+  as_level_domain_t * domain;
+  as_level_link_t dummy_link;
+  as_level_link_t * link, * link2;
+  unsigned int index, index2, index3;
+
+  // Full search...
+  domain= &dummy_domain;
+  if (ptr_array_sorted_find_index(topo->domains, &domain, &index) == 0) {
+    domain= (as_level_domain_t *) topo->domains->data[index];
+    _aslevel_topo_cache_invalidate(topo);
+
+    // Remove links from neighbor domains to this domain
+    for (index2= 0; index2 < ptr_array_length(domain->neighbors); index2++) {
+      link= (as_level_link_t *) domain->neighbors->data[index2];
+      dummy_link.neighbor= domain;
+      link2= &dummy_link;
+      if (ptr_array_sorted_find_index(link->neighbor->neighbors, &link2, &index3) == 0) {
+	ptr_array_remove_at(link->neighbor->neighbors, index3);
+      } else {
+	abort();
+      }
+    }
+
+    // Remove domain
+    ptr_array_remove_at(topo->domains, index);
+
+    return ASLEVEL_SUCCESS;
+  }
+
+  // Not found
+  return ASLEVEL_ERROR_INVALID_ASNUM;
 }
 
 // -----[ aslevel_topo_get_as ]--------------------------------------
@@ -900,11 +943,11 @@ int aslevel_topo_setup_policies(as_level_topo_t * topo)
 
 // -----[ aslevel_topo_load ]----------------------------------------
 int aslevel_topo_load(const char * filename, uint8_t format,
-		      uint8_t addr_scheme, unsigned int * line_number)
+		      uint8_t addr_scheme, int * line_number)
 {
   FILE * file;
   int result;
-  unsigned int line_num= -1;
+  int line_num= -1;
 
   if (_the_topo != NULL)
     return ASLEVEL_ERROR_TOPOLOGY_LOADED;
@@ -1048,16 +1091,36 @@ int aslevel_topo_info(gds_stream_t * stream)
   return ASLEVEL_SUCCESS;
 }
 
-// -----[ aslevel_topo_filter ]--------------------------------------
+// -----[ aslevel_topo_filter_as ]-----------------------------------
+/**
+ * This function removes the domain with a given ASN from the
+ * AS-level topology.
+ *
+ * The topology must be in state LOADED.
+ */
+int aslevel_topo_filter_as(asn_t asn)
+{
+  if (_the_topo == NULL)
+    return ASLEVEL_ERROR_NO_TOPOLOGY;
+
+  if (_the_topo->state > ASLEVEL_STATE_LOADED)
+    return ASLEVEL_ERROR_ALREADY_INSTALLED;
+
+  return aslevel_topo_remove_as(_the_topo, asn);
+}
+
+// -----[ aslevel_topo_filter_group ]--------------------------------
 /**
  * This function filters some domains/links from the AS-level
  * topology. Current filters are supported:
  * - stubs             
  * - single-homed-stubs
+ * - peer-peer
+ * - keep-top
  *
  * The topology must be in state LOADED
  */
-int aslevel_topo_filter(uint8_t filter)
+int aslevel_topo_filter_group(uint8_t filter)
 {
   if (_the_topo == NULL)
     return ASLEVEL_ERROR_NO_TOPOLOGY;
@@ -1066,6 +1129,29 @@ int aslevel_topo_filter(uint8_t filter)
     return ASLEVEL_ERROR_ALREADY_INSTALLED;
 
   return aslevel_filter_topo(_the_topo, filter);
+}
+
+// -----[ aslevel_topo_dump ]----------------------------------------
+int aslevel_topo_dump(gds_stream_t * stream)
+{
+  unsigned int index, index2;
+  as_level_domain_t * domain;
+  as_level_link_t * link;
+
+  if (_the_topo == NULL)
+    return ASLEVEL_ERROR_NO_TOPOLOGY;
+
+  for (index= 0; index < aslevel_topo_num_nodes(_the_topo); index++) {
+    domain= (as_level_domain_t *) _the_topo->domains->data[index];
+    for (index2= 0; index2 < ptr_array_length(domain->neighbors); index2++) {
+      link= (as_level_link_t *) domain->neighbors->data[index2];
+      if (domain->asn < link->neighbor->asn)
+	stream_printf(stream, "%u\t%u\t%d\n", domain->asn, link->neighbor->asn,
+		      link->peer_type);
+    }
+  }
+
+  return ASLEVEL_SUCCESS;
 }
 
 // -----[ aslevel_topo_dump_stubs ]----------------------------------
@@ -1106,7 +1192,7 @@ as_level_topo_t * aslevel_get_topo()
 
 // -----[ aslevel_topo_record_route ]--------------------------------
 int aslevel_topo_record_route(gds_stream_t * stream,
-			      ip_pfx_t prefix)
+			      ip_pfx_t prefix, uint8_t options)
 {
   unsigned int index;
   int result;
@@ -1121,7 +1207,7 @@ int aslevel_topo_record_route(gds_stream_t * stream,
 
   for (index= 0; index < ptr_array_length(_the_topo->domains); index++) {
     domain= (as_level_domain_t *) _the_topo->domains->data[index];
-    result= bgp_record_route(domain->router, prefix, &path, 0);
+    result= bgp_record_route(domain->router, prefix, &path, options);
     bgp_dump_recorded_route(stream, domain->router, prefix,
 			    path, result);
     path_destroy(&path);
