@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.56 2009-06-10 13:13:34 bqu Exp $
+// $Id: bgp.c,v 1.57 2009-06-25 14:34:20 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -866,7 +866,8 @@ int cli_bgp_router_show_stats(cli_ctx_t * ctx,
 // ----- cli_bgp_router_recordroute ---------------------------------
 /**
  * context: {router}
- * tokens: {prefix}
+ * tokens : {prefix}
+ * options: {--exact-match, --preserve-dups}
  */
 int cli_bgp_router_recordroute(cli_ctx_t * ctx,
 			       cli_cmd_t * cmd)
@@ -876,6 +877,7 @@ int cli_bgp_router_recordroute(cli_ctx_t * ctx,
   ip_pfx_t prefix;
   int result;
   bgp_path_t * path= NULL;
+  uint8_t options= 0;
 
   // Get prefix
   if (str2prefix(arg, &prefix) < 0) {
@@ -883,8 +885,13 @@ int cli_bgp_router_recordroute(cli_ctx_t * ctx,
     return CLI_ERROR_COMMAND_FAILED;
   }
 
+  if (cli_has_opt_value(cmd, "exact-match"))
+    options|= AS_RECORD_ROUTE_OPT_EXACT_MATCH;
+  if (cli_has_opt_value(cmd, "preserve-dups"))
+    options|= AS_RECORD_ROUTE_OPT_PRESERVE_DUPS;
+
   // Record route
-  result= bgp_record_route(router, prefix, &path, 0);
+  result= bgp_record_route(router, prefix, &path, options);
   // Display recorded-route
   bgp_dump_recorded_route(gdsout, router, prefix, path, result);
   path_destroy(&path);
@@ -1590,6 +1597,8 @@ static void _register_bgp_router(cli_cmd_t * parent)
   _register_bgp_router_show(group);
   cmd= cli_add_cmd(group, cli_cmd("record-route", cli_bgp_router_recordroute));
   cli_add_arg(cmd, cli_arg("prefix", NULL));
+  cli_add_opt(cmd, cli_opt("exact-match", NULL));
+  cli_add_opt(cmd, cli_opt("preserve-dups", NULL));
   cmd= cli_add_cmd(group, cli_cmd("rerun", cli_bgp_router_rerun));
   cli_add_arg(cmd, cli_arg("prefix|*", NULL));
   cmd= cli_add_cmd(group, cli_cmd("rescan", cli_bgp_router_rescan));

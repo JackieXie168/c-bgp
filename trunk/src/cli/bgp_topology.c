@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: bgp_topology.c,v 1.4 2009-03-24 15:58:43 bqu Exp $
+// $Id: bgp_topology.c,v 1.5 2009-06-25 14:34:20 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -16,6 +16,7 @@
 #include <libgds/cli.h>
 #include <libgds/cli_params.h>
 
+#include <bgp/record-route.h>
 #include <bgp/aslevel/as-level.h>
 #include <bgp/aslevel/filter.h>
 #include <bgp/aslevel/stat.h>
@@ -35,7 +36,7 @@ static int cli_bgp_topology_load(cli_ctx_t * ctx, cli_cmd_t * cmd)
   const char * arg;
   uint8_t addr_scheme= ASLEVEL_ADDR_SCH_DEFAULT;
   uint8_t format= ASLEVEL_FORMAT_DEFAULT;
-  unsigned int line_number;
+  int line_number;
   int result;
 
   // Optional addressing scheme specified ?
@@ -66,7 +67,7 @@ static int cli_bgp_topology_load(cli_ctx_t * ctx, cli_cmd_t * cmd)
 			 line_number);
     else
       cli_set_user_error(cli_get(), "could not load topology \"%s\" "
-			 "(%s, at line %u)", arg, aslevel_strerror(result));
+			 "(%s)", arg, aslevel_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
@@ -97,12 +98,39 @@ static int cli_bgp_topology_check(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
-// -----[ cli_bgp_topology_filter ]----------------------------------
+// -----[ cli_bgp_topology_filter_asn ]------------------------------
+/**
+ * context: {}
+ * tokens: {<asn>}
+ */
+static int cli_bgp_topology_filter_asn(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  const char * arg= cli_get_arg_value(cmd, 0);
+  asn_t asn;
+  int result;
+  
+  // Get ASN
+  if (str2asn(arg, &asn)) {
+    cli_set_user_error(cli_get(), "invalid ASN (%s)", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  // Remove AS from topology
+  result= aslevel_topo_filter_as(asn);
+  if (result != ASLEVEL_SUCCESS) {
+    cli_set_user_error(cli_get(), "could not filter ASN (%s)",
+		       aslevel_strerror(result));
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_bgp_topology_filter_group ]----------------------------
 /**
  * context: {}
  * tokens: {<what>}
  */
-static int cli_bgp_topology_filter(cli_ctx_t * ctx, cli_cmd_t * cmd)
+static int cli_bgp_topology_filter_group(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg= cli_get_arg_value(cmd, 0);
   int result;
@@ -117,7 +145,7 @@ static int cli_bgp_topology_filter(cli_ctx_t * ctx, cli_cmd_t * cmd)
   }
   
   // Filter topology
-  result= aslevel_topo_filter(filter);
+  result= aslevel_topo_filter_group(filter);
   if (result != ASLEVEL_SUCCESS) {
     cli_set_user_error(cli_get(), "could not filter topology (%s)",
 		       aslevel_strerror(result));
@@ -165,7 +193,7 @@ static int cli_bgp_topology_info(cli_ctx_t * ctx, cli_cmd_t * cmd)
 /**
  * context: {}
  * tokens : {prefix}
- * options: {--output=FILE}
+ * options: {--output=FILE,--exact-match,--preserve-dups}
  */
 static int cli_bgp_topology_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -173,6 +201,7 @@ static int cli_bgp_topology_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
   gds_stream_t * stream= gdsout;
   const char * arg= cli_get_arg_value(cmd, 0);
   int result;
+  uint8_t options= 0;
 
   // Destination prefix
   if (str2prefix(arg, &prefix) < 0) {
@@ -190,8 +219,13 @@ static int cli_bgp_topology_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
     }
   }
 
+  if (cli_has_opt_value(cmd, "exact-match"))
+    options|= AS_RECORD_ROUTE_OPT_EXACT_MATCH;
+  if (cli_has_opt_value(cmd, "preserve-dups"))
+    options|= AS_RECORD_ROUTE_OPT_PRESERVE_DUPS;
+
   // Record routes
-  result= aslevel_topo_record_route(stream, prefix);
+  result= aslevel_topo_record_route(stream, prefix, options);
   if (result != ASLEVEL_SUCCESS) {
     cli_set_user_error(cli_get(), "could not record route (%s)",
 		       aslevel_strerror(result));
@@ -283,14 +317,14 @@ static int cli_bgp_topology_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
     }
   }
 
-  result= aslevel_topo_dump_stubs(stream);
+  //  result= aslevel_topo_dump_stubs(stream);
+  result= aslevel_topo_dump(stream);
 
-  if (stream != gdsout) {
+  if (stream != gdsout)
     stream_destroy(&stream);
-  }
 
   if (result != ASLEVEL_SUCCESS) {
-    cli_set_user_error(cli_get(), "could not dump toplogy (%s)",
+    cli_set_user_error(cli_get(), "could not dump topology (%s)",
 		       aslevel_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
@@ -332,6 +366,18 @@ static int cli_bgp_topology_stat(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+// -----[ cli_register_bgp_topology_filter ]-------------------------
+static void _cli_register_bgp_topology_filter(cli_cmd_t * parent)
+{
+  cli_cmd_t * group, *cmd;
+
+  group= cli_add_cmd(parent, cli_cmd_group("filter"));
+  cmd= cli_add_cmd(group, cli_cmd("asn", cli_bgp_topology_filter_asn));
+  cli_add_arg(cmd, cli_arg("asn", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("group", cli_bgp_topology_filter_group));
+  cli_add_arg(cmd, cli_arg("what", NULL));
+}
+
 // ----- cli_register_bgp_topology ----------------------------------
 void cli_register_bgp_topology(cli_cmd_t * parent)
 {
@@ -346,8 +392,7 @@ void cli_register_bgp_topology(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("verbose", NULL));
   cmd= cli_add_cmd(group, cli_cmd("dump", cli_bgp_topology_dump));
   cli_add_opt(cmd, cli_opt("output=", NULL));
-  cmd= cli_add_cmd(group, cli_cmd("filter", cli_bgp_topology_filter));
-  cli_add_arg(cmd, cli_arg("what", NULL));
+  _cli_register_bgp_topology_filter(group);
   cmd= cli_add_cmd(group, cli_cmd("info", cli_bgp_topology_info));
   cmd= cli_add_cmd(group, cli_cmd("install", cli_bgp_topology_install));
   cmd= cli_add_cmd(group, cli_cmd("policies", cli_bgp_topology_policies));
@@ -357,6 +402,8 @@ void cli_register_bgp_topology(cli_cmd_t * parent)
 				  cli_bgp_topology_recordroute));
   cli_add_arg(cmd, cli_arg("prefix", NULL));
   cli_add_opt(cmd, cli_opt("output=", NULL));
+  cli_add_opt(cmd, cli_opt("exact-match", NULL));
+  cli_add_opt(cmd, cli_opt("preserve-dups", NULL));
   /*
   cmd= cli_add_cmd(group, cli_cmd("show-rib", cli_bgp_topology_showrib));
   cmd= cli_add_cmd(group, cli_cmd("route-dp-rule",
