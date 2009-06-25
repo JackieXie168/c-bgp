@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Tests.pm,v 1.13 2009-06-25 14:36:27 bqu Exp $
+# $Id: Tests.pm,v 1.14 2009-06-25 15:14:25 bqu Exp $
 # ===================================================================
 #
 # Usage:
@@ -114,12 +114,13 @@ sub debug($$)
 
 # -----[ new ]-------------------------------------------------------
 # Parameters:
-#   -cache   : 0 to disable loading the cache, 1 to enable loading
-#              the cache
-#   -cbgppath: complete path to C-BGP binary
-#   -debug   : boolean (true => debug information is allowed)
-#   -include : array of test names (if provided, only these tests are
-#              performed)
+#   -cache      : 0 to disable loading the cache, 1 to enable using
+#                 the cached results
+#   -cbgppath   : complete path to C-BGP binary
+#   -debug      : boolean (true => debug information is allowed)
+#   -include    : array of test names (if provided, only these tests
+#                 are performed)
+#   -maxfailures:
 # -------------------------------------------------------------------
 sub new($%)
 {
@@ -153,8 +154,7 @@ sub new($%)
     $self->{'max-failures'}= $args{-maxfailures};
   bless $self, $class;
 
-  ($self->{'cache-enabled'}) and
-    $self->cache_read();
+  $self->cache_read();
 
   return $self;
 }
@@ -249,10 +249,12 @@ sub run($) {
 
     if (!defined($test_func) || !$self->is_included($test_name)) {
       $self->set_result($test_record, TEST_DISABLED);
-      $cache->{$test_name}= TEST_DISABLED;
+      #$cache->{$test_name}= TEST_DISABLED;
     } else {
-      if (!exists($cache->{$test_name}) ||
+      if (!$self->{'cache-enabled'} ||
+	  !exists($cache->{$test_name}) ||
 	  ($cache->{$test_name} != TEST_SUCCESS)) {
+
 	my $result;
 	
 	# Get a C-BGP instance
@@ -319,6 +321,7 @@ sub run($) {
 	show_testing_cache();
       }
     }
+
     if (($self->{'max-failures'} > 0) &&
 	($self->{'num-failures'} >= $self->{'max-failures'})) {
       show_error("Error: too many failures.");
