@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 22/05/2007
-// $Id: record-route.c,v 1.5 2009-03-24 15:49:39 bqu Exp $
+// $Id: record-route.c,v 1.6 2009-06-25 14:27:58 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -20,16 +20,10 @@
 #include <bgp/rib.h>
 
 // -----[ bgp_record_route ]-----------------------------------------
-/**
- * This function records the AS-path from one BGP router towards a
- * given prefix. The function has two modes:
- * - records all ASes
- * - records ASes once (do not record iBGP session crossing)
- */
 int bgp_record_route(bgp_router_t * router,
 		     ip_pfx_t prefix,
 		     bgp_path_t ** path_ref,
-		     int iPreserveDups)
+		     uint8_t options)
 {
   bgp_router_t * cur_router= router;
   bgp_router_t * prev_router= NULL;
@@ -49,13 +43,16 @@ int bgp_record_route(bgp_router_t * router,
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     route= rib_find_one_best(cur_router->loc_rib, prefix);
 #else
-    route= rib_find_best(cur_router->loc_rib, prefix);
+    if (options & AS_RECORD_ROUTE_OPT_EXACT_MATCH)
+      route= rib_find_exact(cur_router->loc_rib, prefix);
+    else
+      route= rib_find_best(cur_router->loc_rib, prefix);
 #endif
     if (route != NULL) {
       
       // Record current node's AS-Num ??
       if ((prev_router == NULL) ||
-	  (iPreserveDups ||
+	  ((options & AS_RECORD_ROUTE_OPT_PRESERVE_DUPS) ||
 	   (prev_router->asn != cur_router->asn))) {
 	if (path_append(&path, cur_router->asn) < 0) {
 	  result= AS_RECORD_ROUTE_TOO_LONG;
