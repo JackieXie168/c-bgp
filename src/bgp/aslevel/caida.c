@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: caida.c,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: caida.c,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -62,7 +62,7 @@ static inline int _caida_relation_to_peer_type(int iRelation,
  * A relationship among two ASes is described in both directions.
  */
 int caida_parser(FILE * file, as_level_topo_t * topo,
-		 unsigned int * line_number)
+		 int * line_number)
 {
   char line[80];
   asn_t asn1, asn2;

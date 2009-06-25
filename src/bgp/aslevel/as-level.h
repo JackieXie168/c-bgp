@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.h,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: as-level.h,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_H__
@@ -91,6 +91,16 @@ extern "C" {
   // -----[ aslevel_topo_add_as ]------------------------------------
   as_level_domain_t * aslevel_topo_add_as(as_level_topo_t * topo,
 					  uint16_t asn);
+
+  // -----[ aslevel_topo_remove_as ]---------------------------------
+  /** Remove an ASN from the topology.
+   *
+   * @param topo is the AS-level topology.
+   * @param asn  is the ASN of the AS to be removed.
+   * @return 0 in case of success, <0 in case of error.
+   */
+  int aslevel_topo_remove_as(as_level_topo_t * topo, asn_t asn);
+
   // -----[ aslevel_top_get_as ]-------------------------------------
   as_level_domain_t *  aslevel_topo_get_as(as_level_topo_t * topo,
 					   uint16_t asn);
@@ -134,11 +144,15 @@ extern "C" {
 
   // -----[ aslevel_topo_load ]--------------------------------------
   int aslevel_topo_load(const char * filename, uint8_t format,
-			uint8_t addr_scheme, unsigned int * line_number);
+			uint8_t addr_scheme, int * line_number);
   // -----[ aslevel_topo_check ]-------------------------------------
   int aslevel_topo_check(int verbose);
-  // -----[ aslevel_topo_filter ]------------------------------------
-  int aslevel_topo_filter(uint8_t filter);
+  // -----[ aslevel_topo_dump ]--------------------------------------
+  int aslevel_topo_dump(gds_stream_t * stream);
+  // -----[ aslevel_topo_filter_as ]---------------------------------
+  int aslevel_topo_filter_as(asn_t asn);
+  // -----[ aslevel_topo_filter_group ]------------------------------
+  int aslevel_topo_filter_group(uint8_t filter);
   // -----[ aslevel_topo_install ]-----------------------------------
   int aslevel_topo_install();
   // -----[ aslevel_topo_policies ]----------------------------------
@@ -152,7 +166,8 @@ extern "C" {
   // -----[ aslevel_topo_dump_stubs ]--------------------------------
   int aslevel_topo_dump_stubs(gds_stream_t * stream);
   // -----[ aslevel_topo_record_route ]--------------------------------
-  int aslevel_topo_record_route(gds_stream_t * stream, ip_pfx_t prefix);
+  int aslevel_topo_record_route(gds_stream_t * stream, ip_pfx_t prefix,
+				uint8_t options);
 
   ///////////////////////////////////////////////////////////////////
   // FILTERS MANAGEMENT

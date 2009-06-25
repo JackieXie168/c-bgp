@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: caida.h,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: caida.h,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_CAIDA_H__
@@ -29,7 +29,7 @@ extern "C" {
 
   // ----- caida_load ---------------------------------------------
   int caida_parser(FILE * file, as_level_topo_t * topo,
-		   unsigned int * line_number);
+		   int * line_number);
 
 #ifdef __cplusplus
 }

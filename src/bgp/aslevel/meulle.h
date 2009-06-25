@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/10/2007
-// $Id: meulle.h,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: meulle.h,v 1.2 2009-06-25 14:31:03 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_MEULLE_H__
@@ -24,7 +24,7 @@ extern "C" {
 
   // -----[ meulle_parser ]-----------------------------------------
   int meulle_parser(FILE * file, as_level_topo_t * topo,
-		    unsigned int * line_number);
+		    int * line_number);
 
 #ifdef __cplusplus
 }
