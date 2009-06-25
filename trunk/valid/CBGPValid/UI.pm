@@ -1,8 +1,8 @@
 # ===================================================================
 # CBGPValid::UI.pm
 #
-# author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/09/2006
+# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# $Id: UI.pm,v 1.2 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::UI;

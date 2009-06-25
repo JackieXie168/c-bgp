@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: cbgp-validation.pl,v 1.45 2009-06-11 13:06:13 bqu Exp $
+# $Id: cbgp-validation.pl,v 1.46 2009-06-25 14:34:49 bqu Exp $
 # ===================================================================
 # Syntax:
 #
@@ -79,6 +79,7 @@ use CBGPValid::UI;
 use CBGPValid::XMLReport;
 use POSIX;
 
+
 use constant CBGP_VALIDATION_VERSION => '1.12';
 
 # -----[ Error messages ]-----
@@ -93,7 +94,6 @@ my $CBGP_ERROR_ROUTE_BAD_IFACE   = "interface is unknown";
 my $CBGP_ERROR_ROUTE_EXISTS      = "route already exists";
 my $CBGP_ERROR_ROUTE_NH_UNREACH  = "next-hop is unreachable";
 my $CBGP_ERROR_ROUTEMAP_EXISTS   = "route-map already exists";
-my $CBGP_ERROR_SUBNET_EXISTS     = "already exists";
 
 use constant MAX_IGP_WEIGHT => 4294967295;
 
@@ -121,7 +121,7 @@ my $validation= {
 		 'program_name'    => $0,
 		 'program_version' => CBGP_VALIDATION_VERSION,
 		 'resources_path'  => '.',
-		 'tmp_path'  => '/tmp',
+		 'tmp_path'        => '/tmp',
 		};
 
 show_info("c-bgp CLI validation v".$validation->{'program_version'});
@@ -150,9 +150,9 @@ if (exists($opts{'help'})) {
 }
 
 if (exists($opts{'cache'}) && !$opts{'cache'}) {
-  $opts{'cache'}= undef;
+  $opts{'cache'}= 0;
 } else {
-  $opts{'cache'}= ".$0.cache";
+  $opts{'cache'}= 1;
 }
 
 (!exists($opts{'cbgp-path'})) and
@@ -239,18 +239,6 @@ sub canonic_prefix($)
       (($network_int >> 16) & 255).".".
 	(($network_int >> 8) & 255).".".
 	  ($network_int & 255)."/$mask";
-  }
-
-# -----[ cbgp_checkpoint ]-------------------------------------------
-# Wait until C-BGP has finished previous treatment...
-# -------------------------------------------------------------------
-sub cbgp_checkpoint($)
-  {
-    my ($cbgp)= @_;
-    $cbgp->send_cmd("print \"CHECKPOINT\\n\"");
-    while ((my $result= $cbgp->expect(1)) ne "CHECKPOINT") {
-      sleep(1);
-    }
   }
 
 # -----[ cbgp_check_error ]------------------------------------------
@@ -1060,6 +1048,8 @@ sub load_tests($) {
 }
 
 # -----[ run_tests ]-------------------------------------------------
+#
+# -------------------------------------------------------------------
 sub run_tests() {
   if ($tests->run() > 0) {
     show_error("".$tests->{'num-failures'}." test(s) failed.");

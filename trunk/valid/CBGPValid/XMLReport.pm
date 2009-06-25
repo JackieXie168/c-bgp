@@ -1,8 +1,8 @@
 # ===================================================================
 # CBGPValid::XMLReport.pm
 #
-# author Bruno Quoitin (bqu@info.ucl.ac.be)
-# lastdate 13/04/2007
+# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# $Id: XMLReport.pm,v 1.3 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::XMLReport;

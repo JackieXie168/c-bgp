@@ -2,7 +2,7 @@
 # CBGPValid::TestConstants.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 11/06/2009
+# $Id: TestConstants.pm,v 1.5 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::TestConstants;
@@ -16,6 +16,8 @@ require Exporter;
 	    TEST_FIELD_RESULT
 	    TEST_FIELD_DURATION
 	    TEST_FIELD_ARGS
+	    TEST_FIELD_DOC
+
 	    TEST_FAILURE
 	    TEST_SUCCESS
 	    TEST_SKIPPED

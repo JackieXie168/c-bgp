@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 11/06/2009
+# $Id: Tests.pm,v 1.13 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 #
 # Usage:
@@ -114,8 +114,8 @@ sub debug($$)
 
 # -----[ new ]-------------------------------------------------------
 # Parameters:
-#   -cache   : filename of the cache file (if not provided, the cache
-#              is disabled)
+#   -cache   : 0 to disable loading the cache, 1 to enable loading
+#              the cache
 #   -cbgppath: complete path to C-BGP binary
 #   -debug   : boolean (true => debug information is allowed)
 #   -include : array of test names (if provided, only these tests are
@@ -125,23 +125,24 @@ sub new($%)
 {
   my ($class, %args)= @_;
   my $self= {
-	     'cache' => {},
-	     'cache-file' => undef,
-	     'cbgp-path' => "cbgp",
-	     'debug' => 0,
-	     'duration' => 0,
-	     'list' => [],
-	     'id' => 0,
-	     'include' => undef,
-	     'max-failures' => 0,
-	     'max-warnings' => 0,
-	     'num-success' => 0,
-	     'num-failures' => 0,
-	     'num-warnings' => 0,
-	     'num-skipped'  => 0,
+	     'cache'         => {},
+	     'cache-enabled' => 0,
+	     'cache-file'    => 'cbgp-valid.cache',
+	     'cbgp-path'     => 'cbgp',
+	     'debug'         => 0,
+	     'duration'      => 0,
+	     'list'          => [],
+	     'id'            => 0,
+	     'include'       => undef,
+	     'max-failures'  => 0,
+	     'max-warnings'  => 0,
+	     'num-success'   => 0,
+	     'num-failures'  => 0,
+	     'num-warnings'  => 0,
+	     'num-skipped'   => 0,
 	    };
   (exists($args{'-cache'})) and
-    $self->{'cache-file'}= $args{'-cache'};
+    $self->{'cache-enabled'}= $args{'-cache'};
   (exists($args{'-cbgppath'})) and
     $self->{'cbgp-path'}= $args{'-cbgppath'};
   (exists($args{'-debug'})) and
@@ -152,7 +153,7 @@ sub new($%)
     $self->{'max-failures'}= $args{-maxfailures};
   bless $self, $class;
 
-  (defined($self->{'cache-file'})) and
+  ($self->{'cache-enabled'}) and
     $self->cache_read();
 
   return $self;
@@ -331,8 +332,7 @@ sub run($) {
     $self->{'num-failures'}, $self->{'num-skipped'},
       $self->{'num-success'};
 
-  (defined($self->{'cache-file'})) and
-    $self->cache_write();
+  $self->cache_write();
 
   return $self->{'num-failures'};
 }

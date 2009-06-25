@@ -5,12 +5,13 @@
 # routes) from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Functions.pm,v 1.6 2009-06-19 14:55:56 bqu Exp $
+# $Id: Functions.pm,v 1.7 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Functions;
 
 require Exporter;
+use CBGPValid::Topologies;
 
 @ISA= qw(Exporter);
 @EXPORT= qw(F_IFACE_ID
@@ -102,6 +103,8 @@ require Exporter;
 	    C_PING_STATUS_NET
 	    C_PING_STATUS_HOST
 
+	    cbgp_checkpoint
+
 	    cbgp_get_links
 	    cbgp_get_ifaces
 	    cbgp_get_rt
@@ -123,6 +126,8 @@ require Exporter;
 
 	    bgp_route_parse_cisco
 	    bgp_route_parse_mrt
+
+	    cbgp_bgp_topology
 	   );
 
 use strict;
@@ -346,6 +351,25 @@ sub cbgp_parse_link($)
   $link[F_LINK_STATE]= $fields[$findex++];
 
   return \@link;
+}
+
+# -----[ cbgp_checkpoint ]-------------------------------------------
+# Wait until C-BGP has finished previous treatment...
+#
+# A second argument can be provided if the function must return all
+# the text that precedes the checkpoint. The second argument must be
+# a reference to an array. Each line of text received will be pushed
+# in this array.
+# -------------------------------------------------------------------
+sub cbgp_checkpoint($;$) {
+  my ($cbgp, $data)= @_;
+  $cbgp->send_cmd("print \"CHECKPOINT\\n\"");
+  while ((my $result= $cbgp->expect(1)) ne "CHECKPOINT") {
+    (defined($data)) and
+      push @$data, ($result);
+    select(undef,undef,undef,0.01); # sleep 1/100th of a second
+    #sleep(1);
+  }
 }
 
 # -----[ cbgp_get_links ]--------------------------------------------
@@ -1142,3 +1166,15 @@ sub cbgp_traceroute($$$)
     $traceroute[F_TRACEROUTE_HOPS]= \@hops;
     return \@traceroute;
   }
+
+# -----[ cbgp_bgp_topology ]-----------------------------------------
+# Obtain the AS-level topology from C-BGP
+# -------------------------------------------------------------------
+sub cbgp_bgp_topology($;$) {
+  my ($cbgp, $addr_sch)= @_;
+  $cbgp->send_cmd("bgp topology dump");
+  my @data;
+  cbgp_checkpoint($cbgp, \@data);
+  return topo_from_subramanian_array(\@data, $addr_sch);
+}
+

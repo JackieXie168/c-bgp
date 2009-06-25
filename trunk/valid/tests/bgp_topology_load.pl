@@ -31,7 +31,7 @@ sub cbgp_valid_bgp_topology_load($) {
 
   (-e $topo_file) or return TEST_SKIPPED;
 
-  my $topo= topo_from_subramanian($topo_file);
+  my $topo= topo_from_subramanian_file($topo_file);
 
   $cbgp->send_cmd("bgp topology load \"$topo_file\"");
   $cbgp->send_cmd("bgp topology install");

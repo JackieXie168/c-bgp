@@ -2,7 +2,7 @@
 # CBGPValid::BaseReport.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# lastdate 11/06/2009
+# $Id: BaseReport.pm,v 1.4 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::BaseReport;

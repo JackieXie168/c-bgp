@@ -5,7 +5,7 @@
 # routes) retrieved from a C-BGP instance.
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Checking.pm,v 1.4 2009-06-19 14:55:56 bqu Exp $
+# $Id: Checking.pm,v 1.5 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
 package CBGPValid::Checking;
@@ -321,6 +321,7 @@ sub __check_info_constraints($$) {
   }
   return 1;
 }
+
 
 #####################################################################
 #
