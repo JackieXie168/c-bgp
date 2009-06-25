@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: net_node.c,v 1.9 2009-03-24 15:58:43 bqu Exp $
+// $Id: net_node.c,v 1.10 2009-06-25 14:32:56 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -319,20 +319,19 @@ static int cli_net_node_traceroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
  * This function adds a new static route to the given node.
  *
  * context: {node}
- * tokens : {prefix, oif (addr|prefix), metric}
- * options: --gw=addr
+ * tokens : {prefix, metric}
+ * options: --gw=addr --oif=addr
  */
 static int cli_net_node_route_add(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg_pfx= cli_get_arg_value(cmd, 0);
-  const char * arg_oif= cli_get_arg_value(cmd, 1);
   const char * arg_metric= cli_get_arg_value(cmd, 2);
   const char * opt;
   net_node_t * node= _node_from_context(ctx);
   ip_pfx_t prefix;
   net_addr_t gateway= NET_ADDR_ANY;
   unsigned long metric;
-  net_iface_id_t oif;
+  net_iface_id_t oif= { .network= IP_ADDR_ANY, .mask= 0 };
   int result;
 
   // Get the route's prefix
@@ -350,12 +349,15 @@ static int cli_net_node_route_add(cli_ctx_t * ctx, cli_cmd_t * cmd)
     }
   }
 
-  // Get the outgoing interface identifier (address/prefix)
-  result= net_iface_str2id(arg_oif, &oif);
-  if (result != ESUCCESS) {
-    cli_set_user_error(cli_get(), "invalid interface \"%s\" (%s)", arg_oif,
-		       network_strerror(result));
-    return CLI_ERROR_COMMAND_FAILED;
+  // Get the outgoing interface identifier (optional)
+  opt= cli_opts_get_value(cmd->opts, "oif");
+  if (opt != NULL) {
+    result= net_iface_str2id(opt, &oif);
+    if (result != ESUCCESS) {
+      cli_set_user_error(cli_get(), "invalid interface \"%s\" (%s)", opt,
+			 network_strerror(result));
+      return CLI_ERROR_COMMAND_FAILED;
+    }
   }
 
   // Get the metric
@@ -669,9 +671,9 @@ static void _register_net_node_route(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_group("route"));
   cmd= cli_add_cmd(group, cli_cmd("add", cli_net_node_route_add));
   cli_add_arg(cmd, cli_arg("prefix", NULL));
-  cli_add_arg(cmd, cli_arg("iface", NULL));
   cli_add_arg(cmd, cli_arg("weight", NULL));
   cli_add_opt(cmd, cli_opt("gw=", NULL));
+  cli_add_opt(cmd, cli_opt("oif=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("del", cli_net_node_route_del));
   cli_add_arg(cmd, cli_arg("prefix", NULL));
   cli_add_arg(cmd, cli_arg("iface", NULL));
