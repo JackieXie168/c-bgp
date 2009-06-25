@@ -10,12 +10,14 @@
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // 
 // @date 20/02/2004
-// $Id: mrtd.c,v 1.27 2009-04-02 19:13:44 bqu Exp $
+// $Id: mrtd.c,v 1.28 2009-06-25 14:26:46 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#define _GNU_SOURCE
 
 #include <assert.h>
 #include <stdarg.h>
@@ -118,7 +120,7 @@ static inline void _set_user_error(const char * format, ...)
     free(_user_error);
 
   va_start(ap, format);
-  vasprintf(&_user_error, format, ap);
+  assert(vasprintf(&_user_error, format, ap) >= 0);
   va_end(ap);
 }
 
