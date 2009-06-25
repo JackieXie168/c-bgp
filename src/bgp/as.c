@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 22/11/2002
-// $Id: as.c,v 1.78 2009-04-02 19:12:27 bqu Exp $
+// $Id: as.c,v 1.79 2009-06-25 14:25:36 bqu Exp $
 // ==================================================================
 // TO-DO LIST:
 // - do not keep in local_nets a _copy_ of the BGP routes locally
@@ -2647,7 +2647,7 @@ int bgp_router_load_rib(bgp_router_t * router, const char * filename,
     return result;
 
   // Show summary
-  if (1 || options & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
+  if (options & BGP_ROUTER_LOAD_OPTIONS_SUMMARY) {
     stream_printf(gdsout, "Source: %s\n", filename);
     stream_printf(gdsout, "Routes loaded         : %u\n", sCtx.routes_ok);
     stream_printf(gdsout, "Routes with bad target: %u\n", sCtx.routes_bad_target);
