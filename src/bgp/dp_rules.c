@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 13/11/2002
-// $Id: dp_rules.c,v 1.22 2009-03-24 14:20:33 bqu Exp $
+// $Id: dp_rules.c,v 1.23 2009-08-04 06:06:10 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -729,7 +729,8 @@ int dp_rule_shortest_cluster_list(bgp_router_t * router, bgp_routes_t * routes)
 {
   bgp_route_t * route;
   unsigned int index;
-  uint8_t uMinLen= 255;
+  uint8_t len;
+  uint8_t min_len= 255;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   SIntArray * piNextHopCounter = dp_rule_nexthop_counter_create();
   int iNextHopCount;
@@ -739,16 +740,18 @@ int dp_rule_shortest_cluster_list(bgp_router_t * router, bgp_routes_t * routes)
   for (index= 0; index < bgp_routes_size(routes); index++) {
     route= bgp_routes_at(routes, index);
     if (route->attr->cluster_list == NULL)
-      uMinLen= 0;
+      len= 0;
     else
-      uMinLen= cluster_list_length(route->attr->cluster_list);    
+      len= cluster_list_length(route->attr->cluster_list);
+    if (len < min_len)
+      min_len= len;
   }
   // Discard routes with a longer cluster-ID-list
   index= 0;
   while (index < bgp_routes_size(routes)) {
     route= bgp_routes_at(routes, index);
     if ((route->attr->cluster_list != NULL) &&
-	(cluster_list_length(route->attr->cluster_list) > uMinLen))
+	(cluster_list_length(route->attr->cluster_list) > min_len))
       ptr_array_remove_at(routes, index);
     else
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
