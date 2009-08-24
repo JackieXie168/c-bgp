@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.57 2009-06-25 14:34:20 bqu Exp $
+// $Id: bgp.c,v 1.58 2009-08-24 09:55:15 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -789,8 +789,8 @@ static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   arg= cli_get_arg_value(cmd, 2);
   if (!strcmp(arg, "*")) {
     prefix.mask= 0;
-  } else if (str2prefix(arg, &prefix)) {
-  } else if (str2address(arg, &prefix.network)) {
+  } else if (!str2prefix(arg, &prefix)) {
+  } else if (!str2address(arg, &prefix.network)) {
     prefix.mask= 32;
   } else {
     cli_set_user_error(cli_get(), "invalid prefix|address|* \"%s\"", arg);
