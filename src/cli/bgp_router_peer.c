@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @date 27/02/2008
-// $Id: bgp_router_peer.c,v 1.4 2009-03-24 15:58:43 bqu Exp $
+// $Id: bgp_router_peer.c,v 1.5 2009-08-24 10:33:30 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -39,28 +39,11 @@ static int cli_ctx_create_peer(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** item)
   bgp_peer_t * peer;
   const char * arg= cli_get_arg_value(cmd, 0);
   net_addr_t addr;
-  asn_t asn;
-  as_level_topo_t * topo;
 
-  if (!strncmp("AS", arg, 2)) {
-    arg+= 2;
-    if (str2asn(arg, &asn)) {
-      cli_set_user_error(cli_get(), "invalid AS number \"%s\"", arg);
-      return CLI_ERROR_CTX_CREATE;
-    }
-    topo= aslevel_get_topo();
-    if (topo == NULL) {
-      cli_set_user_error(cli_get(), "no AS-level topology loaded. "
-			 "Can't use ASN id \"%s\"", asn);
-      return CLI_ERROR_CTX_CREATE;
-    }
-    addr= topo->addr_mapper(asn);
-  } else {
-    // Get the peer address
-    if (str2address(arg, &addr) < 0) {
-      cli_set_user_error(cli_get(), "invalid peer address \"%s\"", arg);
-      return CLI_ERROR_CTX_CREATE;
-    }
+  // Get the peer ID (address, ASN, ...)
+  if (str2addr_id(arg, &addr)) {
+    cli_set_user_error(cli_get(), "invalid peer address \"%s\"", arg);
+    return CLI_ERROR_CTX_CREATE;
   }
 
   // Get the peer

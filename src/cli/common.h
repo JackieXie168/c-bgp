@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// $Id: common.h,v 1.7 2009-03-24 15:58:43 bqu Exp $
+// $Id: common.h,v 1.8 2009-08-24 10:33:30 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_COMMON_H__
@@ -18,10 +18,14 @@
 extern "C" {
 #endif
 
+  // -----[ str2addr_id ]--------------------------------------------
+  int str2addr_id(const char * id, net_addr_t * addr);
   // -----[ str2node ]-----------------------------------------------
   int str2node(const char * addr, net_node_t ** node);
   // -----[ str2node_id ]--------------------------------------------
   int str2node_id(const char * id, net_node_t ** node);
+  // -----[ str2dest_id ]--------------------------------------------
+  int str2dest_id(const char * str, ip_dest_t * dest);
   // -----[ str2subnet ]---------------------------------------------
   int str2subnet(const char * str, net_subnet_t ** subnet);
 
