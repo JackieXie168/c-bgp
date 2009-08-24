@@ -52,5 +52,17 @@ sub cbgp_valid_bgp_router_show_adj_rib($) {
   return TEST_FAILURE
     if (!check_has_error($msg, "invalid adj-rib side"));
 
+  # Try to get adj-rib with an invalid prefix
+  $msg= cbgp_check_error($cbgp, "bgp router 1.0.0.0 show adj-rib in * xxx");
+  return TEST_FAILURE
+    if (!check_has_error($msg, "invalid prefix\|address\|[*]"));
+
+  # Try to get adj-rib with a valid prefix
+  $rib= cbgp_get_rib_in($cbgp, '1.0.0.0', '2.0.0.1', '255/8');
+  return TEST_FAILURE if (scalar(values %$rib) != 1);
+  return TEST_FAILURE
+    if (!check_has_bgp_route($rib, "255/8",
+			     -nexthop=>"2.0.0.1"));
+
   return TEST_SUCCESS;
 }
