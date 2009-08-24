@@ -47,5 +47,10 @@ sub cbgp_valid_bgp_router_show_adj_rib($) {
   return TEST_FAILURE
     if (!check_has_error($msg, "invalid peer address"));
 
+  # Try to get adj-rib with invalid direction
+  $msg= cbgp_check_error($cbgp, "bgp router 1.0.0.0 show adj-rib xxx * *");
+  return TEST_FAILURE
+    if (!check_has_error($msg, "invalid adj-rib side"));
+
   return TEST_SUCCESS;
 }
