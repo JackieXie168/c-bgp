@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.58 2009-08-24 09:55:15 bqu Exp $
+// $Id: bgp.c,v 1.59 2009-08-24 10:33:30 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +51,7 @@
 #include <net/prefix.h>
 #include <net/util.h>
 #include <string.h>
+#include <bgp/aslevel/as-level.h>
 
 // ----- cli_bgp_add_router -----------------------------------------
 /**
@@ -774,7 +775,7 @@ static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   arg= cli_get_arg_value(cmd, 1);
   if (!strcmp(arg, "*")) {
     peer= NULL;
-  } else if (!str2address(arg, &peer_addr)) {
+  } else if (!str2addr_id(arg, &peer_addr)) {
     peer= bgp_router_find_peer(router, peer_addr);
     if (peer == NULL) {
       cli_set_user_error(cli_get(), "unknown peer \"%s\"", arg);

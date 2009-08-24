@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// $Id: common.c,v 1.30 2009-03-24 15:58:43 bqu Exp $
+// $Id: common.c,v 1.31 2009-08-24 10:33:30 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -191,6 +191,30 @@ int parse_version(const char * str, unsigned int * version)
   return 0;
 }
 
+// -----[ str2addr_id ]----------------------------------------------
+/**
+ * Return an IP address identifier based on a string. The string can
+ * contain the dotted version of the IP address or "AS" followed by
+ * an ASN in case AS-level topologies are used.
+ */
+int str2addr_id(const char * id, net_addr_t * addr)
+{
+  asn_t asn;
+  as_level_topo_t * topo;
+
+  if (strncmp("AS", id, 2))
+    return str2address(id, addr);
+
+  id+= 2;
+  if (str2asn(id, &asn))
+    return -1;
+  topo= aslevel_get_topo();
+  if (topo == NULL)
+    return -1;
+  *addr= topo->addr_mapper(asn);
+  return 0;
+}
+
 // -----[ str2node ]-------------------------------------------------
 int str2node(const char * str, net_node_t ** node)
 {
@@ -226,6 +250,28 @@ int str2node_id(const char * str, net_node_t ** node)
   *node= network_find_node(network_get_default(), addr);
   if (*node == NULL)
     return -1;
+  return 0;
+}
+
+// -----[ str2dest_id ]----------------------------------------------
+int str2dest_id(const char * str, ip_dest_t * dest)
+{
+  as_level_topo_t * topo;
+  unsigned int asn;
+
+  // Classical destination (address / prefix)
+  if (strncmp("AS", str, 2))
+    return ip_string_to_dest(str, dest);
+
+  // ASN destination
+  str+= 2;
+  if (str_as_uint(str, &asn))
+    return -1;
+  topo= aslevel_get_topo();
+  if (topo == NULL)
+    return -1;
+  dest->type= NET_DEST_ADDRESS;
+  dest->addr= topo->addr_mapper(asn);
   return 0;
 }
 
