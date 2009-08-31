@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)IGPDomain.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 17/03/2006
-// @lastdate 17/03/2006
+// $Id: IGPDomain.java,v 1.5 2009-08-31 09:44:52 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.net; 
@@ -88,7 +88,7 @@ public class IGPDomain extends ProxyObject
      * Converts this IGPDomain to a String.
      */
     public String toString() {
-    	return "Domain "+id+" (type:"+typeToString(type)+")";
+    	return "Domain "+id;
     }
 
 }

@@ -2,7 +2,7 @@
 # CBGPValid::TestConstants.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: TestConstants.pm,v 1.5 2009-06-25 14:36:27 bqu Exp $
+# $Id: TestConstants.pm,v 1.6 2009-08-31 09:49:29 bqu Exp $
 # ===================================================================
 
 package CBGPValid::TestConstants;
@@ -22,6 +22,7 @@ require Exporter;
 	    TEST_SUCCESS
 	    TEST_SKIPPED
 	    TEST_DISABLED
+	    TEST_MISSING
 	    TEST_CRASHED
 	    TEST_TODO
 	    TEST_RESULT_MSG
@@ -42,14 +43,16 @@ use constant TEST_FAILURE  => 0;
 use constant TEST_SUCCESS  => 1;
 use constant TEST_SKIPPED  => 2;
 use constant TEST_DISABLED => 3;
-use constant TEST_CRASHED  => 4;
-use constant TEST_TODO     => 5;
+use constant TEST_MISSING  => 4; # Missing resource
+use constant TEST_CRASHED  => 5;
+use constant TEST_TODO     => 6;
 
 use constant TEST_RESULT_MSG => {
 				 TEST_FAILURE()  => "FAILURE",
 				 TEST_SUCCESS()  => "SUCCESS",
 				 TEST_SKIPPED()  => "SKIPPED",
 				 TEST_DISABLED() => "DISABLED",
+				 TEST_MISSING() => "MISSING",
 				 TEST_CRASHED()  => "CRASHED",
 				 TEST_TODO()     => "TO-DO",
 				};

@@ -1,60 +1,53 @@
 // ==================================================================
 // @(#)Route.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/02/2005
-// @lastdate 08/02/2005
+// $Id: Route.java,v 1.3 2009-08-31 09:40:35 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
+
 
 // -----[ Route ]----------------------------------------------------
 /**
  * This is a basic implementation of the RouteInterface.
  */
-public class Route
-{
+public class Route {
 
-    // -----[ protected attributes of the route ]--------------------
-    protected IPPrefix prefix= null;
-    protected IPAddress nexthop= null;
-    protected IPAddress gateway= null;
-    protected boolean bBest;
-    protected boolean bFeasible;
-
-    // -----[ Route ]------------------------------------------------
-    public Route(IPPrefix prefix, IPAddress nexthop, IPAddress gateway,
-		 boolean bBest, boolean bFeasible) {
+    // -----[ protected attributes of the route ]-------------------
+    protected final IPPrefix prefix;
+    protected final RouteEntry [] entries;
+    
+    // -----[ Route ]-----------------------------------------------
+    public Route(IPPrefix prefix, RouteEntry [] entries) {
     	this.prefix= prefix;
-    	this.nexthop= nexthop;
-    	this.gateway= gateway;
-    	this.bBest= bBest;
-    	this.bFeasible= bFeasible;
+    	this.entries= entries;
     }
 
-    // -----[ isBest ]-----------------------------------------------
-    public boolean isBest() {
-    	return bBest;
-    }
-
-    // -----[ isFeasible ]-------------------------------------------
-    public boolean isFeasible() {
-    	return bFeasible;
-    }
-
-    // -----[ getNexthop ]-------------------------------------------
-    public IPAddress getNexthop() {
-    	return nexthop;
+    // -----[ getOutIface ]-----------------------------------------
+    public IPAddress getOutIface() {
+    	return entries[0].oif;
     }
     
-    // -----[ getGateway ]-------------------------------------------
+    // -----[ getGateway ]------------------------------------------
     public IPAddress getGateway() {
-    	return gateway;
+    	return entries[0].gateway;
     }
 
-    // -----[ getPrefix ]--------------------------------------------
+    // -----[ getPrefix ]-------------------------------------------
     public IPPrefix getPrefix() {
     	return prefix;
     }
-
+    
+    // -----[ getEntries ]------------------------------------------
+    public RouteEntry [] getEntries() {
+    	return entries;
+    }
+    
+    // -----[ getEntriesCount ]-------------------------------------
+    public int getEntriesCount() {
+    	return entries.length;
+    }
+    
 }

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 4/07/2003
-// $Id: network.c,v 1.58 2009-03-24 16:20:17 bqu Exp $
+// $Id: network.c,v 1.59 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +51,7 @@ static int _network_debug_for_each(gds_stream_t * stream, void * context,
   net_addr_t addr;
   net_msg_t * msg;
   net_iface_t * iface;
+  rt_entry_t * rtentry;
   int error;
 
   switch (format) {
@@ -75,6 +76,10 @@ static int _network_debug_for_each(gds_stream_t * stream, void * context,
   case 'n':
     node= va_arg(*ap, net_node_t *);
     node_dump_id(stream, node);
+    break;
+  case 'r':
+    rtentry= va_arg(*ap, rt_entry_t *);
+    rt_entry_dump(stream, rtentry);
     break;
   }
   return 0;
@@ -610,10 +615,15 @@ net_error_t node_send(net_node_t * node, net_msg_t * msg,
   if (error != ESUCCESS)
     return error;
 
+  if (rtentries != NULL)
+    ___network_debug("SEND rtentry=%r\n", rtentries->data[0]);
+
   // Check source address (if specified, must belong to node)
+  /*
   if ((msg->src_addr != IP_ADDR_ANY) &&
       (node_has_address(node, msg->src_addr) == NULL))
     return ENET_IFACE_UNKNOWN;
+  */
 
   // Local delivery ?
   if (rtentries == NULL) {
@@ -658,7 +668,7 @@ net_error_t node_send_msg(net_node_t * node,
   // Build "IP" message
   msg= message_create(src_addr, dst_addr, proto, ttl, payload, f_destroy);
   message_set_options(msg, opts);
-
+  
   return node_send(node, msg, NULL, sim);
 }
 

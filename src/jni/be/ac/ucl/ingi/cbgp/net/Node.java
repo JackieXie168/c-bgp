@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)Node.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 28/02/2006
-// @lastdate 30/05/2007
+// $Id: Node.java,v 1.11 2009-08-31 09:44:52 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.net; 
@@ -89,8 +89,7 @@ public class Node extends Element {
     /**
      * Returns the node's name.
      */
-    public native String getName()
-    	throws CBGPException;
+    public native String getName();
     
     // -----[ setName ]----------------------------------------------
     /**
@@ -130,7 +129,7 @@ public class Node extends Element {
      * Records the IP-level route from this node towards the given
      * destination address.
      */
-    public native synchronized IPTrace recordRoute(String sDstAddr)
+    public native synchronized Vector<IPTrace> recordRoute(String dst)
 		throws CBGPException;
 
     // -----[ traceRoute ]-------------------------------------------
@@ -138,7 +137,7 @@ public class Node extends Element {
      * Traces the IP-level route from this node towards the given
      * destination address.
      */
-    public native synchronized IPTrace traceRoute(String sDstAddr)
+    public native synchronized IPTrace traceRoute(String dst)
 		throws CBGPException;
     
     // -----[ getAddresses ]-----------------------------------------
@@ -219,9 +218,7 @@ public class Node extends Element {
     	String s= "";
     	String name= null;
     	s+= address;
-    	try {
-    		name= getName();
-    	} catch (CBGPException e) {}
+    	name= getName();
     	if (name != null)
 			s+= " (name: \""+name+"\")";
 		return s;

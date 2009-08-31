@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.c,v 1.18 2009-03-24 16:20:59 bqu Exp $
+// $Id: node.c,v 1.19 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -516,22 +516,35 @@ void node_addresses_dump(gds_stream_t * stream, net_node_t * node)
  * have a direct link towards the given next-hop address. The weight
  * of the route can be specified as it can be different from the
  * outgoing link's weight.
+ *
+ * \param node    is the node were the route is installed.
+ * \param pfx     is the route's destination prefix.
+ * \param oif_id  is the outgoing interface identifier. It can be set
+ *                to IP_ADDR_ANY.
+ * \param gateway is the route's gateway. It can be set to
+ *                IP_ADDR_ANY.
+ * \param weight  is the route's metric.
+ * \param type    is the route's type.
+ * \retval ESUCCESS in case of success or a negative error code in
+ *         case of error.
  */
 int node_rt_add_route(net_node_t * node, ip_pfx_t pfx,
 		      net_iface_id_t oif_id, net_addr_t gateway,
 		      uint32_t weight, uint8_t type)
 {
-  net_iface_t * oif;
+  net_iface_t * oif= NULL;
 
   // Lookup the next-hop's interface (no recursive lookup is allowed,
   // it must be a direct link !)
-  oif= node_find_iface(node, oif_id);
-  if (oif == NULL)
-    return ENET_IFACE_UNKNOWN;
+  if (oif_id.network != IP_ADDR_ANY) {
+    oif= node_find_iface(node, oif_id);
+    if (oif == NULL)
+      return ENET_IFACE_UNKNOWN;
 
-  // The interface cannot be a loopback interface
-  if (oif->type == NET_IFACE_LOOPBACK)
-    return ENET_IFACE_INCOMPATIBLE;
+    // The interface cannot be a loopback interface
+    if (oif->type == NET_IFACE_LOOPBACK)
+      return ENET_IFACE_INCOMPATIBLE;
+  }
 
   return node_rt_add_route_link(node, pfx, oif, gateway,
 				weight, type);
@@ -555,7 +568,7 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
 
   // If a next-hop has been specified, check that it is reachable
   // through the given interface.
-  if (gateway != 0) {
+  if ((gateway != IP_ADDR_ANY) && (oif != NULL)) {
     switch (oif->type) {
     case NET_IFACE_RTR:
       if (oif->dest.iface->owner->rid != gateway)
@@ -719,15 +732,16 @@ int node_belongs_to_igp_domain(net_node_t * node, uint16_t id)
 // -----[ node_load_flow ]-------------------------------------------
 int node_load_flow(net_node_t * node, net_addr_t src_addr,
 		   net_addr_t dst_addr, unsigned int bytes,
-		   flow_stats_t * stats, ip_trace_t ** trace_ref)
+		   flow_stats_t * stats, ip_trace_t ** trace_ref,
+		   ip_opt_t * opts)
 {
-  ip_opt_t * opts;
   ip_trace_t * trace;
   net_error_t result= ESUCCESS;
 
   flow_stats_count(stats, bytes);
 
-  opts= ip_options_create();
+  if (opts == NULL)
+    opts= ip_options_create();
   ip_options_load(opts, bytes);
   icmp_trace_send(node, dst_addr, 255, opts, &trace);
 
@@ -765,8 +779,8 @@ typedef struct {
 } _netflow_ctx_t;
 
 // -----[ _node_netflow_handler ]------------------------------------
-static int _node_netflow_handler(net_addr_t src_addr, net_addr_t dst_addr,
-				 unsigned int bytes, void * context)
+static int _node_netflow_handler(flow_t * flow, flow_field_map_t * map,
+				 void * context)
 {
   _netflow_ctx_t * ctx= (_netflow_ctx_t *) context;
   net_node_t * node= ctx->target_node;
@@ -774,14 +788,16 @@ static int _node_netflow_handler(net_addr_t src_addr, net_addr_t dst_addr,
 
   if (ctx->options & NET_NODE_NETFLOW_OPTIONS_DETAILS) {
     stream_printf(gdsout, "src:");
-    ip_address_dump(gdsout, src_addr);
+    ip_address_dump(gdsout, flow->src_addr);
     stream_printf(gdsout, " dst:");
-    ip_address_dump(gdsout, dst_addr);
-    stream_printf(gdsout, " octets:%u ", bytes);
+    ip_address_dump(gdsout, flow->dst_addr);
+    if (flow_field_map_isset(map, FLOW_FIELD_DST_MASK))
+      stream_printf(gdsout, "/%u", flow->dst_mask);
+    stream_printf(gdsout, " octets:%u ", flow->bytes);
   }
 
-  if (node_load_flow(node, src_addr, dst_addr,
-		     bytes, ctx->stats, &trace) < 0) {
+  if (node_load_flow(node, flow->src_addr, flow->dst_addr,
+		     flow->bytes, ctx->stats, &trace, NULL) < 0) {
     if (ctx->options & NET_NODE_NETFLOW_OPTIONS_DETAILS)
       stream_printf(gdsout, "failed\n");
     return NETFLOW_ERROR;
@@ -806,7 +822,14 @@ int node_load_netflow(net_node_t * node, const char * filename,
     .options    = options,
     .stats      = stats,
   };
-  return netflow_load(filename, _node_netflow_handler, &ctx);
+  flow_field_map_t map;
+
+  flow_field_map_init(&map);
+  flow_field_map_set(&map, FLOW_FIELD_SRC_IP);
+  flow_field_map_set(&map, FLOW_FIELD_DST_IP);
+  flow_field_map_set(&map, FLOW_FIELD_OCTETS);
+
+  return netflow_load(filename, &map, _node_netflow_handler, &ctx);
 }
 
 

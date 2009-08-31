@@ -6,7 +6,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be), 
 //
 // @date 27/04/2007
-// $Id: enum.h,v 1.6 2009-03-24 15:58:43 bqu Exp $
+// $Id: enum.h,v 1.7 2009-08-31 09:37:41 bqu Exp $
 // ==================================================================
 
 #ifndef __CLI_ENUM_H__
@@ -21,6 +21,8 @@ extern "C" {
 
   // -----[ cli_enum_net_nodes ]-------------------------------------
   net_node_t * cli_enum_net_nodes(const char * text, int state);
+  // -----[ cli_enum_net_nodes_id ]----------------------------------
+  net_node_t * cli_enum_net_nodes_id(const char * text, int state);
   // -----[ cli_enum_bgp_routers ]-----------------------------------
   bgp_router_t * cli_enum_bgp_routers(const char * text, int state);
   // -----[ cli_enum_bgp_peers ]-------------------------------------
@@ -28,8 +30,12 @@ extern "C" {
 
   // -----[ cli_enum_net_nodes_addr ]--------------------------------
   char * cli_enum_net_nodes_addr(const char * text, int state);
+  // -----[ cli_enum_net_nodes_addr_id ]-----------------------------
+  char * cli_enum_net_nodes_addr_id(const char * text, int state);
   // -----[ cli_enum_bgp_routers_addr ]------------------------------
   char * cli_enum_bgp_routers_addr(const char * text, int state);
+  // -----[ cli_enum_bgp_routers_addr_id ]---------------------------
+  char * cli_enum_bgp_routers_addr_id(const char * text, int state);
   // -----[ cli_enum_bgp_peers_addr ]--------------------------------
   char * cli_enum_bgp_peers_addr(const char * text, int state);
 

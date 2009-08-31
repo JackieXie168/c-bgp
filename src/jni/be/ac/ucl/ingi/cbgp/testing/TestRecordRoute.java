@@ -1,7 +1,16 @@
+// ==================================================================
+// @(#)TestRecordRoute.java
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// $Id: TestRecordRoute.java,v 1.2 2009-08-31 09:46:14 bqu Exp $
+// ==================================================================
+
 package be.ac.ucl.ingi.cbgp.testing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+
+import java.util.Vector;
 
 import org.junit.After;
 import org.junit.Before;
@@ -39,11 +48,13 @@ public class TestRecordRoute {
 	
 	@Test
 	public void testBasic() throws CBGPException {
-		IPTrace trace= node1.recordRoute("1.0.0.2");
+		Vector<IPTrace> traces= node1.recordRoute("1.0.0.2");
+		IPTrace trace= traces.get(0);
 		assertNotNull(trace);
 		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
 		assertEquals((int) 2, trace.getElementsCount());
-		trace= node1.recordRoute("1.0.0.3");
+		traces= node1.recordRoute("1.0.0.3");
+		trace= traces.get(0);
 		assertNotNull(trace);
 		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
 		assertEquals((int) 3, trace.getElementsCount());

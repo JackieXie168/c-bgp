@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)BGPPeer.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 11/02/2005
-// @lastdate 01/10/2007
+// $Id: Peer.java,v 1.9 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp;

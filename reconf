@@ -141,6 +141,8 @@ if test $? != 0; then
   EXIT_CODE=$EXIT_FAILURE
 fi
 
+touch config.status
+
 # *** Finished ***
 echo "DONE."
 exit $EXIT_CODE

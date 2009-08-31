@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)IPTrace.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 18/02/2004
-// @lastdate 30/05/2007
+// $Id: IPTrace.java,v 1.9 2009-08-31 09:40:35 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -11,7 +11,7 @@ package be.ac.ucl.ingi.cbgp;
 import java.util.Collection;
 import java.util.Vector;
 
-import be.ac.ucl.ingi.cbgp.net.Node;
+import be.ac.ucl.ingi.cbgp.net.Element;
 
 // -----[ IPTrace ]--------------------------------------------------
 /**
@@ -33,19 +33,19 @@ public class IPTrace {
     public static final int IP_TRACE_ICMP_NET_UNREACH  = -9;
 
     // -----[ protected attributes ]---------------------------------
-    protected Node src;
-    protected IPAddress dst;
-    protected int status;
-    protected Vector<IPTraceElement> elements;
+    protected final int status;
+    protected final long delay;
+    protected final long capacity;
+    protected final Vector<IPTraceElement> elements;
 
     // -----[ IPTrace ]----------------------------------------------
     /**
      * IPTrace's constructor.
      */
-    private IPTrace(Node src, IPAddress dst, int status) {
-    	this.src= src;
-    	this.dst= dst;
+    private IPTrace(int status, long delay, long capacity) {
     	this.status= status;
+    	this.delay= delay;
+    	this.capacity= capacity;
     	elements= new Vector<IPTraceElement>();
     }
 
@@ -57,23 +57,6 @@ public class IPTrace {
     @SuppressWarnings("unused")
 	private void append(IPTraceElement element) {
     	elements.add(element);
-    }
-
-    // -----[ appendWithInfo ]---------------------------------------
-    /**
-     * Add an element to the trace. This methid is privately used by
-     * the JNI.
-     */
-    private void appendWithInfo(IPTraceElement element, LinkMetrics metrics,
-			       int iStatus) {
-    	elements.add(element);
-
-    	// Add hop metrics
-    	/*
-    	if (hopsMetrics == null)
-    		hopsMetrics= new Vector<LinkMetrics>();
-    	metrics.setMetric("status", new Integer(iStatus));
-    	hopsMetrics.add(metrics);*/
     }
 
     // -----[ getElementAt ]----------------------------------------
@@ -139,8 +122,9 @@ public class IPTrace {
     /**
      *
      */
-    public static String statusToString(int iStatus) {
-    	switch (iStatus) {
+    public static String statusToString(int status) {
+    	//CBGPStatic.getErrorMsg(status);
+    	switch (status) {
     	case IP_TRACE_SUCCESS:
     		return "SUCCESS";
     	case IP_TRACE_TOO_LONG:
@@ -169,14 +153,13 @@ public class IPTrace {
      * Convert the trace to a String.
      */
     public String toString() {
-    	String s= src.getAddress().toString();
-    	s+= "\t";
-    	s+= dst;
-    	s+= "\t";
-    	s+= statusToString(status);
-    	s+= "\t";
+    	String s= "";
     	for (IPTraceElement el: elements) {
-    		s+= el.toString();
+    		Element net_el= el.getElement();
+    		if (net_el != null)
+    			s+= net_el.toString();
+    		else
+    			s+= el.toString();
     		s+= " ";
     	}
 

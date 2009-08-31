@@ -1,3 +1,10 @@
+// ==================================================================
+// @(#)TestSession.java
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// $Id: TestSession.java,v 1.2 2009-08-31 09:46:14 bqu Exp $
+// ==================================================================
+
 package be.ac.ucl.ingi.cbgp.testing;
 
 import static org.junit.Assert.assertTrue;
@@ -15,7 +22,7 @@ public class TestSession {
 		CBGP cbgp= new CBGP();
 		try {
 			cbgp.init(null);
-			assertTrue(cbgp.getVersion().startsWith("1.5."));
+			assertTrue(cbgp.getVersion().startsWith("2.0"));
 			cbgp.destroy();
 		} catch (CBGPException e) {
 			fail();

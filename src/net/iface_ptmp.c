@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 19/02/2008
-// $Id: iface_ptmp.c,v 1.6 2009-03-24 16:11:45 bqu Exp $
+// $Id: iface_ptmp.c,v 1.7 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -37,8 +37,10 @@ static net_error_t _net_iface_ptmp_send(net_iface_t * self,
   error= ip_opt_hook_msg_subnet(subnet, msg, &reached);
   if (error != ESUCCESS)
     return error;
-  if (reached)
+  if (reached) {
+    message_destroy(&msg);
     return ESUCCESS;
+  }
 
   // Find destination node (based on "physical address")
   dst_iface= net_subnet_find_link(subnet, l2_addr);

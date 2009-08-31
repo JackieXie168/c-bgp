@@ -6,7 +6,7 @@
 # order to detect erroneous behaviour.
 #
 # @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: cbgp-validation.pl,v 1.46 2009-06-25 14:34:49 bqu Exp $
+# $Id: cbgp-validation.pl,v 1.47 2009-08-31 09:49:12 bqu Exp $
 # ===================================================================
 # Syntax:
 #
@@ -132,13 +132,16 @@ if (!GetOptions(\%opts,
 		"cbgp-path:s",
 		"cache!",
 		"debug!",
+		"glibtool!",
 		"help!",
+		"libtool!",
 		"max-failures:i",
 		"max-warnings:i",
 		"include:s@",
 		"report:s",
 	        "report-prefix:s",
-		"resources-path:s")) {
+		"resources-path:s",
+	        "valgrind!")) {
   show_error("Invalid command-line options");
   exit(-1);
 }
@@ -172,7 +175,10 @@ my $tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
 				 -cache=>$opts{'cache'},
 				 -cbgppath=>$opts{'cbgp-path'},
 				 -include=>$opts{'include'},
-				 -maxfailures=>$max_failures);
+				 -maxfailures=>$max_failures,
+				 -valgrind=>$opts{'valgrind'},
+				 -libtool=>$opts{'libtool'},
+				 -glibtool=>$opts{'glibtool'});
 CBGPValid::Checking::set_tests($tests);
 CBGPValid::Topologies::set_tests($tests);
 

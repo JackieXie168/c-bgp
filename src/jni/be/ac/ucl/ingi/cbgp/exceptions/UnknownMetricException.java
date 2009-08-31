@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)UnknownMetricException.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/05/2007
-// @lastdate 30/05/2007
+// $Id: UnknownMetricException.java,v 1.2 2009-08-31 09:44:07 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.exceptions; 

@@ -11,12 +11,14 @@
 
   Support for gzip added by Bernhard Tellenbach <bernhard.tellenbach@gmail.com>
 
-  $Revision: 1.1 $ $Date: 2008-01-25 11:27:19 $
+  $Revision: 1.2 $ $Date: 2009-08-31 09:38:29 $
    
 */
 
 #define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
+
+#include <assert.h>
 
 //#ifndef DONT_HAVE_BZ2
 //#include <bzlib.h>
@@ -479,32 +481,32 @@ char * cfr_strerror(CFRFILE *stream) {
   char * msg, * msg2;
 
   if (stream == NULL) {
-    asprintf(&msg,"Error: stream is NULL, i.e. not opened");
+    assert(asprintf(&msg,"Error: stream is NULL, i.e. not opened") >= 0);
     return(msg);
   }
 
-  asprintf(&msg,
+  assert(asprintf(&msg,
            "stream-i/o: %s, %s  [%s]",
            stream->eof?"EOF":"",
            strerror(stream->error1),
-           cfr_compressor_str(stream));
+           cfr_compressor_str(stream)) >= 0);
   if (stream->format == 2) {
-    asprintf(&msg2, 
+    assert(asprintf(&msg2, 
              "%s: %s",
              msg, 
-             _cfr_compressor_strerror(stream->format, stream->error2));
+             _cfr_compressor_strerror(stream->format, stream->error2)) >= 0);
     free(msg);
     msg = msg2;
   } 
   if (stream->format == 3) {
-    asprintf(&msg2, 
+    assert(asprintf(&msg2, 
              "%s: %s",
              msg, 
-             gzerror((gzFile*)(stream->data2), &(stream->error2)));
+             gzerror((gzFile*)(stream->data2), &(stream->error2))) >= 0);
     free(msg);
     msg = msg2;
   }
-  snprintf(res, 120, msg);
+  snprintf(res, 120, "%s", msg);
   res[119] = 0;
   free(msg); 
   return(res);

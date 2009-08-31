@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/04/2008
-// $Id: icmp_options.c,v 1.5 2009-03-24 16:10:03 bqu Exp $
+// $Id: icmp_options.c,v 1.6 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,7 @@ static int _debug_for_each(gds_stream_t * stream, void * context,
   net_msg_t * msg;
   net_iface_t * iface;
   ip_opt_t * opts;
+  char * s;
 
   switch (format) {
   case 'a':
@@ -77,6 +78,10 @@ static int _debug_for_each(gds_stream_t * stream, void * context,
       stream_printf(stream, " ");
     }
     stream_printf(stream, "}");
+    break;
+  case 's':
+    s= va_arg(*ap, char *);
+    stream_printf(stream, "%s", s);
     break;
   }
   return 0;
@@ -185,18 +190,19 @@ net_error_t ip_opt_hook_msg_error(net_msg_t * msg, net_error_t error)
   if (!_has_option(msg))
     return ESUCCESS;
 
-  ___ip_opt_debug("ERROR");
+  ___ip_opt_debug("ERROR\n");
   
   if (!(msg->opts->flags & IP_OPT_TRACE))
     return ESUCCESS;
 
   msg->opts->trace->status= error;
-  while (msg->protocol == NET_PROTOCOL_IPIP) {
+  // ???? What is the goal of the following code ????
+  /*while (msg->protocol == NET_PROTOCOL_IPIP) {
     ip_trace_add_trace(((net_msg_t *) msg->payload)->opts->trace,
 		       msg->opts->trace);
     msg= (net_msg_t *) msg->payload;
     msg->opts->trace->status= error;
-  }
+    }*/
   return error;
 }
 
@@ -490,7 +496,10 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
 
   ip_options_add_ref(ctx->msg->opts);
   sim= sim_create(SCHEDULER_STATIC);
-  node_send(ctx->node, ctx->msg, ctx->rtentries, sim);
+  net_error_t error= node_send(ctx->node, ctx->msg, ctx->rtentries, sim);
+  if (error != ESUCCESS)
+    ___ip_opt_debug("could not send (%s)\n", network_strerror(error));
+
   sim_run(sim);
   sim_destroy(&sim);
   rt_entries_destroy(&ctx->rtentries);
@@ -507,20 +516,28 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
 /////////////////////////////////////////////////////////////////////
 
 // -----[ ip_options_init ]----------------------------------------
+/**
+ * Initialize an IP option data structure with a reference count
+ * equal to 0.
+ */
 void ip_options_init(ip_opt_t * opts)
 {
   opts->flags= 0;
   opts->load= 0;
-  opts->ref_cnt= 1;
+  opts->ref_cnt= 0;
   opts->trace= NULL;
   opts->fifo_trace= NULL;
 }
 
 // -----[ ip_options_create ]------------------------------------------
-ip_opt_t * ip_options_create()
+/**
+ * Create an IP option data structure.
+ */
+ip_opt_t * ip_options_create(void)
 {
   ip_opt_t * opts= MALLOC(sizeof(ip_opt_t));
   ip_options_init(opts);
+  opts->ref_cnt= 1;
   return opts;
 }
 

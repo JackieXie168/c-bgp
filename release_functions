@@ -1,6 +1,6 @@
 # ===================================================================
 # Release script for libgds/cbgp: release functions
-# Last modified: 25/10/2007 (bqu)
+# Last modified: 04/08/2009 (bqu)
 # ===================================================================
 
 declare -a CONF_OPTIONS
@@ -454,6 +454,29 @@ src_release_parse_arguments()
     done
 }
 
+# -----[ Publish the release ]---------------------------------------
+#
+# -------------------------------------------------------------------
+make_publish()
+{
+    local ARGS=$@
+
+    echo "Checking files to publish"
+    for f in $PUBLISH_FILES; do
+        if [ ! -f $f ]; then
+            error "could not find file \"$f\""
+        fi
+    done
+
+    echo "Publishing distribution"
+    for f in $PUBLISH_FILES; do
+	scp -C $f $PUBLISH_URL
+    done
+    if [ $? != 0 ]; then
+        error "could not publish distribution"
+    fi
+}
+
 # -----[ Perform a source release ]----------------------------------
 # This function should be called by the release.sh script. The syntax
 # should be as follows:
@@ -559,13 +582,7 @@ make_release()
     fi
     if [ $PUBLISH -eq 1 ]; then
 	info_part "IV. Publishing release"
-	echo "Publishing distribution"
-	for f in $PUBLISH_FILES; do
-	    scp -C $f $PUBLISH_URL
-	done
-	if [ $? != 0 ]; then
-	    error "could not publish distribution"
-	fi
+	make_publish $@
     fi
 
     # ===============================================================

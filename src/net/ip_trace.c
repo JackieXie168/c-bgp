@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/03/2008
-// $Id: ip_trace.c,v 1.6 2009-03-24 16:13:52 bqu Exp $
+// $Id: ip_trace.c,v 1.7 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -76,11 +76,17 @@ _ip_trace_item_copy(ip_trace_item_t * item)
   return new_item;
 }
 
+// -----[ _ip_trace_item_destroy ]-----------------------------------
+static void _ip_trace_item_destroy(void * item, const void * ctx)
+{
+  FREE(*((ip_trace_item_t **) item));
+}
+
 // -----[ ip_trace_create ]------------------------------------------
 ip_trace_t * ip_trace_create()
 {
   ip_trace_t * trace= (ip_trace_t *) MALLOC(sizeof(ip_trace_t));
-  trace->items= ptr_array_create(0, NULL, NULL, NULL);
+  trace->items= ptr_array_create(0, NULL, _ip_trace_item_destroy, NULL);
   trace->delay= 0;
   trace->capacity= NET_LINK_MAX_CAPACITY;
   trace->weight= 0;
@@ -149,7 +155,7 @@ void ip_trace_dump(gds_stream_t * stream, ip_trace_t * trace,
 {
   ip_trace_item_t * item;
   int trace_length= 0;
-  int index;
+  unsigned int index;
   int space;
 
   if (options & IP_TRACE_DUMP_LENGTH) {

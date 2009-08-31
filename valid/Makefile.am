@@ -18,6 +18,11 @@ EXTRA_DIST= \
 	data/small.topology.txt \
 	data/large.topology.txt \
 	valid-net-tm.tm \
+	valid-net-tm-missing-field.tm \
+	valid-net-tm-number-fields.tm \
+	valid-net-tm-invalid-field.tm \
+	valid-net-tm-dst-pfx.tm \
+	valid-net-tm-src-asn.tm \
 	abilene/ATLA/rib.20050801.0124-ebgp.ascii \
 	abilene/CHIN/rib.20050801.0017-ebgp.ascii \
 	abilene/DNVR/rib.20050801.0014-ebgp.ascii \

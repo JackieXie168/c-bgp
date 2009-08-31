@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)Link.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/02/2005
-// @lastdate 31/03/2006
+// $Id: Interface.java,v 1.2 2009-08-31 09:44:52 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.net; 

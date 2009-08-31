@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be),
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 15/07/2003
-// $Id: bgp.c,v 1.59 2009-08-24 10:33:30 bqu Exp $
+// $Id: bgp.c,v 1.60 2009-08-31 09:37:26 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -1586,7 +1586,7 @@ static void _register_bgp_router(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_ctx("router",
 					 cli_ctx_create_bgp_router,
 					 cli_ctx_destroy_bgp_router));
-  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_bgp_routers_addr));
+  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_bgp_routers_addr_id));
   _register_bgp_router_add(group);
   _register_bgp_router_assert(group);
   _register_bgp_router_debug(group);

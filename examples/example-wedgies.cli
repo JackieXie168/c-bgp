@@ -1,24 +1,24 @@
 print "\e[37;1mEXAMPLE WEDGIES\e[0m\n"
 print "===============\n"
 
+#sim options log-level DEBUG
+
 define MAX_STEPS 100
-
-print "\n"
-print "This script should not converge. A limit is set on the number\n"
-print "of simulation steps. When this limit is reached, the simulation\n"
-print "will be interrupted. The limit is set to $MAX_STEPS steps.\n"
-print "\n"
-
 bgp options msg-monitor "../valid/valid-wedgies.msg"
 
 net add node 0.1.0.0
+net node 0.1.0.0 name "R1"
 net add node 0.2.0.0
+net node 0.2.0.0 name "R2"
 net add node 0.3.0.0
+net node 0.3.0.0 name "R3"
 net add node 0.4.0.0
+net node 0.4.0.0 name "R4"
 net add link 0.1.0.0 0.2.0.0
 net add link 0.1.0.0 0.4.0.0
 net add link 0.2.0.0 0.3.0.0
 net add link 0.3.0.0 0.4.0.0
+
 net node 0.1.0.0 route add 0.2.0.0/32 --oif=0.2.0.0 5
 net node 0.1.0.0 route add 0.4.0.0/32 --oif=0.4.0.0 5
 net node 0.2.0.0 route add 0.1.0.0/32 --oif=0.1.0.0 5
@@ -114,4 +114,4 @@ bgp router 0.4.0.0
 	peer 0.3.0.0 up
 
 sim stop --at=$MAX_STEPS
-sim run
+#sim run

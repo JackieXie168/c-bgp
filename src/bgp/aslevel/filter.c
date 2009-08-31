@@ -10,7 +10,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/06/2007
-// $Id: filter.c,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: filter.c,v 1.2 2009-08-31 09:35:34 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,20 +28,20 @@
 /**
  * Convert a filter name to its identifier.
  */
-int aslevel_filter_str2filter(const char * pcFilter,
-			      aslevel_filter_t * puFilter)
+int aslevel_filter_str2filter(const char * str,
+			      aslevel_filter_t * filter)
 {
-  if (!strcmp(pcFilter, "stubs")) {
-    *puFilter= ASLEVEL_FILTER_STUBS;
+  if (!strcmp(str, "stubs")) {
+    *filter= ASLEVEL_FILTER_STUBS;
     return ASLEVEL_SUCCESS;
-  } else if (!strcmp(pcFilter, "single-homed-stubs")) {
-    *puFilter= ASLEVEL_FILTER_SHSTUBS;
+  } else if (!strcmp(str, "single-homed-stubs")) {
+    *filter= ASLEVEL_FILTER_SHSTUBS;
     return ASLEVEL_SUCCESS;
-  } else if (!strcmp(pcFilter, "peer-to-peer")) {
-    *puFilter= ASLEVEL_FILTER_P2P;
+  } else if (!strcmp(str, "peer-to-peer")) {
+    *filter= ASLEVEL_FILTER_P2P;
     return ASLEVEL_SUCCESS;
-  } else if (!strcmp(pcFilter, "keep-top")) {
-    *puFilter= ASLEVEL_FILTER_KEEP_TOP;
+  } else if (!strcmp(str, "keep-top")) {
+    *filter= ASLEVEL_FILTER_KEEP_TOP;
     return ASLEVEL_SUCCESS;
   }
   return ASLEVEL_ERROR_UNKNOWN_FILTER;
@@ -150,8 +150,8 @@ int aslevel_filter_topo(as_level_topo_t * topo, aslevel_filter_t filter)
     index++;
   }
 
-  stream_printf(gdserr, "\tnumber of nodes removed: %d\n", num_nodes_removed);
-  stream_printf(gdserr, "\tnumber of edges removed: %d\n", num_edges_removed);
+  //stream_printf(gdserr, "\tnumber of nodes removed: %d\n", num_nodes_removed);
+  //stream_printf(gdserr, "\tnumber of edges removed: %d\n", num_edges_removed);
 
   return ASLEVEL_SUCCESS;
 }

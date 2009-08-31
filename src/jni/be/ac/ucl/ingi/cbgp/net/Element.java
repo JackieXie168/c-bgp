@@ -1,3 +1,10 @@
+// ==================================================================
+// @(#)Element.java
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @date 18/02/2004
+// $Id: Element.java,v 1.3 2009-08-31 09:44:52 bqu Exp $
+// ==================================================================
 package be.ac.ucl.ingi.cbgp.net;
 
 import be.ac.ucl.ingi.cbgp.CBGP;

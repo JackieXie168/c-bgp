@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/01/2007
-// $Id: tm.h,v 1.4 2009-03-24 16:28:11 bqu Exp $
+// $Id: tm.h,v 1.5 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 /**
@@ -38,10 +38,67 @@
 #include <libgds/stream.h>
 
 #include <util/lrp.h>
+#include <bgp/types.h>
 
-// -----[ net_traffic_handler_f ]------------------------------------
-typedef int (*net_traffic_handler_f)(net_addr_t src, net_addr_t dst,
-				     unsigned int bytes, void * ctx);
+typedef struct {
+  asn_t        src_asn;
+  asn_t        dst_asn;
+  net_addr_t   src_addr;
+  net_addr_t   dst_addr;
+  uint8_t      dst_mask;
+  unsigned int bytes;
+} flow_t;
+
+// -----[ supported fields ]---------------------------------------
+typedef enum {
+  FLOW_FIELD_SRC_ASN,
+  FLOW_FIELD_DST_ASN,
+  FLOW_FIELD_SRC_IP,
+  FLOW_FIELD_DST_IP,
+  FLOW_FIELD_SRC_MASK,
+  FLOW_FIELD_DST_MASK,
+  FLOW_FIELD_OCTETS,
+  FLOW_FIELD_PACKETS,
+  FLOW_FIELD_SRC_PORT,
+  FLOW_FIELD_DST_PORT,
+  FLOW_FIELD_PROT,
+  FLOW_FIELD_MAX
+} flow_field_t;
+
+// -----[ required fields ]------------------------------------------
+typedef struct {
+  uint8_t index[FLOW_FIELD_MAX];
+} flow_field_map_t;
+
+#define FLOW_FIELD_POS_REQUIRED 254
+#define FLOW_FIELD_POS_IGNORE   255
+
+static inline void flow_field_map_init(flow_field_map_t * map)
+{
+  unsigned int index;
+  for (index= 0; index < FLOW_FIELD_MAX; index++)
+    map->index[index]= FLOW_FIELD_POS_IGNORE;
+}
+static inline void flow_field_map_set(flow_field_map_t * map,
+				      flow_field_t field)
+{
+  map->index[field]= FLOW_FIELD_POS_REQUIRED;
+}
+static inline int flow_field_map_isset(flow_field_map_t * map,
+				       flow_field_t field)
+{
+  return ((map->index[field] != FLOW_FIELD_POS_REQUIRED) &&
+	  (map->index[field] != FLOW_FIELD_POS_IGNORE));
+}
+static inline int flow_field_map_required(flow_field_map_t * map,
+					  flow_field_t field)
+{
+  return (map->index[field] == FLOW_FIELD_POS_REQUIRED);
+}
+
+// -----[ flow_handler_f ]-------------------------------------------
+typedef int (*flow_handler_f)(flow_t * flow, flow_field_map_t * map,
+			      void * ctx);
 
 // -----[ tm_error_t ]-----------------------------------------------
 typedef enum {
@@ -58,6 +115,11 @@ typedef enum {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  // -----[ flow_str2field ]-----------------------------------------
+  flow_field_t flow_str2field(const char * str);
+  // -----[ flow_field2str ]-----------------------------------------
+  const char * flow_field2str(flow_field_t field);
 
   // -----[ net_tm_strerror ]----------------------------------------
   char * net_tm_strerror(int error);

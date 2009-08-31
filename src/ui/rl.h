@@ -6,7 +6,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// $Id: rl.h,v 1.6 2009-03-24 16:29:41 bqu Exp $
+// $Id: rl.h,v 1.7 2009-08-31 09:48:39 bqu Exp $
 // ==================================================================
 
 /**
@@ -21,7 +21,7 @@
 #include <string.h>
 
 // -----[ rl_on_new_line ]-----
-/* This functions is used to enumerate files during the command-line
+/* This function is used to enumerate files during the command-line
  * auto-completion.
  */
 #undef _FILENAME_COMPLETION_FUNCTION

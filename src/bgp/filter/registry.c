@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 01/03/2004
-// $Id: registry.c,v 1.1 2009-03-24 13:42:45 bqu Exp $
+// $Id: registry.c,v 1.2 2009-08-31 09:37:08 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -710,7 +710,6 @@ cmd= cli_add_cmd(group, cli_cmd("add", ???));
 typedef void (*cli_register_func)(cli_cmd_t * root);
 
 static cli_register_func _cli_predicates[]= {
-  ft_cli_register_predicate_any,
   ft_cli_register_predicate_any,
   ft_cli_register_predicate_comm,
   ft_cli_register_predicate_nexthop,

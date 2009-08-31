@@ -4,7 +4,7 @@
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @date 27/11/2002
-// $Id: filter.c,v 1.1 2009-03-24 13:42:45 bqu Exp $
+// $Id: filter.c,v 1.2 2009-08-31 09:36:08 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -624,7 +624,7 @@ bgp_ft_matcher_t * filter_match_comm_contains(bgp_comm_t comm)
 {
   bgp_ft_matcher_t * matcher=
     _ft_matcher_create(FT_MATCH_COMM_CONTAINS,
-			  sizeof(bgp_comm_t));
+		       sizeof(bgp_comm_t));
   memcpy(matcher->params, &comm, sizeof(comm));
   return matcher;
 }

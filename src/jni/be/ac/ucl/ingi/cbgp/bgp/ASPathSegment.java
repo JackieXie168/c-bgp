@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ASPathSegment.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/02/2004
-// @lastdate 19/02/2005
+// $Id: ASPathSegment.java,v 1.3 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
@@ -57,6 +57,14 @@ public class ASPathSegment {
     	if ((iIndex < 0) || (iIndex >= ases.size()))
     		throw new Exception("Invalid AS-Path segment index "+iIndex);
     	return ((Integer) ases.get(iIndex)).intValue();
+    }
+    
+    // -----[ count ]------------------------------------------------
+    /**
+     * Return the AS-path segment length.
+     */
+    public int count() {
+    	return ases.size();
     }
 
     // -----[ getType ]----------------------------------------------

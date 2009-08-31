@@ -1,3 +1,10 @@
+// ==================================================================
+// @(#)TestBGPRoutes.java
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// $Id: TestBGPRoutes.java,v 1.2 2009-08-31 09:46:14 bqu Exp $
+// ==================================================================
+
 package be.ac.ucl.ingi.cbgp.testing;
 
 import static org.junit.Assert.assertEquals;

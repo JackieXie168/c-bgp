@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/05/2007
-// $Id: net_node.c,v 1.10 2009-06-25 14:32:56 bqu Exp $
+// $Id: net_node.c,v 1.11 2009-08-31 09:37:56 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -46,7 +46,7 @@ static int cli_ctx_create_net_node(cli_ctx_t * ctx, cli_cmd_t * cmd,
   const char * arg= cli_get_arg_value(cmd, 0);
   net_node_t * node;
 
-  if (str2node(arg, &node)) {
+  if (str2node_id(arg, &node)) {
     cli_set_user_error(cli_get(), "unable to find node \"%s\"", arg);
     return CLI_ERROR_CTX_CREATE;
   }
@@ -699,7 +699,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_ctx("node",
 					 cli_ctx_create_net_node,
 					 cli_ctx_destroy_net_node));
-  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_net_nodes_addr));
+  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
 
   _register_net_node_add(group);  
   cli_register_net_node_iface(group);
@@ -713,7 +713,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   cmd= cli_add_cmd(group, cli_cmd("name", cli_net_node_name));
   cli_add_arg(cmd, cli_arg("name", NULL));
   cmd= cli_add_cmd(group, cli_cmd("ping", cli_net_node_ping));
-  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr));
+  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
   cli_add_opt(cmd, cli_opt("ttl=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("record-route", cli_net_node_recordroute));
   cli_add_arg(cmd, cli_arg("address|prefix", NULL));
@@ -727,7 +727,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("tunnel", NULL));
   cli_add_opt(cmd, cli_opt("weight", NULL));
   cmd= cli_add_cmd(group, cli_cmd("traceroute", cli_net_node_traceroute));
-  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr));
+  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
 
   _register_net_node_show(group);
   _register_net_node_traffic(group);

@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)IPRoute.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/02/2005
-// @lastdate 08/02/2005
+// $Id: IPRoute.java,v 1.4 2009-08-31 09:40:35 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -12,8 +12,7 @@ package be.ac.ucl.ingi.cbgp;
 /**
  * This class is a container for IP route information.
  */
-public class IPRoute extends Route
-{
+public class IPRoute extends Route {
 
     // -----[ public constants ]-------------------------------------
 	public static final byte NET_ROUTE_DIRECT= 0x01;
@@ -22,18 +21,17 @@ public class IPRoute extends Route
     public static final byte NET_ROUTE_BGP= 0x08;
 
     // -----[ protected attributes of the IP route ]-----------------
-    protected byte bType;
+    protected byte type;
 
     // -----[ IPRoute ]----------------------------------------------
     /**
      * IPRoute's constructor.
      */
-    public IPRoute(IPPrefix prefix, IPAddress nexthop, IPAddress gateway,
-    		byte bType) {
-    	super(prefix, nexthop, gateway, true, true);
+    public IPRoute(IPPrefix prefix, RouteEntry [] entries, byte type) {
+    	super(prefix, entries);
 
     	/* Attributes */
-    	this.bType= bType;
+    	this.type= type;
     }
 
     // -----[ getType ]----------------------------------------------
@@ -41,48 +39,43 @@ public class IPRoute extends Route
      * Returns the route's type (i.e. the protocol that added the
      * route).
      */
-    public byte getType()
-    {
-	return bType;
+    public byte getType() {
+    	return type;
     }
 
     // -----[ typeToString ]-----------------------------------------
     /**
      * Returns a String version of the given route type.
      */
-    public static String typeToString(byte bType)
-    {
-	switch (bType) {
-	case NET_ROUTE_DIRECT: return "DIRECT";
-	case NET_ROUTE_STATIC: return "STATIC";
-	case NET_ROUTE_IGP   : return "IGP";
-	case NET_ROUTE_BGP   : return "BGP";
-	default:
-	    return "UNKNOWN";
-	}
+    public static String typeToString(byte bType) {
+    	switch (bType) {
+    	case NET_ROUTE_DIRECT: return "DIRECT";
+    	case NET_ROUTE_STATIC: return "STATIC";
+    	case NET_ROUTE_IGP   : return "IGP";
+    	case NET_ROUTE_BGP   : return "BGP";
+    	default:
+    		return "UNKNOWN";
+    	}
     }
 
     // -----[ toString ]---------------------------------------------
     /**
      * This function converts this route in a String.
      */
-    public String toString()
-    {
-	String s= "";
+    public String toString() {
+    	String s= "";
 
-	/* Flags */
-	s+= (bFeasible?"*":" ");
-	s+= (bBest?">":" ");
-	s+= " ";
+    	/* Flags */
+    	s+= "*> ";
 
-	/* Attributes */
-	s+= prefix;
-	s+= "\t";
-	s+= nexthop;
-	s+= "\t";
-	s+= typeToString(bType);
+    	/* Attributes */
+    	s+= prefix;
+    	s+= "\t";
+    	s+= getOutIface();
+    	s+= "\t";
+    	s+= typeToString(type);
 
-	return s;
+    	return s;
     }
 
 }

@@ -8,7 +8,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 30/04/2007
-// $Id: as-level.c,v 1.2 2009-06-25 14:31:03 bqu Exp $
+// $Id: as-level.c,v 1.3 2009-08-31 09:35:07 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -47,12 +47,12 @@ static as_level_topo_t * _the_topo= NULL;
   for (I= 0; I < ptr_array_length(T->domains) && (D= (as_level_domain_t*) T->domains->data[I]); I++)
 
 // -----[ _aslevel_check_peer_type ]---------------------------------
-static inline int _aslevel_check_peer_type(peer_type_t tPeerType)
+static inline int _aslevel_check_peer_type(peer_type_t peer_type)
 {
-  if ((tPeerType == ASLEVEL_PEER_TYPE_CUSTOMER) ||
-      (tPeerType == ASLEVEL_PEER_TYPE_PEER) ||
-      (tPeerType == ASLEVEL_PEER_TYPE_PROVIDER) ||
-      (tPeerType == ASLEVEL_PEER_TYPE_SIBLING))
+  if ((peer_type == ASLEVEL_PEER_TYPE_CUSTOMER) ||
+      (peer_type == ASLEVEL_PEER_TYPE_PEER) ||
+      (peer_type == ASLEVEL_PEER_TYPE_PROVIDER) ||
+      (peer_type == ASLEVEL_PEER_TYPE_SIBLING))
     return ASLEVEL_SUCCESS;
   return ASLEVEL_ERROR_INVALID_RELATION;
 }

@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)Communities.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 20/03/2006
-// @lastdate 20/03/2006
+// $Id: Communities.java,v 1.3 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
