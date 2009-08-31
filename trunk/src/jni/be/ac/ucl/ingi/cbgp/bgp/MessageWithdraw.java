@@ -1,10 +1,11 @@
 // ==================================================================
 // @(#)MessageWithdraw.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 20/06/2007
-// @lastdate 20/06/2007
+// $Id: MessageWithdraw.java,v 1.2 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
+
 package be.ac.ucl.ingi.cbgp.bgp;
 
 import be.ac.ucl.ingi.cbgp.IPAddress;

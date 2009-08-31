@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 03/04/08
-// $Id: selfcheck.c,v 1.4 2009-03-24 13:21:43 bqu Exp $
+// $Id: selfcheck.c,v 1.5 2009-08-31 09:33:43 bqu Exp $
 // ==================================================================
 //
 // Guidelines for writing C-BGP unit tests:
@@ -185,12 +185,12 @@ static inline ez_topo_t * _ez_topo_glasses()
 
 #define SIM_ARRAY_SIZE 2
 static unsigned int _sim_array_index;
-static int _sim_array[SIM_ARRAY_SIZE];
+static void * _sim_array[SIM_ARRAY_SIZE];
 static int _sim_callback(simulator_t * sim, void * ctx)
 {
   if (_sim_array_index >= SIM_ARRAY_SIZE)
     return -1;
-  _sim_array[_sim_array_index++]= (int) ctx;
+  _sim_array[_sim_array_index++]= ctx;
   return 0;
 }
 
@@ -215,8 +215,8 @@ static int test_sim_static()
   UTEST_ASSERT(sim_run(sim) == 0, "sim_run() should succeed");
   UTEST_ASSERT(_sim_array_index == SIM_ARRAY_SIZE,
 	       "some events were not processed");
-  UTEST_ASSERT((_sim_array[0] == 1234) &&
-	       (_sim_array[1] == 2345), "incorrect events processing");
+  UTEST_ASSERT((_sim_array[0] == (void *) 1234) &&
+	       (_sim_array[1] == (void *) 2345), "incorrect events processing");
   sim_destroy(&sim);
   UTEST_ASSERT(sim == NULL, "destroyed simulator should be NULL");
   return UTEST_SUCCESS;
@@ -255,8 +255,8 @@ static int test_sim_dynamic()
   UTEST_ASSERT(sim_run(sim) == 0, "sim_run() should succeed");
   UTEST_ASSERT(_sim_array_index == SIM_ARRAY_SIZE,
 	       "some events were not processed");
-  UTEST_ASSERT((_sim_array[0] == 2345) &&
-	       (_sim_array[1] == 1234), "incorrect events processing");
+  UTEST_ASSERT((_sim_array[0] == (void *) 2345) &&
+	       (_sim_array[1] == (void *) 1234), "incorrect events processing");
   sim_destroy(&sim);
   UTEST_ASSERT(sim == NULL, "destroyed simulator should be NULL");
   return UTEST_SUCCESS;
@@ -1154,6 +1154,7 @@ static int test_net_link_ptmp_dup()
 		"link creation should fail (link-duplicate)");
   node_destroy(&node1);
   node_destroy(&node2);
+  subnet_destroy(&subnet);
   return UTEST_SUCCESS;
 }
 
@@ -1229,6 +1230,7 @@ static int test_net_rt_entries()
   net_iface_t * iface;
   rt_entry_t entry1;
   rt_entry_t entry2;
+  rt_entry_t * entry;
 
   net_iface_factory(NULL, IPV4PFX(10,0,0,1,30), NET_IFACE_PTP, &iface);
   entry1.gateway= IPV4(1,0,0,0);
@@ -1242,8 +1244,10 @@ static int test_net_rt_entries()
   UTEST_ASSERT(rt_entries_add(entries, rt_entry_copy(&entry2)) == ESUCCESS,
 		"RT entries addition should succeed");
   UTEST_ASSERT(rt_entries_size(entries) == 2, "RT entries size should be 2");
-  UTEST_ASSERT(rt_entries_add(entries, rt_entry_copy(&entry1)) < 0,
+  entry= rt_entry_copy(&entry1);
+  UTEST_ASSERT(rt_entries_add(entries, entry) < 0,
 		"RT entries duplicate addition should not succeed");
+  rt_entry_destroy(&entry);
   UTEST_ASSERT(rt_entries_del(entries, &entry1) == ESUCCESS,
 		"RT entries removal should succeed");
   UTEST_ASSERT(rt_entries_size(entries) == 1, "RT entries size should be 1");
@@ -1251,6 +1255,7 @@ static int test_net_rt_entries()
 		"RT entries removal of unexisting entry should not succeed");
   rt_entries_destroy(&entries);
   UTEST_ASSERT(entries == NULL, "destroyed RT entries should be NULL");
+  net_iface_destroy(&iface);
   return UTEST_SUCCESS;
 }
 
@@ -1302,6 +1307,7 @@ static int test_net_rt_add_dup()
   UTEST_ASSERT(rtinfo != NULL, "route info creation should succeed");
   UTEST_ASSERT(rt_add_route(rt, pfx, rtinfo) == ENET_RT_DUPLICATE,
 		"route addition should fail (duplicate)");
+  rt_info_destroy(&rtinfo);
   rt_destroy(&rt);
   net_iface_destroy(&iface);
   return UTEST_SUCCESS;
@@ -1623,6 +1629,7 @@ static int test_net_network_add_node_dup()
   UTEST_ASSERT(network_add_node(network, node2)
 		== ENET_NODE_DUPLICATE,
 		"duplicate node addition should fail");
+  node_destroy(&node2);
   network_destroy(&network);
   return UTEST_SUCCESS;
 }
@@ -1652,6 +1659,7 @@ static int test_net_network_add_subnet_dup()
   UTEST_ASSERT(network_add_subnet(network, subnet2)
 		== ENET_SUBNET_DUPLICATE,
 		"duplicate subnet addition should fail");
+  subnet_destroy(&subnet2);
   network_destroy(&network);
   return UTEST_SUCCESS;
 }
@@ -1838,6 +1846,7 @@ static int test_net_igp_compute()
   network_add_node(network, node1);
   network_add_node(network, node2);
   network_add_node(network, node3);
+  network_add_igp_domain(network, domain);
   UTEST_ASSERT(net_link_create_ptp(node1,
 				    net_iface_id_pfx(addr12, 30),
 				    node2,
@@ -2052,7 +2061,7 @@ static int test_net_igp_compute_subnet()
 
   igp_domain_t * domain= network_find_igp_domain(eztopo->network, 1);
   spt_t * spt;
-  UTEST_ASSERT(spt_bfs(nodes[0].node, domain, &spt) == ESUCCESS,
+  UTEST_ASSERT(spt_bfs(ez_topo_get_node(eztopo, 0), domain, &spt) == ESUCCESS,
 		"SPT computation should succeed");
   spt_to_graphviz(gdsout, spt);
   UTEST_ASSERT(spt != NULL, "SPT should not be NULL");
@@ -2095,7 +2104,7 @@ static int test_net_igp_compute_subnet_stub()
   ez_topo_t * eztopo= ez_topo_builder(4, nodes, 3, edges);
   igp_domain_t * domain= network_find_igp_domain(eztopo->network, 1);
   spt_t * spt;
-  UTEST_ASSERT(spt_bfs(nodes[0].node, domain, &spt) == ESUCCESS,
+  UTEST_ASSERT(spt_bfs(ez_topo_get_node(eztopo, 0), domain, &spt) == ESUCCESS,
 		"SPT computation should succeed");
   UTEST_ASSERT(spt != NULL, "SPT should not be NULL");
   spt_vertex_t * info= spt_get_vertex(spt, IPV4PFX(0,0,0,1,32));
@@ -2364,6 +2373,7 @@ static int test_net_traces_recordroute_load()
 		"load of link 1 should be 1000");
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 2)->dest.iface) == 1000,
 		"load of link 2 should be 1000");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2388,8 +2398,11 @@ static int test_net_traces_recordroute_prefix()
 				NET_ADDR_ANY,
 				255, opts, &trace) == ESUCCESS,
 		"record-route should succeed");
+  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
+  ip_trace_destroy(&trace);
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2407,8 +2420,10 @@ static int test_net_traces_recordroute_prefix_unreach()
 				NET_ADDR_ANY,
 				255, opts, &trace) == ESUCCESS,
 		"record-route should succeed");
+  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
   UTEST_ASSERT(trace->status == ENET_NET_UNREACH,
 		"trace's status should be net-unreach");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2433,11 +2448,13 @@ static int test_net_traces_recordroute_prefix_load()
   UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
 				NET_ADDR_ANY,
 				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+	       "record-route should succeed");
+  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(net_iface_get_load(link) == 1000,
 		"last mile's load should be 1000");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2479,6 +2496,7 @@ static int test_net_traces_recordroute_qos()
 		trace->delay);
   UTEST_ASSERT(trace->capacity == 512,
 		"record-route trace's max capacity is not correct");
+  ip_options_destroy(&opts);
   ip_trace_destroy(&trace);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;  
@@ -2508,6 +2526,7 @@ static int test_net_traces_recordroute_ecmp()
 		"trace's status should be success");
   UTEST_ASSERT(!enum_has_next(traces), "no more path should exist");
   enum_destroy(&traces);
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2536,6 +2555,7 @@ static int test_net_traces_recordroute_ecmp_unreach()
 		"trace's status should be no-reply");
   UTEST_ASSERT(icmp_trace_send_next(opts) == NULL,
 		"no more equal-cost path should exist");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2570,6 +2590,7 @@ static int test_net_traces_recordroute_ecmp_load()
 		"load of link 2 should be 500");
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 3)) == 500,
 		"load of link 3 should be 500");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2608,6 +2629,7 @@ static int test_net_traces_recordroute_tunnel()
   UTEST_ASSERT(ip_trace_item_at(trace, 2)->elt.node ==
 		ez_topo_get_node(eztopo, 1),
 		"last hop should be 0.0.0.2");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2640,6 +2662,7 @@ static int test_net_traces_recordroute_tunnel_ecmp()
 		"record-route should succeed");
   UTEST_ASSERT(icmp_trace_send_next(opts) == NULL,
 		"record-route should fail");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2669,6 +2692,7 @@ static int test_net_traces_recordroute_tunnel_unreach()
 		"record-route should succeed");
   UTEST_ASSERT(trace->status != ESUCCESS,
 		"trace's status should be success");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2725,6 +2749,7 @@ static int test_net_traces_recordroute_tunnel_prefix()
   UTEST_ASSERT(ip_trace_item_at(trace, 2)->elt.node ==
 		ez_topo_get_node(eztopo, 1),
 		"last hop should be 0.0.0.2");
+  ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -4197,7 +4222,7 @@ static int test_traffic_replay()
 
   UTEST_ASSERT(node_load_flow(ez_topo_get_node(topo, 0), IP_ADDR_ANY,
 			      ez_topo_get_node(topo, 1)->rid,
-			      1234, NULL, NULL) == ESUCCESS,
+			      1234, NULL, NULL, NULL) == ESUCCESS,
 	       "node_load_flow() should succeed");
 
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(topo, 1)) == 1234,
@@ -4219,7 +4244,7 @@ static int test_traffic_replay_unreach()
   flow_stats_init(&stats);
   UTEST_ASSERT(node_load_flow(ez_topo_get_node(topo, 0), IP_ADDR_ANY,
 			      IPV4(192,168,1,1),
-			      1234, &stats, NULL) == ESUCCESS,
+			      1234, &stats, NULL, NULL) == ESUCCESS,
 	       "node_load_flow() should succeed");
   UTEST_ASSERT(stats.flows_error == 1,
 	       "One flow should be reported as failure");

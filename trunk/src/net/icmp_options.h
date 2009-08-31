@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 01/0/2008
-// $Id: icmp_options.h,v 1.3 2009-03-24 16:10:03 bqu Exp $
+// $Id: icmp_options.h,v 1.4 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_IP_OPTIONS_H__
@@ -48,10 +48,8 @@ extern "C" {
   // IP OPTIONS SETUP
   ///////////////////////////////////////////////////////////////////
 
-  // -----[ ip_options_init ]----------------------------------------
-  void ip_options_init(ip_opt_t * opts);
   // -----[ ip_options_create ]--------------------------------------
-  ip_opt_t * ip_options_create();
+  ip_opt_t * ip_options_create(void);
   // -----[ ip_options_destroy ]-------------------------------------
   void ip_options_destroy(ip_opt_t ** opts_ref);
   // -----[ ip_options_copy ]----------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// $Id: message.c,v 1.9 2009-03-24 16:17:40 bqu Exp $
+// $Id: message.c,v 1.10 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -53,7 +53,11 @@ void message_destroy(net_msg_t ** msg_ref)
 // -----[ message_set_options ]--------------------------------------
 void message_set_options(net_msg_t * msg, struct ip_opt_t * opts)
 {
+  if (msg->opts != NULL)
+    ip_options_destroy(&msg->opts);
   msg->opts= opts;
+  if (opts != NULL)
+    ip_options_add_ref(opts);
 }
 
 // -----[ message_copy ]---------------------------------------------

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/02/2004
-// $Id: routing.c,v 1.29 2009-03-24 16:24:35 bqu Exp $
+// $Id: routing.c,v 1.30 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -261,7 +261,11 @@ rt_info_t * rt_info_create(ip_pfx_t prefix,
 int rt_info_add_entry(rt_info_t * rtinfo,
 		      net_iface_t * oif, net_addr_t gateway)
 {
-  return rt_entries_add(rtinfo->entries, rt_entry_create(oif, gateway));
+  rt_entry_t * entry= rt_entry_create(oif, gateway);
+  int result= rt_entries_add(rtinfo->entries, entry);
+  if (result < 0)
+    rt_entry_destroy(&entry);
+  return result;
 }
 
 // -----[ rt_info_set_entries ]--------------------------------------

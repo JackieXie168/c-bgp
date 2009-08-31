@@ -10,7 +10,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/06/2007
-// $Id: filter.h,v 1.1 2009-03-24 13:39:08 bqu Exp $
+// $Id: filter.h,v 1.2 2009-08-31 09:35:40 bqu Exp $
 // ==================================================================
 
 #ifndef __BGP_ASLEVEL_FILTER_H__
@@ -26,13 +26,17 @@
 
 typedef uint8_t aslevel_filter_t;
 
+typedef union {
+  asn_t asn;
+} aslevel_filter_args_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
   // -----[ aslevel_filter_str2filter ]------------------------------
-  int aslevel_filter_str2filter(const char * filter_str,
-				aslevel_filter_t * filter_ref);
+  int aslevel_filter_str2filter(const char * str,
+				aslevel_filter_t * filter);
   // -----[ aslevel_filter_topo ]------------------------------------
   int aslevel_filter_topo(as_level_topo_t * topo, aslevel_filter_t filter);
 

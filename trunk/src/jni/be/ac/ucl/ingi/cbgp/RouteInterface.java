@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)RouteInterface.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/02/2005
-// @lastdate 08/02/2005
+// $Id: RouteInterface.java,v 1.2 2009-08-31 09:40:35 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 
@@ -12,8 +12,7 @@ package be.ac.ucl.ingi.cbgp;
 /**
  * This is an interface for routes.
  */
-public interface RouteInterface
-{
+public interface RouteInterface {
 
     // -----[ isBest ]-----------------------------------------------
     public boolean isBest();

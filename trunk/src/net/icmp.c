@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/02/2004
-// $Id: icmp.c,v 1.14 2009-03-24 16:09:09 bqu Exp $
+// $Id: icmp.c,v 1.15 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -456,27 +456,48 @@ static void _icmp_trace_destroy(void * ctx)
 }
 
 // -----[ icmp_trace_send2 ]---------------------------------------
+/**
+ * In comparison with the above 'icmp_trace_send' function, this
+ * one performs the following additional tasks.
+ * 1). It creates an enumerator for retrieving multiple IP traces
+ *     in case of equal-cost multiple paths (ECMP)
+ * 2). It does not send the ICMP messages directly, but rather
+ *     prepares the sending by pushing an initial probe message
+ *     on the FIFO queue. This FIFO queue is linked to the probe
+ *     message through its IP options.
+ *
+ * How to handle the IP options ?
+ * - the caller provider IP options must be non-NULL
+ * - shall the caller allocate the options on the stack on the heap ?
+ *   => both must be supported
+ * - if a copy of the IP options is performed, it should be released
+ *   => when the enumerator is destroyed (decrease reference).
+ *
+ * To enable ECMP search, the caller must set the IP_OPT_ECMP option.
+ */
 gds_enum_t * icmp_trace_send2(net_node_t * node, net_addr_t dst_addr,
 			      uint8_t max_ttl, ip_opt_t * opts)
 {
-  gds_enum_t * enum_traces= enum_create(opts,
-					_icmp_trace_has_next,
-					_icmp_trace_get_next,
-					_icmp_trace_destroy);
-
+  net_msg_t * msg;
+  icmp_msg_t * icmp_msg= _icmp_msg_create(ICMP_TRACE, 0, node);
   ip_opt_t *_opts= ip_options_copy(opts);
-  net_msg_t * msg= message_create(NET_ADDR_ANY, dst_addr,
-				  NET_PROTOCOL_ICMP, max_ttl,
-				  _icmp_msg_create(ICMP_TRACE, 0, node),
-				  (FPayLoadDestroy) _icmp_msg_destroy);
-  
   ip_options_trace(_opts);
   opts->fifo_trace= _opts->fifo_trace;
-  ip_options_add_ref(_opts);
+ 
+  // Prepare the ICMP message and associate the IP options
+  msg= message_create(NET_ADDR_ANY, dst_addr,
+		      NET_PROTOCOL_ICMP, max_ttl,
+		      icmp_msg, (FPayLoadDestroy) _icmp_msg_destroy);
   message_set_options(msg, _opts);
+
+  // Push the initial message onto the FIFO queue
   ip_opt_ecmp_push(_opts, node, msg, NULL);
 
-  return enum_traces;
+  // Return an enumeration
+  return enum_create(opts,
+		     _icmp_trace_has_next,
+		     _icmp_trace_get_next,
+		     _icmp_trace_destroy);
 }
 
 // -----[ _icmp_record_route_dump ]----------------------------------

@@ -3,12 +3,14 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 21/05/2007
-// $Id: route-input.c,v 1.5 2009-04-02 19:15:00 bqu Exp $
+// $Id: route-input.c,v 1.6 2009-08-31 09:34:39 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+
+#define _GNU_SOURCE
 
 #include <string.h>
 
@@ -139,7 +141,7 @@ void bgp_input_set_user_error(const char * format, ...)
     free(user_error);
 
   va_start(ap, format);
-  vasprintf(&user_error, format, ap);
+  assert(vasprintf(&user_error, format, ap) >= 0);
   assert(user_error != NULL);
   va_end(ap);
 }

@@ -1,3 +1,5 @@
+use strict;
+
 return ["net traffic load", "cbgp_valid_net_traffic_load"];
 
 # -----[ cbgp_valid_net_traffic_load ]-------------------------------
@@ -68,52 +70,36 @@ sub cbgp_valid_net_traffic_load($) {
   $cbgp->send_cmd("net domain 1 compute");
 
   $msg= cbgp_check_error($cbgp, "net traffic load \"$filename\"");
-  if (defined($msg)) {
-    $tests->debug("Error: \"net traffic load\" generated an error.");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (check_has_error($msg));
 
   $info= cbgp_link_info($cbgp, "1.0.0.1", "1.0.0.2");
-  if (!exists($info->{load}) || ($info->{load} != 1500)) {
-    $tests->debug("Error: no/invalid load for R1->R2");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1500));
 
   $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.3");
-  if (!exists($info->{load}) || ($info->{load} != 1800)) {
-    $tests->debug("Error: no/invalid load for R2->R3");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1800));
 
   $info= cbgp_link_info($cbgp, "1.0.0.3", "138.48.4.4/16");
-  if (!exists($info->{load}) || ($info->{load} != 1600)) {
-    $tests->debug("Error: no/invalid load for R3->N2");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1600));
 
   $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.4");
-  if (!exists($info->{load}) || ($info->{load} != 1200)) {
-    $tests->debug("Error: no/invalid load for R2->R4");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>1200));
 
   $info= cbgp_link_info($cbgp, "1.0.0.4", "172.13.16.1/24");
-  if (!exists($info->{load}) || ($info->{load} != 800)) {
-    $tests->debug("Error: no/invalid load for R4->N1");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>800));
 
   $info= cbgp_link_info($cbgp, "1.0.0.1", "130.104.10.10/16");
-  if (!exists($info->{load}) || ($info->{load} != 3200)) {
-    $tests->debug("Error: no/invalid load for R1->N3");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>3200));
 
   $info= cbgp_link_info($cbgp, "1.0.0.2", "1.0.0.1");
-  if (!exists($info->{load}) || ($info->{load} != 3200)) {
-    $tests->debug("Error: no/invalid load for R2->R1");
-    return TEST_FAILURE;
-  }
+  return TEST_FAILURE
+    if (!check_link_info($info, -load=>3200));
 
   return TEST_SUCCESS;
 }

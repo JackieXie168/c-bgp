@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)IPAddress.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 19/02/2005
+// $Id: IPAddress.java,v 1.5 2009-08-31 09:40:35 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp; 

@@ -75,7 +75,6 @@ libbgp_la_SOURCES = \
 	routes_list.h \
 	route-input.c \
 	route-input.h \
-	stats.h \
 	tie_breaks.c \
 	tie_breaks.h \
 	types.h \

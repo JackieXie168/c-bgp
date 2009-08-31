@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 08/08/2005
-// $Id: node.h,v 1.13 2009-03-24 16:20:59 bqu Exp $
+// $Id: node.h,v 1.14 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 /**
@@ -203,7 +203,8 @@ extern "C" {
    */
   int node_load_flow(net_node_t * node, net_addr_t src_addr,
 		     net_addr_t dst_addr, unsigned int bytes,
-		     flow_stats_t * stats, ip_trace_t ** trace_ref);
+		     flow_stats_t * stats, ip_trace_t ** trace_ref,
+		     ip_opt_t * opts);
 
   // -----[ node_load_netflow ]--------------------------------------
   int node_load_netflow(net_node_t * node, const char * file_name,

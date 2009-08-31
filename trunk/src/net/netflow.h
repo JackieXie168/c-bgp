@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/05/2007
-// $Id: netflow.h,v 1.3 2009-03-24 16:19:12 bqu Exp $
+// $Id: netflow.h,v 1.4 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 
 #ifndef __NET_NETFLOW_H__
@@ -26,7 +26,11 @@ typedef enum {
   NETFLOW_ERROR_INVALID_HEADER  = LRP_ERROR_USER-3,
   NETFLOW_ERROR_INVALID_SRC_ADDR= LRP_ERROR_USER-4,
   NETFLOW_ERROR_INVALID_DST_ADDR= LRP_ERROR_USER-5,
-  NETFLOW_ERROR_INVALID_OCTETS  = LRP_ERROR_USER-6,
+  NETFLOW_ERROR_INVALID_SRC_ASN = LRP_ERROR_USER-6,
+  NETFLOW_ERROR_INVALID_DST_ASN = LRP_ERROR_USER-7,
+  NETFLOW_ERROR_INVALID_DST_MASK= LRP_ERROR_USER-8,
+  NETFLOW_ERROR_INVALID_OCTETS  = LRP_ERROR_USER-9,
+  NETFLOW_ERROR_MISSING_FIELD   = LRP_ERROR_USER-10,
 } netflow_error_t;
 
 #ifdef __cplusplus
@@ -36,10 +40,10 @@ extern "C" {
   // -----[ netflow_perror ]-----------------------------------------
   void netflow_perror(gds_stream_t * stream, int error);
   // -----[ netflow_strerror ]---------------------------------------
-  char * netflow_strerror(int error);
+  const char * netflow_strerror(int error);
   // -----[ netflow_load ]-------------------------------------------
-  int netflow_load(const char * filename, net_traffic_handler_f handler,
-		   void * ctx);
+  int netflow_load(const char * filename, flow_field_map_t * map,
+		   flow_handler_f handler, void * ctx);
 
   // -----[ _netflow_init ]------------------------------------------
   void _netflow_init();

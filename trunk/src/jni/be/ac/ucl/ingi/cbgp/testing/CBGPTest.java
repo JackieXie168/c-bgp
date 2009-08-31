@@ -1,11 +1,11 @@
 // ==================================================================
 // @(#)CBGPTest.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
-// @author Sebastien Tandel (standel@info.ucl.ac.be)
-// @date 27/10/2004
-// @lastdate 20/06/2007
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Sebastien Tandel
+// $Id: CBGPTest.java,v 1.2 2009-08-31 09:46:14 bqu Exp $
 // ==================================================================
+
 package be.ac.ucl.ingi.cbgp.testing;
 
 import java.util.Enumeration;
@@ -120,14 +120,14 @@ public class CBGPTest
         System.out.println("");
         Vector<be.ac.ucl.ingi.cbgp.bgp.Route> routes = router11.getAdjRIB("1.0.0.2", "2.0/16", true);
         System.out.println("adj rib in of 1.0.0.1 from 1.0.0.2 for prefix 2.0/16 :");
-        for (Route currentRoute : routes) {
+        for (be.ac.ucl.ingi.cbgp.bgp.Route currentRoute : routes) {
             System.out.println(currentRoute.toString());
         }
 
         System.out.println("");
         routes = router11.getAdjRIB("1.0.0.3", "2.0/16", false);
         System.out.println("adj rib out of 1.0.0.1 to 1.0.0.3 for prefix 2.0/16 :");
-        for (Route currentRoute : routes) {
+        for (be.ac.ucl.ingi.cbgp.bgp.Route currentRoute : routes) {
             System.out.println(currentRoute.toString());
         }
         System.out.println("");
@@ -161,7 +161,7 @@ public class CBGPTest
 	
 	if (args.length > 0) {
 
-	    showRoutes(cbgp.loadMRT(args[0]), true);
+	    showRoutes(cbgp.loadMRT(args[0], "mrt-binary"), true);
 
 	} else {
 

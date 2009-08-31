@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)Subnet.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 24/04/2006
-// @lastdate 24/04/2006
+// $Id: Subnet.java,v 1.3 2009-08-31 09:44:52 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.net;

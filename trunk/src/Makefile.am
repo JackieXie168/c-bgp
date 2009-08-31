@@ -40,12 +40,6 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-if WITH_MEMORY_DEBUG
-  OPT_MEMORY_DEBUG = -D__MEMORY_DEBUG__
-else
-  OPT_MEMORY_DEBUG =
-endif
-
 AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
 
 lib_LTLIBRARIES = libcsim.la
@@ -69,7 +63,6 @@ libcsim_la_LDFLAGS = -no-undefined -release $(CBGP_LT_RELEASE) \
 	$(LIBGDS_LIBS) \
 	$(PCRE_LIBS)
 libcsim_la_CFLAGS = \
-	$(OPT_MEMORY_DEBUG) \
 	$(LIBGDS_CFLAGS) \
 	$(AM_CFLAGS)
 libcsiminclude_HEADERS = api.h

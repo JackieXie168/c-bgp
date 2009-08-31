@@ -1,9 +1,9 @@
 // ==================================================================
 // @(#)ASPath.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 14/02/2004
-// @lastdate 19/02/2005
+// $Id: ASPath.java,v 1.4 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
@@ -45,6 +45,14 @@ public class ASPath {
     	if ((iIndex < 0) || (iIndex >= segments.size()))
     		throw new Exception("Invalid AS-path segment index "+iIndex);
     	return (ASPathSegment) segments.get(iIndex);
+    }
+    
+    // -----[ getSegmentCount ]--------------------------------------
+    /**
+     * Return the number of segments.
+     */
+    public int getSegmentCount() {
+    	return segments.size();
     }
 
     // -----[ toString ]---------------------------------------------

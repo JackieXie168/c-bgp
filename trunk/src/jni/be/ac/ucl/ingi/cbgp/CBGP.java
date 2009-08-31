@@ -1,3 +1,13 @@
+////////////////////////////////////////////////////////////////////
+// This is C-BGP's Java Native Interface (JNI). This class is only a
+// wrapper to C functions contained in the csim library (libcsim).
+// 
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Sebastien Tandel
+// @date 27/10/2004
+// $Id: CBGP.java,v 1.22 2009-08-31 09:40:35 bqu Exp $
+////////////////////////////////////////////////////////////////////
+
 package be.ac.ucl.ingi.cbgp; 
 
 import java.util.Vector;
@@ -12,16 +22,7 @@ import be.ac.ucl.ingi.cbgp.net.Message;
 import be.ac.ucl.ingi.cbgp.net.Node;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
 
-// -----[ CBGP ]-----------------------------------------------------
-/**
- * This is C-BGP's Java Native Interface (JNI). This class is only a
- * wrapper to C functions contained in the csim library (libcsim).
- * 
- * @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
- * @author Sebastien Tandel (standel@info.ucl.ac.be)
- * @date 27/10/2004
- * @lastdate 16/10/2007
- */
+//-----[ CBGP ]----------------------------------------------------
 public class CBGP {
 
     // -----[ Console log levels ]-----------------------------------
@@ -200,11 +201,17 @@ public class CBGP {
     // Simulation queue management
     /////////////////////////////////////////////////////////////////
 
+    // -----[ simCancel ]--------------------------------------------
+    /**
+     * Cancel the simulation.
+     */
+    public native void simCancel();
+    
     // -----[ simRun ]-----------------------------------------------
     /**
      * Processes the queue of events until the queue is empty.
      */
-    public native synchronized void simRun()
+    public native void simRun()
     	throws CBGPException;
 
     // -----[ simStep ]----------------------------------------------
@@ -215,7 +222,7 @@ public class CBGP {
      *
      * @param i the maximum number of events to process.
      */
-    public native synchronized void simStep(int i)
+    public native void simStep(int i)
     	throws CBGPException;
 
     // -----[ simClear ]---------------------------------------------
@@ -231,8 +238,7 @@ public class CBGP {
      *
      * @return the number of events
      */
-    public native synchronized long simGetEventCount()
-    	throws CBGPException;
+    public native long simGetEventCount();
 
     // -----[ simGetEvent ]------------------------------------------
     /**
@@ -240,7 +246,7 @@ public class CBGP {
      *
      * @param i the position of the event in the queue
      */
-    public native synchronized Message simGetEvent(int i)
+    public native Message simGetEvent(int i)
 		throws CBGPException;
 
 
@@ -282,27 +288,6 @@ public class CBGP {
     // -----[ cliGetSyntax ]----------------------------------------
     /* To be added */
 
-    // -----[ getVersion ]------------------------------------------
-    /**
-     * Returns the C-BGP version. The version should be of the form
-     * "x.y.z" where x,y,z are positive integer numbers. For
-     * example, a possible version is '1.4.1'. The returned version
-     * could also contain an additional suffix part separated by
-     * a dash. For example, a possible version is '1.4.1-rc2'.
-     *
-     * @return a String containing the C-BGP version
-     */
-    public native synchronized String getVersion()
-    	throws CBGPException;
-
-    // -----[ getErrorMsg ]-----------------------------------------
-    /**
-     * Returns the last error message.
-     *
-     * @return a String containing the last error message
-     */
-    public native synchronized String getErrorMsg(int iErrorCode);
-
     
     /////////////////////////////////////////////////////////////////
     // Experimental features
@@ -312,7 +297,7 @@ public class CBGP {
     /**
      * This is an experimental method. Use at your own risk.
      */
-    public native Vector<be.ac.ucl.ingi.cbgp.bgp.Route> loadMRT(String sFileName);
+    public native Vector<be.ac.ucl.ingi.cbgp.bgp.Route> loadMRT(String fileName, String format);
 
     // -----[ setBGPMsgListener ]------------------------------------
     /**
@@ -336,6 +321,35 @@ public class CBGP {
      */
     public native Vector<Interface> netGetLinks()
     	throws CBGPException;
+
+    
+    ////////////////////////////////////////////////////////////////
+    //
+    // STATIC METHODS
+    //
+    ////////////////////////////////////////////////////////////////
+    
+    // -----[ getVersion ]------------------------------------------
+    /**
+     * Returns the C-BGP version. The version should be of the form
+     * "x.y.z" where x,y,z are positive integer numbers. For
+     * example, a possible version is '1.4.1'. The returned version
+     * could also contain an additional suffix part separated by
+     * a dash. For example, a possible version is '1.4.1-rc2'.
+     *
+     * @return a String containing the C-BGP version
+     */
+    public static native synchronized String getVersion()
+    	throws CBGPException;
+
+    // -----[ getErrorMsg ]-----------------------------------------
+    /**
+     * Returns the last error message.
+     *
+     * @return a String containing the last error message
+     */
+    public static native synchronized String getErrorMsg(int error);
+
 
 
     /////////////////////////////////////////////////////////////////

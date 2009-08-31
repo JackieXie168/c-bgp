@@ -1,6 +1,7 @@
 print "\e[37;1mEXAMPLE BAD-GADGET\e[0m\n"
 print "==================\n"
 
+sim options log-level DEBUG 
 define MAX_STEPS 100
 
 print "\n"
@@ -59,6 +60,7 @@ bgp router 2.0.0.1
 	peer 3.0.0.1 up
 	add peer 4 4.0.0.1
 	peer 4.0.0.1 up
+	peer 4.0.0.1 record "/tmp/tap-r2-r4.msg"
 	exit
 bgp add router 3 3.0.0.1
 bgp router 3.0.0.1

@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 29/02/2004
-// $Id: predicate_parser.c,v 1.1 2009-03-24 13:42:45 bqu Exp $
+// $Id: predicate_parser.c,v 1.2 2009-08-31 09:36:46 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -560,13 +560,20 @@ int predicate_parser(const char * expr, bgp_ft_matcher_t ** matcher_ref)
     }
   }
 
+  // In case the stack is not empty when the FSM has finished,
+  // and no error was returned, throw a parenthesis mismatch error.
   if (!stack_is_empty(_parser.stack))
     if (error >= 0)
       error= PREDICATE_PARSER_ERROR_PAR_MISMATCH;
 
-  *matcher_ref= _parser.left_predicate;
+  // In case of error, free the current predicate.
+  // Otherwise, return the predicate by reference.
+  if (error < 0)
+    filter_matcher_destroy(&_parser.left_predicate);
+  else
+    *matcher_ref= _parser.left_predicate;
 
-  _predicate_parser_destroy();  
+  _predicate_parser_destroy();
 
   return (error < 0)?error:PREDICATE_PARSER_SUCCESS;
 }

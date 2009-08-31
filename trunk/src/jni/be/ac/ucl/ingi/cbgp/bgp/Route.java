@@ -1,12 +1,14 @@
 // ==================================================================
 // @(#)Route.java
 //
-// @author Bruno Quoitin (bqu@info.ucl.ac.be)
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 07/02/2005
-// @lastdate 20/03/2005
+// $Id: Route.java,v 1.4 2009-08-31 09:42:43 bqu Exp $
 // ==================================================================
 
 package be.ac.ucl.ingi.cbgp.bgp; 
+
+import java.util.Properties;
 
 import be.ac.ucl.ingi.cbgp.IPAddress;
 import be.ac.ucl.ingi.cbgp.IPPrefix;
@@ -15,8 +17,7 @@ import be.ac.ucl.ingi.cbgp.IPPrefix;
 /**
  * This class is a container for BGP route information.
  */
-public class Route extends be.ac.ucl.ingi.cbgp.Route
-{
+public class Route {
 
     // -----[ public constants ]-------------------------------------
     public static final byte ORIGIN_IGP= 0;
@@ -24,12 +25,18 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
     public static final byte ORIGIN_INCOMPLETE= 2;
 
     // -----[ private attributes of the route ]----------------------
-    protected boolean bInternal;
-    protected long lLocalPref;
-    protected long lMED;
-    protected byte bOrigin;
+    protected final IPPrefix prefix;
+    protected final boolean best;
+    protected final boolean feasible;
+    protected final IPAddress nexthop;
+    protected boolean internal;
+    protected long localPref;
+    protected long med;
+    protected byte origin;
     protected ASPath path;
     protected Communities communities;
+    
+    protected final Properties properties= new Properties();
 
     // -----[ BGPRoute ]---------------------------------------------
     /**
@@ -37,20 +44,41 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      * attributes. Currently only supports destination prefix,
      * next-hop, AS-Path, origin, local-pref, MED and communities.
      */
-    public Route(IPPrefix prefix, IPAddress nexthop, IPAddress gateway,
-    		long lLocalPref, long lMED,
-		    boolean bBest, boolean bFeasible, byte bOrigin,
-		    ASPath path, boolean bInternal,
+    public Route(IPPrefix prefix, IPAddress nexthop,
+    		long localPref, long med,
+		    boolean best, boolean feasible, byte origin,
+		    ASPath path, boolean internal,
 		    Communities communities) {
-    	super(prefix, nexthop, gateway, bBest, bFeasible);
-
-    	// Attributes
-    	this.lLocalPref= lLocalPref;
-    	this.lMED= lMED;
-    	this.bOrigin= bOrigin;
+    	this.prefix= prefix;
+    	this.nexthop= nexthop;
+    	this.best= best;
+    	this.feasible= feasible;
+    	this.localPref= localPref;
+    	this.med= med;
+    	this.origin= origin;
     	this.path= path;
-    	this.bInternal= bInternal;
+    	this.internal= internal;
     	this.communities= communities;
+    }
+    
+    // -----[ getPrefix ]--------------------------------------------
+    public IPPrefix getPrefix() {
+    	return prefix;
+    }
+    
+    // -----[ getNextHop ]-------------------------------------------
+    public IPAddress getNextHop() {
+    	return nexthop;
+    }
+    
+    // -----[ isBest ]----------------------------------------------
+    public boolean isBest() {
+    	return best;
+    }
+
+    // -----[ isFeasible ]------------------------------------------
+    public boolean isFeasible() {
+    	return feasible;
     }
 
     // -----[ getLocalPref ]-----------------------------------------
@@ -58,7 +86,7 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      * Returns the route's local-preference.
      */
     public long getLocalPref() {
-    	return lLocalPref;
+    	return localPref;
     }
 
     // -----[ getMED ]-----------------------------------------------
@@ -66,7 +94,7 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      * Returns the routes's MED.
      */
     public long getMED() {
-    	return lMED;
+    	return med;
     }
 
     // -----[ getOrigin ]--------------------------------------------
@@ -74,7 +102,7 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      * Returns the route's origin.
      */
     public byte getOrigin() {
-    	return bOrigin;
+    	return origin;
     }
 
     // -----[ getPath ]----------------------------------------------
@@ -98,7 +126,7 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
      * Tests if the route is internal (originated on this router).
      */
     public boolean isInternal() {
-    	return bInternal;
+    	return internal;
     }
 
     // -----[ originToString ]---------------------------------------
@@ -123,11 +151,11 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
     	String s= "";
 
     	// Flags
-    	if (bInternal)
+    	if (internal)
     		s+= "i";
     	else
-    		s+= (bFeasible?"*":" ");
-    	s+= (bBest?">":" ");
+    		s+= (feasible?"*":" ");
+    	s+= (best?">":" ");
     	s+= " ";
 
     	// Attributes
@@ -135,14 +163,14 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
     	s+= "\t";
     	s+= nexthop;
     	s+= "\t";
-    	s+= lLocalPref;
+    	s+= localPref;
     	s+= "\t";
-    	s+= lMED;
+    	s+= med;
     	s+= "\t";
     	if (path != null)
     		s+= path;
     	s+= "\t";
-    	switch (bOrigin) {
+    	switch (origin) {
     	case ORIGIN_IGP: s+= "i"; break;
     	case ORIGIN_EGP: s+= "e"; break;
     	case ORIGIN_INCOMPLETE: s+= "?"; break;
@@ -156,5 +184,18 @@ public class Route extends be.ac.ucl.ingi.cbgp.Route
 
     	return s;
     }
+    
+    // -----[ setRank ]---------------------------------------------
+    public void setRank(int rank) {
+    	properties.setProperty("rank", String.valueOf(rank));
+    }
+    
+    // -----[ getRank ]---------------------------------------------
+    public int getRank() {
+    	return Integer.parseInt(properties.getProperty("rank"));
+    }
+    
+    // -----[ rankToString ]----------------------------------------
+    public static native synchronized String rankToString(int rank);
 
 }

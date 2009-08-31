@@ -1,3 +1,10 @@
+// ==================================================================
+// @(#)TestTraceRoute.java
+//
+// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// $Id: TestTraceRoute.java,v 1.2 2009-08-31 09:46:14 bqu Exp $
+// ==================================================================
+
 package be.ac.ucl.ingi.cbgp.testing;
 
 import static org.junit.Assert.*;
@@ -42,7 +49,7 @@ public class TestTraceRoute {
 		assertNotNull(trace);
 		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
 		assertEquals((int) 2, trace.getElementsCount());
-		trace= node1.recordRoute("1.0.0.3");
+		trace= node1.traceRoute("1.0.0.3");
 		assertNotNull(trace);
 		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
 		assertEquals((int) 3, trace.getElementsCount());

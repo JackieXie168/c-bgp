@@ -1,7 +1,7 @@
 print "\e[37;1mEXAMPLE DYNAMIC-SCHEDULER\e[0m\n"
 print "=========================\n"
 
-# This is the BGP bad-gadget system, using a dynamic scheduler.
+# This is the BGP DISAGREE system, using a dynamic scheduler.
 # The example allows to play with the propagation delay from the
 # source router R1 to the other two routers R2 and R3. There are
 # three possible outcomes:

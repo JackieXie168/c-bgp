@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/02/2004
-// $Id: igp.c,v 1.16 2009-03-24 16:12:24 bqu Exp $
+// $Id: igp.c,v 1.17 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 // TODO:
 // - handle the PTP case the same way as the SUBNET case
@@ -330,10 +330,15 @@ void _link_traverse(spt_comp_t * spt_comp,
   }
 
   // Compute weight to reach destination through this link
-  weight= net_igp_add_weights(vertex->weight, weight);
-  if (weight == IGP_MAX_WEIGHT) {
-    ___igp_debug("  skip link:%l [ path weight is max-metric]\n", link);
-    return;
+  // (no update if link is used to leave a subnet)
+  if (vertex->elem.type == SUBNET) {
+    weight= vertex->weight;
+  } else {
+    weight= net_igp_add_weights(vertex->weight, weight);
+    if (weight == IGP_MAX_WEIGHT) {
+      ___igp_debug("  skip link:%l [ path weight is max-metric]\n", link);
+      return;
+    }
   }
 
   ___igp_debug("  traverse link:%l (%w)\n", link, weight);
@@ -384,7 +389,7 @@ net_error_t spt_bfs(net_node_t * root, igp_domain_t * domain,
       break;
     case SUBNET:
       if (!subnet_is_transit(elem.subnet))
-	continue;
+	break;
       ifaces= elem.subnet->ifaces;
       break;
     case LINK:
@@ -395,7 +400,7 @@ net_error_t spt_bfs(net_node_t * root, igp_domain_t * domain,
 
     if (link != NULL) {
       _link_traverse(&spt_comp, context, link);
-    } else {
+    } else if (ifaces != NULL) {
       // Traverse all the outbound links of the current element
       for (index= 0; index < net_ifaces_size(ifaces); index++) {
 	link= net_ifaces_at(ifaces, index);
@@ -435,6 +440,7 @@ static inline void _fib_comp_pop(gds_stack_t * stack,
   assert(ctx != NULL);
   *vertex= ctx->vertex;
   *rtentry= ctx->rtentry;
+  FREE(ctx);
 }
 
 // -----[ _spt_install_fib_entry ]-----------------------------------
@@ -588,6 +594,9 @@ int igp_compute_domain(igp_domain_t * domain, int keep_spt)
     
     // Add FIB content to node's FIB
     result= radix_tree_for_each(fib, _igp_compute_prefix_for_each, node);
+
+    // Destroy the temporary FIB
+    radix_tree_destroy(&fib);
 
     if (!keep_spt)
       spt_destroy(&node->spt);

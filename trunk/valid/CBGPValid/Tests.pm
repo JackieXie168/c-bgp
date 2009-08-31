@@ -2,7 +2,7 @@
 # CBGPValid::Tests.pm
 #
 # author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-# $Id: Tests.pm,v 1.14 2009-06-25 15:14:25 bqu Exp $
+# $Id: Tests.pm,v 1.15 2009-08-31 09:49:29 bqu Exp $
 # ===================================================================
 #
 # Usage:
@@ -90,9 +90,14 @@ sub show_testing_skipped()
 }
 
 # -----[ show_testing_disabled ]-------------------------------------
-sub show_testing_disabled()
+sub show_testing_disabled($)
 {
-  print STDERR "\033[65G\033[33;1mDISABLED\033[0m\n";
+  my ($result)= @_;
+  my $msg= "DISABLED";
+  if (defined($result)) {
+    $msg= TEST_RESULT_MSG()->{$result};
+  }
+  print STDERR "\033[65G\033[33;1m$msg\033[0m\n";
 }
 
 # -----[ show_testing_todo ]-----------------------------------------
@@ -121,6 +126,9 @@ sub debug($$)
 #   -include    : array of test names (if provided, only these tests
 #                 are performed)
 #   -maxfailures:
+#   -valgrind
+#   -libtool
+#   -glibtool
 # -------------------------------------------------------------------
 sub new($%)
 {
@@ -141,6 +149,9 @@ sub new($%)
 	     'num-failures'  => 0,
 	     'num-warnings'  => 0,
 	     'num-skipped'   => 0,
+	     'valgrind'      => 0,
+	     'libtool'       => 0,
+	     'glibtool'      => 0,
 	    };
   (exists($args{'-cache'})) and
     $self->{'cache-enabled'}= $args{'-cache'};
@@ -152,6 +163,12 @@ sub new($%)
     $self->{'include'}= $args{'-include'};
   (exists($args{-maxfailures})) and
     $self->{'max-failures'}= $args{-maxfailures};
+  (exists($args{'-valgrind'})) and
+    $self->{'valgrind'}= $args{'-valgrind'};
+  (exists($args{'-libtool'})) and
+    $self->{'libtool'}= $args{'-libtool'};
+  (exists($args{'-glibtool'})) and
+    $self->{'glibtool'}= $args{'-glibtool'};
   bless $self, $class;
 
   $self->cache_read();
@@ -218,7 +235,22 @@ sub is_included($$) {
 # -----[ get_cbgp_instance ]-----------------------------------------
 sub get_cbgp_instance($$) {
   my ($self, $test_name)= @_;
-  my $cbgp= CBGP->new($self->{'cbgp-path'});
+  my $cbgp_cmd= $self->{'cbgp-path'};
+
+  # If cbgp must be run under valgrind...
+  ($self->{'valgrind'}) and
+    $cbgp_cmd= 'valgrind --leak-check=full --log-file=valid.valgrind '.
+      $cbgp_cmd;
+
+  # If cbgp must be run through (g)libtool
+  ($self->{'libtool'}) and
+    $cbgp_cmd= 'libtool --mode=execute '.$cbgp_cmd;
+  ($self->{'glibtool'}) and
+    $cbgp_cmd= 'glibtool --mode=execute '.$cbgp_cmd;
+
+  $self->debug("$cbgp_cmd");
+
+  my $cbgp= CBGP->new($cbgp_cmd);
   my $log_file= ".$test_name.log";
   ($log_file =~ tr[\ -][___]);
   unlink $log_file;
@@ -298,9 +330,10 @@ sub run($) {
 	if ($result == TEST_SUCCESS) {
 	  $self->{'num-success'}++;
 	  show_testing_success($test_time_duration);
-	} elsif ($result == TEST_DISABLED) {
+	} elsif (($result == TEST_DISABLED) ||
+		 ($result == TEST_MISSING)) {
 	  $self->{'num-skipped'}++;
-	  show_testing_disabled();
+	  show_testing_disabled($result);
 	} elsif ($result == TEST_SKIPPED) {
 	  $self->{'num-skipped'}++;
 	  show_testing_skipped();

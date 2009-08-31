@@ -3,7 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 15/07/2003
-// $Id: net.c,v 1.39 2009-03-24 15:58:43 bqu Exp $
+// $Id: net.c,v 1.40 2009-08-31 09:37:56 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -28,6 +28,7 @@
 #include <cli/net_ospf.h>
 #include <net/error.h>
 #include <net/export.h>
+#include <net/netflow.h>
 #include <net/node.h>
 #include <net/ntf.h>
 #include <net/prefix.h>
@@ -40,6 +41,9 @@
 #include <net/tm.h>
 #include <net/util.h>
 #include <ui/rl.h>
+
+#include <bgp/aslevel/types.h>
+#include <bgp/aslevel/as-level.h>
 
 
 /////////////////////////////////////////////////////////////////////
@@ -334,7 +338,7 @@ int cli_net_add_linkptp(cli_ctx_t * ctx, cli_cmd_t * cmd)
  * context: {}
  * tokens: {src-addr, dst-addr}
  */
-int cli_ctx_create_net_link(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** ppItem)
+int cli_ctx_create_net_link(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** item)
 {
   const char * arg_src= cli_get_arg_value(cmd, 0);
   const char * arg_dst= cli_get_arg_value(cmd, 1);
@@ -342,12 +346,12 @@ int cli_ctx_create_net_link(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** ppItem)
   ip_dest_t dest;
   net_iface_t * iface = NULL;
 
-  if (str2node(arg_src, &node)) {
+  if (str2node_id(arg_src, &node)) {
     cli_set_user_error(cli_get(), "unable to find node \"%s\"", arg_src);
     return CLI_ERROR_CTX_CREATE;
   }
 
-  if (ip_string_to_dest(arg_dst, &dest) < 0 ||
+  if (str2dest_id(arg_dst, &dest) < 0 ||
       dest.type == NET_DEST_ANY) {
     cli_set_user_error(cli_get(), "destination id is wrong \"%s\"", arg_dst);
     return CLI_ERROR_CTX_CREATE;
@@ -360,12 +364,12 @@ int cli_ctx_create_net_link(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** ppItem)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  *ppItem= iface;
+  *item= iface;
   return CLI_SUCCESS;
 }
 
 // ----- cli_ctx_destroy_net_link -----------------------------------
-void cli_ctx_destroy_net_link(void ** ppItem)
+void cli_ctx_destroy_net_link(void ** item)
 {
 }
 
@@ -566,7 +570,7 @@ int cli_net_links_load_clear(cli_ctx_t * ctx, cli_cmd_t * cmd)
 }
 
 // ----- cli_ctx_create_net_subnet ----------------------------------
-int cli_ctx_create_net_subnet(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** ppItem)
+int cli_ctx_create_net_subnet(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** item)
 {
   const char * arg= cli_get_arg_value(cmd, 0);
   net_subnet_t * subnet;
@@ -575,12 +579,12 @@ int cli_ctx_create_net_subnet(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** ppItem)
     cli_set_user_error(cli_get(), "unable to find subnet \"%s\"", arg);
     return CLI_ERROR_CTX_CREATE;
   }
-  *ppItem= subnet;
+  *item= subnet;
   return CLI_SUCCESS;
 }
 
 // ----- cli_ctx_destroy_net_subnet -----------------------------------
-void cli_ctx_destroy_net_subnet(void ** ppItem)
+void cli_ctx_destroy_net_subnet(void ** item)
 {
 }
 
@@ -612,22 +616,117 @@ int cli_net_show_subnets(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+static int _net_flow_src_ip_handler(flow_t * flow, flow_field_map_t * map,
+				    void * ctx)
+{
+  flow_stats_t * stats= (flow_stats_t *) ctx;
+  ip_trace_t * trace;
+  net_error_t result;
+  ip_opt_t * opts;
+
+  net_node_t * src_node= network_find_node(network_get_default(), flow->src_addr);
+  if (src_node == NULL) {
+    printf("Source node not found\n");
+    return -1;
+  }
+
+  opts= ip_options_create();
+  if (flow_field_map_isset(map, FLOW_FIELD_DST_MASK)) {
+    ip_pfx_t pfx= {
+      .network=flow->dst_addr,
+      .mask=flow->dst_mask,
+    };
+    ip_options_alt_dest(opts, pfx);
+  }
+
+  result= node_load_flow(src_node, NET_ADDR_ANY, flow->dst_addr, flow->bytes,
+			 stats, &trace, opts);
+  if (result < 0)
+    return 0;
+
+  if (trace != NULL) {
+    stream_printf(gdsout, "TRACE=[");
+    ip_trace_dump(gdsout, trace, 0);
+    stream_printf(gdsout, "]\n");
+    ip_trace_destroy(&trace);
+  }
+  return 0;
+}
+
+static int _net_flow_src_asn_handler(flow_t * flow, flow_field_map_t * map,
+				     void * ctx)
+{
+  // Find source based on source ASN
+  as_level_topo_t * topo= aslevel_get_topo();
+  if (topo == NULL) {
+    printf("no AS-level topology loaded\n");
+    return -1;
+  }
+  flow->src_addr= topo->addr_mapper(flow->src_asn);
+  return _net_flow_src_ip_handler(flow, map, ctx);
+}
+
 // ----- cli_net_traffic_load ---------------------------------------
 /**
  * context: {}
- * tokens: {file}
+ * tokens : {file}
+ * options: {--src=ip|asn, --dst=ip|pfx, --summary}
  */
 int cli_net_traffic_load(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg= cli_get_arg_value(cmd, 0);
+  const char * opt;
   int result;
+  flow_handler_f handler= _net_flow_src_ip_handler;
+  flow_field_map_t map;
+  flow_stats_t stats;
 
-  result= net_tm_load(arg);
-  if (result != NET_TM_SUCCESS) {
+  flow_stats_init(&stats);
+
+  flow_field_map_init(&map);
+  flow_field_map_set(&map, FLOW_FIELD_OCTETS);
+  flow_field_map_set(&map, FLOW_FIELD_DST_IP);
+
+  // Get option "src"
+  if (cli_has_opt_value(cmd, "src")) {
+    opt= cli_get_opt_value(cmd, "src");
+    if (!strcmp(opt, "ip")) {
+      flow_field_map_set(&map, FLOW_FIELD_SRC_IP);
+      handler= _net_flow_src_ip_handler;
+    } else if (!strcmp(opt, "asn")) {
+      flow_field_map_set(&map, FLOW_FIELD_SRC_ASN);
+      handler= _net_flow_src_asn_handler;
+    } else {
+      cli_set_user_error(cli_get(), "invalid source type \"%s\"", opt);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  } else {
+    flow_field_map_set(&map, FLOW_FIELD_SRC_IP);
+  }
+
+  // Get option "dst"
+  if (cli_has_opt_value(cmd, "dst")) {
+    opt= cli_get_opt_value(cmd, "dst");
+    if (!strcmp(opt, "ip")) {
+    } else if (!strcmp(opt, "pfx")) {
+      flow_field_map_set(&map, FLOW_FIELD_DST_MASK);
+    } else {
+      cli_set_user_error(cli_get(), "invalid destination type \"%s\"", opt);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }
+
+  // Load flows
+  result= netflow_load(arg, &map, handler, &stats);
+  if (result != 0) {
     cli_set_user_error(cli_get(), "could not load traffic matrix \"%s\" (%s)",
-		       arg, net_tm_strerror(result));
+		       arg, netflow_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
+
+  // Get option "--summary" ?
+  if (cli_has_opt_value(cmd, "summary"))
+    flow_stats_dump(gdsout, &stats);
 
   return CLI_SUCCESS;
 }
@@ -711,7 +810,7 @@ static void _register_net_export(cli_cmd_t * parent)
 // -----[ _register_net_link_show ]----------------------------------
 static void cli_register_net_link_show(cli_cmd_t * parent)
 {
-  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("show"));
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_prefix("show"));
   cli_add_cmd(group, cli_cmd("info", cli_net_link_show_info));
 }
 
@@ -768,7 +867,7 @@ static void _register_net_show(cli_cmd_t * parent)
 {
   cli_cmd_t * group, * cmd;
 
-  group= cli_add_cmd(parent, cli_cmd_group("show"));
+  group= cli_add_cmd(parent, cli_cmd_prefix("show"));
   cmd= cli_add_cmd(group, cli_cmd("nodes", cli_net_show_nodes));
   cli_add_arg(cmd, cli_arg("prefix|*", NULL));
   cmd= cli_add_cmd(group, cli_cmd("subnets", cli_net_show_subnets));
@@ -782,6 +881,9 @@ static void _register_net_traffic(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_group("traffic"));
   cmd= cli_add_cmd(group, cli_cmd("load", cli_net_traffic_load));
   cli_add_arg(cmd, cli_arg_file("file", NULL));
+  cli_add_opt(cmd, cli_opt("src=", NULL));
+  cli_add_opt(cmd, cli_opt("dst=", NULL));
+  cli_add_opt(cmd, cli_opt("summary", NULL));
   cmd= cli_add_cmd(group, cli_cmd("save", cli_net_traffic_save));
   cli_add_arg(cmd, cli_arg_file("file", NULL));
 }

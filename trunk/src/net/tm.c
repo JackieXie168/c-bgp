@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 23/01/2007
-// $Id: tm.c,v 1.6 2009-03-24 16:28:11 bqu Exp $
+// $Id: tm.c,v 1.7 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
 // TODO:
 //   - what action must be taken in case of incomplete record-route
@@ -40,6 +40,21 @@ static lrp_t * _parser= NULL;
 #define DEBUG
 #include <libgds/debug.h>
 
+// -----[ field names ]----------------------------------------------
+static const char * const FLOW_FIELD_NAMES[FLOW_FIELD_MAX]= {
+  "srcAS",
+  "dstAS",
+  "srcIP",
+  "dstIP",
+  "srcMask",
+  "dstMask",
+  "octets",
+  "packets",
+  "srcPort",
+  "dstPort",
+  "prot",
+};
+
 // -----[ net_tm_perror ]--------------------------------------------
 void net_tm_perror(gds_stream_t * stream, int error)
 {
@@ -72,6 +87,25 @@ char * net_tm_strerror(int error)
     return "invalid load";
   }
   return NULL;
+}
+
+// -----[ flow_str2field ]-------------------------------------------
+flow_field_t flow_str2field(const char * str) {
+  flow_field_t field= 0;
+  while (field < FLOW_FIELD_MAX) {
+    if (!strcmp(str, FLOW_FIELD_NAMES[field]))
+      return field;
+    field++;
+  }
+  return -1;
+}
+
+// -----[ flow_field2str ]-----------------------------------------
+const char * flow_field2str(flow_field_t field)
+{
+  if (field < FLOW_FIELD_MAX)
+    return FLOW_FIELD_NAMES[field];
+  return "unknown field";
 }
 
 // -----[ _parse ]---------------------------------------------------
@@ -136,7 +170,7 @@ static inline int _parse(lrp_t * parser)
 	    "  +-- volume:%u\n", 
 	    field_src, field_dst, (unsigned int) load);
 
-    result= node_load_flow(node, IP_ADDR_ANY, dest.addr, load, NULL, NULL);
+    result= node_load_flow(node, IP_ADDR_ANY, dest.addr, load, NULL, NULL, NULL);
     if (result < 0)
       return NET_TM_ERROR;
   }
