@@ -5,7 +5,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @date 25/10/2006
-// $Id: api.c,v 1.16 2009-03-10 14:47:51 bqu Exp $
+// $Id: api.c,v 1.17 2009-08-31 09:33:02 bqu Exp $
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -90,14 +90,15 @@ static void _signal_handler(int signum)
 }
 
 // -----[ _file_is_executable ]--------------------------------------
+/**
+ *
+ */
 static inline int _file_is_executable(const char * path)
 {
   struct stat sb;
 
-  if (stat(path, &sb) < 0) {
-    perror("stat");
+  if (stat(path, &sb) < 0)
     return -1;
-  }
 
   // Regular file ?
   if ((sb.st_mode & S_IFMT) != S_IFREG)
@@ -127,6 +128,7 @@ static inline char * _get_exec_path(const char * cmd)
   unsigned int index;
   gds_tokenizer_t * tokenizer;
   const gds_tokens_t * tokens;
+  int result;
 
   // Locate slash
   slash= strchr(cmd, '/');
@@ -146,8 +148,11 @@ static inline char * _get_exec_path(const char * cmd)
     buf[0]= '\0';
     for (index= 0; index < tokens_get_num(tokens); index++) {
       snprintf(buf, PATH_MAX+1, "%s/%s", tokens_get_string_at(tokens, index), cmd); 
-      if (_file_is_executable(buf))
-	break;
+      result= _file_is_executable(buf);
+      if (result < 0)
+	continue; // Could not stat file
+      if (result > 0)
+	break; // File is executable
     }
     if (strlen(buf) == 0)
       return NULL;
