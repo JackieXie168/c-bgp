@@ -82,6 +82,8 @@ bgp_peer_t * bgp_peer_create(uint16_t asn, net_addr_t addr,
   bgp_router_walton_peer_set(peer, 1);
 #endif
   peer->last_error= ESUCCESS;
+  peer->send_seq_num= 0;
+  peer->recv_seq_num= 0;
   return peer;
 }
 
@@ -272,6 +274,12 @@ int bgp_peer_open_session(bgp_peer_t * peer)
   if ((peer->session_state != SESSION_STATE_IDLE) &
       (peer->session_state != SESSION_STATE_ACTIVE)) {
     STREAM_ERR(STREAM_LEVEL_WARNING, "Warning: session already opened\n");
+    STREAM_ERR(STREAM_LEVEL_WARNING, "         router = ");
+    bgp_router_dump_id(gdserr, peer->router);
+    STREAM_ERR(STREAM_LEVEL_WARNING, "\n");
+    STREAM_ERR(STREAM_LEVEL_WARNING, "         peer   = ");
+    bgp_peer_dump_id(gdserr, peer);
+    STREAM_ERR(STREAM_LEVEL_WARNING, "\n");
     return EBGP_PEER_INVALID_STATE;
   }
 
@@ -409,7 +417,6 @@ static inline void _bgp_peer_session_open_rcvd(bgp_peer_t * peer,
     _bgp_peer_send(peer,
 		   bgp_msg_open_create(peer->router->asn,
 				       peer->router->rid));
-
     rib_for_each(peer->router->loc_rib,
 		 _bgp_peer_prefix_disseminate, peer);
     break;
