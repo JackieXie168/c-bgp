@@ -108,7 +108,12 @@ int cli_sim_event(cli_ctx_t * ctx, cli_cmd_t * cmd)
 int cli_sim_options_loglevel(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg= cli_get_arg_value(cmd, 0);
-  stream_set_level(gdsdebug, stream_str2level(arg));
+  stream_level_t level;
+  if (stream_str2level(arg, &level) < 0) {
+    cli_set_user_error(cli_get(), "Invalid log level \"%s\"", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  stream_set_level(gdsdebug, level);
   return CLI_SUCCESS;
 }
 
