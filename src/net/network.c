@@ -619,11 +619,16 @@ net_error_t node_send(net_node_t * node, net_msg_t * msg,
     ___network_debug("SEND rtentry=%r\n", rtentries->data[0]);
 
   // Check source address (if specified, must belong to node)
-  /*
-  if ((msg->src_addr != IP_ADDR_ANY) &&
+  //
+  // Note: the following verification is currently disabled as it is
+  //       required to be able to send messages with a non-local
+  //       source address in the case of ECMP exploration (through
+  //       record-route). Enabling the verification breaks ECMP
+  //       record-route. A possible workaround is to optionaly
+  //       disable this verification.
+  /*if ((msg->src_addr != IP_ADDR_ANY) &&
       (node_has_address(node, msg->src_addr) == NULL))
-    return ENET_IFACE_UNKNOWN;
-  */
+      return ENET_IFACE_UNKNOWN;*/
 
   // Local delivery ?
   if (rtentries == NULL) {
