@@ -146,15 +146,15 @@ void ip_prefix_dump(gds_stream_t * stream, ip_pfx_t prefix)
  *
  *
  */
-int ip_prefix_to_string(ip_pfx_t * prefix, char * pcPrefix, size_t tDstSize)
+int ip_prefix_to_string(const ip_pfx_t * prefix, char * str, size_t str_size)
 {
-  int result= snprintf(pcPrefix, tDstSize, "%u.%u.%u.%u/%u", 
+  int result= snprintf(str, str_size, "%u.%u.%u.%u/%u", 
 			(unsigned int) prefix->network >> 24,
 			(unsigned int) (prefix->network >> 16) & 255,
 			(unsigned int) (prefix->network >> 8) & 255,
 			(unsigned int) prefix->network & 255,
 			prefix->mask);
-  return ((result < 0) || (result >= tDstSize)) ? -1 : result;
+  return ((result < 0) || (result >= str_size)) ? -1 : result;
 }
 
 // ----- ip_string_to_prefix ----------------------------------------
