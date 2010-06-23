@@ -35,6 +35,11 @@ static inline net_node_t * _node_from_context(cli_ctx_t * ctx) {
   return (net_node_t *) _cli_context_top(ctx);
 }
 
+// -----[ _subnet_from_context ]-------------------------------------
+static inline net_subnet_t * _subnet_from_context(cli_ctx_t * ctx) {
+  return (net_subnet_t *) _cli_context_top(ctx);
+}
+
 // -----[ _iface_from_context ]--------------------------------------
 static inline net_iface_t *_iface_from_context(cli_ctx_t * ctx) {
   return (net_iface_t *) _cli_context_top(ctx);
