@@ -108,6 +108,8 @@ extern "C" {
 				 unsigned int index);
   int rt_entries_remove_at(const rt_entries_t * entries, unsigned int index);
   rt_entries_t * rt_entries_copy(const rt_entries_t * entries);
+  void rt_entries_dump(gds_stream_t * stream, const rt_entries_t * entries);
+
 
   ///////////////////////////////////////////////////////////////////
   // ROUTE (rt_info_t)
@@ -124,7 +126,7 @@ extern "C" {
   // -----[ rt_info_set_entries ]--------------------------------------
   int rt_info_set_entries(rt_info_t * rtinfo, rt_entries_t * entries);
   // -----[ rt_info_dump ]-------------------------------------------
-  void net_route_info_dump(gds_stream_t * stream, rt_info_t * rtinfo);
+  void rt_info_dump(gds_stream_t * stream, const rt_info_t * rtinfo);
 
 
   ///////////////////////////////////////////////////////////////////

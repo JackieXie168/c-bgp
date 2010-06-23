@@ -135,6 +135,14 @@ int rt_entry_compare(const rt_entry_t * entry1,
     return 1;
   if (entry1->gateway < entry2->gateway)
     return -1;
+
+  /* The following comparison is required as the outgoing interface
+     might be left unspecified, i.e. NULL. This is the case for
+     gateway routes that require a recursive lookup. */
+  if (entry1->oif > entry2->oif)
+    return 1;
+  if (entry1->oif < entry2->oif)
+    return -1;
   
   if (entry1->oif->addr > entry2->oif->addr)
     return 1;
@@ -235,6 +243,16 @@ rt_entries_t * rt_entries_copy(const rt_entries_t * entries)
 		   rt_entry_copy(rt_entries_get_at(entries, index)));
   }
   return new_entries;
+}
+
+// -----[ rt_entries_dump ]------------------------------------------
+void rt_entries_dump(gds_stream_t * stream, const rt_entries_t * entries)
+{
+  unsigned int index;
+  for (index= 0; index < rt_entries_size(entries); index++) {
+    rt_entry_dump(stream, rt_entries_get_at(entries, index));
+    stream_printf(stream, "\n");
+  }
 }
 
 
@@ -360,7 +378,7 @@ static inline void _rt_info_list_dump(gds_stream_t * stream,
   }
 
   for (index= 0; index < _rt_info_list_length(list); index++) {
-    net_route_info_dump(stream, (rt_info_t *) list->data[index]);
+    rt_info_dump(stream, (rt_info_t *) list->data[index]);
     stream_printf(stream, "\n");
   }
 }
@@ -823,12 +841,12 @@ void net_route_type_dump(gds_stream_t * stream, net_route_type_t type)
   }
 }
 
-// -----[ net_route_info_dump ]--------------------------------------
+// -----[ rt_info_dump ]---------------------------------------------
 /**
  * Output format:
  * <dst-prefix> <link/if> <weight> <type> [ <state> ]
  */
-void net_route_info_dump(gds_stream_t * stream, rt_info_t * rtinfo)
+void rt_info_dump(gds_stream_t * stream, const rt_info_t * rtinfo)
 {
   const rt_entry_t * rtentry;
   unsigned int index, index2;
@@ -891,7 +909,7 @@ void rt_dump(gds_stream_t * stream, net_rt_t * rt, ip_dest_t dest)
   case NET_DEST_ADDRESS:
     rtinfo= rt_find_best(rt, dest.prefix.network, NET_ROUTE_ANY);
     if (rtinfo != NULL) {
-      net_route_info_dump(stream, rtinfo);
+      rt_info_dump(stream, rtinfo);
       stream_printf(stream, "\n");
     }
     break;
@@ -899,7 +917,7 @@ void rt_dump(gds_stream_t * stream, net_rt_t * rt, ip_dest_t dest)
   case NET_DEST_PREFIX:
     rtinfo= rt_find_exact(rt, dest.prefix, NET_ROUTE_ANY);
     if (rtinfo != NULL) {
-      net_route_info_dump(stream, rtinfo);
+      rt_info_dump(stream, rtinfo);
       stream_printf(stream, "\n");
     }
     break;
