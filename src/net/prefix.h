@@ -39,7 +39,8 @@ extern "C" {
   // ----- ip_prefix_dump ---------------------------------------------
   void ip_prefix_dump(gds_stream_t * stream, ip_pfx_t prefix);
   // ----- ip_prefix_to_string ----------------------------------------
-  int ip_prefix_to_string(ip_pfx_t * prefix, char * str, size_t str_size);
+  int ip_prefix_to_string(const ip_pfx_t * prefix, char * str,
+			  size_t str_size);
   // ----- ip_string_to_prefix ----------------------------------------
   int ip_string_to_prefix(const char * str, char ** end_ptr,
 			  ip_pfx_t * prefix_ref);
