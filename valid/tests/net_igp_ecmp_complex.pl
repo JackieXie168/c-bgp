@@ -79,12 +79,12 @@ sub cbgp_valid_net_igp_ecmp_complex($) {
   $cbgp->send_cmd("net link 0.0.0.4 0.0.0.7 igp-weight --bidir 2");
   $cbgp->send_cmd("net domain 1 compute");
 
+  my $filename= get_tmp_resource("cbgp-topology-ecmp.dot");
+  $cbgp->send_cmd("net export --format=dot --output=$filename");
+
   my $traces= cbgp_record_route($cbgp, '0.0.0.1', '0.0.0.9', -ecmp=>1);
   return TEST_FAILURE
     if (scalar(@$traces) != 5);
-
-  my $filename= get_tmp_resource("cbgp-topology-ecmp.dot");
-  $cbgp->send_cmd("net export --format=dot --output=$filename");
 
   foreach my $trace (@$traces) {
   }
