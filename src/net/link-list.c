@@ -169,26 +169,55 @@ net_iface_t * net_links_find_iface(net_ifaces_t * ifaces,
   return NULL;
 }
 
-// ----- net_links_get_smaller_iface --------------------------------
+// -----[ net_ifaces_get_smallest ]----------------------------------
 //
-// Returns smaller iface addr in links list.
+// Returns smallest iface addr in links list.
 // Used to obtain correct OSPF-ID of a node.
-/*
-net_addr_t net_links_get_smaller_iface(net_iface_ts * pLinks)
+int net_ifaces_get_smallest(net_ifaces_t * ifaces, net_addr_t * addr)
 {
-   net_iface_t * pLink = NULL;
-   int iIndex;
-   for (iIndex = 0; iIndex < ptr_array_length(pLinks); iIndex++){
-     ptr_array_get_at(pLinks, ptr_array_length(pLinks)-1, &pLink);
-     if (pLink->tType == NET_IFACE_RTR)
-       continue;
-     
-     return pLink->tIfaceAddr;
-   }
-	     
-   if (pLink != NULL)
-     return pLink->pSrcNode->tAddr;
-   
-   return 0;
+  unsigned int index;
+  net_iface_t * iface;
+  net_addr_t iface_addr;
+  int found= 0;
+  net_addr_t smallest= IP_ADDR_ANY;
+
+  for (index= 0; index < net_ifaces_size(ifaces); index++) {
+    iface= net_ifaces_at(ifaces, index);
+    iface_addr= net_iface_src_address(iface);
+    if (!found || (iface_addr < smallest)) {
+      smallest= iface_addr;
+      found= 1;
+    }
+  }
+
+  if (!found)
+    return ENET_IFACE_UNKNOWN;
+
+  *addr= smallest;
+  return ESUCCESS;
 }
-*/
+
+// -----[ net_ifaces_get_highest ]-----------------------------------
+int net_ifaces_get_highest(net_ifaces_t * ifaces, net_addr_t * addr)
+{
+  unsigned int index;
+  net_iface_t * iface;
+  net_addr_t iface_addr;
+  int found= 0;
+  net_addr_t highest= IP_ADDR_ANY;
+
+  for (index= 0; index < net_ifaces_size(ifaces); index++) {
+    iface= net_ifaces_at(ifaces, index);
+    iface_addr= net_iface_src_address(iface);
+    if (!found || (iface_addr > highest)) {
+      highest= iface_addr;
+      found= 1;
+    }
+  }
+
+  if (!found)
+    return ENET_IFACE_UNKNOWN;
+
+  *addr= highest;
+  return ESUCCESS;
+}

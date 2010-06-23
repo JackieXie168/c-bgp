@@ -28,8 +28,10 @@ extern "C" {
   net_error_t net_links_add(net_ifaces_t * links, net_iface_t * link);
   // ----- net_links_dump -------------------------------------------
   void net_links_dump(gds_stream_t * stream, net_ifaces_t * links);
-  // ----- net_links_get_smaller_iface ------------------------------
-  net_addr_t net_links_get_smaller_iface(net_ifaces_t * links);
+  // -----[ net_ifaces_get_smallest ]--------------------------------
+  int net_ifaces_get_smallest(net_ifaces_t * ifaces, net_addr_t * addr);
+  // -----[ net_ifaces_get_highest ]-----------------------------------
+  int net_ifaces_get_highest(net_ifaces_t * ifaces, net_addr_t * addr);
 
   // -----[ net_links_find ]-----------------------------------------
   net_iface_t * net_links_find(net_ifaces_t * links,
