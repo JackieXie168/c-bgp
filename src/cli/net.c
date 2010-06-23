@@ -588,6 +588,22 @@ void cli_ctx_destroy_net_subnet(void ** item)
 {
 }
 
+// -----[ cli_net_subnet_show_info ]---------------------------------
+int cli_net_subnet_show_info(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  net_subnet_t * subnet= _subnet_from_context(ctx);
+  subnet_info(gdsout, subnet);
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_net_subnet_show_links ]--------------------------------
+int cli_net_subnet_show_links(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  net_subnet_t * subnet= _subnet_from_context(ctx);
+  subnet_links_dump(gdsout, subnet);
+  return CLI_SUCCESS;
+}
+
 // ----- cli_net_show_nodes -----------------------------------------
 /**
  * Display all nodes matching the given criterion, which is a prefix
@@ -848,6 +864,15 @@ static void _register_net_ntf(cli_cmd_t * parent)
   cli_add_arg(cmd, cli_arg_file("filename", NULL));
 }
 
+// -----[ _register_net_subnet_show ]--------------------------------
+static void  _register_net_subnet_show(cli_cmd_t * parent)
+{
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("show"));
+  cli_cmd_t * cmd= cli_add_cmd(group, cli_cmd("info",
+					      cli_net_subnet_show_info));
+  cmd= cli_add_cmd(group, cli_cmd("links", cli_net_subnet_show_links));
+}
+
 // -----[ _register_net_subnet ]-------------------------------------
 static void _register_net_subnet(cli_cmd_t * parent)
 {
@@ -860,6 +885,7 @@ static void _register_net_subnet(cli_cmd_t * parent)
 #ifdef OSPF_SUPPORT  
   cli_register_net_subnet_ospf(group);
 #endif /* OSPF_SUPPORT */
+  _register_net_subnet_show(group);
 }
 
 // -----[ _register_net_show ]---------------------------------------
