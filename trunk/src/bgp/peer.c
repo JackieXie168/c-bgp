@@ -965,21 +965,24 @@ static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
   if ((bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL) == 0) &&
       (peer->recv_seq_num != msg->seq_num)) {
     if (msg->type != BGP_MSG_TYPE_CLOSE) {
+      stream_printf(gdserr, "Error: out-of-sequence BGP message\n");
+      stream_printf(gdserr, "  router       = ");
+      bgp_router_dump_id(gdserr, peer->router);
+      stream_printf(gdserr, "\n");
+      stream_printf(gdserr, "  peer         = ");
       bgp_peer_dump_id(gdserr, peer);
-      stream_printf(gdserr, ": out-of-sequence BGP message (%d)", msg->seq_num);
-      stream_printf(gdserr, " - expected (%d)", peer->recv_seq_num);
-      stream_printf(gdserr,  " [state=%s]\n",
-		 SESSION_STATES[peer->session_state]);
+      stream_printf(gdserr, "\n");
+      stream_printf(gdserr, "  rcvd seq-num = %d\n", msg->seq_num);
+      stream_printf(gdserr, "  exp. seq-num = %d\n", peer->recv_seq_num);
+      stream_printf(gdserr, "  state        = %s\n",
+		    SESSION_STATES[peer->session_state]);
+      stream_printf(gdserr, "  message      = \n    ");
       bgp_msg_dump(gdserr, peer->router->node, msg);
       stream_printf(gdserr, "\n");
-      
       stream_printf(gdserr, "\n");
-      stream_printf(gdserr, "It is likely that this error occurs due to an "
-		 "incorrect setup of the simulation. The most common case "
-		 "for this error is when the underlying route of a BGP "
-		 "session changes during the simulation convergence (sim "
-		 "run). This might also occur with multi-hop eBGP sessions "
-		 "where the session is routed over another BGP session.");
+      stream_printf(gdserr, "  Note: This error can occur for several reasons. \n");
+      stream_printf(gdserr, "        The most common case for this error is when the underlying route of a\n");
+      stream_printf(gdserr, "        BGP session changes during the simulation convergence (sim run).\n");
       stream_printf(gdserr, "\n");
       abort();
     }
