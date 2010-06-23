@@ -224,6 +224,7 @@ int bgp_domain_full_mesh(bgp_domain_t * domain)
   ptr_array_t * routers;
   bgp_router_t * router1, * router2;
   bgp_peer_t * peer;
+  int result;
 
   /* Get the list of routers */
   routers= _bgp_domain_routers_list(domain);
@@ -234,11 +235,14 @@ int bgp_domain_full_mesh(bgp_domain_t * domain)
     for (index2= 0; index2 < ptr_array_length(routers); index2++) {
       if (index1 == index2)
 	continue;
+
       router2= routers->data[index2];
 
       // Add the peer
-      bgp_router_add_peer(router1, domain->asn,
-			  router2->node->rid, &peer);
+      result= bgp_router_add_peer(router1, domain->asn,
+				  router2->node->rid, &peer);
+      if (result != ESUCCESS)
+	return result;
 
       // Set the source address of BGP messages sent from
       // this router to the RID of this router. We SHOULD
@@ -247,7 +251,12 @@ int bgp_domain_full_mesh(bgp_domain_t * domain)
       bgp_peer_set_source(peer, router1->node->rid);
 
     }
-    bgp_router_start(router1);
+
+    // Start BGP sessions
+    result= bgp_router_start(router1);
+    if (result != ESUCCESS)
+      return result;
+
   }
   ptr_array_destroy(&routers);
   return 0;
