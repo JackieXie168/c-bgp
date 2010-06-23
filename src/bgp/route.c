@@ -758,6 +758,14 @@ void route_dump_cisco(gds_stream_t * stream, bgp_route_t * route)
 
   } else
     stream_printf(stream, "(null)");
+
+#ifdef __ROUTER_LIST_ENABLE__
+  if (route->attr->router_list != NULL) {
+    stream_printf(stream, "[router-list=");
+    cluster_list_dump(stream, route->attr->router_list);
+    stream_printf(stream, "\n");
+  }
+#endif
 }
 
 // ----- route_dump_mrt --------------------------------------------
