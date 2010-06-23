@@ -2,7 +2,7 @@
 
 CBGP=../src/cbgp
 
-for f in *.cli; do
+for f in example-*.cli; do
 	$CBGP -c $f
 	echo ""
 done
