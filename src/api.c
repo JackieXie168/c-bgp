@@ -52,11 +52,11 @@
 #include <ui/rl.h>
 
 #define COPYRIGHT_MSG				\
-  "  Copyright (C) 2002-2008 Bruno Quoitin\n"				\
-  "  IP Networking Lab\n"						\
-  "  Computer Science and Engineering Dept (INGI)\n"			\
-  "  Université catholique de Louvain\n"				\
-  "  Louvain-la-Neuve, Belgium\n"					\
+  "  Copyright (C) 2002-2010 Bruno Quoitin\n"		\
+  "  Networking Lab\n"						\
+  "  Computer Science Institute\n"					\
+  "  University of Mons (UMONS)\n"					\
+  "  Mons, Belgium\n"							\
   "  \n"								\
   "  This software is free for personal and educational uses.\n"	\
   "  See file COPYING for details.\n"					\
@@ -412,7 +412,7 @@ int libcbgp_interactive()
     // Get user-input
     line= rl_gets();
 
-    // EOF has been catched (Ctrl-D), exit
+    // EOF has been caught (Ctrl-D), exit
     if (line == NULL) {
       fprintf(stdout, "\n");
       break;
