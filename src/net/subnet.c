@@ -83,9 +83,9 @@ static inline char * _subnet_type2str(net_subnet_type_t type)
 {
   switch (type) {
   case NET_SUBNET_TYPE_TRANSIT : 
-    return "TRANSIT";
+    return "transit";
   case NET_SUBNET_TYPE_STUB:
-    return "STUB";
+    return "stub";
   default:
     abort();
   }
@@ -124,6 +124,32 @@ void subnet_dump(gds_stream_t * stream, net_subnet_t * subnet)
 void subnet_dump_id(gds_stream_t * stream, net_subnet_t * subnet)
 {
   ip_prefix_dump(stream, subnet->prefix);
+}
+
+// -----[ subnet_info ]----------------------------------------------
+void subnet_info(gds_stream_t * stream, net_subnet_t * subnet)
+{
+  stream_printf(stream, "id       : ");
+  subnet_dump_id(stream, subnet);
+  stream_printf(stream, "\n");
+  stream_printf(stream, "num-ports: %d\n", _subnet_length(subnet));
+  stream_printf(stream, "type     : %s\n", _subnet_type2str(subnet->type));
+}
+
+// -----[ subnet_links_dump ]----------------------------------------
+void subnet_links_dump(gds_stream_t * stream, net_subnet_t * subnet)
+{
+  int index;
+  net_iface_t * iface;
+
+  for (index= 0; index < _subnet_length(subnet); index++) {
+    ptr_array_get_at(subnet->ifaces, index, &iface);
+    net_iface_dump(stream, iface, 0);
+    stream_printf(stream,"\t");
+    node_dump_id(stream, iface->owner);
+    stream_printf(stream,"\n");
+  }
+  stream_printf(stream,"\n");
 }
 
 // -----[ subnet_add_link ]------------------------------------------
