@@ -413,6 +413,10 @@ bgp_attr_t * bgp_attr_create(net_addr_t next_hop,
   attr->originator= NULL;
   attr->cluster_list= NULL;
 
+#ifdef __ROUTER_LIST_ENABLE__
+  attr->router_list= cluster_list_create();
+#endif
+
   return attr;
 }
 
@@ -430,6 +434,11 @@ void bgp_attr_destroy(bgp_attr_t ** attr_ref)
     /* Route-reflection */
     bgp_attr_originator_destroy(*attr_ref);
     bgp_attr_cluster_list_destroy(*attr_ref);
+
+#ifdef __ROUTER_LIST_ENABLE__
+    cluster_list_destroy(&(*attr_ref)->router_list);
+#endif
+
     FREE(*attr_ref);
   }
 }
@@ -451,6 +460,14 @@ bgp_attr_t * bgp_attr_copy(bgp_attr_t * attr)
   /* Route-Reflection attributes */
   _bgp_attr_originator_copy(attr_copy, attr->originator);
   _bgp_attr_cluster_list_copy(attr_copy, attr->cluster_list);
+
+#ifdef __ROUTER_LIST_ENABLE__
+  if (attr->router_list == NULL)
+    attr_copy->router_list= NULL;
+  else
+    attr_copy->router_list= cluster_list_copy(attr->router_list);
+#endif
+
   return attr_copy;
 }
 
