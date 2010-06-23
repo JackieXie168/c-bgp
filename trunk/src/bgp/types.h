@@ -197,7 +197,7 @@ typedef struct bgp_attr_t {
 
 #ifdef __ROUTER_LIST_ENABLE__
   /** Router-List attribute (experimental) */
-  bgp_cluster_list_t * pRouterList;
+  bgp_cluster_list_t * router_list;
 #endif
 } bgp_attr_t;
 
