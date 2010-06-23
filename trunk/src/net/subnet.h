@@ -25,6 +25,10 @@ extern "C" {
 			       net_subnet_type_t type);
   // ----- subnet_dump ----------------------------------------------
   void subnet_dump(gds_stream_t * stream, net_subnet_t * subnet);
+  // -----[ subnet_info ]--------------------------------------------
+  void subnet_info(gds_stream_t * stream, net_subnet_t * subnet);
+  // -----[ subnet_links_dump ]--------------------------------------
+  void subnet_links_dump(gds_stream_t * stream, net_subnet_t * subnet);
   // -----[ subnet_dump_id ]-----------------------------------------
   void subnet_dump_id(gds_stream_t * stream, net_subnet_t * subnet);
   // ----- subnet_get_Prefix ----------------------------------------
