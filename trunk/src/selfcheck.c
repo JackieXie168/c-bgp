@@ -63,7 +63,6 @@ static inline net_node_t * __node_create(net_addr_t addr) {
   return node;
 }
 
-
 /////////////////////////////////////////////////////////////////////
 //
 // TEST TOPOLOGIES
@@ -3849,7 +3848,9 @@ int test_bgp_filter_predicate_expr_str2()
 static int test_bgp_router()
 {
   net_node_t * node= __node_create(IPV4(1,0,0,0));
-  bgp_router_t * router= bgp_router_create(2611, node);
+  bgp_router_t * router;
+  UTEST_ASSERT(bgp_router_create(2611, node, &router) == ESUCCESS,
+	       "router creation should succeed");
   UTEST_ASSERT(router != NULL, "router creation should succeed");
   UTEST_ASSERT(router->node == node,
 		"incorrect underlying node reference");
@@ -3864,11 +3865,24 @@ static int test_bgp_router()
   return UTEST_SUCCESS;
 }
 
+// -----[ test_bgp_router_no_iface ]---------------------------------
+static int test_bgp_router_no_iface()
+{
+  net_node_t * node;
+  bgp_router_t * router;
+  assert(node_create(IPV4(1,0,0,0), &node, 0) == ESUCCESS);
+  UTEST_ASSERT(bgp_router_create(2611, node, &router) == ENET_IFACE_UNKNOWN,
+	       "should return \"unknown interface\" error");
+  return UTEST_SUCCESS;
+}
+
 // -----[ test_bgp_router_add_network ]------------------------------
 static int test_bgp_router_add_network()
 {
   net_node_t * node= __node_create(IPV4(1,0,0,0));
-  bgp_router_t * router= bgp_router_create(2611, node);
+  bgp_router_t * router;
+  UTEST_ASSERT(bgp_router_create(2611, node, &router) == ESUCCESS,
+	       "router creation should succeed");
   ip_pfx_t pfx= IPV4PFX(192,168,0,0,24);
   UTEST_ASSERT(bgp_router_add_network(router, pfx) == ESUCCESS,
 		"addition of network should succeed");
@@ -3881,7 +3895,9 @@ static int test_bgp_router_add_network()
 static int test_bgp_router_add_network_dup()
 {
   net_node_t * node= __node_create(IPV4(1,0,0,0));
-  bgp_router_t * router= bgp_router_create(2611, node);
+  bgp_router_t * router;
+  UTEST_ASSERT(bgp_router_create(2611, node, &router) == ESUCCESS,
+	       "router creation should succeed");
   ip_pfx_t pfx= IPV4PFX(192,168,0,0,24);
   UTEST_ASSERT(bgp_router_add_network(router, pfx) == ESUCCESS,
 		"addition of network should succeed");
@@ -4506,6 +4522,7 @@ unit_test_t TEST_BGP_PEER[]= {
 
 unit_test_t TEST_BGP_ROUTER[]= {
   {test_bgp_router, "create"},
+  {test_bgp_router_no_iface, "create (error, no interface)"},
   {test_bgp_router_add_network, "add network"},
   {test_bgp_router_add_network_dup, "add network (duplicate)"},
 };
