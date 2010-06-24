@@ -596,6 +596,33 @@ net_error_t node_recv_msg(net_node_t * node,
 				ICMP_ERROR_HOST_UNREACH);
   }
 
+  // DEBUG order BGP
+  // Check if a BGP message is forwarded based on a BGP route
+  // and display a warning if it is the case...
+  /*if (msg->protocol == NET_PROTOCOL_BGP) {
+    const rt_info_t * rtinfo= node_rt_lookup2(node, msg->dst_addr);
+    if (rtinfo != NULL) {
+      if (rtinfo->type == NET_ROUTE_BGP) {
+	stream_printf(gdserr, "Warning: BGP message routed through a BGP route\n");
+	stream_printf(gdserr, "  node = ");
+	node_dump_id(gdserr, node);
+	stream_printf(gdserr, "\n");
+	stream_printf(gdserr, "  msg  = ");
+	message_dump(gdserr, msg);
+	stream_printf(gdserr, "\n");
+	ip_dest_t dst;
+	int pfx_len;
+	for (pfx_len= 32; pfx_len >= 0; pfx_len--) {
+	  dst= net_dest_prefix(msg->dst_addr, (unsigned char) pfx_len);
+	  stream_printf(gdserr, "ROUTES TOWARDS ");
+	  ip_prefix_dump(gdserr, dst.prefix);
+	  stream_printf(gdserr, "\n");
+	  node_rt_dump(gdserr, node, dst);
+	}
+      }
+    }
+    }*/
+  
   return _node_ip_output(node, iif, rtentries, msg);
 }
 
@@ -646,6 +673,27 @@ net_error_t node_send(net_node_t * node, net_msg_t * msg,
     rtentries= node_rt_lookup(node, msg->dst_addr);
     if (rtentries == NULL)
       return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
+
+    // DEBUG BGP order
+    /*if (msg->protocol == NET_PROTOCOL_BGP) {
+      const rt_info_t * rtinfo= node_rt_lookup2(node, msg->dst_addr);
+      if (rtinfo != NULL) {
+	stream_printf(gdserr, "Info: BGP message sent through ");
+	net_route_type_dump(gdserr, rtinfo->type);
+	stream_printf(gdserr, "\n");
+	stream_printf(gdserr, "  node = ");
+	node_dump_id(gdserr, node);
+	stream_printf(gdserr, "\n");
+	stream_printf(gdserr, "  msg  = ");
+	message_dump(gdserr, msg);
+	stream_printf(gdserr, "\n");
+	stream_printf(gdserr, "  route=");
+	rt_info_dump(gdserr, rtinfo);
+	stream_printf(gdserr, "\n");
+      }
+      }*/
+    // DEBUG
+
   }
 
   return _node_ip_output(node, NULL, rtentries, msg);
