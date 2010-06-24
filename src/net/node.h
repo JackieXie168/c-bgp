@@ -151,7 +151,9 @@ extern "C" {
   // -----[ node_rt_lookup ]-----------------------------------------
   const rt_entries_t * node_rt_lookup(net_node_t * self,
 				      net_addr_t dst_addr);
-  
+  const rt_info_t * node_rt_lookup2(net_node_t * node,
+				    net_addr_t dst_addr);
+
   
   ///////////////////////////////////////////////////////////////////
   // PROTOCOL FUNCTIONS

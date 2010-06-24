@@ -658,6 +658,12 @@ const rt_entries_t * node_rt_lookup(net_node_t * node, net_addr_t dst_addr)
   return NULL;
 }
 
+const rt_info_t * node_rt_lookup2(net_node_t * node, net_addr_t dst_addr)
+{
+  if (node->rt != NULL)
+    return rt_find_best(node->rt, dst_addr, NET_ROUTE_ANY);
+  return NULL;
+}
 
 /////////////////////////////////////////////////////////////////////
 //
