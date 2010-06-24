@@ -67,7 +67,8 @@ extern "C" {
 			     bgp_router_t ** router_ref);
 
   // ----- bgp_router_create ----------------------------------------
-  bgp_router_t * bgp_router_create(uint16_t asn, net_node_t * node);
+  int bgp_router_create(uint16_t asn, net_node_t * node,
+			bgp_router_t ** router_ref);
   // ----- bgp_router_destroy ---------------------------------------
   void bgp_router_destroy(bgp_router_t ** router_ref);
   // ----- bgp_router_get_name --------------------------------------

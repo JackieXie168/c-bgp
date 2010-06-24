@@ -52,6 +52,7 @@
 #include <bgp/walton.h>
 #include <net/network.h>
 #include <net/link.h>
+#include <net/link-list.h>
 #include <net/node.h>
 #include <net/protocol.h>
 #include <ui/output.h>
@@ -228,9 +229,9 @@ static inline void _bgp_router_msg_listener(net_msg_t * msg)
  * In the current C-BGP implementation, there is only one loopback
  * interface and its IP address is the node's identifier.
  */
-static inline net_addr_t _bgp_router_select_rid(net_node_t * node)
+static inline int _bgp_router_select_rid(net_node_t * node, net_addr_t * addr)
 {
-  return node->rid;
+  return net_ifaces_get_highest(node->ifaces, addr);
 }
 
 // -----[ bgp_add_router ]-------------------------------------------
@@ -240,15 +241,17 @@ static inline net_addr_t _bgp_router_select_rid(net_node_t * node)
 int bgp_add_router(uint16_t asn, net_node_t * node,
 		   bgp_router_t ** router_ref)
 {
-  net_error_t error;
+  int result;
   bgp_router_t * router;
 
-  router= bgp_router_create(asn, node);
+  result= bgp_router_create(asn, node, &router);
+  if (result != ESUCCESS)
+    return result;
 
   // Register BGP protocol into the node
-  error= node_register_protocol(node, NET_PROTOCOL_BGP, router);
-  if (error != ESUCCESS)
-    return error;
+  result= node_register_protocol(node, NET_PROTOCOL_BGP, router);
+  if (result != ESUCCESS)
+    return result;
 
   if (router_ref != NULL)
     *router_ref= router;
@@ -263,12 +266,20 @@ int bgp_add_router(uint16_t asn, net_node_t * node,
  * - the AS-number of the domain the router will belong to
  * - the underlying node
  */
-bgp_router_t * bgp_router_create(uint16_t asn, net_node_t * node)
+int bgp_router_create(uint16_t asn, net_node_t * node,
+		      bgp_router_t ** router_ref)
 {
-  bgp_router_t * router= (bgp_router_t*) MALLOC(sizeof(bgp_router_t));
+  bgp_router_t * router;
+  net_addr_t rid;
+  int result;
 
+  result= _bgp_router_select_rid(node, &rid);
+  if (result != ESUCCESS)
+    return result;
+
+  router= (bgp_router_t*) MALLOC(sizeof(bgp_router_t));
   router->asn= asn;
-  router->rid= _bgp_router_select_rid(node);
+  router->rid= rid;
   router->peers= bgp_peers_create();
   router->loc_rib= rib_create(0);
   router->local_nets= routes_list_create(ROUTES_LIST_OPTION_REF);
@@ -283,7 +294,9 @@ bgp_router_t * bgp_router_create(uint16_t asn, net_node_t * node)
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   bgp_router_walton_init(router);
 #endif 
-  return router;
+
+  *router_ref= router;
+  return ESUCCESS;
 }
 
 // -----[ bgp_router_destroy ]---------------------------------------
@@ -343,7 +356,7 @@ int bgp_router_add_peer(bgp_router_t * router, uint16_t asn,
 			net_addr_t addr, bgp_peer_t ** peer_ref)
 {
   bgp_peer_t * new_peer;
-  int result= ESUCCESS;
+  int result;
 
   // Router must not own peer's address
   if (node_has_address(router->node, addr))
@@ -360,7 +373,7 @@ int bgp_router_add_peer(bgp_router_t * router, uint16_t asn,
   if (peer_ref != NULL)
     *peer_ref= new_peer;
 
-  return result;
+  return ESUCCESS;
 }
 
 // ----- bgp_router_peer_set_filter ---------------------------------
@@ -411,8 +424,7 @@ int bgp_router_add_network(bgp_router_t * router, ip_pfx_t prefix)
 
   // Create route and make it feasible (i.e. add flags BEST,
   // FEASIBLE and INTERNAL)
-  route= route_create(prefix, NULL, router->node->rid,
-		      BGP_ORIGIN_IGP);
+  route= route_create(prefix, NULL, router->rid, BGP_ORIGIN_IGP);
   route_flag_set(route, ROUTE_FLAG_BEST, 1);
   route_flag_set(route, ROUTE_FLAG_FEASIBLE, 1);
   route_flag_set(route, ROUTE_FLAG_INTERNAL, 1);
@@ -493,7 +505,7 @@ int as_add_qos_network(bgp_router_t * router, ip_pfx_t prefix,
 		       net_link_delay_t delay)
 {
   bgp_route_t * route= route_create(prefix, NULL,
-				    router->node->rid, BGP_ORIGIN_IGP);
+				    router->rid, BGP_ORIGIN_IGP);
   route_flag_set(route, ROUTE_FLAG_FEASIBLE, 1);
   route_localpref_set(route, _default_options.local_pref);
 
@@ -577,20 +589,31 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
 #define INTERNAL 0
 #define EXTERNAL 1
 #define LOCAL    2
-  char * acLocType[3]= { "INT", "EXT", "LOC" };
+  static char * acLocType[3]= { "INT", "EXT", "LOC" };
 
   bgp_route_t * new_route= NULL;
-  int from= LOCAL;
+  int from;
   int to;
   bgp_peer_t * src_peer= NULL;
 
+  /*STREAM_DEBUG(STREAM_LEVEL_INFO, "ADVERTISE_TO_PEER (");
+  bgp_router_dump_id(gdserr, router);
+  STREAM_DEBUG(STREAM_LEVEL_INFO, ") (");
+  bgp_peer_dump_id(gdserr, dst_peer);
+  STREAM_DEBUG(STREAM_LEVEL_INFO, ")\n");
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "  route = ");
+  route_dump(gdserr, route);
+  STREAM_DEBUG(STREAM_LEVEL_INFO, "\n");*/
+
   // Determine route origin type (internal/external/local)
-  if (!node_has_address(router->node, route->attr->next_hop)) {
+  if (route->peer != NULL) {
     src_peer= route_peer_get(route);
     if (router->asn == route_peer_get(route)->asn)
       from= INTERNAL;
     else
       from= EXTERNAL;
+  } else {
+    from= LOCAL;
   }
   
   // Determine route destination type (internal/external)
@@ -611,8 +634,8 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
   }
   
 #ifdef __ROUTER_LIST_ENABLE__
-  // Append the router-list with the IP address of this router
-  route_router_list_append(route, router->node->rid);
+  // Append the router-list with the router-id of this router
+  cluster_list_append(route->attr->router_list, router->rid);
 #endif
 
   // Do not redistribute to the originator neighbor peer
@@ -759,7 +782,7 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
     if (dst_peer->next_hop != NET_ADDR_ANY)
       route_set_nexthop(new_route, dst_peer->next_hop);
     else
-      route_set_nexthop(new_route, router->node->rid);
+      route_set_nexthop(new_route, router->rid);
     
     // Prepend AS-Number
     route_path_prepend(new_route, router->asn, 1);
@@ -772,7 +795,7 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
     if (from == EXTERNAL) {
       if (bgp_peer_flag_get(route_peer_get(new_route),
 			    PEER_FLAG_NEXT_HOP_SELF)) {
-	route_set_nexthop(new_route, router->node->rid);
+	route_set_nexthop(new_route, router->rid);
       } else if (dst_peer->next_hop != NET_ADDR_ANY) {
 	route_set_nexthop(new_route, dst_peer->next_hop);
       }
@@ -1028,6 +1051,7 @@ void bgp_router_decision_process_disseminate_to_peer(bgp_router_t * router,
 	STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\texplicit-withdraw\n");
       }
     } else {
+
       new_route= route_copy(route);
       if (_bgp_router_advertise_to_peer(router, peer, new_route) == 0) {
 	STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\treplaced\n");
@@ -1044,7 +1068,7 @@ void bgp_router_decision_process_disseminate_to_peer(bgp_router_t * router,
 	  //As it may be an eBGP session, the Next-Hop may have changed!
 	  //If the next-hop has changed the path identifier as well ... :)
 	  if (peer->asn != router->asn)
-	    next_hop= router->node->rid;
+	    next_hop= router->rid;
 	  else
 	    next_hop= route_get_nexthop(route);
 	  bgp_peer_withdraw_prefix(peer, prefix, &(next_hop));
@@ -1828,7 +1852,7 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
   bgp_peer_t * peer;
   unsigned int uBestWeight;
   rt_info_t * routeInfo;
-  rt_info_t * pCurRouteInfo;
+  //rt_info_t * pCurRouteInfo;
 
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   uint16_t uIndexRoute;
@@ -1840,13 +1864,14 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
   prefix.network= key;
   prefix.mask= key_len;
 
-  /*
-  fprintf(stderr, "SCAN PREFIX ");
-  bgp_router_dump_id(stderr, router);
+  /*fprintf(stderr, "SCAN PREFIX ");
+  bgp_router_dump_id(gdserr, router);
   fprintf(stderr, " ");
-  ip_prefix_dump(stderr, prefix);
-  fprintf(stderr, "\n");
-  */
+  ip_prefix_dump(gdserr, prefix);
+  fprintf(stderr, "\n");*/
+
+  _array_append(pCtx->pPrefixes, &prefix);
+  return 0;
   
   /* Looks up for the best BGP route towards this prefix. If the route
      does not exist, schedule the current prefix for the decision
@@ -1860,6 +1885,9 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
     _array_append(pCtx->pPrefixes, &prefix);
     return 0;
   } else {
+
+    /*fprintf(stderr, "- checking peering session...\n");
+      fflush(stderr);*/
 
     /* Check if the peer that has announced this route is down */
     if ((route->peer != NULL) &&
@@ -1875,41 +1903,40 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
     
     routeInfo= rt_find_best(router->node->rt, route->attr->next_hop,
 			     NET_ROUTE_ANY);    
-    
+
+    /*** Next-hop no more reachable => trigger decision process ***/
+    if (routeInfo == NULL) {
+      _array_append(pCtx->pPrefixes, &prefix);
+      return 0;	
+    }
+
     /* Check if the IP next-hop of the BGP route has changed. Indeed,
        the BGP next-hop is not always the IP next-hop. If this next-hop
        has changed, the decision process must be run. */
-    if (routeInfo != NULL) { 
-      pCurRouteInfo= rt_find_exact(router->node->rt,
-				   route->prefix, NET_ROUTE_BGP);
+    
+    /*fprintf(stderr, "- checking route's next-hop...\n");
+      fflush(stderr);*/
+    
+    /*pCurRouteInfo= rt_find_exact(router->node->rt,
+      route->prefix, NET_ROUTE_BGP);
       assert(pCurRouteInfo != NULL);
-      
       if (rt_entry_compare((rt_entry_t *) pCurRouteInfo->entries->data[0],
-			   (rt_entry_t *) routeInfo->entries->data[0])) {
-	_array_append(pCtx->pPrefixes, &prefix);
-	//fprintf(stderr, "NEXT-HOP HAS CHANGED\n");
-	return 0;
-      }
-    }
+      (rt_entry_t *) routeInfo->entries->data[0])) {
+      _array_append(pCtx->pPrefixes, &prefix);
+      fprintf(stderr, "NEXT-HOP HAS CHANGED\n");
+      return 0;
+      }*/
 
-    /* If the best route has been chosen based on the IGP weight, then
-       there is a possible BGP impact */
+    /* If the best route was chosen based on the IGP weight, then
+       there is a possible impact on BGP */
     if (route_flag_get(route, ROUTE_FLAG_DP_IGP)) {
-
-      /* Is there a route (IGP ?) towards the destination ? */
-      if (routeInfo == NULL) {
-	/* The next-hop of the best route is now unreachable, thus
-	   trigger the decision process */
-	_array_append(pCtx->pPrefixes, &prefix);
-	return 0;	
-      }
 
       uBestWeight= routeInfo->metric;
 
       /* Lookup in the Adj-RIB-Ins for routes that were also selected
 	 based on the IGP, that is routes that were compared to the
 	 current best route based on the IGP cost to the next-hop. These
-	 routes are marked with the ROUTE_FLAG_DP_IGP flag */
+	 routes are marked with the ROUTE_FLAG_DP_IGP flag as well */
       for (index= 0; index < bgp_peers_size(router->peers); index++) {
 	peer= bgp_peers_at(router->peers, index);
 	
@@ -1926,8 +1953,8 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
 	  
 	  /* Is there a route (IGP ?) towards the destination ? */
 	  routeInfo= rt_find_best(router->node->rt,
-				   pAdjRoute->attr->next_hop,
-				   NET_ROUTE_ANY);
+				  pAdjRoute->attr->next_hop,
+				  NET_ROUTE_ANY);
 	  
 	  /* Three cases are now possible:
 	     (1) route becomes reachable => run DP
@@ -1949,6 +1976,7 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
 	    if (routeInfo->metric < uBestWeight) {
 	      _array_append(pCtx->pPrefixes, &prefix);
 	      return 0;
+	      
 	    }	
 	    
 	  }
@@ -2551,7 +2579,7 @@ static int _bgp_router_load_rib_handler(int status,
   // 1). Check that the target router (addr/ASN) corresponds to the
   //     route's peer (addr/ASN). Ignored if peer addr is 0 (CISCO).
   if (!(pCtx->options & BGP_ROUTER_LOAD_OPTIONS_FORCE) &&
-      ((router->node->rid != peer_addr) ||
+      ((router->rid != peer_addr) ||
        (router->asn != peer_asn))) {
     
     STREAM_ERR_ENABLED(STREAM_LEVEL_SEVERE) {
