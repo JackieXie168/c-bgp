@@ -3,6 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Pradeep Bangera (pradeep.bangera@imdea.org)
 // @date 01/03/2004
 // $Id: registry.c,v 1.2 2009-08-31 09:37:08 bqu Exp $
 // ==================================================================
@@ -476,6 +477,31 @@ static int ft_cli_action_path_prepend(cli_ctx_t * ctx, cli_cmd_t * cmd)
    return CLI_SUCCESS;
 }
 
+// ----- ft_cli_action_path_insert -------------------------------------
+static int ft_cli_action_path_insert(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  bgp_ft_action_t ** action= _action_from_context(ctx);
+  const char * arg_asn= cli_get_arg_value(cmd, 0); //get the ASN
+  const char * arg_amount= cli_get_arg_value(cmd, 1); //get the amount
+  asn_t asn;
+  unsigned long int amount;
+
+  if (str2asn(arg_asn, &asn)) {
+    *action= NULL;
+    cli_set_user_error(_cli_action, "invalid ASN %s\n", arg_asn);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  if (str_as_ulong(arg_amount, &amount)) {
+    *action= NULL;
+    cli_set_user_error(_cli_action, "invalid amount %s\n", arg_amount);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+  *action= filter_action_path_insert(asn, amount);
+  return CLI_SUCCESS;
+}
+
 // ----- ft_cli_action_path_rem_private -----------------------------
 static int ft_cli_action_path_rem_private(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -645,6 +671,10 @@ static void ft_cli_register_action_path(cli_cmd_t * root)
   group= cli_add_cmd(root, cli_cmd_group("as-path"));
   cmd= cli_add_cmd(group, cli_cmd("prepend",
 				  ft_cli_action_path_prepend));
+  cli_add_arg(cmd, cli_arg("amount", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("insert",
+				  ft_cli_action_path_insert));
+  cli_add_arg(cmd, cli_arg("asn", NULL));
   cli_add_arg(cmd, cli_arg("amount", NULL));
   cmd= cli_add_cmd(group, cli_cmd("remove-private",
 				  ft_cli_action_path_rem_private));

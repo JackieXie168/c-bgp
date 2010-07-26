@@ -2,6 +2,7 @@
 // @(#)filter.h
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Pradeep Bangera (pradeep.bangera@imdea.org)
 // @date 27/11/2002
 // $Id: filter.h,v 1.1 2009-03-24 13:42:45 bqu Exp $
 // ==================================================================
@@ -121,6 +122,8 @@ extern "C" {
   bgp_ft_action_t * filter_action_ecomm_append(bgp_ecomm_t * comm);
   // ----- filter_action_path_prepend -------------------------------
   bgp_ft_action_t * filter_action_path_prepend(uint8_t amount);
+  // ----- filter_action_path_insert -------------------------------
+  bgp_ft_action_t * filter_action_path_insert(asn_t asn, uint8_t amount);
   // ----- filter_action_path_rem_private ---------------------------
   bgp_ft_action_t * filter_action_path_rem_private();
   // ----- filter_dump ----------------------------------------------

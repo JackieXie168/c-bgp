@@ -71,7 +71,7 @@ typedef enum {
   /** Remove community value. */
   FT_ACTION_COMM_REMOVE,
   /** Append ASN to AS-Path. */
-  FT_ACTION_PATH_APPEND,
+  FT_ACTION_PATH_INSERT,
   /** Prepend ASN to AS-Path. */
   FT_ACTION_PATH_PREPEND,
   /** Remove private AS-Paths. */
