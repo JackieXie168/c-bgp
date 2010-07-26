@@ -3,8 +3,27 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Pradeep Bangera (pradeep.bangera@imdea.org)
 // @date 27/11/2002
-// $Id: filter.c,v 1.2 2009-08-31 09:36:08 bqu Exp $
+// $Id: filter.c,v 1.1 2009/03/24 13:42:45 bqu Exp $
+//
+// C-BGP, BGP Routing Solver
+// Copyright (C) 2002-2008 Bruno Quoitin
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+// 02111-1307  USA
 // ==================================================================
 
 #ifdef HAVE_CONFIG_H
@@ -347,7 +366,6 @@ int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
 			bgp_route_t * route)
 {
   rt_info_t * rtinfo;
-
   while (action != NULL) {
     switch (action->code) {
     case FT_ACTION_ACCEPT:
@@ -364,9 +382,14 @@ int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
       route_comm_remove(route, *((uint32_t *) action->params));
       break;
     case FT_ACTION_PATH_PREPEND:
-      route_path_prepend(route, router->asn,
-			 *((uint8_t *) action->params));
+      route_path_prepend(route, router->asn, *((uint8_t *) action->params));
       break;
+//-------Added by pradeep bangera----------------------------------
+    case FT_ACTION_PATH_INSERT:
+      route_path_prepend(route, *((asn_t *) action->params),
+			 *((uint8_t *) (action->params+sizeof(asn_t))));
+      break;
+//-----------------------------------------------------------------
     case FT_ACTION_PATH_REM_PRIVATE:
       route_path_rem_private(route);
       break;
@@ -692,11 +715,11 @@ bgp_ft_action_t * filter_action_call(bgp_filter_t * filter)
 /**
  *
  */
-bgp_ft_action_t * filter_action_pref_set(uint32_t uPref)
+bgp_ft_action_t * filter_action_pref_set(uint32_t pref)
 {
   bgp_ft_action_t * action= _ft_action_create(FT_ACTION_PREF_SET,
-						sizeof(uint32_t));
-  memcpy(action->params, &uPref, sizeof(uint32_t));
+					      sizeof(pref));
+  memcpy(action->params, &pref, sizeof(pref));
   return action;
 }
 
@@ -704,11 +727,11 @@ bgp_ft_action_t * filter_action_pref_set(uint32_t uPref)
 /**
  *
  */
-bgp_ft_action_t * filter_action_metric_set(uint32_t uMetric)
+bgp_ft_action_t * filter_action_metric_set(uint32_t metric)
 {
   bgp_ft_action_t * action= _ft_action_create(FT_ACTION_METRIC_SET,
-						sizeof(uint32_t));
-  memcpy(action->params, &uMetric, sizeof(uint32_t));
+						sizeof(metric));
+  memcpy(action->params, &metric, sizeof(metric));
   return action;
 }
 
@@ -773,13 +796,28 @@ bgp_ft_action_t * filter_action_ecomm_append(bgp_ecomm_t * comm)
 /**
  *
  */
-bgp_ft_action_t * filter_action_path_prepend(uint8_t uAmount)
+bgp_ft_action_t * filter_action_path_prepend(uint8_t amount)
 {
   bgp_ft_action_t * action= _ft_action_create(FT_ACTION_PATH_PREPEND,
-						sizeof(uint8_t));
-  memcpy(action->params, &uAmount, sizeof(uint8_t));
+					      sizeof(uint8_t));
+  memcpy(action->params, &amount, sizeof(uint8_t));
   return action;
 }
+
+//-----------------Added by pradeep bangera-------------------------
+// ----- filter_action_path_insert ---------------------------------
+/**
+ *
+ */
+bgp_ft_action_t * filter_action_path_insert(asn_t asn, uint8_t amount)
+{
+  bgp_ft_action_t * action= _ft_action_create(FT_ACTION_PATH_INSERT,
+					      sizeof(asn)+sizeof(amount));
+  memcpy(action->params, &asn, sizeof(asn));
+  memcpy(action->params+sizeof(asn), &amount, sizeof(amount));
+  return action;
+}
+//-------------------------------------------------------------------
 
 // ----- filter_action_path_rem_private -----------------------------
 /**
@@ -904,6 +942,15 @@ void filter_action_dump(gds_stream_t * stream, bgp_ft_action_t * action)
     stream_printf(stream, "as-path prepend %u",
 		  *((uint8_t *) action->params));
     break;
+//-----------Added by pradeep bangera----------------------------
+//***The command "as-path insert <asn>" will insert user specified 
+//***AS number into the AS PATH before suffixing the its own AS ID
+  case FT_ACTION_PATH_INSERT:
+    stream_printf(stream, "as-path insert %u %u",
+		  *((asn_t *) action->params),
+		  *((uint8_t *) (action->params+sizeof(asn_t))));
+    break;
+    //---------------------------------------------------------------
   case FT_ACTION_PATH_REM_PRIVATE:
     stream_printf(stream, "as-path remove-private");
     break;
