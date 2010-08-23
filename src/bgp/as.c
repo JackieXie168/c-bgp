@@ -149,6 +149,7 @@ static int ___debug_for_each(gds_stream_t * stream, void * context,
     format_str[1]= format;
     stream_vprintf(stream, format_str, *ap);
   }
+  return 0;
 }
 #endif /* BGP_ROUTER_DEBUG */
 
