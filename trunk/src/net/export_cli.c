@@ -379,7 +379,7 @@ static void _export_bgp_filter(gds_stream_t * stream,
     stream_printf(stream, "'\n");
     action= rule->action;
     while (action != NULL) {
-      stream_printf(stream, "%s  action \"");
+      stream_printf(stream, "%s  action \"", pfx_str);
       filter_action_dump(stream, action);
       action= action->next_action;
       stream_printf(stream, "\"\n");
