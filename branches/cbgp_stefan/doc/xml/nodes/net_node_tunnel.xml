@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>tunnel</name>
+  <id>net_node_tunnel</id>
+  <context>net node</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>add</name>
+      <id>net_node_tunnel_add</id>
+    </child>
+  </childs>
+  <prev>
+    <name>show</name>
+    <id>net_node_traceroute</id>
+  </prev>
+</command>

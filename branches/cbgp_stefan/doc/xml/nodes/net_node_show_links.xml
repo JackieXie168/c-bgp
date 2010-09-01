@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<command>
+  <name>links</name>
+  <id>net_node_show_links</id>
+  <context>net node show</context>
+  <abstract></abstract>
+  <description>
+<p>
+This command shows information on all the links of one node.
+</p>
+<p>
+Output format:
+<code>
+&lt;prefix&gt; &lt;delay&gt; &lt;metric&gt; &lt;state&gt; &lt;type&gt; [&lt;IGP option&gt;]
+</code>
+where the <i>state</i> field can be either <b>UP</b> or <b>DOWN</b>. The <i>type</i> field takes one of the following values:
+<table>
+<trh><th>Value</th><th>Description</th></trh>
+<tr><td><b>DIRECT</b></td><td>The link is a direct link towards the destination, i.e. the destination is adjacent to this node</td></tr>
+<tr><td><b>TUNNEL</b></td><td>The link is a tunnel to the destination, i.e. messages that traverse this link will be encapsulated, then routed towards the tunnel end-point and hopefully decapsulated there.</td></tr>
+</table>
+Finally, the <i>IGP option</i> field, if present, can contain the <b>IGP_ADV</b> flag which means that this link is taken into account by the IGP model for computing shortest-path routes (see <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd>).
+</p>
+<p>
+Example:
+<code>
+cbgp> net node 0.0.0.1 show links<br/>
+0.2.0.1/32      444     444     UP      DIRECT  IGP_ADV<br/>
+0.2.0.2/32      370     370     UP      DIRECT  IGP_ADV<br/>
+</code>
+</p>
+<p>
+Example (more recent output):
+<code>
+cbgp> net node 1.0.0.3 show links<br/>
+ROUTER  1.0.0.1 10      5       UP      adv:yes<br/>
+ROUTER  1.0.0.2 10      4       UP      adv:yes<br/>
+</code>
+</p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>net_node_show</id>
+  </father>
+  <prev>
+    <name>info</name>
+    <id>net_node_show_info</id>
+  </prev>
+  <next>
+    <name>rt</name>
+    <id>net_node_show_rt</id>
+  </next>
+</command>

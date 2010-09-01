@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>action</name>
+  <id>bgp_router_peer_filter_add-rule_action</id>
+  <context>bgp router peer filter add-rule</context>
+  <parameters>
+    <parameter>
+      <name>actions</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>add-rule</name>
+    <id>bgp_router_peer_filter_add-rule</id>
+  </father>
+  <next>
+    <name>match</name>
+    <id>bgp_router_peer_filter_add-rule_match</id>
+  </next>
+</command>

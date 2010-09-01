@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<command>
+  <name>node</name>
+  <id>net_add_node</id>
+  <context>net add</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description>address (identifier) of the new node</description>
+    </parameter>
+  </parameters>
+  <abstract>add a node to the topology</abstract>
+  <description>
+    <p>
+    This command adds a new node to the topology. The node is identified
+by its IP address. This address must be unique. When created, a new
+node only supports IP routing as well as a simplified ICMP
+protocol. If you want to add support for the BGP protocol, consider
+using the <cmd><link>bgp_add_router</link><name>bgp add router</name></cmd> command.
+    </p>
+    <p>
+    Example:
+    <code>
+net add node 1.0.0.1<br/>
+net add node 1.0.0.2
+    </code></p>
+  </description>
+  <father>
+    <name>add</name>
+    <id>net_add</id>
+  </father>
+  <prev>
+    <name>link</name>
+    <id>net_add_link</id>
+  </prev>
+  <next>
+    <name>subnet</name>
+    <id>net_add_subnet</id>
+  </next>
+</command>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<command>
+  <name>record-route</name>
+  <id>bgp_router_record-route</id>
+  <context>bgp router</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>destination prefix</description>
+    </parameter>
+  </parameters>
+  <abstract>record the AS-level route towards a prefix</abstract>
+  <description>
+<p>
+This command records the AS-level route from one router towards the given
+<arg>prefix</arg>.
+</p>
+<p>
+Output format:
+<code>
+&lt;source&gt; &lt;destination&gt; &lt;status&gt; &lt;AS-Path&gt;
+</code>
+</p>
+<p>
+Example:
+<code>
+cbgp> bgp router 0.0.0.1 record-route 0.1.0.1/32<br/>
+0.0.0.1 0.1.0.1/32      SUCCESS 0 2 1
+</code>
+</p>
+  </description>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <prev>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </prev>
+  <next>
+    <name>rerun</name>
+    <id>bgp_router_rerun</id>
+  </next>
+</command>

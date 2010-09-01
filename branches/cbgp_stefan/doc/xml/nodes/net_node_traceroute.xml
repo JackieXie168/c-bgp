@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>traceroute</name>
+  <id>net_node_traceroute</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description>destination node</description>
+    </parameter>
+  </parameters>
+  <abstract>traces the route to another node</abstract>
+  <description>
+<p>
+This command traces the route from one node to another, much like the classical <i>traceroute</i> networking utility. It sends ICMP echo-request messages from the source note to the destination node with an increasing TTL value.
+</p>
+  </description>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <prev>
+    <name>show</name>
+    <id>net_node_show</id>
+  </prev>
+  <next>
+    <name>tunnel</name>
+    <id>net_node_tunnel</id>
+  </next>
+</command>

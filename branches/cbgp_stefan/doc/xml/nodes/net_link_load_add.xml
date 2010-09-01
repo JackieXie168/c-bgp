@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>net_link_load_add</id>
+  <context>net link load</context>
+  <parameters>
+    <parameter>
+      <name>load</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>load</name>
+    <id>net_link_load</id>
+  </father>
+  <next>
+    <name>clear</name>
+    <id>net_link_load_clear</id>
+  </next>
+</command>

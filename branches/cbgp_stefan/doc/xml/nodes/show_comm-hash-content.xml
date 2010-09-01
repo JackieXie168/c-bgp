@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>comm-hash-content</name>
+  <id>show_comm-hash-content</id>
+  <context>show</context>
+  <parameters>
+    <parameter>
+      <name>filename</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <next>
+    <name>comm-hash-size</name>
+    <id>show_comm-hash-size</id>
+  </next>
+</command>

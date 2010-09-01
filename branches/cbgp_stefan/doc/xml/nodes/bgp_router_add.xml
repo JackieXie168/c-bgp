@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>bgp_router_add</id>
+  <context>bgp router</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <childs>
+    <child>
+      <name>network</name>
+      <id>bgp_router_add_network</id>
+    </child>
+    <child>
+      <name>peer</name>
+      <id>bgp_router_add_peer</id>
+    </child>
+  </childs>
+  <next>
+    <name>assert</name>
+    <id>bgp_router_assert</id>
+  </next>
+</command>

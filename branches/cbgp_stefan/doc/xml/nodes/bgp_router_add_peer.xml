@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>peer</name>
+  <id>bgp_router_add_peer</id>
+  <context>bgp router add</context>
+  <parameters>
+    <parameter>
+      <name>as-num</name>
+      <description>ASN of the new neighbor</description>
+    </parameter>
+    <parameter>
+      <name>addr</name>
+      <description>IP address of the new neighbor</description>
+    </parameter>
+  </parameters>
+  <abstract>add a new neighbor to a BGP router</abstract>
+  <description>
+<p>
+This command adds a new neighbor to one BGP router. The new neighbor has the address <arg>addr</arg> and belongs to the domain with ASN <arg>as-num</arg>. This command also configures for this neighbor default input and output filters that will accept any route. See the <cmd><name>bgp router peer filter</name><link>bgp_router_peer_filter</link></cmd> for more information about the route filters.
+</p>
+  </description>
+  <father>
+    <name>add</name>
+    <id>bgp_router_add</id>
+  </father>
+  <prev>
+    <name>network</name>
+    <id>bgp_router_add_network</id>
+  </prev>
+</command>
