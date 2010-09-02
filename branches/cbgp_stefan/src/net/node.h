@@ -52,6 +52,16 @@ extern "C" {
    */
   net_error_t node_create(net_addr_t addr, net_node_t ** node_ref,
 			  int options);
+// ----- node_create_by_name ----------------------------------------------
+  /**
+   * Create a network node.
+   * \param node_name is  the node's identifier (an IP address).
+   * \param node_ref is a pointer to the new node.
+   * \param options  is a set of creation options.
+   * \retval an error code.
+   */
+   net_error_t node_create_by_name(char * node_name, net_node_t ** node_ref,
+			int options);
 
   // ----- node_destroy ---------------------------------------------
   /**
@@ -68,8 +78,9 @@ extern "C" {
    * \param node is the node.
    * \param name is the new name of the node. If \p name is NULL, the
    *   previous name is removed.
+   * \retval 0 if it happended correctly, -1 if not
    */
-  void node_set_name(net_node_t * node, const char * name);
+  int node_set_name(net_node_t * node, const char * name);
 
   // ----- node_get_name --------------------------------------------
   /**

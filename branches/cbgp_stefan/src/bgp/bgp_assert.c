@@ -47,7 +47,7 @@ static ptr_array_t * build_router_list()
   network_t * network= network_get_default();
 
   // Build list of BGP routers
-  trie_for_each(network->nodes, _build_router_list_rtfe, rl);
+  trie_for_each(network->nodes_by_addr, _build_router_list_rtfe, rl);
   return rl;
 }
 

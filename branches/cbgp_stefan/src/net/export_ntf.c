@@ -36,7 +36,14 @@ int net_export_ntf(gds_stream_t * stream, network_t * network)
   stream_printf(stream, "#\n");
 
   // Links
-  nodes= trie_get_enum(network->nodes);
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
     for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
@@ -73,6 +80,8 @@ int net_export_ntf(gds_stream_t * stream, network_t * network)
     }
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
 
   return ESUCCESS;
 }

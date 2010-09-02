@@ -81,7 +81,7 @@ SSptVertex * spt_vertex_create(SNetwork * pNetwork, net_iface_t * pLink,
   }
   else if (pLink->tType == NET_IFACE_RTR){
     net_node_t * pNode;
-    pNode = network_find_node(link_get_address(pLink));
+    pNode = network_find_node_by_addr(link_get_address(pLink));
     assert(pNode != NULL);
     pVertex = spt_vertex_create_byRouter(pNode, pVFather->uIGPweight + 
 		                                pLink->uIGPweight);
@@ -398,12 +398,12 @@ SRadixTree * node_ospf_compute_spt(net_node_t * pNode, uint16_t IGPDomainNumber,
       if (ptr_array_length(aGrayVertexes) > 0)
         srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &uOldVertexPos);
       else ;
-//         fprintf(stdout, "aGrays è vuoto\n");
+//         fprintf(stdout, "aGrays ï¿½ vuoto\n");
       //srchres == -1 ==> item not found
       //srchres == 0  ==> item found
       pOldVertex = NULL;
       if(srchRes == 0) {
-//         fprintf(stdout, "vertex è già in aGrayVertexes\n");
+//         fprintf(stdout, "vertex ï¿½ giï¿½ in aGrayVertexes\n");
         ptr_array_get_at(aGrayVertexes, uOldVertexPos, &pOldVertex);
       }
       

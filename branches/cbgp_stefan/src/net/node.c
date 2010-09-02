@@ -70,6 +70,46 @@ net_error_t node_create(net_addr_t rid, net_node_t ** node_ref,
   return ESUCCESS;
 }
 
+// ----- node_create_by_name ------------------------------------------------
+net_error_t node_create_by_name(char * node_name, net_node_t ** node_ref,
+			int options)
+{
+  net_node_t * node;
+  net_error_t error;
+
+  node=(net_node_t *) MALLOC(sizeof(net_node_t));
+  node->rid= IP_ADDR_ANY;
+  node->name= node_name;
+  node->ifaces= net_links_create();
+  node->protocols= protocols_create();
+  node->rt= rt_create();
+  node->coord.latitude= 0;
+  node->coord.longitude= 0;
+  node->syslog_enabled= 0;
+  node->domains= uint16_array_create2(0,
+				      ARRAY_OPTION_UNIQUE|
+				      ARRAY_OPTION_SORTED);
+  node->spt= NULL;
+
+  // Activate ICMP protocol
+  error= node_register_protocol(node, NET_PROTOCOL_ICMP, node);
+  if (error != ESUCCESS)
+    return error;
+
+  //default is no-loopback
+
+#ifdef OSPF_SUPPORT
+  node->pOSPFAreas= uint32_array_create2(0,
+					 ARRAY_OPTION_SORTED|
+					 ARRAY_OPTION_UNIQUE);
+  node->pOspfRT= OSPF_rt_create();
+#endif
+
+  *node_ref= node;
+  return ESUCCESS;
+}
+
+
 // ----- node_destroy -----------------------------------------------
 /**
  *
@@ -101,14 +141,20 @@ char * node_get_name(net_node_t * node)
 }
 
 // ----- node_set_name ----------------------------------------------
-void node_set_name(net_node_t * node, const char * name)
+// return 0 if ok,  -1 if not.
+int node_set_name(net_node_t * node, const char * name)
 {
   if (node->name)
-    str_destroy(&node->name);
+      return -1;
   if (name != NULL)
-    node->name= str_create(name);
+  {  node->name= str_create(name);
+    return 0;
+  }
   else
+  {
     node->name= NULL;
+    return -1;
+  }
 }
 
 // -----[ node_set_coord ]--------------------------------------------
@@ -134,6 +180,11 @@ void node_dump_id(gds_stream_t * stream, net_node_t * node)
   ip_address_dump(stream, node->rid);
 }
 
+// -----[ node_dump_name ]-------------------------------------------
+void node_dump_name(gds_stream_t * stream, net_node_t * node)
+{
+  stream_printf(stream, "%s",node->name);
+}
 
 // ----- node_dump ---------------------------------------------------
 /**
@@ -141,7 +192,10 @@ void node_dump_id(gds_stream_t * stream, net_node_t * node)
  */
 void node_dump(gds_stream_t * stream, net_node_t * node)
 { 
-  node_dump_id(stream, node);
+  if(node->rid != IP_ADDR_ANY)
+     node_dump_id(stream, node);
+  else
+     node_dump_name(stream, node);
 }
 
 // ----- node_info --------------------------------------------------

@@ -176,7 +176,7 @@ int link_set_ospf_area(net_iface_t * pLinkToPeer, ospf_area_t tArea)
     net_node_t * pPeer;
     net_iface_t * pLinkToMyself;
     
-    pPeer = network_find_node(link_get_address(pLinkToPeer));
+    pPeer = network_find_node_by_addr(link_get_address(pLinkToPeer));
     assert(pPeer != NULL);
     
     //this is a configuration error

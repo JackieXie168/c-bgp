@@ -35,16 +35,25 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
   stream_printf(stream, "  overlap=scale\n");
 
   // Nodes
-  nodes= trie_get_enum(network->nodes);
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
     stream_printf(stream, "  \"");
-    node_dump_id(stream, node);
+    node_dump(stream, node);
     stream_printf(stream, "\" [");
     stream_printf(stream, "shape=box");
     stream_printf(stream, "] ;\n");
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+}
 
   // Subnets
   subnets= _array_get_enum((array_t *) network->subnets);
@@ -59,19 +68,21 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
   enum_destroy(&subnets);
 
   // Links
-  nodes= trie_get_enum(network->nodes);
+  nodes= trie_get_enum(network->nodes_by_addr);
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
     for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
       iface= (net_iface_t *) node->ifaces->data[index];
       switch (iface->type) {
       case NET_IFACE_RTR:
+          // TO DO : if rid are equal (in case of sorted by name)
+          // only choose one !
 	if (node->rid > iface->dest.iface->owner->rid)
 	  continue;
 	stream_printf(stream, "  \"");
-	node_dump_id(stream, node);
+	node_dump(stream, node);
 	stream_printf(stream, "\" -- \"");
-	node_dump_id(stream, iface->dest.iface->owner);
+	node_dump(stream, iface->dest.iface->owner);
 	stream_printf(stream, "\" [label=\"%u/%u,%u/%u\",dir=both] ;\n",
 		      net_iface_get_metric(iface, 0),
 		      net_iface_get_metric(iface->dest.iface, 0),
@@ -82,9 +93,9 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
 	if (node->rid > iface->dest.iface->owner->rid)
 	  continue;
 	stream_printf(stream, "  \"");
-	node_dump_id(stream, node);
+	node_dump(stream, node);
 	stream_printf(stream, "\" -- \"");
-	node_dump_id(stream, iface->dest.iface->owner);
+	node_dump(stream, iface->dest.iface->owner);
 	stream_printf(stream, "\" [label=\"%u/%u,%u/%u\",dir=both] ;\n",
 		      net_iface_get_metric(iface, 0),
 		      net_iface_get_metric(iface->dest.iface, 0),
@@ -93,7 +104,7 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
 	break;
       case NET_IFACE_PTMP:
 	stream_printf(stream, "  \"");
-	node_dump_id(stream, node);
+	node_dump(stream, node);
 	stream_printf(stream, "\" -- \"");
 	subnet_dump_id(stream, iface->dest.subnet);
 	stream_printf(stream, "\" [label=\"%u,%u\",dir=forward] ;\n",

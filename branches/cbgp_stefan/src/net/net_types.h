@@ -22,6 +22,7 @@
 #include <net/prefix.h>
 #include <net/routing_t.h>
 #include <sim/simulator.h>
+#include <libgds/trie_dico.h>
 
 typedef uint8_t net_tos_t;
 typedef uint8_t   ospf_dest_type_t;
@@ -152,8 +153,12 @@ typedef ptr_array_t net_protocols_t;
 typedef struct {
   /** List of IGP domains. */
   igp_domains_t * domains;
-  /** Set of nodes (key=IP address). */
-  gds_trie_t    * nodes;
+  /** Set of nodes (key=IP address).
+   *  Nodes are sorted by IP Address */
+  gds_trie_t    * nodes_by_addr;
+  /** Set of nodes (key=Name).
+   *  Nodes are sorted by their name */
+  gds_trie_dico_t    * nodes_by_name;
   /** Set of subnets (key=IP prefix) */
   net_subnets_t * subnets;
   /** Network simulator. */

@@ -68,7 +68,7 @@ int bgp_record_route(bgp_router_t * router,
       }
       
       // Otherwize, looks for next-hop router
-      node= network_find_node(network, route->attr->next_hop);
+      node= network_find_node_by_addr(network, route->attr->next_hop);
       if (node == NULL)
 	break;
       

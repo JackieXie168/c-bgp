@@ -18,6 +18,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <cli/enum.h>
 #include <bgp/as.h>
@@ -69,30 +70,49 @@ as_level_domain_t * cli_enum_as_level_domains(const char * text,
 }
 
 // -----[ cli_enum_net_nodes ]---------------------------------------
-net_node_t * cli_enum_net_nodes(const char * text, int state)
+net_node_t * cli_enum_net_nodes(const char * text, int state, int by)
 {
-  static gds_enum_t * nodes= NULL;
+  static gds_enum_t * nodes_by_addr= NULL;
+  static gds_enum_t * nodes_by_name= NULL;
   net_node_t * node;
   char str_addr[IP4_ADDR_STR_LEN];
+     
+      if ( state == 0 )
+      {
+         nodes_by_addr= trie_get_enum(network_get_default()->nodes_by_addr);
+         nodes_by_name= trie_dico_get_enum(network_get_default()->nodes_by_name);
+      }
 
-  if (state == 0)
-    nodes= trie_get_enum(network_get_default()->nodes);
-
-  while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
-
-    // Optionally check if prefix matches
-    if (text != NULL) {
-
-      assert(ip_address_to_string(node->rid, str_addr,
+      if( (by == BY_IP_ADDR || by == BY_BOTH) && ( (text == NULL || strlen(text)==0 ) || (strlen(text)>0 && isdigit(text[0])) ))
+      {
+         while (enum_has_next(nodes_by_addr)) {
+            node= (net_node_t *) enum_get_next(nodes_by_addr);
+            // Optionally check if prefix matches
+            if (text != NULL) {
+            assert(ip_address_to_string(node->rid, str_addr,
 				  sizeof(str_addr)) >= 0);
-      if (strncmp(text, str_addr, strlen(text)))
-	continue;
-    }
+            if (strncmp(text, str_addr, strlen(text)))
+             continue;
+            }
+            return node;
+         }
+      }
+      if( (by == BY_NAME || by == BY_BOTH) && ( (text == NULL || strlen(text)==0 ) ||  (strlen(text)>0 && !isdigit(text[0]))) )
+      {
+         while (enum_has_next(nodes_by_name)) {
+            node= (net_node_t *) enum_get_next(nodes_by_name);
+            // Optionally check if prefix matches
+            if (text != NULL) {
+                if (strncmp(text, node->name, strlen(text)))
+                    continue;
+            }
+            return node;
+         }
+      }
 
-    return node;
-  }
-  enum_destroy(&nodes);
+      enum_destroy(&nodes_by_addr);
+      enum_destroy(&nodes_by_name);
+
   return NULL;
 }
 
@@ -101,7 +121,7 @@ net_node_t * cli_enum_net_nodes_id(const char * text, int state)
 {
   as_level_domain_t * domain;
   if (strncmp("AS", text, 2))
-    return cli_enum_net_nodes(text, state);
+    return cli_enum_net_nodes(text, state, BY_IP_ADDR);
   domain= cli_enum_as_level_domains(text, state);
   if (domain == NULL)
     return NULL;
@@ -116,7 +136,7 @@ bgp_router_t * cli_enum_bgp_routers(const char * text, int state)
   net_node_t * node;
   net_protocol_t * protocol;
 
-  while ((node= cli_enum_net_nodes(text, state++)) != NULL) {
+  while ((node= cli_enum_net_nodes(text, state++, BY_IP_ADDR)) != NULL) {
 
     // Check if node supports BGP
     protocol= node_get_protocol(node, NET_PROTOCOL_BGP);
@@ -148,16 +168,55 @@ bgp_peer_t * cli_enum_bgp_peers(const char * text, int state)
 
 // -----[ cli_enum_net_nodes_addr ]----------------------------------
 /**
- * Enumerate all the nodes.
+ * Enumerate all the nodes (by address
+ * depending on the way they were built (net add node ...)  ).
  */
 char * cli_enum_net_nodes_addr(const char * text, int state)
 {
   net_node_t * node= NULL;
   char str_addr[IP4_ADDR_STR_LEN];
   
-  while ((node= cli_enum_net_nodes(text, state++)) != NULL) {
-    assert(ip_address_to_string(node->rid, str_addr, sizeof(str_addr)) >= 0);
-    return strdup(str_addr);
+  while ((node= cli_enum_net_nodes(text, state++, BY_IP_ADDR)) != NULL) {
+            assert(ip_address_to_string(node->rid, str_addr, sizeof(str_addr)) >= 0);
+            return strdup(str_addr);
+      }
+  return NULL;
+}
+
+// -----[ cli_enum_net_nodes_addr_OR_name ]----------------------------------
+/**
+ * Enumerate all the nodes (by address or by name
+ * depending on the way they were built (net add node ...)  ).
+ */
+char * cli_enum_net_nodes_addr_OR_name(const char * text, int state)
+{
+  net_node_t * node= NULL;
+  char str_addr[IP4_ADDR_STR_LEN];
+  
+  while ((node= cli_enum_net_nodes(text, state++, BY_BOTH)) != NULL) {
+      //referenced by IP or Name
+      if(node->rid == IP_ADDR_ANY)    //Name
+         return strdup(node->name);
+      else                            // IP
+      {
+         assert(ip_address_to_string(node->rid, str_addr, sizeof(str_addr)) >= 0);
+         return strdup(str_addr);
+      }
+  }
+  return NULL;
+}
+
+// -----[ cli_enum_net_nodes_addr_OR_name ]----------------------------------
+/**
+ * Enumerate all the nodes (by address or by name
+ * depending on the way they were built (net add node ...)  ).
+ */
+char * cli_enum_net_nodes_name(const char * text, int state)
+{
+    net_node_t * node= NULL;
+  
+  while ((node= cli_enum_net_nodes(text, state++, BY_NAME)) != NULL) {
+                 return strdup(node->name);
   }
   return NULL;
 }
@@ -185,11 +244,18 @@ char * cli_enum_as_level_domains_addr(const char * text, int state)
   return NULL;
 }
 
-// -----[ cli_enum_net_nodes_addr_id ]--------------------------------
-char * cli_enum_net_nodes_addr_id(const char * text, int state)
+// -----[ cli_enum_net_nodes_addr_OR_id ]--------------------------------
+char * cli_enum_net_nodes_addr_OR_id(const char * text, int state)
 {
   if (strncmp("AS", text, 2))
     return cli_enum_net_nodes_addr(text, state);
+  return cli_enum_as_level_domains_addr(text+2, state);
+}
+// -----[ cli_enum_net_nodes_addr_OR_id_OR_name ]--------------------------------
+char * cli_enum_net_nodes_addr_OR_id_OR_name(const char * text, int state)
+{
+  if (strncmp("AS", text, 2))
+    return cli_enum_net_nodes_addr_OR_name(text, state);
   return cli_enum_as_level_domains_addr(text+2, state);
 }
 
