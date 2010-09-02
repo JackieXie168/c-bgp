@@ -1388,7 +1388,7 @@ static void _register_bgp_add(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_group("add"));
   cmd= cli_add_cmd(group, cli_cmd("router", cli_bgp_add_router));
   cli_add_arg(cmd, cli_arg("as-num", NULL));
-  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr));
+  cli_add_arg(cmd, cli_arg2("addr|name", NULL, cli_enum_net_nodes_addr_OR_name));
 }
 
 // ----- _register_bgp_assert ------------------------------------

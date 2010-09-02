@@ -190,7 +190,17 @@ extern "C" {
    * \param addr    is the searched node's RID.
    * \retval the searched node, or NULL if it was not found.
    */
-  net_node_t * network_find_node(network_t * network, net_addr_t addr);
+  net_node_t * network_find_node_by_addr(network_t * network, net_addr_t addr);
+
+  // -----[ network_find_node_by_name ]--------------------------------------
+  /**
+   * Find a node in the network, based on its name.
+   *
+   * \param network is the target network.
+   * \param name    is the searched node's name.
+   * \retval the searched node, or NULL if it was not found.
+   */
+  net_node_t * network_find_node_by_name(network_t * network, char * name);
 
   // -----[ network_find_subnet ]------------------------------------
   /**
@@ -201,6 +211,16 @@ extern "C" {
    * \retval the searched subnet, or NULL if it was not found.
    */
   net_subnet_t * network_find_subnet(network_t * network, ip_pfx_t prefix);
+
+  // -----[ network_find_subnet_by_name ]------------------------------------
+  /**
+   * Find a subnet in the network, based on its name.
+   *
+   * \param network is the target network.
+   * \param name is the searched subnet's name.
+   * \retval the searched subnet, or NULL if it was not found.
+   */
+  net_subnet_t * network_find_subnet_by_name(network_t * network, char * name);
 
   // -----[ network_find_igp_domain ]--------------------------------
   /**

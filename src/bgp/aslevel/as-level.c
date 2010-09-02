@@ -777,7 +777,7 @@ static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
   net_protocol_t * protocol;
   net_error_t error;
 
-  node= network_find_node(network_get_default(), addr);
+  node= network_find_node_by_addr(network_get_default(), addr);
   if (node == NULL) {
     error= node_create(addr, &node, NODE_OPTIONS_LOOPBACK);
     if (error != ESUCCESS)
@@ -858,7 +858,7 @@ int aslevel_topo_build_network(as_level_topo_t * topo)
     addr= topo->addr_mapper(domain->asn);
 
     // Check that node doesn't exist
-    if (network_find_node(network_get_default(), addr) != NULL)
+    if (network_find_node_by_addr(network_get_default(), addr) != NULL)
       return ASLEVEL_ERROR_NODE_EXISTS;
   }
 

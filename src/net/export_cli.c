@@ -89,7 +89,7 @@ static inline void _export_net_iface_lo(gds_stream_t * stream,
 					net_iface_t * iface)
 {
   stream_printf(stream, "net node ");
-  node_dump_id(stream, iface->owner);
+  node_dump(stream, iface->owner);
   stream_printf(stream, " add iface ");
   net_iface_dump_id(stream, iface);
   stream_printf(stream, " loopback\n");
@@ -105,9 +105,9 @@ static inline void _export_net_link_rtr(gds_stream_t * stream,
   stream_printf(stream, "net add link ");
   if (iface->phys.delay != 0)
     stream_printf(stream, "--delay=%u ", iface->phys.delay);
-  node_dump_id(stream, iface->owner);
+  node_dump(stream, iface->owner);
   stream_printf(stream, " ");
-  node_dump_id(stream, iface->dest.iface->owner);
+  node_dump(stream, iface->dest.iface->owner);
   stream_printf(stream, "\n");
 }
 
@@ -121,11 +121,11 @@ static inline void _export_net_link_ptp(gds_stream_t * stream,
   stream_printf(stream, "net add link-ptp ");
   if (iface->phys.delay != 0)
     stream_printf(stream, "--delay=%u ", iface->phys.delay);
-  node_dump_id(stream, iface->owner);
+  node_dump(stream, iface->owner);
   stream_printf(stream, " ");
   net_iface_dump_id(stream, iface);
   stream_printf(stream, " ");
-  node_dump_id(stream, iface->dest.iface->owner);
+  node_dump(stream, iface->dest.iface->owner);
   stream_printf(stream, " ");
   net_iface_dump_id(stream, iface->dest.iface);
   stream_printf(stream, "\n");
@@ -135,10 +135,11 @@ static inline void _export_net_link_ptp(gds_stream_t * stream,
 static inline void _export_net_link_ptmp(gds_stream_t * stream,
 					 net_iface_t * iface)
 {
+    printf("#   TO DO  : check if it's ok when the subnet is identified by its name !");
   stream_printf(stream, "net add link ");
   if (iface->phys.delay != 0)
     stream_printf(stream, "--delay=%u ", iface->phys.delay);
-  node_dump_id(stream, iface->owner);
+  node_dump(stream, iface->owner);
   stream_printf(stream, " ");
   ip_address_dump(stream, iface->addr);
   stream_printf(stream, "/%u\n", iface->mask);
@@ -149,7 +150,7 @@ static inline void _export_net_link_virtual(gds_stream_t * stream,
 					    net_iface_t * iface)
 {
   stream_printf(stream, "#tunnel from ");
-  node_dump_id(stream, iface->owner);
+  node_dump(stream, iface->owner);
   stream_printf(stream, " ");
   net_iface_dump_id(stream, iface);
   stream_printf(stream, " (not supported by export)\n");
@@ -169,7 +170,7 @@ static inline void _export_net_node_route(gds_stream_t * stream,
     // Do not support static routes through tunnels
     if (rtentry->oif->type == NET_IFACE_VIRTUAL) {
       stream_printf(stream, "# static routes from ");
-      node_dump_id(stream, node);
+      node_dump(stream, node);
       stream_printf(stream, " to ");
       ip_prefix_dump(stream, rtinfo->prefix);
       stream_printf(stream, " (not supported by export)\n");
@@ -177,7 +178,7 @@ static inline void _export_net_node_route(gds_stream_t * stream,
     }
 
     stream_printf(stream, "net node ");
-    node_dump_id(stream, node);
+    node_dump(stream, node);
     stream_printf(stream, " route add ");
 
     // Optional gateway ?
@@ -212,12 +213,21 @@ static void _net_export_cli_phys(gds_stream_t * stream,
   net_iface_t * link;
 
   // *** all nodes ***
-  nodes= trie_get_enum(network->nodes);
-  while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
-    _export_net_node(stream, node);
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
+    while (enum_has_next(nodes)) {
+        node= (net_node_t *) enum_get_next(nodes);
+        _export_net_node(stream, node);
+    }
+    enum_destroy(&nodes);
+    nodes_sorted_by++;
   }
-  enum_destroy(&nodes);
 
   // *** all subnets ***
   subnets= _array_get_enum((array_t*) network->subnets);
@@ -228,8 +238,15 @@ static void _net_export_cli_phys(gds_stream_t * stream,
   enum_destroy(&subnets);
 
   // *** all links ***
-  nodes= trie_get_enum(network->nodes);
-  while (enum_has_next(nodes)) {
+  nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
+      while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
 
     links= net_links_get_enum(node->ifaces);
@@ -259,6 +276,8 @@ static void _net_export_cli_phys(gds_stream_t * stream,
     enum_destroy(&links);
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
 }
 
 // -----[ _net_export_cli_static ]-----------------------------------
@@ -273,7 +292,14 @@ static void _net_export_cli_static(gds_stream_t * stream,
   rt_info_list_t * rt_info_list;
   rt_info_t * rt_info;
 
-  nodes= trie_get_enum(network->nodes);
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
 
@@ -298,6 +324,8 @@ static void _net_export_cli_static(gds_stream_t * stream,
     
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
 }
 
 static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
@@ -313,7 +341,7 @@ static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
   while (enum_has_next(routers)) {
     router= (net_node_t *) enum_get_next(routers);
     stream_printf(stream, "net node ");
-    node_dump_id(stream, router);
+    node_dump(stream, router);
     stream_printf(stream, " domain %d\n", domain->id);
   }
   enum_destroy(&routers);
@@ -331,7 +359,7 @@ static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
 	continue;
       
       stream_printf(stream, "net node ");
-      node_dump_id(stream, router);
+      node_dump(stream, router);
       stream_printf(stream, " iface ");
       net_iface_dump_id(stream, link);
       stream_printf(stream, " igp-weight %u\n", net_iface_get_metric(link, 0));
@@ -439,10 +467,13 @@ static inline void _export_bgp_router(gds_stream_t * stream,
   unsigned int index;
 
   stream_printf(stream, "bgp add router %u ", router->asn);
-  ip_address_dump(stream, router->node->rid);
+  //ip_address_dump(stream, router->node->rid);
+  node_dump(stream, router->node);
   stream_printf(stream, "\n");
   stream_printf(stream, "bgp router ");
-  ip_address_dump(stream, router->node->rid);
+  //ip_address_dump(stream, router->node->rid);
+  node_dump(stream, router->node);
+
   stream_printf(stream, "\n");
   for (index= 0; index < bgp_peers_size(router->peers); index++)
     _export_bgp_router_peer(stream, router->peers->data[index]);
@@ -470,11 +501,20 @@ static void _net_export_cli_bgp_route_maps(gds_stream_t * stream)
 static void _net_export_cli_bgp(gds_stream_t * stream,
 				network_t * network)
 {
-  gds_enum_t * nodes= trie_get_enum(network->nodes);
+  gds_enum_t * nodes;
   net_node_t * node;
   net_protocol_t * proto;
 
   _net_export_cli_bgp_route_maps(stream);
+
+   int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
 
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
@@ -484,6 +524,8 @@ static void _net_export_cli_bgp(gds_stream_t * stream,
     _export_bgp_router(stream, (bgp_router_t *) proto->handler);
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
 }
 
 // -----[ net_export_cli ]-------------------------------------------

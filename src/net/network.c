@@ -19,6 +19,7 @@
 #include <libgds/stack.h>
 #include <libgds/str_util.h>
 #include <libgds/trie.h>
+#include <libgds/trie_dico.h>
 
 #include <net/error.h>
 #include <net/net_types.h>
@@ -747,7 +748,8 @@ network_t * network_create()
   network_t * network= (network_t *) MALLOC(sizeof(network_t));
   
   network->domains= igp_domains_create();
-  network->nodes= trie_create(network_nodes_destroy);
+  network->nodes_by_addr= trie_create(network_nodes_destroy);
+  network->nodes_by_name= trie_dico_create(network_nodes_destroy);
   network->subnets= subnets_create();
   network->sim= NULL;
   return network;
@@ -764,7 +766,8 @@ void network_destroy(network_t ** network_ref)
   if (*network_ref != NULL) {
     network= *network_ref;
     igp_domains_destroy(&network->domains);
-    trie_destroy(&network->nodes);
+    trie_destroy(&network->nodes_by_addr);
+    trie_dico_destroy(&network->nodes_by_name);
     subnets_destroy(&network->subnets);
     if (network->sim != NULL)
       sim_destroy(&network->sim);
@@ -790,12 +793,22 @@ network_t * network_get_default()
 net_error_t network_add_node(network_t * network, net_node_t * node)
 {
    // Check that node does not already exist
-  if (network_find_node(network, node->rid) != NULL)
+    if (  (node->rid != IP_ADDR_ANY && network_find_node_by_addr(network, node->rid) != NULL  )  ||
+         (node->name != NULL && network_find_node_by_name(network, node->name) != NULL ))
     return ENET_NODE_DUPLICATE;
 
   node->network= network;
-  if (trie_insert(network->nodes, node->rid, 32, node, 0) != 0)
-    return EUNEXPECTED;
+
+  if(node->rid == IP_ADDR_ANY)   // node referenced by his name
+  {
+    if (trie_dico_insert(network->nodes_by_name, node->name, node , 0) != 0)
+        return EUNEXPECTED;
+  }
+  else
+  {
+      if (trie_insert(network->nodes_by_addr, node->rid, 32, node, 0) != 0)
+        return EUNEXPECTED;
+  }
   return ESUCCESS;
 }
 
@@ -830,15 +843,28 @@ net_error_t network_add_igp_domain(network_t * network,
 /**
  *
  */
-net_node_t * network_find_node(network_t * network, net_addr_t addr)
+net_node_t * network_find_node_by_addr(network_t * network, net_addr_t addr)
 {
-  return (net_node_t *) trie_find_exact(network->nodes, addr, 32);
+  return (net_node_t *) trie_find_exact(network->nodes_by_addr, addr, 32);
 }
 
+// ----- network_find_node_by_name ------------------------------------
+/**
+ *
+ */
+net_node_t * network_find_node_by_name(network_t * network, char * name)
+{
+  return (net_node_t *) trie_dico_find_exact(network->nodes_by_name, name);
+}
 // -----[ network_find_subnet ]--------------------------------------
 net_subnet_t * network_find_subnet(network_t * network, ip_pfx_t prefix)
 { 
   return subnets_find(network->subnets, prefix);
+}
+// -----[ network_find_subnet_by_name ]--------------------------------------
+net_subnet_t * network_find_subnet_by_name(network_t * network, char * name)
+{
+  return NULL;
 }
 
 // -----[ network_find_igp_domain ]----------------------------------
@@ -851,8 +877,28 @@ igp_domain_t * network_find_igp_domain(network_t * network,
 // -----[ network_to_file ]------------------------------------------
 int network_to_file(gds_stream_t * stream, network_t * network)
 {
-  gds_enum_t * nodes= trie_get_enum(network->nodes);
+    // nodes sorted by IP Address
+  gds_enum_t * nodes ;
   net_node_t * node;
+
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+  while (enum_has_next(nodes)) {
+    node= (net_node_t *) enum_get_next(nodes);
+    node_dump(stream, node);
+    stream_printf(stream, "\n");
+  }
+  enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
+
+  // nodes sorted by name
+  nodes= trie_dico_get_enum(network->nodes_by_name);
 
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
@@ -860,6 +906,7 @@ int network_to_file(gds_stream_t * stream, network_t * network)
     stream_printf(stream, "\n");
   }
   enum_destroy(&nodes);
+
   return 0;
 }
 
@@ -883,14 +930,24 @@ void network_dump_subnets(gds_stream_t * stream, network_t * network)
  */
 void network_ifaces_load_clear(network_t * network)
 {
-  gds_enum_t * nodes= trie_get_enum(network->nodes);
+  gds_enum_t * nodes ;
   net_node_t * node;
-  
+
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
+
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
     node_ifaces_load_clear(node);
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
 }
 
 // -----[ network_links_save ]---------------------------------------
@@ -898,15 +955,24 @@ void network_ifaces_load_clear(network_t * network)
  * Save the load of all links in the topology.
  */
 int network_links_save(gds_stream_t * stream, network_t * network)
-{
-  gds_enum_t * nodes= trie_get_enum(network->nodes);
+{  
+  gds_enum_t * nodes;
   net_node_t * node;
+  int nodes_sorted_by=0;
+  while(nodes_sorted_by<2)
+  {
+      if(nodes_sorted_by==0)
+          nodes= trie_get_enum(network->nodes_by_addr);
+      else if(nodes_sorted_by==1)
+          nodes= trie_dico_get_enum(network->nodes_by_name);
 
   while (enum_has_next(nodes)) {
     node= (net_node_t *) enum_get_next(nodes);
     node_links_save(stream, node);
   }
   enum_destroy(&nodes);
+  nodes_sorted_by++;
+  }
   return 0;
 }
 

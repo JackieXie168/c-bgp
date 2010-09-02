@@ -55,7 +55,7 @@
 // ----- cli_net_add_node -------------------------------------------
 /**
  * context: {}
- * tokens : {addr}
+ * tokens : {addr|name}
  * options: {no-loopback}
  */
 int cli_net_add_node(cli_ctx_t * ctx, cli_cmd_t * cmd)
@@ -64,35 +64,63 @@ int cli_net_add_node(cli_ctx_t * ctx, cli_cmd_t * cmd)
   net_node_t * node;
   int error;
   int options= 0; // default is: create loopback with address = node ID
+  //if the id is ip address then default is "loopback",
+  //if the id is the name,  then default is "no loopback" !
 
   // Node address ?
-  if (str2address(cli_get_arg_value(cmd, 0), &addr)) {
-    cli_set_user_error(cli_get(), "could not add node (invalid address)");
-    return CLI_ERROR_COMMAND_FAILED;
-  }
+if (str2address(cli_get_arg_value(cmd, 0), &addr)) {
+    // this is not an IP address !
+    // use arg as a name and no loopback
 
-  // Option: no-loopback ?
-  if (!cli_opts_has_value(cmd->opts, "no-loopback")) {
-    options|= NODE_OPTIONS_LOOPBACK;
-  }
+    char * argumentname = cli_get_arg_value(cmd, 0);
+    char * node_name = (char *) MALLOC(strlen(argumentname) +1);
+    strcpy(node_name,argumentname);
+    error= node_create_by_name(node_name, &node, options);
 
-  // Create new node
-  error= node_create(addr, &node, options);
-  if (error != ESUCCESS) {
-    cli_set_user_error(cli_get(), "could not add node (%s)",
-		       network_strerror(error));
-    return CLI_ERROR_COMMAND_FAILED;    
-  }
+      if (error != ESUCCESS) {
+        cli_set_user_error(cli_get(), "could not create-add node %s (%s)",
+                           node_name,
+                           network_strerror(error));
+        return CLI_ERROR_COMMAND_FAILED;
+      }
 
-  // Add node
-  error= network_add_node(network_get_default(), node);
-  if (error != ESUCCESS) {
-    node_destroy(&node);
-    cli_set_user_error(cli_get(), "could not add node (%s)",
-		       network_strerror(error));
-    return CLI_ERROR_COMMAND_FAILED;
+     // Add node
+      error= network_add_node(network_get_default(), node);
+      if (error != ESUCCESS) {
+        node_destroy(&node);
+        cli_set_user_error(cli_get(), "could not add node (%s)",
+                           network_strerror(error));
+        return CLI_ERROR_COMMAND_FAILED;
+      }
+      return CLI_SUCCESS;
+
   }
-  return CLI_SUCCESS;
+  else
+  {    
+  
+        // Option: no-loopback ?
+        if (!cli_opts_has_value(cmd->opts, "no-loopback")) {
+            options|= NODE_OPTIONS_LOOPBACK;
+        }
+
+        // Create new node
+        error= node_create(addr, &node, options);
+         if (error != ESUCCESS) {
+           cli_set_user_error(cli_get(), "could not create-add node (%s)",
+        		       network_strerror(error));
+            return CLI_ERROR_COMMAND_FAILED;
+        }
+
+        // Add node
+        error= network_add_node(network_get_default(), node);
+        if (error != ESUCCESS) {
+            node_destroy(&node);
+            cli_set_user_error(cli_get(), "could not add node (%s)",
+                	       network_strerror(error));
+            return CLI_ERROR_COMMAND_FAILED;
+        }
+        return CLI_SUCCESS;
+  }
 }
 
 // ----- cli_net_add_subnet -------------------------------------------
@@ -204,15 +232,18 @@ int cli_net_add_link(cli_ctx_t * ctx, cli_cmd_t * cmd)
   }
   
   // Get destination: can be a node / a subnet
-  if ((ip_string_to_dest(arg_dst, &dest) < 0) ||
-      (dest.type == NET_DEST_ANY)) {
+  // check if node by name or ip address format
+
+  int ip_string_to_dest_result = ip_string_to_dest(arg_dst, &dest);
+
+  if (dest.type == NET_DEST_ANY) {
     cli_set_user_error(cli_get(), "invalid destination \"%s\".", arg_dst);
     return CLI_ERROR_COMMAND_FAILED;
   }
   
   // Add link: RTR (to node) / PTMP (to subnet)
   if (dest.type == NET_DEST_ADDRESS) {
-    dst_node= network_find_node(network_get_default(), dest.addr);
+    dst_node= network_find_node_by_addr(network_get_default(), dest.addr);
     if (dst_node == NULL) {
       cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.",
 			 arg_dst);
@@ -220,7 +251,9 @@ int cli_net_add_link(cli_ctx_t * ctx, cli_cmd_t * cmd)
     }
     dir= BIDIR;
     result= net_link_create_rtr(src_node, dst_node, dir, &iface);
-  } else {
+  } 
+  else if (dest.type == NET_DEST_PREFIX)
+  {
     subnet= network_find_subnet(network_get_default(), dest.prefix);
     if (subnet == NULL) {
       cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.",
@@ -232,6 +265,31 @@ int cli_net_add_link(cli_ctx_t * ctx, cli_cmd_t * cmd)
 				 dest.prefix.network,
 				 &iface);
   }
+  else if(dest.type == NET_DEST_INVALID)
+  {  // it's probably a node name, or a subnet name
+    dst_node= network_find_node_by_name(network_get_default(), arg_dst);
+    if (dst_node != NULL) {
+        dir= BIDIR;
+        result= net_link_create_rtr(src_node, dst_node, dir, &iface);
+    }
+    else
+    {
+        subnet= network_find_subnet_by_name(network_get_default(), arg_dst);
+        if (subnet != NULL) {
+            dir= UNIDIR;
+            printf("TO DO : @cli_net_add_link : in case of subnet by name");
+            result= net_link_create_ptmp(src_node, subnet,
+				 dest.prefix.network,
+				 &iface);
+        }else
+        {
+            cli_set_user_error(cli_get(), "tail-end \"%s\" does not exist.",
+			 arg_dst);
+            return CLI_ERROR_COMMAND_FAILED;
+        }
+    }
+  }
+
   if (result != ESUCCESS) {
     cli_set_user_error(cli_get(), "could not add link %s -> %s (%s)",
 		       arg_src, arg_dst, network_strerror(result));
@@ -640,7 +698,7 @@ static int _net_flow_src_ip_handler(flow_t * flow, flow_field_map_t * map,
   net_error_t result;
   ip_opt_t * opts;
 
-  net_node_t * src_node= network_find_node(network_get_default(), flow->src_addr);
+  net_node_t * src_node= network_find_node_by_addr(network_get_default(), flow->src_addr);
   if (src_node == NULL) {
     printf("Source node not found\n");
     return -1;
@@ -793,14 +851,14 @@ static void _register_net_add(cli_cmd_t * parent)
   cli_add_arg(cmd, cli_arg("id", NULL));
   cli_add_arg(cmd, cli_arg("type", NULL));
   cmd= cli_add_cmd(group, cli_cmd("node", cli_net_add_node));
-  cli_add_arg(cmd, cli_arg("addr", NULL));
+  cli_add_arg(cmd, cli_arg("addr|name", NULL));
   cli_add_opt(cmd, cli_opt("no-loopback", NULL));
   cmd= cli_add_cmd(group, cli_cmd("subnet", cli_net_add_subnet));
   cli_add_arg(cmd, cli_arg("prefix", NULL));
   cli_add_arg(cmd, cli_arg("transit|stub", NULL));
   cmd= cli_add_cmd(group, cli_cmd("link", cli_net_add_link));
-  cli_add_arg(cmd, cli_arg2("addr-src", NULL, cli_enum_net_nodes_addr));
-  cli_add_arg(cmd, cli_arg2("addr-dst", NULL, cli_enum_net_nodes_addr));
+  cli_add_arg(cmd, cli_arg2("(addr|name)-src", NULL, cli_enum_net_nodes_addr_OR_name));
+  cli_add_arg(cmd, cli_arg2("(addr|name)-dst", NULL, cli_enum_net_nodes_addr_OR_name));
   cli_add_opt(cmd, cli_opt("bw=", NULL));
   cli_add_opt(cmd, cli_opt("delay=", NULL));
   cli_add_opt(cmd, cli_opt("depth=", NULL));

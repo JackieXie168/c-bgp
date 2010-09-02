@@ -221,8 +221,9 @@ int str2node(const char * str, net_node_t ** node)
   net_addr_t addr;
 
   if (str2address(str, &addr))
-    return -1;
-  *node= network_find_node(network_get_default(), addr);
+    *node= network_find_node_by_name(network_get_default(), str);
+  else
+    *node= network_find_node_by_addr(network_get_default(), addr);
   if (*node == NULL)
     return -1;
   return 0;
@@ -247,7 +248,7 @@ int str2node_id(const char * str, net_node_t ** node)
   if (topo == NULL)
     return -1;
   addr= topo->addr_mapper(asn);
-  *node= network_find_node(network_get_default(), addr);
+  *node= network_find_node_by_addr(network_get_default(), addr);
   if (*node == NULL)
     return -1;
   return 0;

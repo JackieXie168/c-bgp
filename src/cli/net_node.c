@@ -160,8 +160,14 @@ static int cli_net_node_ipip_enable(cli_ctx_t * ctx, cli_cmd_t * cmd)
 static int cli_net_node_name(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   net_node_t * node= _node_from_context(ctx);
-  node_set_name(node, cli_get_arg_value(cmd, 0));
-  return CLI_SUCCESS;
+  int result = node_set_name(node, cli_get_arg_value(cmd, 0));
+  if(result<0)
+  {
+      cli_set_user_error(cli_get(), "you can not change node's name !");
+      return CLI_ERROR_CMD_PROHIBITED;
+  }
+  else
+    return CLI_SUCCESS;
 }
 
 // ----- cli_net_node_ping ------------------------------------------
@@ -699,7 +705,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_ctx("node",
 					 cli_ctx_create_net_node,
 					 cli_ctx_destroy_net_node));
-  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
+  cli_add_arg(group, cli_arg2("addr|AS|name", NULL, cli_enum_net_nodes_addr_OR_id_OR_name));
 
   _register_net_node_add(group);  
   cli_register_net_node_iface(group);
@@ -713,7 +719,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   cmd= cli_add_cmd(group, cli_cmd("name", cli_net_node_name));
   cli_add_arg(cmd, cli_arg("name", NULL));
   cmd= cli_add_cmd(group, cli_cmd("ping", cli_net_node_ping));
-  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
+  cli_add_arg(cmd, cli_arg2("addr|AS", NULL, cli_enum_net_nodes_addr_OR_id));
   cli_add_opt(cmd, cli_opt("ttl=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("record-route", cli_net_node_recordroute));
   cli_add_arg(cmd, cli_arg("address|prefix", NULL));
@@ -727,7 +733,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("tunnel", NULL));
   cli_add_opt(cmd, cli_opt("weight", NULL));
   cmd= cli_add_cmd(group, cli_cmd("traceroute", cli_net_node_traceroute));
-  cli_add_arg(cmd, cli_arg2("addr", NULL, cli_enum_net_nodes_addr_id));
+  cli_add_arg(cmd, cli_arg2("addr|AS", NULL, cli_enum_net_nodes_addr_OR_id));
 
   _register_net_node_show(group);
   _register_net_node_traffic(group);

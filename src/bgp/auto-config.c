@@ -74,7 +74,7 @@ int bgp_auto_config_session(bgp_router_t * router,
 
   // (1). If node does not exist, create it.
   STREAM_DEBUG(STREAM_LEVEL_DEBUG, "PHASE (1) CHECK NODE EXISTENCE\n");
-  node= network_find_node(network_get_default(), tRemoteAddr);
+  node= network_find_node_by_addr(network_get_default(), tRemoteAddr);
   if (node == NULL) {
     error= node_create(tRemoteAddr, &node, NODE_OPTIONS_LOOPBACK);
     if (error != ESUCCESS)

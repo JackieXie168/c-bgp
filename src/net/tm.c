@@ -137,7 +137,7 @@ static inline int _parse(lrp_t * parser)
       lrp_set_user_error(parser, "invalid source \"%s\"", field_src);
       return NET_TM_ERROR_INVALID_SRC;
     }
-    node= network_find_node(network, src_addr);
+    node= network_find_node_by_addr(network, src_addr);
     if (node == NULL) {
       lrp_set_user_error(parser, "unknown source \"%s\"", field_src);
       return NET_TM_ERROR_UNKNOWN_SRC;

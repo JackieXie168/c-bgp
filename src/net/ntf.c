@@ -48,13 +48,13 @@ void _ntf_add_link(network_t * network,
   net_node_t * node1, * node2;
   net_iface_t * iface;
 
-  node1= network_find_node(network, addr1);
+  node1= network_find_node_by_addr(network, addr1);
   if (node1 == NULL) {
     assert(node_create(addr1, &node1, NODE_OPTIONS_LOOPBACK) == ESUCCESS);
     assert(network_add_node(network, node1) == ESUCCESS);
   }
   
-  node2= network_find_node(network, addr2);
+  node2= network_find_node_by_addr(network, addr2);
   if (node2 == NULL) {
     assert(node_create(addr2, &node2, NODE_OPTIONS_LOOPBACK) == ESUCCESS);
     assert(network_add_node(network, node2) == ESUCCESS);
