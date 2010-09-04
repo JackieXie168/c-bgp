@@ -65,7 +65,7 @@ void spt_to_graphviz(gds_stream_t * stream, spt_t * spt)
   
   vertices= radix_tree_get_enum(spt->tree);
   while (enum_has_next(vertices)) {
-    vertex= (spt_vertex_t *) enum_get_next(vertices);
+    vertex= *((spt_vertex_t **) enum_get_next(vertices));
     stream_printf(stream, "  \"");
     spt_vertex_dump(stream, vertex);
     stream_printf(stream, "\" [");

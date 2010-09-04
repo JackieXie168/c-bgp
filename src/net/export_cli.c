@@ -214,7 +214,7 @@ static void _net_export_cli_phys(gds_stream_t * stream,
   // *** all nodes ***
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     _export_net_node(stream, node);
   }
   enum_destroy(&nodes);
@@ -222,7 +222,7 @@ static void _net_export_cli_phys(gds_stream_t * stream,
   // *** all subnets ***
   subnets= _array_get_enum((array_t*) network->subnets);
   while (enum_has_next(subnets)) {
-    subnet= (net_subnet_t *) enum_get_next(subnets);
+    subnet= *((net_subnet_t **) enum_get_next(subnets));
     _export_net_subnet(stream, subnet);
   }
   enum_destroy(&subnets);
@@ -230,11 +230,11 @@ static void _net_export_cli_phys(gds_stream_t * stream,
   // *** all links ***
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
 
     links= net_links_get_enum(node->ifaces);
     while (enum_has_next(links)) {
-      link= (net_iface_t *) enum_get_next(links);
+      link= *((net_iface_t **) enum_get_next(links));
 
       switch (link->type) {
       case NET_IFACE_LOOPBACK:
@@ -275,15 +275,15 @@ static void _net_export_cli_static(gds_stream_t * stream,
 
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
 
     rt_info_lists= trie_get_enum(node->rt);
     while (enum_has_next(rt_info_lists)) {
-      rt_info_list= (rt_info_list_t *) enum_get_next(rt_info_lists);
+      rt_info_list= *((rt_info_list_t **) enum_get_next(rt_info_lists));
 
       rt_infos= _array_get_enum((array_t *) rt_info_list);
       while (enum_has_next(rt_infos)) {
-	rt_info= (rt_info_t *) enum_get_next(rt_infos);
+	rt_info= *((rt_info_t **) enum_get_next(rt_infos));
 
 	// Only static routes are exported
 	if (rt_info->type != NET_ROUTE_STATIC)
@@ -311,7 +311,7 @@ static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
 
   routers= trie_get_enum(domain->routers);
   while (enum_has_next(routers)) {
-    router= (net_node_t *) enum_get_next(routers);
+    router= *((net_node_t **) enum_get_next(routers));
     stream_printf(stream, "net node ");
     node_dump_id(stream, router);
     stream_printf(stream, " domain %d\n", domain->id);
@@ -320,11 +320,11 @@ static int _igp_domain_fe(igp_domain_t * domain, void * ctx)
 
   routers= trie_get_enum(domain->routers);
   while (enum_has_next(routers)) {
-    router= (net_node_t *) enum_get_next(routers);
+    router= *((net_node_t **) enum_get_next(routers));
     
     links= net_links_get_enum(router->ifaces);
     while (enum_has_next(links)) {
-      link= (net_iface_t *) enum_get_next(links);
+      link= *((net_iface_t **) enum_get_next(links));
       
       if ((link->type == NET_IFACE_VIRTUAL) ||
 	  (link->type == NET_IFACE_LOOPBACK))
@@ -456,7 +456,7 @@ static void _net_export_cli_bgp_route_maps(gds_stream_t * stream)
   gds_enum_t * enu= route_map_enum();
   _route_map_t * rm;
   while (enum_has_next(enu)) {
-    rm= (_route_map_t *) enum_get_next(enu);
+    rm= *((_route_map_t **) enum_get_next(enu));
     stream_printf(stream, "bgp route-map \"%s\"\n", rm->name);
     _export_bgp_filter(stream, rm->filter, "  ");
     stream_printf(stream, "\n");
@@ -477,7 +477,7 @@ static void _net_export_cli_bgp(gds_stream_t * stream,
   _net_export_cli_bgp_route_maps(stream);
 
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     proto= node_get_protocol(node, NET_PROTOCOL_BGP);
     if (proto == NULL)
       continue;

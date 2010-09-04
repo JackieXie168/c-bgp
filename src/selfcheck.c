@@ -2516,11 +2516,11 @@ static int test_net_traces_recordroute_ecmp()
 			   255, opts);
   UTEST_ASSERT(traces != NULL, "icmp_trace_send2() should succeed");
   UTEST_ASSERT(enum_has_next(traces), "first path should exist");
-  trace= (ip_trace_t *) enum_get_next(traces);
+  trace= *((ip_trace_t **) enum_get_next(traces));
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(enum_has_next(traces), "second path should exist");
-  trace= (ip_trace_t *) enum_get_next(traces);
+  trace= *((ip_trace_t **) enum_get_next(traces));
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(!enum_has_next(traces), "no more path should exist");
@@ -3317,7 +3317,7 @@ static int test_bgp_route_aspath()
 int test_bgp_filter_action_comm_add()
 {
   bgp_ft_action_t * action= filter_action_comm_append(1234);
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_COMM_APPEND,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3329,7 +3329,7 @@ int test_bgp_filter_action_comm_add()
 int test_bgp_filter_action_comm_remove()
 {
   bgp_ft_action_t * action= filter_action_comm_remove(1234);
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_COMM_REMOVE,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3341,7 +3341,7 @@ int test_bgp_filter_action_comm_remove()
 int test_bgp_filter_action_comm_strip()
 {
   bgp_ft_action_t * action= filter_action_comm_strip();
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_COMM_STRIP,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3353,7 +3353,7 @@ int test_bgp_filter_action_comm_strip()
 int test_bgp_filter_action_local_pref()
 {
   bgp_ft_action_t * action= filter_action_pref_set(1234);
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_PREF_SET,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3365,7 +3365,7 @@ int test_bgp_filter_action_local_pref()
 int test_bgp_filter_action_metric()
 {
   bgp_ft_action_t * action= filter_action_metric_set(1234);
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_METRIC_SET,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3377,7 +3377,7 @@ int test_bgp_filter_action_metric()
 int test_bgp_filter_action_metric_internal()
 {
   bgp_ft_action_t * action= filter_action_metric_internal();
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_METRIC_INTERNAL,
 		"Incorrect action code");
   filter_action_destroy(&action);
@@ -3389,9 +3389,21 @@ int test_bgp_filter_action_metric_internal()
 int test_bgp_filter_action_path_prepend()
 {
   bgp_ft_action_t * action= filter_action_path_prepend(5);
-  UTEST_ASSERT(action != NULL, "New action should be NULL");
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
   UTEST_ASSERT(action->code == FT_ACTION_PATH_PREPEND,
 		"Incorrect action code");
+  filter_action_destroy(&action);
+  UTEST_ASSERT(action == NULL, "Action should be NULL when destroyed");
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_action_path_insert ]-----------------------
+int test_bgp_filter_action_path_insert()
+{
+  bgp_ft_action_t * action= filter_action_path_insert(1234, 3);
+  UTEST_ASSERT(action != NULL, "New action should not be NULL");
+  UTEST_ASSERT(action->code == FT_ACTION_PATH_INSERT,
+	       "Incorrect action code");
   filter_action_destroy(&action);
   UTEST_ASSERT(action == NULL, "Action should be NULL when destroyed");
   return UTEST_SUCCESS;
@@ -4469,6 +4481,7 @@ unit_test_t TEST_BGP_FILTER_ACTION[]= {
   {test_bgp_filter_action_metric, "metric"},
   {test_bgp_filter_action_metric_internal, "metric internal"},
   {test_bgp_filter_action_path_prepend, "as-path prepend"},
+  {test_bgp_filter_action_path_insert, "as-path insert"},
   {test_bgp_filter_action_comm_add_str2, "comm add (string ->)"},
   {test_bgp_filter_action_comm_remove_str2, "comm remove (string ->)"},
   {test_bgp_filter_action_comm_strip_str2, "comm strip (string ->)"},

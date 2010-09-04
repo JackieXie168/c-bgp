@@ -2756,7 +2756,7 @@ void bgp_router_show_stats(gds_stream_t * stream, bgp_router_t * router)
   num_best= 0;
   routes= trie_get_enum(router->loc_rib);
   while (enum_has_next(routes)) {
-    route= (bgp_route_t *) enum_get_next(routes);
+    route= *((bgp_route_t **) enum_get_next(routes));
     if (route_flag_get(route, ROUTE_FLAG_BEST)) {
       num_best++;
       if (route->rank <= DP_NUM_RULES)
@@ -2781,7 +2781,7 @@ void bgp_router_show_stats(gds_stream_t * stream, bgp_router_t * router)
     num_best= 0;
     routes= trie_get_enum(peer->adj_rib[RIB_IN]);
     while (enum_has_next(routes)) {
-      route= (bgp_route_t *) enum_get_next(routes);
+      route= *((bgp_route_t **) enum_get_next(routes));
       num_prefixes++;
       if (route_flag_get(route, ROUTE_FLAG_BEST)) {
 	num_best++;

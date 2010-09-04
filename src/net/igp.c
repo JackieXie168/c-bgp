@@ -574,7 +574,7 @@ int igp_compute_domain(igp_domain_t * domain, int keep_spt)
   int result= ESUCCESS;
 
   while (enum_has_next(routers) && (result == ESUCCESS)) {
-    node= (net_node_t *) enum_get_next(routers);
+    node= *((net_node_t **) enum_get_next(routers));
 
     if (node->spt != NULL)
       spt_destroy(&node->spt);

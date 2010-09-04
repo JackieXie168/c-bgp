@@ -567,7 +567,7 @@ int icmp_record_route(gds_stream_t * stream,
   gds_enum_t * traces= icmp_trace_send2(node, dest.addr, 255, opts);
 
   while (enum_has_next(traces)) {
-    trace= (ip_trace_t *) enum_get_next(traces);
+    trace= *((ip_trace_t **) enum_get_next(traces));
     _icmp_record_route_dump(stream, node, dest, opts, trace);
   }
   enum_destroy(&traces);
