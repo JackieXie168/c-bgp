@@ -313,7 +313,7 @@ void node_ifaces_load_clear(net_node_t * node)
   net_iface_t * iface;
 
   while (enum_has_next(links)) {
-    iface= (net_iface_t *) enum_get_next(links);
+    iface= *((net_iface_t **) enum_get_next(links));
     net_iface_set_load(iface, 0);
   }
   enum_destroy(&links);
@@ -373,7 +373,7 @@ void node_links_save(gds_stream_t * stream, net_node_t * node)
   net_iface_t * iface;
 
   while (enum_has_next(ifaces)) {
-    iface= (net_iface_t *) enum_get_next(ifaces);
+    iface= *((net_iface_t **) enum_get_next(ifaces));
   
     // Skip tunnels
     if ((iface->type == NET_IFACE_VIRTUAL) ||

@@ -38,7 +38,7 @@ int net_export_ntf(gds_stream_t * stream, network_t * network)
   // Links
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
       iface= (net_iface_t *) node->ifaces->data[index];
       switch (iface->type) {

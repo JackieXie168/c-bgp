@@ -1,1 +1,1 @@
-SUBDIRS = txt
+#SUBDIRS = txt

@@ -855,7 +855,7 @@ int network_to_file(gds_stream_t * stream, network_t * network)
   net_node_t * node;
 
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     node_dump(stream, node);
     stream_printf(stream, "\n");
   }
@@ -870,7 +870,7 @@ void network_dump_subnets(gds_stream_t * stream, network_t * network)
   net_subnet_t * subnet;
 
   while (enum_has_next(subnets)) {
-    subnet= (net_subnet_t *) enum_get_next(subnets);
+    subnet= *((net_subnet_t **) enum_get_next(subnets));
     ip_prefix_dump(stream, subnet->prefix);
     stream_printf(stream, "\n");
   }
@@ -887,7 +887,7 @@ void network_ifaces_load_clear(network_t * network)
   net_node_t * node;
   
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     node_ifaces_load_clear(node);
   }
   enum_destroy(&nodes);
@@ -903,7 +903,7 @@ int network_links_save(gds_stream_t * stream, network_t * network)
   net_node_t * node;
 
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     node_links_save(stream, node);
   }
   enum_destroy(&nodes);

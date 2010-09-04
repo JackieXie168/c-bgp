@@ -1,7 +1,7 @@
 print "\e[37;1mEXAMPLE BAD-GADGET\e[0m\n"
 print "==================\n"
 
-define MAX_STEPS 0
+define MAX_STEPS 100
 
 print "\n"
 print "This script should not converge. A limit is set on the number\n"

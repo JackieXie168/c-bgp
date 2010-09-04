@@ -479,7 +479,7 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
   simulator_t * sim;
   _ecmp_ctx_t * ctx;
   net_msg_t * msg;
-  ip_trace_t * trace;
+  ip_trace_t ** trace_ptr;
 
   // Process next ECMP path ?
   if (fifo_depth(opts->fifo_trace) <= 0)
@@ -492,7 +492,7 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
   msg= ctx->msg;
   while ((msg != NULL) && (msg->protocol == NET_PROTOCOL_IPIP))
     msg= (net_msg_t *) msg->payload;
-  trace= msg->opts->trace;
+  trace_ptr= &msg->opts->trace;
 
   ip_options_add_ref(ctx->msg->opts);
   sim= sim_create(SCHEDULER_STATIC);
@@ -505,7 +505,7 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
   rt_entries_destroy(&ctx->rtentries);
   FREE(ctx);
 
-  return trace;
+  return (void *) trace_ptr;
 }
 
 

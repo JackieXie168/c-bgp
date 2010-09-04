@@ -37,7 +37,7 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
   // Nodes
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     stream_printf(stream, "  \"");
     node_dump_id(stream, node);
     stream_printf(stream, "\" [");
@@ -49,7 +49,7 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
   // Subnets
   subnets= _array_get_enum((array_t *) network->subnets);
   while (enum_has_next(subnets)) {
-    subnet= (net_subnet_t *) enum_get_next(subnets);
+    subnet= *((net_subnet_t **) enum_get_next(subnets));
     stream_printf(stream, "  \"");
     subnet_dump_id(stream, subnet);
     stream_printf(stream, "\" [");
@@ -61,7 +61,7 @@ net_error_t net_export_dot(gds_stream_t * stream, network_t * network)
   // Links
   nodes= trie_get_enum(network->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     for (index= 0; index < net_ifaces_size(node->ifaces); index++) {
       iface= (net_iface_t *) node->ifaces->data[index];
       switch (iface->type) {

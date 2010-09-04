@@ -79,7 +79,7 @@ net_node_t * cli_enum_net_nodes(const char * text, int state)
     nodes= trie_get_enum(network_get_default()->nodes);
 
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
 
     // Optionally check if prefix matches
     if (text != NULL) {
