@@ -474,7 +474,7 @@ int ip_opt_ecmp_has_next(ip_opt_t * opts)
 }
 
 // -----[ ip_opt_ecmp_get_next ]-------------------------------------
-ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
+ip_trace_t ** ip_opt_ecmp_get_next(ip_opt_t * opts)
 {
   simulator_t * sim;
   _ecmp_ctx_t * ctx;
@@ -505,7 +505,7 @@ ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts)
   rt_entries_destroy(&ctx->rtentries);
   FREE(ctx);
 
-  return (void *) trace_ptr;
+  return trace_ptr;
 }
 
 

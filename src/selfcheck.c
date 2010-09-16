@@ -2548,12 +2548,14 @@ static int test_net_traces_recordroute_ecmp_unreach()
   UTEST_ASSERT(trace != NULL, "trace should not be NULL");
   UTEST_ASSERT(trace->status == ENET_NO_REPLY,
 		"trace's status should be no-reply");
-  UTEST_ASSERT((trace= icmp_trace_send_next(opts)) != NULL,
-		"a second equal-cost path should exist");
+  trace= icmp_trace_send_next(opts);
+  UTEST_ASSERT(trace != NULL,
+	       "a second equal-cost path should exist");
   UTEST_ASSERT(trace->status == ENET_NO_REPLY,
 		"trace's status should be no-reply");
-  UTEST_ASSERT(icmp_trace_send_next(opts) == NULL,
-		"no more equal-cost path should exist");
+  trace= icmp_trace_send_next(opts);
+  UTEST_ASSERT(trace == NULL,
+	       "no more equal-cost path should exist");
   ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
