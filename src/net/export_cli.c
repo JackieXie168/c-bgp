@@ -255,8 +255,24 @@ static void _net_export_cli_phys(gds_stream_t * stream,
       default:
 	abort();
       }
+
     }
     enum_destroy(&links);
+
+    links= net_links_get_enum(node->ifaces);
+    while (enum_has_next(links)) {
+      link= *((net_iface_t **) enum_get_next(links));
+
+      if (!net_iface_is_enabled(link)) {
+	stream_printf(stream, "net node ");
+	node_dump_id(stream, node);
+	stream_printf(stream, " iface ");
+	net_iface_dump_id(stream, link);
+	stream_printf(stream, " down\n");
+      }
+    }
+    enum_destroy(&links);
+
   }
   enum_destroy(&nodes);
 }
