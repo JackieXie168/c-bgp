@@ -436,7 +436,12 @@ int icmp_trace_send(net_node_t * node, net_addr_t dst_addr,
 // -----[ icmp_trace_send_next ]-------------------------------------
 ip_trace_t * icmp_trace_send_next(ip_opt_t * opts)
 {
-  return ip_opt_ecmp_get_next(opts);
+  if (!ip_opt_ecmp_has_next(opts))
+    return NULL;
+
+  ip_trace_t ** trace_ptr= ip_opt_ecmp_get_next(opts);
+  assert(trace_ptr != NULL);
+  return *trace_ptr;
 }
 
 static int _icmp_trace_has_next(void * ctx)

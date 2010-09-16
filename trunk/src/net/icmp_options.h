@@ -113,7 +113,7 @@ extern "C" {
   // -----[ ip_opt_ecmp_has_next ]-----------------------------------
   int ip_opt_ecmp_has_next(ip_opt_t * opts);
   // -----[ ip_opt_ecmp_get_next ]-----------------------------------
-  ip_trace_t * ip_opt_ecmp_get_next(ip_opt_t * opts);
+  ip_trace_t ** ip_opt_ecmp_get_next(ip_opt_t * opts);
 
 #ifdef __cplusplus
 }
