@@ -82,7 +82,7 @@ char * rl_gets()
     _line= (char *) malloc(MAX_LINE_READ*sizeof(char));
 
   // Print the prompt
-  fprintf(stdout, cli_context_to_string(cli_get()->ctx, "cbgp"));
+  fprintf(stdout, "%s", cli_context_to_string(cli_get()->ctx, "cbgp"));
 
   // Get at most MAX_LINE_READ-1 characters from stdin
   if (fgets(_line, MAX_LINE_READ, stdin) == NULL)
