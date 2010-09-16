@@ -94,6 +94,32 @@ static int cli_iface_igpweight(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+// -----[ cli_iface_down ]-------------------------------------------
+/**
+ * context: {iface}
+ */
+static int cli_iface_down(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  net_iface_t * iface= _iface_from_context(ctx);
+
+  // Change interface's state
+  net_iface_set_enabled(iface, 0);
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_iface_up ]---------------------------------------------
+/**
+ * context: {iface}
+ */
+static int cli_iface_up(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  net_iface_t * iface= _iface_from_context(ctx);
+
+  // Change interface's state
+  net_iface_set_enabled(iface, 1);
+  return CLI_SUCCESS;
+}
+
 // -----[ cli_iface_connect ]----------------------------------------
 /**
  * context: {iface}
@@ -233,5 +259,7 @@ void cli_register_net_node_iface(cli_cmd_t * parent)
   cmd= cli_add_cmd(group, cli_cmd("connect", cli_iface_connect));
   cmd= cli_add_cmd(group, cli_cmd("igp-weight", cli_iface_igpweight));
   cli_add_arg(cmd, cli_arg("weight", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("down", cli_iface_down));
+  cmd= cli_add_cmd(group, cli_cmd("up", cli_iface_up));
   _register_net_node_iface_load(group);
 }
