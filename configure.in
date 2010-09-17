@@ -7,7 +7,7 @@ dnl =================================================================
 
 AC_REVISION($Revision: 1.88 $)
 
-AC_INIT([cbgp], [2.0.0-rc2], [bruno.quoitin@uclouvain.be])
+AC_INIT([cbgp], [2.0.0-rc3], [bruno.quoitin@uclouvain.be])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -465,13 +465,12 @@ AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 
 TESTS="src/checks/basic"
 
-CFLAGS="$CFLAGS -Wall -Werror -O2"
+#CFLAGS="$CFLAGS -Wall -Werror -O2"
+CFLAGS="$CFLAGS -Wall -O2"
 AC_SUBST(CFLAGS)
 
 AC_OUTPUT(
 Makefile
-doc/Makefile
-doc/txt/Makefile
 examples/Makefile
 lib/Makefile
 src/Makefile
