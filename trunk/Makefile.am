@@ -1,4 +1,4 @@
-SUBDIRS = src valid lib doc examples
+SUBDIRS = src valid lib examples
 
 EXTRA_DIST = \
 	cbgp.spec
