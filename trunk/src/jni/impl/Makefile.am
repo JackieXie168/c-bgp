@@ -20,7 +20,7 @@ libjni_impl_la_SOURCES = \
 	bgp_Domain.h \
 	bgp_Filter.c \
 	bgp_Filter.h \
-	bgp_filterRule.c \
+	bgp_FilterRule.c \
 	bgp_FilterRule.h \
 	bgp_Peer.c \
 	bgp_Peer.h \
