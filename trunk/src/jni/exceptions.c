@@ -10,6 +10,9 @@
 # include <config.h>
 #endif
 
+#define _GNU_SOURCE
+#include <stdio.h>
+
 #include <assert.h>
 #include <jni.h>
 #include <stdlib.h>
