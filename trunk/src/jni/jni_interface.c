@@ -520,7 +520,7 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetNodes
     return_jni_unlock(jEnv, NULL);
 
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
 
     // Create Node object
     if ((joNode= cbgp_jni_new_net_Node(jEnv, joCBGP, node)) == NULL) {
@@ -1117,11 +1117,11 @@ JNIEXPORT jobject JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netGetLinks
     
   nodes= trie_get_enum(network_get_default()->nodes);
   while (enum_has_next(nodes)) {
-    node= (net_node_t *) enum_get_next(nodes);
+    node= *((net_node_t **) enum_get_next(nodes));
     
     links= net_links_get_enum(node->ifaces);
     while (enum_has_next(links)) {
-      link= (net_iface_t *) enum_get_next(links);
+      link= *((net_iface_t **) enum_get_next(links));
 
       if ((link->type == NET_IFACE_LOOPBACK) ||
 	  (link->type == NET_IFACE_VIRTUAL))
