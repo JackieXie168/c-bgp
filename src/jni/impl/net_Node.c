@@ -212,7 +212,7 @@ Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
     return_jni_unlock(env, NULL);
 
   while (enum_has_next(traces)) {
-    trace= (ip_trace_t *) enum_get_next(traces);
+    trace= *((ip_trace_t **) enum_get_next(traces));
 
     joTrace= cbgp_jni_new_IPTrace(env, trace);
     if (joTrace == NULL)
