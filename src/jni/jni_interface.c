@@ -1259,3 +1259,52 @@ JNI_OnUnload(JavaVM * jVM, void *reserved)
 
   gds_destroy();
 }
+
+                                      //
+////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////                     //////////////////////////////
+////////////////////                                        ////////////////////
+///////////                                                          ///////////
+//                                 STEFAN                                     //
+///////////                                                          ///////////
+////////////////////                                        ////////////////////
+/////////////////////////////                     //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+                                      //
+
+
+
+// -----[ test ]-----------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_CBGP
+ * Method:    test
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_CBGP_netNodeShowInfo
+  (JNIEnv * jEnv, jobject joCBGP, jstring jaddress)
+{
+  if (jni_check_null(jEnv, joCBGP))
+    return;
+
+  jni_lock(jEnv);
+
+  // Test if a C-BGP JNI session has already been created.
+  if (joGlobalCBGP != NULL) {
+    throw_CBGPException(jEnv, "CBGP class already initialized");
+    return_jni_unlock2(jEnv);
+  }
+
+  // Create global reference
+  joGlobalCBGP= (*jEnv)->NewGlobalRef(jEnv, joCBGP);
+
+  // Initialize C-BGP library (but not the GDS library)
+  libcbgp_init2();
+  _jni_proxies_init();
+
+  // Initialize console listeners contexts
+  jni_listener_init(&_out_listener);
+  jni_listener_init(&_err_listener);
+  jni_listener_init(&_bgp_msg_listener);
+
+  jni_unlock(jEnv);
+}

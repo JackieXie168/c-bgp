@@ -143,6 +143,13 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
 
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
 	      (double) sched->cur_time);
+
+    /////////////////Stefan
+    printf("event : \n");
+    printf("  ctx : %s\n" , event->ctx);
+    printf("  ctx : %s\n" , event->ctx);
+
+    /////////////////Stefan
     event->ops->callback(sched->sim, event->ctx);
     _event_destroy(&event);
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\n");

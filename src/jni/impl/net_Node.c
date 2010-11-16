@@ -914,3 +914,44 @@ JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_loadTraffic
 
   jni_unlock(jEnv);
 }
+
+                                      //
+////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////                     //////////////////////////////
+////////////////////                                        ////////////////////
+///////////                                                          ///////////
+//                                 STEFAN                                     //
+///////////                                                          ///////////
+////////////////////                                        ////////////////////
+/////////////////////////////                     //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+                                      //
+
+
+
+// -----[ test ]-----------------------------------------------------
+/*
+ * Class:     be_ac_ucl_ingi_cbgp_net_Node
+ * Method:    test
+ * // Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_be_ac_ucl_ingi_cbgp_net_Node_test
+  (JNIEnv * jEnv, jobject joNode)
+{
+  net_node_t * node;
+  
+  //uint8_t options= 0;
+  //int result;
+
+  jni_lock(jEnv);
+
+  // Get the node
+  node= (net_node_t*) jni_proxy_lookup(jEnv, joNode);
+  if (node == NULL)
+    return_jni_unlock2(jEnv);
+
+  printf("Voila : %d\n", node->rid);
+  
+
+  jni_unlock(jEnv);
+}

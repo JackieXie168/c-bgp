@@ -27,7 +27,8 @@ libjni_la_SOURCES = \
 	listener.c \
 	listener.h
 libjni_la_LIBADD = impl/libjni_impl.la
-libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -Werror -O2 -g
+#libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -Werror -O2 -g
+libjni_la_CFLAGS = $(LIBGDS_CFLAGS) -Wall -O2 -g
 
 JARFILE = CBGP.jar
 BUILT_SOURCES = $(JARFILE)
