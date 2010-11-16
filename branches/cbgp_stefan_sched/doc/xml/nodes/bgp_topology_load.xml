@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>bgp_topology_load</id>
+  <context>bgp topology</context>
+  <parameters>
+    <option>
+      <name>--addr-sch</name>
+      <description>router addressing scheme (default/local)</description>
+    </option>
+    <parameter>
+      <name>file</name>
+      <description>name of the AS-level topology file</description>
+    </parameter>
+  </parameters>
+  <abstract>load an AS-level topology</abstract>
+  <description>
+<p>
+This command loads an AS-level topology from the specified <b>file</b>. The format of the file is based on the work of Subramanian et al (http://www.cs.berkeley.edu/~sagarwal/research/BGP-hierarchy). In this format, each line of the file specifies a relationship between two Internet domains.
+</p>
+<p>
+Based on this file, <i>C-BGP</i> builds a network where each domain is composed of a unique router having the IP address equal to the domain's number (ASN) multiplied by 65536. For instance, the IP address of the router which represents the domain AS7018 would be 27.106.0.0. This can be changed if the <i>--addr-sch</i> parameter is used with the value "local". In this case the IP address of our example would become 0.0.27.106. <i>C-BGP</i> also configures the BGP sessions between the network's routers. Filters that correspond to the business relationships specified in the input file can also be setup automatically, using the <cmd><name>bgp topology policies</name><link>bgp_topology_policies</link></cmd> command.
+</p>
+<p>
+Input format:
+<code>
+&lt;domain-1&gt; &lt;domain-2&gt; &lt;relationship&gt; [&lt;delay&gt;]
+</code>
+</p>
+<p>
+The <b>relationship</b> field can be one of the following:
+<table>
+<trh><th>Value</th><th>Meaning</th></trh>
+<tr><td>0</td><td>peer-to-peer relationship</td></tr>
+<tr><td>1</td><td>provider-to-customer relationship</td></tr>
+</table>
+</p>
+<p>
+The optional <b>delay</b> field specifies the delay on the network link
+between the routers in the given domains.
+</p>
+  </description>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <next>
+    <name>policies</name>
+    <id>bgp_topology_policies</id>
+  </next>
+</command>

@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>network</name>
+  <id>bgp_router_add_network</id>
+  <context>bgp router add</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>new network's IP prefix</description>
+    </parameter>
+  </parameters>
+  <abstract>originate a new network in one BGP router</abstract>
+  <description>
+<p>
+This command adds a local network to one BGP router. This network will be originated (advertised) through BGP by this router.
+</p>
+  </description>
+  <father>
+    <name>add</name>
+    <id>bgp_router_add</id>
+  </father>
+  <next>
+    <name>peer</name>
+    <id>bgp_router_add_peer</id>
+  </next>
+</command>

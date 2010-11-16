@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<command>
+  <name>show-mode</name>
+  <id>bgp_options_show-mode</id>
+  <context>bgp options</context>
+  <parameters>
+    <parameter>
+      <name>cisco|mrt|custom</name>
+      <description>the mode used to dump BGP routes</description>
+    </parameter>
+    <vararg>
+      <name>format</name>
+      <cardinality>0-1</cardinality>
+      <description>the format specifier used in <b>custom</b> mode</description>
+    </vararg>
+  </parameters>
+  <abstract>change the format used to dump BGP routes</abstract>
+  <description>
+<p>This command selects which output format is used to dump BGP routes. There are currently three possible modes: <b>mrt</b>,<b>cisco</b> and <b>custom</b>.</p>
+<p>With the <b>mrt</b> mode, routes are dumped as with the <b>route_btoa</b> tool from the Multi-threaded Routing Toolkit (MRTd), using the <b>-m</b> option. In this format, the route's fields are written on a single line, using a '|' separator. Example:
+<code>_|129.250.0.85|2914|3.0.0.0/8|2914 1239 80|IGP|129.250.0.85|100|10|2914:420 2914:2000 2914:3000 65504:1239||||</code>
+</p>
+<p>With the <b>cisco</b> mode, routes are shown using CISCO IOS's format for the <b>show ip bgp</b> command. Example:
+<code>*> 3.0.0.0/8    129.250.0.85    100     10      2914 1239 80    i</code>
+</p>
+<p>Finally, with the <b>custom</b> mode, an additional argument is taken that allows to specify the output format. The <i>format</i> argument is a string which specifies the output format and the fields that will appear in the output. The modus operandi is similar to that of the <i>printf</i> function in C. Example: bgp options show-mode custom "AS-Path = %P"</p>
+<p>The acceptable format specifiers are as follows:
+<table>
+<trh><th>Specifier</th><th>Field</th></trh>
+<tr><td>i</td><td>IP address of the BGP peer</td></tr>
+<tr><td>a</td><td>ASN of the BGP peer</td></tr>
+<tr><td>p</td><td>destination prefix</td></tr>
+<tr><td>l</td><td>LOCAL-PREF attribute</td></tr>
+<tr><td>P</td><td>AS-Path attribute</td></tr>
+<tr><td>m</td><td>MED attribute</td></tr>
+<tr><td>o</td><td>ORIGIN attribute</td></tr>
+<tr><td>n</td><td>next-hop</td></tr>
+<tr><td>c</td><td>COMMUNITIES attribute</td></tr>
+<tr><td>e</td><td>EXT-COMMUNITIES attribute</td></tr>
+<tr><td>O</td><td>ORIGINATOR-ID attribute</td></tr>
+<tr><td>C</td><td>CLUSTER-ID-LIST attribute</td></tr>
+</table></p>
+  </description>
+  <father>
+    <name>options</name>
+    <id>bgp_options</id>
+  </father>
+  <prev>
+    <name>msg-monitor</name>
+    <id>bgp_options_msg-monitor</id>
+  </prev>
+</command>

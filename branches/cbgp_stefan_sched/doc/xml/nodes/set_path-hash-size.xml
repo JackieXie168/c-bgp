@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<command>
+  <name>path-hash-size</name>
+  <id>set_path-hash-size</id>
+  <context>set</context>
+  <parameters>
+    <parameter>
+      <name>size</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>set</name>
+    <id>set</id>
+  </father>
+  <prev>
+    <name>mem-limit</name>
+    <id>set_mem-limit</id>
+  </prev>
+</command>

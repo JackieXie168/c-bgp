@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>ntf</name>
+  <id>net_ntf</id>
+  <context>net</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>load</name>
+      <id>net_ntf_load</id>
+    </child>
+  </childs>
+  <prev>
+    <name>node</name>
+    <id>net_node</id>
+  </prev>
+  <next>
+    <name>options</name>
+    <id>net_options</id>
+  </next>
+</command>

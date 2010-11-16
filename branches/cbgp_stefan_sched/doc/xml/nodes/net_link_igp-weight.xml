@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>igp-weight</name>
+  <id>net_link_igp-weight</id>
+  <context>net link</context>
+  <parameters>
+    <option>
+      <name>--bidir</name>
+      <description></description>
+    </option>
+    <option>
+      <name>--tos</name>
+      <description></description>
+    </option>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>link</name>
+    <id>net_link</id>
+  </father>
+  <prev>
+    <name>down</name>
+    <id>net_link_down</id>
+  </prev>
+  <next>
+    <name>load</name>
+    <id>net_link_load</id>
+  </next>
+</command>

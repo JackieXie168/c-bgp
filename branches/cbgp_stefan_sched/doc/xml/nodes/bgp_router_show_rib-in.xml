@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<command>
+  <name>rib-in</name>
+  <id>bgp_router_show_rib-in</id>
+  <context>bgp router show</context>
+  <parameters>
+    <parameter>
+      <name>peer</name>
+      <description>peer filter</description>
+    </parameter>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description>destination filter</description>
+    </parameter>
+  </parameters>
+  <abstract>show the routes received by one BGP router</abstract>
+  <description>
+<p>
+This command shows the routes received from the selected peers of one router, i.e. the content of the Adj-RIB-Ins of this router. The command takes two parameters to filter the output. The first parameter filters the peers 
+whose Adj-RIB-Ins are shown. The parameter can be an IP address or a wildcard (*). The second parameter can be an IP address, an IP prefix or a wildcard (*). If it is an IP address, best-matching is done. If it is an IP prefix, exact-matching is done. Otherwise, the routes towards all destinations are shown.
+</p>
+<p>
+Output format:
+<code>
+&lt;flags&gt; &lt;prefix&gt; &lt;peer&gt; &lt;pref&gt; &lt;metric&gt; &lt;AS-Path&gt; &lt;origin&gt;
+</code>
+(see <cmd><name>bgp router show rib</name><link>bgp_router_show_rib</link></cmd> for more information on the fields).
+</p>
+<p>
+Example:
+<code>
+cbgp> bgp router 0.0.0.1 show rib-in * *<br/>
+*  0.1.0.1/32   0.2.0.1 0       0       2 1     i<br/>
+*  0.2.0.1/32   0.2.0.1 0       0       2       i<br/>
+*  0.2.0.2/32   0.2.0.1 0       0       2       i<br/>
+*> 0.1.0.1/32   0.2.0.2 0       0       2 1     i<br/>
+*> 0.2.0.1/32   0.2.0.2 0       0       2       i<br/>
+*> 0.2.0.2/32   0.2.0.2 0       0       2       i
+</code>
+</p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>bgp_router_show</id>
+  </father>
+  <prev>
+    <name>rib</name>
+    <id>bgp_router_show_rib</id>
+  </prev>
+  <next>
+    <name>rib-out</name>
+    <id>bgp_router_show_rib-out</id>
+  </next>
+</command>

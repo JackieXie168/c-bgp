@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>net_node_show</id>
+  <context>net node</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>ifaces</name>
+      <id>net_node_show_ifaces</id>
+    </child>
+    <child>
+      <name>info</name>
+      <id>net_node_show_info</id>
+    </child>
+    <child>
+      <name>links</name>
+      <id>net_node_show_links</id>
+    </child>
+    <child>
+      <name>rt</name>
+      <id>net_node_show_rt</id>
+    </child>
+  </childs>
+  <prev>
+    <name>route</name>
+    <id>net_node_route</id>
+  </prev>
+  <next>
+    <name>tunnel</name>
+    <id>net_node_traceroute</id>
+  </next>
+</command>

@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>next-hop</name>
+  <id>bgp_router_peer_next-hop</id>
+  <context>bgp router peer</context>
+  <parameters>
+    <parameter>
+      <name>next-hop</name>
+      <description></description>
+    </parameter>
+  </parameters>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <prev>
+    <name>in-filter</name>
+    <id>bgp_router_peer_in-filter</id>
+  </prev>
+  <next>
+    <name>next-hop-self</name>
+    <id>bgp_router_peer_next-hop-self</id>
+  </next>
+</command>

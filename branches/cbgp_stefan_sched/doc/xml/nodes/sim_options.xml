@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>options</name>
+  <id>sim_options</id>
+  <context>sim</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <childs>
+    <child>
+      <name>log-level</name>
+      <id>sim_options_log-level</id>
+    </child>
+    <child>
+      <name>scheduler</name>
+      <id>sim_options_scheduler</id>
+    </child>
+  </childs>
+  <prev>
+    <name>event</name>
+    <id>sim_event</id>
+  </prev>
+  <next>
+    <name>queue</name>
+    <id>sim_queue</id>
+  </next>
+</command>

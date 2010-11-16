@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>run</name>
+  <id>bgp_topology_run</id>
+  <context>bgp topology</context>
+  <abstract>establish BGP sessions</abstract>
+  <description>
+<p>
+This command establishes the BGP sessions between all the routers loaded by the <cmd><name>bgp topology load</name><link>bgp_topology_load</link></cmd> command.
+</p>
+  </description>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>record-route</name>
+    <id>bgp_topology_record-route</id>
+  </prev>
+  <next>
+    <name>show-rib</name>
+    <id>bgp_topology_show-rib</id>
+  </next>
+</command>

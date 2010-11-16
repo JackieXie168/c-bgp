@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<command>
+  <name>record-route</name>
+  <id>bgp_topology_record-route</id>
+  <context>bgp topology</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>destination prefix</description>
+    </parameter>
+    <parameter>
+      <name>input</name>
+      <description>input file (list of destinations to probe)</description>
+    </parameter>
+    <parameter>
+      <name>output</name>
+      <description>output file (list of traces)</description>
+    </parameter>
+  </parameters>
+  <abstract>record the routes from all the topology</abstract>
+  <description>
+<p>
+This command records the paths towards the given <b>prefix</b> from each router specified in the <b>in-file</b> and writes those paths in the <b>out-file</b>. The <b>in-file</b> has the following format: each line contains the identifier of a domain (i.e. its AS-NUM) from which the path has to be computed or an asterisk (*) which means that the paths from all the routers have to be computed.
+</p>
+<p>
+Output format:
+<code>
+&lt;src-as-num&gt; &lt;prefix&gt; &lt;as-path&gt;
+</code>
+</p>
+<p>
+Example:<br/>
+For instance, here is the result of the EBGP_2_ROUTERS example. The path from AS1 is "1" because it has advertised the prefix 0.1/16. The path from AS2 is "2 1" because it has received a BGP message with the prefix 0.1/16 from AS1.
+<code>
+1 0.1.0.0/16 1<br/>
+2 0.1.0.0/16 2 1
+</code>
+</p>
+  </description>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>policies</name>
+    <id>bgp_topology_policies</id>
+  </prev>
+  <next>
+    <name>run</name>
+    <id>bgp_topology_run</id>
+  </next>
+</command>

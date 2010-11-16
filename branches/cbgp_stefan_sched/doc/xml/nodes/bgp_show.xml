@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>bgp_show</id>
+  <context>bgp</context>
+  <abstract></abstract>
+  <description></description>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>routers</name>
+      <id>bgp_show_routers</id>
+    </child>
+  </childs>
+  <prev>
+    <name>router</name>
+    <id>bgp_router</id>
+  </prev>
+  <next>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </next>
+</command>

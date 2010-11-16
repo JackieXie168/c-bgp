@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<command>
+  <name>route-map</name>
+  <id>bgp_route-map</id>
+  <context>bgp</context>
+  <parameters>
+  </parameters>
+  <abstract>add a route-map, i.e. a named BGP route filter</abstract>
+  <description>
+<p>
+This command defines a new route-map. A route-map is a BGP route filter that can be re-used in multiple BGP sessions. It can help reduce the memory footprint of simulations in case the same filter is used in multiple BGP sessions.
+</p>
+  </description>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>add-rule</name>
+      <id>bgp_route-map_add-rule</id>
+    </child>
+  </childs>
+  <prev>
+    <name>options</name>
+    <id>bgp_options</id>
+  </prev>
+  <next>
+    <name>router</name>
+    <id>bgp_router</id>
+  </next>
+</command>

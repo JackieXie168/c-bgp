@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>set</name>
+  <id>net_domain_set</id>
+  <context>net domain</context>
+  <abstract>change one domain's parameters</abstract>
+  <description></description>
+  <father>
+    <name>domain</name>
+    <id>net_domain</id>
+  </father>
+  <childs>
+    <child>
+      <name>ecmp</name>
+      <id>net_domain_set_ecmp</id>
+    </child>
+  </childs>
+  <prev>
+    <name>compute</name>
+    <id>net_domain_compute</id>
+  </prev>
+  <next>
+    <name>show</name>
+    <id>net_domain_show</id>
+  </next>
+</command>

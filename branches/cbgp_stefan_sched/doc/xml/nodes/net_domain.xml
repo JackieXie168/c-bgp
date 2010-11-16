@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<command>
+  <name>domain</name>
+  <id>net_domain</id>
+  <context>net</context>
+  <parameters>
+    <parameter>
+      <name>id</name>
+      <description>identifier of the node (integer)</description>
+    </parameter>
+  </parameters>
+  <abstract>enter one domain's context</abstract>
+  <description>
+<p>
+Strictly speaking, this is not really a command. It rather allows you to enter one domain's context and enter command that are specific to that context.
+</p>
+  </description>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>compute</name>
+      <id>net_domain_compute</id>
+    </child>
+    <child>
+      <name>set</name>
+      <id>net_domain_set</id>
+    </child>
+    <child>
+      <name>show</name>
+      <id>net_domain_show</id>
+    </child>
+  </childs>
+  <prev>
+    <name>add</name>
+    <id>net_add</id>
+  </prev>
+  <next>
+    <name>link</name>
+    <id>net_link</id>
+  </next>
+</command>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<command>
+  <name>peers</name>
+  <id>bgp_router_show_peers</id>
+  <context>bgp router show</context>
+  <abstract>show the peers of one BGP router</abstract>
+  <description>
+<p>
+This command shows the list of peers of one router. For each peer, the command shows its ASN as well as the state of the BGP session with this peer. In addition, the command also shows the options specific to each peer.
+</p>
+<p>The session with the peer can be in one of the following states:
+<table>
+<trh><th>Session State</th><th>Description</th></trh>
+<tr><td>IDLE</td><td>administratively down.</td></tr>
+<tr><td>ACTIVE</td><td>administratively up, but not established.</td></tr>
+<tr><td>ESTABLISHED</td><td>established and BGP routes can be exchanged.</td></tr>
+<tr><td>OPENWAIT</td><td>OPEN message sent, but no answer received yet.</td></tr>
+</table>
+</p>
+<p>
+When the session is in <b>IDLE</b> state, that means that the session is administratively down. The administrative state of the session can be changed using the <cmd><name>bgp router peer up</name><link>bgp_router_peer_up</link></cmd> command. The session can also be in the <b>ACTIVE</b> state. This state indicates that the session is administratively up but due to the current routing state, it is not established. This can occur if there is no route towards the peer. The session can also be in <b>ESTABLISHED</b> state. This state indicates that the session could be established and that BGP routes can be exchanged with the peer. Finally, the <b>OPENWAIT</b> state indicates that the session has been partially opened. An OPEN message has been sent to the peer but no answer has been received yet. This can be due to the OPEN message still being in the simulator's queue (if <cmd><name>sim run</name><link>sim_run</link></cmd> has not been called). This can also occur in case of reachability problems between the local router and the peer.
+</p>
+<p>Output format:
+<code>&lt;peer&gt; &lt;as-num&gt; &lt;status&gt; [&lt;options&gt;]
+</code></p>
+<p>Example:
+<code>cbgp> bgp router 0.0.0.1 show peers<br/>
+0.2.0.1 AS2     ESTABLISHED<br/>
+0.2.0.2 AS2     ESTABLISHED
+</code></p>
+  </description>
+  <father>
+    <name>show</name>
+    <id>bgp_router_show</id>
+  </father>
+  <prev>
+    <name>networks</name>
+    <id>bgp_router_show_networks</id>
+  </prev>
+  <next>
+    <name>rib</name>
+    <id>bgp_router_show_rib</id>
+  </next>
+</command>
