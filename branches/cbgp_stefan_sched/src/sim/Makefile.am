@@ -18,4 +18,6 @@ libsim_la_SOURCES = \
 	simulator.c \
 	simulator.h \
 	static_scheduler.c \
-	static_scheduler.h
+	static_scheduler.h \
+	tunable_scheduler.c \
+	tunable_scheduler.h
