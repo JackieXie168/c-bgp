@@ -19,11 +19,14 @@
 #include <sim/simulator.h>
 #include <sim/scheduler.h>
 #include <sim/static_scheduler.h>
+#include <sim/tunable_scheduler.h>
 
 //#define DEBUG
 #include <libgds/debug.h>
 
-sched_type_t SIM_OPTIONS_SCHEDULER= SCHEDULER_STATIC;
+//sched_type_t SIM_OPTIONS_SCHEDULER= SCHEDULER_STATIC;
+//sched_type_t SIM_OPTIONS_SCHEDULER= SCHEDULER_TUNABLE;
+//     this variable seems to be unused ... ?!
 
 // -----[ sim_sched_factory_f ]--------------------------------------
 typedef sched_t * (*sim_sched_factory_f)(simulator_t * sim);
@@ -34,6 +37,7 @@ static struct {
 } SCHEDULERS[SCHEDULER_MAX]= {
   { "static",  sched_static_create },
   { "dynamic", sched_dynamic_create },
+  { "tunable", sched_tunable_create },
 };
 
 // -----[ sim_create ]-----------------------------------------------
@@ -167,7 +171,8 @@ int sim_str2sched(const char * str, sched_type_t * type_ref)
   return -1;
 }
 
-static sched_type_t _default_sched= SCHEDULER_STATIC;
+//static sched_type_t _default_sched= SCHEDULER_STATIC;
+static sched_type_t _default_sched= SCHEDULER_TUNABLE;
 
 // -----[ sim_set_default_scheduler ]------------------------------
 void sim_set_default_scheduler(sched_type_t type)
