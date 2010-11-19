@@ -39,6 +39,7 @@ typedef enum {
 typedef enum {
   SCHEDULER_STATIC,
   SCHEDULER_DYNAMIC,
+  SCHEDULER_TUNABLE,
   SCHEDULER_MAX
 } sched_type_t;
 
@@ -67,6 +68,7 @@ typedef struct sched_ops_t {
   void         (*set_log_process) (struct sched_t * self,
 				   const char * file_name);
   double       (*cur_time) (struct sched_t * self);
+  int          (*swap) (struct sched_t * self, unsigned int indexOfNext);   
 } sched_ops_t;
 
 
