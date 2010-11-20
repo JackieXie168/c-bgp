@@ -586,6 +586,8 @@ int node_rt_add_route_link(net_node_t * node, ip_pfx_t pfx,
     default:
       abort();
     }
+  } else if ((gateway == IP_ADDR_ANY) && (oif == NULL)) {
+    return ENET_RT_NO_GW_NO_OIF;
   }
 
   // Check if route info already exists (if we add a parallel path)
