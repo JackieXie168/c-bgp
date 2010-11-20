@@ -57,6 +57,7 @@ typedef enum {
   ENET_RT_IFACE_UNKNOWN   = -501,
   ENET_RT_DUPLICATE       = -502,
   ENET_RT_UNKNOWN         = -503,
+  ENET_RT_NO_GW_NO_OIF    = -504,
 
   ENET_ICMP_NET_UNREACH   = -601, /* ICMP net-unreach received */
   ENET_ICMP_HOST_UNREACH  = -602, /* ICMP host-unreach received */
