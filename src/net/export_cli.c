@@ -167,7 +167,8 @@ static inline void _export_net_node_route(gds_stream_t * stream,
     rtentry= rt_entries_get_at(rtinfo->entries, index);
 
     // Do not support static routes through tunnels
-    if (rtentry->oif->type == NET_IFACE_VIRTUAL) {
+    if ((rtentry->oif != NULL) &&
+	(rtentry->oif->type == NET_IFACE_VIRTUAL)) {
       stream_printf(stream, "# static routes from ");
       node_dump_id(stream, node);
       stream_printf(stream, " to ");
@@ -178,21 +179,23 @@ static inline void _export_net_node_route(gds_stream_t * stream,
 
     stream_printf(stream, "net node ");
     node_dump_id(stream, node);
-    stream_printf(stream, " route add ");
+    stream_printf(stream, " route add");
 
     // Optional gateway ?
     if (rtentry->gateway != NET_ADDR_ANY) {
-      stream_printf(stream, "-gw=");
+      stream_printf(stream, " --gw=");
       ip_address_dump(stream, rtentry->gateway);
     }
 
-    // Destination prefix
-    ip_prefix_dump(stream, rtinfo->prefix);
-    stream_printf(stream, " ");
+    // Optional outgoing interface (oif)
+    if (rtentry->oif != NULL) {
+      stream_printf(stream, " --oif=");
+      net_iface_dump_id(stream, rtentry->oif);
+    }
     
-    // Outgoing interface
+    // Destination prefix
     stream_printf(stream, " ");
-    net_iface_dump_id(stream, rtentry->oif);
+    ip_prefix_dump(stream, rtinfo->prefix);
     
     // Metric
     stream_printf(stream, " %d\n", rtinfo->metric);
@@ -296,6 +299,12 @@ static void _net_export_cli_static(gds_stream_t * stream,
     rt_info_lists= trie_get_enum(node->rt);
     while (enum_has_next(rt_info_lists)) {
       rt_info_list= *((rt_info_list_t **) enum_get_next(rt_info_lists));
+
+      /*for (index= 0; index < _rt_info_list_length(list); index++) {
+    rt_info_dump(stream, (rt_info_t *) list->data[index]);
+    stream_printf(stream, "\n");
+    }*/
+
 
       rt_infos= _array_get_enum((array_t *) rt_info_list);
       while (enum_has_next(rt_infos)) {
