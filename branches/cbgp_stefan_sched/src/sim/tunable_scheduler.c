@@ -293,8 +293,8 @@ static void _dump_events_tunable(gds_stream_t * stream, sched_t * self)
 static int _swap_tunable(sched_t * self,  unsigned int indexOfNext)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
+  fifo_tunable_set_next(sched->events,  indexOfNext);
 
-  printf("echanger le %d avec le %d", indexOfNext, (sched->events->start_index+sched->events->current_depth)% sched->events->max_depth);
   /* _event_t * event;
   uint32_t depth;
   uint32_t max_depth;
