@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)export_cli.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 15/10/07
 // $Id: export_cli.c,v 1.6 2009-03-24 16:07:49 bqu Exp $
 // ==================================================================
