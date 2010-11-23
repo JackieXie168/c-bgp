@@ -68,7 +68,8 @@ typedef struct sched_ops_t {
   void         (*set_log_process) (struct sched_t * self,
 				   const char * file_name);
   double       (*cur_time) (struct sched_t * self);
-  int          (*swap) (struct sched_t * self, unsigned int indexOfNext);   
+  int          (*set_first) (struct sched_t * self, unsigned int nb);
+  int          (*swap) (struct sched_t * self, unsigned int nb1, unsigned int nb2);
 } sched_ops_t;
 
 

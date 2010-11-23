@@ -170,19 +170,43 @@ int cli_sim_queue_show(cli_ctx_t * ctx, cli_cmd_t * cmd)
 /**
  *
  */
-int cli_sim_queue_swap(cli_ctx_t * ctx, cli_cmd_t * cmd)
+int cli_sim_queue_setFirst(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
    const char * arg= cli_get_arg_value(cmd, 0);
-   unsigned int indexOfNext;
+   unsigned int nb;
   // Get number of steps
-  if (str_as_uint(arg, &indexOfNext)) {
-    cli_set_user_error(cli_get(), "invalid indexOfNext\"%s\".", arg);
+  if (str_as_uint(arg, &nb)) {
+    cli_set_user_error(cli_get(), "invalid nb\"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
   // Swap the current event with this one.
-    network_get_simulator(network_get_default())->sched->ops.swap(network_get_simulator(network_get_default())->sched,indexOfNext );
+    network_get_simulator(network_get_default())->sched->ops.set_first(network_get_simulator(network_get_default())->sched,nb );
    //if (sim_step(network_get_simulator(network_get_default()), num_steps))
    // return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
+
+// ----- cli_sim_queue_swap -----------------------------------------
+/**
+ *
+ */
+int cli_sim_runTheXth(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+   const char * arg= cli_get_arg_value(cmd, 0);
+   unsigned int nb;
+  // Get number of steps
+  if (str_as_uint(arg, &nb)) {
+    cli_set_user_error(cli_get(), "invalid num of event\"%s\".", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+
+   // Swap the current event with this one.
+    network_get_simulator(network_get_default())->sched->ops.set_first(network_get_simulator(network_get_default())->sched,nb );
+   
+    // Run the simulator for 1 step;
+  if (sim_step(network_get_simulator(network_get_default()), 1))
+    return CLI_ERROR_COMMAND_FAILED;
+
   return CLI_SUCCESS;
 }
 
@@ -299,7 +323,8 @@ static void _register_sim_queue(cli_cmd_t * parent)
   cmd= cli_add_cmd(group, cli_cmd("log", cli_sim_queue_log));
   cli_add_arg(cmd, cli_arg_file("file", NULL));
   cmd= cli_add_cmd(group, cli_cmd("show", cli_sim_queue_show));
-  cmd= cli_add_cmd(group, cli_cmd("swap", cli_sim_queue_swap));
+  cmd= cli_add_cmd(group, cli_cmd("setFirst", cli_sim_queue_setFirst));
+
   cli_add_arg(cmd, cli_arg("indexOfNext", NULL));
 }
 
@@ -307,6 +332,13 @@ static void _register_sim_queue(cli_cmd_t * parent)
 static void _register_sim_run(cli_cmd_t * parent)
 {
   cli_add_cmd(parent, cli_cmd("run", cli_sim_run));
+}
+
+// -----[ _register_sim_step ]---------------------------------------
+static void _register_sim_runTheXth(cli_cmd_t * parent)
+{
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("runTheXth", cli_sim_runTheXth));
+  cli_add_arg(cmd, cli_arg("num of event", NULL));
 }
 
 // -----[ _register_sim_step ]---------------------------------------
@@ -333,6 +365,7 @@ void cli_register_sim(cli_cmd_t * parent)
   _register_sim_options(group);
   _register_sim_queue(group);
   _register_sim_run(group);
+  _register_sim_runTheXth(group);
   _register_sim_step(group);
   _register_sim_stop(group);
 }

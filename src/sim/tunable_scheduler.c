@@ -286,14 +286,24 @@ static void _dump_events_tunable(gds_stream_t * stream, sched_t * self)
   }
 }
 
+// -----[ _setFirst ]---------------------------------------------
+/**
+ * Return information
+ */
+static int _setFirst_tunable(sched_t * self,  unsigned int nb)
+{
+  sched_tunable_t * sched= (sched_tunable_t *) self;
+  fifo_tunable_set_first(sched->events,  nb);
+}
+
 // -----[ _dump_events ]---------------------------------------------
 /**
  * Return information
  */
-static int _swap_tunable(sched_t * self,  unsigned int indexOfNext)
+static int _swap_tunable(sched_t * self,  unsigned int nb)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
-  fifo_tunable_set_next(sched->events,  indexOfNext);
+  fifo_tunable_set_first(sched->events,  nb);
 
   /* _event_t * event;
   uint32_t depth;
@@ -367,6 +377,7 @@ sched_t * sched_tunable_create(simulator_t * sim)
   sched->ops.dump_events    = _dump_events_tunable;
   sched->ops.set_log_process= _set_log_progress_tunable;
   sched->ops.cur_time       = _cur_time_tunable;
+  sched->ops.set_first      = _setFirst_tunable;
   sched->ops.swap           = _swap_tunable;
 
   // Initialize private part
