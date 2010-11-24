@@ -369,6 +369,7 @@ static double _cur_time_tunable(sched_t * self)
 
 int isOpenSessionMsg(_event_t * event)
 {
+
     printf("\t @isOpenSessionMsg\n");
    net_send_ctx_t * send_ctx= (net_send_ctx_t *) event->ctx;
     printf("\t ici1\n");
@@ -379,7 +380,7 @@ int isOpenSessionMsg(_event_t * event)
     //if(msg->protocol == NET_PROTOCOL_BGP)
    //{
     net_msg_t * copie = message_copy(msg);
-    message_dump( stdout , msg);
+    //message_dump( stdout , msg);
        printf("\t ici3\n");
       bgp_msg_type_t type = ( (bgp_msg_t * )msg->payload)->type;
 
