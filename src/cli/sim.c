@@ -185,7 +185,21 @@ int cli_sim_queue_setFirst(cli_ctx_t * ctx, cli_cmd_t * cmd)
    // return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 }
-
+int  cli_sim_queue_bringForward(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+   const char * arg= cli_get_arg_value(cmd, 0);
+   unsigned int nb;
+  // Get number of steps
+  if (str_as_uint(arg, &nb)) {
+    cli_set_user_error(cli_get(), "invalid nb\"%s\".", arg);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+  // Swap the current event with this one.
+    network_get_simulator(network_get_default())->sched->ops.bringForward(network_get_simulator(network_get_default())->sched,nb );
+   //if (sim_step(network_get_simulator(network_get_default()), num_steps))
+   // return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
 // ----- cli_sim_queue_swap -----------------------------------------
 /**
  *
@@ -324,8 +338,9 @@ static void _register_sim_queue(cli_cmd_t * parent)
   cli_add_arg(cmd, cli_arg_file("file", NULL));
   cmd= cli_add_cmd(group, cli_cmd("show", cli_sim_queue_show));
   cmd= cli_add_cmd(group, cli_cmd("setFirst", cli_sim_queue_setFirst));
-
-  cli_add_arg(cmd, cli_arg("indexOfNext", NULL));
+  cli_add_arg(cmd, cli_arg("event number", NULL));
+  cmd= cli_add_cmd(group, cli_cmd("bringForward", cli_sim_queue_bringForward));
+  cli_add_arg(cmd, cli_arg("event number", NULL));
 }
 
 // -----[ _register_sim_run ]----------------------------------------
