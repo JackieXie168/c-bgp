@@ -117,6 +117,8 @@ const char * network_strerror(int error)
     return "route already exists";
   case ENET_RT_UNKNOWN:
     return "route does not exist";
+  case ENET_RT_NO_GW_NO_OIF:
+    return "route must have oif or gw";
   case EBGP_NETWORK_DUPLICATE:
     return "network already exists";
   case ENET_NODE_INVALID_ID:
