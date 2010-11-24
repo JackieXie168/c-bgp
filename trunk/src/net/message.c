@@ -90,7 +90,7 @@ void message_dump(gds_stream_t * stream, net_msg_t * msg)
   ip_address_dump(stream, msg->dst_addr);
   stream_printf(stream, ", proto:%s, ttl:%d",
 	     net_protocol2str(msg->protocol), msg->ttl);
-  stream_printf(stream, ", payload:", msg->payload);
+  stream_printf(stream, ", payload:");
   proto_def= net_protocols_get_def(msg->protocol);
   if (proto_def->ops.dump_msg != NULL)
     proto_def->ops.dump_msg(stream, msg);
