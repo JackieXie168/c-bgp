@@ -70,6 +70,7 @@ typedef struct sched_ops_t {
   double       (*cur_time) (struct sched_t * self);
   int          (*set_first) (struct sched_t * self, unsigned int nb);
   int          (*swap) (struct sched_t * self, unsigned int nb1, unsigned int nb2);
+  int          (*bringForward) (struct sched_t * self, unsigned int num);
 } sched_ops_t;
 
 

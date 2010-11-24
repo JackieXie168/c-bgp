@@ -329,6 +329,11 @@ static int _swap_tunable(sched_t * self,  unsigned int nb)
   }*/
 }
 
+static int _bringForward_tunable(sched_t * self,  unsigned int num)
+{
+  sched_tunable_t * sched= (sched_tunable_t *) self;
+  fifo_tunable_bringForward(sched->events,  num);
+}
 
 // -----[ _set_log_progress ]----------------------------------------
 /**
@@ -379,6 +384,7 @@ sched_t * sched_tunable_create(simulator_t * sim)
   sched->ops.cur_time       = _cur_time_tunable;
   sched->ops.set_first      = _setFirst_tunable;
   sched->ops.swap           = _swap_tunable;
+  sched->ops.bringForward   = _bringForward_tunable;
 
   // Initialize private part
   sched->events= fifo_tunable_create(EVENT_QUEUE_DEPTH, _fifo_tunable_event_destroy);

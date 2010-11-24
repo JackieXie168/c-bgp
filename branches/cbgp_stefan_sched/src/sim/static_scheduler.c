@@ -40,7 +40,8 @@ typedef struct {
 // -----[ _event_create ]--------------------------------------------
 static inline _event_t * _event_create(const sim_event_ops_t * ops,
 				       void * ctx)
-{
+{    printf("__static_scheduler : \n");
+
   _event_t * event= (_event_t *) MALLOC(sizeof(_event_t));
   event->ops= ops;
   event->ctx= ctx;
@@ -49,7 +50,8 @@ static inline _event_t * _event_create(const sim_event_ops_t * ops,
 
 // -----[ _event_destroy ]-------------------------------------------
 static void _event_destroy(_event_t ** event_ref)
-{
+{    printf("__static_scheduler : \n");
+
   if (*event_ref != NULL) {
     FREE(*event_ref);
     *event_ref= NULL;
@@ -58,7 +60,8 @@ static void _event_destroy(_event_t ** event_ref)
 
 // -----[ _fifo_event_destroy ]--------------------------------------
 static void _fifo_event_destroy(void ** item_ref)
-{
+{    printf("__static_scheduler : \n");
+
   _event_t ** event_ref= (_event_t **) item_ref;
   _event_t * event= *event_ref;
 
@@ -72,7 +75,8 @@ static void _fifo_event_destroy(void ** item_ref)
 
 // -----[ _log_progress ]--------------------------------------------
 static inline void _log_progress(sched_static_t * sched)
-{
+{    printf("__static_scheduler : \n");
+
   struct timeval tv;
 
   if (sched->pProgressLogStream == NULL)
@@ -87,7 +91,8 @@ static inline void _log_progress(sched_static_t * sched)
 
 // -----[ _destroy ]-------------------------------------------------
 static void _destroy(sched_t ** sched_ref)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched;
   if (*sched_ref != NULL) {
 
@@ -110,6 +115,8 @@ static void _destroy(sched_t ** sched_ref)
 // -----[ _cancel ]--------------------------------------------------
 static void _cancel(sched_t * self)
 {
+        printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   sched->cancelled= 1;
 }
@@ -117,6 +124,8 @@ static void _cancel(sched_t * self)
 // -----[ _clear ]---------------------------------------------------
 static void _clear(sched_t * self)
 {
+        printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   fifo_destroy(&sched->events);
   sched->events= fifo_create(EVENT_QUEUE_DEPTH, _fifo_event_destroy);
@@ -133,6 +142,7 @@ static void _clear(sched_t * self)
  */
 static net_error_t _run(sched_t * self, unsigned int num_steps)
 {
+    printf("__static_scheduler : \n");
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event;
 
@@ -144,12 +154,6 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
 	      (double) sched->cur_time);
 
-    /////////////////Stefan
-    printf("event : \n");
-    printf("  ctx : %s\n" , event->ctx);
-    printf("  ctx : %s\n" , event->ctx);
-
-    /////////////////Stefan
     event->ops->callback(sched->sim, event->ctx);
     _event_destroy(&event);
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\n");
@@ -179,14 +183,16 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
  * Return the number of queued events.
  */
 static unsigned int _num_events(sched_t * self)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   return sched->events->current_depth;
 }
 
 // -----[ _event_at ]------------------------------------------------
 void * _event_at(sched_t * self, unsigned int index)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   uint32_t depth;
   uint32_t max_depth;
@@ -205,7 +211,8 @@ void * _event_at(sched_t * self, unsigned int index)
 // -----[ _post ]----------------------------------------------------
 static int _post(sched_t * self, const sim_event_ops_t * ops,
 		 void * ctx, double time, sim_time_t time_type)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event= _event_create(ops, ctx);
   return fifo_push(sched->events, event);
@@ -216,7 +223,8 @@ static int _post(sched_t * self, const sim_event_ops_t * ops,
  * Return information 
  */
 static void _dump_events(gds_stream_t * stream, sched_t * self)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event;
   uint32_t depth;
@@ -247,7 +255,8 @@ static void _dump_events(gds_stream_t * stream, sched_t * self)
  *
  */
 static void _set_log_progress(sched_t * self, const char * filename)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
 
   if (sched->pProgressLogStream != NULL)
@@ -262,7 +271,8 @@ static void _set_log_progress(sched_t * self, const char * filename)
 
 // -----[ _cur_time ]------------------------------------------------
 static double _cur_time(sched_t * self)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched= (sched_static_t *) self;
   return (double) sched->cur_time;
 }
@@ -272,7 +282,8 @@ static double _cur_time(sched_t * self)
  *
  */
 sched_t * sched_static_create(simulator_t * sim)
-{
+{    printf("__static_scheduler : \n");
+
   sched_static_t * sched=
     (sched_static_t *) MALLOC(sizeof(sched_static_t));
 
