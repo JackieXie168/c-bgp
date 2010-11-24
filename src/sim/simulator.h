@@ -71,6 +71,7 @@ typedef struct sched_ops_t {
   int          (*set_first) (struct sched_t * self, unsigned int nb);
   int          (*swap) (struct sched_t * self, unsigned int nb1, unsigned int nb2);
   int          (*bringForward) (struct sched_t * self, unsigned int num);
+  double       (*runOpenSessions) (struct sched_t * self);
 } sched_ops_t;
 
 

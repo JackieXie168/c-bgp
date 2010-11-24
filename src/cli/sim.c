@@ -241,6 +241,21 @@ int cli_sim_run(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+// ----- cli_sim_run ------------------------------------------------
+int cli_sim_openSessions(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+   // Swap the current event with this one.
+    if (network_get_simulator(network_get_default())->sched->ops.runOpenSessions != NULL)
+        printf("n'est pas null!\n");
+    network_get_simulator(network_get_default())->sched->ops.runOpenSessions(network_get_simulator(network_get_default())->sched);
+   
+    // Run the simulator for every "opensession" event;
+  if (sim_step(network_get_simulator(network_get_default()), 1))
+    return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+
+}
+
 // ----- cli_sim_step -----------------------------------------------
 /**
  * context: {}
@@ -355,6 +370,11 @@ static void _register_sim_runTheXth(cli_cmd_t * parent)
   cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("runTheXth", cli_sim_runTheXth));
   cli_add_arg(cmd, cli_arg("num of event", NULL));
 }
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_sim_openSessions(cli_cmd_t * parent)
+{
+  cli_add_cmd(parent, cli_cmd("openSessions", cli_sim_openSessions));
+}
 
 // -----[ _register_sim_step ]---------------------------------------
 static void _register_sim_step(cli_cmd_t * parent)
@@ -380,7 +400,10 @@ void cli_register_sim(cli_cmd_t * parent)
   _register_sim_options(group);
   _register_sim_queue(group);
   _register_sim_run(group);
-  _register_sim_runTheXth(group);
   _register_sim_step(group);
   _register_sim_stop(group);
+
+//by stefan :
+  _register_sim_runTheXth(group);
+  _register_sim_openSessions(group);
 }

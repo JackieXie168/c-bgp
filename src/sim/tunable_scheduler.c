@@ -18,6 +18,7 @@
 #include <libgds/stream.h>
 #include <libgds/memory.h>
 #include <sim/tunable_scheduler.h>
+#include <bgp/types.h>
 
 #include <net/network.h>
 
@@ -218,6 +219,9 @@ static net_error_t _run_tunable(sched_t * self, unsigned int num_steps)
   return ESUCCESS;
 }
 
+
+
+
 // -----[ _num_events ]----------------------------------------------
 /**
  * Return the number of queued events.
@@ -294,6 +298,7 @@ static int _setFirst_tunable(sched_t * self,  unsigned int nb)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   fifo_tunable_set_first(sched->events,  nb);
+    return ESUCCESS;
 }
 
 // -----[ _dump_events ]---------------------------------------------
@@ -304,7 +309,7 @@ static int _swap_tunable(sched_t * self,  unsigned int nb)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   fifo_tunable_set_first(sched->events,  nb);
-
+  return ESUCCESS;
   /* _event_t * event;
   uint32_t depth;
   uint32_t max_depth;
@@ -333,6 +338,7 @@ static int _bringForward_tunable(sched_t * self,  unsigned int num)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   fifo_tunable_bringForward(sched->events,  num);
+  return ESUCCESS;
 }
 
 // -----[ _set_log_progress ]----------------------------------------
@@ -360,6 +366,66 @@ static double _cur_time_tunable(sched_t * self)
   return (double) sched->cur_time;
 }
 
+
+int isOpenSessionMsg(_event_t * event)
+{
+    printf("\t @isOpenSessionMsg\n");
+   net_send_ctx_t * send_ctx= (net_send_ctx_t *) event->ctx;
+    printf("\t ici1\n");
+   net_msg_t * msg = send_ctx->msg;
+   
+    printf("\t ici2\n");
+    
+    //if(msg->protocol == NET_PROTOCOL_BGP)
+   //{
+    net_msg_t * copie = message_copy(msg);
+    message_dump( stdout , msg);
+       printf("\t ici3\n");
+      bgp_msg_type_t type = ( (bgp_msg_t * )msg->payload)->type;
+
+      printf("\t ici4\n");
+      if (type == BGP_MSG_TYPE_OPEN) return 1;
+
+   //}
+    printf("\t ici5\n");
+   return 0;
+}
+
+int get_index_of_next_Open_Event(sched_tunable_t * self)
+{
+    _event_t * event;
+    unsigned int i ;
+      printf("@get index of next open event !\n");
+      printf(" nb event total : %d\n",  _num_events_tunable(self));
+    for(i= 0 ; i < _num_events_tunable(self) ; i++)
+    {
+        printf("event %d :  ",i);
+        event = (_event_t *) _event_at_tunable(self,i);
+        if(isOpenSessionMsg(event))
+            return i;
+    }
+
+    return -1;
+}
+
+
+
+static net_error_t _runOpenSessions_tunable(sched_t * self)
+{
+  sched_tunable_t * sched= (sched_tunable_t *) self;  
+  int index = -2;
+  printf("@runOpenSessions !\n");
+  while((index = get_index_of_next_Open_Event(sched))!=-1)
+  {
+      printf("Premier event : num : %d",index);
+      _bringForward_tunable(self, index);
+      _run_tunable(self, 1);
+  }
+
+
+  return ESUCCESS;
+}
+
 // -----[ static_scheduler_create ]---------------------------------
 /**
  *
@@ -385,6 +451,7 @@ sched_t * sched_tunable_create(simulator_t * sim)
   sched->ops.set_first      = _setFirst_tunable;
   sched->ops.swap           = _swap_tunable;
   sched->ops.bringForward   = _bringForward_tunable;
+  sched->ops.runOpenSessions= _runOpenSessions_tunable;
 
   // Initialize private part
   sched->events= fifo_tunable_create(EVENT_QUEUE_DEPTH, _fifo_tunable_event_destroy);
