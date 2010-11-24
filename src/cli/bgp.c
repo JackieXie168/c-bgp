@@ -1286,6 +1286,27 @@ int cli_bgp_router_load_ribs_in(cli_ctx_t * ctx,
 #endif /* COMMENT_BQU */
 #endif /* __EXPERIMENTAL__ */
 
+// ----- cli_bgp_show_route_maps ------------------------------------
+/**
+ * Show the list of route-maps.
+ *
+ * context: {}
+ * tokens: {}
+ */
+int cli_bgp_show_route_maps(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  gds_enum_t * enu= route_map_enum();
+  _route_map_t * rm;
+  
+  while (enum_has_next(enu)) {
+    rm= *((_route_map_t **) enum_get_next(enu));
+    stream_printf(gdsout, "route-map \"%s\"\n", rm->name);
+    filter_dump(gdsout, rm->filter);
+    stream_printf(gdsout, "\n");
+  }
+  return CLI_SUCCESS;
+}
+
 // ----- cli_bgp_show_routers ---------------------------------------
 /**
  * Show the list of routers matching the given criterion which is a
@@ -1614,6 +1635,7 @@ static void _register_bgp_show(cli_cmd_t * parent)
   cli_cmd_t * group, * cmd;
   
   group= cli_add_cmd(parent, cli_cmd_group("show"));
+  cmd= cli_add_cmd(group, cli_cmd("route-maps", cli_bgp_show_route_maps));
   cmd= cli_add_cmd(group, cli_cmd("routers", cli_bgp_show_routers));
   cli_add_arg(cmd, cli_arg("prefix|*", NULL));
   cmd= cli_add_cmd(group, cli_cmd("sessions", cli_bgp_show_sessions));
