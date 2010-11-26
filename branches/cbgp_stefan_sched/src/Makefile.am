@@ -30,8 +30,8 @@ else
   OPT_BGPDUMP_DIR = 
 endif
 
-SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_BGPDUMP_DIR)
-DIST_SUBDIRS = bgp cli external net sim ui util jni
+SUBDIRS = bgp cli net sim ui util tracer $(OPT_JNI_DIR) $(OPT_BGPDUMP_DIR)
+DIST_SUBDIRS = bgp cli external net sim ui util jni tracer
 
 # Compile experimental features ?
 if WITH_EXPERIMENTAL
