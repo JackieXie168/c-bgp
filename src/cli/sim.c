@@ -244,14 +244,12 @@ int cli_sim_run(cli_ctx_t * ctx, cli_cmd_t * cmd)
 // ----- cli_sim_run ------------------------------------------------
 int cli_sim_openSessions(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-   // Swap the current event with this one.
-    if (network_get_simulator(network_get_default())->sched->ops.runOpenSessions != NULL)
-        printf("n'est pas null!\n");
+   
     network_get_simulator(network_get_default())->sched->ops.runOpenSessions(network_get_simulator(network_get_default())->sched);
    
     // Run the simulator for every "opensession" event;
-  if (sim_step(network_get_simulator(network_get_default()), 1))
-    return CLI_ERROR_COMMAND_FAILED;
+ // if (sim_step(network_get_simulator(network_get_default()), 1))
+   // return CLI_ERROR_COMMAND_FAILED;
   return CLI_SUCCESS;
 
 }

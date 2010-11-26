@@ -485,6 +485,7 @@ src/jni/impl/Makefile
 src/net/Makefile
 src/net/traffic/Makefile
 src/sim/Makefile
+src/tracer/Makefile
 src/ui/Makefile
 src/util/Makefile
 valid/Makefile

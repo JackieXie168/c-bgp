@@ -28,54 +28,46 @@
 ///////////// premier idée ...
 
 /*typedef struct _list_ids_t {
-    int            id;
-    _list_ids_t *   next;
+int            id;
+_list_ids_t *   next;
 } _list_ids_t;
 
 int _id_in_list(int id, _list_ids_t * maillon, int curr_id)
 {
-    if(maillon == NULL) return -1;
-    else{
-        if (maillon->id == id)
-            return 0;
-        else return _id_in_list(id, maillon->next);
-    }
+if(maillon == NULL) return -1;
+else{
+if (maillon->id == id)
+return 0;
+else return _id_in_list(id, maillon->next);
+}
 }
 
 _list_ids_t * add_id_to_list(int id, _list_ids_t * maillon)
 {
-    _list_ids_t * new_liste = (_list_ids_t *) MALLOC(sizeof(_list_ids_t));
-    new_liste->id = id;
-    new_liste->next = maillon;
-    return new_liste;
+_list_ids_t * new_liste = (_list_ids_t *) MALLOC(sizeof(_list_ids_t));
+new_liste->id = id;
+new_liste->next = maillon;
+return new_liste;
 }
 int _event_get_id(_event_t * ev)
 {
-    if (ev->ids == NULL)
-        return -1;
-    else return ev->ids->id;
+if (ev->ids == NULL)
+return -1;
+else return ev->ids->id;
 }
 */
 
 
 typedef struct {
-  const sim_event_ops_t * ops;
-  void                  * ctx;
-  //int                     id;
-  //int                     generator;
+const sim_event_ops_t * ops;
+void                  * ctx;
+//int                     id;
+//int                     generator;
 } _event_t;
 
 
 
-typedef struct {
-  sched_type_t   type;
-  sched_ops_t    ops;
-  simulator_t  * sim;
-  gds_fifo_tunable_t   * events;
-  unsigned int   cur_time;
-  gds_stream_t * pProgressLogStream;
-  volatile int   cancelled;
-} sched_tunable_t;
+
 
 
 
@@ -97,6 +89,16 @@ static void _event_destroy_tunable(_event_t ** event_ref)
     FREE(*event_ref);
     *event_ref= NULL;
   }
+}
+
+// -----[ _fifo_event_destroy ]--------------------------------------
+void *  fifo_tunable_event_copy(void * event)
+{
+     _event_t * new_event = ( _event_t * ) MALLOC(sizeof( _event_t ));
+
+     
+
+     return new_event;
 }
 
 
@@ -226,14 +228,14 @@ static net_error_t _run_tunable(sched_t * self, unsigned int num_steps)
 /**
  * Return the number of queued events.
  */
-static unsigned int _num_events_tunable(sched_t * self)
+static unsigned int _num_events_tunable(sched_tunable_t * self)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   return sched->events->current_depth;
 }
 
 // -----[ _event_at ]------------------------------------------------
-void * _event_at_tunable(sched_t * self, unsigned int index)
+void * _event_at_tunable(sched_tunable_t * self, unsigned int index)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   uint32_t depth;
@@ -369,39 +371,34 @@ static double _cur_time_tunable(sched_t * self)
 
 int isOpenSessionMsg(_event_t * event)
 {
-
-    printf("\t @isOpenSessionMsg\n");
+   //printf("\t @isOpenSessionMsg\n");
    net_send_ctx_t * send_ctx= (net_send_ctx_t *) event->ctx;
-    printf("\t ici1\n");
    net_msg_t * msg = send_ctx->msg;
-   
-    printf("\t ici2\n");
-    
-    //if(msg->protocol == NET_PROTOCOL_BGP)
-   //{
-    net_msg_t * copie = message_copy(msg);
-    //message_dump( stdout , msg);
-       printf("\t ici3\n");
-      bgp_msg_type_t type = ( (bgp_msg_t * )msg->payload)->type;
-
-      printf("\t ici4\n");
-      if (type == BGP_MSG_TYPE_OPEN) return 1;
-
-   //}
-    printf("\t ici5\n");
+   //message_dump( gdsout , msg);
+   bgp_msg_type_t type = ( (bgp_msg_t * ) msg ->payload)->type;
+   if (type == BGP_MSG_TYPE_OPEN) return 1;
    return 0;
 }
 
 int get_index_of_next_Open_Event(sched_tunable_t * self)
 {
-    _event_t * event;
+  _event_t * event;
+  uint32_t depth;
+  uint32_t max_depth;
+  uint32_t start;
+  
+  depth= self->events->current_depth;
+  max_depth= self->events->max_depth;
+  start= self->events->start_index;
+
     unsigned int i ;
-      printf("@get index of next open event !\n");
-      printf(" nb event total : %d\n",  _num_events_tunable(self));
+      //printf("@get index of next open event !\n");
+      //printf(" nb event total : %d\n",  _num_events_tunable(self));
     for(i= 0 ; i < _num_events_tunable(self) ; i++)
     {
-        printf("event %d :  ",i);
-        event = (_event_t *) _event_at_tunable(self,i);
+        //printf("event %d :  ",i);
+        //event = (_event_t *) _event_at_tunable(self,i);
+        event= (_event_t *) self->events->items[(start+i) % max_depth];
         if(isOpenSessionMsg(event))
             return i;
     }
@@ -415,10 +412,11 @@ static net_error_t _runOpenSessions_tunable(sched_t * self)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;  
   int index = -2;
-  printf("@runOpenSessions !\n");
+  //printf("@runOpenSessions !\n");
   while((index = get_index_of_next_Open_Event(sched))!=-1)
   {
-      printf("Premier event : num : %d",index);
+      //printf("Premier event : num : %d",index);
+      //printf("open event :  event en position %d",index);
       _bringForward_tunable(self, index);
       _run_tunable(self, 1);
   }

@@ -28,6 +28,18 @@
 #define __TUNABLE_SCHEDULER_H__
 
 #include <sim/simulator.h>
+#include <libgds/fifo_tunable.h>
+
+typedef struct {
+sched_type_t   type;
+sched_ops_t    ops;
+simulator_t  * sim;
+gds_fifo_tunable_t   * events;
+unsigned int   cur_time;
+gds_stream_t * pProgressLogStream;
+volatile int   cancelled;
+} sched_tunable_t;
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +53,8 @@ extern "C" {
    * \retval a static scheduler.
    */
   sched_t * sched_tunable_create(simulator_t * sim);
+
+  void *  fifo_tunable_event_copy(void * event);
 
 #ifdef __cplusplus
 }

@@ -51,6 +51,7 @@ libcsim_la_LIBADD = \
 	bgp/libbgp.la \
 	cli/libcli.la \
 	sim/libsim.la \
+	tracer/libtracer.la \
 	net/libnet.la \
 	ui/libui.la \
 	util/libutil.la \
