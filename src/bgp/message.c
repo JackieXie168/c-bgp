@@ -119,7 +119,7 @@ bgp_msg_t * bgp_msg_open_create(uint16_t peer_asn, net_addr_t router_id)
  *
  */
 void bgp_msg_destroy(bgp_msg_t ** msg_ref)
-{
+{ 
   if (*msg_ref != NULL) {
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     if (((*msg_ref)->type == BGP_MSG_TYPE_WITHDRAW) &&
@@ -128,7 +128,7 @@ void bgp_msg_destroy(bgp_msg_t ** msg_ref)
 #endif
     FREE(*msg_ref);
     *msg_ref= NULL;
-  }
+  }   
 }
 
 // ----- bgp_msg_send -----------------------------------------------
@@ -177,7 +177,7 @@ static inline void _bgp_msg_update_dump(gds_stream_t * stream,
   unsigned int index;
   uint32_t comm;
   bgp_route_t * route= msg->route;
-
+  
   // Prefix
   stream_printf(stream, "|");
   ip_prefix_dump(stream, route->prefix);
@@ -244,6 +244,128 @@ static inline void _bgp_msg_open_dump(gds_stream_t * stream,
   ip_address_dump(stream, msg->router_id);
 }
 
+bgp_route_t * _bgp_route_copy(bgp_route_t * route)
+{
+    /*
+    bgp_route_t * new_route =  (bgp_route_t *) MALLOC(sizeof(bgp_route_t));
+
+    new_route->flags = route->flags;
+    new_route->rank = route->rank;
+    new_route->prefix = route->prefix;
+    new_route->nlri = route->nlri;
+    new_route->attr = (bgp_attr_t *) MALLOC(sizeof(bgp_attr_t));
+
+    new_route->attr->local_pref = route->attr->local_pref;
+    new_route->attr->med = route->attr->med;
+    new_route->attr->next_hop =  route->attr->next_hop ;
+    new_route->attr->  route->attr->;
+    new_route->attr->  route->attr->;
+
+
+
+    new_route->peer = ;
+
+
+    return new_route;
+     */
+    return route;
+}
+
+// -----[ _bgp_msg_update_dump ]-------------------------------------
+static inline bgp_msg_t * _bgp_msg_update_copy(bgp_msg_update_t * msg)
+{
+   bgp_msg_update_t * nmsg=
+    (bgp_msg_update_t *) MALLOC(sizeof(bgp_msg_update_t));
+
+  nmsg->header.type= BGP_MSG_TYPE_UPDATE;
+  nmsg->header.peer_asn= msg->header.peer_asn;
+  nmsg->header.seq_num=  msg->header.seq_num;
+  nmsg->route= _bgp_route_copy(msg->route);
+  return (bgp_msg_t *) nmsg;
+}
+
+// -----[ _bgp_msg_withdraw_dump ]-----------------------------------
+static inline bgp_msg_t * _bgp_msg_withdraw_copy(bgp_msg_withdraw_t * msg)
+{
+  bgp_msg_withdraw_t * nmsg=
+    (bgp_msg_withdraw_t *) MALLOC(sizeof(bgp_msg_withdraw_t));
+  nmsg->header.type= BGP_MSG_TYPE_WITHDRAW;
+  nmsg->header.peer_asn= msg->header.peer_asn;
+
+  memcpy(&(nmsg->prefix), &(msg->prefix), sizeof(ip_pfx_t));
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  //It corresponds to the path identifier described in the walton draft 
+  //... nevertheless, we keep the variable name NextHop!
+//  STREAM_DEBUG("creation of withdraw : ");
+//  STREAM_ENABLED_DEBUG() ip_address_dump(stream_get_stream(pMainLog), tNextHop);
+//  STREAM_DEBUG("\n");
+  if (msg->next_hop != NULL) {
+    nmsg->next_hop = MALLOC(sizeof(net_addr_t));
+    memcpy(nmsg->next_hop, msg->next_hop, sizeof(net_addr_t));
+  } else {
+    nmsg->next_hop = NULL;
+  }
+#endif
+
+  nmsg->header.seq_num = msg->header.seq_num;
+  return (bgp_msg_t *) nmsg;
+}
+
+// -----[ _bgp_msg_close_dump ]--------------------------------------
+static inline bgp_msg_t *  _bgp_msg_close_copy(bgp_msg_close_t * msg)
+{
+  bgp_msg_close_t * nmsg=
+     (bgp_msg_close_t *) MALLOC(sizeof(bgp_msg_close_t));
+  nmsg->header.type= BGP_MSG_TYPE_CLOSE;
+  nmsg->header.peer_asn= msg->header.peer_asn;
+  nmsg->header.seq_num = msg->header.seq_num;
+
+  return (bgp_msg_t *) nmsg;
+}
+
+// -----[ _bgp_msg_open_dump ]---------------------------------------
+static inline bgp_msg_t * _bgp_msg_open_copy(bgp_msg_open_t * msg)
+{
+  bgp_msg_open_t * nmsg=
+       (bgp_msg_open_t *) MALLOC(sizeof(bgp_msg_open_t));
+  nmsg->header.type= BGP_MSG_TYPE_OPEN;
+  nmsg->header.peer_asn= msg->header.peer_asn;
+  nmsg->header.seq_num = msg->header.seq_num;
+
+  nmsg->router_id= msg->router_id;
+  return (bgp_msg_t *) nmsg;
+
+}
+
+
+// ----- bgp_msg_copy -----------------------------------------------
+/**
+ *
+ */
+bgp_msg_t * bgp_msg_copy( bgp_msg_t * msg)
+{
+  assert(msg->type < BGP_MSG_TYPE_MAX);
+
+  /* copy message content */
+  switch (msg->type) {
+  case BGP_MSG_TYPE_UPDATE:
+    return _bgp_msg_update_copy((bgp_msg_update_t *) msg);
+    break;
+  case BGP_MSG_TYPE_WITHDRAW:
+    return _bgp_msg_withdraw_copy((bgp_msg_withdraw_t *) msg);
+    break;
+  case BGP_MSG_TYPE_OPEN:
+    return _bgp_msg_open_copy((bgp_msg_open_t *) msg);
+    break;
+  case BGP_MSG_TYPE_CLOSE:
+    return _bgp_msg_close_copy((bgp_msg_close_t *) msg);
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    return NULL;
+  }
+}
 // ----- bgp_msg_dump -----------------------------------------------
 /**
  *
@@ -252,6 +374,9 @@ void bgp_msg_dump(gds_stream_t * stream,
 		  net_node_t * node,
 		  bgp_msg_t * msg)
 {
+    
+     bgp_msg_update_t * bgpupdate = (bgp_msg_update_t *) msg;
+
   assert(msg->type < BGP_MSG_TYPE_MAX);
 
   /* Dump header */

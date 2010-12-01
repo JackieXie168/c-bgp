@@ -38,6 +38,21 @@ extern "C" {
   bgp_msg_t * bgp_msg_open_create(uint16_t peer_asn,
 				  net_addr_t router_id);
 
+    // ----- bgp_msg_update_create ------------------------------------
+  bgp_msg_t * bgp_msg_update_copy(bgp_msg_t * msg);
+  // ----- bgp_msg_withdraw_create ----------------------------------
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  bgp_msg_t * bgp_msg_withdraw_copy(bgp_msg_t * msg);
+#else
+  bgp_msg_t * bgp_msg_withdraw_copy(bgp_msg_t * msg);
+#endif
+  // ----- bgp_msg_close_create -------------------------------------
+  bgp_msg_t * bgp_msg_close_copy(bgp_msg_t * msg);
+  // ----- bgp_msg_open_create --------------------------------------
+  bgp_msg_t * bgp_msg_open_copy(bgp_msg_t * msg);
+
+
+
   // ----- bgp_msg_destroy ------------------------------------------
   void bgp_msg_destroy(bgp_msg_t ** msg_ref);
   // ----- bgp_msg_send ---------------------------------------------
