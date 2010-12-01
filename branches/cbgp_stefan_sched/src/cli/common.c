@@ -40,6 +40,7 @@
 #include <cli/common.h>
 #include <cli/net.h>
 #include <cli/sim.h>
+#include <cli/tracer_cli.h>
 #include <ui/output.h>
 #include <ui/rl.h>
 
@@ -900,6 +901,7 @@ cli_t * cli_get()
     cli_register_bgp(root);
     cli_register_net(root);
     cli_register_sim(root);
+    cli_register_tracer(root);
 
     // Miscelaneous commands
     _register_define(root);
