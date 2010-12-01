@@ -55,4 +55,6 @@ libcli_la_SOURCES = \
 	net_ospf.c \
 	net_ospf.h \
 	sim.c \
-	sim.h
+	sim.h \
+	tracer_cli.c \
+	tracer_cli.h
