@@ -54,7 +54,12 @@ extern "C" {
    */
   sched_t * sched_tunable_create(simulator_t * sim);
 
-  void *  fifo_tunable_event_copy(void * event);
+  void *  fifo_tunable_event_deep_copy(void * event);
+
+
+  void * get_event_at(sched_t * self, unsigned int i);
+
+
 
 #ifdef __cplusplus
 }
