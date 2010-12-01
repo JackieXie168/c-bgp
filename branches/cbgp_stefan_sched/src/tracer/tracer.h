@@ -14,16 +14,20 @@
 #include <libgds/stream.h>
 #include <net/error.h>
 #include <libgds/fifo_tunable.h>
+#include <net/network.h>
+
+struct tracer_t;
 
 #include <tracer/graph.h>
 #include <tracer/state.h>
 
 
 
-typedef struct {
+
+typedef struct tracer_t {
   struct graph_t         * graph;
-  simulator_t            * simulator;
-  int                      set ;
+  network_t              * network;
+  int                      started ;
 } tracer_t;
 
 
@@ -31,21 +35,35 @@ typedef struct {
 extern "C" {
 #endif
 
+
+   void _tracer_init();
+
 // concider the simulator current state as the initial state.
-   void tracer_init(tracer_t * self);
+   int _tracer_start(tracer_t * self);
+
 
    int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self );
 
-   void tracer_dump(gds_stream_t * stream, tracer_t * self);
+   int FOR_TESTING_PURPOSE_tracer_graph_state_dump(gds_stream_t * stream, tracer_t * self , unsigned int num_state);
+
+   int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self);
+
+   int FOR_TESTING_PURPOSE_tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer);
+
+   int _tracer_dump(gds_stream_t * stream, tracer_t * self);
 
 
-   tracer_t * tracer_create( simulator_t * simulator);
+    sched_tunable_t * tracer_get_tunable_scheduler(tracer_t * tracer);
 
-   
+    simulator_t * tracer_get_simulator(tracer_t * tracer);
+
+    tracer_t * tracer_get_default();
+
+
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* TRACER_H */
+#endif	/* __TRACER_H__ */
 

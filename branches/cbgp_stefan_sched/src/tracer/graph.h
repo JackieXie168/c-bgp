@@ -21,16 +21,18 @@ struct graph_t;
 
 #include <tracer/tracer.h>
 #include <tracer/state.h>
+#include <tracer/transition.h>
 
 
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
 typedef struct graph_t {
-  net_node_t     **    list_of_nodes;
-  struct state_t        **    list_of_states;
-  struct state_t        *    state_root;
+  struct tracer_t       *   tracer;
+  net_node_t            **  list_of_nodes;
+  struct state_t        **  list_of_states;
+  struct state_t        *   state_root;
 
-  struct state_t        * FOR_TESTING_PURPOSE_current_state;
+  struct state_t        *   FOR_TESTING_PURPOSE_current_state;
 
   unsigned int         nb_net_nodes;
   unsigned int         nb_states;
@@ -42,9 +44,12 @@ typedef struct graph_t {
 extern "C" {
 #endif
 
-    graph_t * graph_create(sched_tunable_t * tunable_scheduler);
+    graph_t * graph_create(struct tracer_t * tracer);
 
-
+    int FOR_TESTING_PURPOSE_graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
+    int FOR_TESTING_PURPOSE_graph_current_state_dump(gds_stream_t * stream, graph_t * graph);
+    int FOR_TESTING_PURPOSE_graph_allstates_dump(gds_stream_t * stream, graph_t * graph);
+    int FOR_TESTING_PURPOSE_graph_inject_state(graph_t * graph , unsigned int num_state);
 
 #ifdef	__cplusplus
 }
