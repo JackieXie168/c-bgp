@@ -90,16 +90,36 @@ static void _event_destroy_tunable(_event_t ** event_ref)
     *event_ref= NULL;
   }
 }
+/*
+net_msg_t * message_deep_copy(net_msg_t * msg)
+{
+    net_msg_t * new_msg = ( net_msg_t * ) MALLOC(sizeof( net_msg_t ));
+    new_msg->dst_addr = msg->dst_addr;
+    new_msg->src_addr = msg->src_addr;
+    new_msg->ttl = msg->ttl;
+    new_msg->protocol = msg->protocol;
+    new_msg->tos = msg->tos;
+    new_msg->ops=msg->ops;
+    //copie de payload :
+    new_msg->payload = ;
+    //copie d'option IP.
+    new_msg->opts= ;
+
+}*/
 
 // -----[ _fifo_event_destroy ]--------------------------------------
-void *  fifo_tunable_event_copy(void * event)
+void *  fifo_tunable_event_deep_copy(void * event)
 {
      _event_t * new_event = ( _event_t * ) MALLOC(sizeof( _event_t ));
-
-     
-
+     new_event->ops=((_event_t *) event)->ops;
+     new_event->ctx=(net_send_ctx_t *) MALLOC( sizeof(net_send_ctx_t) );
+     net_send_ctx_t * send_ctx= (net_send_ctx_t *) ((_event_t *) event)->ctx;     
+     ((net_send_ctx_t *)  new_event->ctx)->dst_iface = send_ctx->dst_iface ;
+     ((net_send_ctx_t *)  new_event->ctx)->msg = message_copy(send_ctx->msg);
      return new_event;
 }
+
+
 
 
 // -----[ _fifo_event_destroy ]--------------------------------------
@@ -228,14 +248,14 @@ static net_error_t _run_tunable(sched_t * self, unsigned int num_steps)
 /**
  * Return the number of queued events.
  */
-static unsigned int _num_events_tunable(sched_tunable_t * self)
+static unsigned int _num_events_tunable(sched_t * self)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   return sched->events->current_depth;
 }
 
 // -----[ _event_at ]------------------------------------------------
-void * _event_at_tunable(sched_tunable_t * self, unsigned int index)
+void * _event_at_tunable(sched_t * self, unsigned int index)
 {
   sched_tunable_t * sched= (sched_tunable_t *) self;
   uint32_t depth;
@@ -282,6 +302,7 @@ static void _dump_events_tunable(gds_stream_t * stream, sched_t * self)
   for (index= 0; index < depth; index++) {
     event= (_event_t *) sched->events->items[(start+index) % max_depth];
     stream_printf(stream, "%d\t(%d) ", index, (start+index) % max_depth);
+    //stream_printf(stream, "-- Event:%p - ctx:%p - msg:%p - bgpmsg:%p --\n\t\t", event, event->ctx, ((net_send_ctx_t *)event->ctx)->msg,((net_msg_t *)((net_send_ctx_t *)event->ctx)->msg)->payload);
     stream_flush(stream);
     if (event->ops->dump != NULL) {
       event->ops->dump(stream, event->ctx);
@@ -307,10 +328,11 @@ static int _setFirst_tunable(sched_t * self,  unsigned int nb)
 /**
  * Return information
  */
-static int _swap_tunable(sched_t * self,  unsigned int nb)
+static int _swap_tunable(sched_t * self,  unsigned int nb1, unsigned int nb2)
 {
+    printf("**********\nATTENTION\n,  a revoir !  _swap_tunable  : vérifier le comportement.");
   sched_tunable_t * sched= (sched_tunable_t *) self;
-  fifo_tunable_set_first(sched->events,  nb);
+  fifo_tunable_set_first(sched->events,  nb1);
   return ESUCCESS;
   /* _event_t * event;
   uint32_t depth;
@@ -424,6 +446,22 @@ static net_error_t _runOpenSessions_tunable(sched_t * self)
 
   return ESUCCESS;
 }
+
+
+void * get_event_at(sched_t * self, unsigned int i)
+{
+  sched_tunable_t * sched= (sched_tunable_t *) self;
+
+  if(sched->events->current_depth > i )
+  {
+        return sched->events->items[(sched->events->start_index + i) % sched->events->max_depth];
+  }
+  else
+  {
+      return NULL;
+  }
+}
+
 
 // -----[ static_scheduler_create ]---------------------------------
 /**
