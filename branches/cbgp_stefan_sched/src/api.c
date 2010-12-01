@@ -51,6 +51,9 @@
 #include <ui/help.h>
 #include <ui/rl.h>
 
+#include <tracer/tracer.h>
+
+
 #define COPYRIGHT_MSG				\
   "  Copyright (C) 2002-2010 Bruno Quoitin\n"		\
   "  Networking Lab\n"						\
@@ -473,6 +476,7 @@ void libcbgp_init2()
   _netflow_init();
   _tm_init();
   _cli_common_init();
+  _tracer_init();
 }
 
 // -----[ libcbgp_done2 ]--------------------------------------------
