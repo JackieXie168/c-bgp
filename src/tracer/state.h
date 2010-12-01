@@ -8,17 +8,17 @@
 #ifndef __STATE_H__
 #define	__STATE_H__
 
-struct routing_state_t;
-struct queue_state_t;
-//struct transition_t;
-struct state_t;
-
 #include <libgds/memory.h>
 #include <libgds/stack.h>
 #include <libgds/types.h>
 #include <libgds/stream.h>
 #include <net/error.h>
 #include <libgds/fifo_tunable.h>
+
+
+struct routing_state_t;
+struct queue_state_t;
+struct state_t;
 
 #include <tracer/transition.h>
 #include <tracer/graph.h>
@@ -27,14 +27,14 @@ struct state_t;
 
 
 
-typedef struct {
+typedef struct couple_node_rib_t {
     net_node_t *    ptr_to_node;
 }  couple_node_rib_t;
 
 
-typedef struct routing_state_t {
+typedef struct routing_state_t{
   struct state_t              * state;
-  struct couple_node_rib_t **    couples_node_rib;
+  couple_node_rib_t **    couples_node_rib;
 
     // les rib   (des couples de [node,rib]   )
     // adj-rib-in and -out pour chaque voisin de chaque noeud.
@@ -66,9 +66,11 @@ typedef struct state_t {
   routing_state_t *    routing_state;
   queue_state_t   *    queue_state;
   struct transition_t    **   output_transitions;
-  //transition_t    **   input_transitions;
-  struct transition_t    *   input_transition;
+  struct transition_t    **   input_transitions;
+  unsigned int nb_output;
+  unsigned int nb_input;
   struct graph_t         *    graph;
+  unsigned int          id;
 } state_t;
 
 
@@ -77,10 +79,16 @@ typedef struct state_t {
 extern "C" {
 #endif
 
-    state_t * state_create(sched_tunable_t * tunable_scheduler);
+    
 
 
+    state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input_transition);
 
+    void state_add_output_transition(state_t * state,  struct transition_t * the_output_transition);
+
+    int state_dump(gds_stream_t * stream, state_t * state);
+
+    int state_inject(state_t * state);
 
 
 

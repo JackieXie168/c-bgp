@@ -18,5 +18,7 @@ libtracer_la_SOURCES = \
 	graph.c \
 	graph.h \
 	tracer.c \
-	tracer.h
+	tracer.h \
+	transition.c \
+	transition.h
 	
