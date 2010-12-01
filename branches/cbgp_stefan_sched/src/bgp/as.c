@@ -184,6 +184,13 @@ static void _bgp_proto_dump_msg(gds_stream_t * stream, net_msg_t * msg)
   bgp_msg_dump(stream, NULL, (bgp_msg_t *) msg->payload);
 }
 
+
+// -----[ _bgp_proto_dump_msg ]--------------------------------------
+static void * _bgp_proto_copy_payload(net_msg_t * msg)
+{
+  return bgp_msg_copy( (bgp_msg_t *) (msg->payload));
+}
+
 const net_protocol_def_t PROTOCOL_BGP= {
   .name= "bgp",
   .ops= {
@@ -191,7 +198,7 @@ const net_protocol_def_t PROTOCOL_BGP= {
     .destroy     = _bgp_proto_destroy,
     .dump_msg    = _bgp_proto_dump_msg,
     .destroy_msg = NULL,
-    .copy_payload= NULL,
+    .copy_payload= _bgp_proto_copy_payload,
   }
 };
 
