@@ -129,6 +129,10 @@ tracer_t * tracer_create(network_t * network)
   tracer->network = network;
   tracer->graph = NULL;
   tracer->started = 0;
+  tracer->nodes = (net_node_t **) trie_get_array(network->nodes)->data ;
+  tracer->nb_nodes = trie_num_nodes(network->nodes, 1);
+          //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
+
   return tracer;
 }
 

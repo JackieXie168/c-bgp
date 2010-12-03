@@ -24,13 +24,6 @@
 #include <tracer/graph.h>
 #include <tracer/state.h>
 
-#include "graph.h"
-#include "state.h"
-#include "transition.h"
-
-
-
-
 
 // ----- state_create ------------------------------------------------
 graph_t * graph_create(tracer_t * tracer)
@@ -46,7 +39,6 @@ graph_t * graph_create(tracer_t * tracer)
 
   //net_node_t     **    list_of_nodes;
   //struct state_t        **    list_of_states;
-  //unsigned int         nb_net_nodes;  
 
   return graph;
 }
