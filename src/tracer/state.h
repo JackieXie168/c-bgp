@@ -15,7 +15,6 @@
 #include <net/error.h>
 #include <libgds/fifo_tunable.h>
 
-
 struct routing_state_t;
 struct queue_state_t;
 struct state_t;
@@ -25,16 +24,23 @@ struct state_t;
 #include <tracer/tracer.h>
 
 
+typedef struct routing_info_t{
+   net_rt_t        * node_rt_t;
+   bgp_rib_t    *  bgp_router_loc_rib_t;
+   bgp_peers_t         * bgp_router_peers;
 
+}routing_info_t;
 
-typedef struct couple_node_rib_t {
-    net_node_t *    ptr_to_node;
-}  couple_node_rib_t;
+typedef struct couple_node_routinginfo_t{
+    net_node_t * node;
+    routing_info_t * routing_info;
+} couple_node_routinginfo_t;
+
 
 
 typedef struct routing_state_t{
   struct state_t              * state;
-  couple_node_rib_t **    couples_node_rib;
+  couple_node_routinginfo_t **    couples_node_routing_info;
 
     // les rib   (des couples de [node,rib]   )
     // adj-rib-in and -out pour chaque voisin de chaque noeud.

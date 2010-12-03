@@ -27,6 +27,8 @@ struct tracer_t;
 typedef struct tracer_t {
   struct graph_t         * graph;
   network_t              * network;
+  net_node_t             ** nodes;
+  unsigned int              nb_nodes;
   int                      started ;
 } tracer_t;
 

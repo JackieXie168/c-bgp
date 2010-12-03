@@ -29,10 +29,38 @@
 #include <libgds/fifo_tunable.h>
 
 #include "state.h"
+#include "graph.h"
+#include "tracer.h"
+
+
 
 static int state_next_available_id= 0;
 
 
+
+
+routing_info_t * _routing_info_create(net_node_t * node)
+{
+  routing_info_t * info = (routing_info_t *) MALLOC(sizeof(routing_info_t));
+
+  //info->bgp_router_loc_rib_t = ;
+  //info->bgp_router_peers = ;
+  //info->node_rt_t = ;
+  //
+
+  return info;
+}
+couple_node_routinginfo_t * _couple_node_routinginfo_create(net_node_t * node)
+{
+ couple_node_routinginfo_t * couple;
+ couple = (couple_node_routinginfo_t *) MALLOC(sizeof(couple_node_routinginfo_t));
+ 
+ couple->node=node;
+ couple->routing_info = _routing_info_create(node);
+  
+ return couple;
+ 
+}
 
 // ----- state_create ------------------------------------------------
 routing_state_t * _routing_state_create(state_t * state)
@@ -41,7 +69,13 @@ routing_state_t * _routing_state_create(state_t * state)
   routing_state= (routing_state_t *) MALLOC(sizeof(routing_state_t));
 
   routing_state->state = state;
-  routing_state->couples_node_rib = (couple_node_rib_t **) MALLOC(state->graph->nb_net_nodes * sizeof(couple_node_rib_t *));
+  routing_state->couples_node_routing_info = (couple_node_routinginfo_t **) MALLOC(state->graph->tracer->nb_nodes * sizeof(couple_node_routinginfo_t *));
+
+  unsigned int i = 0;
+  for(i=0 ; i< state->graph->tracer->nb_nodes ; i++)
+  {
+      routing_state->couples_node_routing_info[i] = _couple_node_routinginfo_create(state->graph->tracer->nodes[i]);
+  }
 
   return routing_state;
 }

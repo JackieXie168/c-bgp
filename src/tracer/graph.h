@@ -33,8 +33,6 @@ typedef struct graph_t {
   struct state_t        *   state_root;
 
   struct state_t        *   FOR_TESTING_PURPOSE_current_state;
-
-  unsigned int         nb_net_nodes;
   unsigned int         nb_states;
 } graph_t;
 
