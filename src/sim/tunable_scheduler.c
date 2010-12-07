@@ -416,7 +416,7 @@ int get_index_of_next_Open_Event(sched_tunable_t * self)
     unsigned int i ;
       //printf("@get index of next open event !\n");
       //printf(" nb event total : %d\n",  _num_events_tunable(self));
-    for(i= 0 ; i < _num_events_tunable(self) ; i++)
+    for(i= 0 ; i < _num_events_tunable((sched_t *)self) ; i++)
     {
         //printf("event %d :  ",i);
         //event = (_event_t *) _event_at_tunable(self,i);

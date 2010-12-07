@@ -28,9 +28,8 @@
 
 #include <libgds/fifo_tunable.h>
 
-#include "state.h"
-#include "graph.h"
-#include "tracer.h"
+
+#include <libgds/trie.h>
 
 
 
@@ -38,15 +37,18 @@ static int state_next_available_id= 0;
 
 
 
-
 routing_info_t * _routing_info_create(net_node_t * node)
 {
   routing_info_t * info = (routing_info_t *) MALLOC(sizeof(routing_info_t));
 
+
+  info->node_rt_t = rt_deep_copy(node->rt);
+
+
   //info->bgp_router_loc_rib_t = ;
   //info->bgp_router_peers = ;
   //info->node_rt_t = ;
-  //
+  
 
   return info;
 }

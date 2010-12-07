@@ -286,6 +286,16 @@ int rt_info_add_entry(rt_info_t * rtinfo,
   return result;
 }
 
+rt_info_t * rt_info_deep_copy(rt_info_t * original_rt)
+{
+  rt_info_t * rtinfo= (rt_info_t *) MALLOC(sizeof(rt_info_t));
+  rtinfo->prefix= original_rt->prefix;
+  rtinfo->metric= original_rt->metric;
+  rtinfo->type= original_rt->type;
+  rtinfo->entries = rt_entries_copy(original_rt->entries);
+  return rtinfo;
+}
+
 // -----[ rt_info_set_entries ]--------------------------------------
 int rt_info_set_entries(rt_info_t * rtinfo, rt_entries_t * entries)
 {
@@ -678,6 +688,39 @@ int rt_add_route(net_rt_t * rt, ip_pfx_t prefix,
 
   }
   return ESUCCESS;
+}
+
+#include <libgds/trie.h>
+rt_infos_t * rt_info_list_deep_copy(rt_infos_t * original_rt_info_list)
+{
+    rt_infos_t * rt_info_l = _rt_info_list_create();
+    unsigned int taille = _rt_info_list_length(original_rt_info_list);
+    unsigned int i = 0;
+    for(i=0; i < taille ; i++)
+    {
+        rt_info_t * elem = _rt_info_list_get(original_rt_info_list,i);
+        rt_info_t *  newelem = rt_info_deep_copy(elem);
+        _rt_info_list_add(rt_info_l,newelem);
+    }
+    return rt_info_l;    
+}
+
+
+net_rt_t * rt_deep_copy(net_rt_t * original_rt)
+{
+    net_rt_t *  rt = rt_create();
+
+    ptr_array_t * original =  trie_get_array((gds_trie_t *)original_rt);
+    unsigned int taille = ptr_array_length((ptr_array_t *) original);
+    unsigned int i;
+    for (i = 0; i < taille ;i++)
+    {
+        rt_infos_t * copy =  rt_info_list_deep_copy((rt_infos_t *) original->data[i]);
+        ip_pfx_t pref =  ((rt_info_t *) ((ptr_array_t * )copy)->data[0])->prefix;
+        trie_insert(rt, pref.network , pref.mask,  copy, 0);
+    }
+
+    return rt;
 }
 
 // -----[ _rt_del_for_each ]-----------------------------------------

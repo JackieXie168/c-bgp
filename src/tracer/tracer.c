@@ -6,9 +6,11 @@
 
 #include <assert.h>
 #include <libgds/str_util.h>
-
 #include <libgds/memory.h>
 #include <libgds/stack.h>
+
+
+#include <libgds/memory.h>
 
 #include <net/error.h>
 #include <net/icmp.h>
@@ -26,9 +28,6 @@
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
-#include "tracer.h"
-#include "graph.h"
-#include "state.h"
 
 
 
@@ -129,7 +128,7 @@ tracer_t * tracer_create(network_t * network)
   tracer->network = network;
   tracer->graph = NULL;
   tracer->started = 0;
-  tracer->nodes = (net_node_t **) trie_get_array(network->nodes)->data ;
+  tracer->nodes ;//= (net_node_t **) trie_get_array(network->nodes)->data ;
   tracer->nb_nodes = trie_num_nodes(network->nodes, 1);
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
 
