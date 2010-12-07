@@ -14,6 +14,10 @@
 #include <libgds/stream.h>
 #include <net/error.h>
 #include <libgds/fifo_tunable.h>
+#include <net/routing_t.h>
+#include <bgp/types.h>
+
+
 
 struct routing_state_t;
 struct queue_state_t;
