@@ -15,6 +15,8 @@
 
 #include <libgds/stream.h>
 #include <libgds/memory.h>
+#include <libgds/trie.h>
+
 #include <net/network.h>
 #include <net/node.h>
 #include <net/routing.h>

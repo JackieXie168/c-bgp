@@ -11,6 +11,8 @@
 
 
 #include <libgds/memory.h>
+#include <libgds/trie.h>
+
 
 #include <net/error.h>
 #include <net/icmp.h>
@@ -58,7 +60,8 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
     state_t * new_state = state_create(self,transition);
 
     self->graph->FOR_TESTING_PURPOSE_current_state = new_state;    
-    
+
+    return 1;
 }
 
 int _tracer_dump(gds_stream_t * stream, tracer_t * tracer)
@@ -128,7 +131,7 @@ tracer_t * tracer_create(network_t * network)
   tracer->network = network;
   tracer->graph = NULL;
   tracer->started = 0;
-  tracer->nodes ;//= (net_node_t **) trie_get_array(network->nodes)->data ;
+  tracer->nodes = (net_node_t **) trie_get_array(network->nodes)->data ;
   tracer->nb_nodes = trie_num_nodes(network->nodes, 1);
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
 
