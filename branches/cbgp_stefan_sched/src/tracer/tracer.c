@@ -127,14 +127,12 @@ tracer_t * tracer_create(network_t * network)
 {
   tracer_t * tracer;
   tracer=(tracer_t *) MALLOC(sizeof(tracer_t));
-
   tracer->network = network;
-  tracer->graph = NULL;
+  tracer->graph = graph_create(tracer);
   tracer->started = 0;
-  tracer->nodes = (net_node_t **) trie_get_array(network->nodes)->data ;
-  tracer->nb_nodes = trie_num_nodes(network->nodes, 1);
+  tracer->nodes = NULL;
+  tracer->nb_nodes = 0;
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
-
   return tracer;
 }
 
@@ -160,10 +158,13 @@ int _tracer_start(tracer_t * self)
      if(self->started == 1)
          return 0;
 
-     self->graph = graph_create(self);
+     self->nodes = (net_node_t **) _trie_get_array(self->network->nodes)->data ;
+     self->nb_nodes = trie_num_nodes(self->network->nodes, 1);
 
-     self->graph->state_root->graph=self->graph;
-     // the first state doesn't have the state.
+     graph_init(self->graph);
+
+     //self->graph->state_root->graph=self->graph;
+     // the first state doesn't have the graph.
      
      self->started = 1;
      return 1;

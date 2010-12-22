@@ -82,6 +82,23 @@ routing_state_t * _routing_state_create(state_t * state)
   return routing_state;
 }
 
+static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_routinginfo_t * coupleNR)
+{
+    stream_printf(stream, " " );
+}
+
+
+static void _routing_state_dump(gds_stream_t * stream, routing_state_t * routing_state)
+{
+  unsigned int i = 0;
+  for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
+  {
+      _couple_node_routinginfo_dump(stream,routing_state->couples_node_routing_info[i]);
+  }
+
+}
+
+
 static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state)
 {
   _event_t * event;
@@ -138,8 +155,7 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   state->graph = tracer->graph;
 
   state->queue_state = _queue_state_create(state, tracer_get_tunable_scheduler(tracer));
-
-  //routing_state_t *    routing_state;
+  state->routing_state = _routing_state_create(state);
 
   if(the_input_transition != NULL)
   {

@@ -712,12 +712,19 @@ net_rt_t * rt_deep_copy(net_rt_t * original_rt)
 {
     net_rt_t *  rt = rt_create();
 
-    ptr_array_t * original =  trie_get_array((gds_trie_t *)original_rt);
-    unsigned int taille = ptr_array_length((ptr_array_t *) original);
-    unsigned int i;
-    for (i = 0; i < taille ;i++)
-    {
-        rt_infos_t * copy =  rt_info_list_deep_copy((rt_infos_t *) original->data[i]);
+    //ptr_array_t * original =  trie_get_array((gds_trie_t *)original_rt);
+    //unsigned int taille = ptr_array_length((ptr_array_t *) original);
+    //unsigned int i;
+    //for (i = 0; i < taille ;i++)
+    //{
+
+
+    gds_enum_t *  rtlistsoriginal = trie_get_enum(original_rt);
+
+    while (enum_has_next(rtlistsoriginal)) {
+         rt_infos_t * rtlist = *((rt_infos_t **) enum_get_next(rtlistsoriginal));
+  
+        rt_infos_t * copy =  rt_info_list_deep_copy(rtlist);
         ip_pfx_t pref =  ((rt_info_t *) ((ptr_array_t * )copy)->data[0])->prefix;
         trie_insert(rt, pref.network , pref.mask,  copy, 0);
     }
