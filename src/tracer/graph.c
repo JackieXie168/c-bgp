@@ -24,6 +24,8 @@
 #include <tracer/graph.h>
 #include <tracer/state.h>
 
+#include "graph.h"
+
 
 // ----- state_create ------------------------------------------------
 graph_t * graph_create(tracer_t * tracer)
@@ -32,18 +34,26 @@ graph_t * graph_create(tracer_t * tracer)
   graph=(graph_t *) MALLOC(sizeof(graph_t));
 
   graph->tracer=tracer;
-  // seulement la file d'événements ! (pour l'instant)
-  graph->state_root= state_create(tracer,NULL);
-  graph->FOR_TESTING_PURPOSE_current_state = graph->state_root;
-  graph->nb_states = 1;
-
-  //net_node_t     **    list_of_nodes;
+  graph->state_root= NULL;
+  graph->FOR_TESTING_PURPOSE_current_state = NULL;
+  graph->nb_states = 0;
+  
   //struct state_t        **    list_of_states;
-
   return graph;
 }
 
 
+// ----- state_create ------------------------------------------------
+int graph_init(graph_t * graph)
+{
+    // nettoyer le reste si déjà été utilisé ... (pas pour l'instant)
+  assert(graph->state_root == NULL && graph->nb_states == 0);
+  graph->state_root= state_create(graph->tracer,NULL);
+  graph->FOR_TESTING_PURPOSE_current_state = graph->state_root;
+  graph->nb_states = 1;
+  //struct state_t        **    list_of_states;
+  return graph;
+}
 
 int graph_root_dump(gds_stream_t * stream, graph_t * graph)
 {
