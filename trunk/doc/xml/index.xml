@@ -1,0 +1,807 @@
+<?xml version="1.0"?>
+<docindex>
+  <index>
+    <name>bgp</name>
+    <id>bgp</id>
+  </index>
+  <index>
+    <name>bgp add</name>
+    <id>bgp_add</id>
+  </index>
+  <index>
+    <name>bgp add router</name>
+    <id>bgp_add_router</id>
+  </index>
+  <index>
+    <name>bgp assert</name>
+    <id>bgp_assert</id>
+  </index>
+  <index>
+    <name>bgp assert peerings-ok</name>
+    <id>bgp_assert_peerings-ok</id>
+  </index>
+  <index>
+    <name>bgp assert reachability-ok</name>
+    <id>bgp_assert_reachability-ok</id>
+  </index>
+  <index>
+    <name>bgp clear-adj-rib</name>
+    <id>bgp_clear-adj-rib</id>
+  </index>
+  <index>
+    <name>bgp domain</name>
+    <id>bgp_domain</id>
+  </index>
+  <index>
+    <name>bgp domain full-mesh</name>
+    <id>bgp_domain_full-mesh</id>
+  </index>
+  <index>
+    <name>bgp domain record-route</name>
+    <id>bgp_domain_record-route</id>
+  </index>
+  <index>
+    <name>bgp domain rescan</name>
+    <id>bgp_domain_rescan</id>
+  </index>
+  <index>
+    <name>bgp options</name>
+    <id>bgp_options</id>
+  </index>
+  <index>
+    <name>bgp options auto-create</name>
+    <id>bgp_options_auto-create</id>
+  </index>
+  <index>
+    <name>bgp options local-pref</name>
+    <id>bgp_options_local-pref</id>
+  </index>
+  <index>
+    <name>bgp options med</name>
+    <id>bgp_options_med</id>
+  </index>
+  <index>
+    <name>bgp options msg-monitor</name>
+    <id>bgp_options_msg-monitor</id>
+  </index>
+  <index>
+    <name>bgp options show-mode</name>
+    <id>bgp_options_show-mode</id>
+  </index>
+  <index>
+    <name>bgp route-map</name>
+    <id>bgp_route-map</id>
+  </index>
+  <index>
+    <name>bgp route-map add-rule</name>
+    <id>bgp_route-map_add-rule</id>
+  </index>
+  <index>
+    <name>bgp route-map add-rule action</name>
+    <id>bgp_route-map_add-rule_action</id>
+  </index>
+  <index>
+    <name>bgp route-map add-rule match</name>
+    <id>bgp_route-map_add-rule_match</id>
+  </index>
+  <index>
+    <name>bgp router</name>
+    <id>bgp_router</id>
+  </index>
+  <index>
+    <name>bgp router add</name>
+    <id>bgp_router_add</id>
+  </index>
+  <index>
+    <name>bgp router add network</name>
+    <id>bgp_router_add_network</id>
+  </index>
+  <index>
+    <name>bgp router add peer</name>
+    <id>bgp_router_add_peer</id>
+  </index>
+  <index>
+    <name>bgp router assert</name>
+    <id>bgp_router_assert</id>
+  </index>
+  <index>
+    <name>bgp router assert routes</name>
+    <id>bgp_router_assert_routes</id>
+  </index>
+  <index>
+    <name>bgp router assert routes match</name>
+    <id>bgp_router_assert_routes_match</id>
+  </index>
+  <index>
+    <name>bgp router assert routes show</name>
+    <id>bgp_router_assert_routes_show</id>
+  </index>
+  <index>
+    <name>bgp router debug</name>
+    <id>bgp_router_debug</id>
+  </index>
+  <index>
+    <name>bgp router debug dp</name>
+    <id>bgp_router_debug_dp</id>
+  </index>
+  <index>
+    <name>bgp router del</name>
+    <id>bgp_router_del</id>
+  </index>
+  <index>
+    <name>bgp router del network</name>
+    <id>bgp_router_del_network</id>
+  </index>
+  <index>
+    <name>bgp router load</name>
+    <id>bgp_router_load</id>
+  </index>
+  <index>
+    <name>bgp router load rib</name>
+    <id>bgp_router_load_rib</id>
+  </index>
+  <index>
+    <name>bgp router peer</name>
+    <id>bgp_router_peer</id>
+  </index>
+  <index>
+    <name>bgp router peer down</name>
+    <id>bgp_router_peer_down</id>
+  </index>
+  <index>
+    <name>bgp router peer filter</name>
+    <id>bgp_router_peer_filter</id>
+  </index>
+  <index>
+    <name>bgp router peer filter add-rule</name>
+    <id>bgp_router_peer_filter_add-rule</id>
+  </index>
+  <index>
+    <name>bgp router peer filter add-rule action</name>
+    <id>bgp_router_peer_filter_add-rule_action</id>
+  </index>
+  <index>
+    <name>bgp router peer filter add-rule match</name>
+    <id>bgp_router_peer_filter_add-rule_match</id>
+  </index>
+  <index>
+    <name>bgp router peer filter insert-rule</name>
+    <id>bgp_router_peer_filter_insert-rule</id>
+  </index>
+  <index>
+    <name>bgp router peer filter remove-rule</name>
+    <id>bgp_router_peer_filter_remove-rule</id>
+  </index>
+  <index>
+    <name>bgp router peer filter show</name>
+    <id>bgp_router_peer_filter_show</id>
+  </index>
+  <index>
+    <name>bgp router peer next-hop</name>
+    <id>bgp_router_peer_next-hop</id>
+  </index>
+  <index>
+    <name>bgp router peer next-hop-self</name>
+    <id>bgp_router_peer_next-hop-self</id>
+  </index>
+  <index>
+    <name>bgp router peer record</name>
+    <id>bgp_router_peer_record</id>
+  </index>
+  <index>
+    <name>bgp router peer recv</name>
+    <id>bgp_router_peer_recv</id>
+  </index>
+  <index>
+    <name>bgp router peer reset</name>
+    <id>bgp_router_peer_reset</id>
+  </index>
+  <index>
+    <name>bgp router peer rr-client</name>
+    <id>bgp_router_peer_rr-client</id>
+  </index>
+  <index>
+    <name>bgp router peer show</name>
+    <id>bgp_router_peer_show</id>
+  </index>
+  <index>
+    <name>bgp router peer show info</name>
+    <id>bgp_router_peer_show_info</id>
+  </index>
+  <index>
+    <name>bgp router peer soft-restart</name>
+    <id>bgp_router_peer_soft-restart</id>
+  </index>
+  <index>
+    <name>bgp router peer up</name>
+    <id>bgp_router_peer_up</id>
+  </index>
+  <index>
+    <name>bgp router peer update-source</name>
+    <id>bgp_router_peer_update-source</id>
+  </index>
+  <index>
+    <name>bgp router peer virtual</name>
+    <id>bgp_router_peer_virtual</id>
+  </index>
+  <index>
+    <name>bgp router record-route</name>
+    <id>bgp_router_record-route</id>
+  </index>
+  <index>
+    <name>bgp router rerun</name>
+    <id>bgp_router_rerun</id>
+  </index>
+  <index>
+    <name>bgp router rescan</name>
+    <id>bgp_router_rescan</id>
+  </index>
+  <index>
+    <name>bgp router reset</name>
+    <id>bgp_router_reset</id>
+  </index>
+  <index>
+    <name>bgp router save</name>
+    <id>bgp_router_save</id>
+  </index>
+  <index>
+    <name>bgp router save rib</name>
+    <id>bgp_router_save_rib</id>
+  </index>
+  <index>
+    <name>bgp router save rib-in</name>
+    <id>bgp_router_save_rib-in</id>
+  </index>
+  <index>
+    <name>bgp router set</name>
+    <id>bgp_router_set</id>
+  </index>
+  <index>
+    <name>bgp router set cluster-id</name>
+    <id>bgp_router_set_cluster-id</id>
+  </index>
+  <index>
+    <name>bgp router show</name>
+    <id>bgp_router_show</id>
+  </index>
+  <index>
+    <name>bgp router show adj-rib</name>
+    <id>bgp_router_show_adj-rib</id>
+  </index>
+  <index>
+    <name>bgp router show info</name>
+    <id>bgp_router_show_info</id>
+  </index>
+  <index>
+    <name>bgp router show networks</name>
+    <id>bgp_router_show_networks</id>
+  </index>
+  <index>
+    <name>bgp router show peers</name>
+    <id>bgp_router_show_peers</id>
+  </index>
+  <index>
+    <name>bgp router show rib</name>
+    <id>bgp_router_show_rib</id>
+  </index>
+  <index>
+    <name>bgp router show route-info</name>
+    <id>bgp_router_show_route-info</id>
+  </index>
+  <index>
+    <name>bgp router show stats</name>
+    <id>bgp_router_show_stats</id>
+  </index>
+  <index>
+    <name>bgp router start</name>
+    <id>bgp_router_start</id>
+  </index>
+  <index>
+    <name>bgp router stop</name>
+    <id>bgp_router_stop</id>
+  </index>
+  <index>
+    <name>bgp show</name>
+    <id>bgp_show</id>
+  </index>
+  <index>
+    <name>bgp show route-maps</name>
+    <id>bgp_show_route-maps</id>
+  </index>
+  <index>
+    <name>bgp show routers</name>
+    <id>bgp_show_routers</id>
+  </index>
+  <index>
+    <name>bgp show sessions</name>
+    <id>bgp_show_sessions</id>
+  </index>
+  <index>
+    <name>bgp topology</name>
+    <id>bgp_topology</id>
+  </index>
+  <index>
+    <name>bgp topology check</name>
+    <id>bgp_topology_check</id>
+  </index>
+  <index>
+    <name>bgp topology dump</name>
+    <id>bgp_topology_dump</id>
+  </index>
+  <index>
+    <name>bgp topology filter</name>
+    <id>bgp_topology_filter</id>
+  </index>
+  <index>
+    <name>bgp topology filter asn</name>
+    <id>bgp_topology_filter_asn</id>
+  </index>
+  <index>
+    <name>bgp topology filter group</name>
+    <id>bgp_topology_filter_group</id>
+  </index>
+  <index>
+    <name>bgp topology info</name>
+    <id>bgp_topology_info</id>
+  </index>
+  <index>
+    <name>bgp topology install</name>
+    <id>bgp_topology_install</id>
+  </index>
+  <index>
+    <name>bgp topology load</name>
+    <id>bgp_topology_load</id>
+  </index>
+  <index>
+    <name>bgp topology policies</name>
+    <id>bgp_topology_policies</id>
+  </index>
+  <index>
+    <name>bgp topology record-route</name>
+    <id>bgp_topology_record-route</id>
+  </index>
+  <index>
+    <name>bgp topology run</name>
+    <id>bgp_topology_run</id>
+  </index>
+  <index>
+    <name>bgp topology stat-degree</name>
+    <id>bgp_topology_stat-degree</id>
+  </index>
+  <index>
+    <name>chdir</name>
+    <id>chdir</id>
+  </index>
+  <index>
+    <name>define</name>
+    <id>define</id>
+  </index>
+  <index>
+    <name>include</name>
+    <id>include</id>
+  </index>
+  <index>
+    <name>net</name>
+    <id>net</id>
+  </index>
+  <index>
+    <name>net add</name>
+    <id>net_add</id>
+  </index>
+  <index>
+    <name>net add domain</name>
+    <id>net_add_domain</id>
+  </index>
+  <index>
+    <name>net add link</name>
+    <id>net_add_link</id>
+  </index>
+  <index>
+    <name>net add link-ptp</name>
+    <id>net_add_link-ptp</id>
+  </index>
+  <index>
+    <name>net add node</name>
+    <id>net_add_node</id>
+  </index>
+  <index>
+    <name>net add subnet</name>
+    <id>net_add_subnet</id>
+  </index>
+  <index>
+    <name>net domain</name>
+    <id>net_domain</id>
+  </index>
+  <index>
+    <name>net domain compute</name>
+    <id>net_domain_compute</id>
+  </index>
+  <index>
+    <name>net domain show</name>
+    <id>net_domain_show</id>
+  </index>
+  <index>
+    <name>net domain show info</name>
+    <id>net_domain_show_info</id>
+  </index>
+  <index>
+    <name>net domain show nodes</name>
+    <id>net_domain_show_nodes</id>
+  </index>
+  <index>
+    <name>net export</name>
+    <id>net_export</id>
+  </index>
+  <index>
+    <name>net link</name>
+    <id>net_link</id>
+  </index>
+  <index>
+    <name>net link down</name>
+    <id>net_link_down</id>
+  </index>
+  <index>
+    <name>net link igp-weight</name>
+    <id>net_link_igp-weight</id>
+  </index>
+  <index>
+    <name>net link show</name>
+    <id>net_link_show</id>
+  </index>
+  <index>
+    <name>net link show info</name>
+    <id>net_link_show_info</id>
+  </index>
+  <index>
+    <name>net link up</name>
+    <id>net_link_up</id>
+  </index>
+  <index>
+    <name>net links</name>
+    <id>net_links</id>
+  </index>
+  <index>
+    <name>net links load-clear</name>
+    <id>net_links_load-clear</id>
+  </index>
+  <index>
+    <name>net node</name>
+    <id>net_node</id>
+  </index>
+  <index>
+    <name>net node add</name>
+    <id>net_node_add</id>
+  </index>
+  <index>
+    <name>net node add iface</name>
+    <id>net_node_add_iface</id>
+  </index>
+  <index>
+    <name>net node coord</name>
+    <id>net_node_coord</id>
+  </index>
+  <index>
+    <name>net node domain</name>
+    <id>net_node_domain</id>
+  </index>
+  <index>
+    <name>net node iface</name>
+    <id>net_node_iface</id>
+  </index>
+  <index>
+    <name>net node iface connect</name>
+    <id>net_node_iface_connect</id>
+  </index>
+  <index>
+    <name>net node iface down</name>
+    <id>net_node_iface_down</id>
+  </index>
+  <index>
+    <name>net node iface igp-weight</name>
+    <id>net_node_iface_igp-weight</id>
+  </index>
+  <index>
+    <name>net node iface load</name>
+    <id>net_node_iface_load</id>
+  </index>
+  <index>
+    <name>net node iface load add</name>
+    <id>net_node_iface_load_add</id>
+  </index>
+  <index>
+    <name>net node iface load clear</name>
+    <id>net_node_iface_load_clear</id>
+  </index>
+  <index>
+    <name>net node iface load show</name>
+    <id>net_node_iface_load_show</id>
+  </index>
+  <index>
+    <name>net node iface up</name>
+    <id>net_node_iface_up</id>
+  </index>
+  <index>
+    <name>net node ipip-enable</name>
+    <id>net_node_ipip-enable</id>
+  </index>
+  <index>
+    <name>net node name</name>
+    <id>net_node_name</id>
+  </index>
+  <index>
+    <name>net node ping</name>
+    <id>net_node_ping</id>
+  </index>
+  <index>
+    <name>net node record-route</name>
+    <id>net_node_record-route</id>
+  </index>
+  <index>
+    <name>net node route</name>
+    <id>net_node_route</id>
+  </index>
+  <index>
+    <name>net node route add</name>
+    <id>net_node_route_add</id>
+  </index>
+  <index>
+    <name>net node route del</name>
+    <id>net_node_route_del</id>
+  </index>
+  <index>
+    <name>net node show</name>
+    <id>net_node_show</id>
+  </index>
+  <index>
+    <name>net node show ifaces</name>
+    <id>net_node_show_ifaces</id>
+  </index>
+  <index>
+    <name>net node show info</name>
+    <id>net_node_show_info</id>
+  </index>
+  <index>
+    <name>net node show links</name>
+    <id>net_node_show_links</id>
+  </index>
+  <index>
+    <name>net node show rt</name>
+    <id>net_node_show_rt</id>
+  </index>
+  <index>
+    <name>net node show spt</name>
+    <id>net_node_show_spt</id>
+  </index>
+  <index>
+    <name>net node traceroute</name>
+    <id>net_node_traceroute</id>
+  </index>
+  <index>
+    <name>net node traffic</name>
+    <id>net_node_traffic</id>
+  </index>
+  <index>
+    <name>net node traffic load</name>
+    <id>net_node_traffic_load</id>
+  </index>
+  <index>
+    <name>net node tunnel</name>
+    <id>net_node_tunnel</id>
+  </index>
+  <index>
+    <name>net node tunnel add</name>
+    <id>net_node_tunnel_add</id>
+  </index>
+  <index>
+    <name>net ntf</name>
+    <id>net_ntf</id>
+  </index>
+  <index>
+    <name>net ntf load</name>
+    <id>net_ntf_load</id>
+  </index>
+  <index>
+    <name>net show</name>
+    <id>net_show</id>
+  </index>
+  <index>
+    <name>net show nodes</name>
+    <id>net_show_nodes</id>
+  </index>
+  <index>
+    <name>net show subnets</name>
+    <id>net_show_subnets</id>
+  </index>
+  <index>
+    <name>net subnet</name>
+    <id>net_subnet</id>
+  </index>
+  <index>
+    <name>net subnet show</name>
+    <id>net_subnet_show</id>
+  </index>
+  <index>
+    <name>net subnet show info</name>
+    <id>net_subnet_show_info</id>
+  </index>
+  <index>
+    <name>net subnet show links</name>
+    <id>net_subnet_show_links</id>
+  </index>
+  <index>
+    <name>net traffic</name>
+    <id>net_traffic</id>
+  </index>
+  <index>
+    <name>net traffic load</name>
+    <id>net_traffic_load</id>
+  </index>
+  <index>
+    <name>net traffic save</name>
+    <id>net_traffic_save</id>
+  </index>
+  <index>
+    <name>pause</name>
+    <id>pause</id>
+  </index>
+  <index>
+    <name>print</name>
+    <id>print</id>
+  </index>
+  <index>
+    <name>require</name>
+    <id>require</id>
+  </index>
+  <index>
+    <name>require param</name>
+    <id>require_param</id>
+  </index>
+  <index>
+    <name>require version</name>
+    <id>require_version</id>
+  </index>
+  <index>
+    <name>set</name>
+    <id>set</id>
+  </index>
+  <index>
+    <name>set autoflush</name>
+    <id>set_autoflush</id>
+  </index>
+  <index>
+    <name>set comm-hash-size</name>
+    <id>set_comm-hash-size</id>
+  </index>
+  <index>
+    <name>set debug</name>
+    <id>set_debug</id>
+  </index>
+  <index>
+    <name>set exit-on-error</name>
+    <id>set_exit-on-error</id>
+  </index>
+  <index>
+    <name>set mem-limit</name>
+    <id>set_mem-limit</id>
+  </index>
+  <index>
+    <name>set path-hash-size</name>
+    <id>set_path-hash-size</id>
+  </index>
+  <index>
+    <name>show</name>
+    <id>show</id>
+  </index>
+  <index>
+    <name>show comm-hash-content</name>
+    <id>show_comm-hash-content</id>
+  </index>
+  <index>
+    <name>show comm-hash-size</name>
+    <id>show_comm-hash-size</id>
+  </index>
+  <index>
+    <name>show comm-hash-stat</name>
+    <id>show_comm-hash-stat</id>
+  </index>
+  <index>
+    <name>show commands</name>
+    <id>show_commands</id>
+  </index>
+  <index>
+    <name>show mem-limit</name>
+    <id>show_mem-limit</id>
+  </index>
+  <index>
+    <name>show mrt</name>
+    <id>show_mrt</id>
+  </index>
+  <index>
+    <name>show path-hash-content</name>
+    <id>show_path-hash-content</id>
+  </index>
+  <index>
+    <name>show path-hash-size</name>
+    <id>show_path-hash-size</id>
+  </index>
+  <index>
+    <name>show path-hash-stat</name>
+    <id>show_path-hash-stat</id>
+  </index>
+  <index>
+    <name>show version</name>
+    <id>show_version</id>
+  </index>
+  <index>
+    <name>sim</name>
+    <id>sim</id>
+  </index>
+  <index>
+    <name>sim clear</name>
+    <id>sim_clear</id>
+  </index>
+  <index>
+    <name>sim debug</name>
+    <id>sim_debug</id>
+  </index>
+  <index>
+    <name>sim debug queue</name>
+    <id>sim_debug_queue</id>
+  </index>
+  <index>
+    <name>sim event</name>
+    <id>sim_event</id>
+  </index>
+  <index>
+    <name>sim options</name>
+    <id>sim_options</id>
+  </index>
+  <index>
+    <name>sim options log-level</name>
+    <id>sim_options_log-level</id>
+  </index>
+  <index>
+    <name>sim options scheduler</name>
+    <id>sim_options_scheduler</id>
+  </index>
+  <index>
+    <name>sim queue</name>
+    <id>sim_queue</id>
+  </index>
+  <index>
+    <name>sim queue info</name>
+    <id>sim_queue_info</id>
+  </index>
+  <index>
+    <name>sim queue log</name>
+    <id>sim_queue_log</id>
+  </index>
+  <index>
+    <name>sim queue show</name>
+    <id>sim_queue_show</id>
+  </index>
+  <index>
+    <name>sim run</name>
+    <id>sim_run</id>
+  </index>
+  <index>
+    <name>sim step</name>
+    <id>sim_step</id>
+  </index>
+  <index>
+    <name>sim stop</name>
+    <id>sim_stop</id>
+  </index>
+  <index>
+    <name>time</name>
+    <id>time</id>
+  </index>
+  <index>
+    <name>time diff</name>
+    <id>time_diff</id>
+  </index>
+  <index>
+    <name>time save</name>
+    <id>time_save</id>
+  </index>
+</docindex>
