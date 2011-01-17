@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)common.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 15/07/2003
 // $Id: common.c,v 1.31 2009-08-24 10:33:30 bqu Exp $
 // ==================================================================
@@ -433,7 +433,11 @@ int cli_show_comm_hash_stat(cli_ctx_t * ctx, cli_cmd_t * cmd)
 // -----[ cli_show_commands ]----------------------------------------
 int cli_show_commands(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  cli_cmd_dump(gdsout, "  ", _main_cli->root_cmd, 1);
+  unsigned int i;
+
+  for (i= 0; i < ptr_array_length(_main_cli->root_cmd->sub_cmds); i++)
+    cli_cmd_dump(gdsout, "  ",
+		 (cli_cmd_t *) _main_cli->root_cmd->sub_cmds->data[i], 1);
   return CLI_SUCCESS;
 }
 
