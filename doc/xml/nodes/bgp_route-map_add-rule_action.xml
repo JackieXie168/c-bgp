@@ -6,17 +6,11 @@
   <parameters>
     <parameter>
       <name>actions</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>add-rule</name>
-    <id>bgp_route-map_add-rule</id>
-  </father>
-  <next>
-    <name>match</name>
-    <id>bgp_route-map_add-rule_match</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

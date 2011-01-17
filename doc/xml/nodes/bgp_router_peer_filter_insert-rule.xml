@@ -6,31 +6,11 @@
   <parameters>
     <parameter>
       <name>index</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>filter</name>
-    <id>bgp_router_peer_filter</id>
-  </father>
-  <childs>
-    <child>
-      <name>action</name>
-      <id>bgp_router_peer_filter_insert-rule_action</id>
-    </child>
-    <child>
-      <name>match</name>
-      <id>bgp_router_peer_filter_insert-rule_match</id>
-    </child>
-  </childs>
-  <prev>
-    <name>add-rule</name>
-    <id>bgp_router_peer_filter_add-rule</id>
-  </prev>
-  <next>
-    <name>remove-rule</name>
-    <id>bgp_router_peer_filter_remove-rule</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

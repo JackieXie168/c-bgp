@@ -6,25 +6,15 @@
   <parameters>
     <option>
       <name>--bidir</name>
-      <description></description>
+      <description/>
     </option>
     <option>
       <name>--tos</name>
-      <description></description>
+      <description/>
     </option>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>link</name>
-    <id>net_link</id>
-  </father>
-  <prev>
-    <name>down</name>
-    <id>net_link_down</id>
-  </prev>
-  <next>
-    <name>load</name>
-    <id>net_link_load</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

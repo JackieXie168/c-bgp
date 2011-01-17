@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<command>
+  <name>link-ptp</name>
+  <id>net_add_link-ptp</id>
+  <context>net add</context>
+  <parameters>
+    <option>
+      <name>--bw=</name>
+      <description/>
+    </option>
+    <option>
+      <name>--delay=</name>
+      <description/>
+    </option>
+    <option>
+      <name>--depth=</name>
+      <description/>
+    </option>
+    <parameter>
+      <name>addr-src</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>iface-id</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>addr-dst</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>iface-id</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

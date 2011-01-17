@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>spt</name>
+  <id>net_node_show_spt</id>
+  <context>net node show</context>
+  <parameters>
+    <option>
+      <name>--output=</name>
+      <description/>
+    </option>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

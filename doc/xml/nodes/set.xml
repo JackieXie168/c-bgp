@@ -2,32 +2,10 @@
 <command>
   <name>set</name>
   <id>set</id>
-  <context></context>
+  <context/>
+  
   <abstract>set general options</abstract>
-  <childs>
-    <child>
-      <name>autoflush</name>
-      <id>set_autoflush</id>
-    </child>
-    <child>
-      <name>comm-hash-size</name>
-      <id>set_comm-hash-size</id>
-    </child>
-    <child>
-      <name>debug</name>
-      <id>set_debug</id>
-    </child>
-    <child>
-      <name>exit-on-error</name>
-      <id>set_exit-on-error</id>
-    </child>
-    <child>
-      <name>mem-limit</name>
-      <id>set_mem-limit</id>
-    </child>
-    <child>
-      <name>path-hash-size</name>
-      <id>set_path-hash-size</id>
-    </child>
-  </childs>
+  
+  
+  
 </command>

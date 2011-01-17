@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>export</name>
+  <id>net_export</id>
+  <context>net</context>
+  <parameters>
+    <option>
+      <name>--format=</name>
+      <description/>
+    </option>
+    <option>
+      <name>--output=</name>
+      <description/>
+    </option>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

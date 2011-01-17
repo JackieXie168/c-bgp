@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>full-mesh</name>
+      <id>bgp_domain_full-mesh</id>
+    </child>
+    <child>
+      <name>record-route</name>
+      <id>bgp_domain_record-route</id>
+    </child>
+    <child>
+      <name>rescan</name>
+      <id>bgp_domain_rescan</id>
+    </child>
+  </childs>
+  <prev>
+    <name>clear-adj-rib</name>
+    <id>bgp_clear-adj-rib</id>
+  </prev>
+  <next>
+    <name>options</name>
+    <id>bgp_options</id>
+  </next>
+</command>

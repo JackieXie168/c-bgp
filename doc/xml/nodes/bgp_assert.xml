@@ -3,28 +3,9 @@
   <name>assert</name>
   <id>bgp_assert</id>
   <context>bgp</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>bgp</name>
-    <id>bgp</id>
-  </father>
-  <childs>
-    <child>
-      <name>peerings-ok</name>
-      <id>bgp_assert_peerings-ok</id>
-    </child>
-    <child>
-      <name>reachability-ok</name>
-      <id>bgp_assert_reachability-ok</id>
-    </child>
-  </childs>
-  <prev>
-    <name>add</name>
-    <id>bgp_add</id>
-  </prev>
-  <next>
-    <name>domain</name>
-    <id>bgp_domain</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

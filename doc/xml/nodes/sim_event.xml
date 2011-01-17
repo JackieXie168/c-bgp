@@ -6,25 +6,15 @@
   <parameters>
     <parameter>
       <name>time</name>
-      <description></description>
+      <description/>
     </parameter>
     <parameter>
       <name>event</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>sim</name>
-    <id>sim</id>
-  </father>
-  <prev>
-    <name>debug</name>
-    <id>sim_debug</id>
-  </prev>
-  <next>
-    <name>options</name>
-    <id>sim_options</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

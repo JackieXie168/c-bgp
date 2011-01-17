@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>route-maps</name>
+  <id>bgp_show_route-maps</id>
+  <context>bgp show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

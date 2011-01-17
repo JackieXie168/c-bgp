@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>net_traffic_load</id>
+  <context>net traffic</context>
+  <parameters>
+    <option>
+      <name>--dst=</name>
+      <description/>
+    </option>
+    <option>
+      <name>--src=</name>
+      <description/>
+    </option>
+    <option>
+      <name>--summary</name>
+      <description/>
+    </option>
+    <parameter>
+      <name>file</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

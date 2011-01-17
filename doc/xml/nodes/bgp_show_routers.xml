@@ -6,13 +6,11 @@
   <parameters>
     <parameter>
       <name>prefix|*</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>bgp_show</id>
-  </father>
+  <abstract/>
+  <description/>
+  
+  
 </command>

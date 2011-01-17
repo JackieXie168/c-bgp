@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>update-source</name>
+  <id>bgp_router_peer_update-source</id>
+  <context>bgp router peer</context>
+  <parameters>
+    <parameter>
+      <name>iface-address</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

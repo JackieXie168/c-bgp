@@ -15,8 +15,6 @@
 This command removes a local network previously added with <cmd><name>bgp router add network</name><link>bgp_router_add_network</link></cmd> command.
 </p>
   </description>
-  <father>
-    <name>del</name>
-    <id>bgp_router_del</id>
-  </father>
+  
+  
 </command>

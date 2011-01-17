@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <prev>
+    <name>rescan</name>
+    <id>bgp_router_rescan</id>
+  </prev>
+  <next>
+    <name>save</name>
+    <id>bgp_router_save</id>
+  </next>
+</command>

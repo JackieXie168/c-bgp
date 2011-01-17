@@ -3,18 +3,13 @@
   <name>reachability-ok</name>
   <id>bgp_assert_reachability-ok</id>
   <context>bgp assert</context>
+  
   <abstract>check the reachability of BGP prefixes</abstract>
   <description>
 <p>
 This command checks that all the prefixes announced by each BGP routers are reachable by all the other BGP routers.
 </p>
   </description>
-  <father>
-    <name>assert</name>
-    <id>bgp_assert</id>
-  </father>
-  <prev>
-    <name>peerings-ok</name>
-    <id>bgp_assert_peerings-ok</id>
-  </prev>
+  
+  
 </command>

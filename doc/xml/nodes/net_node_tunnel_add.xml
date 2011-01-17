@@ -18,8 +18,6 @@ This command adds a tunnel from one node towards the tunnel <arg>end-point</arg>
 IMPORTANT NOTE: due to changes in the network topology data structure, the tunneling feature is currently broken.
 </p>
   </description>
-  <father>
-    <name>tunnel</name>
-    <id>net_node_tunnel</id>
-  </father>
+  
+  
 </command>

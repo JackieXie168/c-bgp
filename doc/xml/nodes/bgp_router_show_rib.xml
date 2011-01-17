@@ -43,24 +43,14 @@ Note: since the only way to learn a BGP route in <i>C-BGP</i> is currently throu
 <p>
 Example:
 <code>
-cbgp> bgp router 0.0.0.1 show rib *<br/>
-i> 0.0.0.1/32   0.0.0.1 0       0       null    i<br/>
-*> 0.1.0.1/32   0.2.0.2 0       0       2 1     i<br/>
-*> 0.2.0.1/32   0.2.0.2 0       0       2       i<br/>
-*> 0.2.0.2/32   0.2.0.2 0       0       2       i
+cbgp&gt; bgp router 0.0.0.1 show rib *<br/>
+i&gt; 0.0.0.1/32   0.0.0.1 0       0       null    i<br/>
+*&gt; 0.1.0.1/32   0.2.0.2 0       0       2 1     i<br/>
+*&gt; 0.2.0.1/32   0.2.0.2 0       0       2       i<br/>
+*&gt; 0.2.0.2/32   0.2.0.2 0       0       2       i
 </code>
 </p>
   </description>
-  <father>
-    <name>show</name>
-    <id>bgp_router_show</id>
-  </father>
-  <prev>
-    <name>peers</name>
-    <id>bgp_router_show_peers</id>
-  </prev>
-  <next>
-    <name>rib-in</name>
-    <id>bgp_router_show_rib-in</id>
-  </next>
+  
+  
 </command>

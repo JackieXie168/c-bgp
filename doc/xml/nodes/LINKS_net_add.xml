@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>domain</name>
+      <id>net_add_domain</id>
+    </child>
+    <child>
+      <name>link</name>
+      <id>net_add_link</id>
+    </child>
+    <child>
+      <name>link-ptp</name>
+      <id>net_add_link-ptp</id>
+    </child>
+    <child>
+      <name>node</name>
+      <id>net_add_node</id>
+    </child>
+    <child>
+      <name>subnet</name>
+      <id>net_add_subnet</id>
+    </child>
+  </childs>
+  <next>
+    <name>domain</name>
+    <id>net_domain</id>
+  </next>
+</command>

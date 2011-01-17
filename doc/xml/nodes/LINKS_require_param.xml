@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>require</name>
+    <id>require</id>
+  </father>
+  <next>
+    <name>version</name>
+    <id>require_version</id>
+  </next>
+</command>

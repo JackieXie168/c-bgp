@@ -3,14 +3,9 @@
   <name>show</name>
   <id>bgp_router_assert_routes_show</id>
   <context>bgp router assert routes</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>routes</name>
-    <id>bgp_router_assert_routes</id>
-  </father>
-  <prev>
-    <name>match</name>
-    <id>bgp_router_assert_routes_match</id>
-  </prev>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

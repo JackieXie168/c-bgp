@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>route</name>
+    <id>net_node_route</id>
+  </father>
+  <prev>
+    <name>add</name>
+    <id>net_node_route_add</id>
+  </prev>
+</command>

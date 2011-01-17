@@ -6,27 +6,15 @@
   <parameters>
     <parameter>
       <name>prefix</name>
-      <description></description>
+      <description/>
     </parameter>
     <parameter>
       <name>best|feasible</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>assert</name>
-    <id>bgp_router_assert</id>
-  </father>
-  <childs>
-    <child>
-      <name>match</name>
-      <id>bgp_router_assert_routes_match</id>
-    </child>
-    <child>
-      <name>show</name>
-      <id>bgp_router_assert_routes_show</id>
-    </child>
-  </childs>
+  <abstract/>
+  <description/>
+  
+  
 </command>

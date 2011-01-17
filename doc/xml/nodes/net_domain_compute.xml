@@ -3,6 +3,7 @@
   <name>compute</name>
   <id>net_domain_compute</id>
   <context>net domain</context>
+  
   <abstract>compute the IGP routes inside this domain</abstract>
   <description>
 <p>
@@ -23,12 +24,6 @@ net domain 1 compute
 </code>
 </p>
   </description>
-  <father>
-    <name>domain</name>
-    <id>net_domain</id>
-  </father>
-  <next>
-    <name>set</name>
-    <id>net_domain_set</id>
-  </next>
+  
+  
 </command>

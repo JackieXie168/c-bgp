@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <childs>
+    <child>
+      <name>cluster-id</name>
+      <id>bgp_router_set_cluster-id</id>
+    </child>
+  </childs>
+  <prev>
+    <name>save</name>
+    <id>bgp_router_save</id>
+  </prev>
+  <next>
+    <name>show</name>
+    <id>bgp_router_show</id>
+  </next>
+</command>

@@ -3,24 +3,9 @@
   <name>load</name>
   <id>bgp_router_load</id>
   <context>bgp router</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <childs>
-    <child>
-      <name>rib</name>
-      <id>bgp_router_load_rib</id>
-    </child>
-  </childs>
-  <prev>
-    <name>del</name>
-    <id>bgp_router_del</id>
-  </prev>
-  <next>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

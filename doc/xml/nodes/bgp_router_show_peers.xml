@@ -3,6 +3,7 @@
   <name>peers</name>
   <id>bgp_router_show_peers</id>
   <context>bgp router show</context>
+  
   <abstract>show the peers of one BGP router</abstract>
   <description>
 <p>
@@ -24,21 +25,11 @@ When the session is in <b>IDLE</b> state, that means that the session is adminis
 <code>&lt;peer&gt; &lt;as-num&gt; &lt;status&gt; [&lt;options&gt;]
 </code></p>
 <p>Example:
-<code>cbgp> bgp router 0.0.0.1 show peers<br/>
+<code>cbgp&gt; bgp router 0.0.0.1 show peers<br/>
 0.2.0.1 AS2     ESTABLISHED<br/>
 0.2.0.2 AS2     ESTABLISHED
 </code></p>
   </description>
-  <father>
-    <name>show</name>
-    <id>bgp_router_show</id>
-  </father>
-  <prev>
-    <name>networks</name>
-    <id>bgp_router_show_networks</id>
-  </prev>
-  <next>
-    <name>rib</name>
-    <id>bgp_router_show_rib</id>
-  </next>
+  
+  
 </command>

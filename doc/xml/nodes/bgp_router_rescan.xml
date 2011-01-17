@@ -3,6 +3,7 @@
   <name>rescan</name>
   <id>bgp_router_rescan</id>
   <context>bgp router</context>
+  
   <abstract>re-scan the BGP routes for changes</abstract>
   <description>
 <p>
@@ -12,16 +13,6 @@ This command is used to rescan the BGP routes contained in one BGP router. This 
 The command works as follows. First it builds the list of all BGP prefixes known by the router. Then, for each prefix, it checks if the selection of the best route towards this prefix depends on the state of static or IGP routes. If so, the decision process for this prefix is re-run.
 </p>
   </description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <prev>
-    <name>rerun</name>
-    <id>bgp_router_rerun</id>
-  </prev>
-  <next>
-    <name>reset</name>
-    <id>bgp_router_reset</id>
-  </next>
+  
+  
 </command>

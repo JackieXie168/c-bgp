@@ -3,18 +3,9 @@
   <name>networks</name>
   <id>bgp_router_show_networks</id>
   <context>bgp router show</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>bgp_router_show</id>
-  </father>
-  <prev>
-    <name>info</name>
-    <id>bgp_router_show_info</id>
-  </prev>
-  <next>
-    <name>peers</name>
-    <id>bgp_router_show_peers</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

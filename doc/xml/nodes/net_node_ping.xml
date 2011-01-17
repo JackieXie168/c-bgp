@@ -19,16 +19,6 @@
 This command tests the reachability of another node by sending a probe message (like an ICMP echo-request) and waiting for an answer (ICMP echo-reply). The command will only succeed if the destination node is also able to reach the source node.
 </p>
   </description>
-  <father>
-    <name>node</name>
-    <id>net_node</id>
-  </father>
-  <prev>
-    <name>name</name>
-    <id>net_node_name</id>
-  </prev>
-  <next>
-    <name>record-route</name>
-    <id>net_node_record-route</id>
-  </next>
+  
+  
 </command>

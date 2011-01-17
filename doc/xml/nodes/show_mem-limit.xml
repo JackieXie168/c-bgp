@@ -3,18 +3,9 @@
   <name>mem-limit</name>
   <id>show_mem-limit</id>
   <context>show</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>show</id>
-  </father>
-  <prev>
-    <name>commands</name>
-    <id>show_commands</id>
-  </prev>
-  <next>
-    <name>mrt</name>
-    <id>show_mrt</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

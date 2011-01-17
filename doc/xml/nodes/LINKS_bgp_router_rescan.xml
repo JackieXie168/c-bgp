@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>router</name>
+    <id>bgp_router</id>
+  </father>
+  <prev>
+    <name>rerun</name>
+    <id>bgp_router_rerun</id>
+  </prev>
+  <next>
+    <name>reset</name>
+    <id>bgp_router_reset</id>
+  </next>
+</command>

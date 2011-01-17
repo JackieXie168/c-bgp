@@ -2,40 +2,10 @@
 <command>
   <name>bgp</name>
   <id>bgp</id>
-  <context></context>
+  <context/>
+  
   <abstract>bgp related commands</abstract>
-  <childs>
-    <child>
-      <name>add</name>
-      <id>bgp_add</id>
-    </child>
-    <child>
-      <name>assert</name>
-      <id>bgp_assert</id>
-    </child>
-    <child>
-      <name>domain</name>
-      <id>bgp_domain</id>
-    </child>
-    <child>
-      <name>options</name>
-      <id>bgp_options</id>
-    </child>
-    <child>
-      <name>route-map</name>
-      <id>bgp_route-map</id>
-    </child>
-    <child>
-      <name>router</name>
-      <id>bgp_router</id>
-    </child>
-    <child>
-      <name>show</name>
-      <id>bgp_show</id>
-    </child>
-    <child>
-      <name>topology</name>
-      <id>bgp_topology</id>
-    </child>
-  </childs>
+  
+  
+  
 </command>

@@ -2,7 +2,7 @@
 <command>
   <name>print</name>
   <id>print</id>
-  <context></context>
+  <context/>
   <parameters>
     <parameter>
       <name>message</name>
@@ -23,4 +23,6 @@ This command prints a <arg>message</arg> on the standard output (stdout). The pr
 </table>
 </p>
   </description>
+  
+  
 </command>

@@ -3,6 +3,7 @@
   <name>ipip-enable</name>
   <id>net_node_ipip-enable</id>
   <context>net node</context>
+  
   <abstract>activate tunneling (IP-in-IP)</abstract>
   <description>
 <p>
@@ -12,16 +13,6 @@ This command enables the support for tunneling (IP-in-IP protocol). Once IP-in-I
 IMPORTANT NOTE: due to changes in the network topology data structure, the tunneling feature is currently broken.
 </p>
   </description>
-  <father>
-    <name>node</name>
-    <id>net_node</id>
-  </father>
-  <prev>
-    <name>domain</name>
-    <id>net_node_domain</id>
-  </prev>
-  <next>
-    <name>link</name>
-    <id>net_node_link</id>
-  </next>
+  
+  
 </command>

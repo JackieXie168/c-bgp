@@ -6,17 +6,11 @@
   <parameters>
     <parameter>
       <name>prefix|*</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>net_show</id>
-  </father>
-  <next>
-    <name>subnets</name>
-    <id>net_show_subnets</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

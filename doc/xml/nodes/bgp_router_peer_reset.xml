@@ -3,18 +3,9 @@
   <name>reset</name>
   <id>bgp_router_peer_reset</id>
   <context>bgp router peer</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>recv</name>
-    <id>bgp_router_peer_recv</id>
-  </prev>
-  <next>
-    <name>rr-client</name>
-    <id>bgp_router_peer_rr-client</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

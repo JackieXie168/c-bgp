@@ -37,16 +37,6 @@ For instance, here is the result of the EBGP_2_ROUTERS example. The path from AS
 </code>
 </p>
   </description>
-  <father>
-    <name>topology</name>
-    <id>bgp_topology</id>
-  </father>
-  <prev>
-    <name>policies</name>
-    <id>bgp_topology_policies</id>
-  </prev>
-  <next>
-    <name>run</name>
-    <id>bgp_topology_run</id>
-  </next>
+  
+  
 </command>

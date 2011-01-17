@@ -6,22 +6,16 @@
   <parameters>
     <parameter>
       <name>prefix|address|*</name>
-      <description></description>
+      <description/>
     </parameter>
     <vararg>
       <name>output</name>
       <cardinality>0-1</cardinality>
-      <description></description>
+      <description/>
     </vararg>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>bgp_router_show</id>
-  </father>
-  <prev>
-    <name>rib-out</name>
-    <id>bgp_router_show_rib-out</id>
-  </prev>
+  <abstract/>
+  <description/>
+  
+  
 </command>

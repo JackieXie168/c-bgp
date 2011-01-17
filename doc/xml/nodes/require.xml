@@ -2,13 +2,10 @@
 <command>
   <name>require</name>
   <id>require</id>
-  <context></context>
-  <abstract></abstract>
-  <description></description>
-  <childs>
-    <child>
-      <name>version</name>
-      <id>require_version</id>
-    </child>
-  </childs>
+  <context/>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

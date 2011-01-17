@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>set</name>
+    <id>set</id>
+  </father>
+  <next>
+    <name>comm-hash-size</name>
+    <id>set_comm-hash-size</id>
+  </next>
+</command>

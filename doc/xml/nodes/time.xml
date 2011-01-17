@@ -2,17 +2,10 @@
 <command>
   <name>time</name>
   <id>time</id>
-  <context></context>
-  <abstract></abstract>
-  <description></description>
-  <childs>
-    <child>
-      <name>diff</name>
-      <id>time_diff</id>
-    </child>
-    <child>
-      <name>save</name>
-      <id>time_save</id>
-    </child>
-  </childs>
+  <context/>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

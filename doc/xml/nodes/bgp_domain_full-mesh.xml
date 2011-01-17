@@ -3,6 +3,7 @@
   <name>full-mesh</name>
   <id>bgp_domain_full-mesh</id>
   <context>bgp domain</context>
+  
   <abstract>create a full-mesh of BGP sessions</abstract>
   <description>
 <p>
@@ -19,12 +20,6 @@ bgp domain 1 full-mesh
 </code>
 </p>
   </description>
-  <father>
-    <name>domain</name>
-    <id>bgp_domain</id>
-  </father>
-  <next>
-    <name>record-route</name>
-    <id>bgp_domain_record-route</id>
-  </next>
+  
+  
 </command>

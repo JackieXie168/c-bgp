@@ -6,21 +6,11 @@
   <parameters>
     <parameter>
       <name>prefix|*</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <prev>
-    <name>record-route</name>
-    <id>bgp_router_record-route</id>
-  </prev>
-  <next>
-    <name>rescan</name>
-    <id>bgp_router_rescan</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

@@ -3,6 +3,7 @@
   <name>rescan</name>
   <id>bgp_domain_rescan</id>
   <context>bgp domain</context>
+  
   <abstract>re-scan the BGP routes for changes</abstract>
   <description>
 <p>
@@ -12,12 +13,6 @@ This command re-scans the BGP routes held by all the routers in the specified do
 Note that calling this command is equivalent to calling the <cmd><name>bgp router rescan</name><link>bgp_router_rescan</link></cmd> command individually for each router in the domain.
 </p>
   </description>
-  <father>
-    <name>domain</name>
-    <id>bgp_domain</id>
-  </father>
-  <prev>
-    <name>record-route</name>
-    <id>bgp_domain_record-route</id>
-  </prev>
+  
+  
 </command>

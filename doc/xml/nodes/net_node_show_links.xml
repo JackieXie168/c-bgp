@@ -3,7 +3,8 @@
   <name>links</name>
   <id>net_node_show_links</id>
   <context>net node show</context>
-  <abstract></abstract>
+  
+  <abstract/>
   <description>
 <p>
 This command shows information on all the links of one node.
@@ -24,7 +25,7 @@ Finally, the <i>IGP option</i> field, if present, can contain the <b>IGP_ADV</b>
 <p>
 Example:
 <code>
-cbgp> net node 0.0.0.1 show links<br/>
+cbgp&gt; net node 0.0.0.1 show links<br/>
 0.2.0.1/32      444     444     UP      DIRECT  IGP_ADV<br/>
 0.2.0.2/32      370     370     UP      DIRECT  IGP_ADV<br/>
 </code>
@@ -32,22 +33,12 @@ cbgp> net node 0.0.0.1 show links<br/>
 <p>
 Example (more recent output):
 <code>
-cbgp> net node 1.0.0.3 show links<br/>
+cbgp&gt; net node 1.0.0.3 show links<br/>
 ROUTER  1.0.0.1 10      5       UP      adv:yes<br/>
 ROUTER  1.0.0.2 10      4       UP      adv:yes<br/>
 </code>
 </p>
   </description>
-  <father>
-    <name>show</name>
-    <id>net_node_show</id>
-  </father>
-  <prev>
-    <name>info</name>
-    <id>net_node_show_info</id>
-  </prev>
-  <next>
-    <name>rt</name>
-    <id>net_node_show_rt</id>
-  </next>
+  
+  
 </command>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<command>
+  <childs>
+    <child>
+      <name>param</name>
+      <id>require_param</id>
+    </child>
+    <child>
+      <name>version</name>
+      <id>require_version</id>
+    </child>
+  </childs>
+</command>

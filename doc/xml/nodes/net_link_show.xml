@@ -3,24 +3,9 @@
   <name>show</name>
   <id>net_link_show</id>
   <context>net link</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>link</name>
-    <id>net_link</id>
-  </father>
-  <childs>
-    <child>
-      <name>info</name>
-      <id>net_link_show_info</id>
-    </child>
-  </childs>
-  <prev>
-    <name>load</name>
-    <id>net_link_load</id>
-  </prev>
-  <next>
-    <name>up</name>
-    <id>net_link_up</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

@@ -25,16 +25,6 @@ net add node 1.0.0.1<br/>
 net add node 1.0.0.2
     </code></p>
   </description>
-  <father>
-    <name>add</name>
-    <id>net_add</id>
-  </father>
-  <prev>
-    <name>link</name>
-    <id>net_add_link</id>
-  </prev>
-  <next>
-    <name>subnet</name>
-    <id>net_add_subnet</id>
-  </next>
+  
+  
 </command>

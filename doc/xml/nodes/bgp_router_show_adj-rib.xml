@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>adj-rib</name>
+  <id>bgp_router_show_adj-rib</id>
+  <context>bgp router show</context>
+  <parameters>
+    <parameter>
+      <name>in|out</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>peer</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

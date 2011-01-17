@@ -6,21 +6,11 @@
   <parameters>
     <parameter>
       <name>num-steps</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
   <abstract>process a single simulation event</abstract>
-  <description></description>
-  <father>
-    <name>sim</name>
-    <id>sim</id>
-  </father>
-  <prev>
-    <name>run</name>
-    <id>sim_run</id>
-  </prev>
-  <next>
-    <name>stop</name>
-    <id>sim_stop</id>
-  </next>
+  <description/>
+  
+  
 </command>

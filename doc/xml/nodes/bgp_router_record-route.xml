@@ -24,21 +24,11 @@ Output format:
 <p>
 Example:
 <code>
-cbgp> bgp router 0.0.0.1 record-route 0.1.0.1/32<br/>
+cbgp&gt; bgp router 0.0.0.1 record-route 0.1.0.1/32<br/>
 0.0.0.1 0.1.0.1/32      SUCCESS 0 2 1
 </code>
 </p>
   </description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <prev>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </prev>
-  <next>
-    <name>rerun</name>
-    <id>bgp_router_rerun</id>
-  </next>
+  
+  
 </command>
