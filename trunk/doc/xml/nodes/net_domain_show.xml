@@ -3,24 +3,9 @@
   <name>show</name>
   <id>net_domain_show</id>
   <context>net domain</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>domain</name>
-    <id>net_domain</id>
-  </father>
-  <childs>
-    <child>
-      <name>info</name>
-      <id>net_domain_show_info</id>
-    </child>
-    <child>
-      <name>nodes</name>
-      <id>net_domain_show_nodes</id>
-    </child>
-  </childs>
-  <prev>
-    <name>set</name>
-    <id>net_domain_set</id>
-  </prev>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

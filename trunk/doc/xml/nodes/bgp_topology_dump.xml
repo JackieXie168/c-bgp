@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>dump</name>
+  <id>bgp_topology_dump</id>
+  <context>bgp topology</context>
+  <parameters>
+    <option>
+      <name>--output=</name>
+      <description/>
+    </option>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

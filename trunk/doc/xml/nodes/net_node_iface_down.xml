@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>down</name>
+  <id>net_node_iface_down</id>
+  <context>net node iface</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

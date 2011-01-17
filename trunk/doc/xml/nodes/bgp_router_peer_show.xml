@@ -3,24 +3,9 @@
   <name>show</name>
   <id>bgp_router_peer_show</id>
   <context>bgp router peer</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <childs>
-    <child>
-      <name>filter</name>
-      <id>bgp_router_peer_show_filter</id>
-    </child>
-  </childs>
-  <prev>
-    <name>rr-client</name>
-    <id>bgp_router_peer_rr-client</id>
-  </prev>
-  <next>
-    <name>soft-restart</name>
-    <id>bgp_router_peer_soft-restart</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>options</name>
+    <id>bgp_options</id>
+  </father>
+  <next>
+    <name>local-pref</name>
+    <id>bgp_options_local-pref</id>
+  </next>
+</command>

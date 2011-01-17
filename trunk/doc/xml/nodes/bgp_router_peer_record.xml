@@ -6,21 +6,11 @@
   <parameters>
     <parameter>
       <name>file</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>out-filter</name>
-    <id>bgp_router_peer_out-filter</id>
-  </prev>
-  <next>
-    <name>recv</name>
-    <id>bgp_router_peer_recv</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

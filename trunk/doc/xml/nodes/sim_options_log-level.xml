@@ -21,12 +21,6 @@
 <tr><td><b>fatal</b></td><td>Only fatal error messages are written.</td></tr>
 </table></p>
   </description>
-  <father>
-    <name>options</name>
-    <id>sim_options</id>
-  </father>
-  <next>
-    <name>scheduler</name>
-    <id>sim_options_scheduler</id>
-  </next>
+  
+  
 </command>

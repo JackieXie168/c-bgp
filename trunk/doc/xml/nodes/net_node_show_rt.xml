@@ -30,19 +30,13 @@ where the <i>type</i> field can take one of the following values:
 </p>
 Example:
 <code>
-cbgp> net node 0.0.0.1 show rt *<br/>
+cbgp&gt; net node 0.0.0.1 show rt *<br/>
 0.1.0.1/32      0.2.0.2 0       BGP<br/>
 0.2.0.1/32      0.2.0.2 0       BGP<br/>
 0.2.0.2/32      0.2.0.2 0       BGP
 </code>
 </p>
   </description>
-  <father>
-    <name>show</name>
-    <id>net_node_show</id>
-  </father>
-  <prev>
-    <name>links</name>
-    <id>net_node_show_links</id>
-  </prev>
+  
+  
 </command>

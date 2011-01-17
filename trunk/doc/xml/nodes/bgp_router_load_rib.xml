@@ -18,8 +18,6 @@ This command is used to load into one BGP router a dump of a <i>Routing Informat
 Note: <i>C-BGP</i> performs some consistency checks on the routes that are loaded. First, the IP address and the AS number of the peer router specified in the MRT route records must correspond to the given router. Second, the IP address of the BGP next-hop must correspond to an existing peer of the router. This constraint might be too strong and might be relaxed in the future.
 </p>
   </description>
-  <father>
-    <name>load</name>
-    <id>bgp_router_load</id>
-  </father>
+  
+  
 </command>

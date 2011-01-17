@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>assert</name>
+    <id>bgp_assert</id>
+  </father>
+  <next>
+    <name>reachability-ok</name>
+    <id>bgp_assert_reachability-ok</id>
+  </next>
+</command>

@@ -15,8 +15,6 @@
 This command changes the cluster-id of one BGP router.
 </p>
   </description>
-  <father>
-    <name>set</name>
-    <id>bgp_router_set</id>
-  </father>
+  
+  
 </command>

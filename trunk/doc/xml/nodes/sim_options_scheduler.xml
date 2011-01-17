@@ -6,17 +6,11 @@
   <parameters>
     <parameter>
       <name>scheduler</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>options</name>
-    <id>sim_options</id>
-  </father>
-  <prev>
-    <name>log-level</name>
-    <id>sim_options_log-level</id>
-  </prev>
+  <abstract/>
+  <description/>
+  
+  
 </command>

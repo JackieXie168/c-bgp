@@ -30,16 +30,6 @@
 <p>This command adds a new link between two existing nodes whose
 addresses are <cbgp.param>addr-src</cbgp.param> and <cbgp.param>addr-dst</cbgp.param> in the topology. The new link is bidirectional. The propagation delay of the link is specified by the <cbgp.param>delay</cbgp.param> parameter. Note also that by default, the IGP-cost of the link is fixed at the same value.</p>
   </description>
-  <father>
-    <name>add</name>
-    <id>net_add</id>
-  </father>
-  <prev>
-    <name>domain</name>
-    <id>net_add_domain</id>
-  </prev>
-  <next>
-    <name>node</name>
-    <id>net_add_node</id>
-  </next>
+  
+  
 </command>

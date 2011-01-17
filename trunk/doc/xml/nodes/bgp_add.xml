@@ -3,20 +3,9 @@
   <name>add</name>
   <id>bgp_add</id>
   <context>bgp</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>bgp</name>
-    <id>bgp</id>
-  </father>
-  <childs>
-    <child>
-      <name>router</name>
-      <id>bgp_add_router</id>
-    </child>
-  </childs>
-  <next>
-    <name>assert</name>
-    <id>bgp_assert</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

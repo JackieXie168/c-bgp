@@ -26,20 +26,10 @@ numbers. The <i>origin</i> field contains the origin of the route. The <i>origin
 <p>
 Example:
 <code>
-cbgp> bgp router 0.1.0.1 peer 0.2.0.1 recv "BGP4|0|A|10.0.0.1|1|30.0.1/24|20 30|IGP|20.0.0.1|0|0|"
+cbgp&gt; bgp router 0.1.0.1 peer 0.2.0.1 recv "BGP4|0|A|10.0.0.1|1|30.0.1/24|20 30|IGP|20.0.0.1|0|0|"
 </code>
 </p>
   </description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>record</name>
-    <id>bgp_router_peer_record</id>
-  </prev>
-  <next>
-    <name>reset</name>
-    <id>bgp_router_peer_reset</id>
-  </next>
+  
+  
 </command>

@@ -6,17 +6,11 @@
   <parameters>
     <parameter>
       <name>filename</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>show</id>
-  </father>
-  <next>
-    <name>comm-hash-size</name>
-    <id>show_comm-hash-size</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

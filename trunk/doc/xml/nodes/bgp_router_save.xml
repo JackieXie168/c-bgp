@@ -3,28 +3,9 @@
   <name>save</name>
   <id>bgp_router_save</id>
   <context>bgp router</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <childs>
-    <child>
-      <name>rib</name>
-      <id>bgp_router_save_rib</id>
-    </child>
-    <child>
-      <name>rib-in</name>
-      <id>bgp_router_save_rib-in</id>
-    </child>
-  </childs>
-  <prev>
-    <name>reset</name>
-    <id>bgp_router_reset</id>
-  </prev>
-  <next>
-    <name>set</name>
-    <id>bgp_router_set</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

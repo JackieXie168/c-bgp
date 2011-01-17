@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>install</name>
+  <id>bgp_topology_install</id>
+  <context>bgp topology</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

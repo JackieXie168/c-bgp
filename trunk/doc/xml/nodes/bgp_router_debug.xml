@@ -3,24 +3,9 @@
   <name>debug</name>
   <id>bgp_router_debug</id>
   <context>bgp router</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <childs>
-    <child>
-      <name>dp</name>
-      <id>bgp_router_debug_dp</id>
-    </child>
-  </childs>
-  <prev>
-    <name>assert</name>
-    <id>bgp_router_assert</id>
-  </prev>
-  <next>
-    <name>del</name>
-    <id>bgp_router_del</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

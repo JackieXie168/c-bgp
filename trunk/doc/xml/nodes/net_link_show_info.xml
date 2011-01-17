@@ -3,10 +3,9 @@
   <name>info</name>
   <id>net_link_show_info</id>
   <context>net link show</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>net_link_show</id>
-  </father>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

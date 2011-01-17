@@ -6,47 +6,15 @@
   <parameters>
     <parameter>
       <name>addr-src</name>
-      <description></description>
+      <description/>
     </parameter>
     <parameter>
       <name>addr-dst</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>net</name>
-    <id>net</id>
-  </father>
-  <childs>
-    <child>
-      <name>down</name>
-      <id>net_link_down</id>
-    </child>
-    <child>
-      <name>igp-weight</name>
-      <id>net_link_igp-weight</id>
-    </child>
-    <child>
-      <name>load</name>
-      <id>net_link_load</id>
-    </child>
-    <child>
-      <name>show</name>
-      <id>net_link_show</id>
-    </child>
-    <child>
-      <name>up</name>
-      <id>net_link_up</id>
-    </child>
-  </childs>
-  <prev>
-    <name>domain</name>
-    <id>net_domain</id>
-  </prev>
-  <next>
-    <name>links</name>
-    <id>net_links</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

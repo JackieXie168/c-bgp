@@ -3,14 +3,9 @@
   <name>stop</name>
   <id>bgp_router_stop</id>
   <context>bgp router</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>router</name>
-    <id>bgp_router</id>
-  </father>
-  <prev>
-    <name>start</name>
-    <id>bgp_router_start</id>
-  </prev>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

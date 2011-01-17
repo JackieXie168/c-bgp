@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>net_node_iface_load_show</id>
+  <context>net node iface load</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

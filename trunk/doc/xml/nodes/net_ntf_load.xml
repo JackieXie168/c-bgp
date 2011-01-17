@@ -22,7 +22,7 @@ the propagation delay along this adjacency.
 <p>
 When <i>C-BGP</i> loads the NTF file, it creates all the
 unexisting nodes and links. It will not worry if some nodes or links
-already exist before the <cmd><name>net ntf load</name><link></link></cmd> command was called.
+already exist before the <cmd><name>net ntf load</name><link/></cmd> command was called.
 </p>
 <p>
 Input format:
@@ -31,8 +31,6 @@ Input format:
 </code>
 </p>
   </description>
-  <father>
-    <name>ntf</name>
-    <id>net_ntf</id>
-  </father>
+  
+  
 </command>

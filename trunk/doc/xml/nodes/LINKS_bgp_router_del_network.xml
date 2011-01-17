@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>del</name>
+    <id>bgp_router_del</id>
+  </father>
+</command>

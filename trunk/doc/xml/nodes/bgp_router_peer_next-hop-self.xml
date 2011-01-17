@@ -3,18 +3,9 @@
   <name>next-hop-self</name>
   <id>bgp_router_peer_next-hop-self</id>
   <context>bgp router peer</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>next-hop</name>
-    <id>bgp_router_peer_next-hop</id>
-  </prev>
-  <next>
-    <name>out-filter</name>
-    <id>bgp_router_peer_out-filter</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

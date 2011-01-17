@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>clear</name>
+  <id>sim_clear</id>
+  <context>sim</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

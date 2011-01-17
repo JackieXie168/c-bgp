@@ -33,16 +33,6 @@ Example:
 </code>
 </p>
   </description>
-  <father>
-    <name>options</name>
-    <id>bgp_options</id>
-  </father>
-  <prev>
-    <name>med</name>
-    <id>bgp_options_med</id>
-  </prev>
-  <next>
-    <name>show-mode</name>
-    <id>bgp_options_show-mode</id>
-  </next>
+  
+  
 </command>

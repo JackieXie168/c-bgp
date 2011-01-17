@@ -3,6 +3,7 @@
   <name>peerings-ok</name>
   <id>bgp_assert_peerings-ok</id>
   <context>bgp assert</context>
+  
   <abstract>check BGP peerings</abstract>
   <description>
 <p>
@@ -11,12 +12,6 @@ are valid, i.e. for each peering, the existence of the peer is checked
 as well as the existence of a similar peering definition in the peer.
 </p>
   </description>
-  <father>
-    <name>assert</name>
-    <id>bgp_assert</id>
-  </father>
-  <next>
-    <name>reachability-ok</name>
-    <id>bgp_assert_reachability-ok</id>
-  </next>
+  
+  
 </command>

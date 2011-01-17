@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>filter</name>
+    <id>bgp_topology_filter</id>
+  </prev>
+  <next>
+    <name>install</name>
+    <id>bgp_topology_install</id>
+  </next>
+</command>

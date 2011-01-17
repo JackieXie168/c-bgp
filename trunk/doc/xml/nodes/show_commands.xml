@@ -3,18 +3,9 @@
   <name>commands</name>
   <id>show_commands</id>
   <context>show</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>show</name>
-    <id>show</id>
-  </father>
-  <prev>
-    <name>comm-hash-stat</name>
-    <id>show_comm-hash-stat</id>
-  </prev>
-  <next>
-    <name>mem-limit</name>
-    <id>show_mem-limit</id>
-  </next>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

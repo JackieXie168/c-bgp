@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>traffic</name>
+    <id>net_node_traffic</id>
+  </father>
+</command>

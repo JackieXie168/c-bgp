@@ -15,16 +15,6 @@
 This is a very complex command that relies on really advanced artificial intelligence algorithms. It allows you to set the name of a node.
 </p>
   </description>
-  <father>
-    <name>node</name>
-    <id>net_node</id>
-  </father>
-  <prev>
-    <name>link</name>
-    <id>net_node_link</id>
-  </prev>
-  <next>
-    <name>ping</name>
-    <id>net_node_ping</id>
-  </next>
+  
+  
 </command>

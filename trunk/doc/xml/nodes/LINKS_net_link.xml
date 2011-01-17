@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>down</name>
+      <id>net_link_down</id>
+    </child>
+    <child>
+      <name>igp-weight</name>
+      <id>net_link_igp-weight</id>
+    </child>
+    <child>
+      <name>show</name>
+      <id>net_link_show</id>
+    </child>
+    <child>
+      <name>up</name>
+      <id>net_link_up</id>
+    </child>
+  </childs>
+  <prev>
+    <name>export</name>
+    <id>net_export</id>
+  </prev>
+  <next>
+    <name>links</name>
+    <id>net_links</id>
+  </next>
+</command>

@@ -6,13 +6,11 @@
   <parameters>
     <parameter>
       <name>version</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>require</name>
-    <id>require</id>
-  </father>
+  <abstract/>
+  <description/>
+  
+  
 </command>

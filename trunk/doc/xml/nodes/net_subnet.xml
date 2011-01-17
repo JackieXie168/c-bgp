@@ -6,21 +6,11 @@
   <parameters>
     <parameter>
       <name>prefix</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>net</name>
-    <id>net</id>
-  </father>
-  <prev>
-    <name>show</name>
-    <id>net_show</id>
-  </prev>
-  <next>
-    <name>tm</name>
-    <id>net_tm</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

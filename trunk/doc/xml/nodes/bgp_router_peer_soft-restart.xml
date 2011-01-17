@@ -3,6 +3,7 @@
   <name>soft-restart</name>
   <id>bgp_router_peer_soft-restart</id>
   <context>bgp router peer</context>
+  
   <abstract>activate soft-restart on a BGP session</abstract>
   <description>
 <p>
@@ -12,16 +13,6 @@ This command activates "soft-restart" on a virtual peer. Soft-restart allows vir
 Since the routes available to virtual peers are learned through the <cmd><name>bgp router peer recv</name><link>bgp_router_peer_recv</link></cmd> command, they are lost when the session with the virtual peer is teared down. With the soft-restart option, the Adj-RIB-in corresponding to the virtual peer is not cleared when the session is teared down. These routes are therefore still available upon session restart.
 </p>
   </description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>show</name>
-    <id>bgp_router_peer_show</id>
-  </prev>
-  <next>
-    <name>up</name>
-    <id>bgp_router_peer_up</id>
-  </next>
+  
+  
 </command>

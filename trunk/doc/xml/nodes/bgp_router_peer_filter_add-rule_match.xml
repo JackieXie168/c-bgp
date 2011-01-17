@@ -6,17 +6,11 @@
   <parameters>
     <parameter>
       <name>predicate</name>
-      <description></description>
+      <description/>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>add-rule</name>
-    <id>bgp_router_peer_filter_add-rule</id>
-  </father>
-  <prev>
-    <name>action</name>
-    <id>bgp_router_peer_filter_add-rule_action</id>
-  </prev>
+  <abstract/>
+  <description/>
+  
+  
 </command>

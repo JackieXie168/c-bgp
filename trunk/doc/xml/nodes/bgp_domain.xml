@@ -9,32 +9,8 @@
       <description>the identifier (ASN) of the domain (AS)</description>
     </parameter>
   </parameters>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>bgp</name>
-    <id>bgp</id>
-  </father>
-  <childs>
-    <child>
-      <name>full-mesh</name>
-      <id>bgp_domain_full-mesh</id>
-    </child>
-    <child>
-      <name>record-route</name>
-      <id>bgp_domain_record-route</id>
-    </child>
-    <child>
-      <name>rescan</name>
-      <id>bgp_domain_rescan</id>
-    </child>
-  </childs>
-  <prev>
-    <name>assert</name>
-    <id>bgp_assert</id>
-  </prev>
-  <next>
-    <name>options</name>
-    <id>bgp_options</id>
-  </next>
+  <abstract/>
+  <description/>
+  
+  
 </command>

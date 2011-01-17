@@ -15,12 +15,6 @@
 This command adds a local network to one BGP router. This network will be originated (advertised) through BGP by this router.
 </p>
   </description>
-  <father>
-    <name>add</name>
-    <id>bgp_router_add</id>
-  </father>
-  <next>
-    <name>peer</name>
-    <id>bgp_router_add_peer</id>
-  </next>
+  
+  
 </command>

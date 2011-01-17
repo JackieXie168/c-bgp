@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>options</name>
+    <id>sim_options</id>
+  </father>
+  <prev>
+    <name>log-level</name>
+    <id>sim_options_log-level</id>
+  </prev>
+</command>

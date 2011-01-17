@@ -15,12 +15,6 @@
 When auto-create is on, nodes, links and BGP sessions are created and configured automatically when BGP routes are read from a file (see <cmd><name>bgp router load rib</name><link>bgp_router_load_rib</link></cmd>) or received from a BGP message (see <cmd><name>bgp router peer recv</name><link>bgp_router_peer_recv</link></cmd>).
 </p>
   </description>
-  <father>
-    <name>options</name>
-    <id>bgp_options</id>
-  </father>
-  <next>
-    <name>local-pref</name>
-    <id>bgp_options_local-pref</id>
-  </next>
+  
+  
 </command>

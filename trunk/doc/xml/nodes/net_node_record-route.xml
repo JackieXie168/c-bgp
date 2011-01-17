@@ -65,7 +65,7 @@ The value of <arg>result</arg> is one of
 <p>
 Example:
 <code>
-cbgp> net node 1.0.0.1 record-route 1.0.0.2<br/>
+cbgp&gt; net node 1.0.0.1 record-route 1.0.0.2<br/>
 1.0.0.1 1.0.0.2 SUCCESS 3       1.0.0.1 1.0.0.3 1.0.0.2
 </code>
 </p>
@@ -73,16 +73,6 @@ cbgp> net node 1.0.0.1 record-route 1.0.0.2<br/>
 IMPORTANT NOTE: due to changes in the network topology data structure, the tunneling feature is currently broken. Tracing route through tunnels is therefore temporarily disabled.
 </p>
   </description>
-  <father>
-    <name>node</name>
-    <id>net_node</id>
-  </father>
-  <prev>
-    <name>ping</name>
-    <id>net_node_ping</id>
-  </prev>
-  <next>
-    <name>route</name>
-    <id>net_node_route</id>
-  </next>
+  
+  
 </command>

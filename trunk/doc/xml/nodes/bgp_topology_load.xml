@@ -40,12 +40,6 @@ The optional <b>delay</b> field specifies the delay on the network link
 between the routers in the given domains.
 </p>
   </description>
-  <father>
-    <name>topology</name>
-    <id>bgp_topology</id>
-  </father>
-  <next>
-    <name>policies</name>
-    <id>bgp_topology_policies</id>
-  </next>
+  
+  
 </command>

@@ -3,18 +3,13 @@
   <name>virtual</name>
   <id>bgp_router_peer_virtual</id>
   <context>bgp router peer</context>
+  
   <abstract>configure a BGP session as virtual</abstract>
   <description>
 <p>
 This command configures one BGP neighbor as "virtual". A virtual peer is used to feed <i>C-BGP</i> with real BGP messages (see <cmd><name>bgp router peer recv</name><link>bgp_router_peer_recv</link></cmd>). A virtual peer does not maintain a BGP session with another BGP router. Moreover, the router will not send BGP messages to a virtual peer.
 </p>
   </description>
-  <father>
-    <name>peer</name>
-    <id>bgp_router_peer</id>
-  </father>
-  <prev>
-    <name>up</name>
-    <id>bgp_router_peer_up</id>
-  </prev>
+  
+  
 </command>

@@ -2,7 +2,7 @@
 <command>
   <name>include</name>
   <id>include</id>
-  <context></context>
+  <context/>
   <parameters>
     <parameter>
       <name>file</name>
@@ -18,4 +18,6 @@ This command processes the commands from another <arg>file</arg>. The processing
 Note: in interactive mode (when <i>C-BGP</i> is started with the <b>-i</b> option), it is possible to use the automatic completion of the filename parameter.
 </p>
   </description>
+  
+  
 </command>

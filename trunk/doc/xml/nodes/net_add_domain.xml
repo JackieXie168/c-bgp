@@ -20,12 +20,6 @@
 <p>Use the <cmd>net node domain</cmd> command to assign a node to an IGP domain. Use the <cmd>net link igp-weight</cmd> command to assign an IGP weight to an existing link.
 </p>
   </description>
-  <father>
-    <name>add</name>
-    <id>net_add</id>
-  </father>
-  <next>
-    <name>link</name>
-    <id>net_add_link</id>
-  </next>
+  
+  
 </command>

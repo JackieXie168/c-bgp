@@ -21,16 +21,6 @@ If the <b>deterministic</b> mode is selected, then the MED-based rule will only 
 If the <b>always-compare</b> mode is selected, then the MED-based rule will compare the MEd value of routes even if they are received from different neighbor ASes.
 </p>
   </description>
-  <father>
-    <name>options</name>
-    <id>bgp_options</id>
-  </father>
-  <prev>
-    <name>local-pref</name>
-    <id>bgp_options_local-pref</id>
-  </prev>
-  <next>
-    <name>msg-monitor</name>
-    <id>bgp_options_msg-monitor</id>
-  </next>
+  
+  
 </command>

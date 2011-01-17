@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>domain</name>
+    <id>bgp_domain</id>
+  </father>
+  <prev>
+    <name>record-route</name>
+    <id>bgp_domain_record-route</id>
+  </prev>
+</command>

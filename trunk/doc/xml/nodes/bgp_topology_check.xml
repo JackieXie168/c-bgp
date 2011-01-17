@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>check</name>
+  <id>bgp_topology_check</id>
+  <context>bgp topology</context>
+  <parameters>
+    <option>
+      <name>--verbose</name>
+      <description/>
+    </option>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

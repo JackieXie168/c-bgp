@@ -30,8 +30,6 @@ bgp add router 1 0.1.0.0
 </code>
 </p>
   </description>
-  <father>
-    <name>add</name>
-    <id>bgp_add</id>
-  </father>
+  
+  
 </command>

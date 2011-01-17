@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>iface</name>
+      <id>net_node_add_iface</id>
+    </child>
+  </childs>
+  <next>
+    <name>coord</name>
+    <id>net_node_coord</id>
+  </next>
+</command>

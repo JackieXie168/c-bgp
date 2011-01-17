@@ -3,20 +3,9 @@
   <name>stop</name>
   <id>sim_stop</id>
   <context>sim</context>
-  <abstract></abstract>
-  <description></description>
-  <father>
-    <name>sim</name>
-    <id>sim</id>
-  </father>
-  <childs>
-    <child>
-      <name>at</name>
-      <id>sim_stop_at</id>
-    </child>
-  </childs>
-  <prev>
-    <name>step</name>
-    <id>sim_step</id>
-  </prev>
+  
+  <abstract/>
+  <description/>
+  
+  
 </command>

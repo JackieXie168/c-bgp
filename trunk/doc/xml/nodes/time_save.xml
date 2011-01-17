@@ -3,14 +3,9 @@
   <name>save</name>
   <id>time_save</id>
   <context>time</context>
+  
   <abstract>save current time</abstract>
-  <description></description>
-  <father>
-    <name>time</name>
-    <id>time</id>
-  </father>
-  <prev>
-    <name>diff</name>
-    <id>time_diff</id>
-  </prev>
+  <description/>
+  
+  
 </command>

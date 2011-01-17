@@ -3,18 +3,13 @@
   <name>up</name>
   <id>net_link_up</id>
   <context>net link</context>
+  
   <abstract>change the state of one link</abstract>
   <description>
 <p>
 This command changes the state of one link to <b>UP</b>. Note that after the state of a link is changed, it is required to update the intra- and interdomain paths, using the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> command. If the nodes run BGP, it is also important to run the <cmd><name>bgp domain rescan</name><link>bgp_domain_rescan</link></cmd> command.
 </p>
   </description>
-  <father>
-    <name>link</name>
-    <id>net_link</id>
-  </father>
-  <prev>
-    <name>show</name>
-    <id>net_link_show</id>
-  </prev>
+  
+  
 </command>
