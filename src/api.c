@@ -52,7 +52,7 @@
 #include <ui/rl.h>
 
 #define COPYRIGHT_MSG				\
-  "  Copyright (C) 2002-2010 Bruno Quoitin\n"		\
+  "  Copyright (C) 2002-2011 Bruno Quoitin\n"		\
   "  Networking Lab\n"						\
   "  Computer Science Institute\n"					\
   "  University of Mons (UMONS)\n"					\
