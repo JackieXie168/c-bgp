@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)pager.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 30/11/2007
 // $Id: pager.c,v 1.2 2009-03-24 16:29:41 bqu Exp $
 // ==================================================================
@@ -19,6 +19,7 @@
 int pager_run(const char * filename) {
   char * const args[]= {
     (char *) PAGER_CMD,
+    (char *) PAGER_ARGS,
     (char *) filename,
     NULL
   };
@@ -44,5 +45,6 @@ int pager_run(const char * filename) {
   result= execvp(PAGER_CMD, args);
   if (result < 0)
     exit(EXIT_FAILURE);
+
   exit(EXIT_SUCCESS);
 }
