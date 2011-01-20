@@ -9,10 +9,8 @@ TXT_NODES=$(patsubst %.xml, %.txt, $(XML_NODES))
 all: html txt
 
 html: $(HTML_NODES)
-	@echo "HTML documentation generated"
 
 txt: $(TXT_NODES)
-	@echo "TXT documentation generated"
 
 .SUFFIXES: .xml .html .txt .groff
 
@@ -28,7 +26,6 @@ txt: $(TXT_NODES)
 	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
 
 clean:
-	@rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))
-	@rm -f $(patsubst %, $(TXT_PATH)/%, $(TXT_NODES))
-	echo $(patsubst %, $(TXT_PATH)/%, $(TXT_NODES))
+	rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))
+	rm -f $(patsubst %, $(TXT_PATH)/%, $(TXT_NODES))
 
