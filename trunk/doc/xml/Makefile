@@ -1,8 +1,9 @@
 HTML_PATH=../html
+TXT_PATH=../txt
 
 SUBDIRS = nodes
 
-all: html
+all: html txt
 
 html:
 	xsltproc index2html.xsl index.xml > $(HTML_PATH)/index.html
@@ -11,6 +12,12 @@ html:
 	  cd $$subdir && $(MAKE) html; \
 	done
 	@echo "HTML documentation generated"
+
+txt:
+	for subdir in $(SUBDIRE); do \
+	  cd $$subdir && $(MAKE) txt; \
+	done
+	@echo "TXT documentation generated"
 
 .SUFFIXES: .xml .html
 
