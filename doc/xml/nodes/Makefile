@@ -20,7 +20,7 @@ txt: $(TXT_NODES)
 	xsltproc --stringparam filename "LINKS_$<" node2html.xsl $< > $(HTML_PATH)/nodes/$@
 
 .xml.groff:
-	xsltproc node2groff.xsl $< > $@
+	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< > $@
 
 .groff.txt:
 	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
