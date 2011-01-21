@@ -4,8 +4,15 @@
   <id>sim_clear</id>
   <context>sim</context>
   
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>clear all the events from the simulation queue</abstract>
+  <description>
+<p>
+This command removes all events from the simulation queue. You should normally not need this feature.
+</p>
+  </description>
+  <see-also>
+<p>
+Instead of removing all these poor events, you might want to process them with command <cmd><name>sim run</name><link>sim_run</link></cmd>.
+</p>
+  </see-also>
 </command>
