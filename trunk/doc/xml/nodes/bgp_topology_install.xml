@@ -4,8 +4,8 @@
   <id>bgp_topology_install</id>
   <context>bgp topology</context>
   
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>create routers, links and sessions from an AS-level topology</abstract>
+  <description>
+<p>This command shall be used in combination with the command <cmd><name>bgp topology load</name><link>bgp_topology_load</link></cmd>. It is used to create a complete network based on an AS-level topology. <i>C-BGP</i> will create one BGP router for each AS and create links between these routers according to the relationships specified in the AS-level topology. <i>C-BGP</i> will also configure BGP sessions between the routers. <i>C-BGP</i> can also setup filters that correspond to the business relationships specified in the input file, using the command <cmd><name>bgp topology policies</name><link>bgp_topology_policies</link></cmd>.</p>
+  </description>  
 </command>
