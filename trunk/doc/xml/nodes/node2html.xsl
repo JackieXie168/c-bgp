@@ -1,4 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- ################################################################
+     XSLT transformation from C-BGP doc node to html
+
+     Copyright (C) 2007, Bruno Quoitin (bruno.quoitin@umons.ac.be)
+     ################################################################
+
+     ################################################################
+!-->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 version="1.0">
 
