@@ -75,9 +75,9 @@
         <xsl:text>.Sh ARGUMENTS&#xa;</xsl:text>
         <xsl:text>.Bl -ohang&#xa;</xsl:text>
         <xsl:for-each select="option">
-          <xsl:text>.It Op Fl[</xsl:text>
+          <xsl:text>.It Op Fl </xsl:text>
           <xsl:value-of select="name"/>
-          <xsl:text>]</xsl:text>
+          <xsl:text> Ar value&#xa; </xsl:text>
           <xsl:apply-templates select="description"/>
           <xsl:text>&#xa;</xsl:text>
         </xsl:for-each>

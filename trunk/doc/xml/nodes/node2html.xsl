@@ -14,8 +14,7 @@
   <xsl:template name="doc.cmd" match="cmd">
     <b>
       <xsl:text disable-output-escaping="yes">&lt;a href="</xsl:text>
-      <xsl:value-of select="link">
-      </xsl:value-of>
+      <xsl:value-of select="link"/>
       <xsl:text disable-output-escaping="yes">.html" style="text-decoration: none"&gt;</xsl:text>
       <xsl:value-of select="name">
         <xsl:apply-templates/>
@@ -28,6 +27,33 @@
     <b>
       <xsl:apply-templates/>
     </b>
+  </xsl:template>
+
+  <xsl:template name="tab.for.loop">
+    <xsl:param name="i"/>
+    <xsl:param name="count"/>
+    <xsl:if test="$i &lt;= $count">
+      <xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text>
+    </xsl:if>
+    <xsl:if test="$i &lt;= $count">
+      <xsl:call-template name="tab.for.loop">
+        <xsl:with-param name="i">
+          <xsl:value-of select="$i+1"/>
+        </xsl:with-param>
+        <xsl:with-param name="count">
+          <xsl:value-of select="$count"/>
+        </xsl:with-param>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="tab">
+    <xsl:call-template name="tab.for.loop">
+      <xsl:with-param name="i">1</xsl:with-param>
+      <xsl:with-param name="count">
+        <xsl:value-of select="2*@count"/>
+      </xsl:with-param>
+    </xsl:call-template>
   </xsl:template>
 
   <xsl:template match="p">
@@ -44,6 +70,18 @@
 
   <xsl:template match="b">
     <b><xsl:apply-templates/></b>
+  </xsl:template>
+
+  <xsl:template match="url">
+    <xsl:text disable-output-escaping="yes">&lt;a href="</xsl:text>
+    <xsl:apply-templates/>
+    <xsl:text disable-output-escaping="yes">"&gt;</xsl:text>
+    <xsl:apply-templates/>
+    <xsl:text disable-output-escaping="yes">&lt;/a&gt;</xsl:text>
+  </xsl:template>
+
+  <xsl:template match="pre">
+    <pre><xsl:apply-templates/></pre>
   </xsl:template>
 
   <xsl:template match="code">
@@ -225,6 +263,11 @@
                       </xsl:for-each>
                     </ul>
                   </p>
+                </xsl:for-each>
+
+                <xsl:for-each select="command/see-also">
+                  <h4>See also</h4>
+                  <xsl:apply-templates match="code" select="."/>
                 </xsl:for-each>
 
               </div>
