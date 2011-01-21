@@ -10,7 +10,14 @@
     </parameter>
   </parameters>
   <abstract>process a single simulation event</abstract>
-  <description/>
-  
-  
+  <description>
+<p>
+This command processes a limited number of events from the pending event set.
+</p>
+  </description>
+  <see-also>
+<p>
+To process all events until there is no more pending event, you can use command <cmd><name>sim run</name><link>sim_run</link></cmd>.
+</p> 
+  </see-also>
 </command>

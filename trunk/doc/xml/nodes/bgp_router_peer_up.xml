@@ -9,7 +9,12 @@
 <p>
 This command starts the establishment of one BGP session. Actually, the session is not necessarily established. The command rather sets the session as administratively active. This means that BGP OPEN messages will be temptatively sent to the corresponding neighbor. If the neighbor answers, the session will go to the ESTABLISHED state. If the neighbor does not answer, the session will remain in OPENWAIT state. Otherwise, if the OPEN message could not be sent, due to for instance a routing problem, the session will go to the ACTIVE state.
 </p>
+<p>
+Note that if BGP messages need to be exchanged, they will be put into the simulator's queue. You will need to issue a <cmd><name>sim run</name><link>sim_run</link></cmd> to process them.
+</p>
   </description>
-  
-  
+  <see-also>
+<p>To stop a session, use command <cmd><name>bgp router X peer down</name><link>bgp_router_peer_down</link></cmd>.
+</p>
+  </see-also>
 </command>
