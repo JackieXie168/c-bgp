@@ -14,7 +14,7 @@ Note that if BGP messages need to be exchanged, they will be put into the simula
 </p>
   </description>
   <see-also>
-<p>To establish a session, use command <cmd><name>bgp router X peer down</name><link>bgp_router_peer_down</link></cmd>.
+<p>To establish a session, use command <cmd><name>bgp router X peer up</name><link>bgp_router_peer_up</link></cmd>.
 </p>
   </see-also>
 </command>

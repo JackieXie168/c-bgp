@@ -3,9 +3,31 @@
   <name>show</name>
   <id>bgp_router_peer_filter_show</id>
   <context>bgp router peer filter</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>shows the details of a filter</abstract>
+  <description>
+<p>This command shows the details of a given filter. It will show the sequence of rules with their predicates (match) and actions.</p>
+<p>Example
+<code>rule 0 {<br/>
+<tab count="1"/>predicate {<br/>
+<tab count="2"/>community is 0:1<br/>
+<tab count="1"/>}<br/>
+<tab count="1"/>actions {<br/>
+<tab count="2"/>deny<br/>
+<tab count="1"/>}<br/>
+}<br/>
+rule 1 {<br/>
+<tab count="1"/>predicate {<br/>
+<tab count="2"/>any<br/>
+<tab count="1"/>}<br/>
+<tab count="1"/>actions {<br/>
+<tab count="2"/>accept<br/>
+<tab count="1"/>}<br/>
+}<br/>
+default. any --> ACCEPT<br/>
+</code>
+</p>
+  </description>
+  <see-also>
+<p>A filter can be defined using command <cmd><name>bgp router X peer Y filter</name><link>bgp_router_peer_filter</link></cmd>.</p>
+  </see-also>
 </command>
