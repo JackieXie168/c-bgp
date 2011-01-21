@@ -1,6 +1,205 @@
-XML_PATH= ../xml/nodes
-DOC_SRCES= $(wildcard $(XML_PATH)/*.xml)
-DOC_FILES= $(patsubst $(XML_PATH)/%,%,$(DOC_SRCES:.xml=.txt))
+DOC_FILES= \
+	bgp.txt \
+	bgp_add.txt \
+	bgp_add_router.txt \
+	bgp_assert.txt \
+	bgp_assert_peerings-ok.txt \
+	bgp_assert_reachability-ok.txt \
+	bgp_clear-adj-rib.txt \
+	bgp_domain.txt \
+	bgp_domain_full-mesh.txt \
+	bgp_domain_record-route.txt \
+	bgp_domain_rescan.txt \
+	bgp_options.txt \
+	bgp_options_auto-create.txt \
+	bgp_options_local-pref.txt \
+	bgp_options_med.txt \
+	bgp_options_msg-monitor.txt \
+	bgp_options_show-mode.txt \
+	bgp_route-map.txt \
+	bgp_route-map_add-rule.txt \
+	bgp_route-map_add-rule_action.txt \
+	bgp_route-map_add-rule_match.txt \
+	bgp_router.txt \
+	bgp_router_add.txt \
+	bgp_router_add_network.txt \
+	bgp_router_add_peer.txt \
+	bgp_router_assert.txt \
+	bgp_router_assert_routes.txt \
+	bgp_router_assert_routes_match.txt \
+	bgp_router_assert_routes_show.txt \
+	bgp_router_debug.txt \
+	bgp_router_debug_dp.txt \
+	bgp_router_del.txt \
+	bgp_router_del_network.txt \
+	bgp_router_load.txt \
+	bgp_router_load_rib.txt \
+	bgp_router_peer.txt \
+	bgp_router_peer_down.txt \
+	bgp_router_peer_filter.txt \
+	bgp_router_peer_filter_add-rule.txt \
+	bgp_router_peer_filter_add-rule_action.txt \
+	bgp_router_peer_filter_add-rule_match.txt \
+	bgp_router_peer_filter_insert-rule.txt \
+	bgp_router_peer_filter_remove-rule.txt \
+	bgp_router_peer_filter_show.txt \
+	bgp_router_peer_next-hop-self.txt \
+	bgp_router_peer_next-hop.txt \
+	bgp_router_peer_record.txt \
+	bgp_router_peer_recv.txt \
+	bgp_router_peer_reset.txt \
+	bgp_router_peer_rr-client.txt \
+	bgp_router_peer_show.txt \
+	bgp_router_peer_show_info.txt \
+	bgp_router_peer_soft-restart.txt \
+	bgp_router_peer_up.txt \
+	bgp_router_peer_update-source.txt \
+	bgp_router_peer_virtual.txt \
+	bgp_router_record-route.txt \
+	bgp_router_rerun.txt \
+	bgp_router_rescan.txt \
+	bgp_router_reset.txt \
+	bgp_router_save.txt \
+	bgp_router_save_rib-in.txt \
+	bgp_router_save_rib.txt \
+	bgp_router_set.txt \
+	bgp_router_set_cluster-id.txt \
+	bgp_router_show.txt \
+	bgp_router_show_adj-rib.txt \
+	bgp_router_show_info.txt \
+	bgp_router_show_networks.txt \
+	bgp_router_show_peers.txt \
+	bgp_router_show_rib.txt \
+	bgp_router_show_route-info.txt \
+	bgp_router_show_stats.txt \
+	bgp_router_start.txt \
+	bgp_router_stop.txt \
+	bgp_show.txt \
+	bgp_show_route-maps.txt \
+	bgp_show_routers.txt \
+	bgp_show_sessions.txt \
+	bgp_topology.txt \
+	bgp_topology_check.txt \
+	bgp_topology_dump.txt \
+	bgp_topology_filter.txt \
+	bgp_topology_filter_asn.txt \
+	bgp_topology_filter_group.txt \
+	bgp_topology_info.txt \
+	bgp_topology_install.txt \
+	bgp_topology_load.txt \
+	bgp_topology_policies.txt \
+	bgp_topology_record-route.txt \
+	bgp_topology_run.txt \
+	bgp_topology_stat-degree.txt \
+	chdir.txt \
+	define.txt \
+	include.txt \
+	net.txt \
+	net_add.txt \
+	net_add_domain.txt \
+	net_add_link-ptp.txt \
+	net_add_link.txt \
+	net_add_node.txt \
+	net_add_subnet.txt \
+	net_domain.txt \
+	net_domain_compute.txt \
+	net_domain_show.txt \
+	net_domain_show_info.txt \
+	net_domain_show_nodes.txt \
+	net_export.txt \
+	net_link.txt \
+	net_link_down.txt \
+	net_link_igp-weight.txt \
+	net_link_show.txt \
+	net_link_show_info.txt \
+	net_link_up.txt \
+	net_links.txt \
+	net_links_load-clear.txt \
+	net_node.txt \
+	net_node_add.txt \
+	net_node_add_iface.txt \
+	net_node_coord.txt \
+	net_node_domain.txt \
+	net_node_iface.txt \
+	net_node_iface_connect.txt \
+	net_node_iface_down.txt \
+	net_node_iface_igp-weight.txt \
+	net_node_iface_load.txt \
+	net_node_iface_load_add.txt \
+	net_node_iface_load_clear.txt \
+	net_node_iface_load_show.txt \
+	net_node_iface_up.txt \
+	net_node_ipip-enable.txt \
+	net_node_name.txt \
+	net_node_ping.txt \
+	net_node_record-route.txt \
+	net_node_route.txt \
+	net_node_route_add.txt \
+	net_node_route_del.txt \
+	net_node_show.txt \
+	net_node_show_ifaces.txt \
+	net_node_show_info.txt \
+	net_node_show_links.txt \
+	net_node_show_rt.txt \
+	net_node_show_spt.txt \
+	net_node_traceroute.txt \
+	net_node_traffic.txt \
+	net_node_traffic_load.txt \
+	net_node_tunnel.txt \
+	net_node_tunnel_add.txt \
+	net_ntf.txt \
+	net_ntf_load.txt \
+	net_show.txt \
+	net_show_nodes.txt \
+	net_show_subnets.txt \
+	net_subnet.txt \
+	net_subnet_show.txt \
+	net_subnet_show_info.txt \
+	net_subnet_show_links.txt \
+	net_traffic.txt \
+	net_traffic_load.txt \
+	net_traffic_save.txt \
+	pause.txt \
+	print.txt \
+	require.txt \
+	require_param.txt \
+	require_version.txt \
+	set.txt \
+	set_autoflush.txt \
+	set_comm-hash-size.txt \
+	set_debug.txt \
+	set_exit-on-error.txt \
+	set_mem-limit.txt \
+	set_path-hash-size.txt \
+	show.txt \
+	show_comm-hash-content.txt \
+	show_comm-hash-size.txt \
+	show_comm-hash-stat.txt \
+	show_commands.txt \
+	show_mem-limit.txt \
+	show_mrt.txt \
+	show_path-hash-content.txt \
+	show_path-hash-size.txt \
+	show_path-hash-stat.txt \
+	show_version.txt \
+	sim.txt \
+	sim_clear.txt \
+	sim_debug.txt \
+	sim_debug_queue.txt \
+	sim_event.txt \
+	sim_options.txt \
+	sim_options_log-level.txt \
+	sim_options_scheduler.txt \
+	sim_queue.txt \
+	sim_queue_info.txt \
+	sim_queue_log.txt \
+	sim_queue_show.txt \
+	sim_run.txt \
+	sim_step.txt \
+	sim_stop.txt \
+	time.txt \
+	time_diff.txt \
+	time_save.txt
 
 EXTRA_DIST = $(DOC_FILES)
 
@@ -9,22 +208,3 @@ install-data-local:
 	@(for f in $(DOC_FILES); do \
 		$(INSTALL) -m 444 $$f $(docdir)/txt/; \
 	done)
-
-SUFFIXES= .xml .txt .groff
-
-%.groff: $(XML_PATH)/%.xml
-	xsltproc node2groff.xsl $< > $@
-
-%.txt: %.groff
-	groff $< -Tascii -mdoc > $@
-
-gendoc: $(DOC_FILES:.txt=.groff) $(DOC_FILES)
-
-verify:
-	@(for f in $(DOC_SRCES); do \
-	RESULT=`grep '<abstract></abstract>' $$f`; \
-	if [ ! -z $$RESULT ]; then \
-	echo "verify failed for $$f"; \
-	fi \
-	done)
-
