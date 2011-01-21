@@ -110,7 +110,7 @@
       <!-- ***********
            SUB COMMANDS
            *********** !-->
-      <xsl:for-each select="childs">
+      <xsl:for-each select="document($filename)/command/childs">
         <xsl:text>.Sh SUB COMMANDS&#xa;</xsl:text>
         <xsl:text>.Bl -bullet -compact&#xa;</xsl:text>
         <xsl:for-each select="child">
