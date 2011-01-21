@@ -9,7 +9,12 @@
 <p>
 This command stops one BGP session. If the session was in ESTABLISHED state, a CLOSE BGP message is sent to the corresponding neighbor. The session is then set in the IDLE state.
 </p>
+<p>
+Note that if BGP messages need to be exchanged, they will be put into the simulator's queue. You will need to issue a <cmd><name>sim run</name><link>sim_run</link></cmd> to process them.
+</p>
   </description>
-  
-  
+  <see-also>
+<p>To establish a session, use command <cmd><name>bgp router X peer down</name><link>bgp_router_peer_down</link></cmd>.
+</p>
+  </see-also>
 </command>
