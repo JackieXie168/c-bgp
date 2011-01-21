@@ -19,8 +19,6 @@ txt:
 	done
 	@echo "TXT documentation generated"
 
-.SUFFIXES: .xml .html
-
 .PHONY: clean
 
 clean:
