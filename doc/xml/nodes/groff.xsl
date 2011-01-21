@@ -99,7 +99,7 @@
 
   <!-- <i/> element, in groff mode !-->
   <xsl:template match="i" mode="in_groff">
-    <xsl:text>Em "</xsl:text>
+    <xsl:text> Em "</xsl:text>
     <xsl:apply-templates/>
     <xsl:text>" </xsl:text>
   </xsl:template>
@@ -127,12 +127,16 @@
 
   <!-- <dl/> element !-->
   <xsl:template match="dl">
+    <xsl:text>&#xa;.Bl -inset -offset indent&#xa;</xsl:text>
     <xsl:apply-templates/>
+    <xsl:text>&#xa;.El&#xa;</xsl:text>
   </xsl:template>
 
   <!-- <dt/> element !-->
   <xsl:template match="dt">
+    <xsl:text>&#xa;.It Em </xsl:text>
     <xsl:apply-templates/>
+    <xsl:text>&#xa;</xsl:text>
   </xsl:template>
 
   <!-- <dd/> element !-->
@@ -184,11 +188,38 @@
   </xsl:template>
 
   <!-- <td/> element, in groff mode !-->
-  <xsl:template name="td">
+  <xsl:template name="td" mode="in_groff">
     <xsl:if test="position() > 1">
       <xsl:text> Ta </xsl:text>
     </xsl:if>
     <xsl:apply-templates mode="in_groff"/>
+  </xsl:template>
+
+  <xsl:template name="tab.for.loop">
+    <xsl:param name="i"/>
+    <xsl:param name="count"/>
+    <xsl:if test="$i &lt;= $count">
+      <xsl:text disable-output-escaping="yes"> </xsl:text>
+    </xsl:if>
+    <xsl:if test="$i &lt;= $count">
+      <xsl:call-template name="tab.for.loop">
+        <xsl:with-param name="i">
+          <xsl:value-of select="$i+1"/>
+        </xsl:with-param>
+        <xsl:with-param name="count">
+          <xsl:value-of select="$count"/>
+        </xsl:with-param>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="tab" mode="keep-spaces">
+    <xsl:call-template name="tab.for.loop">
+      <xsl:with-param name="i">1</xsl:with-param>
+      <xsl:with-param name="count">
+        <xsl:value-of select="2*@count"/>
+      </xsl:with-param>
+    </xsl:call-template>
   </xsl:template>
 
 </xsl:stylesheet>

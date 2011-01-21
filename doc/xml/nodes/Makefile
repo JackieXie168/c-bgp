@@ -12,6 +12,7 @@ html: $(HTML_NODES)
 
 txt: $(TXT_NODES)
 
+#.SUFFIXES: .xml .html .txt .groff
 .SUFFIXES: .xml .html .txt .groff
 
 .PHONY: clean
@@ -19,11 +20,14 @@ txt: $(TXT_NODES)
 .xml.html:
 	xsltproc --stringparam filename "LINKS_$<" node2html.xsl $< > $(HTML_PATH)/nodes/$@
 
-.xml.groff:
-	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< > $@
+.xml.txt:
+	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< | groff -Tascii -m mdoc - > $(TXT_PATH)/$@
 
-.groff.txt:
-	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
+#.xml.groff:
+#	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< > $@
+
+#.groff.txt:
+#	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
 
 clean:
 	rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))
