@@ -8,11 +8,6 @@
       <name>cisco|mrt|custom</name>
       <description>the mode used to dump BGP routes</description>
     </parameter>
-    <vararg>
-      <name>format</name>
-      <cardinality>0-1</cardinality>
-      <description>the format specifier used in <b>custom</b> mode</description>
-    </vararg>
   </parameters>
   <abstract>change the format used to dump BGP routes</abstract>
   <description>
@@ -23,7 +18,7 @@
 <p>With the <b>cisco</b> mode, routes are shown using CISCO IOS's format for the <b>show ip bgp</b> command. Example:
 <code>*&gt; 3.0.0.0/8    129.250.0.85    100     10      2914 1239 80    i</code>
 </p>
-<p>Finally, with the <b>custom</b> mode, an additional argument is taken that allows to specify the output format. The <i>format</i> argument is a string which specifies the output format and the fields that will appear in the output. The modus operandi is similar to that of the <i>printf</i> function in C. Example: bgp options show-mode custom "AS-Path = %P"</p>
+<p>Finally, if the specified mode is not <b>cisco</b> or <b>mrt</b>, the command argument is interpreted as an output format specifier. The output format specifier takes the form of a string which specifies the output format and the fields that will appear in the output. The modus operandi is similar to that of the <i>printf</i> function in C.</p>
 <p>The acceptable format specifiers are as follows:
 <table>
 <trh><th>Specifier</th><th>Field</th></trh>
@@ -40,7 +35,7 @@
 <tr><td>O</td><td>ORIGINATOR-ID attribute</td></tr>
 <tr><td>C</td><td>CLUSTER-ID-LIST attribute</td></tr>
 </table></p>
+<p>The following example shows how to use a custom output format specifier that would only show the AS-Path of routes in future route dumps.
+<code>bgp options show-mode custom "AS-Path = %P"</code></p>
   </description>
-  
-  
 </command>
