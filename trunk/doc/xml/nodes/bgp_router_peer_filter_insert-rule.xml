@@ -6,11 +6,14 @@
   <parameters>
     <parameter>
       <name>index</name>
-      <description/>
+      <description>index where rule should be inserted</description>
     </parameter>
   </parameters>
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>insert a rule in a filter</abstract>
+  <description>
+<p>This command will insert a new rule at the <i>index</i> specified as argument. The predicate and actions of the new rule can then be defined using commands <cmd><name>match</name><link>bgp_router_peer_filter_add-rule_match</link></cmd> and <cmd><name>action</name><link>bgp_router_peer_filter_add-rule_action</link></cmd> respectively.</p>
+  </description>
+  <see-also>
+<p>The command <cmd><name>add-rule</name><link>bgp_router_peer_filter_add-rule</link></cmd> can be used to append a rule.</p>
+  </see-also>
 </command>

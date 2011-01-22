@@ -30,6 +30,7 @@ cbgp&gt; bgp router 0.1.0.1 peer 0.2.0.1 recv "BGP4|0|A|10.0.0.1|1|30.0.1/24|20 
 </code>
 </p>
   </description>
-  
-  
+  <see-also>
+<p> Use command <cmd><name>virtual</name><link>bgp_router_peer_virtual</link></cmd> to make a peer virtual.</p>
+  </see-also>
 </command>

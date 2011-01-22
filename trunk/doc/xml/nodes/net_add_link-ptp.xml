@@ -6,35 +6,47 @@
   <parameters>
     <option>
       <name>--bw=</name>
-      <description/>
+      <description>optional bandwidth</description>
     </option>
     <option>
       <name>--delay=</name>
-      <description/>
+      <description>optional delay</description>
     </option>
     <option>
       <name>--depth=</name>
-      <description/>
+      <description>optional number of IGP weights</description>
     </option>
     <parameter>
       <name>addr-src</name>
-      <description/>
+      <description>identifier of source node</description>
     </parameter>
     <parameter>
       <name>iface-id</name>
-      <description/>
+      <description>address of source node interface</description>
     </parameter>
     <parameter>
       <name>addr-dst</name>
-      <description/>
+      <description>identifier of destination node</description>
     </parameter>
     <parameter>
       <name>iface-id</name>
-      <description/>
+      <description>address of destination node interface</description>
     </parameter>
   </parameters>
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>add a point-to-point link</abstract>
+  <description>
+<p>This command adds a point-to-point link between two nodes. The nodes are identified using parameters <cbgp.param>addr-src</cbgp.param> and <cbgp.param>addr-dst</cbgp.param>.</p>
+<p>New interfaces are created on the source and destination nodes and are connected together. The addresses of these interfaces are specified using the parameters <cbgp.param>iface-id</cbgp.param>. These parameters must include the interface IP address + a subnet length. The subnet length and prefix of both interfaces must be equal !</p>
+<p>The following example shows how to create a simple 2 nodes topology using this command:
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add link-ptp 1.0.0.1 192.168.0.1/30 1.0.0.2 192.168.0.2/30
+</code>
+With the above example, nodes 1.0.0.1 and 1.0.0.2 will both have 2 interfaces: one loopback interface and one ptp interface. This can be verified using command <cmd><name>net node X show ifaces</name><link>net_node_show_ifaces</link></cmd> as show in the following example:
+<code>cbgp&gt; net node 1.0.0.1 show ifaces<br/>
+lo      1.0.0.1/32<br/>
+ptp     192.168.0.1/30
+</code>
+</p>
+  </description>
 </command>

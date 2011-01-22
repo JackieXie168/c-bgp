@@ -3,9 +3,20 @@
   <name>info</name>
   <id>bgp_router_peer_show_info</id>
   <context>bgp router peer show</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>show peer configuration and status details</abstract>
+  <description>
+<p>This command shows attributes of a peer as well as elements of its current status. This is useful for debugging purposes.</p>
+<p>Here is an example of the information provided:
+<code>cbgp> bgp router 1.0.0.2 peer 1.0.0.3 show info<br/>
+address    : 1.0.0.3<br/>
+asn        : 1<br/>
+router-id  : 0.0.0.0<br/>
+state      : OPENWAIT<br/>
+snd-seq    : 1<br/>
+rcv-seq    : 0<br/>
+source-addr: 1.0.0.2<br/>
+last-error : success
+</code>
+</p>
+  </description>
 </command>

@@ -3,9 +3,11 @@
   <name>networks</name>
   <id>bgp_router_show_networks</id>
   <context>bgp router show</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>list the locally originated networks</abstract>
+  <description>
+<p>This command shows the list of networks originated by this router.</p>
+  </description>
+  <see-also>
+<p>The command <cmd><name>add network</name><link>bgp_router_add_network</link></cmd> can be used to add networks to this list.</p>
+  </see-also>
 </command>
