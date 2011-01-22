@@ -3,9 +3,11 @@
   <name>next-hop-self</name>
   <id>bgp_router_peer_next-hop-self</id>
   <context>bgp router peer</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>send the router ID as next-hop to this peer</abstract>
+  <description>
+<p>This command configure a router to replace the next-hop of routes sent to the specified peer by its own router ID.</p>
+  </description>
+  <see-also>
+<p>In place of the router ID, another next-hop value can be configured by using command <cmd><name>next-hop</name><link>bgp_router_peer_next-hop</link></cmd>.</p>
+  </see-also>
 </command>

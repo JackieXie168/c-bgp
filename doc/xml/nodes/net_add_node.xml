@@ -4,6 +4,10 @@
   <id>net_add_node</id>
   <context>net add</context>
   <parameters>
+    <option>
+      <name>--no-loopback</name>
+      <description>disable loopback interface creation</description>
+    </option>
     <parameter>
       <name>addr</name>
       <description>address (identifier) of the new node</description>
@@ -11,20 +15,18 @@
   </parameters>
   <abstract>add a node to the topology</abstract>
   <description>
-    <p>
-    This command adds a new node to the topology. The node is identified
-by its IP address. This address must be unique. When created, a new
-node only supports IP routing as well as a simplified ICMP
-protocol. If you want to add support for the BGP protocol, consider
-using the <cmd><link>bgp_add_router</link><name>bgp add router</name></cmd> command.
-    </p>
-    <p>
-    Example:
-    <code>
-net add node 1.0.0.1<br/>
-net add node 1.0.0.2
-    </code></p>
+<p>This command adds a new node to the topology. The node is identified
+by an IP address (<i>addr</i>). This address must be unique and it must be different from 0.0.0.0.</p>
+<p>By default, when a node is created, a loopback interface numbered with the node's identifier is created. This behaviour can be changed by providing the <i>--no-loopback</i> option.</p>
+<p>When created, a new node only supports IP routing as well as a simplified ICMP protocol. If you want to add support for the BGP protocol, consider
+using command <cmd><link>bgp_add_router</link><name>bgp add router</name></cmd>.</p>
+<p>Here is how to create a simple 2 nodes topology:
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add link 1.0.0.1 1.0.0.2
+</code></p>
   </description>
-  
-  
+  <see-also>
+<p>To create links, consider using commands <cmd><name>net add link</name><link>net_add_link</link></cmd> and <cmd><name>net add link-ptp</name><link>net_add_link-ptp</link></cmd>.</p>
+  </see-also>
 </command>

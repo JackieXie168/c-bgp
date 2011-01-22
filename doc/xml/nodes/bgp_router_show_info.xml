@@ -3,9 +3,16 @@
   <name>info</name>
   <id>bgp_router_show_info</id>
   <context>bgp router show</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>show configuration and status details</abstract>
+  <description>
+<p>This command shows configuration and status details about the router. This is useful for debugging purposes.</p>
+<p>Here is an example of the command output:
+<code>cbgp> bgp router 1.0.0.2 show info<br/>
+router-id : 10.0.0.2<br/>
+as-number : 1<br/>
+cluster-id: 10.0.0.2<br/>
+name      : R1_2
+</code>
+</p>
+  </description>
 </command>

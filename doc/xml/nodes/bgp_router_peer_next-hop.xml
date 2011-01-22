@@ -6,11 +6,13 @@
   <parameters>
     <parameter>
       <name>next-hop</name>
-      <description/>
+      <description>next-hop address to be used</description>
     </parameter>
   </parameters>
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>send a different next-hop to this peer</abstract>
+  <description>
+<p>This command configure a router to replace the next-hop of routes sent to the specified peer by a different <i>next-hop</i>.</p>
+  </description>
+  <see-also>
+<p>To use the router ID as next-hop, use command <cmd><name>next-hop</name><link>bgp_router_peer_next-hop</link></cmd>.</p>  </see-also>
 </command>
