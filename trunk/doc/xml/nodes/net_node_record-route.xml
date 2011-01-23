@@ -6,31 +6,39 @@
   <parameters>
     <option>
       <name>--capacity</name>
-      <description>request the capacity of the path</description>
+      <description>optionally report the path's capacity</description>
     </option>
     <option>
       <name>--check-loop</name>
-      <description>check for forwarding loops</description>
+      <description>optionally check for forwarding loops</description>
     </option>
     <option>
       <name>--deflection</name>
-      <description>check for path deflection</description>
+      <description>optionnaly check for path deflection</description>
     </option>
     <option>
       <name>--delay</name>
-      <description>request the delay of the path</description>
+      <description>optionnaly report the path's delay</description>
     </option>
     <option>
-      <name>--load</name>
-      <description>load the links along the path with the given volume</description>
+      <name>--ecmp</name>
+      <description>optionally discover ECMP paths</description>
     </option>
     <option>
-      <name>--tos</name>
-      <description>use a different forwarding plane</description>
+      <name>--load=</name>
+      <description>optionally load the path with a traffic load</description>
+    </option>
+    <option>
+      <name>--tos=</name>
+      <description>optionally use a different forwarding plane</description>
+    </option>
+    <option>
+      <name>--tunnel</name>
+      <description>optionally discover the path within tunnels</description>
     </option>
     <option>
       <name>--weight</name>
-      <description>request the IGP weight of the path</description>
+      <description>optionally report the path's IGP weight</description>
     </option>
     <parameter>
       <name>address|prefix</name>
@@ -39,8 +47,7 @@
   </parameters>
   <abstract>trace the route from one router to a specific destination</abstract>
   <description>
-<p>
-This command records the addresses of the nodes that packet sent from
+<p>This command records the addresses of the nodes that packet sent from
 the source <arg>address</arg> traverse to reach the
 <arg>destination</arg> address. The <arg>destination</arg> may be an IP address or an IP prefix. In the case of an IP address, the trace stops only when a node with the specified address is reached. In the case of an IP prefix, the trace stops as soon as a node with an IP address that matches the specified prefix is reached.
 </p>
@@ -66,13 +73,24 @@ The value of <arg>result</arg> is one of
 Example:
 <code>
 cbgp&gt; net node 1.0.0.1 record-route 1.0.0.2<br/>
-1.0.0.1 1.0.0.2 SUCCESS 3       1.0.0.1 1.0.0.3 1.0.0.2
+1.0.0.1 1.0.0.2 SUCCESS 3       1.0.0.1 1.0.0.3 1.0.0.2<br/>
+cbgp&gt;
 </code>
 </p>
-<p>
-IMPORTANT NOTE: due to changes in the network topology data structure, the tunneling feature is currently broken. Tracing route through tunnels is therefore temporarily disabled.
+<p>Here is another example that traces all the equal-cost paths (ECMP) between two nodes:
+<code>cbgp&gt; net node 1.0.0.0 record-route --ecmp 1.0.0.4<br/>
+1.0.0.0 1.0.0.4 SUCCESS 4       1.0.0.0 1.0.0.1 1.0.0.3 1.0.0.4<br/>
+1.0.0.0 1.0.0.4 SUCCESS 4       1.0.0.0 1.0.0.1 1.0.0.3 1.0.0.4<br/>
+cbgp&gt;
+</code>
 </p>
   </description>
-  
-  
+  <bugs>
+<p>
+IMPORTANT NOTE: due to changes in the network topology data structure and in the way tunnels are handled, the tunnel tracing feature is currently broken. Tracing route through tunnels is therefore temporarily disabled.
+</p>
+  </bugs>  
+  <see-also>
+<p>See also commands <cmd><name>ping</name><link>net_node_ping</link></cmd> and <cmd><name>traceroute</name><link>net_node_traceroute</link></cmd> for alternative ways to check the reachability of nodes.</p>
+  </see-also>
 </command>

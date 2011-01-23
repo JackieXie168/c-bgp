@@ -4,13 +4,13 @@
   <id>net_node_route_del</id>
   <context>net node route</context>
   <parameters>
+    <option>
+      <name>--gw=</name>
+      <description>optional gateway address</description>
+    </option>
     <parameter>
       <name>prefix</name>
       <description>destination prefix</description>
-    </parameter>
-    <parameter>
-      <name>next-hop</name>
-      <description>address of the next-hop</description>
     </parameter>
     <parameter>
       <name>iface</name>
@@ -19,10 +19,10 @@
   </parameters>
   <abstract>remove a static route from a node</abstract>
   <description>
-<p>
-This command removes from one node the route identified with the specified arguments. The route to be removed is identified by the destination <arg>prefix</arg> as well as its <arg>next-hop</arg> and the outgoing interface (<arg>iface</arg>). Wildcards (*) can be used in place of the <arg>next-hop</arg> and <arg>iface</arg> arguments to remove all the routes that match the specified <arg>prefix</arg>.
-</p>
+<p>This command removes from one node the route identified with the specified arguments. The route to be removed is identified by the destination <arg>prefix</arg> and the outgoing interface (<arg>iface</arg>). Wildcards (*) can be used in place of the <arg>iface</arg> arguments to remove all the routes that match the specified <arg>prefix</arg>.</p>
   </description>
-  
-  
+  <see-also>
+<p>To add a static route, use command <cmd><name>net node X route add</name><link>net_node_route_add</link></cmd>.</p>
+<p>To show existing routes, use command <cmd><name>net node X show rt</name><link>net_node_show_rt</link></cmd>.</p>
+  </see-also>
 </command>

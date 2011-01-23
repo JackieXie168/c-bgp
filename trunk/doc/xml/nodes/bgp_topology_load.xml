@@ -45,6 +45,7 @@ The <b>relationship</b> field can be one of the following:
 </table>
 </p>
   </description>
-  
-  
+  <see-also>
+<p>The following commands are also important to setup a simulation based on an AS-level topology: <cmd><name>bgp topology install</name><link>bgp_topology_install</link></cmd>, <cmd><name>bgp topology policies</name><link>bgp_topology_policies</link></cmd> and <cmd><name>bgp topology run</name><link>bgp_topology_run</link></cmd>.</p>
+  </see-also>  
 </command>
