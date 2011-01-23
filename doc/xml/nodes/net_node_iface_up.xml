@@ -3,9 +3,11 @@
   <name>up</name>
   <id>net_node_iface_up</id>
   <context>net node iface</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>enable an interface</abstract>
+  <description>
+<p>This command enables a network interface.</p>  
+  </description>
+  <see-also>
+<p>This can also be achieved using commands such as <cmd><name>net link X up</name><link>net_link_up</link></cmd>.</p>
+  </see-also>
 </command>

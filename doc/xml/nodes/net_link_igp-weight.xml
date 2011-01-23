@@ -6,15 +6,31 @@
   <parameters>
     <option>
       <name>--bidir</name>
-      <description/>
+      <description>optionally change weight in both directions</description>
     </option>
     <option>
       <name>--tos</name>
-      <description/>
+      <description>optional type of service</description>
     </option>
+    <parameter>
+      <name>weight</name>
+      <description>new IGP weight</description>
+    </parameter>
   </parameters>
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>set the IGP weight of one link</abstract>
+  <description>
+<p>This command sets the IGP <i>weight</i> of the link. If the link is a point-to-point link added with command <cmd><name>net add link</name><link>net_add_link</link></cmd> the option <i>--bidir</i> can be specified to change the IGP weight of the link in both directions.</p>
+<p>Here is an example that shows how the IGP weight of a link can be set to 100 in both directions:
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add link 1.0.0.1 1.0.0.2<br/>
+net link 1.0.0.1 1.0.0.2 igp-weight --bidir 100
+</code>
+</p>
+<p>If the link supports multiple IGP weights (i.e. was created with the <i>--depth</i> option), then the <i>--tos</i> option can be used to specify which IGP weight to set.</p>
+  </description>
+  <see-also>
+<p>See command <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> to learn how to compute shortest-paths routes with the IGP model.</p>
+<p>This command actually makes use of a simpler command to change the IGP weight for an interface. This command is <cmd><name>net node X iface igp-weight</name><link>net_node_iface_igp-weight</link></cmd>.</p>
+  </see-also>
 </command>

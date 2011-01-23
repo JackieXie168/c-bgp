@@ -28,9 +28,9 @@
   <abstract>add a link to the topology</abstract>
   <description>
 <p>This command adds a new link between two existing nodes whose
-identifiers are <cbgp.param>addr-src</cbgp.param> and <cbgp.param>addr-dst</cbgp.param> in the topology. The new link is bidirectional.</p>
-<p>Link bandwidth and delay can be specified optionally using the following options <cbgp.param>--bw=</cbgp.param> and <cbgp.param>--delay=</cbgp.param>.</p>
-<p>The option <cbgp.param>--depth</cbgp.param> specifies the number of different IGP weights that can be defined for this link. The default (without the option) is to support a single IGP weight. IGP weights are used to compute shortest-path routes. See commands <cmd><name>net add domain</name><link>net_add_domain</link></cmd> and <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> for more details.</p>
+identifiers are <i>addr-src</i> and <i>addr-dst</i> in the topology. The new link is bidirectional.</p>
+<p>Link bandwidth and delay can be specified optionally using the following options <i>--bw=</i> and <i>--delay=</i>.</p>
+<p>The option <i>--depth</i> specifies the number of different IGP weights that can be defined for this link. The default (without the option) is to support a single IGP weight. IGP weights are used to compute shortest-path routes. See commands <cmd><name>net add domain</name><link>net_add_domain</link></cmd> and <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> for more details.</p>
 <p>The following example shows how to add link between 2 nodes to create a simple topology:
 <code>net add node 1.0.0.1<br/>
 net add node 1.0.0.2<br/>
@@ -42,7 +42,7 @@ lo      1.0.0.1/32<br/>
 rtr     1.0.0.2/32
 </code>
 </p>
-<p>This command can also be used to add a link between a node and a "subnet" (model of a LAN). To do this, the second node address (<cbgp.param>addr-dst</cbgp.param>) has a different meaning. It is the identifier of the target subnet combined with the address of the node's future interface on this subnet. This is specified in a prefix form. The address part is the interface address. The masked address and prefix length is the subnet identifier.</p>
+<p>This command can also be used to add a link between a node and a "subnet" (model of a LAN). To do this, the second node address (<i>addr-dst</i>) has a different meaning. It is the identifier of the target subnet combined with the address of the node's future interface on this subnet. This is specified in a prefix form. The address part is the interface address. The masked address and prefix length is the subnet identifier.</p>
 <p>The following example show how to add a link between 2 nodes and a subnet. Nodes 1.0.0.1 and 1.0.0.2 will get new interfaces numbered 192.168.0.5 and 192.168.0.7 respectively.
 <code>net add node 1.0.0.1<br/>
 net add node 1.0.0.2<br/>

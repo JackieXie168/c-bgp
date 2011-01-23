@@ -6,11 +6,11 @@
   <parameters>
     <parameter>
       <name>weight</name>
-      <description/>
+      <description>new IGP weight</description>
     </parameter>
   </parameters>
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>change the IGP weight of an interface</abstract>
+  <description>
+<p>This command changes the IGP weight of a network interface.</p>
+  </description>
 </command>

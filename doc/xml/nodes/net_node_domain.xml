@@ -12,9 +12,7 @@
   <abstract>set the domain one node belongs to</abstract>
   <description>
 <p>
-This command sets the domain one node belongs to. This command is used in combination with the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd>, to build the intradomain (IGP) routes of a domain.
+This command makes the node belong to the specified IGP domain. This command is used in combination with the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd>, to build the intradomain (IGP) routes of a domain.
 </p>
   </description>
-  
-  
 </command>
