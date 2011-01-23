@@ -120,6 +120,24 @@
         </xsl:for-each>
         <xsl:text>.El&#xa;</xsl:text>
       </xsl:for-each>
+      <!-- ********
+           SEE ALSO
+           ******** !-->
+      <xsl:for-each select="see-also">
+        <xsl:if test="string-length() > 0">
+          <xsl:text>.Sh SEE ALSO&#xa;</xsl:text>
+          <xsl:apply-templates match="code" select="."/>
+        </xsl:if>
+      </xsl:for-each>
+      <!-- ****
+           BUGS
+           **** !-->
+      <xsl:for-each select="bugs">
+        <xsl:if test="string-length() > 0">
+          <xsl:text>.Sh BUGS&#xa;</xsl:text>
+          <xsl:apply-templates match="code" select="."/>
+        </xsl:if>
+      </xsl:for-each>
       <!-- ***********
            AUTHORS
            *********** !-->

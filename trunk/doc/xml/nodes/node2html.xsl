@@ -270,6 +270,11 @@
                   <xsl:apply-templates match="code" select="."/>
                 </xsl:for-each>
 
+                <xsl:for-each select="command/bugs">
+                  <h4>Known bugs</h4>
+                  <xsl:apply-templates match="code" select="."/>
+                </xsl:for-each>
+
               </div>
               <div class="bottom"></div>
             </div>
