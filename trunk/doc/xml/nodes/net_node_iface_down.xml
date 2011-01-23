@@ -3,9 +3,11 @@
   <name>down</name>
   <id>net_node_iface_down</id>
   <context>net node iface</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>disable an interface</abstract>
+  <description>
+<p>This command disables a network interface. Messages sent by this interface will be dropped. If routes are re-computed by the IGP model, the link conencted to that interface will be disabled.</p>
+  </description>
+  <see-also>
+<p>This can also be achieved using commands such as <cmd><name>net link X down</name><link>net_link_down</link></cmd>.</p>
+  </see-also>
 </command>

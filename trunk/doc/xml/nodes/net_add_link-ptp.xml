@@ -35,8 +35,8 @@
   </parameters>
   <abstract>add a point-to-point link</abstract>
   <description>
-<p>This command adds a point-to-point link between two nodes. The nodes are identified using parameters <cbgp.param>addr-src</cbgp.param> and <cbgp.param>addr-dst</cbgp.param>.</p>
-<p>New interfaces are created on the source and destination nodes and are connected together. The addresses of these interfaces are specified using the parameters <cbgp.param>iface-id</cbgp.param>. These parameters must include the interface IP address + a subnet length. The subnet length and prefix of both interfaces must be equal !</p>
+<p>This command adds a point-to-point link between two nodes. The nodes are identified using parameters <i>addr-src</i> and <i>addr-dst</i>.</p>
+<p>New interfaces are created on the source and destination nodes and are connected together. The addresses of these interfaces are specified using the parameters <i>iface-id</i>. These parameters must include the interface IP address + a subnet length. The subnet length and prefix of both interfaces must be equal !</p>
 <p>The following example shows how to create a simple 2 nodes topology using this command:
 <code>net add node 1.0.0.1<br/>
 net add node 1.0.0.2<br/>

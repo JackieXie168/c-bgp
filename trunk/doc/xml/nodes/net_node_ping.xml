@@ -5,7 +5,7 @@
   <context>net node</context>
   <parameters>
     <option>
-      <name>--ttl</name>
+      <name>--ttl=</name>
       <description>initial TTL of the ICMP echo-request message</description>
     </option>
     <parameter>
@@ -18,7 +18,23 @@
 <p>
 This command tests the reachability of another node by sending a probe message (like an ICMP echo-request) and waiting for an answer (ICMP echo-reply). The command will only succeed if the destination node is also able to reach the source node.
 </p>
+<p>Example
+<code>cbgp&gt; net node 1.0.0.0 ping 1.0.0.4<br/>
+ping: reply from 1.0.0.4
+</code>
+</p>
+<p>The <i>--ttl</i> option can be used to limit the propagation of the ICMP echo-request message, as shown in the following example:
+<code>cbgp&gt; net node 1.0.0.0 ping --ttl=1 1.0.0.4<br/>
+ping: icmp error (time-exceeded) from 1.0.0.1<br/>
+cbgp&gt; net node 1.0.0.0 ping --ttl=2 1.0.0.4<br/>
+ping: icmp error (time-exceeded) from 1.0.0.3<br/>
+cbgp&gt; net node 1.0.0.0 ping --ttl=3 1.0.0.4<br/>
+ping: reply from 1.0.0.4
+</code>
+</p>
+<p>Although the <b>ping</b> command sends its probes with the same mechanisms (same protocol stack) as other messages in the simulation (especially BGP), the messages sent by <b>ping</b> are put in a separate simulation queue which is processed immediately. This is the reason why there is no need to run <cmd><name>sim run</name><link>sim_run</link></cmd> to process <b>ping</b>'s messages.</p>
   </description>
-  
-  
+  <see-also>
+<p>See also commands <cmd><name>traceroute</name><link>net_node_traceroute</link></cmd> and <cmd><name>record-route</name><link>net_node_record-route</link></cmd> for alternative ways to check the reachability of nodes.</p>
+  </see-also>
 </command>

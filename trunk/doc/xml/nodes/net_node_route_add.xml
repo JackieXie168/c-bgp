@@ -4,17 +4,17 @@
   <id>net_node_route_add</id>
   <context>net node route</context>
   <parameters>
+    <option>
+      <name>--gw=</name>
+      <description>optional gateway address</description>
+    </option>
+    <option>
+      <name>--oif=</name>
+      <description>optional outgoing interface</description>
+    </option>
     <parameter>
       <name>prefix</name>
       <description>destination prefix</description>
-    </parameter>
-    <parameter>
-      <name>next-hop</name>
-      <description>address of the next-hop</description>
-    </parameter>
-    <parameter>
-      <name>iface</name>
-      <description>outgoing interface</description>
     </parameter>
     <parameter>
       <name>weight</name>
@@ -23,13 +23,39 @@
   </parameters>
   <abstract>add a static route to a node</abstract>
   <description>
-<p>
-This command can be used to add to a node a static route towards a specific <arg>prefix</arg>.
+<p>This command adds a static route towards a specific <arg>prefix</arg> to a node. The route can take different forms.
+<dl>
+<dt><i>--oif</i></dt>
+<dd>if <i>--oif</i> is specified, then the route will send messages towards the <i>prefix</i> through the specified outgoing interface.</dd>
+<dt><i>--gw</i></dt>
+<dd>if <i>--gw</i> is specified, then the route will send messages towards the <i>prefix</i> through the specified gateway. A second lookup is performed to find the outgoing interface for that gateway.</dd>
+<dt><i>--oif</i> and <i>--gw</i></dt>
+<dd>if both <i>--oif</i> and <i>--gw</i> are specified, then the route will send messages towards the <i>prefix</i> through the specified gateway. The gateway is reached through the specified outgoing interface.</dd>
+</dl>
 </p>
-<p>
-Note: It is often more convenient to use the <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> which computes the shortest-path routes for each node within the specified domain.
+<p>The following example illustrates how to configure static routes in a simple topology composed of 3 nodes, one point-to-point link and a link through a subnet:
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add node 1.0.0.3<br/>
+net add subnet 192.168.0.0/24 transit<br/>
+net add link 1.0.0.1 1.0.0.2<br/>
+net add link 1.0.0.2 192.168.0.1/24<br/>
+net add link 1.0.0.3 192.168.0.2/24<br/>
+<br/>
+net node 1.0.0.1 route add --oif=1.0.0.2 1.0.0.2/32 1<br/>
+net node 1.0.0.1 route add --oif=1.0.0.2 1.0.0.3/32 1<br/>
+<br/>
+net node 1.0.0.2 route add --oif=1.0.0.1 1.0.0.1/32 1<br/>
+net node 1.0.0.2 route add --oif=192.168.0.1 192.168.0.0/24 1<br/>
+net node 1.0.0.2 route add --gw=192.168.0.2 1.0.0.3/32 1<br/>
+<br/>
+net node 1.0.0.3 route add --oif=192.168.0.2 192.168.0.0/24 1<br/>
+net node 1.0.0.3 route add --gw=192.168.0.1 1.0.0.1/32 1<br/>
+net node 1.0.0.3 route add --gw=192.168.0.1 1.0.0.2/32 1
+</code>
 </p>
   </description>
-  
-  
+  <see-also>
+<p>Another mean to obtain routing information is to rely on routing protocols. <i>C-BGP</i> contains two routing protocol models: an intradomain routing protocol (IGP) and an interdomain routing protocol (BGP). See command <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> to learn more about the IGP model configuration. See command <cmd><name>bgp add router</name><link>bgp_add_router</link></cmd> to learn more about the BGP model.</p>
+  </see-also>
 </command>
