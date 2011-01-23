@@ -17,7 +17,7 @@ This command shows the content of the routing table of one node. The command tak
 <p>
 Output format:
 <code>
-&lt;prefix&gt; &lt;next-hop&gt; &lt;metric&gt; &lt;type&gt;
+&lt;prefix&gt; &lt;gateway&gt; &lt;out-iface&gt; &lt;metric&gt; &lt;type&gt;
 </code>
 where the <i>type</i> field can take one of the following values:
 <table>
@@ -30,10 +30,13 @@ where the <i>type</i> field can take one of the following values:
 </p>
 Example:
 <code>
-cbgp&gt; net node 0.0.0.1 show rt *<br/>
-0.1.0.1/32      0.2.0.2 0       BGP<br/>
-0.2.0.1/32      0.2.0.2 0       BGP<br/>
-0.2.0.2/32      0.2.0.2 0       BGP
+cbgp&gt; net node 1.0.0.1 show rt *<br/>
+1.0.0.2/32      0.0.0.0 1.0.0.2 1       STATIC<br/>
+1.0.0.3/32      0.0.0.0 1.0.0.2 1       STATIC<br/>
+cbgp&gt; net node 1.0.0.2 show rt *<br/>
+1.0.0.1/32      0.0.0.0 1.0.0.1 1       STATIC<br/>
+1.0.0.3/32      192.168.0.2     ---     1       STATIC<br/>
+192.168.0.0/24  0.0.0.0 192.168.0.1     1       STATIC<br/>
 </code>
 </p>
   </description>

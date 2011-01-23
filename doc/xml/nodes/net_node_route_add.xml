@@ -56,6 +56,9 @@ net node 1.0.0.3 route add --gw=192.168.0.1 1.0.0.2/32 1
 </p>
   </description>
   <see-also>
+<p>To remove a static route, use command <cmd><name>net node X route del</name><link>net_node_route_del</link></cmd>.</p>
+<p>To show existing routes, use command <cmd><name>net node X show rt</name><link>net_node_show_rt</link></cmd>.
+</p>
 <p>Another mean to obtain routing information is to rely on routing protocols. <i>C-BGP</i> contains two routing protocol models: an intradomain routing protocol (IGP) and an interdomain routing protocol (BGP). See command <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> to learn more about the IGP model configuration. See command <cmd><name>bgp add router</name><link>bgp_add_router</link></cmd> to learn more about the BGP model.</p>
   </see-also>
 </command>
