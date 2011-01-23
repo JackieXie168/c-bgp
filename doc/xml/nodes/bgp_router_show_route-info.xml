@@ -4,15 +4,14 @@
   <id>bgp_router_show_route-info</id>
   <context>bgp router show</context>
   <parameters>
+    <option>
+      <name>--output</name>
+      <description>name of output file</description>
+    </option>
     <parameter>
       <name>prefix|address|*</name>
       <description>destination of interest</description>
     </parameter>
-    <vararg>
-      <name>output</name>
-      <cardinality>0-1</cardinality>
-      <description>name of output file</description>
-    </vararg>
   </parameters>
   <abstract>show details about the decision process outcome</abstract>
   <description>
