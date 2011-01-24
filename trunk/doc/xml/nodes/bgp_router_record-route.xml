@@ -4,6 +4,14 @@
   <id>bgp_router_record-route</id>
   <context>bgp router</context>
   <parameters>
+    <option>
+      <name>--exact-match</name>
+      <description>optionally performs exact-match</description>
+    </option>
+    <option>
+      <name>--preserve-dups</name>
+      <description>optionally keep duplicate ASNs in paths</description>
+    </option>
     <parameter>
       <name>prefix</name>
       <description>destination prefix</description>
@@ -11,10 +19,8 @@
   </parameters>
   <abstract>record the AS-level route towards a prefix</abstract>
   <description>
-<p>
-This command records the AS-level route from one router towards the given
-<arg>prefix</arg>.
-</p>
+<p>This command records the AS-level route from one router towards the given <arg>prefix</arg>. The command works as follows. Starting from the source router, it performs a best-match lookup in the router's BGP RIB. If a route is found, it jumps to the next-hop router and, again, performs a lookup for the same prefix. The algorithm stops when the next-hop router is the router itself (locally originated route). For each traversed router, the ASN of the router is appended to the resulting trace. By default, duplicate ASNs are not added, but it is possible to keep them using the <arg>--preserve-dups</arg> option.</p>
+<p>It is possible to make use of an exact-match lookup instead of the default best-match lookup by mentionning the <arg>--exact-match</arg> option.</p>
 <p>
 Output format:
 <code>

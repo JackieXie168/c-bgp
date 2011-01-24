@@ -4,24 +4,27 @@
   <id>bgp_topology_record-route</id>
   <context>bgp topology</context>
   <parameters>
+    <option>
+      <name>--exact-match</name>
+      <description>optionally performs exact-match</description>
+    </option>
+    <option>
+      <name>--output=</name>
+      <description>optional output file</description>
+    </option>
+    <option>
+      <name>--preserve-dups</name>
+      <description>optionally keep duplicate ASNs in paths</description>
+    </option>
     <parameter>
       <name>prefix</name>
       <description>destination prefix</description>
     </parameter>
-    <parameter>
-      <name>input</name>
-      <description>input file (list of destinations to probe)</description>
-    </parameter>
-    <parameter>
-      <name>output</name>
-      <description>output file (list of traces)</description>
-    </parameter>
   </parameters>
   <abstract>record the routes from all the topology</abstract>
   <description>
-<p>
-This command records the paths towards the given <b>prefix</b> from each router specified in the <b>in-file</b> and writes those paths in the <b>out-file</b>. The <b>in-file</b> has the following format: each line contains the identifier of a domain (i.e. its AS-NUM) from which the path has to be computed or an asterisk (*) which means that the paths from all the routers have to be computed.
-</p>
+<p>This command performs a <cmd><name>record-route</name><link>bgp_router_record-route</link></cmd> for each router in the topology.</p>
+<p>The output can optionally be redirected to an output file using the <arg>--output</arg> option.</p>
 <p>
 Output format:
 <code>
