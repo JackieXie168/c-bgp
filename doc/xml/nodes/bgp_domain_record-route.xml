@@ -5,7 +5,7 @@
   <context>bgp domain</context>
   <parameters>
     <option>
-      <name>--option</name>
+      <name>--deflection</name>
       <description/>
     </option>
     <parameter>
@@ -14,7 +14,7 @@
     </parameter>
   </parameters>
   <abstract>record the routes from an entire AS towards a destination</abstract>
-  <description/>
-  
-  
+  <description>
+<p>This command performs a <cmd><name>record-route</name><link>bgp_router_record-route</link></cmd> for each router in the domain.</p>
+  </description>
 </command>

@@ -4,6 +4,22 @@
   <id>bgp_router_load_rib</id>
   <context>bgp router load</context>
   <parameters>
+    <option>
+      <name>--autoconf</name>
+      <description>optionally autoconfigure new peers</description>
+    </option>
+    <option>
+      <name>--force</name>
+      <description>optionally force routes to load</description>
+    </option>
+    <option>
+      <name>--format=</name>
+      <description>optionally specify an alternate input format</description>
+    </option>
+    <option>
+      <name>--summary</name>
+      <description>optionally report a summary of the operation</description>
+    </option>
     <parameter>
       <name>file</name>
       <description>name of the RIB dump file</description>
