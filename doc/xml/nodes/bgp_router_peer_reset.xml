@@ -5,6 +5,6 @@
   <context>bgp router peer</context>
   <abstract>reset a BGP session</abstract>
   <description>
-<p>This command resets a BGP session. This is equivalent to stopping the BGP session with command <cmd><name>down</name><link>bgp_router_peer_down</link></cmd> and immediately start it using command <cmd><name>up</name><link>bgp_router_peer_up</link></cmd>.</p>
+<p>This command resets a BGP session. This is equivalent to stopping the BGP session with command <cmd><name>down</name><link>bgp_router_peer_down</link></cmd> and immediately re-starting it using command <cmd><name>up</name><link>bgp_router_peer_up</link></cmd>.</p>
   </description>
 </command>
