@@ -6,14 +6,19 @@ HTML_NODES=$(patsubst %.xml, %.html, $(XML_NODES))
 TXT_PATH=../../txt
 TXT_NODES=$(patsubst %.xml, %.txt, $(XML_NODES))
 
-all: html txt
+TEX_PATH=./
+TEX_NODES=$(patsubst %.xml, %.tex, $(XML_NODES))
+
+all: html txt tex
 
 html: $(HTML_NODES)
 
 txt: $(TXT_NODES)
 
+tex: $(TEX_NODES)
+
 #.SUFFIXES: .xml .html .txt .groff
-.SUFFIXES: .xml .html .txt .groff
+.SUFFIXES: .xml .html .txt .groff .tex
 
 .PHONY: clean
 
@@ -29,7 +34,11 @@ txt: $(TXT_NODES)
 #.groff.txt:
 #	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
 
+.xml.tex:
+	xsltproc node2tex.xsl $< > $@
+
 clean:
 	rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))
 	rm -f $(patsubst %, $(TXT_PATH)/%, $(TXT_NODES))
+	rm -f $(TEX_NODES)
 
