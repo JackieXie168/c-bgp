@@ -104,6 +104,10 @@
     <center><table><xsl:apply-templates/></table></center>
   </xsl:template>
 
+  <xsl:template match="trh">
+    <tr><xsl:apply-templates/></tr>
+  </xsl:template>
+
   <xsl:template match="th">
     <th><xsl:apply-templates/></th>
   </xsl:template>
