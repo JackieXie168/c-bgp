@@ -11,13 +11,6 @@
   </parameters>
   <abstract>process another C-BGP script</abstract>
   <description>
-<p>
-This command processes the commands from another <arg>file</arg>. The processing of the given <arg>file</arg> will stop as soon as an error occurs.
-</p>
-<p>
-Note: in interactive mode (when <i>C-BGP</i> is started with the <b>-i</b> option), it is possible to use the automatic completion of the filename parameter.
-</p>
+<p>This command processes commands from another <arg>file</arg>. The processing of the given <arg>file</arg> stops when its end is reached or as soon as an error occurs.</p>
   </description>
-  
-  
 </command>

@@ -12,7 +12,7 @@
   <abstract>set the memory limit of C-BGP</abstract>
   <description>
 <p>
-This command changes the memory limit of <i>C-BGP</i> to a maximum of <i>amount</i> bytes, using the <b>setrlimit</b> system call. Normally, there is no per-process memory limitation enforced by the operating system. The memory allocation will fail when there is no more physical memory and no more virtual memory available. However, in certain situations, reaching both the physical and virtual memory limits may pose problems. Especially on some systems (on Linux for instance) where the scheduler may kill the first application that requests memory above the reached limits. Important applications may be killed even if the user who runs the simulator has no administrative privilege. We experimented such situation, so use this option with large simulations!!!
+This command changes the memory limit of <i>C-BGP</i> to a maximum of <i>value</i> bytes, using the <b>setrlimit</b> system call. Normally, there is no per-process memory limitation enforced by the operating system. The memory allocation will fail when there is no more physical memory and no more virtual memory available. However, in certain situations, reaching both the physical and virtual memory limits may pose problems. Especially on some systems (on Linux for instance) where the scheduler may kill the first application that requests memory above the reached limits. Important applications may be killed even if the user who runs the simulator has no administrative privilege. We experienced such situation, so use this option with large simulations!!!
 </p>
   </description>
   
