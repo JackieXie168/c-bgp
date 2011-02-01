@@ -1,0 +1,756 @@
+%====================================================================
+\chapter{User interface}
+\label{ch:user-interface}
+%====================================================================
+
+%--------------------------------------------------------------------
+\section{Command-line usage}
+\label{sec:user-usage}
+%--------------------------------------------------------------------
+
+In order to run the \application{C-BGP} simulator, simply type 
+\command{cbgp} at the command prompt\footnote{The location of the
+  \command{cbgp} binary must be in your \envar{PATH} environment
+  variable.}. The \command{cbgp} application supports a few
+command-line parameters. These parameters are summarized in
+Table~\ref{tab:cbgp-options}.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\command{cbgp} [ \option{-h} ] [ \option{-l} \textit{LOGFILE} ] [ \option{-c} \textit{SCRIPT} | \option{-e} \textit{COMMAND}] [ \option{-D} \textit{VALUE}=\textit{VALUE} ]\\
+\end{Verbatim}
+
+\begin{table}[ht!]
+\begin{center}
+\begin{tabular}{|l|p{7cm}|}
+\hline
+{\bf Option} & {\bf Description}\\
+\hline
+\hline
+\option{-h} & Display the command-line parameters of \application{C-BGP}.\\
+\hline
+\option{-c} \textit{SCRIPT} & Run the simulator in {\it script
+  mode}. Load and execute the specified \textit{SCRIPT} file. Note:
+without any option, the simulator works in {\it interactive mode} and
+commands are taken from the standard input (stdin).\\
+\hline
+\option{-l} \textit{LOGFILE} & Specifies the file that must be used to
+record log messages. The default behaviour is to output log messages
+on the standard error output (stderr).\\
+\hline
+\option{-e} \textit{COMMAND} & Execute a single command
+\textit{COMMAND} and exits. \\
+\hline
+\option{-D} \textit{PARAM}=\textit{VALUE} & Set the value of parameter named
+\textit{PARAM} to \textit{VALUE}. \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Command-line options supported by \application{C-BGP}.\label{tab:cbgp-options}}
+\end{table}
+
+The simulator can be launched in either of two modes. The first mode
+is the {\bf script mode}. To enter this mode, option \option{-c}
+\textit{SCRIPT} must be specified on the command-line. In this mode,
+the simulator reads a script file which contains a sequence of
+commands. The commands contained in the script file are used to setup
+a simulation. This mode is explained in
+Section~\ref{sec:user-interface-script}.
+
+The second mode, selected without option \parameter{-c}, is the
+{\bf interactive mode}. In this mode, the simulator prompts the user
+for commands. This mode is mainly intended for beginners or for
+debugging purposes. This mode is also useful for designing parts of
+new simulation scripts. The interactive mode is described in
+Section~\ref{sec:user-interface-interactive}.
+
+It is also possible to mix script and interactive modes by using the
+\command{include} command (see \ref{cmd:include}). This command allows
+to run the simulator in interactive mode, run an existing script to
+setup the simulation (usually several commands), then use the
+interactive command prompt to interact with the simulation state.
+
+%--------------------------------------------------------------------
+\section{Interactive mode}
+\label{sec:user-interface-interactive}
+%--------------------------------------------------------------------
+
+When \application{C-BGP} is run in interactive mode, i.e. without
+command-line option \option{-c}, the simulator shows a greeting
+message and then prompts the user for input.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{cbgp -i}
+C-BGP Routing Solver version 2.0.0-rc3
+
+  Copyright (C) 2002-2011 Bruno Quoitin
+  Networking Lab
+  Computer Science Institute
+  University of Mons (UMONS)
+  Mons, Belgium
+  
+  This software is free for personal and educational uses.
+  See file COPYING for details.
+
+help is bound to '?' key
+\prompt{cbgp> init.}
+\prompt{cbgp>}
+\end{Verbatim}
+
+It is then possible to type in \application{C-BGP} commands. Most of
+the supported \application{C-BGP} commands are described in
+Chapter~\ref{ch:cmd-ref}. A simple, yet useful command is
+\command{show version}. It can be used to make \application{C-BGP} report
+its own version number as well as information on optional packages and
+libraries. In the example below, the reported version of
+\application{C-BGP} is 2.0.0-rc3. The \application{libgds} library has
+the same version and \application{C-BGP} has been compiled with the
+\application{libbgpdump} library. You can find more details about
+command \command{show version} in section~\ref{cmd:show_version}.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{show version}
+cbgp version: 2.0.0-rc3 [bgpdump]
+libgds version: 2.0.0-rc3
+\prompt{cbgp>}
+\end{Verbatim}
+
+To quit \application{C-BGP} the \command{quit} command can be
+used. The process will be terminated and the user will be returned to
+the calling process (usually a shell interpreter). Alternatively,
+pressing Ctrl-D when the command prompt is empty should also work.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{quit}
+\prompt{cbgp> done.} 
+\prompt{bash\$}
+\end{Verbatim}
+
+%--------------------------------------------------------------------
+\section{Command arguments}
+\label{sec:user-interface-arguments}
+%--------------------------------------------------------------------
+
+This section explains how to work with commands that require
+arguments. An example of such a command is \command{net add node} (see
+\ref{cmd:net_add_node}). This command is used to create a new node in
+the simulation. According to the command's documentation, a new node
+requires an identifier. This identifier has the same form as an IPv4
+address and it must be unique (i.e. not used by another node).
+
+The new node's identifier must be provided as an argument after the
+command name. The following example shows how this is done.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net add node 1.0.0.0}
+\prompt{cbgp>}
+\end{Verbatim}
+
+If the node could be added to the simulation, no message is provided
+and the simulator prompts the used for another command.
+
+If the node could not be added, an error message is provided that
+mentions the reason of the failure. For example, a node with the same
+identifier could already exist. In the following example, a node with
+identifier is 1.0.0.0 is added twice. An error is returned after the
+second addition attempt.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net add node 1.0.0.0}
+\prompt{cbgp>} \command{net add node 1.0.0.0}
+Error: command failed
+ +-- reason: could not add node (node already exists)
+\prompt{cbgp>}
+\end{Verbatim}
+
+Another possible cause of error is a missing argument. In the
+following example, command \command{net add node} is used without
+providing a node identifier. An error is returned indicating the name
+of the missing argument. In this case, it is \parameter{<addr>}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net add node}
+Error: missing argument
+ +-- input : net add node 
+ +-- expect: <addr>
+\prompt{cbgp>}
+\end{Verbatim}
+
+More information on the error messages returned by \application{C-BGP}
+can be obtained in Section~\ref{sec:user-interface-error}.
+
+%--------------------------------------------------------------------
+\section{Command options}
+\label{sec:user-interface-options}
+%--------------------------------------------------------------------
+
+This section describes how to use comands that accept optional
+arguments. Let's continue with the same command as in
+Section~\ref{sec:user-interface-arguments}: command \command{net add
+  node}. In addition to an argument, this command also accepts several
+options. We focus on a single one: option \option{-{}-no-loopback}.
+
+The default behaviour of \command{net add node} is to add a loopback
+interface to the new node. The address of this loopback interface is
+the node identifier. In some cases, this behaviour is not
+desirable. Option \option{-{}-no-loopback} is there for that reason:
+it allows to disable the automatic creation of this loopback interface
+by \command{net add node}. If the user later wants to add a loopback
+interface, he must do so manually (see \ref{cmd:net_node_add_iface}).
+
+The following example shows how to use \command{net add node} with the
+\option{-{}-no-loopback} option.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net add node --no-loopback 1.0.0.0}
+\prompt{cbgp>}
+\end{Verbatim}
+
+
+%--------------------------------------------------------------------
+\section{Command naming}
+\label{sec:user-interface-commands}
+%--------------------------------------------------------------------
+
+The names of the commands in \application{C-BGP} are organized
+hierarchically. Commands related to the same simulator functions share
+a common prefix. There are three main groups of commands identified
+with different prefixes:
+
+\begin{description}
+\item [net]
+  These are commands related to the network topology setup
+  (create \hyperref[cmd:net_add_node]{nodes} and
+  \hyperref[cmd:net_add_link]{links}) and the basic IP routing
+  configuration (\hyperref[cmd:net_node_route_add]{add static routes},
+  \hyperref[cmd:net_add_domain]{configure a simple IGP}).
+
+\item [bgp]
+  These are commands related to the BGP routing protocol
+  configuration. These commands allow to
+  \hyperref[cmd:bgp_add_router]{create BGP routers}, to
+  \hyperref[cmd:bgp_router_add_peer]{setup BGP sessions},  to
+  \hyperref[cmd:bgp_router_add_network]{advertise local networks}, 
+
+\item [sim]
+  These are commands related to the simulator. The most important
+  command allows to \hyperref[cmd:sim_run]{process the pending
+    events}.
+
+\end{description}
+
+In addition to these three groups, a groups for miscellaneous commands
+exists. These commands allow for example to \hyperref[cmd:print]{print
+  a message} or to \hyperref[cmd:include]{include a script}. The
+commands in the later group do not share a common prefix.
+
+Within each group, subgroups were created. For example, all commands
+that start with prefix \command{net node} are commands related to a
+node in the network topology, all commands that start with prefix
+\command{net link} are commands related to a link in the network
+topology, and so on.
+
+With this naming scheme, it should be relatively easy to figure out
+what is the purpose of most commands from their names. For example,
+command \command{bgp router {\it x} peer {\it y} filter out add-rule}
+is a command that will add a rule to the output filter of peer {\it y}
+in BGP router {\it x}.
+
+In addition, if there is a need to enter several commands from the
+same group, it is possible to first enter the command group. This way
+there is no need to type the common prefix for each of the command. To
+enter a group of commands, you just need to enter the prefix of the
+group. For example, to enter group \command{net add}, it is possible
+to enter \command{net add} in one line or to first enter \command{net}
+on one line, then enter \command{add} on another line. Note on the
+example how the command-line interpreter informs the user that it is
+in a particular group of commands by changing the prompt.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net}
+\prompt{cbgp-net>} \command{add}
+\prompt{cbgp-net-add>} \command{node 1.0.0.0}
+\prompt{cbgp-net-add>} \command{node 1.0.0.1}
+\prompt{cbgp-net-add>} \command{link 1.0.0.0 1.0.0.2}
+\prompt{cbgp-net-add>}
+\end{Verbatim}
+
+You can exit the current group by typing the special \command{exit}
+command to go back to the previous group of commands. For example,
+with the previous example, the result would be as follows. Note that
+if the group had been entered in a single line \command{net add}, then
+a single \command{exit} would have been needed.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp-net-add>} \command{exit}
+\prompt{cbgp-net>} \command{exit}
+\prompt{cbgp>} 
+\end{Verbatim}
+
+Alternatively, it is possible to exit all groups (i.e. return to the
+root of the command hierarchy) by entering an empty line, as shown in
+the following example.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp-net-add>}
+\prompt{cbgp>} 
+\end{Verbatim}
+
+%--------------------------------------------------------------------
+\section{Command context}
+\label{sec:user-interface-context}
+%--------------------------------------------------------------------
+
+We have learned in Section~\ref{sec:user-interface-commands} that, by
+entering a group of commands, it is possible to change the future
+behaviour of the command-line interpreter in that there is no need to
+type the prefix of the following commands. We say that the command
+context has changed: it is now relative to a particular group of
+commands.
+
+\application{C-BGP} allows to go further by entering the context of a
+particular object in the simulator: a node, a link, a BGP router, and
+so on. Once the context of such an element is entered, commands
+related to this element can be executed.
+
+Let's take an example to clarify this notion. Suppose we have created
+a node 1.0.0.0 as shown in
+Section~\ref{sec:user-interface-arguments}. We now want to do
+something with this node. For example, we want to obtain information
+about its network interfaces. A first possible way to do this is to
+use command \command{net node 1.0.0.0 show ifaces} as follows:
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net node 1.0.0.0 show ifaces}
+lo      1.0.0.0/32
+\prompt{cbgp>}
+\end{Verbatim}
+
+Another possibility is to first enter the context of node 1.0.0.0 by
+first entering \command{net node 1.0.0.0} on one line, then by
+entering \command{show ifaces} on a second line. The first line enters
+the context of node 1.0.0.0. It is not really a command, however it
+could fail if, for example, node 1.0.0.0 did not exist.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net node 1.0.0.0}
+\prompt{cbgp-net-node>} \command{show ifaces}
+lo      1.0.0.0/32
+\prompt{cbgp-net-node>}
+\end{Verbatim}
+
+To exit a context, use the \command{exit} command or an empty
+line. The behaviour is exactly the same as for exiting a group of
+commands.
+
+
+%--------------------------------------------------------------------
+\section{Auto-completion}
+\label{sec:user-interface-completion}
+%--------------------------------------------------------------------
+
+This section describes the auto-completion feature in
+\application{C-BGP}'s
+\hyperref[sec:user-interface-interactive]{interactive mode}. The
+auto-completion mechanism partially relies on the
+\application{libreadline} library and will therefore only work if
+\application{C-BGP} was compiled with it.
+
+Auto-completion is a mechanism that allows to help the user complete
+its current command-line input. Auto-completion can complete the name
+of a command, the value of an argument, the name of an option and the
+value of an option. The auto-completion feature should work for any
+command name and option name. However, it is only partially supported
+for arguments and options values.
+
+To invoke the auto-completion mechanism, the user needs to use the
+tabulation key once or twice. A single key press will auto-complete
+the current user input if there is a single possible completion. A
+second key press will provide the user with the list of possible
+completions. Let's take an example to illustrate these two
+situations. A tabulation key press is illustrated by \verb|[tab]|.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{n} [tab]
+\prompt{cbgp>} \command{net} [tab]
+\prompt{cbgp>} \command{net} [tab]
+        add
+        domain
+        export
+        link
+        links
+        node
+        ntf
+        show
+        subnet
+        traffic
+\prompt{cbgp>} \command{net n} [tab]
+        node
+        ntf
+\prompt{cbgp>} \command{net no} [tab]
+\prompt{cbgp>} \command{net node}
+\end{Verbatim}
+
+In the above example, the user first typed \command{n} followed by a
+tabulation key press. As there is a single possible command name that
+starts with \command{n}, the auto-completion is performed, and the
+user input is replaced with \command{net}. Then the user again
+requests auto-completion, but this time, there are multiple possible
+matches (all the commands that start with \command{net}). No
+auto-completion is performed. The user then presses the tabulation key
+a second time to obtain the list of possible completion matches. A
+list of 10 commands is provided. The user adds character 'n' to its
+current input and again requests the completion list (press
+\verb|[tab]| twice). Only two commands start with 'n': \command{node}
+and \command{ntf}. User adds character 'o' and requests
+auto-completion that can now be realized as a single possible match
+remains. The user input is now \command{net node}.
+
+To complete an argument value, the process is similar. The only
+exception is that the possible completion matches might depend on the
+current simulation state. Let's for example take the case where the
+user wants to enter the context of one node. Assume that only two
+nodes with identifiers 1.0.0.0 and 1.0.0.1 currently exist in the
+simulation.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net node} [tab] [tab]
+        1.0.0.0
+        1.0.0.1
+\prompt{cbgp>} \command{net node 1.0.0.1}
+\end{Verbatim}
+
+By pressing the \verb|[tab]| key twice, the user can
+obtain the list of existing nodes. In this case auto-completion does
+not help as the two node identifiers share a long common prefix. If a
+third a node is added with identifier 1.1.0.0, then auto-completion
+becomes helpful, as illustrated in the following example.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net node} [tab] [tab]
+        1.0.0.0
+        1.0.0.1
+        1.1.0.0
+\prompt{cbgp>} \command{net node 1.1} [tab]
+\prompt{cbgp>} \command{net node 1.1.0.0}
+\end{Verbatim}
+
+%--------------------------------------------------------------------
+\section{In-line help}
+\label{sec:user-interface-help}
+%--------------------------------------------------------------------
+
+With the most recent versions of \application{C-BGP}
+\footnote{With version 2.0.0-rc3 and later.}
+, help is available within the simulator. Help files should have been
+installed along with the binaries in the \verb|$prefix/share/doc|
+directory where \verb|$prefix| is the base installation directory (the
+default being \verb|/usr/local|). \application{C-BGP} will try to
+locate these files based on the installation path.
+
+Help can be obtained using using the special command
+\command{help}. The \command{help} command takes a single argument:
+the name of a command in the current context. For example, you can
+obtain help about the \command{net node} command by typing
+\command{help node} within the \command{net} context.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{net}
+\prompt{cbgp-net>} \command{help node}
+<help should be displayed here>
+\prompt{cbgp-net>}
+\end{Verbatim}
+
+To display the requested help file, the \application{less} utility is
+used. You can use the up/down arrow keys to travel through the help
+file. You can also perform searches through the help file using the
+'/' key. Finally, you can quit the help by using the 'q' key. Please
+refer to the documentation of \application{less} if you need more
+information (i.e. use \command{man less}).
+
+The following screen capture illustrates the content of the help file
+for command \command{net add node}.
+
+\begin{Verbatim}[commandchars=\\\{\},fontsize=\small,frame=single]
+C-BGP Documentation              User's manual             C-BGP Documentation
+
+\textbf{NAME}
+     net add node -- add a node to the topology
+
+\textbf{SYNOPSIS}
+     node <\underline{addr}>
+
+\textbf{ARGUMENTS}
+     <\underline{addr}> address (identifier) of the new node
+
+\textbf{DESCRIPTION}
+     This command adds a new node to the topology. The node is identified by
+     its IP address. This address must be unique. When created, a new node
+     only supports IP routing as well as a simplified ICMP protocol. If you
+     want to add support for the BGP protocol, consider using the \textbf{bgp add}
+     \textbf{router} command.
+
+     Example:
+
+
+     net add node 1.0.0.1
+     net add node 1.0.0.2
+/usr/local/share/doc/cbgp/txt/net_add_node.txt 
+\end{Verbatim}
+
+%--------------------------------------------------------------------
+\section{Command-line history}
+\label{sec:user-interface-history}
+%--------------------------------------------------------------------
+
+In recent versions of \application{C-BGP}\footnote{This should be
+  working since version 1.1.18. This feature requires that
+  \application{C-BGP} be compiled with the \application{libreadline}
+  library.}
+, every time you enter a command in
+interactive mode, it is registered in \application{C-BGP}'s
+history. Using the up/down arrows on your keyboard, you can retrieve
+past commands. The history of commands can be automatically stored in
+a file and reloaded at the next execution.
+
+The behaviour of the \application{C-BGP}'s history can be altered by
+defining or re-defining two environment variables. These environment
+variables control how the command-line history is stored in a
+file. They are described in Table~\ref{tab:user-interface-envar}.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|l|p{8cm}|}
+\hline
+{\bf Environment variable} & {\bf Description}\\
+\hline
+\hline
+\envar{CBGP\_HISTFILE} &
+  If the \envar{CBGP\_HISTFILE} environment variable is defined but is
+  empty, \application{C-BGP} will load the command-line history from a
+  file named \filename{\~{}/.cbgp\_history}. If \envar{CBGP\_HISTFILE}
+  is not empty, the default file name is replaced by the environment
+  variable's value.\\
+\hline
+\envar{CBGP\_HISTFILESIZE} &
+  The \envar{CBGP\_HISTFILESIZE} environment variable can be defined
+  in order to limit the number of lines that will be loaded from the
+  history file. The value of \envar{CBGP\_HISTFILESIZE} must be a
+  positive integer value.\\
+\hline
+\end{tabular}
+\caption{Command-line history environment
+  variables.\label{tab:user-interface-envar}}
+\end{center}
+\end{table}
+
+%--------------------------------------------------------------------
+\section{Script mode}
+\label{sec:user-interface-script}
+%--------------------------------------------------------------------
+
+This section describes the behaviour of \application{C-BGP} when it is
+run in {\bf script mode}. This mode allows to run long lists of
+commands from a script file and directly obtain the result of these
+commands from \application{C-BGP}'s standard output.
+
+The same \application{C-BGP} commands can be used in interactive mode
+and script mode. The behaviour of these commands will be identical in
+both modes. However, in script mode, errors are not tolerated and the
+processing of the script file will be terminated as soon as an error
+is detected.
+
+Usually, a script is organized as follows. The first part of the
+script builds the network topology, i.e. creates nodes and links. The
+second part of the script configures basic IP routing, i.e. sets up
+static routes and/or configures IGP domains and IGP weights. The third
+part of the script enables BGP routers, configures BGP sessions,
+routing filters and originates networks. The simulation is then
+run. The final part reads the results of the simulation: looks into
+the routers routing tables, traces path from one router to another,
+and so on.
+
+There is however no specific organization imposed by
+\application{C-BGP} on the structure of the scripts except that
+commands that rely on the existence of a given object in the
+simulation must no appear before the commands that create this object.
+
+Here is a short script example that illustrates the organization
+proposed in the above paragraphs:
+
+\begin{Verbatim}[commandchars=\\\{\}]
+# 1). Create topology
+\command{net add node 1.0.0.0}
+\command{net add node 1.0.0.1}
+\command{net add link 1.0.0.0 1.0.0.1}
+# 2). Setup IP routing
+\command{net add domain 1 igp}
+\command{net node 1.0.0.0 domain 1}
+\command{net node 1.0.0.1 domain 1}
+\command{net link 1.0.0.0 1.0.0.1 igp-weight --bidir 10}
+\command{net domain 1 compute}
+# 3). Setup BGP routing
+\command{bgp add router 1 1.0.0.0}
+\command{bgp router 1.0.0.0}
+\command{  add network 10.0/16}
+\command{  add peer 1 1.0.0.1}
+\command{  peer 1.0.0.1 up}
+\command{  exit}
+\command{bgp add router 1 1.0.0.1}
+\command{bgp router 1.0.0.1}
+\command{  add peer 1 1.0.0.0}
+\command{  peer 1.0.0.0 up}
+\command{  exit}
+# 4). Run simulation
+\command{sim run}
+# 5). Explore simulation results
+\command{bgp router 1.0.0.1 show rib *}
+\end{Verbatim}
+
+%--------------------------------------------------------------------
+\section{Error handling}
+\label{sec:user-interface-error}
+%--------------------------------------------------------------------
+
+The input provided by the user might not be acceptable by the
+command-line interpreter or might be erroneous. For this reason,
+\application{C-BGP} will provide error messages to help the
+user identify and fix the issue. This section will help to make these
+messages more meaningful.
+
+As a first example, let's take the case where an unknown command name
+``foo'' is provided at the command prompt. \application{C-BGP} will
+return the following error message as ``foo'' is not a supported
+command:
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{foo}
+Error: unknown command
+ +-- input : \command{foo}
+ +-- expect: bgp chdir define include net pause print require set show sim time 
+\prompt{cbgp> }
+\end{Verbatim}
+
+In the above case, the error message informs that ``foo'' is an
+\texttt{unknown command} in the current context. It also informs about
+valid commands in this context (the \texttt{expect} part). For
+example, if the user had typed ``bgp'', \application{C-BGP} would
+probably have been happy with that. The error message also informs of
+the location of the error. This location is shown in bold in the
+\texttt{input} part. In the above example, ``foo'' is the 
+offending word. But it could be different. Consider for example the
+case where the user types ``bgp foo''.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{cbgp>} \command{bgp foo}
+Error: unknown command
+ +-- input : bgp \command{foo}
+ +-- expect: add domain export link links node ntf show subnet traffic
+\prompt{cbgp> }
+\end{Verbatim}
+
+In this example, the first word ``bgp'' was accepted by
+\application{C-BGP} as it corresponds to the valid \command{bgp}
+command, but the second word ``foo'' was rejected as ``foo'' is not a
+subcommand of \command{bgp}. This is reported in the error message
+where \application{C-BGP} shows that the offending word is ``foo'' in
+the \texttt{input} part of the error message.
+
+Errors reported by \application{C-BGP} can have different
+causes. Table~\ref{tab:user-interface-errors} provides a summary of
+the possible command-line interpreter errors.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|l|p{8cm}|}
+\hline
+{\bf Error message} & {\bf Description}\\
+\hline
+\hline
+{\bf unknown command} &
+  The name used by the user does not correspond to a known command.\\
+\hline
+{\bf missing argument} &
+  A command requires an argument that was not provided by the user.\\
+\hline
+{\bf too many arguments (vararg)} &
+  A command that accepts a variable number of arguments has received
+  more arguments than it can accept.\\
+\hline
+{\bf not a command} &
+  The name used by the user is recognized by the command-line
+  interpreter but it is not an executable command.\\
+\hline
+{\bf command failed} &
+  The execution of a command failed. When this message is provided, it
+  is usually accompanied by a more specific message that explains why
+  the command failed.\\
+\hline
+{\bf bad argument value} &
+  A command was provided with an invalid argument value.\\
+\hline
+{\bf unable to create context} &
+  \\
+\hline
+{\bf unknown option} &
+  An unknown option name was provided to a command.\\
+\hline
+{\bf missing option value} &
+  An option was provided to a command, but no value was provided for
+  this option.\\
+\hline
+{\bf option does not take a value} &
+  An option was provided to a command along with a value but this
+  option does not take a value.\\
+\hline
+{\bf syntax error} &
+  The command-line interpreter was not able to analyse the user
+  input.\\
+\hline
+{\bf completion could not be performed} &
+  This should only occur in interactive mode. The user tried to use
+  the auto-completion feature (usually by typing the <tabulation>
+  several times), but no completion could be done.\\
+\hline
+{\bf input line too long} &
+  The current input line is too long. The maximum length of an input
+  line is 1024 characters.\\
+\hline
+%\item[command prohibited in the current context] 
+{\bf error} &
+  An error occurred, but it does not correspond to any of the above
+  cases. Please contact the developpers.\\
+\hline
+{\bf unexpected error} &
+  The command could not be parsed or executed due to an unexpected
+  error. Please contact the developpers.\\
+\hline
+\end{tabular}
+\caption{List of command-line interpreter errors.\label{tab:user-interface-errors}}
+\end{center}
+\end{table}
+
+When an error is found in a script, the error message reports the line
+where the error occurred. This behaviour is available in script mode
+and in interactive mode when the
+\hyperref[cmd:include]{\command{include}} command is used. The
+following example illustrates this situation. A simple script file
+that contains an error is executed (can you spot the error ?).
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\command{net add node 1.0.0.0}
+\command{net add node 1.0.0.1}
+\command{net add link 1.0.0.0 1.0.0.2}
+\end{Verbatim}
+
+When the above script is executer, \application{C-BGP} reports the
+error along with the line where it occurred. In this case, the error
+is located in line 3. The command tries to create a link between nodes
+1.0.0.0 and 1.0.0.2. The later node does not exist.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{cbgp -c script.cli}
+Error: command failed
+ +-- line  : 3
+ +-- reason: tail-end "1.0.0.2" does not exist.
+\prompt{bash\$}
+\end{Verbatim}
