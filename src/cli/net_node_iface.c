@@ -175,6 +175,7 @@ static int cli_iface_load_show(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   net_iface_t * iface= _iface_from_context(ctx);
   net_link_dump_load(gdsout, iface);
+  stream_printf(gdsout, "\n");
   return CLI_SUCCESS;
 }
 
