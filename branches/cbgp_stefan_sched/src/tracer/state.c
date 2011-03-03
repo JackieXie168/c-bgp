@@ -47,7 +47,6 @@ routing_info_t * _routing_info_create(net_node_t * node)
 
   //info->bgp_router_loc_rib_t = ;
   //info->bgp_router_peers = ;
-  //info->node_rt_t = ;
   
 
   return info;
@@ -84,7 +83,7 @@ routing_state_t * _routing_state_create(state_t * state)
 
 static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_routinginfo_t * coupleNR)
 {
-    stream_printf(stream, " " );
+    stream_printf(stream, " Node : %d" ,  );
 }
 
 
