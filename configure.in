@@ -466,7 +466,8 @@ AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 TESTS="src/checks/basic"
 
 #CFLAGS="$CFLAGS -Wall -Werror -O2"
-CFLAGS="$CFLAGS -Wall -O2"
+#CFLAGS="$CFLAGS -Wall -O2"
+CFLAGS="$CFLAGS -O2"
 AC_SUBST(CFLAGS)
 
 AC_OUTPUT(
