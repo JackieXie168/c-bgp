@@ -473,6 +473,21 @@ as_level_link_t * aslevel_as_get_link(as_level_domain_t * domain1,
   return NULL;
 }
 
+// -----[ aslevel_as_get_link_by_index ]-----------------------------
+as_level_link_t * aslevel_as_get_link_by_index(as_level_domain_t * domain,
+					       int index)
+{
+  if (index < ptr_array_length(domain->neighbors))
+    return domain->neighbors->data[index];
+  return NULL;
+}
+
+// -----[ aslevel_as_get_num_links ]-------------------------------
+unsigned int aslevel_as_get_num_links(as_level_domain_t * domain)
+{
+  return ptr_array_length(domain->neighbors);
+}
+
 // -----[ aslevel_link_get_peer_type ]-------------------------------
 peer_type_t aslevel_link_get_peer_type(as_level_link_t * link)
 {
@@ -796,9 +811,9 @@ static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
   return router;
 }
 
-// -----[ _aslevel_build_bgp_session ]-------------------------------
-static inline int _aslevel_build_bgp_session(bgp_router_t * router1,
-					     bgp_router_t * router2)
+// -----[ _aslevel_build_link ]--------------------------------------
+static inline int
+_aslevel_build_link(bgp_router_t * router1, bgp_router_t * router2)
 {
   net_node_t * node1= router1->node;
   net_node_t * node2= router2->node;
@@ -827,11 +842,19 @@ static inline int _aslevel_build_bgp_session(bgp_router_t * router1,
   prefix.mask= 32;
   assert(!node_rt_add_route(node2, prefix, net_iface_id_addr(node1->rid),
 			    node1->rid, weight, NET_ROUTE_STATIC));
+  return 0;
+}
+
+// -----[ _aslevel_build_bgp_session ]-------------------------------
+static inline int
+_aslevel_build_bgp_session(bgp_router_t * router1,
+			   bgp_router_t * router2,
+			   bgp_peer_t ** peer)
+{
+  net_node_t * node2= router2->node;
   
-  // Setup peering relations in both directions
-  if (bgp_router_add_peer(router1, router2->asn, node2->rid, NULL) != 0)
-    return -1;
-  if (bgp_router_add_peer(router2, router1->asn, node1->rid, NULL) != 0)
+  // Setup peering relations in bothsingle direction
+  if (bgp_router_add_peer(router1, router2->asn, node2->rid, peer) != 0)
     return -1;
 
   return 0;
@@ -841,7 +864,8 @@ static inline int _aslevel_build_bgp_session(bgp_router_t * router1,
 int aslevel_topo_build_network(as_level_topo_t * topo)
 {
   unsigned int index, index2;
-  as_level_domain_t * domain, * neighbor;
+  as_level_domain_t * domain1, * domain2;
+  as_level_link_t * neighbor;
   net_addr_t addr;
   bgp_router_t * router;
 
@@ -852,10 +876,10 @@ int aslevel_topo_build_network(as_level_topo_t * topo)
   // *   Check that none of the routers already exist   *
   // ****************************************************
   for (index= 0; index < ptr_array_length(topo->domains); index++) {
-    domain= (as_level_domain_t *) topo->domains->data[index];
+    domain1= (as_level_domain_t *) topo->domains->data[index];
 
     // Determine node addresses (identifiers)
-    addr= topo->addr_mapper(domain->asn);
+    addr= topo->addr_mapper(domain1->asn);
 
     // Check that node doesn't exist
     if (network_find_node(network_get_default(), addr) != NULL)
@@ -866,35 +890,39 @@ int aslevel_topo_build_network(as_level_topo_t * topo)
   // *   Create all nodes/routers   *
   // ********************************
   for (index= 0; index < ptr_array_length(topo->domains); index++) {
-    domain= (as_level_domain_t *) topo->domains->data[index];
+    domain1= (as_level_domain_t *) topo->domains->data[index];
 
     // Determine node addresses (identifiers)
-    addr= topo->addr_mapper(domain->asn);
+    addr= topo->addr_mapper(domain1->asn);
 
     // Find/create AS1's node
-    router= _aslevel_build_bgp_router(addr, domain->asn);
+    router= _aslevel_build_bgp_router(addr, domain1->asn);
     if (router == NULL)
       return ASLEVEL_ERROR_UNEXPECTED;
 
-    domain->router= router;
+    domain1->router= router;
   }
 
   // *********************************
   // *   Create all links/sessions   *
   // *********************************
   for (index= 0; index < ptr_array_length(topo->domains); index++) {
-    domain= (as_level_domain_t *) topo->domains->data[index];
+    domain1= (as_level_domain_t *) topo->domains->data[index];
 
-    for (index2= 0; index2 < ptr_array_length(domain->neighbors);
+    for (index2= 0; index2 < ptr_array_length(domain1->neighbors);
 	 index2++) {
-      neighbor= ((as_level_link_t *) domain->neighbors->data[index2])->neighbor;
+      neighbor= (as_level_link_t *) domain1->neighbors->data[index2];
+      domain2= neighbor->neighbor;
 
-      if (domain->asn < neighbor->asn)
-	continue;
+      if (domain1->asn < domain2->asn)
+	if (_aslevel_build_link(domain1->router, domain2->router) != 0)
+	  return ASLEVEL_ERROR_UNEXPECTED;
 
-      if (_aslevel_build_bgp_session(domain->router,
-				     neighbor->router) != 0)
+      if (_aslevel_build_bgp_session(domain1->router,
+				     domain2->router,
+				     &neighbor->peer) != 0)
 	return ASLEVEL_ERROR_UNEXPECTED;
+
     }
   }
 

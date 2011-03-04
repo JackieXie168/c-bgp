@@ -446,7 +446,7 @@ void cli_register_bgp_router_peer(cli_cmd_t * parent)
   group= cli_add_cmd(parent, cli_cmd_ctx("peer",
 					 cli_ctx_create_peer,
 					 cli_ctx_destroy_peer));
-  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_bgp_peers_addr));
+  cli_add_arg(group, cli_arg2("addr", NULL, cli_enum_bgp_peers_addr_id));
   _register_peer_filter(group);
   _register_peer_show(group);
   cmd= cli_add_cmd(group, cli_cmd("down", cli_peer_down));

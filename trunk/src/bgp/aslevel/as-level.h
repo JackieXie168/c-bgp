@@ -102,8 +102,8 @@ extern "C" {
   int aslevel_topo_remove_as(as_level_topo_t * topo, asn_t asn);
 
   // -----[ aslevel_top_get_as ]-------------------------------------
-  as_level_domain_t *  aslevel_topo_get_as(as_level_topo_t * topo,
-					   uint16_t asn);
+  as_level_domain_t * aslevel_topo_get_as(as_level_topo_t * topo,
+					  uint16_t asn);
   // -----[ aslevel_as_num_providers ]-------------------------------
   unsigned int aslevel_as_num_providers(as_level_domain_t * domain);
   // -----[ aslevel_as_add_link ]------------------------------------
@@ -114,6 +114,12 @@ extern "C" {
   // -----[ aslevel_as_get_link ]------------------------------------
   as_level_link_t * aslevel_as_get_link(as_level_domain_t * domain1,
 				      as_level_domain_t * domain2);
+  // -----[ aslevel_as_get_link_by_index ]-----------------------------
+  as_level_link_t * aslevel_as_get_link_by_index(as_level_domain_t * domain,
+						 int index);
+  // -----[ aslevel_as_get_num_links ]-------------------------------
+  unsigned int aslevel_as_get_num_links(as_level_domain_t * domain);
+
   // -----[ aslevel_link_get_peer_type ]-----------------------------
   peer_type_t aslevel_link_get_peer_type(as_level_link_t * link);
 
