@@ -34,11 +34,31 @@
 #define IP4_ADDR_STR_LEN 16
 
 static bgp_router_t * _ctx_bgp_router= NULL;
+static as_level_domain_t * _ctx_as= NULL;
 
 // -----[ cli_enum_ctx_bgp_router ]----------------------------------
 void cli_enum_ctx_bgp_router(bgp_router_t * router)
 {
+  as_level_topo_t * topo;
+
+  // Check if this router's ASN has a corresponding AS-level node
+  if (router != _ctx_bgp_router) {
+    if (router == NULL) {
+      _ctx_as= NULL;
+      return;
+    }
+
+    topo= aslevel_get_topo();
+    if (topo == NULL) {
+      _ctx_as= NULL;
+      return;
+    }
+
+    _ctx_as= aslevel_topo_get_as(topo, router->asn);
+  }
+
   _ctx_bgp_router= router;
+
 }
 
 // -----[ cli_enum_as_level_domains ]--------------------------------
@@ -128,6 +148,29 @@ bgp_router_t * cli_enum_bgp_routers(const char * text, int state)
   return NULL;
 }
 
+bgp_peer_t * cli_enum_aslevel_links(const char * text, int state)
+{
+  static unsigned int index= 0;
+  char str_asn[ASN_STR_LEN];
+  as_level_link_t * link;
+
+  if (_ctx_as == NULL)
+    return NULL;
+
+  if (state == 0)
+    index= 0;
+
+  while (index < aslevel_as_get_num_links(_ctx_as)) {
+    link= aslevel_as_get_link_by_index(_ctx_as, index++);
+    assert(snprintf(str_asn, ASN_STR_LEN, "%u", link->neighbor->asn) >= 0);
+    index++;
+    if (!strncmp(text, str_asn, strlen(text)))
+      return link;
+  }
+
+  return NULL;
+}
+
 // -----[ cli_enum_bgp_peers ]---------------------------------------
 bgp_peer_t * cli_enum_bgp_peers(const char * text, int state)
 {
@@ -162,12 +205,33 @@ char * cli_enum_net_nodes_addr(const char * text, int state)
   return NULL;
 }
 
-// -----[ cli_enum_as_level_domains_addr ]---------------------------
+// -----[ cli_enum_aslevel_links_addr ]------------------------------
 /**
- * Enumerate all the IP addresses of nodes corresponding to a partial
+ * Enumerate all the IP addresses of peers corresponding to a partial
  * ASN ("AS" + xxx).
  */
-char * cli_enum_as_level_domains_addr(const char * text, int state)
+char * cli_enum_aslevel_links_addr(const char * text, int state)
+{
+  char asn_addr[ASN_STR_LEN+2];
+  as_level_link_t * link= NULL;
+  
+  while ((link= cli_enum_aslevel_links(text, state++)) != NULL) {
+    if (link == NULL)
+      continue;
+    asn_addr[0]= 'A';
+    asn_addr[1]= 'S';
+    assert(snprintf(asn_addr+2, sizeof(asn_addr)-2, "%u", link->neighbor->asn) >= 0);
+    return strdup(asn_addr);
+  }
+  return NULL;
+}
+
+// -----[ cli_enum_aslevel_domains_addr ]----------------------------
+/**
+ * Enumerate all the IP addresses of routers corresponding to a partial
+ * ASN ("AS" + xxx).
+ */
+char * cli_enum_aslevel_domains_addr(const char * text, int state)
 {
   char asn_addr[ASN_STR_LEN+2];
   as_level_domain_t * domain= NULL;
@@ -190,7 +254,7 @@ char * cli_enum_net_nodes_addr_id(const char * text, int state)
 {
   if (strncmp("AS", text, 2))
     return cli_enum_net_nodes_addr(text, state);
-  return cli_enum_as_level_domains_addr(text+2, state);
+  return cli_enum_aslevel_domains_addr(text+2, state);
 }
 
 // -----[ cli_enum_bgp_routers_addr ]--------------------------------
@@ -215,7 +279,7 @@ char * cli_enum_bgp_routers_addr_id(const char * text, int state)
 {
   if (strncmp("AS", text, 2))
     return cli_enum_bgp_routers_addr(text, state);
-  return cli_enum_as_level_domains_addr(text+2, state);
+  return cli_enum_aslevel_domains_addr(text+2, state);
 }
 
 // -----[ cli_enum_bgp_peers_addr ]----------------------------------
@@ -237,6 +301,14 @@ char * cli_enum_bgp_peers_addr(const char * text, int state)
     return strdup(str_addr);
   }
   return NULL;
+}
+
+// -----[ cli_enum_bgp_peers_addr_id ]-----------------------------
+char * cli_enum_bgp_peers_addr_id(const char * text, int state)
+{
+  if (strncmp("AS", text, 2))
+    return cli_enum_bgp_peers_addr(text, state);
+  return cli_enum_aslevel_links_addr(text+2, state);
 }
 
 // -----[ cli_enum_net_node_ifaces_addr ]----------------------------

@@ -38,6 +38,8 @@ extern "C" {
   char * cli_enum_bgp_routers_addr_id(const char * text, int state);
   // -----[ cli_enum_bgp_peers_addr ]--------------------------------
   char * cli_enum_bgp_peers_addr(const char * text, int state);
+  // -----[ cli_enum_bgp_peers_addr_id ]--------------------------------
+  char * cli_enum_bgp_peers_addr_id(const char * text, int state);
 
   // -----[ cli_enum_ctx_bgp_router ]--------------------------------
   void cli_enum_ctx_bgp_router(bgp_router_t * router);

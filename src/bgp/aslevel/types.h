@@ -37,6 +37,7 @@ typedef struct as_level_domain_t {
 /** Definition of an AS-level relationship. */
 typedef struct as_level_link {
   as_level_domain_t * neighbor;
+  bgp_peer_t        * peer;
   peer_type_t         peer_type;
 } as_level_link_t;
 
