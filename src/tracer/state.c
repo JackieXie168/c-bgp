@@ -31,23 +31,67 @@
 
 #include <libgds/trie.h>
 
+#include "state.h"
+
 
 
 static int state_next_available_id= 0;
 
+bgp_session_info_t * _one_session_info_create( ... )
+{
 
+    bgp_session_info_t * thesessioninfo = M%ALLOC
+
+
+    return thesessioninfo;
+}
+
+bgp_session_info_t ** _bgp_sessions_info_create(net_node_t * node)
+{
+    bgp_session_info_t ** sessions_info;
+
+    //pour chaque peer, creer le bgp_session_info
+    bgp_peer_t * peer;
+    unsigned int index;
+    net_protocol_t * protocol;
+    bgp_router_t * router;
+    
+    protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
+    if (protocol == NULL)
+    {
+        printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
+        return NULL;
+        
+    }
+    router = (bgp_router_t *) protocol->handler;
+
+
+    sessions_info = (bgp_session_info_t **) MALLOC( bgp_peers_size( router->peers) * sizeof(bgp_session_info_t *) );
+
+    for (index= 0; index < bgp_peers_size( router->peers); index++) {
+        peer= bgp_peers_at(router->peers, index);
+
+        sessions_info[index] = _one_session_info_create( ... );
+
+
+    }
+
+
+    return  sessions_info;
+}
 
 routing_info_t * _routing_info_create(net_node_t * node)
 {
-  routing_info_t * info = (routing_info_t *) MALLOC(sizeof(routing_info_t));
+  routing_info_t * info = (routing_info_t *) MALLOC( sizeof(routing_info_t) );
 
 
-  info->node_rt_t = rt_deep_copy(node->rt);
-
+  //info->node_rt_t = rt_deep_copy(node->rt);
 
   //info->bgp_router_loc_rib_t = ;
+
   //info->bgp_router_peers = ;
   
+  info->bgp_sessions_info_t = _bgp_sessions_info_create(node);
 
   return info;
 }
@@ -83,7 +127,7 @@ routing_state_t * _routing_state_create(state_t * state)
 
 static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_routinginfo_t * coupleNR)
 {
-    stream_printf(stream, " Node : %d" ,  );
+    stream_printf(stream, " Node : %d" , coupleNR->node->rid );
 }
 
 
