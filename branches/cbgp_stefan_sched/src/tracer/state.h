@@ -31,7 +31,13 @@ struct state_t;
 typedef struct bgp_session_info_t{
    unsigned int          send_seq_num;
    unsigned int          recv_seq_num;
-   bgp_rib_t           * adj_rib[RIB_MAX];  
+   bgp_route_t **        adj_rib_IN_routes;
+   bgp_route_t **        adj_rib_OUT_routes;
+   unsigned int          nb_adj_rib_in_routes;
+   unsigned int          nb_adj_rib_out_routes;
+
+   //bgp_rib_t           * adj_rib[RIB_MAX];
+   
 }bgp_session_info_t;
 
 typedef struct routing_info_t{
