@@ -43,7 +43,7 @@ bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
     bgp_session_info_t * thesessioninfo = (bgp_session_info_t *) MALLOC( sizeof(bgp_session_info_t) );
     thesessioninfo->recv_seq_num=peer->recv_seq_num;
     thesessioninfo->send_seq_num=peer->send_seq_num;
-
+    thesessioninfo->neighbor_addr=peer->addr;
 
     thesessioninfo->adj_rib_IN_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_IN])->data ;
     thesessioninfo->adj_rib_OUT_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_OUT])->data ;
@@ -51,14 +51,12 @@ bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
     thesessioninfo->nb_adj_rib_in_routes = trie_num_nodes(peer->adj_rib[RIB_IN],1);
     thesessioninfo->nb_adj_rib_out_routes = trie_num_nodes(peer->adj_rib[RIB_OUT],1);
 
-
-
     return thesessioninfo;
 }
 
-bgp_session_info_t ** _bgp_sessions_info_create(net_node_t * node)
+bgp_sessions_info_t * _bgp_sessions_info_create(net_node_t * node)
 {
-    bgp_session_info_t ** sessions_info;
+    bgp_sessions_info_t * sessions_info = (bgp_sessions_info_t *) MALLOC(sizeof(bgp_sessions_info_t) );
 
     //pour chaque peer, creer le bgp_session_info
     bgp_peer_t * peer;
@@ -70,24 +68,59 @@ bgp_session_info_t ** _bgp_sessions_info_create(net_node_t * node)
     if (protocol == NULL)
     {
         printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
-        return NULL;
-        
+        return NULL;        
     }
     router = (bgp_router_t *) protocol->handler;
 
-
-    sessions_info = (bgp_session_info_t **) MALLOC( bgp_peers_size( router->peers) * sizeof(bgp_session_info_t *) );
+    sessions_info->bgp_session_info = (bgp_session_info_t **) MALLOC( bgp_peers_size( router->peers) * sizeof(bgp_session_info_t *) );
+    sessions_info->nb_bgp_session_info_ = bgp_peers_size( router->peers);
 
     for (index= 0; index < bgp_peers_size( router->peers); index++) {
         peer= bgp_peers_at(router->peers, index);
-
-        sessions_info[index] = _one_session_info_create(peer);
-
-
+        sessions_info->bgp_session_info[index] = _one_session_info_create(peer);
     }
-
-
     return  sessions_info;
+}
+
+static void _bgp_one_session_info_dump(gds_stream_t * stream, bgp_session_info_t * bgp_session_info)
+{/*
+   net_addr_t            neighbor_addr;
+
+       unsigned int          send_seq_num;
+   unsigned int          recv_seq_num;
+   bgp_route_t **        adj_rib_IN_routes;
+   bgp_route_t **        adj_rib_OUT_routes;
+   unsigned int          nb_adj_rib_in_routes;
+   unsigned int          nb_adj_rib_out_routes;
+  * */
+    unsigned int index;
+   stream_printf(stream, "\t\t\tpeer :" );
+         ip_address_dump(stream, bgp_session_info->neighbor_addr);
+         stream_printf(stream, "\n" );
+   stream_printf(stream, "\t\t\t\ttcp send/recv seq num : %d/%d\n",bgp_session_info->send_seq_num , bgp_session_info->recv_seq_num );
+   stream_printf(stream, "\t\t\t\tAdj-Rib IN : \n");
+   for (index= 0; index < bgp_session_info->nb_adj_rib_in_routes; index++) {
+       stream_printf(stream, "\t\t\t\t\t");
+       route_dump(stream, bgp_session_info->adj_rib_IN_routes[index]);
+       stream_printf(stream, "\n");
+   }
+   stream_printf(stream, "\t\t\t\tAdj-Rib OUT : \n");
+   for (index= 0; index < bgp_session_info->nb_adj_rib_out_routes; index++) {
+       stream_printf(stream, "\t\t\t\t\t");
+       route_dump(stream, bgp_session_info->adj_rib_OUT_routes[index]);
+       stream_printf(stream, "\n");
+   }
+
+}
+
+static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t * sessions_info)
+{
+     stream_printf(stream, "\t\t\tBGP sessions \n");
+    //pour chaque session, afficher les rib in et out :
+    unsigned int index;
+    for (index= 0; index < sessions_info->nb_bgp_session_info_; index++) {
+        _bgp_one_session_info_dump(stream,sessions_info->bgp_session_info[index]);
+    }
 }
 
 routing_info_t * _routing_info_create(net_node_t * node)
@@ -101,10 +134,18 @@ routing_info_t * _routing_info_create(net_node_t * node)
 
   //info->bgp_router_peers = ;
   
-  info->bgp_sessions_info_t = _bgp_sessions_info_create(node);
+  info->bgp_sessions_info = _bgp_sessions_info_create(node);
 
   return info;
 }
+
+static void _routing_info_dump(gds_stream_t * stream, routing_info_t * info )
+{
+     //stream_printf(stream, " Node : %d" , coupleNR->node->rid );
+     _bgp_sessions_info_dump(stream,info->bgp_sessions_info);
+
+}
+
 couple_node_routinginfo_t * _couple_node_routinginfo_create(net_node_t * node)
 {
  couple_node_routinginfo_t * couple;
@@ -137,12 +178,17 @@ routing_state_t * _routing_state_create(state_t * state)
 
 static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_routinginfo_t * coupleNR)
 {
-    stream_printf(stream, " Node : %d" , coupleNR->node->rid );
+    stream_printf(stream, "\t\tNode : " );
+    node_dump_id(stream,coupleNR->node);
+    stream_printf(stream, "\n" );
+
+    _routing_info_dump(stream,coupleNR->routing_info);
 }
 
 
 static void _routing_state_dump(gds_stream_t * stream, routing_state_t * routing_state)
 {
+  stream_printf(stream, "\tRouting State : \n");
   unsigned int i = 0;
   for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
   {
@@ -280,7 +326,7 @@ int state_dump(gds_stream_t * stream, state_t * state)
     stream_printf(stream, "State id : %d\n",state->id);
 
     _queue_state_dump(stream,state->queue_state);
-    //_routing_state_dump(stream,state->routing_state);
+    _routing_state_dump(stream,state->routing_state);
     return 1;
 }
 
