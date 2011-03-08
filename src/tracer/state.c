@@ -37,10 +37,20 @@
 
 static int state_next_available_id= 0;
 
-bgp_session_info_t * _one_session_info_create( ... )
+bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
 {
 
-    bgp_session_info_t * thesessioninfo = M%ALLOC
+    bgp_session_info_t * thesessioninfo = (bgp_session_info_t *) MALLOC( sizeof(bgp_session_info_t) );
+    thesessioninfo->recv_seq_num=peer->recv_seq_num;
+    thesessioninfo->send_seq_num=peer->send_seq_num;
+
+
+    thesessioninfo->adj_rib_IN_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_IN])->data ;
+    thesessioninfo->adj_rib_OUT_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_OUT])->data ;
+
+    thesessioninfo->nb_adj_rib_in_routes = trie_num_nodes(peer->adj_rib[RIB_IN],1);
+    thesessioninfo->nb_adj_rib_out_routes = trie_num_nodes(peer->adj_rib[RIB_OUT],1);
+
 
 
     return thesessioninfo;
@@ -71,7 +81,7 @@ bgp_session_info_t ** _bgp_sessions_info_create(net_node_t * node)
     for (index= 0; index < bgp_peers_size( router->peers); index++) {
         peer= bgp_peers_at(router->peers, index);
 
-        sessions_info[index] = _one_session_info_create( ... );
+        sessions_info[index] = _one_session_info_create(peer);
 
 
     }
