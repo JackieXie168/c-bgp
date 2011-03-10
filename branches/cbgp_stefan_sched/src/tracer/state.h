@@ -46,10 +46,15 @@ typedef struct bgp_sessions_info_t{
    bgp_session_info_t ** bgp_session_info;
 }bgp_sessions_info_t;
 
+typedef struct local_rib_info_t{
+   unsigned int          nb_local_rib_elem;
+   bgp_route_t ** bgp_route_;
+}local_rib_info_t;
+
 typedef struct routing_info_t{
    net_rt_t        * node_rt_t;
    bgp_rib_t    *  bgp_router_loc_rib_t;
-   bgp_peers_t         * bgp_router_peers;
+   //bgp_peers_t         * bgp_router_peers;
    bgp_sessions_info_t * bgp_sessions_info;
 }routing_info_t;
 
