@@ -48,11 +48,15 @@ extern "C" {
 
     int FOR_TESTING_PURPOSE_graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
     int FOR_TESTING_PURPOSE_graph_current_state_dump(gds_stream_t * stream, graph_t * graph);
-    int FOR_TESTING_PURPOSE_graph_allstates_dump(gds_stream_t * stream, graph_t * graph);
-    int FOR_TESTING_PURPOSE_graph_inject_state(graph_t * graph , unsigned int num_state);
+    int graph_allstates_dump(gds_stream_t * stream, graph_t * graph);
+    //int FOR_TESTING_PURPOSE_graph_inject_state(graph_t * graph , unsigned int num_state);
 
     int graph_inject_state(graph_t * graph , unsigned int num_state);
     int graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
+
+
+    void graph_export_dot(gds_stream_t * stream, graph_t * graph);
+
 
 #ifdef	__cplusplus
 }

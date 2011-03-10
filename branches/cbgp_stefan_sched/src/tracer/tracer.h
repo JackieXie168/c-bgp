@@ -50,11 +50,12 @@ extern "C" {
 
    
    
+    int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state_id, unsigned int transition_id );
 
 
    int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self);
 
-   int FOR_TESTING_PURPOSE_tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer);
+   int tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer);
 
    int _tracer_dump(gds_stream_t * stream, tracer_t * self);
 
@@ -68,6 +69,9 @@ extern "C" {
 
     tracer_t * tracer_get_default();
 
+
+
+     void tracer_graph_export_dot(gds_stream_t * stream,tracer_t * tracer);
 
 
 #ifdef	__cplusplus
