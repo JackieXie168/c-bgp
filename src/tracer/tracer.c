@@ -117,6 +117,9 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     //vérifier qu'on n'est pas dans un état déjà visité !
 
     state_t * new_state = state_create(self,transition);
+    // vérifier si l'état n'est pas déjà présent
+    // équivalence au niveau de la présence des event dans la queue state
+    // équivalence au niveau de la routing info 
 
 
     return 1;

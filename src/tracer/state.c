@@ -538,6 +538,28 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
     state->output_transitions[state->nb_output-1]=the_output_transition;
 }
 
+
+void state_add_input_transition(state_t * state,  struct transition_t * the_input_transition)
+{
+    // TO DO  TODO
+    // vérifier que la transition n'est pas déjà présente.
+
+
+    if(state->input_transitions == NULL)
+    {
+        assert(state->nb_input==0);
+        state->input_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
+    }
+    else
+    {
+        state->input_transitions = (struct transition_t **) REALLOC( state->input_transitions, (state->nb_input + 1) * sizeof(struct transition_t *));
+    }
+
+    state->nb_input = state->nb_input + 1 ;
+    state->input_transitions[state->nb_input-1]=the_input_transition;
+}
+
+
   struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
   {
       if( trans >= state->nb_allowed_output_transitions)
