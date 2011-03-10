@@ -143,6 +143,34 @@ static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t *
     }
 }
 
+
+local_rib_info_t * _routing_local_rib_create(net_node_t * node)
+{
+    unsigned int index;
+    net_protocol_t * protocol;
+    bgp_router_t * router;
+    local_rib_info_t * loc_rib_info = (local_rib_info_t *) MALLOC(sizeof(local_rib_info_t) );
+    bgp_route_t ** bgp_route_array ;
+
+    protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
+    if (protocol == NULL)
+    {
+        printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
+        return NULL;
+    }
+    router = (bgp_router_t *) protocol->handler;
+
+    loc_rib_info->nb_local_rib_elem = trie_num_nodes(router->loc_rib,1);
+
+    bgp_route_array = (bgp_route_t **) (_trie_get_array(router->loc_rib)->data) ;
+    loc_rib_info->bgp_route_ =  (bgp_route_t **)
+            MALLOC(loc_rib_info->nb_local_rib_elem * sizeof(bgp_route_t *) );
+    for (index= 0; index < loc_rib_info->nb_local_rib_elem; index++) {
+        loc_rib_info->bgp_route_[index] = route_copy(bgp_route_array[index]);
+    }
+    return loc_rib_info;
+}
+
 routing_info_t * _routing_info_create(net_node_t * node)
 {
   routing_info_t * info = (routing_info_t *) MALLOC( sizeof(routing_info_t) );
@@ -150,7 +178,10 @@ routing_info_t * _routing_info_create(net_node_t * node)
 
   //info->node_rt_t = rt_deep_copy(node->rt);
 
-  //info->bgp_router_loc_rib_t = ;
+  info->bgp_router_loc_rib_t = _routing_local_rib_create(node);
+
+
+
 
   //info->bgp_router_peers = ;
   
@@ -205,7 +236,6 @@ static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_rou
     _routing_info_dump(stream,coupleNR->routing_info);
 }
 
-
 static void _routing_state_dump(gds_stream_t * stream, routing_state_t * routing_state)
 {
   stream_printf(stream, "\tRouting State : \n");
@@ -246,13 +276,27 @@ static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_sess
     return 1;
 }
 
+    static int bgp_router_inject_loc_rib_info(bgp_router_t * router, local_rib_info_t * loc_rib_info)
+    {
+        unsigned int i;
+        rib_destroy(&(router->loc_rib));
+        router->loc_rib = rib_create(0);
+
+        for(i=0 ; i < loc_rib_info->nb_local_rib_elem; i++)
+        {        
+            rib_add_route(router->loc_rib, route_copy(loc_rib_info->bgp_route_[i]));
+        }
+        return i;
+    }
+
+
 
 static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing_info )
 {
     // inject bgp sessions
     bgp_sessions_info_t * sessions_info = routing_info->bgp_sessions_info;
+    local_rib_info_t * loc_rib_info = routing_info->bgp_router_loc_rib_t;
 
-    //pour chaque peer, donner les infos de session bgp
     bgp_peer_t * peer;
     unsigned int index;
     net_protocol_t * protocol;
@@ -265,6 +309,8 @@ static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing
         return NULL;
     }
     router = (bgp_router_t *) protocol->handler;
+
+    //pour chaque peer, donner les infos de session bgp
 
     if(bgp_peers_size( router->peers) != sessions_info->nb_bgp_session_info_)
     {
@@ -280,8 +326,11 @@ static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing
             return -2;
         }
         bgp_router_inject_bgp_session_information(peer,sessions_info->bgp_session_info[index]);
-
     }
+
+    // local_rib
+    bgp_router_inject_loc_rib_info(router,loc_rib_info);
+
     return index;
 }
 
