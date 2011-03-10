@@ -98,6 +98,8 @@ typedef struct  queue_state_t {
 typedef struct state_t {
   routing_state_t *    routing_state;
   queue_state_t   *    queue_state;
+  int *                allowed_output_transitions;
+  int                  nb_allowed_output_transitions;
   struct transition_t    **   output_transitions;
   struct transition_t    **   input_transitions;
   unsigned int nb_output;

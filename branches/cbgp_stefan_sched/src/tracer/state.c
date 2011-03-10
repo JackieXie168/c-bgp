@@ -103,16 +103,7 @@ bgp_sessions_info_t * _bgp_sessions_info_create(net_node_t * node)
 }
 
 static void _bgp_one_session_info_dump(gds_stream_t * stream, bgp_session_info_t * bgp_session_info)
-{/*
-   net_addr_t            neighbor_addr;
-
-       unsigned int          send_seq_num;
-   unsigned int          recv_seq_num;
-   bgp_route_t **        adj_rib_IN_routes;
-   bgp_route_t **        adj_rib_OUT_routes;
-   unsigned int          nb_adj_rib_in_routes;
-   unsigned int          nb_adj_rib_out_routes;
-  * */
+{
     unsigned int index;
    stream_printf(stream, "\t\t\tpeer :" );
          ip_address_dump(stream, bgp_session_info->neighbor_addr);
@@ -179,9 +170,6 @@ routing_info_t * _routing_info_create(net_node_t * node)
   //info->node_rt_t = rt_deep_copy(node->rt);
 
   info->bgp_router_loc_rib_t = _routing_local_rib_create(node);
-
-
-
 
   //info->bgp_router_peers = ;
   
@@ -354,8 +342,6 @@ static int _routing_state_inject(routing_state_t * routing_state)
   return i;
 }
 
-
-
 static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state)
 {
   _event_t * event;
@@ -370,7 +356,6 @@ static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state
 
   stream_printf(stream, "\tQueue State :\n\t\tNumber of events queued: %u (%u)\n",
 	     depth, max_depth);
-
           
   for (index= 0; index < depth; index++) {
     event= (_event_t *) queue_state->events->items[(start+index) % max_depth];
@@ -398,6 +383,75 @@ queue_state_t * _queue_state_create(state_t * state, sched_tunable_t * tunable_s
   queue_state->events=fifo_tunable_copy( tunable_scheduler->events , fifo_tunable_event_deep_copy   ) ;
   
   return queue_state;
+}
+
+int same_tcp_session(_event_t * event1 , _event_t * event2 )
+{
+// returns 1 if same tcp session
+// 0 otherwise
+  net_send_ctx_t * send_ctx1 = (net_send_ctx_t *) event1->ctx;
+  net_send_ctx_t * send_ctx2 = (net_send_ctx_t *) event2->ctx;
+
+  net_msg_t * msg1 = send_ctx1->msg;
+  net_msg_t * msg2 = send_ctx2->msg;
+
+  if( msg1->src_addr == msg2->src_addr && msg1->dst_addr == msg2->dst_addr)
+      return 1;
+  else
+      return 0;
+}
+
+int calcul_allowed_output_transitions(state_t * state)
+{
+    if(state->allowed_output_transitions!=NULL)
+    {
+        // already done !
+        return -1;
+    }
+
+    unsigned int max_output_transition = state->queue_state->events->current_depth;
+    
+    state->allowed_output_transitions = (int *) MALLOC( max_output_transition * sizeof(int));
+    state->nb_allowed_output_transitions = 0;
+
+    // pour chaque événement de la file :
+    //      vérifier s'il n'est pas meme source/dest qu'un message deja mis dans les allowedoutputtransition
+    //      pour chaque message dans allowed output transition
+    //          si meme src/dest , alors sortir
+    //      si pas sorti de la boucle, alors ajouter !
+
+
+    unsigned int i;
+    _event_t * event;
+    // pour chaque événement(msg) de la file
+    for (i = 0 ; i < state->queue_state->events->current_depth ; i++)
+    {
+         event = (_event_t *) fifo_tunable_get_at(state->queue_state->events->items, i);
+         //      vérifier s'il n'est pas meme source/dest qu'un message deja mis dans les allowedoutputtransition
+
+         //      pour chaque message dans allowed output transition
+         int event_a_consider = 1;
+         unsigned int j;
+         for(j = 0; event_a_consider == 1 && j < state->nb_allowed_output_transitions ; j++ )
+         {
+              // si meme src/dest , alors sortir
+             if ( 1 == same_tcp_session(event, (_event_t *)
+                     fifo_tunable_get_at(state->queue_state->events->items,
+                         state->allowed_output_transitions[j]   )))
+             {
+                 // meme tcp session ==> cet event n'est pas a considérer.
+                 event_a_consider = 0;                 
+             }
+         }
+
+         if(event_a_consider == 1)
+         {
+             //ajouter l'événement dans la liste
+             state->allowed_output_transitions[state->nb_allowed_output_transitions] = i;
+             state->nb_allowed_output_transitions = state->nb_allowed_output_transitions + 1;
+         }
+    }
+    return state->nb_allowed_output_transitions;
 }
 
 // ----- state_create ------------------------------------------------
@@ -429,6 +483,9 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   
   state->output_transitions = NULL;
   state->nb_output=0;
+
+  state->allowed_output_transitions=NULL;
+  state->nb_allowed_output_transitions=-1;
 
   graph_add_state(state->graph,state,state->id);
 
