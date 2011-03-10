@@ -31,13 +31,15 @@ typedef struct transition_t{
   struct _event_t               * event;
   struct state_t         * from;
   struct state_t         * to;
+  unsigned int          num_trans;
 } transition_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-transition_t * transition_create(  struct _event_t * event);
+transition_t * transition_create(  struct _event_t * event, unsigned int num_trans);
+transition_t * transition_create_from(  struct _event_t * event , struct state_t *from, unsigned int num_trans);
 
 
 #ifdef	__cplusplus

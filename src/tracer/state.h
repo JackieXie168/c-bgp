@@ -98,8 +98,8 @@ typedef struct  queue_state_t {
 typedef struct state_t {
   routing_state_t *    routing_state;
   queue_state_t   *    queue_state;
-  int *                allowed_output_transitions;
-  int                  nb_allowed_output_transitions;
+  unsigned int *                allowed_output_transitions;
+  unsigned int                  nb_allowed_output_transitions;
   struct transition_t    **   output_transitions;
   struct transition_t    **   input_transitions;
   unsigned int nb_output;
@@ -125,6 +125,11 @@ extern "C" {
 
     int state_inject(state_t * state);
 
+    int state_calculate_allowed_output_transitions(state_t * state);
+
+    struct transition_t * state_generate_transition(state_t * state, unsigned int trans);
+
+    int state_generate_all_transitions(state_t * state);
 
 
 #ifdef	__cplusplus

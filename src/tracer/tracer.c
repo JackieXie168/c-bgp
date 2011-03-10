@@ -31,6 +31,7 @@
 #include <tracer/transition.h>
 
 #include "tracer.h"
+#include "state.h"
 
 
 
@@ -38,6 +39,7 @@
 
 
 static tracer_t  * _default_tracer= NULL;
+
 
 int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
 {
@@ -54,7 +56,7 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
     // injecter l'état
     // ici ne rien faire car c'est juste une liste, la file n'a pas bougé
     //construire la transition avec le prochain event qui sera simulé
-    transition_t * transition = transition_create(get_event_at(tracer_get_tunable_scheduler(self), 0));
+    transition_t * transition = transition_create_from(get_event_at((struct sched_t *)tracer_get_tunable_scheduler(self),0),current_state, 0);
     state_add_output_transition(current_state,transition);
     //simuler le prochain événement.
     sim_step(tracer_get_simulator(self), 1);
@@ -68,7 +70,7 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
 
 
 
-int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int num_state, unsigned int num_event )
+int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state_id, unsigned int transition_id )
 {
     state_t * origin_state;
 
@@ -82,46 +84,40 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int num_s
     //prendre copie de l'état courant de cbgp
     //attacher cet état correctement dans le graphe.
 
-    if(num_state >= graph_max_num_state())
+    if(state_id >= graph_max_num_state())
     {
         printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
         return -1;
     }
     assert(self->graph->list_of_states != NULL );
-    origin_state = self->graph->list_of_states[num_state];
+    origin_state = self->graph->list_of_states[state_id];
     if(origin_state == NULL)
     {
         printf("Unexisting state !\n");
         return -1;
     }
 
-    //// continue from here !!!!
+    state_inject(origin_state);
+
+    transition_t * transition = state_generate_transition(origin_state,transition_id);
+    // TO DO TODO
+    //vérifier que la transition n'a pas déjà été visitée !
+    // transition->to == NULL
 
 
-   //////////////////////
+    unsigned int num_event =  origin_state->allowed_output_transitions[transition_id];
 
+    //let the num_event be the next event to run
+    tracer_get_simulator(self)->sched->ops.set_first(tracer_get_simulator(self)->sched, num_event );
 
-
-
-
-    //actuellement graphe est une simple chaine
-    // injecter l'état actuel dans le système (scheduler ou simulator)
-    // faire simuler un pas (le premier message sera celui traité)
-    // capturer l'état actuel, le mettre dans un nouvel état et le lier au précédent.
-    // noter le nouvel état comme l'état actuel.
-
-    state_t * current_state = self->graph->FOR_TESTING_PURPOSE_current_state;
-    // injecter l'état
-    // ici ne rien faire car c'est juste une liste, la file n'a pas bougé
-    //construire la transition avec le prochain event qui sera simulé
-    transition_t * transition = transition_create(get_event_at(tracer_get_tunable_scheduler(self), 0));
-    state_add_output_transition(current_state,transition);
-    //simuler le prochain événement.
     sim_step(tracer_get_simulator(self), 1);
-    //construire l'état résultant.
+
+
+    // TO DO TODO
+    //vérifier qu'on n'est pas dans un état déjà visité !
+
     state_t * new_state = state_create(self,transition);
 
-    self->graph->FOR_TESTING_PURPOSE_current_state = new_state;
 
     return 1;
 }
@@ -151,16 +147,17 @@ int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, t
     return FOR_TESTING_PURPOSE_graph_current_state_dump(stream,self->graph);
 }
 
-   int FOR_TESTING_PURPOSE_tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer)
+   int tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer)
    {
-          return FOR_TESTING_PURPOSE_graph_allstates_dump(stream,tracer->graph);
+          return graph_allstates_dump(stream,tracer->graph);
    }
 
-
+/*
 int FOR_TESTING_PURPOSE_tracer_inject_state(tracer_t * tracer , unsigned int num_state)
 {
     return FOR_TESTING_PURPOSE_graph_inject_state(tracer->graph , num_state);
 }
+ * */
 
 sched_tunable_t * tracer_get_tunable_scheduler(tracer_t * tracer)
 {
@@ -182,6 +179,12 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
       return graph_state_dump(stream, tracer->graph , num_state);
 
    }
+
+   void tracer_graph_export_dot(gds_stream_t * stream,tracer_t * tracer)
+   {
+       graph_export_dot(stream,tracer->graph);
+   }
+
 
 /////////////////////////////////////////////////////////////////////
 //

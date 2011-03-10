@@ -35,10 +35,11 @@
 #include <libgds/trie.h>
 
 #include "state.h"
+#include "transition.h"
 
 
 
-static int state_next_available_id= 0;
+static unsigned int state_next_available_id= 0;
 
 bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
 {
@@ -401,32 +402,31 @@ int same_tcp_session(_event_t * event1 , _event_t * event2 )
       return 0;
 }
 
-int calcul_allowed_output_transitions(state_t * state)
+int calculate_allowed_output_transitions(state_t * state)
 {
     if(state->allowed_output_transitions!=NULL)
     {
         // already done !
-        return -1;
+        return state->nb_allowed_output_transitions;
     }
 
     unsigned int max_output_transition = state->queue_state->events->current_depth;
     
-    state->allowed_output_transitions = (int *) MALLOC( max_output_transition * sizeof(int));
+    state->allowed_output_transitions = (unsigned int *) MALLOC( max_output_transition * sizeof(unsigned int));
     state->nb_allowed_output_transitions = 0;
 
     // pour chaque événement de la file :
     //      vérifier s'il n'est pas meme source/dest qu'un message deja mis dans les allowedoutputtransition
     //      pour chaque message dans allowed output transition
     //          si meme src/dest , alors sortir
-    //      si pas sorti de la boucle, alors ajouter !
-
+    //      si pas sorti de la boucle, alors ajouter !s
 
     unsigned int i;
     _event_t * event;
     // pour chaque événement(msg) de la file
     for (i = 0 ; i < state->queue_state->events->current_depth ; i++)
     {
-         event = (_event_t *) fifo_tunable_get_at(state->queue_state->events->items, i);
+         event = (_event_t *) fifo_tunable_get_at(state->queue_state->events, i);
          //      vérifier s'il n'est pas meme source/dest qu'un message deja mis dans les allowedoutputtransition
 
          //      pour chaque message dans allowed output transition
@@ -436,7 +436,7 @@ int calcul_allowed_output_transitions(state_t * state)
          {
               // si meme src/dest , alors sortir
              if ( 1 == same_tcp_session(event, (_event_t *)
-                     fifo_tunable_get_at(state->queue_state->events->items,
+                     fifo_tunable_get_at(state->queue_state->events,
                          state->allowed_output_transitions[j]   )))
              {
                  // meme tcp session ==> cet event n'est pas a considérer.
@@ -485,9 +485,12 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   state->nb_output=0;
 
   state->allowed_output_transitions=NULL;
-  state->nb_allowed_output_transitions=-1;
+  state->nb_allowed_output_transitions=0;
 
+  
+  calculate_allowed_output_transitions(state);
   graph_add_state(state->graph,state,state->id);
+  
 
   return state;
 }
@@ -512,38 +515,96 @@ int state_inject(state_t * state)
     printf("State_inject :    %d\n",state->id);
     _queue_state_inject(state->queue_state ,  tracer_get_tunable_scheduler(state->graph->tracer));
     _routing_state_inject(state->routing_state);
-    return 1;
-    
+    return 1;    
 }
-
-
 
 void state_add_output_transition(state_t * state,  struct transition_t * the_output_transition)
 {
+    // TO DO  TODO
+    // vérifier que la transition n'est pas déjà présente.
+
+
     if(state->output_transitions == NULL)
     {
         assert(state->nb_output==0);
         state->output_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
-        state->nb_output=1;
-        state->output_transitions[0]=the_output_transition;
-        state->output_transitions[0]->from = state;
     }
     else
     {
         state->output_transitions = (struct transition_t **) REALLOC( state->output_transitions, (state->nb_output + 1) * sizeof(struct transition_t *));
-        state->nb_output = state->nb_output + 1 ;
-        state->output_transitions[state->nb_output-1]=the_output_transition;
-        state->output_transitions[state->nb_output-1]->from = state;
+    }
+
+    state->nb_output = state->nb_output + 1 ;
+    state->output_transitions[state->nb_output-1]=the_output_transition;
+}
+
+  struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
+  {
+      if( trans >= state->nb_allowed_output_transitions)
+          return 0;
+
+      struct transition_t * transition = transition_create_from(
+             (_event_t *) fifo_tunable_get_at(state->queue_state->events,
+              state->allowed_output_transitions[trans]),(struct state_t *) state, trans);
+
+      state_add_output_transition(state,transition);
+
+      return transition;
+  }
+
+  int state_generate_all_transitions(state_t * state)
+  {
+      unsigned int nbtrans = calculate_allowed_output_transitions(state);
+      unsigned int i;
+      for(i = 0 ; i < nbtrans ; i++)
+      {
+          state_generate_transition(state,i);
+      }
+      return i;
+  }
+
+static void _allowed_transition_dump(gds_stream_t * stream, state_t * state)
+{
+    unsigned int i;
+    stream_printf(stream, "\tAllowed output transitions :");
+    for(i = 0 ; i < state->nb_allowed_output_transitions ; i++)
+    {
+       stream_printf(stream, "\t%u", state->allowed_output_transitions[i]);
     }
 }
 
 
+static void _one_transition_dump(gds_stream_t * stream, transition_t * trans)
+{
+    stream_printf(stream, "\t\t %u", trans->num_trans );
+    if(trans->to!=NULL)
+        stream_printf(stream, "  to state %u", trans->to->id );
+    stream_printf(stream, "\n");
+}
+
+static void _transitions_dump(gds_stream_t * stream, state_t * state)
+{
+    unsigned int i;
+
+    stream_printf(stream, "\tTransitions :\n");
+    for(i = 0 ; i < state->nb_output ; i++)
+    {
+      _one_transition_dump( stream, state->output_transitions[i]);
+    }
+}
+
 int state_dump(gds_stream_t * stream, state_t * state)
 {
-    stream_printf(stream, "State id : %d\n",state->id);
-
+    stream_printf(stream, "State id : %u\n",state->id);
+    
     _queue_state_dump(stream,state->queue_state);
+
+    calculate_allowed_output_transitions(state);
+
+    _allowed_transition_dump(stream,state);
     _routing_state_dump(stream,state->routing_state);
+
+    _transitions_dump(stream,state);
     return 1;
 }
 
