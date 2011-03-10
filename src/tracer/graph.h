@@ -23,6 +23,7 @@ struct graph_t;
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
+static unsigned int MAX_STATE = 100;
 
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
@@ -43,11 +44,15 @@ extern "C" {
 #endif
 
     graph_t * graph_create(struct tracer_t * tracer);
+    int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned int index);
 
     int FOR_TESTING_PURPOSE_graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
     int FOR_TESTING_PURPOSE_graph_current_state_dump(gds_stream_t * stream, graph_t * graph);
     int FOR_TESTING_PURPOSE_graph_allstates_dump(gds_stream_t * stream, graph_t * graph);
     int FOR_TESTING_PURPOSE_graph_inject_state(graph_t * graph , unsigned int num_state);
+
+    int graph_inject_state(graph_t * graph , unsigned int num_state);
+    int graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
 
 #ifdef	__cplusplus
 }

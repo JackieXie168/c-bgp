@@ -20,6 +20,9 @@
 #include <net/node.h>
 #include <net/subnet.h>
 
+#include <bgp/peer.h>
+
+
 #include <tracer/state.h>
 #include <tracer/tracer.h>
 #include <tracer/graph.h>
@@ -41,15 +44,32 @@ bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
 {
 
     bgp_session_info_t * thesessioninfo = (bgp_session_info_t *) MALLOC( sizeof(bgp_session_info_t) );
+    bgp_route_t ** bgp_route_array;
+    unsigned int index;
+
     thesessioninfo->recv_seq_num=peer->recv_seq_num;
     thesessioninfo->send_seq_num=peer->send_seq_num;
     thesessioninfo->neighbor_addr=peer->addr;
 
-    thesessioninfo->adj_rib_IN_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_IN])->data ;
-    thesessioninfo->adj_rib_OUT_routes =  (bgp_route_t **) _trie_get_array(peer->adj_rib[RIB_OUT])->data ;
-
     thesessioninfo->nb_adj_rib_in_routes = trie_num_nodes(peer->adj_rib[RIB_IN],1);
+    bgp_route_array = (bgp_route_t **) (_trie_get_array(peer->adj_rib[RIB_IN])->data) ;
+   // if (bgp_route_array == NULL)
+   //     printf("il y a %d élément, mais get array   est NULL !  \n",trie_num_nodes(peer->adj_rib[RIB_IN],1));
+    thesessioninfo->adj_rib_IN_routes =  (bgp_route_t **)
+            MALLOC( thesessioninfo->nb_adj_rib_in_routes * sizeof(bgp_route_t *) );
+    for (index= 0; index < thesessioninfo->nb_adj_rib_in_routes; index++) {
+        thesessioninfo->adj_rib_IN_routes[index] = route_copy(bgp_route_array[index]);
+    }
+
     thesessioninfo->nb_adj_rib_out_routes = trie_num_nodes(peer->adj_rib[RIB_OUT],1);
+    bgp_route_array = (bgp_route_t **) (_trie_get_array(peer->adj_rib[RIB_OUT])->data) ;
+    //if (bgp_route_array == NULL)
+    //    printf("il y a %d élément, mais get array   est NULL !  \n",trie_num_nodes(peer->adj_rib[RIB_OUT],1));
+    thesessioninfo->adj_rib_OUT_routes =  (bgp_route_t **)
+            MALLOC( thesessioninfo->nb_adj_rib_out_routes * sizeof(bgp_route_t *) );
+    for (index= 0; index < thesessioninfo->nb_adj_rib_out_routes; index++) {
+        thesessioninfo->adj_rib_OUT_routes[index] = route_copy(bgp_route_array[index]);
+    }
 
     return thesessioninfo;
 }
@@ -194,8 +214,97 @@ static void _routing_state_dump(gds_stream_t * stream, routing_state_t * routing
   {
       _couple_node_routinginfo_dump(stream,routing_state->couples_node_routing_info[i]);
   }
-
 }
+
+static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_session_info_t * info)
+{
+    unsigned int i;
+
+    peer->send_seq_num = info->send_seq_num;
+    peer->recv_seq_num = info->recv_seq_num;
+
+    rib_destroy(&(peer->adj_rib[RIB_IN]));
+    peer->adj_rib[RIB_IN] = rib_create(0);
+
+    for(i=0 ; i < info->nb_adj_rib_in_routes; i++)
+    {
+        // ajouter une copie de la route que le tracer mémorise !
+        //printf("ATTENTION, placer une copie de la route ");
+        rib_add_route(peer->adj_rib[RIB_IN], route_copy(info->adj_rib_IN_routes[i]));
+    }
+    
+    rib_destroy(&(peer->adj_rib[RIB_OUT]));
+    peer->adj_rib[RIB_OUT] = rib_create(0);
+
+    for(i=0 ; i < info->nb_adj_rib_out_routes; i++)
+    {
+        // ajouter une copie de la route que le tracer mémorise !
+        //printf("ATTENTION, placer une copie de la route ");
+        rib_add_route(peer->adj_rib[RIB_OUT], route_copy(info->adj_rib_OUT_routes[i]));
+    }
+    
+    return 1;
+}
+
+
+static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing_info )
+{
+    // inject bgp sessions
+    bgp_sessions_info_t * sessions_info = routing_info->bgp_sessions_info;
+
+    //pour chaque peer, donner les infos de session bgp
+    bgp_peer_t * peer;
+    unsigned int index;
+    net_protocol_t * protocol;
+    bgp_router_t * router;
+
+    protocol= protocols_get(node->protocols, NET_PROTOCOL_BGP);
+    if (protocol == NULL)
+    {
+        printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
+        return NULL;
+    }
+    router = (bgp_router_t *) protocol->handler;
+
+    if(bgp_peers_size( router->peers) != sessions_info->nb_bgp_session_info_)
+    {
+        printf("ATTENTION !!! pas autant de peer dans le noeud de cbgp que de session qu'on a mémorisé plus tôt pour ce même noeud!!\n");
+        return -1;
+    }
+
+    for (index= 0; index < bgp_peers_size( router->peers); index++) {
+        peer= bgp_peers_at(router->peers, index);
+        if(peer->addr !=  sessions_info->bgp_session_info[index]->neighbor_addr)
+        {
+            printf("ATTENTION !!! les peer ne sont pas dans le même ordre qu'avant !?\n");
+            return -2;
+        }
+        bgp_router_inject_bgp_session_information(peer,sessions_info->bgp_session_info[index]);
+
+    }
+    return index;
+}
+
+static int _routing_state_inject(routing_state_t * routing_state)
+{
+  unsigned int i = 0;
+
+  int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
+  printf("Routing state inject\n");
+
+  for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
+  {
+      level=2;      for( ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
+      printf("node ");
+      node_dump_id(gdsout,routing_state->couples_node_routing_info[i]->node );
+      printf("\n");
+      
+      _node_inject_routing_info(routing_state->couples_node_routing_info[i]->node ,
+                                    routing_state->couples_node_routing_info[i]->routing_info);
+  }
+  return i;
+}
+
 
 
 static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state)
@@ -210,7 +319,7 @@ static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state
   max_depth= queue_state->events->max_depth;
   start= queue_state->events->start_index;
 
-  stream_printf(stream, "\tQueue State :\n\tNumber of events queued: %u (%u)\n",
+  stream_printf(stream, "\tQueue State :\n\t\tNumber of events queued: %u (%u)\n",
 	     depth, max_depth);
 
           
@@ -272,17 +381,19 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   state->output_transitions = NULL;
   state->nb_output=0;
 
+  graph_add_state(state->graph,state,state->id);
 
   return state;
 }
 
 
-int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * tunable_scheduler)
+static int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * tunable_scheduler)
 {
 
     // destroy le tunable_scheduler->events,
     // copier l'état actuel dans le scheduler.
-    printf("state_inject :    %d\n",queue_state->state->id);
+  int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
+    printf("queue state_inject \n");
 
      tunable_scheduler->events = fifo_tunable_copy( queue_state->events , fifo_tunable_event_deep_copy  ) ;
 
@@ -292,10 +403,10 @@ int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * tunable
 int state_inject(state_t * state)
 {
     // inject queue_state
-    printf("state_inject :    %d\n",state->id);
-    return  _queue_state_inject(state->queue_state ,  tracer_get_tunable_scheduler(state->graph->tracer));
-
-    // inject route_state
+    printf("State_inject :    %d\n",state->id);
+    _queue_state_inject(state->queue_state ,  tracer_get_tunable_scheduler(state->graph->tracer));
+    _routing_state_inject(state->routing_state);
+    return 1;
     
 }
 

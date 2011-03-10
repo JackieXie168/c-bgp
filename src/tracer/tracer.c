@@ -30,6 +30,8 @@
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
+#include "tracer.h"
+
 
 
 
@@ -60,6 +62,66 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
     state_t * new_state = state_create(self,transition);
 
     self->graph->FOR_TESTING_PURPOSE_current_state = new_state;    
+
+    return 1;
+}
+
+
+
+int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int num_state, unsigned int num_event )
+{
+    state_t * origin_state;
+
+    if(self->started == 0)
+        return -1;
+
+    //chercher l'état,
+    //l'injecter dans cbgp
+    //choisir de simuler l'événement num_event
+    //créer la transition
+    //prendre copie de l'état courant de cbgp
+    //attacher cet état correctement dans le graphe.
+
+    if(num_state >= graph_max_num_state())
+    {
+        printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
+        return -1;
+    }
+    assert(self->graph->list_of_states != NULL );
+    origin_state = self->graph->list_of_states[num_state];
+    if(origin_state == NULL)
+    {
+        printf("Unexisting state !\n");
+        return -1;
+    }
+
+    //// continue from here !!!!
+
+
+   //////////////////////
+
+
+
+
+
+    //actuellement graphe est une simple chaine
+    // injecter l'état actuel dans le système (scheduler ou simulator)
+    // faire simuler un pas (le premier message sera celui traité)
+    // capturer l'état actuel, le mettre dans un nouvel état et le lier au précédent.
+    // noter le nouvel état comme l'état actuel.
+
+    state_t * current_state = self->graph->FOR_TESTING_PURPOSE_current_state;
+    // injecter l'état
+    // ici ne rien faire car c'est juste une liste, la file n'a pas bougé
+    //construire la transition avec le prochain event qui sera simulé
+    transition_t * transition = transition_create(get_event_at(tracer_get_tunable_scheduler(self), 0));
+    state_add_output_transition(current_state,transition);
+    //simuler le prochain événement.
+    sim_step(tracer_get_simulator(self), 1);
+    //construire l'état résultant.
+    state_t * new_state = state_create(self,transition);
+
+    self->graph->FOR_TESTING_PURPOSE_current_state = new_state;
 
     return 1;
 }
@@ -110,7 +172,16 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
     return tracer->network->sim;
 }
 
+  int tracer_inject_state(tracer_t * tracer , unsigned int num_state)
+  {
+      return graph_inject_state(tracer->graph , num_state);
+  }
 
+   int tracer_state_dump(gds_stream_t * stream, tracer_t * tracer , unsigned int num_state)
+   {
+      return graph_state_dump(stream, tracer->graph , num_state);
+
+   }
 
 /////////////////////////////////////////////////////////////////////
 //

@@ -80,7 +80,8 @@ const char * arg= cli_get_arg_value(cmd, 0);
     cli_set_user_error(cli_get(), "invalid nb\"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-   int result =  FOR_TESTING_PURPOSE_tracer_inject_state(tracer_get_default(),nb);
+   //int result = FOR_TESTING_PURPOSE_tracer_inject_state(tracer_get_default(),nb);
+   int result = tracer_inject_state(tracer_get_default(),nb);
 
   if (!result) {
     cli_set_user_error(cli_get(), "Cound not inject the state number : %d",nb);
@@ -99,7 +100,8 @@ const char * arg= cli_get_arg_value(cmd, 0);
     cli_set_user_error(cli_get(), "invalid nb\"%s\".", arg);
     return CLI_ERROR_COMMAND_FAILED;
   }
-   int result =  FOR_TESTING_PURPOSE_tracer_graph_state_dump(gdsout ,tracer_get_default(),nb);
+   //int result =  FOR_TESTING_PURPOSE_tracer_graph_state_dump(gdsout ,tracer_get_default(),nb);
+   int result =  tracer_state_dump(gdsout ,tracer_get_default(),nb);
 
   if (!result) {
     cli_set_user_error(cli_get(), "Cound not dump the state number : %d",nb);
@@ -112,7 +114,8 @@ const char * arg= cli_get_arg_value(cmd, 0);
 // ----- cli_tracer_start ------------------------------------------------
 int cli_tracer_graph_dump_root(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  int result =  FOR_TESTING_PURPOSE_tracer_graph_state_dump(gdsout ,tracer_get_default(),0);
+  //int result =  FOR_TESTING_PURPOSE_tracer_graph_state_dump(gdsout ,tracer_get_default(),0);
+    int result = tracer_state_dump(gdsout ,tracer_get_default(),0);
 
   if (!result) {
     cli_set_user_error(cli_get(), "Cound not dump the root state");

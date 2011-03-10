@@ -85,3 +85,15 @@ gds_enum_t * bgp_peers_enum(bgp_peers_t * peers)
 {
   return _array_get_enum((array_t *) peers);
 }
+
+
+
+// -----[ bgp_peers_at ]---------------------------------------------
+ bgp_peer_t * bgp_peers_at(bgp_peers_t * peers,
+					unsigned int index) {
+  return (bgp_peer_t *) peers->data[index];
+}
+// -----[ bgp_peers_size ]-------------------------------------------
+ unsigned int bgp_peers_size(bgp_peers_t * peers) {
+  return ptr_array_length(peers);
+}
