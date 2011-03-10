@@ -27,6 +27,7 @@
 #include "graph.h"
 
 
+
 // ----- state_create ------------------------------------------------
 graph_t * graph_create(tracer_t * tracer)
 {
@@ -38,10 +39,21 @@ graph_t * graph_create(tracer_t * tracer)
   graph->FOR_TESTING_PURPOSE_current_state = NULL;
   graph->nb_states = 0;
   
-  //struct state_t        **    list_of_states;
+  graph->list_of_states = (state_t **) MALLOC( MAX_STATE * sizeof(state_t *) );
+
   return graph;
 }
 
+int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned int index)
+{
+    if(index<MAX_STATE)
+    {
+        the_graph->list_of_states[index]=the_state;
+        return 1;
+    }
+    else
+        return -1;
+}
 
 // ----- state_create ------------------------------------------------
 int graph_init(graph_t * graph)
@@ -112,7 +124,7 @@ int FOR_TESTING_PURPOSE_graph_allstates_dump(gds_stream_t * stream, graph_t * gr
         
     state_t * current_state = graph->state_root;
     unsigned int i = 0 ;
-
+// ici c'est une chaine (pas encore un arbre)
     while( i < num_state)
     {
         current_state = current_state->output_transitions[0]->to;
@@ -125,4 +137,51 @@ int FOR_TESTING_PURPOSE_graph_allstates_dump(gds_stream_t * stream, graph_t * gr
 
     
 
+    }
+
+
+    unsigned int graph_max_num_state()
+    {
+        return MAX_STATE;
+    }
+
+    int graph_inject_state(graph_t * graph , unsigned int num_state)
+    {
+        state_t * state;
+         if(num_state >= graph_max_num_state())
+         {
+            printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
+            return -1;
+        }
+        assert(graph->list_of_states != NULL );
+
+        state = graph->list_of_states[num_state];
+
+        if(state == NULL)
+        {
+            printf("Unexisting state !\n");
+            return -2;
+        }
+
+        return state_inject(state);
+    }
+    int graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state)
+    {
+        state_t * state;
+         if(num_state >= graph_max_num_state())
+         {
+            printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
+            return -1;
+        }
+        assert(graph->list_of_states != NULL );
+
+        state = graph->list_of_states[num_state];
+
+        if(state == NULL)
+        {
+            printf("Unexisting state !\n");
+            return -2;
+        }
+
+        return state_dump(stream,state);
     }

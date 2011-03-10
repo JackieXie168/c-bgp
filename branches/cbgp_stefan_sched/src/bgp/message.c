@@ -244,32 +244,7 @@ static inline void _bgp_msg_open_dump(gds_stream_t * stream,
   ip_address_dump(stream, msg->router_id);
 }
 
-bgp_route_t * _bgp_route_copy(bgp_route_t * route)
-{
-    /*
-    bgp_route_t * new_route =  (bgp_route_t *) MALLOC(sizeof(bgp_route_t));
 
-    new_route->flags = route->flags;
-    new_route->rank = route->rank;
-    new_route->prefix = route->prefix;
-    new_route->nlri = route->nlri;
-    new_route->attr = (bgp_attr_t *) MALLOC(sizeof(bgp_attr_t));
-
-    new_route->attr->local_pref = route->attr->local_pref;
-    new_route->attr->med = route->attr->med;
-    new_route->attr->next_hop =  route->attr->next_hop ;
-    new_route->attr->  route->attr->;
-    new_route->attr->  route->attr->;
-
-
-
-    new_route->peer = ;
-
-
-    return new_route;
-     */
-    return route;
-}
 
 // -----[ _bgp_msg_update_dump ]-------------------------------------
 static inline bgp_msg_t * _bgp_msg_update_copy(bgp_msg_update_t * msg)
@@ -280,7 +255,7 @@ static inline bgp_msg_t * _bgp_msg_update_copy(bgp_msg_update_t * msg)
   nmsg->header.type= BGP_MSG_TYPE_UPDATE;
   nmsg->header.peer_asn= msg->header.peer_asn;
   nmsg->header.seq_num=  msg->header.seq_num;
-  nmsg->route= _bgp_route_copy(msg->route);
+  nmsg->route= route_copy(msg->route);
   return (bgp_msg_t *) nmsg;
 }
 

@@ -48,12 +48,19 @@ extern "C" {
 
    int FOR_TESTING_PURPOSE_tracer_graph_state_dump(gds_stream_t * stream, tracer_t * self , unsigned int num_state);
 
+   
+   
+
+
    int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self);
 
    int FOR_TESTING_PURPOSE_tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer);
 
    int _tracer_dump(gds_stream_t * stream, tracer_t * self);
 
+   int tracer_inject_state(tracer_t * tracer , unsigned int num_state);
+
+   int tracer_state_dump(gds_stream_t * stream, tracer_t * tracer , unsigned int num_state);
 
     sched_tunable_t * tracer_get_tunable_scheduler(tracer_t * tracer);
 

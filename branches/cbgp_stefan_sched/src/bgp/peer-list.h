@@ -36,15 +36,11 @@ extern "C" {
 }
 #endif
 
+
 // -----[ bgp_peers_at ]---------------------------------------------
-static inline bgp_peer_t * bgp_peers_at(bgp_peers_t * peers,
-					unsigned int index) {
-  return (bgp_peer_t *) peers->data[index];
-}
-// -----[ bgp_peers_size ]-------------------------------------------
-static inline unsigned int bgp_peers_size(bgp_peers_t * peers) {
-  return ptr_array_length(peers);
-}
+ bgp_peer_t * bgp_peers_at(bgp_peers_t * peers,
+					unsigned int index) ;
+ unsigned int bgp_peers_size(bgp_peers_t * peers) ;
 
 
 #endif /* __BGP_PEER_LIST_H__ */
