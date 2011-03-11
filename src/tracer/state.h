@@ -52,8 +52,8 @@ typedef struct local_rib_info_t{
 }local_rib_info_t;
 
 typedef struct routing_info_t{
-   net_rt_t        * node_rt_t;
-   bgp_rib_t    *  bgp_router_loc_rib_t;
+   //net_rt_t        * node_rt_t;
+   local_rib_info_t    *  bgp_router_loc_rib_t;
    //bgp_peers_t         * bgp_router_peers;
    bgp_sessions_info_t * bgp_sessions_info;
 }routing_info_t;

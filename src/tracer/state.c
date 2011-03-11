@@ -134,6 +134,17 @@ static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t *
     }
 }
 
+static void _loc_rib_info_dump(gds_stream_t * stream, loc_rib_info_t * info )
+{
+    unsigned int i;
+    for ( i = 0 ; i<  info->nb_local_rib_elem ; i++)
+    {
+       stream_printf(stream, "\t\t\t\t\t");
+        route_dump(stream, info->bgp_route_[i]);
+       stream_printf(stream, "\n");
+    }
+}
+
 
 local_rib_info_t * _routing_local_rib_create(net_node_t * node)
 {
@@ -181,6 +192,7 @@ routing_info_t * _routing_info_create(net_node_t * node)
 static void _routing_info_dump(gds_stream_t * stream, routing_info_t * info )
 {
      //stream_printf(stream, " Node : %d" , coupleNR->node->rid );
+     _loc_rib_info_dump(stream,info->bgp_router_loc_rib_t );
      _bgp_sessions_info_dump(stream,info->bgp_sessions_info);
 
 }
@@ -685,12 +697,45 @@ int state_dump(gds_stream_t * stream, state_t * state)
 }
 
 
+
+// 0 = identical
+// other value, otherwise
+int _rib_compare(local_rib_info_t * rib1, bgp_rib_t * rib2)
+{
+
+
+
+}
+
+// 0 = identical
+// other value, otherwise
+int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * ri2)
+{
+    // local rib :
+    if ( 0 !=  _rib_compare(ri1->bgp_router_loc_rib_t, ri2->bgp_router_loc_rib_t))
+        return -600;
+
+    TODO !!!
+
+    
+
+}
 // 0 = identical
 // other value, otherwise
 int _routing_states_equivalent(routing_state_t * rs1, routing_state_t * rs2 )
 {
+  unsigned int i = 0;
 
-    return -1;
+  for(i=0 ; i< rs1->state->graph->tracer->nb_nodes ; i++)
+  {
+     if(_routing_info_compare(rs1->state->graph->tracer->nb_nodes,
+             rs1->couples_node_routing_info[i]->routing_info
+             ,rs2->couples_node_routing_info[i]->routing_info )
+             !=0)
+         return -500;
+  }
+
+    return 0;
 }
 
 
