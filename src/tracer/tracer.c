@@ -131,6 +131,7 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     }
     else
     {
+        state_add_input_transition(identical_state,transition);
         
         // récupérer l'état identique
         // libérer l'état nouvellement créé :
