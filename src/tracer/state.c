@@ -584,12 +584,15 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
 
     state->nb_output = state->nb_output + 1 ;
     state->output_transitions[state->nb_output-1]=the_output_transition;
+
+    if(the_output_transition->from ==NULL)
+            the_output_transition->from=state;
 }
 
 
 void state_add_input_transition(state_t * state,  struct transition_t * the_input_transition)
 {
-    // TO DO  TODO
+    // TODO !
     // vérifier que la transition n'est pas déjà présente.
 
 
@@ -605,6 +608,7 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
 
     state->nb_input = state->nb_input + 1 ;
     state->input_transitions[state->nb_input-1]=the_input_transition;
+    state->input_transitions[state->nb_input-1]->to=state;
 }
 
 

@@ -259,6 +259,11 @@ static inline bgp_msg_t * _bgp_msg_update_copy(bgp_msg_update_t * msg)
   return (bgp_msg_t *) nmsg;
 }
 
+static inline int _bgp_msg_update_compare(bgp_msg_update_t * msg1, bgp_msg_update_t * msg2)
+{
+    return route_equals(msg1->route, msg2->route) == 1;
+}
+
 // -----[ _bgp_msg_withdraw_dump ]-----------------------------------
 static inline bgp_msg_t * _bgp_msg_withdraw_copy(bgp_msg_withdraw_t * msg)
 {
@@ -286,6 +291,16 @@ static inline bgp_msg_t * _bgp_msg_withdraw_copy(bgp_msg_withdraw_t * msg)
   nmsg->header.seq_num = msg->header.seq_num;
   return (bgp_msg_t *) nmsg;
 }
+
+static inline int _bgp_msg_withdraw_compare(bgp_msg_withdraw_t * msg1, bgp_msg_withdraw_t * msg2)
+{
+    if( msg1->prefix.network == msg2->prefix.network && msg1->prefix.mask == msg2->prefix.mask )
+        return 0;
+    else
+        return 300;
+}
+
+
 
 // -----[ _bgp_msg_close_dump ]--------------------------------------
 static inline bgp_msg_t *  _bgp_msg_close_copy(bgp_msg_close_t * msg)
@@ -374,6 +389,36 @@ void bgp_msg_dump(gds_stream_t * stream,
   default:
     stream_printf(stream, "should never reach this code");
   } 
+}
+
+
+int bgp_msg_compare(bgp_msg_t * msg1, bgp_msg_t * msg2)
+{
+    assert(msg1->type < BGP_MSG_TYPE_MAX && msg2->type < BGP_MSG_TYPE_MAX);
+
+    if(msg1->type != msg2->type)
+        return -100;
+
+  /* compare message content */
+  switch (msg1->type) {
+  case BGP_MSG_TYPE_UPDATE:
+    return _bgp_msg_update_compare((bgp_msg_update_t *) msg1, (bgp_msg_update_t *) msg2);
+    break;
+  case BGP_MSG_TYPE_WITHDRAW:
+    return _bgp_msg_withdraw_compare((bgp_msg_withdraw_t *) msg1, (bgp_msg_withdraw_t *) msg2);
+    break;
+  case BGP_MSG_TYPE_OPEN:
+    printf("In TRACER mode, should never reach this code!!!! \n");
+    return -200;
+    break;
+  case BGP_MSG_TYPE_CLOSE:
+    printf("In TRACER mode, should never reach this code!!!! \n");
+    return -300;
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    return -400;
+  }
 }
 
 /////////////////////////////////////////////////////////////////////
