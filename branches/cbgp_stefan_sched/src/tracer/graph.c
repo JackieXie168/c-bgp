@@ -48,13 +48,17 @@ graph_t * graph_create(tracer_t * tracer)
 
 int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned int index)
 {
+    assert (index == the_graph->nb_states);
     if(index<MAX_STATE)
     {
         the_graph->list_of_states[index]=the_state;
-        return 1;
+        (the_graph->nb_states)++;
+        return 0;
     }
     else
+    {   printf("MAX number states reached !\n");
         return -1;
+    }
 }
 
 // ----- state_create ------------------------------------------------
@@ -190,6 +194,19 @@ int graph_allstates_dump(gds_stream_t * stream, graph_t * graph)
         return state_dump(stream,state);
     }
 
+    state_t * graph_search_identical_state(graph_t * graph, struct state_t * state)
+    {
+        unsigned int i = 0 ;
+
+        while(i <  MAX_STATE && graph->list_of_states[i] != NULL)
+        {
+            //stream_printf(stream,"\nEtat %d :\n ",i);
+           if( state_identical(state , graph->list_of_states[i]) == 0 )
+               return graph->list_of_states[i];
+            i++;
+        }
+        return NULL;
+    }
 
 
 // -----[ net_export_dot ]-------------------------------------------

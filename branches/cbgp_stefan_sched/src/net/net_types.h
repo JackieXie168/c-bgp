@@ -116,6 +116,7 @@ typedef struct {
   void   (*dump_msg)    (gds_stream_t * stream, net_msg_t * msg);
   void   (*destroy_msg) (net_msg_t * msg);
   void * (*copy_payload)(net_msg_t * msg);
+  int    (*compare_msg) (net_msg_t * msg1, net_msg_t * msg2);
 } net_protocol_ops_t;
 
 

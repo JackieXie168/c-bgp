@@ -87,14 +87,14 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     if(state_id >= graph_max_num_state())
     {
         printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
-        return -1;
+        return 1;
     }
     assert(self->graph->list_of_states != NULL );
     origin_state = self->graph->list_of_states[state_id];
     if(origin_state == NULL)
     {
         printf("Unexisting state !\n");
-        return -1;
+        return 1;
     }
 
     state_inject(origin_state);
@@ -112,17 +112,37 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 
     sim_step(tracer_get_simulator(self), 1);
 
-
     // TO DO TODO
     //vérifier qu'on n'est pas dans un état déjà visité !
 
-    state_t * new_state = state_create(self,transition);
+    state_t * new_state = state_create_isolated(self);
+
+
     // vérifier si l'état n'est pas déjà présent
     // équivalence au niveau de la présence des event dans la queue state
-    // équivalence au niveau de la routing info 
+    // équivalence au niveau de la routing info
+
+    state_t * identical_state = graph_search_identical_state(self->graph, new_state);
+
+    if( identical_state == NULL )
+    {
+        // attacher l'état au graphe  (et valider le numéro state-id)
+        state_attach_to_graph(new_state, transition);
+    }
+    else
+    {
+        
+        // récupérer l'état identique
+        // libérer l'état nouvellement créé :
+        // free(state) ???
+        // ajouter une transition entrante
+        // ne pas valider le numéro state-id
+    }
 
 
-    return 1;
+
+
+    return 0;
 }
 
 int _tracer_dump(gds_stream_t * stream, tracer_t * tracer)

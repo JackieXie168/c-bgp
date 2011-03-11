@@ -33,9 +33,8 @@
 
 
 #include <libgds/trie.h>
+#include <../net/net_types.h>
 
-#include "state.h"
-#include "transition.h"
 
 
 
@@ -265,7 +264,7 @@ static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_sess
     return 1;
 }
 
-    static int bgp_router_inject_loc_rib_info(bgp_router_t * router, local_rib_info_t * loc_rib_info)
+static int bgp_router_inject_loc_rib_info(bgp_router_t * router, local_rib_info_t * loc_rib_info)
     {
         unsigned int i;
         rib_destroy(&(router->loc_rib));
@@ -277,8 +276,6 @@ static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_sess
         }
         return i;
     }
-
-
 
 static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing_info )
 {
@@ -495,6 +492,57 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   return state;
 }
 
+// ----- state_create ------------------------------------------------
+state_t * state_create_isolated(struct tracer_t * tracer)
+{
+  state_t * state;
+  state=(state_t *) MALLOC(sizeof(state_t));
+
+  state->id= state_next_available_id;
+  state->graph = tracer->graph;
+
+  state->queue_state = _queue_state_create(state, tracer_get_tunable_scheduler(tracer));
+  state->routing_state = _routing_state_create(state);
+
+  state->allowed_output_transitions=NULL;
+  state->nb_allowed_output_transitions = 0;
+
+  state->input_transitions=NULL;
+  state->output_transitions=NULL;
+  state->nb_input = 0;
+  state->nb_output = 0;
+
+  return state;
+}
+
+void state_attach_to_graph(state_t * state, struct transition_t * the_input_transition)
+{
+  if(the_input_transition != NULL)
+  {
+    assert(state->input_transitions == NULL);
+    state->input_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
+    state->nb_input=1;
+    state->input_transitions[0]=the_input_transition;
+    state->input_transitions[0]->to = state;
+  }
+  else
+  {
+    state->input_transitions = NULL;
+    state->nb_input=0;
+  }
+
+  state->output_transitions = NULL;
+  state->nb_output=0;
+
+  //state->allowed_output_transitions=NULL;
+  //state->nb_allowed_output_transitions=0;
+
+  calculate_allowed_output_transitions(state);
+
+  state_next_available_id++;
+  graph_add_state(state->graph,state,state->id);
+
+}
 
 static int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * tunable_scheduler)
 {
@@ -560,7 +608,7 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
 }
 
 
-  struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
+struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
   {
       if( trans >= state->nb_allowed_output_transitions)
           return 0;
@@ -574,7 +622,7 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
       return transition;
   }
 
-  int state_generate_all_transitions(state_t * state)
+int state_generate_all_transitions(state_t * state)
   {
       unsigned int nbtrans = calculate_allowed_output_transitions(state);
       unsigned int i;
@@ -593,14 +641,16 @@ static void _allowed_transition_dump(gds_stream_t * stream, state_t * state)
     {
        stream_printf(stream, "\t%u", state->allowed_output_transitions[i]);
     }
+    stream_printf(stream, "\n");
+
 }
 
 
 static void _one_transition_dump(gds_stream_t * stream, transition_t * trans)
 {
-    stream_printf(stream, "\t\t %u", trans->num_trans );
+    stream_printf(stream, "\t\t transition id : %u", trans->num_trans );
     if(trans->to!=NULL)
-        stream_printf(stream, "  to state %u", trans->to->id );
+        stream_printf(stream, " leads to state %u", trans->to->id );
     stream_printf(stream, "\n");
 }
 
@@ -608,7 +658,7 @@ static void _transitions_dump(gds_stream_t * stream, state_t * state)
 {
     unsigned int i;
 
-    stream_printf(stream, "\tTransitions :\n");
+    stream_printf(stream, "\tOutput transitions :\n");
     for(i = 0 ; i < state->nb_output ; i++)
     {
       _one_transition_dump( stream, state->output_transitions[i]);
@@ -630,3 +680,84 @@ int state_dump(gds_stream_t * stream, state_t * state)
     return 1;
 }
 
+
+// 0 = identical
+// other value, otherwise
+int _routing_states_equivalent(routing_state_t * rs1, routing_state_t * rs2 )
+{
+
+    return -1;
+}
+
+
+// 0-->equivalent
+// other value otherwize
+int _msgs_equivalent(net_msg_t * msg1,net_msg_t * msg2  )
+{
+    if(msg1->dst_addr != msg2->dst_addr)
+        return -1;
+
+    if(msg1->src_addr != msg2->src_addr)
+        return -2;
+
+    if( msg1->protocol != msg2->protocol)
+        return -3;
+
+    if( msg1->tos != msg2->tos)
+        return -4;
+
+    if( msg1->ttl != msg2->ttl)
+        return -5;
+
+    const net_protocol_def_t * proto_def;
+    proto_def= net_protocols_get_def(msg1->protocol);
+    if (proto_def->ops.compare_msg != NULL)
+        return proto_def->ops.compare_msg(msg1, msg2);
+    else
+        return -10;
+}
+
+int _events_equivalent( _event_t * event1, _event_t * event2   )
+{
+    net_send_ctx_t * send_ctx1= (net_send_ctx_t *) event1->ctx;
+    net_send_ctx_t * send_ctx2= (net_send_ctx_t *) event2->ctx;
+
+    if( send_ctx1->dst_iface->addr != send_ctx2->dst_iface->addr)
+        return -1;
+
+    return _msgs_equivalent(send_ctx1->msg, send_ctx2->msg);
+}
+
+// 0 = identical
+// other value, otherwise
+int _queue_states_equivalent(queue_state_t * qs1, queue_state_t  * qs2 )
+{
+    if(qs1->events->current_depth != qs2->events->current_depth )
+    {
+        return -1;
+    }
+    
+    unsigned int i;
+    
+    for(i = 0 ; i < qs1->events->current_depth ; i++)
+    {
+        if( 0 != _events_equivalent(
+                (_event_t *) qs1->events->items[(qs1->events->start_index + i)% qs1->events->max_depth],
+                (_event_t *) qs2->events->items[(qs2->events->start_index + i)% qs2->events->max_depth]
+                ))
+            return -1;
+    }
+    return 0;
+}
+// 0 = identical
+// other value, otherwise
+int state_identical(state_t * state1 , state_t * state2 )
+{
+// équivalent en terme de file, et d'information de routage ...
+
+    if( _queue_states_equivalent(state1->queue_state,state2->queue_state) == 0 &&
+            _routing_states_equivalent(state1->routing_state, state2->routing_state ) == 0   )
+        return 0;
+    else
+        return 1;
+}
