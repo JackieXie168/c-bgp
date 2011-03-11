@@ -1,0 +1,81 @@
+
+bgp topology load "examples/example-ebgp-3-routers.topo"
+bgp topology install
+
+bgp router AS1 add network 0.1/16
+
+bgp router AS2 peer AS3 filter in add-rule
+	match any
+	action "local-pref 100"
+
+bgp router AS3 peer AS2 filter in add-rule
+	match any
+	action "local-pref 100"
+
+bgp topology run
+
+sim queue show
+sim openSessions
+sim queue show
+
+tracer start
+tracer graph inject state 0
+
+sim queue show 
+bgp router 0.1.0.0 show adj-rib out 0.3.0.0 *
+bgp router 0.1.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show adj-rib in  0.1.0.0 *
+bgp router 0.3.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show peers 
+bgp router 0.3.0.0 show info 
+bgp router 0.3.0.0 show networks 
+bgp router 0.3.0.0 show rib *
+bgp router 0.3.0.0 show route-info *
+bgp router 0.3.0.0 show stats 
+
+#print "--------------------------------------"
+sim runTheXth 1
+sim queue show 
+bgp router 0.1.0.0 show adj-rib out 0.3.0.0 *
+bgp router 0.1.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show adj-rib in  0.1.0.0 *
+bgp router 0.3.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show peers 
+bgp router 0.3.0.0 show info 
+bgp router 0.3.0.0 show networks 
+bgp router 0.3.0.0 show rib *
+bgp router 0.3.0.0 show route-info *
+bgp router 0.3.0.0 show stats
+ 
+#print "--------------------------------------"
+tracer graph inject state 0
+
+sim queue show 
+bgp router 0.1.0.0 show adj-rib out 0.3.0.0 *
+bgp router 0.1.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show adj-rib in  0.1.0.0 *
+bgp router 0.3.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show peers 
+bgp router 0.3.0.0 show info 
+bgp router 0.3.0.0 show networks 
+bgp router 0.3.0.0 show rib *
+bgp router 0.3.0.0 show route-info *
+bgp router 0.3.0.0 show stats 
+
+#print "--------------------------------------"
+sim runTheXth 1
+sim queue show 
+bgp router 0.1.0.0 show adj-rib out 0.3.0.0 *
+bgp router 0.1.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show adj-rib in  0.1.0.0 *
+bgp router 0.3.0.0 show adj-rib out 0.2.0.0 *
+bgp router 0.3.0.0 show peers 
+bgp router 0.3.0.0 show info 
+bgp router 0.3.0.0 show networks 
+bgp router 0.3.0.0 show rib *
+bgp router 0.3.0.0 show route-info *
+bgp router 0.3.0.0 show stats
+
+
+
+
