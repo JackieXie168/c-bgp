@@ -184,6 +184,12 @@ static void _bgp_proto_dump_msg(gds_stream_t * stream, net_msg_t * msg)
   bgp_msg_dump(stream, NULL, (bgp_msg_t *) msg->payload);
 }
 
+// -----[ _bgp_proto_dump_msg ]--------------------------------------
+static int _bgp_proto_compare_msg(net_msg_t * msg1, net_msg_t * msg2)
+{
+    TODO !!!!
+    return -1;
+}
 
 // -----[ _bgp_proto_dump_msg ]--------------------------------------
 static void * _bgp_proto_copy_payload(net_msg_t * msg)
@@ -199,6 +205,7 @@ const net_protocol_def_t PROTOCOL_BGP= {
     .dump_msg    = _bgp_proto_dump_msg,
     .destroy_msg = NULL,
     .copy_payload= _bgp_proto_copy_payload,
+    .compare_msg = _bgp_proto_compare_msg,
   }
 };
 

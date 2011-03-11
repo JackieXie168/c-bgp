@@ -57,6 +57,7 @@ extern "C" {
 
     void graph_export_dot(gds_stream_t * stream, graph_t * graph);
 
+    struct state_t * graph_search_identical_state(graph_t * graph, struct state_t * state);
 
 #ifdef	__cplusplus
 }

@@ -131,6 +131,8 @@ extern "C" {
 
     int state_generate_all_transitions(state_t * state);
 
+    int state_identical(state_t * state1 , state_t * state2 );
+
 
 #ifdef	__cplusplus
 }
