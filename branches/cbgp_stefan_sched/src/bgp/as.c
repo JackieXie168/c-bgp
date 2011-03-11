@@ -187,9 +187,7 @@ static void _bgp_proto_dump_msg(gds_stream_t * stream, net_msg_t * msg)
 // -----[ _bgp_proto_dump_msg ]--------------------------------------
 static int _bgp_proto_compare_msg(net_msg_t * msg1, net_msg_t * msg2)
 {
-    TODO !!!!
-    bgp_msg_compare((bgp_msg_t *)msg1->payload,(bgp_msg_t *)msg2->payload);
-    return -1;
+    return bgp_msg_compare((bgp_msg_t *)msg1->payload,(bgp_msg_t *)msg2->payload);
 }
 
 // -----[ _bgp_proto_dump_msg ]--------------------------------------
