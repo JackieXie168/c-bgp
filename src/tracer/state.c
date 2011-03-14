@@ -381,7 +381,6 @@ static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state
   }
 }
 
-
 // ----- state_create ------------------------------------------------
 queue_state_t * _queue_state_create(state_t * state, sched_tunable_t * tunable_scheduler)
 {
@@ -697,14 +696,48 @@ int state_dump(gds_stream_t * stream, state_t * state)
 }
 
 
+int _one_bgp_session_compare( bgp_session_info_t * bgpi1, bgp_session_info_t * bgpi2)
+{
+    TODO !!!!
+    
+
+}
+
+//0=identical
+// other value  --> otherwise
+int _bgp_sessions_compare(bgp_sessions_info_t * bgp_i_1, bgp_sessions_info_t * bgp_i_2  )
+{
+   unsigned int i;
+
+   if(bgp_i_1->nb_bgp_session_info_ != bgp_i_2->nb_bgp_session_info_)
+       return -660;
+
+   for(i = 0; i < bgp_i_1->nb_bgp_session_info_ ; i++)
+   {
+       if ( 0 != _one_bgp_session_compare(bgp_i_1->bgp_session_info[i],bgp_i_2->bgp_session_info[i]  ) )
+           return -670;
+   }
+   return  0;
+}
 
 // 0 = identical
 // other value, otherwise
-int _rib_compare(local_rib_info_t * rib1, bgp_rib_t * rib2)
+int _rib_compare(local_rib_info_t * rib1, local_rib_info_t * rib2)
 {
+// 1rst version :
+//  have to have the same route in the same order !
 
+    unsigned int i;
 
+    if(rib1->nb_local_rib_elem != rib2->nb_local_rib_elem)
+        return -700;
 
+    for(i = 0; i < rib1->nb_local_rib_elem ; i++)
+    {
+        if ( route_equals(rib1->bgp_route_[i], rib2->bgp_route_[i] ) !=1 )
+            return -800;
+    }
+    return 0;
 }
 
 // 0 = identical
@@ -715,10 +748,12 @@ int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * r
     if ( 0 !=  _rib_compare(ri1->bgp_router_loc_rib_t, ri2->bgp_router_loc_rib_t))
         return -600;
 
-    TODO !!!
+    //compare bgp session!
 
-    
+    if( _bgp_sessions_compare(ri1->bgp_sessions_info, ri2->bgp_sessions_info  ) !=0)
+        return -650;
 
+    return 0;
 }
 // 0 = identical
 // other value, otherwise
@@ -734,7 +769,6 @@ int _routing_states_equivalent(routing_state_t * rs1, routing_state_t * rs2 )
              !=0)
          return -500;
   }
-
     return 0;
 }
 
