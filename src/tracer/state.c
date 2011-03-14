@@ -35,6 +35,8 @@
 #include <libgds/trie.h>
 #include <../net/net_types.h>
 
+#include "state.h"
+
 
 
 
@@ -70,7 +72,6 @@ bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
     for (index= 0; index < thesessioninfo->nb_adj_rib_out_routes; index++) {
         thesessioninfo->adj_rib_OUT_routes[index] = route_copy(bgp_route_array[index]);
     }
-
     return thesessioninfo;
 }
 
@@ -134,7 +135,7 @@ static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t *
     }
 }
 
-static void _loc_rib_info_dump(gds_stream_t * stream, loc_rib_info_t * info )
+static void _loc_rib_info_dump(gds_stream_t * stream, local_rib_info_t * info )
 {
     unsigned int i;
     for ( i = 0 ; i<  info->nb_local_rib_elem ; i++)
@@ -600,7 +601,6 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
             the_output_transition->from=state;
 }
 
-
 void state_add_input_transition(state_t * state,  struct transition_t * the_input_transition)
 {
     // TODO !
@@ -621,7 +621,6 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
     state->input_transitions[state->nb_input-1]=the_input_transition;
     state->input_transitions[state->nb_input-1]->to=state;
 }
-
 
 struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
   {
@@ -660,7 +659,6 @@ static void _allowed_transition_dump(gds_stream_t * stream, state_t * state)
 
 }
 
-
 static void _one_transition_dump(gds_stream_t * stream, transition_t * trans)
 {
     stream_printf(stream, "\t\t transition id : %u", trans->num_trans );
@@ -695,11 +693,31 @@ int state_dump(gds_stream_t * stream, state_t * state)
     return 1;
 }
 
-
+// 0 --> identical
+//other valuer -->otherwize
 int _one_bgp_session_compare( bgp_session_info_t * bgpi1, bgp_session_info_t * bgpi2)
 {
-    TODO !!!!
-    
+    unsigned int index;
+    if(bgpi1->nb_adj_rib_in_routes != bgpi2->nb_adj_rib_in_routes
+            || bgpi1->nb_adj_rib_out_routes != bgpi2->nb_adj_rib_out_routes )
+        return -710;
+
+    //adj-rib-in
+    for (index= 0; index < bgpi1->nb_adj_rib_in_routes; index++) {
+       if( 1 != route_equals(bgpi1->adj_rib_IN_routes[index],bgpi2->adj_rib_IN_routes[index]))
+       {
+           return -720;
+       }
+   }
+
+        //adj-rib-out
+    for (index= 0; index < bgpi1->nb_adj_rib_out_routes; index++) {
+       if( 1 != route_equals(bgpi1->adj_rib_OUT_routes[index],bgpi2->adj_rib_OUT_routes[index]))
+       {
+           return -730;
+       }
+   }
+    return 0;
 
 }
 
