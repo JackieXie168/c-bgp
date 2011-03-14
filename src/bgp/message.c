@@ -259,9 +259,14 @@ static inline bgp_msg_t * _bgp_msg_update_copy(bgp_msg_update_t * msg)
   return (bgp_msg_t *) nmsg;
 }
 
+// 0 = identical !
+// other value otherwize
 static inline int _bgp_msg_update_compare(bgp_msg_update_t * msg1, bgp_msg_update_t * msg2)
 {
-    return route_equals(msg1->route, msg2->route) == 1;
+    if ( route_equals(msg1->route, msg2->route) == 1 )
+        return 0;
+    else
+        return -102;
 }
 
 // -----[ _bgp_msg_withdraw_dump ]-----------------------------------
@@ -297,7 +302,7 @@ static inline int _bgp_msg_withdraw_compare(bgp_msg_withdraw_t * msg1, bgp_msg_w
     if( msg1->prefix.network == msg2->prefix.network && msg1->prefix.mask == msg2->prefix.mask )
         return 0;
     else
-        return 300;
+        return -300;
 }
 
 
@@ -391,7 +396,8 @@ void bgp_msg_dump(gds_stream_t * stream,
   } 
 }
 
-
+//0 = identical !
+// other value = otherwise
 int bgp_msg_compare(bgp_msg_t * msg1, bgp_msg_t * msg2)
 {
     assert(msg1->type < BGP_MSG_TYPE_MAX && msg2->type < BGP_MSG_TYPE_MAX);
