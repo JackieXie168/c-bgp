@@ -829,6 +829,7 @@ int _events_equivalent( _event_t * event1, _event_t * event2   )
     return _msgs_equivalent(send_ctx1->msg, send_ctx2->msg);
 }
 
+
 // 0 = identical
 // other value, otherwise
 int _queue_states_equivalent(queue_state_t * qs1, queue_state_t  * qs2 )
@@ -850,13 +851,146 @@ int _queue_states_equivalent(queue_state_t * qs1, queue_state_t  * qs2 )
     }
     return 0;
 }
+
+net_addr_t get_dst_addr(_event_t * ev)
+{
+     return ((net_send_ctx_t *) ev->ctx)->msg->dst_addr;
+}
+net_addr_t get_src_addr(_event_t * ev)
+{
+     return ((net_send_ctx_t *) ev->ctx)->msg->src_addr;
+}
+
+
+// 0 --> different
+// 1 --> same
+int _same_bgp_session_oriented( _event_t * event1, _event_t * event2 )
+{
+    return (get_dst_addr(event1) == get_dst_addr(event2) &&
+            get_src_addr(event1) == get_src_addr(event2));
+}
+
+
+// return the index of next
+// or max value if does not exist.
+int _next_of_bgp_session_oriented(net_addr_t src, net_addr_t dst ,
+            gds_fifo_tunable_t * file, unsigned int index, int * visited )
+{
+    while(index < file->current_depth &&
+           (
+                visited[index]==1 ||
+                get_src_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != src ||
+                get_dst_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != dst
+           )
+         )
+        index++;
+    return index;
+}
+
+// 0 = identical
+// other value, otherwise
+int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
+{
+    if(qs1->events->current_depth != qs2->events->current_depth )
+    {
+        return -1;
+    }
+
+    net_addr_t src;
+    net_addr_t dst;
+
+    unsigned int index1;
+    unsigned int index2;
+    unsigned int nb_msg = 0;
+    int * tab1_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
+    int * tab2_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
+
+    for(index1=0; index1<qs1->events->current_depth ; index1++);
+    {
+        tab1_visited[index1]=0;
+        tab2_visited[index1]=0;
+    }
+
+
+
+
+    while( nb_msg != qs1->events->current_depth)
+    {
+        //trouver le premier message de la session bgp (dirigée) suivante dans file 1:
+        index1 = 0;
+        while(index1<qs1->events->current_depth && tab1_visited[index1]==1)
+        {
+            index1++;
+        }
+        assert(index1<qs1->events->current_depth);
+
+        // en index1 : premier message d'une session bgp dirigée
+        // identifier la session bgp dirigée :
+        src = get_src_addr((_event_t *) qs1->events->items[(qs1->events->start_index + index1)% qs1->events->max_depth]);
+        dst = get_dst_addr((_event_t *) qs1->events->items[(qs1->events->start_index + index1)% qs1->events->max_depth]);
+        tab1_visited[index1] = 1;
+        // trouver le premier message de file2 qui est de cette session bgp.
+        index2 = 0;
+        while(index2<qs1->events->current_depth && 
+                (tab2_visited[index2]==1 || !_same_bgp_session_oriented(
+                     (_event_t *) qs1->events->items[(qs1->events->start_index + index1)% qs1->events->max_depth],
+                     (_event_t *) qs2->events->items[(qs2->events->start_index + index2)% qs2->events->max_depth]))
+             )
+        {
+           index2++;
+        }
+        // we go out of the while wheter index2 too high, or we found the msg !
+        if(index2==qs1->events->current_depth)
+        {
+            return -800;
+        }
+
+        if(0 != _events_equivalent( (_event_t *) qs1->events->items[(qs1->events->start_index + index1)% qs1->events->max_depth],
+                                    (_event_t *) qs2->events->items[(qs2->events->start_index + index2)% qs2->events->max_depth]))
+        {
+            return -810;
+        }
+
+        nb_msg++;
+        tab2_visited[index2]=1;
+
+        // la suite de cette session bgp dirigée
+        index1 = _next_of_bgp_session_oriented(src,dst,qs1->events,index1, tab1_visited);
+        index2 = _next_of_bgp_session_oriented(src,dst,qs2->events,index2, tab2_visited);
+
+        while(index1<qs1->events->current_depth && index2<qs2->events->current_depth)
+        {
+            // dans index1= le suivant de la session bgp dirigée.
+            // dans index2= le suivant de la session bgp dirigée.
+            if(0 != _events_equivalent( (_event_t *) qs1->events->items[(qs1->events->start_index + index1)% qs1->events->max_depth],
+                                    (_event_t *) qs2->events->items[(qs2->events->start_index + index2)% qs2->events->max_depth]))
+            {
+                return -820;
+            }
+            nb_msg++;
+            tab1_visited[index1]=1;
+            tab2_visited[index2]=1;
+            index1 = _next_of_bgp_session_oriented(src,dst,qs1->events,index1, tab1_visited);
+            index2 = _next_of_bgp_session_oriented(src,dst,qs2->events,index2, tab2_visited);
+        }
+
+        // soit il n'y en a plus dans les deux files, et c'est ok
+        if( index1 != qs1->events->current_depth || index2 != qs2->events->current_depth)
+            return -830;
+
+    }
+    return 0;
+}
+
+
+
 // 0 = identical
 // other value, otherwise
 int state_identical(state_t * state1 , state_t * state2 )
 {
 // équivalent en terme de file, et d'information de routage ...
 
-    if( _queue_states_equivalent(state1->queue_state,state2->queue_state) == 0 &&
+    if( _queue_states_equivalent_v2(state1->queue_state,state2->queue_state) == 0 &&
             _routing_states_equivalent(state1->routing_state, state2->routing_state ) == 0   )
         return 0;
     else
