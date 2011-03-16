@@ -83,7 +83,7 @@ void destroy_struct_state_trans(void ** structstatetrans)
 }
 
 
-static unsigned int MAXDEPTH = 1000;
+static unsigned int MAXDEPTH = 10000;
 
 int tracer_trace_whole_graph(tracer_t * self)
 {
