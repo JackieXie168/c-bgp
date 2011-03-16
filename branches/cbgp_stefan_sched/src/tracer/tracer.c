@@ -120,7 +120,9 @@ int tracer_trace_whole_graph(tracer_t * self)
     while(fifo_depth(fifo)!=0)
     {
         state_trans = (state_trans_t *) fifo_pop(fifo);
+        printf("2: before tracing");
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
+        printf("2: after tracing");
         // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
         // c'est un nouvel état si
         // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
