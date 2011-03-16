@@ -90,6 +90,14 @@ const char * arg= cli_get_arg_value(cmd, 0);
   return CLI_SUCCESS;
 
 }
+
+int cli_tracer_trace_whole_graph(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  if( tracer_trace_whole_graph(tracer_get_default()) >0 )
+    return CLI_SUCCESS;
+  return CLI_ERROR_COMMAND_FAILED;
+}
+
 // ----- cli_tracer_start ------------------------------------------------
 int cli_tracer_graph_export_dot(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -244,13 +252,20 @@ static void _register_tracer_go1step(cli_cmd_t * parent)
   cli_add_cmd(parent, cli_cmd("go1step", cli_tracer_go1step));
 }
 
-
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_tracer_trace_from(cli_cmd_t * parent)
+{
+  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("from", cli_tracer_trace));
+  cli_add_arg(cmd, cli_arg("state_id", NULL));
+  cli_add_arg(cmd, cli_arg("transition-id", NULL));
+}
 // -----[ _register_sim_run ]----------------------------------------
 static void _register_tracer_trace(cli_cmd_t * parent)
 {
-  cli_cmd_t * cmd= cli_add_cmd(parent, cli_cmd("trace", cli_tracer_trace));
-  cli_add_arg(cmd, cli_arg("state_id", NULL));
-  cli_add_arg(cmd, cli_arg("transition-id", NULL));
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("trace"));
+  _register_tracer_trace_from(group);
+  cli_add_cmd(group, cli_cmd("whole_graph", cli_tracer_trace_whole_graph));
+  
 }
 
 

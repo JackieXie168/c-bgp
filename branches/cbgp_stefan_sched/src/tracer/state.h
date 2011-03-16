@@ -125,7 +125,7 @@ extern "C" {
 
     int state_inject(state_t * state);
 
-    int state_calculate_allowed_output_transitions(state_t * state);
+    unsigned int state_calculate_allowed_output_transitions(state_t * state);
 
     struct transition_t * state_generate_transition(state_t * state, unsigned int trans);
 
