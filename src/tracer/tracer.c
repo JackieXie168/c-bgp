@@ -214,16 +214,24 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
      printf("2: tracing : before check identical state\n");
 
     state_t * identical_state = graph_search_identical_state(self->graph, new_state);
+     printf("2: tracing : after check if there is an identical state\n");
 
     if( identical_state == NULL )
     {
         // attacher l'état au graphe  (et valider le numéro state-id)
+        printf("2: tracing : before attach state to graph\n");
+
         state_attach_to_graph(new_state, transition);
+                printf("2: tracing : after attach state to graph\n");
+
     }
     else
     {
+                printf("2: tracing : before add input transition\n");
+
         state_add_input_transition(identical_state,transition);
-        
+                printf("2: tracing : after add input trans\n");
+
         // récupérer l'état identique
         // libérer l'état nouvellement créé :
         // free(state) ???
@@ -231,6 +239,7 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
         // ne pas valider le numéro state-id
     }
 
+     printf("2: tracing : end of tracing\n");
 
 
 
