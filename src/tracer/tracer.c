@@ -8,6 +8,7 @@
 #include <libgds/str_util.h>
 #include <libgds/memory.h>
 #include <libgds/stack.h>
+#include <libgds/fifo.h>
 
 
 #include <libgds/memory.h>
@@ -32,6 +33,8 @@
 
 #include "tracer.h"
 #include "state.h"
+#include "transition.h"
+#include "graph.h"
 
 
 
@@ -69,6 +72,93 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
 }
 
 
+typedef struct state_trans_t {
+  unsigned int state;
+  unsigned int trans;
+} state_trans_t;
+
+void destroy_struct_state_trans(void ** structstatetrans)
+{
+    FREE(structstatetrans);
+}
+
+
+static unsigned int MAXDEPTH = 1000;
+
+int tracer_trace_whole_graph(tracer_t * self)
+{
+    if(self->started == 1)
+        return -1;
+
+    unsigned int nbtrans;
+    unsigned int current_state_id;
+    unsigned int i;
+    state_t * current_state;
+    gds_fifo_t * fifo;
+    state_trans_t * state_trans;
+
+    _tracer_start(self);
+
+    fifo = fifo_create(MAXDEPTH, destroy_struct_state_trans);
+
+    //amorce :
+    // ajouter toutes les transitions dispo de l'état 0 dans la fifo
+    current_state_id=0;
+    current_state = self->graph->list_of_states[current_state_id];
+    nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+    for( i = 0 ; i < nbtrans ; i++ )
+    {
+        state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+        state_trans->state=current_state_id;
+        state_trans->trans=i;
+        fifo_push(fifo, state_trans);
+    }
+//  fin de l'amorce
+
+
+    while(fifo_depth(fifo)!=0)
+    {
+        state_trans = (state_trans_t *) fifo_pop(fifo);
+        tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
+        // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
+        // c'est un nouvel état si
+        // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
+        // si cet état a une seule input_transition alors c'est un nouveau.
+        current_state = self->graph->list_of_states[state_trans->state];
+        // trouver la transition qui porte le numéro state_trans->trans
+        for(i=current_state->nb_output-1; i>=0; i--)
+        {
+            if(current_state->output_transitions[i]->num_trans==state_trans->trans)
+                break;
+        }
+        assert(i>=0);
+        if( current_state->output_transitions[i]->to->nb_input == 1)
+        {
+            current_state = current_state->output_transitions[i]->to;
+            current_state_id = current_state->id;
+            nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+            for( i = 0 ; i < nbtrans ; i++ )
+            {
+                state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+                state_trans->state=current_state_id;
+                state_trans->trans=i;
+                fifo_push(fifo, state_trans);
+            }
+        }
+    }
+    return self->graph->nb_states;
+}
+
+int tracer_trace_whole_branch_from_state(tracer_t * self, unsigned int state_id)
+{
+    if(self->started == 0)
+        return -1;
+
+
+}
+
 
 int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state_id, unsigned int transition_id )
 {
@@ -103,7 +193,8 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     // TO DO TODO
     //vérifier que la transition n'a pas déjà été visitée !
     // transition->to == NULL
-
+    if(transition == NULL) // actuellement si transition déjà générée --> return NULL
+        return 10;
 
     unsigned int num_event =  origin_state->allowed_output_transitions[transition_id];
 
@@ -112,16 +203,10 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 
     sim_step(tracer_get_simulator(self), 1);
 
-    // TO DO TODO
-    //vérifier qu'on n'est pas dans un état déjà visité !
-
     state_t * new_state = state_create_isolated(self);
 
-
     // vérifier si l'état n'est pas déjà présent
-    // équivalence au niveau de la présence des event dans la queue state
-    // équivalence au niveau de la routing info
-
+ 
     state_t * identical_state = graph_search_identical_state(self->graph, new_state);
 
     if( identical_state == NULL )

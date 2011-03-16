@@ -36,6 +36,7 @@
 #include <../net/net_types.h>
 
 #include "state.h"
+#include "transition.h"
 
 
 
@@ -145,7 +146,6 @@ static void _loc_rib_info_dump(gds_stream_t * stream, local_rib_info_t * info )
        stream_printf(stream, "\n");
     }
 }
-
 
 local_rib_info_t * _routing_local_rib_create(net_node_t * node)
 {
@@ -411,7 +411,7 @@ int same_tcp_session(_event_t * event1 , _event_t * event2 )
       return 0;
 }
 
-int calculate_allowed_output_transitions(state_t * state)
+unsigned int state_calculate_allowed_output_transitions(state_t * state)
 {
     if(state->allowed_output_transitions!=NULL)
     {
@@ -497,7 +497,7 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   state->nb_allowed_output_transitions=0;
 
   
-  calculate_allowed_output_transitions(state);
+  state_calculate_allowed_output_transitions(state);
   graph_add_state(state->graph,state,state->id);
   
 
@@ -549,7 +549,7 @@ void state_attach_to_graph(state_t * state, struct transition_t * the_input_tran
   //state->allowed_output_transitions=NULL;
   //state->nb_allowed_output_transitions=0;
 
-  calculate_allowed_output_transitions(state);
+  state_calculate_allowed_output_transitions(state);
 
   state_next_available_id++;
   graph_add_state(state->graph,state,state->id);
@@ -625,7 +625,19 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
 struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
   {
       if( trans >= state->nb_allowed_output_transitions)
-          return 0;
+          return NULL;
+
+      //regarder si on n'a pas déjà généré la transition plus tôt :
+      if(state->nb_output>=1)
+      {
+          unsigned int i =0;
+          for (i=0; i< state->nb_output ; i++)
+          {
+              if( trans == state->output_transitions[i]->num_trans)
+                  return NULL;
+          }
+      }
+
 
       struct transition_t * transition = transition_create_from(
              (_event_t *) fifo_tunable_get_at(state->queue_state->events,
@@ -638,7 +650,7 @@ struct transition_t * state_generate_transition(state_t * state, unsigned int tr
 
 int state_generate_all_transitions(state_t * state)
   {
-      unsigned int nbtrans = calculate_allowed_output_transitions(state);
+      unsigned int nbtrans = state_calculate_allowed_output_transitions(state);
       unsigned int i;
       for(i = 0 ; i < nbtrans ; i++)
       {
@@ -684,7 +696,7 @@ int state_dump(gds_stream_t * stream, state_t * state)
     
     _queue_state_dump(stream,state->queue_state);
 
-    calculate_allowed_output_transitions(state);
+    state_calculate_allowed_output_transitions(state);
 
     _allowed_transition_dump(stream,state);
     _routing_state_dump(stream,state->routing_state);
