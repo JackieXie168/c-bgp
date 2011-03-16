@@ -120,9 +120,9 @@ int tracer_trace_whole_graph(tracer_t * self)
     while(fifo_depth(fifo)!=0)
     {
         state_trans = (state_trans_t *) fifo_pop(fifo);
-        printf("2: before tracing");
+        //printf("2: before tracing");
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
-        printf("2: after tracing");
+        //printf("2: after tracing");
         // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
         // c'est un nouvel état si
         // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
@@ -201,14 +201,18 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     unsigned int num_event =  origin_state->allowed_output_transitions[transition_id];
 
     //let the num_event be the next event to run
+    printf("2: tracing : before setfirst\n");
     tracer_get_simulator(self)->sched->ops.set_first(tracer_get_simulator(self)->sched, num_event );
+    printf("2: tracing : before sim step 1\n");
 
     sim_step(tracer_get_simulator(self), 1);
+    printf("2: tracing : before create state\n");
 
     state_t * new_state = state_create_isolated(self);
 
     // vérifier si l'état n'est pas déjà présent
- 
+     printf("2: tracing : before check identical state\n");
+
     state_t * identical_state = graph_search_identical_state(self->graph, new_state);
 
     if( identical_state == NULL )
