@@ -23,7 +23,7 @@ struct graph_t;
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
-static unsigned int MAX_STATE = 100;
+static unsigned int MAX_STATE = 10000;
 
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
