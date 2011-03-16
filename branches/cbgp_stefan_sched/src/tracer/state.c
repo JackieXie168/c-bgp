@@ -530,29 +530,34 @@ state_t * state_create_isolated(struct tracer_t * tracer)
 void state_attach_to_graph(state_t * state, struct transition_t * the_input_transition)
 {
   if(the_input_transition != NULL)
-  {
+  { printf("3: state attach to graph : 1 \n");
+
     assert(state->input_transitions == NULL);
+     printf("3: state attach to graph : 2 \n");
     state->input_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
-    state->nb_input=1;
-    state->input_transitions[0]=the_input_transition;
-    state->input_transitions[0]->to = state;
+    printf("3: state attach to graph : 3 \n");
+    state->nb_input=1; printf("3: state attach to graph : 4 \n");
+    state->input_transitions[0]=the_input_transition; printf("3: state attach to graph : 5 \n");
+    state->input_transitions[0]->to = state; printf("3: state attach to graph : 6 \n");
   }
   else
-  {
-    state->input_transitions = NULL;
-    state->nb_input=0;
+  { printf("3: state attach to graph : 7 \n");
+    state->input_transitions = NULL; printf("3: state attach to graph :8 \n");
+    state->nb_input=0; printf("3: state attach to graph : 9 \n");
   }
 
   state->output_transitions = NULL;
   state->nb_output=0;
-
+ printf("3: state attach to graph : 10 \n");
   //state->allowed_output_transitions=NULL;
   //state->nb_allowed_output_transitions=0;
 
   state_calculate_allowed_output_transitions(state);
-
+ printf("3: state attach to graph : 11 \n");
   state_next_available_id++;
+   printf("3: state attach to graph : 12 \n");
   graph_add_state(state->graph,state,state->id);
+   printf("3: state attach to graph : 13 \n");
 
 }
 
