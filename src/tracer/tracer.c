@@ -43,7 +43,7 @@
 
 static tracer_t  * _default_tracer= NULL;
 
-
+/*
 int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
 {
     if(self->started == 0)
@@ -70,6 +70,7 @@ int FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_t * self )
 
     return 1;
 }
+ * */
 
 
 typedef struct state_trans_t {
@@ -79,7 +80,7 @@ typedef struct state_trans_t {
 
 void destroy_struct_state_trans(void ** structstatetrans)
 {
-    FREE(structstatetrans);
+    //FREE(structstatetrans);
 }
 
 
@@ -90,6 +91,7 @@ int tracer_trace_whole_graph(tracer_t * self)
     if(self->started == 1)
         return -1;
 
+    unsigned int work = 0;
     unsigned int nbtrans;
     unsigned int current_state_id;
     unsigned int i;
@@ -109,7 +111,7 @@ int tracer_trace_whole_graph(tracer_t * self)
 
     for( i = 0 ; i < nbtrans ; i++ )
     {
-        state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+        state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
         state_trans->state=current_state_id;
         state_trans->trans=i;
         fifo_push(fifo, state_trans);
@@ -120,6 +122,11 @@ int tracer_trace_whole_graph(tracer_t * self)
     while(fifo_depth(fifo)!=0)
     {
         state_trans = (state_trans_t *) fifo_pop(fifo);
+        work++;
+        printf("Generated transition : %u\n",work);
+        if(work>18)
+                tracer_graph_export_dot(gdsout,self);
+
         //printf("2: before tracing");
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
         //printf("2: after tracing");
@@ -166,6 +173,8 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 {
     state_t * origin_state;
 
+    int debug = 0;
+
     if(self->started == 0)
         return -1;
 
@@ -178,14 +187,14 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 
     if(state_id >= graph_max_num_state())
     {
-        printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
+        if(debug==1) printf("ATTENTION ! nombre max d'état = %d\n",graph_max_num_state());
         return 1;
     }
     assert(self->graph->list_of_states != NULL );
     origin_state = self->graph->list_of_states[state_id];
     if(origin_state == NULL)
     {
-        printf("Unexisting state !\n");
+        if(debug==1) printf("Unexisting state !\n");
         return 1;
     }
 
@@ -201,36 +210,36 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     unsigned int num_event =  origin_state->allowed_output_transitions[transition_id];
 
     //let the num_event be the next event to run
-    printf("2: tracing : before setfirst\n");
+    if(debug==1) printf("2: tracing : before setfirst\n");
     tracer_get_simulator(self)->sched->ops.set_first(tracer_get_simulator(self)->sched, num_event );
-    printf("2: tracing : before sim step 1\n");
+    if(debug==1) printf("2: tracing : before sim step 1\n");
 
     sim_step(tracer_get_simulator(self), 1);
-    printf("2: tracing : before create state\n");
+    if(debug==1) printf("2: tracing : before create state\n");
 
     state_t * new_state = state_create_isolated(self);
 
     // vérifier si l'état n'est pas déjà présent
-     printf("2: tracing : before check identical state\n");
+     if(debug==1) printf("2: tracing : before check identical state\n");
 
     state_t * identical_state = graph_search_identical_state(self->graph, new_state);
-     printf("2: tracing : after check if there is an identical state\n");
+     if(debug==1) printf("2: tracing : after check if there is an identical state\n");
 
     if( identical_state == NULL )
     {
         // attacher l'état au graphe  (et valider le numéro state-id)
-        printf("2: tracing : before attach state to graph\n");
+        if(debug==1) printf("2: tracing : before attach state to graph\n");
 
         state_attach_to_graph(new_state, transition);
-                printf("2: tracing : after attach state to graph\n");
+                if(debug==1) printf("2: tracing : after attach state to graph\n");
 
     }
     else
     {
-                printf("2: tracing : before add input transition\n");
+                if(debug==1) printf("2: tracing : before add input transition\n");
 
         state_add_input_transition(identical_state,transition);
-                printf("2: tracing : after add input trans\n");
+                if(debug==1) printf("2: tracing : after add input trans\n");
 
         // récupérer l'état identique
         // libérer l'état nouvellement créé :
@@ -239,7 +248,7 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
         // ne pas valider le numéro state-id
     }
 
-     printf("2: tracing : end of tracing\n");
+     if(debug==1) printf("2: tracing : end of tracing\n");
 
 
 
@@ -266,10 +275,11 @@ int FOR_TESTING_PURPOSE_tracer_graph_state_dump(gds_stream_t * stream, tracer_t 
     return FOR_TESTING_PURPOSE_graph_state_dump(stream,self->graph,num_state);
 }
 
-int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self)
+/*int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self)
 {
     return FOR_TESTING_PURPOSE_graph_current_state_dump(stream,self->graph);
 }
+*/
 
    int tracer_graph_allstates_dump(gds_stream_t * stream,tracer_t *  tracer)
    {
