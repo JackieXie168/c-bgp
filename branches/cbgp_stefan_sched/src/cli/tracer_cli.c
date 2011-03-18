@@ -62,7 +62,7 @@ int cli_tracer_graph_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
 // ----- cli_tracer_start ------------------------------------------------
 int cli_tracer_go1step(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  int result = FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_get_default());
+  int result = 0 ; //FOR_TESTING_PURPOSE_tracer_go_one_step(tracer_get_default());
 
   if (!result) {
     cli_set_user_error(cli_get(), "Cound not go 1 step!");
@@ -144,7 +144,7 @@ int cli_tracer_graph_dump_root(cli_ctx_t * ctx, cli_cmd_t * cmd)
 // ----- cli_tracer_start ------------------------------------------------
 int cli_tracer_graph_dump_currentState(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  int result = FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gdsout ,tracer_get_default());
+  int result = 0; //FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gdsout ,tracer_get_default());
 
   if (!result) {
     cli_set_user_error(cli_get(), "Cound not dump the current state");

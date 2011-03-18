@@ -27,6 +27,7 @@
 #include "graph.h"
 #include "state.h"
 #include "transition.h"
+#include "tracer.h"
 
 
 
@@ -38,10 +39,19 @@ graph_t * graph_create(tracer_t * tracer)
 
   graph->tracer=tracer;
   graph->state_root= NULL;
-  graph->FOR_TESTING_PURPOSE_current_state = NULL;
+  //graph->FOR_TESTING_PURPOSE_current_state = NULL;
   graph->nb_states = 0;
-  
+  graph->nb_final_states = 0;
+
   graph->list_of_states = (state_t **) MALLOC( MAX_STATE * sizeof(state_t *) );
+  unsigned int i;
+  for (i=0;i<MAX_STATE;i++)
+      graph->list_of_states[i]=NULL;
+  graph->list_of_final_states = (state_t **) MALLOC( MAX_FINAL_STATES * sizeof(state_t *) );
+  for (i=0;i<MAX_FINAL_STATES;i++)
+      graph->list_of_final_states[i]=NULL;
+
+  graph->marking_sequence_number = 1;
 
   return graph;
 }
@@ -61,16 +71,33 @@ int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned in
     }
 }
 
+
+int graph_add_final_state(graph_t * the_graph, struct state_t * the_state)
+{
+    //assert (index == the_graph->nb_states);
+    if( the_graph->nb_final_states < MAX_FINAL_STATES )
+    {
+        the_graph->list_of_final_states[the_graph->nb_final_states]=the_state;
+        (the_graph->nb_final_states)++;
+        return 0;
+    }
+    else
+    {   printf("MAX number of final states reached !\n");
+        return -1;
+    }
+}
+
 // ----- state_create ------------------------------------------------
 int graph_init(graph_t * graph)
 {
     // nettoyer le reste si déjà été utilisé ... (pas pour l'instant)
   assert(graph->state_root == NULL && graph->nb_states == 0);
   graph->state_root= state_create(graph->tracer,NULL);
-  graph->FOR_TESTING_PURPOSE_current_state = graph->state_root;
+  //graph->FOR_TESTING_PURPOSE_current_state = graph->state_root;
   graph->nb_states = 1;
+  graph->state_root->type = graph->state_root->type | STATE_ROOT;
   //struct state_t        **    list_of_states;
-  return graph;
+  return 0;
 }
 
 int graph_root_dump(gds_stream_t * stream, graph_t * graph)
@@ -94,12 +121,23 @@ int FOR_TESTING_PURPOSE_graph_state_dump(gds_stream_t * stream, graph_t * graph,
     return state_dump( stream, current_state);
 }
 
-int FOR_TESTING_PURPOSE_graph_current_state_dump(gds_stream_t * stream, graph_t * graph)
+/*int FOR_TESTING_PURPOSE_graph_current_state_dump(gds_stream_t * stream, graph_t * graph)
 {
     return state_dump( stream, graph->FOR_TESTING_PURPOSE_current_state);
+}*/
+
+int graph_mark_states_for_can_lead_to_final_state(graph_t * graph)
+{
+    // prendre chaque état final, et leur dire de marquer leur input_transition comme can lead to final state.
+    graph->marking_sequence_number++;
+    unsigned int i;
+
+    for(i = 0 ; i < graph->nb_final_states ; i++)
+    {
+        state_mark_for_can_lead_to_final_state(graph->list_of_final_states[i],graph->marking_sequence_number );
+    }
+    return graph->marking_sequence_number;
 }
-
-
 
 int graph_allstates_dump(gds_stream_t * stream, graph_t * graph)
 {
@@ -217,6 +255,11 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
   net_subnet_t * subnet;
   net_iface_t * iface;
   unsigned int index;
+    
+  graph_mark_states_for_can_lead_to_final_state(graph);
+
+  net_export_dot(gdsout, graph->tracer->network);
+
 
   // Header
   stream_printf(stream, "/**\n");
@@ -226,7 +269,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
   //stream_printf(stream, " * Render with: neato -Tps <file.dot> <file.ps>\n");
   stream_printf(stream, " * Render with: dot <file.dot> -Tpng -o<file.png>\n");
   stream_printf(stream, " */\n");
-  stream_printf(stream, "digraph d {\n");
+  stream_printf(stream, "digraph Tracer_C_BGP {\n");
 
   //stream_printf(stream, "  overlap=scale\n");
 
@@ -236,14 +279,27 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 //#00ABCC   turquoise
 //#a80039   bordeau
 //#666666   gris
-    stream_printf(stream, "edge [color = \"#666666\"]\n");
+    stream_printf(stream, "edge [%s]\n",GRAPH_EDGE_DOT_STYLE);
 
 
     //each state : its id
     unsigned int i;
     for(i=0; i< graph->nb_states; i++)
     {
-      stream_printf(stream, "%u\n",graph->list_of_states[i]->id );
+      stream_printf(stream, "%u ",graph->list_of_states[i]->id );
+
+      stream_printf(stream, "[");
+      if( graph->list_of_states[i]->type & STATE_ROOT  )
+        stream_printf(stream, "%s,", STATE_ROOT_DOT_STYLE);
+      
+      if( graph->list_of_states[i]->type & STATE_FINAL  )
+                stream_printf(stream, "%s,", STATE_FINAL_DOT_STYLE);
+//             stream_printf(stream, "shape=%s, style=filled,color=\"%s\",", STATE_FINAL_SHAPE, STATE_FINAL_COLOR);
+      else if( graph->list_of_states[i]->type & STATE_CAN_LEAD_TO_A_FINAL_STATE  )
+        stream_printf(stream, "%s,",  STATE_CAN_LEAD_TO_A_FINAL_STATE_DOT_STYLE);
+      //"shape=%s, "%s\",",STATE_CAN_LEAD_TO_A_FINAL_STATE_SHAPE,STATE_CAN_LEAD_TO_A_FINAL_STATE_COLOR);
+
+      stream_printf(stream, "]\n");
     }
 
     // each state : its transition (with a state at the end of the transition ...
@@ -256,7 +312,8 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
        for (tra = 0 ; tra < state->nb_output ; tra++)
        {
         if(state->output_transitions[tra]->to != NULL)
-            stream_printf(stream, "%u -> %u ;\n",state->id, state->output_transitions[tra]->to->id);
+            stream_printf(stream, "%u -> %u [taillabel=\"%u\"];\n",state->id, state->output_transitions[tra]->to->id,
+                            state->output_transitions[tra]->num_trans);
        }
     }
 

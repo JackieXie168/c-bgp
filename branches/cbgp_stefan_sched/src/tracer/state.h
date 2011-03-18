@@ -106,9 +106,17 @@ typedef struct state_t {
   unsigned int nb_input;
   struct graph_t         *    graph;
   unsigned int          id;
+  uint8_t                type;
+
+  unsigned int          marking_sequence_number;
 } state_t;
 
-
+// ----- Global BGP options --------
+#define STATE_ROOT                      0x01
+#define STATE_FINAL                     0x02
+#define STATE_MEMBER_OF_A_CYCLE         0x04
+#define STATE_CAN_LEAD_TO_A_CYCLE       0x08
+#define STATE_CAN_LEAD_TO_A_FINAL_STATE 0x10
 
 #ifdef	__cplusplus
 extern "C" {
@@ -118,6 +126,9 @@ extern "C" {
 
 
     state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input_transition);
+
+    state_t * state_create_isolated(struct tracer_t * tracer);
+
 
     void state_add_output_transition(state_t * state,  struct transition_t * the_output_transition);
 
@@ -129,9 +140,11 @@ extern "C" {
 
     struct transition_t * state_generate_transition(state_t * state, unsigned int trans);
 
-    int state_generate_all_transitions(state_t * state);
+    //int state_generate_all_transitions(state_t * state);
 
     int state_identical(state_t * state1 , state_t * state2 );
+
+    void state_mark_for_can_lead_to_final_state(state_t * state , unsigned int marking_sequence_number );
 
 
 #ifdef	__cplusplus

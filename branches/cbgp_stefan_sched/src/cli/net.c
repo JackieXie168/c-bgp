@@ -385,7 +385,7 @@ int cli_net_export(cli_ctx_t * ctx, cli_cmd_t * cmd)
   net_export_format_t format= NET_EXPORT_FORMAT_CLI;
   char * option;
   net_error_t result;
-
+  printf("hereè!!!\n");
   // Get optional export format
   option= cli_opts_get_value(cmd->opts, "format");
   if (option != NULL) {

@@ -39,7 +39,7 @@
 #include "transition.h"
 
 
-
+static int STATE_DEBBUG = 0;
 
 static unsigned int state_next_available_id= 0;
 
@@ -338,14 +338,14 @@ static int _routing_state_inject(routing_state_t * routing_state)
   unsigned int i = 0;
 
   int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
-  printf("Routing state inject\n");
+  if(STATE_DEBBUG==1)printf("Routing state inject\n");
 
   for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
   {
       level=2;      for( ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
-      printf("node ");
+      if(STATE_DEBBUG==1)printf("node ");
       node_dump_id(gdsout,routing_state->couples_node_routing_info[i]->node );
-      printf("\n");
+      if(STATE_DEBBUG==1)printf("\n");
       
       _node_inject_routing_info(routing_state->couples_node_routing_info[i]->node ,
                                     routing_state->couples_node_routing_info[i]->routing_info);
@@ -460,6 +460,13 @@ unsigned int state_calculate_allowed_output_transitions(state_t * state)
              state->nb_allowed_output_transitions = state->nb_allowed_output_transitions + 1;
          }
     }
+
+    if(state->nb_allowed_output_transitions == 0)
+    {
+        state->type = state->type | STATE_FINAL;
+        graph_add_final_state(state->graph, state);
+    }
+
     return state->nb_allowed_output_transitions;
 }
 
@@ -495,6 +502,9 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
 
   state->allowed_output_transitions=NULL;
   state->nb_allowed_output_transitions=0;
+  state->type = 0x0;
+  state->type = 0x0;
+  state->marking_sequence_number = 0;
 
   
   state_calculate_allowed_output_transitions(state);
@@ -523,41 +533,42 @@ state_t * state_create_isolated(struct tracer_t * tracer)
   state->output_transitions=NULL;
   state->nb_input = 0;
   state->nb_output = 0;
-
+  state->type = 0x0;
+  state->marking_sequence_number = 0;
   return state;
 }
 
 void state_attach_to_graph(state_t * state, struct transition_t * the_input_transition)
 {
   if(the_input_transition != NULL)
-  { printf("3: state attach to graph : 1 \n");
+  { if(STATE_DEBBUG==1) printf("3: state attach to graph : 1 \n");
 
     assert(state->input_transitions == NULL);
-     printf("3: state attach to graph : 2 \n");
+     if(STATE_DEBBUG==1) printf("3: state attach to graph : 2 \n");
     state->input_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
-    printf("3: state attach to graph : 3 \n");
-    state->nb_input=1; printf("3: state attach to graph : 4 \n");
-    state->input_transitions[0]=the_input_transition; printf("3: state attach to graph : 5 \n");
-    state->input_transitions[0]->to = state; printf("3: state attach to graph : 6 \n");
+    if(STATE_DEBBUG==1) printf("3: state attach to graph : 3 \n");
+    state->nb_input=1; if(STATE_DEBBUG==1) printf("3: state attach to graph : 4 \n");
+    state->input_transitions[0]=the_input_transition; if(STATE_DEBBUG==1) printf("3: state attach to graph : 5 \n");
+    state->input_transitions[0]->to = state; if(STATE_DEBBUG==1) printf("3: state attach to graph : 6 \n");
   }
   else
-  { printf("3: state attach to graph : 7 \n");
-    state->input_transitions = NULL; printf("3: state attach to graph :8 \n");
-    state->nb_input=0; printf("3: state attach to graph : 9 \n");
+  { if(STATE_DEBBUG==1) printf("3: state attach to graph : 7 \n");
+    state->input_transitions = NULL; if(STATE_DEBBUG==1) printf("3: state attach to graph :8 \n");
+    state->nb_input=0; if(STATE_DEBBUG==1) printf("3: state attach to graph : 9 \n");
   }
 
   state->output_transitions = NULL;
   state->nb_output=0;
- printf("3: state attach to graph : 10 \n");
+ if(STATE_DEBBUG==1) printf("3: state attach to graph : 10 \n");
   //state->allowed_output_transitions=NULL;
   //state->nb_allowed_output_transitions=0;
 
   state_calculate_allowed_output_transitions(state);
- printf("3: state attach to graph : 11 \n");
+ if(STATE_DEBBUG==1) printf("3: state attach to graph : 11 \n");
   state_next_available_id++;
-   printf("3: state attach to graph : 12 \n");
+   if(STATE_DEBBUG==1) printf("3: state attach to graph : 12 \n");
   graph_add_state(state->graph,state,state->id);
-   printf("3: state attach to graph : 13 \n");
+   if(STATE_DEBBUG==1) printf("3: state attach to graph : 13 \n");
 
 }
 
@@ -566,8 +577,8 @@ static int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * 
 
     // destroy le tunable_scheduler->events,
     // copier l'état actuel dans le scheduler.
-  int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
-    printf("queue state_inject \n");
+  int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) if(STATE_DEBBUG==1) printf("  ");
+    if(STATE_DEBBUG==1) printf("queue state_inject \n");
 
      tunable_scheduler->events = fifo_tunable_copy( queue_state->events , fifo_tunable_event_deep_copy  ) ;
 
@@ -577,7 +588,7 @@ static int _queue_state_inject( queue_state_t * queue_state , sched_tunable_t * 
 int state_inject(state_t * state)
 {
     // inject queue_state
-    printf("State_inject :    %d\n",state->id);
+    if(STATE_DEBBUG==1) printf("State_inject :    %d\n",state->id);
     _queue_state_inject(state->queue_state ,  tracer_get_tunable_scheduler(state->graph->tracer));
     _routing_state_inject(state->routing_state);
     return 1;    
@@ -645,7 +656,7 @@ struct transition_t * state_generate_transition(state_t * state, unsigned int tr
 
 
       struct transition_t * transition = transition_create_from(
-             (_event_t *) fifo_tunable_get_at(state->queue_state->events,
+             (struct _event_t *) fifo_tunable_get_at(state->queue_state->events,
               state->allowed_output_transitions[trans]),(struct state_t *) state, trans);
 
       state_add_output_transition(state,transition);
@@ -653,6 +664,7 @@ struct transition_t * state_generate_transition(state_t * state, unsigned int tr
       return transition;
   }
 
+/*
 int state_generate_all_transitions(state_t * state)
   {
       unsigned int nbtrans = state_calculate_allowed_output_transitions(state);
@@ -663,6 +675,7 @@ int state_generate_all_transitions(state_t * state)
       }
       return i;
   }
+ */
 
 static void _allowed_transition_dump(gds_stream_t * stream, state_t * state)
 {
@@ -919,16 +932,16 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
     unsigned int index1;
     unsigned int index2;
     unsigned int nb_msg = 0;
-    int * tab1_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
-    int * tab2_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
+    //int * tab1_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
+    //int * tab2_visited = (int *) MALLOC ( qs1->events->current_depth * sizeof(int));
+    int tab1_visited[qs1->events->current_depth];
+    int tab2_visited[qs1->events->current_depth];
 
-    for(index1=0; index1<qs1->events->current_depth ; index1++);
+    for(index1=0; index1<qs1->events->current_depth ; index1++)
     {
-        tab1_visited[index1]=0;
-        tab2_visited[index1]=0;
+        tab1_visited[index1] = 0;
+        tab2_visited[index1] = 0;
     }
-
-
 
 
     while( nb_msg != qs1->events->current_depth)
@@ -1012,4 +1025,48 @@ int state_identical(state_t * state1 , state_t * state2 )
         return 0;
     else
         return 1;
+}
+
+
+void state_mark_for_can_lead_to_final_state(state_t * state , unsigned int marking_sequence_number )
+{
+    // si je suis déjà marqué avec ce numéro, je ne fais rien !
+    //printf("State id %u,  marking sequence number : %u", state->id,state->marking_sequence_number  );
+    if(state->marking_sequence_number == marking_sequence_number)
+        return;
+
+    state->marking_sequence_number = marking_sequence_number;
+    state->type = state->type | STATE_CAN_LEAD_TO_A_FINAL_STATE;
+    //printf("   new seq num : %u \n", state->marking_sequence_number  );
+
+    // marquer tout ceux qui mènent à moi !
+    unsigned int i;
+    for( i = 0 ; i < state->nb_input ; i++)
+    {
+        state_mark_for_can_lead_to_final_state(state->input_transitions[i]->from, marking_sequence_number );
+    }
+    
+}
+
+
+
+int state_export_to_file(state_t * state)
+{
+    FILE* fichier = NULL;
+    char file_name[256];
+    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
+    fichier = fopen(file_name, "w");
+    if (fichier != NULL)
+    {
+
+
+        fprintf(fichier, "Votre nom est %s et vous avez %ld ans", nom, age);
+
+
+
+        fclose(fichier);
+    } else {
+        printf("Impossible d'ecrire dans le fichier");
+    }
+    return 0;
 }
