@@ -23,7 +23,7 @@ struct graph_t;
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
-static unsigned int MAX_STATE = 10000;
+static unsigned int MAX_STATE = 1000000;
 static unsigned int MAX_FINAL_STATES = 100;
 
 #define STATE_FINAL_DOT_STYLE  "peripheries=3,style=filled, colorscheme=blues4,color=4"
@@ -76,6 +76,8 @@ extern "C" {
     struct state_t * graph_search_identical_state(graph_t * graph, struct state_t * state);
 
     void graph_export_allStates_to_file(graph_t * graph);
+
+	int graph_export_dot_to_file(graph_t * graph);
 
 #ifdef	__cplusplus
 }

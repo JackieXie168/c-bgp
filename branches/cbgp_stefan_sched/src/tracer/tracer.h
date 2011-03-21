@@ -72,6 +72,8 @@ extern "C" {
 
     void tracer_graph_export_allStates_to_file(tracer_t * tracer);
 
+	void tracer_graph_export_dot_to_file(tracer_t * tracer);
+
 #ifdef	__cplusplus
 }
 #endif
