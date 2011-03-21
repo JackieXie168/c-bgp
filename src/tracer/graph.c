@@ -9,6 +9,7 @@
 #include <libgds/memory.h>
 #include <libgds/stack.h>
 
+#include <time.h>
 
 #include <net/error.h>
 #include <net/icmp.h>
@@ -410,3 +411,26 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
         }
 
     }
+
+
+
+
+int graph_export_dot_to_file(graph_t * graph)
+{
+    char file_name[256];
+    time_t curtime;
+    struct tm *loctime;
+    /* Get the current time.  */
+    curtime = time (NULL);
+    /* Convert it to local time representation.  */
+    loctime = localtime (&curtime);
+    //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
+    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_graph.dot",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
+    
+    gds_stream_t * stream = stream_create_file(file_name);
+
+	graph_export_dot(stream,graph);
+
+    stream_destroy(&stream);
+    return 0;
+}

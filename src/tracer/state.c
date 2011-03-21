@@ -40,8 +40,13 @@
 #include "state.h"
 #include "transition.h"
 
+#define DUMP_ONLY_CONTENT 1
+#define DUMP_STATE 0
+#define DUMP_DEFAULT DUMP_STATE
 
 static int STATE_DEBBUG = 0;
+static int TYPE_OF_DUMP = DUMP_DEFAULT;
+
 
 static unsigned int state_next_available_id= 0;
 
@@ -109,10 +114,11 @@ bgp_sessions_info_t * _bgp_sessions_info_create(net_node_t * node)
 static void _bgp_one_session_info_dump(gds_stream_t * stream, bgp_session_info_t * bgp_session_info)
 {
     unsigned int index;
-   stream_printf(stream, "\t\t\tpeer :" );
+   stream_printf(stream, "\t\t\tpeer : " );
          ip_address_dump(stream, bgp_session_info->neighbor_addr);
          stream_printf(stream, "\n" );
-   stream_printf(stream, "\t\t\t\ttcp send/recv seq num : %d/%d\n",bgp_session_info->send_seq_num , bgp_session_info->recv_seq_num );
+   if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT) 
+		stream_printf(stream, "\t\t\t\ttcp send/recv seq num : %d/%d\n",bgp_session_info->send_seq_num , bgp_session_info->recv_seq_num );
    stream_printf(stream, "\t\t\t\tAdj-Rib IN : \n");
    for (index= 0; index < bgp_session_info->nb_adj_rib_in_routes; index++) {
        stream_printf(stream, "\t\t\t\t\t");
@@ -128,6 +134,31 @@ static void _bgp_one_session_info_dump(gds_stream_t * stream, bgp_session_info_t
 
 }
 
+
+static void _bgp_one_session_info_flat_dump(gds_stream_t * stream, net_node_t * node,  bgp_session_info_t * bgp_session_info)
+{
+    unsigned int index;
+   for (index= 0; index < bgp_session_info->nb_adj_rib_in_routes; index++) {       
+    	node_dump_id(stream,node);
+		stream_printf(stream, " IN from ");
+        ip_address_dump(stream, bgp_session_info->neighbor_addr);
+		stream_printf(stream, "   ");
+        route_dump(stream, bgp_session_info->adj_rib_IN_routes[index]);
+       stream_printf(stream, "\n");
+   }
+   stream_printf(stream, "\t\t\t\tAdj-Rib OUT : \n");
+   for (index= 0; index < bgp_session_info->nb_adj_rib_out_routes; index++) {
+    	node_dump_id(stream,node);
+		stream_printf(stream, " OUT to ");
+        ip_address_dump(stream, bgp_session_info->neighbor_addr);
+		stream_printf(stream, "   ");
+       route_dump(stream, bgp_session_info->adj_rib_OUT_routes[index]);
+       stream_printf(stream, "\n");
+   }
+
+}
+
+
 static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t * sessions_info)
 {
      stream_printf(stream, "\t\t\tBGP sessions \n");
@@ -137,15 +168,35 @@ static void _bgp_sessions_info_dump(gds_stream_t * stream, bgp_sessions_info_t *
         _bgp_one_session_info_dump(stream,sessions_info->bgp_session_info[index]);
     }
 }
+static void _bgp_sessions_info_flat_dump(gds_stream_t * stream, net_node_t * node, bgp_sessions_info_t * sessions_info)
+{
+    //pour chaque session, afficher les rib in et out :
+    unsigned int index;
+    for (index= 0; index < sessions_info->nb_bgp_session_info_; index++) {
+        _bgp_one_session_info_flat_dump(stream,node, sessions_info->bgp_session_info[index]);
+    }
+}
 
 static void _loc_rib_info_dump(gds_stream_t * stream, local_rib_info_t * info )
 {
     unsigned int i;
+    stream_printf(stream, "\t\t\tlocal RIB : \n");
     for ( i = 0 ; i<  info->nb_local_rib_elem ; i++)
     {
-       stream_printf(stream, "\t\t\t\t\t");
+       stream_printf(stream, "\t\t\t\t");
         route_dump(stream, info->bgp_route_[i]);
        stream_printf(stream, "\n");
+    }
+}
+static void _loc_rib_info_flat_dump(gds_stream_t * stream, net_node_t * node, local_rib_info_t * info )
+{
+    unsigned int i;
+    for ( i = 0 ; i<  info->nb_local_rib_elem ; i++)
+    {
+    	node_dump_id(stream,node);
+        stream_printf(stream, " loc-rib ");
+        route_dump(stream, info->bgp_route_[i]);
+        stream_printf(stream, "\n");
     }
 }
 
@@ -197,8 +248,15 @@ static void _routing_info_dump(gds_stream_t * stream, routing_info_t * info )
      //stream_printf(stream, " Node : %d" , coupleNR->node->rid );
      _loc_rib_info_dump(stream,info->bgp_router_loc_rib_t );
      _bgp_sessions_info_dump(stream,info->bgp_sessions_info);
+}
+static void _routing_info_flat_dump(gds_stream_t * stream, net_node_t * node, routing_info_t * info )
+{
+     //stream_printf(stream, " Node : %d" , coupleNR->node->rid );
+     _loc_rib_info_flat_dump(stream,node, info->bgp_router_loc_rib_t );
+     _bgp_sessions_info_flat_dump(stream,node,info->bgp_sessions_info);
 
 }
+
 
 couple_node_routinginfo_t * _couple_node_routinginfo_create(net_node_t * node)
 {
@@ -237,6 +295,22 @@ static void _couple_node_routinginfo_dump(gds_stream_t * stream, couple_node_rou
     stream_printf(stream, "\n" );
 
     _routing_info_dump(stream,coupleNR->routing_info);
+}
+
+static void _couple_node_routinginfo_flat_dump(gds_stream_t * stream, couple_node_routinginfo_t * coupleNR)
+{
+    //node_dump_id(stream,coupleNR->node);
+    _routing_info_flat_dump(stream,coupleNR->node,coupleNR->routing_info);
+}
+
+static void _routing_state_flat_dump(gds_stream_t * stream, routing_state_t * routing_state)
+{
+//  stream_printf(stream, "\tRouting State : \n");
+  unsigned int i = 0;
+  for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
+  {
+      _couple_node_routinginfo_flat_dump(stream,routing_state->couples_node_routing_info[i]);
+  }
 }
 
 static void _routing_state_dump(gds_stream_t * stream, routing_state_t * routing_state)
@@ -339,16 +413,20 @@ static int _routing_state_inject(routing_state_t * routing_state)
 {
   unsigned int i = 0;
 
+if(STATE_DEBBUG==1){
   int level=1;     int ilevel; for(ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
-  if(STATE_DEBBUG==1)printf("Routing state inject\n");
+  printf("Routing state inject\n");
+}
 
   for(i=0 ; i< routing_state->state->graph->tracer->nb_nodes ; i++)
   {
-      level=2;      for( ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
-      if(STATE_DEBBUG==1)printf("node ");
+      if(STATE_DEBBUG==1)
+		{
+	int level=2;  int ilevel;    for( ilevel = 0 ; ilevel < level ; ilevel++) printf("  ");
+     printf("node ");
       node_dump_id(gdsout,routing_state->couples_node_routing_info[i]->node );
-      if(STATE_DEBBUG==1)printf("\n");
-      
+      printf("\n");
+}      
       _node_inject_routing_info(routing_state->couples_node_routing_info[i]->node ,
                                     routing_state->couples_node_routing_info[i]->routing_info);
   }
@@ -367,12 +445,14 @@ static void _queue_state_dump(gds_stream_t * stream, queue_state_t * queue_state
   max_depth= queue_state->events->max_depth;
   start= queue_state->events->start_index;
 
-  stream_printf(stream, "\tQueue State :\n\t\tNumber of events queued: %u (%u)\n",
+if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT)  
+		  stream_printf(stream, "\tQueue State :\n\t\tNumber of events queued: %u (%u)\n",
 	     depth, max_depth);
           
   for (index= 0; index < depth; index++) {
     event= (_event_t *) queue_state->events->items[(start+index) % max_depth];
-    stream_printf(stream, "%d\t(%d) ", index, (start+index) % max_depth);
+    if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT) 
+       stream_printf(stream, "%d\t(%d) ", index, (start+index) % max_depth);
     //stream_printf(stream, "-- Event:%p - ctx:%p - msg:%p - bgpmsg:%p --\n\t\t", event, event->ctx, ((net_send_ctx_t *)event->ctx)->msg,((net_msg_t *)((net_send_ctx_t *)event->ctx)->msg)->payload);
     stream_flush(stream);
     if (event->ops->dump != NULL) {
@@ -718,10 +798,21 @@ int state_dump(gds_stream_t * stream, state_t * state)
 
     state_calculate_allowed_output_transitions(state);
 
-    _allowed_transition_dump(stream,state);
+    if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT)  
+		_allowed_transition_dump(stream,state);
     _routing_state_dump(stream,state->routing_state);
 
-    _transitions_dump(stream,state);
+	if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT)  
+		_transitions_dump(stream,state);
+    return 1;
+}
+
+int state_flat_dump(gds_stream_t * stream, state_t * state)
+{
+    _queue_state_dump(stream,state->queue_state);
+//    state_calculate_allowed_output_transitions(state);
+   _routing_state_flat_dump(stream,state->routing_state);
+
     return 1;
 }
 
@@ -1056,6 +1147,9 @@ void state_mark_for_can_lead_to_final_state(state_t * state , unsigned int marki
 
 int state_export_to_file(state_t * state)
 {
+
+	TYPE_OF_DUMP = DUMP_ONLY_CONTENT;
+
     char file_name[256];
 
     time_t curtime;
@@ -1072,7 +1166,7 @@ int state_export_to_file(state_t * state)
 
 
     //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
-    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_state_%u",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec,state->id);
+    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_state_%u.txt",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec,state->id);
     
     gds_stream_t * stream = stream_create_file(file_name);
 
@@ -1083,8 +1177,9 @@ int state_export_to_file(state_t * state)
     //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
 
     //tracer_state_dump( stream, tracer , state->id);
-    state_dump(stream,state);
+    state_flat_dump(stream,state);
     stream_destroy(&stream);
 
+	TYPE_OF_DUMP = DUMP_DEFAULT;
     return 0;
 }

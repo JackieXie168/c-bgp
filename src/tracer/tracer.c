@@ -124,9 +124,12 @@ int tracer_trace_whole_graph(tracer_t * self)
         state_trans = (state_trans_t *) fifo_pop(fifo);
         work++;
         printf("Generated transition : %u\n",work);
-        if(work>18)
-                tracer_graph_export_dot(gdsout,self);
-
+       // if(work>18)
+       //         tracer_graph_export_dot(gdsout,self);
+/*if(work==30000)
+{
+return;
+}*/
         //printf("2: before tracing");
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
         //printf("2: after tracing");
@@ -395,4 +398,9 @@ void _tracer_done()
 void tracer_graph_export_allStates_to_file(tracer_t * tracer)
 {
     graph_export_allStates_to_file(tracer->graph);
+}
+
+void tracer_graph_export_dot_to_file(tracer_t * tracer)
+{
+    graph_export_dot_to_file(tracer->graph);
 }
