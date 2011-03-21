@@ -70,6 +70,7 @@ extern "C" {
 
     void tracer_graph_export_dot(gds_stream_t * stream,tracer_t * tracer);
 
+    void tracer_graph_export_allStates_to_file(tracer_t * tracer);
 
 #ifdef	__cplusplus
 }

@@ -401,3 +401,12 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
   
 }
 
+    void graph_export_allStates_to_file(graph_t * graph)
+    {
+        unsigned int i;
+        for(i=0; i< graph->nb_states; i++)
+        {
+           state_export_to_file(graph->list_of_states[i]);
+        }
+
+    }

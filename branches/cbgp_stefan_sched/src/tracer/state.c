@@ -4,6 +4,8 @@
 #include <config.h>
 #endif
 
+#include <time.h>
+
 #include <libgds/memory.h>
 #include <libgds/stack.h>
 
@@ -1050,23 +1052,39 @@ void state_mark_for_can_lead_to_final_state(state_t * state , unsigned int marki
 
 
 
+
+
 int state_export_to_file(state_t * state)
 {
-    FILE* fichier = NULL;
     char file_name[256];
-    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
-    fichier = fopen(file_name, "w");
-    if (fichier != NULL)
-    {
+
+    time_t curtime;
+    struct tm *loctime;
+
+    /* Get the current time.  */
+    curtime = time (NULL);
+
+    /* Convert it to local time representation.  */
+    loctime = localtime (&curtime);
+
+    /* Print out the date and time in the standard format.  */
 
 
-        fprintf(fichier, "Votre nom est %s et vous avez %ld ans", nom, age);
+
+    //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
+    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_state_%u",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec,state->id);
+    
+    gds_stream_t * stream = stream_create_file(file_name);
 
 
 
-        fclose(fichier);
-    } else {
-        printf("Impossible d'ecrire dans le fichier");
-    }
+    //FILE* fichier = NULL;
+    //char file_name[256];
+    //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
+
+    //tracer_state_dump( stream, tracer , state->id);
+    state_dump(stream,state);
+    stream_destroy(&stream);
+
     return 0;
 }

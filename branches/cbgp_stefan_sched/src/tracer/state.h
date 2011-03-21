@@ -146,6 +146,8 @@ extern "C" {
 
     void state_mark_for_can_lead_to_final_state(state_t * state , unsigned int marking_sequence_number );
 
+    int state_export_to_file(state_t * state);
+
 
 #ifdef	__cplusplus
 }
