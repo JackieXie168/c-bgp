@@ -75,6 +75,8 @@ extern "C" {
 
     struct state_t * graph_search_identical_state(graph_t * graph, struct state_t * state);
 
+    void graph_export_allStates_to_file(graph_t * graph);
+
 #ifdef	__cplusplus
 }
 #endif

@@ -320,6 +320,8 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
    }
 
 
+
+
 /////////////////////////////////////////////////////////////////////
 //
 // INITIALIZATION AND FINALIZATION SECTION
@@ -388,3 +390,9 @@ void _tracer_done()
     tracer_destroy(&_default_tracer);
 }
 */
+
+
+void tracer_graph_export_allStates_to_file(tracer_t * tracer)
+{
+    graph_export_allStates_to_file(tracer->graph);
+}
