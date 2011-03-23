@@ -74,6 +74,12 @@ extern "C" {
 
 	void tracer_graph_export_dot_to_file(tracer_t * tracer);
 
+    int tracer_trace_whole_graph(tracer_t * self);
+
+
+    int tracer_trace_whole_graph_v2(tracer_t * self);
+
+
 #ifdef	__cplusplus
 }
 #endif

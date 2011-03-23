@@ -93,7 +93,7 @@ const char * arg= cli_get_arg_value(cmd, 0);
 
 int cli_tracer_trace_whole_graph(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  if( tracer_trace_whole_graph(tracer_get_default()) >0 )
+  if( tracer_trace_whole_graph_v2(tracer_get_default()) >0 )
     return CLI_SUCCESS;
   return CLI_ERROR_COMMAND_FAILED;
 }

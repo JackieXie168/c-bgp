@@ -30,6 +30,7 @@ static unsigned int MAX_FINAL_STATES = 100;
 #define STATE_ROOT_DOT_STYLE  "shape=box,peripheries=2"
 #define STATE_CAN_LEAD_TO_A_FINAL_STATE_DOT_STYLE  "style=filled, colorscheme=blues4,color=2"
 #define GRAPH_EDGE_DOT_STYLE  "color=\"#666666\",colorscheme=blues4,labelfontsize=10,labelfontcolor=4"
+#define STATE_NOT_COMPLETELY_TREATED_DOT_STYLE  "peripheries=2"
 
 
 /*\definecolor{turquoise}{rgb}{0,0.6666,0.8}
@@ -50,6 +51,9 @@ typedef struct graph_t {
   unsigned int         nb_final_states;
 
   unsigned int          marking_sequence_number;
+
+  struct state_t        **  list_of_active_states;
+  unsigned int              nb_of_active_states;
 
 } graph_t;
 
@@ -77,7 +81,10 @@ extern "C" {
 
     void graph_export_allStates_to_file(graph_t * graph);
 
-	int graph_export_dot_to_file(graph_t * graph);
+    int graph_export_dot_to_file(graph_t * graph);
+
+    struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph);
+
 
 #ifdef	__cplusplus
 }

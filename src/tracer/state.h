@@ -88,6 +88,7 @@ void                  * ctx;
 typedef struct  queue_state_t {
     struct state_t              * state;
     gds_fifo_tunable_t          * events;
+    unsigned int                max_nb_of_msg_in_one_oriented_session;
 }  queue_state_t;
 
 
@@ -107,8 +108,8 @@ typedef struct state_t {
   struct graph_t         *    graph;
   unsigned int          id;
   uint8_t                type;
-
   unsigned int          marking_sequence_number;
+  unsigned int          blocked;
 } state_t;
 
 // ----- Global BGP options --------
