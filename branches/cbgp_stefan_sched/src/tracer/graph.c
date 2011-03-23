@@ -298,6 +298,13 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 //             stream_printf(stream, "shape=%s, style=filled,color=\"%s\",", STATE_FINAL_SHAPE, STATE_FINAL_COLOR);
       else if( graph->list_of_states[i]->type & STATE_CAN_LEAD_TO_A_FINAL_STATE  )
         stream_printf(stream, "%s,",  STATE_CAN_LEAD_TO_A_FINAL_STATE_DOT_STYLE);
+
+      if(graph->list_of_states[i]->nb_allowed_output_transitions != graph->list_of_states[i]->nb_output)
+      {
+        stream_printf(stream, "%s,",  STATE_NOT_COMPLETELY_TREATED_DOT_STYLE);
+        //printf("node %d :  allowed : %d, nboutput ;%d\n",graph->list_of_states[i]->id,graph->list_of_states[i]->allowed_output_transitions,graph->list_of_states[i]->nb_output);
+      }
+      
       //"shape=%s, "%s\",",STATE_CAN_LEAD_TO_A_FINAL_STATE_SHAPE,STATE_CAN_LEAD_TO_A_FINAL_STATE_COLOR);
 
       stream_printf(stream, "]\n");
@@ -429,8 +436,33 @@ int graph_export_dot_to_file(graph_t * graph)
     
     gds_stream_t * stream = stream_create_file(file_name);
 
-	graph_export_dot(stream,graph);
+    graph_export_dot(stream,graph);
 
     stream_destroy(&stream);
+    char commande[1024];
+    sprintf(commande,"dot -Tpng %s -o%s.png",file_name, file_name);
+    system(commande);
     return 0;
+}
+
+
+state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph)
+{
+    //se balader parmi tous les états 'actifs' cad non complètement traités, cad nballowed > nboutput
+   unsigned int i;
+   assert(graph->nb_states > 0);
+   state_t * min_state = NULL;
+
+   for(i = 0 ; i < graph->nb_states ; i++)
+   {
+       if(state_calculate_allowed_output_transitions(graph->list_of_states[i]) > graph->list_of_states[i]->nb_output)
+       {
+           if(min_state == NULL || 
+                   graph->list_of_states[i]->queue_state->max_nb_of_msg_in_one_oriented_session
+                   < min_state->queue_state->max_nb_of_msg_in_one_oriented_session)
+               min_state = graph->list_of_states[i];
+       }
+   }
+   return min_state;
+
 }

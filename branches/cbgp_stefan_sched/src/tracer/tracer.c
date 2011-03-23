@@ -9,6 +9,7 @@
 #include <libgds/memory.h>
 #include <libgds/stack.h>
 #include <libgds/fifo.h>
+#include <libgds/lifo.h>
 
 
 #include <libgds/memory.h>
@@ -96,12 +97,14 @@ int tracer_trace_whole_graph(tracer_t * self)
     unsigned int current_state_id;
     unsigned int i;
     state_t * current_state;
-    gds_fifo_t * fifo;
+    //gds_fifo_t * list_of_state_trans;
+    gds_lifo_t * list_of_state_trans;
+
     state_trans_t * state_trans;
 
     _tracer_start(self);
 
-    fifo = fifo_create(MAXDEPTH, destroy_struct_state_trans);
+    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
 
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -114,22 +117,22 @@ int tracer_trace_whole_graph(tracer_t * self)
         state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
         state_trans->state=current_state_id;
         state_trans->trans=i;
-        fifo_push(fifo, state_trans);
+        fifo_push(list_of_state_trans, state_trans);
     }
 //  fin de l'amorce
 
 
-    while(fifo_depth(fifo)!=0)
+    while(fifo_depth(list_of_state_trans)!=0)
     {
-        state_trans = (state_trans_t *) fifo_pop(fifo);
+        state_trans = (state_trans_t *) fifo_pop(list_of_state_trans);
         work++;
         printf("Generated transition : %u\n",work);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-/*if(work==30000)
+if(work==200)
 {
 return;
-}*/
+}
         //printf("2: before tracing");
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
         //printf("2: after tracing");
@@ -156,12 +159,49 @@ return;
                 state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
                 state_trans->state=current_state_id;
                 state_trans->trans=i;
-                fifo_push(fifo, state_trans);
+                fifo_push(list_of_state_trans, state_trans);
             }
         }
     }
     return self->graph->nb_states;
 }
+
+
+
+
+int tracer_trace_whole_graph_v2(tracer_t * self)
+{
+    if(self->started == 1)
+        return -1;
+
+    _tracer_start(self);
+
+    unsigned int nbtrans;
+    unsigned int i;
+    unsigned int transition = 0;
+    state_t * min_state;
+
+    while( transition < 200
+            && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
+             != NULL )
+    {
+        printf("Min_state = %u \n",min_state->id);
+
+        // traiter toutes ses transitions.
+        // ici quand on prend un état, on traite toutes ses transitions !
+        nbtrans = state_calculate_allowed_output_transitions(min_state);
+
+        for( i = 0 ; i < nbtrans ; i++)
+        {
+            printf("\t Transition num %u \n",i);
+
+            tracer_trace_from_state_using_transition(self,min_state->id,i);
+            transition++;
+        }
+    }
+    return self->graph->nb_states;
+}
+
 
 int tracer_trace_whole_branch_from_state(tracer_t * self, unsigned int state_id)
 {

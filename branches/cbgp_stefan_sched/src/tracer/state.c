@@ -146,7 +146,7 @@ static void _bgp_one_session_info_flat_dump(gds_stream_t * stream, net_node_t * 
         route_dump(stream, bgp_session_info->adj_rib_IN_routes[index]);
        stream_printf(stream, "\n");
    }
-   stream_printf(stream, "\t\t\t\tAdj-Rib OUT : \n");
+   
    for (index= 0; index < bgp_session_info->nb_adj_rib_out_routes; index++) {
     	node_dump_id(stream,node);
 		stream_printf(stream, " OUT to ");
@@ -464,6 +464,104 @@ if(TYPE_OF_DUMP!=DUMP_ONLY_CONTENT)
   }
 }
 
+
+net_addr_t get_dst_addr(_event_t * ev)
+{
+     return ((net_send_ctx_t *) ev->ctx)->msg->dst_addr;
+}
+net_addr_t get_src_addr(_event_t * ev)
+{
+     return ((net_send_ctx_t *) ev->ctx)->msg->src_addr;
+}
+
+
+// 0 --> different
+// 1 --> same
+int _same_bgp_session_oriented( _event_t * event1, _event_t * event2 )
+{
+    return (get_dst_addr(event1) == get_dst_addr(event2) &&
+            get_src_addr(event1) == get_src_addr(event2));
+}
+
+
+// return the index of next
+// or max value if does not exist.
+int _next_of_bgp_session_oriented(net_addr_t src, net_addr_t dst ,
+            gds_fifo_tunable_t * file, unsigned int index, int * visited )
+{
+    while(index < file->current_depth &&
+           (
+                visited[index]==1 ||
+                get_src_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != src ||
+                get_dst_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != dst
+           )
+         )
+        index++;
+    return index;
+}
+
+unsigned int  _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(queue_state_t * qs)
+{
+    if(qs->max_nb_of_msg_in_one_oriented_session != 0 || qs->events->current_depth == 0)
+    {
+        return qs->max_nb_of_msg_in_one_oriented_session;
+    }
+
+
+    net_addr_t src;
+    net_addr_t dst;
+
+    unsigned int index1;
+    unsigned int nb_msg = 0;
+    unsigned int temp = 0;
+    int tab1_visited[qs->events->current_depth];
+
+    for(index1=0; index1<qs->events->current_depth ; index1++)
+    {
+        tab1_visited[index1] = 0;
+    }
+
+
+    while( nb_msg != qs->events->current_depth)
+    {
+        //trouver le premier message de la session bgp (dirigée) suivante dans file 1:
+        index1 = 0;
+        while(index1<qs->events->current_depth && tab1_visited[index1]==1)
+        {
+            index1++;
+        }
+        assert(index1<qs->events->current_depth);
+
+        // en index1 : premier message d'une session bgp dirigée
+        // identifier la session bgp dirigée :
+        src = get_src_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        dst = get_dst_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        tab1_visited[index1] = 1;
+
+        nb_msg++;
+        temp = 1;
+
+        // la suite de cette session bgp dirigée
+        index1 = _next_of_bgp_session_oriented(src,dst,qs->events,index1, tab1_visited);
+
+        while(index1<qs->events->current_depth)
+        {
+            // dans index1= le suivant de la session bgp dirigée.
+            nb_msg++;
+            temp++;
+            tab1_visited[index1]=1;
+            index1 = _next_of_bgp_session_oriented(src,dst,qs->events,index1, tab1_visited);
+        }
+
+        assert(index1 == qs->events->current_depth);
+
+        if(temp>qs->max_nb_of_msg_in_one_oriented_session)
+            qs->max_nb_of_msg_in_one_oriented_session = temp;
+    }
+    return qs->max_nb_of_msg_in_one_oriented_session;
+}
+
+
 // ----- state_create ------------------------------------------------
 queue_state_t * _queue_state_create(state_t * state, sched_tunable_t * tunable_scheduler)
 {
@@ -471,9 +569,9 @@ queue_state_t * _queue_state_create(state_t * state, sched_tunable_t * tunable_s
   queue_state= (queue_state_t *) MALLOC(sizeof(queue_state_t));
 
   queue_state->state = state;
-
   queue_state->events=fifo_tunable_copy( tunable_scheduler->events , fifo_tunable_event_deep_copy   ) ;
-  
+  queue_state->max_nb_of_msg_in_one_oriented_session=0;
+  _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(queue_state);
   return queue_state;
 }
 
@@ -975,41 +1073,6 @@ int _queue_states_equivalent(queue_state_t * qs1, queue_state_t  * qs2 )
     return 0;
 }
 
-net_addr_t get_dst_addr(_event_t * ev)
-{
-     return ((net_send_ctx_t *) ev->ctx)->msg->dst_addr;
-}
-net_addr_t get_src_addr(_event_t * ev)
-{
-     return ((net_send_ctx_t *) ev->ctx)->msg->src_addr;
-}
-
-
-// 0 --> different
-// 1 --> same
-int _same_bgp_session_oriented( _event_t * event1, _event_t * event2 )
-{
-    return (get_dst_addr(event1) == get_dst_addr(event2) &&
-            get_src_addr(event1) == get_src_addr(event2));
-}
-
-
-// return the index of next
-// or max value if does not exist.
-int _next_of_bgp_session_oriented(net_addr_t src, net_addr_t dst ,
-            gds_fifo_tunable_t * file, unsigned int index, int * visited )
-{
-    while(index < file->current_depth &&
-           (
-                visited[index]==1 ||
-                get_src_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != src ||
-                get_dst_addr((_event_t *) file->items[(file->start_index + index)% file->max_depth]) != dst
-           )
-         )
-        index++;
-    return index;
-}
-
 // 0 = identical
 // other value, otherwise
 int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
@@ -1017,6 +1080,10 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
     if(qs1->events->current_depth != qs2->events->current_depth )
     {
         return -1;
+    }
+    if(qs1->max_nb_of_msg_in_one_oriented_session != qs2->max_nb_of_msg_in_one_oriented_session)
+    {
+        return -2;
     }
 
     net_addr_t src;
@@ -1104,6 +1171,8 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
     }
     return 0;
 }
+
+
 
 
 
