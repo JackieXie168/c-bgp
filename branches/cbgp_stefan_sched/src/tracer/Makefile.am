@@ -15,6 +15,10 @@ INCLUDES = -I..
 libtracer_la_SOURCES = \
 	state.c \
 	state.h \
+	routing_state.c \
+	routing_state.h \
+	queue_state.c \
+	queue_state.h \
 	graph.c \
 	graph.h \
 	tracer.c \

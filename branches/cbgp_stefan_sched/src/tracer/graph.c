@@ -248,6 +248,21 @@ int graph_allstates_dump(gds_stream_t * stream, graph_t * graph)
     }
 
 
+static void transition_short_dump(gds_stream_t * stream, transition_t * trans)
+{
+    _event_t * ev =  trans->event;
+    net_send_ctx_t * sendctx = ev->ctx;
+    net_msg_t * msg = sendctx->msg;
+
+    stream_printf(stream, "");
+    ip_address_dump(stream,msg->src_addr);
+    stream_printf(stream, "\\n->");
+    ip_address_dump(stream,msg->dst_addr);
+    stream_printf(stream, "");
+
+
+}
+
 // -----[ net_export_dot ]-------------------------------------------
 void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 {
@@ -320,8 +335,21 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
        for (tra = 0 ; tra < state->nb_output ; tra++)
        {
         if(state->output_transitions[tra]->to != NULL)
-            stream_printf(stream, "%u -> %u [taillabel=\"%u\"];\n",state->id, state->output_transitions[tra]->to->id,
-                            state->output_transitions[tra]->num_trans);
+        {
+            stream_printf(stream, "%u -> %u [",state->id, state->output_transitions[tra]->to->id);
+        
+            if(TRANSITION_DOT_DUMP_VERSION == TRANSITION_DOT_DUMP_VERSION_ID)
+            {
+                stream_printf(stream, " taillabel=\"%u\" ", state->output_transitions[tra]->num_trans);
+            }
+            else if(TRANSITION_DOT_DUMP_VERSION == TRANSITION_DOT_DUMP_VERSION_SHORT_DUMP)
+            {
+               stream_printf(stream, " taillabel=\"");
+                transition_short_dump(stream,state->output_transitions[tra]);
+                stream_printf(stream, "\"");
+            }
+            stream_printf(stream, "];\n");
+        }
        }
     }
 
