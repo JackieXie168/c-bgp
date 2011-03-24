@@ -87,7 +87,7 @@ void destroy_struct_state_trans(void ** structstatetrans)
 
 static unsigned int MAXDEPTH = 10000;
 
-int tracer_trace_whole_graph(tracer_t * self)
+int tracer_trace_whole_graph_v0(tracer_t * self)
 {
     if(self->started == 1)
         return -1;
@@ -97,8 +97,7 @@ int tracer_trace_whole_graph(tracer_t * self)
     unsigned int current_state_id;
     unsigned int i;
     state_t * current_state;
-    //gds_fifo_t * list_of_state_trans;
-    gds_lifo_t * list_of_state_trans;
+    gds_fifo_t * list_of_state_trans;
 
     state_trans_t * state_trans;
 
@@ -166,6 +165,86 @@ return;
     return self->graph->nb_states;
 }
 
+// same as v0 but use a lifo instead of a fifo
+// should be refactored with the v0 (because it's just a copy/paste)
+int tracer_trace_whole_graph_v1(tracer_t * self)
+{
+    if(self->started == 1)
+        return -1;
+
+    unsigned int work = 0;
+    unsigned int nbtrans;
+    unsigned int current_state_id;
+    unsigned int i;
+    state_t * current_state;
+    gds_lifo_t * list_of_state_trans;
+
+    state_trans_t * state_trans;
+
+    _tracer_start(self);
+
+    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
+
+    //amorce :
+    // ajouter toutes les transitions dispo de l'état 0 dans la fifo
+    current_state_id=0;
+    current_state = self->graph->list_of_states[current_state_id];
+    nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+    for( i = 0 ; i < nbtrans ; i++ )
+    {
+        state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
+        state_trans->state=current_state_id;
+        state_trans->trans=i;
+        lifo_push(list_of_state_trans, state_trans);
+    }
+//  fin de l'amorce
+
+
+    while(lifo_depth(list_of_state_trans)!=0)
+    {
+        state_trans = (state_trans_t *) lifo_pop(list_of_state_trans);
+        work++;
+        printf("Generated transition : %u\n",work);
+       // if(work>18)
+       //         tracer_graph_export_dot(gdsout,self);
+if(work==200)
+{
+return;
+}
+        //printf("2: before tracing");
+        tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
+        //printf("2: after tracing");
+        // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
+        // c'est un nouvel état si
+        // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
+        // si cet état a une seule input_transition alors c'est un nouveau.
+        current_state = self->graph->list_of_states[state_trans->state];
+        // trouver la transition qui porte le numéro state_trans->trans
+        for(i=current_state->nb_output-1; i>=0; i--)
+        {
+            if(current_state->output_transitions[i]->num_trans==state_trans->trans)
+                break;
+        }
+        assert(i>=0);
+        if( current_state->output_transitions[i]->to->nb_input == 1)
+        {
+            current_state = current_state->output_transitions[i]->to;
+            current_state_id = current_state->id;
+            nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+            for( i = 0 ; i < nbtrans ; i++ )
+            {
+                state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+                state_trans->state=current_state_id;
+                state_trans->trans=i;
+                lifo_push(list_of_state_trans, state_trans);
+            }
+        }
+    }
+    return self->graph->nb_states;
+}
+
 
 
 
@@ -181,7 +260,7 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
     unsigned int transition = 0;
     state_t * min_state;
 
-    while( transition < 200
+    while( transition < 100
             && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
              != NULL )
     {
@@ -444,3 +523,8 @@ void tracer_graph_export_dot_to_file(tracer_t * tracer)
 {
     graph_export_dot_to_file(tracer->graph);
 }
+
+    void tracer_graph_export_dot_allStates_to_file(tracer_t * tracer)
+    {
+         graph_export_allStates_dot_to_file(tracer->graph);
+    }
