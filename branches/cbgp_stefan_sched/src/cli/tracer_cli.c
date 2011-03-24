@@ -121,6 +121,14 @@ int cli_tracer_graph_export_allStates_to_file(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+// ----- cli_tracer_start ------------------------------------------------
+int cli_tracer_graph_export_dot_allStates_to_file(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+   tracer_graph_export_dot_allStates_to_file(tracer_get_default());
+
+  return CLI_SUCCESS;
+}
+
 
 int cli_tracer_graph_dump_state(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -239,6 +247,8 @@ static void _register_tracer_graph(cli_cmd_t * parent)
   cli_add_cmd(group, cli_cmd("exportDot", cli_tracer_graph_export_dot));
   cli_add_cmd(group, cli_cmd("export_dot_to_file", cli_tracer_graph_export_dot_to_file));
   cli_add_cmd(group, cli_cmd("export_all_states_to_file", cli_tracer_graph_export_allStates_to_file));
+  cli_add_cmd(group, cli_cmd("export_dot_all_states_to_file", cli_tracer_graph_export_dot_allStates_to_file));
+
   _register_tracer_graph_inject(group);
 
 }

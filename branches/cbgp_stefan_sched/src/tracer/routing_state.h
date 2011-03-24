@@ -87,27 +87,11 @@ int _routing_state_inject(routing_state_t * routing_state);
 
     
 
-
-
-
-// 0 --> identical
-//other valuer -->otherwize
-int _one_bgp_session_compare( bgp_session_info_t * bgpi1, bgp_session_info_t * bgpi2);
-//0=identical
-// other value  --> otherwise
-int _bgp_sessions_compare(bgp_sessions_info_t * bgp_i_1, bgp_sessions_info_t * bgp_i_2  );
-
-// 0 = identical
-// other value, otherwise
-int _rib_compare(local_rib_info_t * rib1, local_rib_info_t * rib2);
-
-// 0 = identical
-// other value, otherwise
-int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * ri2);
 // 0 = identical
 // other value, otherwise
 int _routing_states_equivalent(routing_state_t * rs1, routing_state_t * rs2 );
 
+void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs);
 
 
 #ifdef	__cplusplus

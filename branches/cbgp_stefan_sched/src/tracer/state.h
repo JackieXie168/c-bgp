@@ -23,25 +23,22 @@ struct routing_state_t;
 struct queue_state_t;
 struct state_t;
 
+#define DUMP_ONLY_CONTENT 1
+#define DUMP_STATE 0
+#define DUMP_DEFAULT DUMP_STATE
+
+
+#define STATE_DEBBUG_YES 1
+#define STATE_DEBBUG_NO 2
+#define STATE_DEBBUG STATE_DEBBUG_NO
+
+
+
 #include <tracer/transition.h>
 #include <tracer/graph.h>
 #include <tracer/tracer.h>
 #include <tracer/queue_state.h>
 #include <tracer/routing_state.h>
-
-
-typedef struct {
-const sim_event_ops_t * ops;
-void                  * ctx;
-//int                     id;
-//int                     generator;
-} _event_t;
-
-typedef struct  queue_state_t {
-    struct state_t              * state;
-    gds_fifo_tunable_t          * events;
-    unsigned int                max_nb_of_msg_in_one_oriented_session;
-}  queue_state_t;
 
 
 
@@ -101,6 +98,10 @@ extern "C" {
 
     int state_export_to_file(state_t * state);
 
+    int state_export_dot_to_file(state_t * state);
+
+
+    int get_state_type_of_dump();
 
 #ifdef	__cplusplus
 }

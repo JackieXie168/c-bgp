@@ -29,6 +29,7 @@
 #include "state.h"
 #include "transition.h"
 #include "tracer.h"
+#include "queue_state.h"
 
 
 
@@ -319,7 +320,9 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
         stream_printf(stream, "%s,",  STATE_NOT_COMPLETELY_TREATED_DOT_STYLE);
         //printf("node %d :  allowed : %d, nboutput ;%d\n",graph->list_of_states[i]->id,graph->list_of_states[i]->allowed_output_transitions,graph->list_of_states[i]->nb_output);
       }
-      
+
+      stream_printf(stream, "label=\"%u\\n%u msg\"",graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth);
+
       //"shape=%s, "%s\",",STATE_CAN_LEAD_TO_A_FINAL_STATE_SHAPE,STATE_CAN_LEAD_TO_A_FINAL_STATE_COLOR);
 
       stream_printf(stream, "]\n");
@@ -447,6 +450,15 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 
     }
 
+   void graph_export_allStates_dot_to_file(graph_t * graph)
+    {
+        unsigned int i;
+        for(i=0; i< graph->nb_states; i++)
+        {
+           state_export_dot_to_file(graph->list_of_states[i]);
+        }
+
+    }
 
 
 
