@@ -26,57 +26,9 @@ struct state_t;
 #include <tracer/transition.h>
 #include <tracer/graph.h>
 #include <tracer/tracer.h>
+#include <tracer/queue_state.h>
+#include <tracer/routing_state.h>
 
-
-typedef struct bgp_session_info_t{
-   net_addr_t            neighbor_addr;
-   unsigned int          send_seq_num;
-   unsigned int          recv_seq_num;
-   bgp_route_t **        adj_rib_IN_routes;
-   bgp_route_t **        adj_rib_OUT_routes;
-   unsigned int          nb_adj_rib_in_routes;
-   unsigned int          nb_adj_rib_out_routes;
-
-   //bgp_rib_t           * adj_rib[RIB_MAX];
-   
-}bgp_session_info_t;
-
-typedef struct bgp_sessions_info_t{
-   unsigned int          nb_bgp_session_info_;
-   bgp_session_info_t ** bgp_session_info;
-}bgp_sessions_info_t;
-
-typedef struct local_rib_info_t{
-   unsigned int          nb_local_rib_elem;
-   bgp_route_t ** bgp_route_;
-}local_rib_info_t;
-
-typedef struct routing_info_t{
-   //net_rt_t        * node_rt_t;
-   local_rib_info_t    *  bgp_router_loc_rib_t;
-   //bgp_peers_t         * bgp_router_peers;
-   bgp_sessions_info_t * bgp_sessions_info;
-}routing_info_t;
-
-typedef struct couple_node_routinginfo_t{
-    net_node_t * node;
-    routing_info_t * routing_info;
-} couple_node_routinginfo_t;
-
-
-
-typedef struct routing_state_t{
-  struct state_t              * state;
-  couple_node_routinginfo_t **    couples_node_routing_info;
-
-    // les rib   (des couples de [node,rib]   )
-    // adj-rib-in and -out pour chaque voisin de chaque noeud.
-    // pour chaque noeud :  - rib
-    //                      - pour chaque voisin :
-    //                                      -adj-rib-in
-    //                                      -adj-rib-out
-
-}  routing_state_t;
 
 typedef struct {
 const sim_event_ops_t * ops;

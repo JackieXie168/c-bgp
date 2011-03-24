@@ -33,6 +33,10 @@ static unsigned int MAX_FINAL_STATES = 100;
 #define STATE_NOT_COMPLETELY_TREATED_DOT_STYLE  "peripheries=2"
 
 
+#define TRANSITION_DOT_DUMP_VERSION_ID 1
+#define TRANSITION_DOT_DUMP_VERSION_SHORT_DUMP 2
+#define TRANSITION_DOT_DUMP_VERSION TRANSITION_DOT_DUMP_VERSION_SHORT_DUMP
+
 /*\definecolor{turquoise}{rgb}{0,0.6666,0.8}
 \definecolor{turquoiseLight}{rgb}{0,0.7333,0.88}
 \definecolor{bordeau}{rgb}{0.65882353,0,0.22352941}*/
