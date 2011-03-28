@@ -277,7 +277,6 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 
   net_export_dot(gdsout, graph->tracer->network);
 
-  sleep(10);
   // Header
   stream_printf(stream, "/**\n");
   stream_printf(stream, " * StateGraph  dot file\n");
@@ -328,7 +327,9 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       //stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b></TD><TD>%u msg</TD></TR></TABLE>>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
       //stream_printf(stream, "label=<<IMG SRC=\"%s_state_%u.dot.png\"/><BR/><B>%u</B><BR/>%u msg : <BR/>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
 
-      stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b></TD><TD>%u msg</TD></TR>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
+
+    // si l'image existe 
+      stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b> : %u msg</TD></TR>",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
       stream_printf(stream, "<TR><TD>");
       _queue_state_flat_HTML_dump(stream,graph->list_of_states[i]->queue_state);
         stream_printf(stream, "</TD></TR>");
