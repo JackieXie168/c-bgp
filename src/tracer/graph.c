@@ -277,7 +277,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 
   net_export_dot(gdsout, graph->tracer->network);
 
-
+  sleep(10);
   // Header
   stream_printf(stream, "/**\n");
   stream_printf(stream, " * StateGraph  dot file\n");
@@ -321,10 +321,18 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
         //printf("node %d :  allowed : %d, nboutput ;%d\n",graph->list_of_states[i]->id,graph->list_of_states[i]->allowed_output_transitions,graph->list_of_states[i]->nb_output);
       }
 
-      stream_printf(stream, "label=\"%u\\n%u msg\"",graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth);
+      /*stream_printf(stream, "label=\"%u\\n%u msg\",",graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth);
+      stream_printf(stream, " image=\"%s_state_%u.dot.ps\", ",graph->tracer->base_output_file_name,graph->list_of_states[i]->id);
+      stream_printf(stream, " labelloc=b ");
+*/
+      //stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b></TD><TD>%u msg</TD></TR></TABLE>>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
+      //stream_printf(stream, "label=<<IMG SRC=\"%s_state_%u.dot.png\"/><BR/><B>%u</B><BR/>%u msg : <BR/>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
 
-      //"shape=%s, "%s\",",STATE_CAN_LEAD_TO_A_FINAL_STATE_SHAPE,STATE_CAN_LEAD_TO_A_FINAL_STATE_COLOR);
-
+      stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b></TD><TD>%u msg</TD></TR>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
+      stream_printf(stream, "<TR><TD>");
+      _queue_state_flat_HTML_dump(stream,graph->list_of_states[i]->queue_state);
+        stream_printf(stream, "</TD></TR>");
+      stream_printf(stream, "</TABLE>>");
       stream_printf(stream, "]\n");
     }
 
@@ -465,14 +473,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 int graph_export_dot_to_file(graph_t * graph)
 {
     char file_name[256];
-    time_t curtime;
-    struct tm *loctime;
-    /* Get the current time.  */
-    curtime = time (NULL);
-    /* Convert it to local time representation.  */
-    loctime = localtime (&curtime);
-    //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
-    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_graph.dot",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
+    sprintf(file_name,"%s%s_graph.dot",graph->tracer->base_output_directory,graph->tracer->base_output_file_name);
     
     gds_stream_t * stream = stream_create_file(file_name);
 
@@ -481,6 +482,7 @@ int graph_export_dot_to_file(graph_t * graph)
     stream_destroy(&stream);
     char commande[1024];
     sprintf(commande,"dot -Tpng %s -o%s.png",file_name, file_name);
+    //sprintf(commande,"dot -Tps %s -o%s.ps",file_name, file_name);
     system(commande);
     return 0;
 }

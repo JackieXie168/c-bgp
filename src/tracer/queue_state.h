@@ -60,6 +60,9 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 );
 
 int same_tcp_session(_event_t * event1 , _event_t * event2 );
 
+void _queue_state_flat_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state);
+
+
 #ifdef	__cplusplus
 }
 #endif

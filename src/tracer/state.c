@@ -453,14 +453,7 @@ int state_export_to_file(state_t * state)
 int state_export_dot_to_file(state_t * state)
 {
     char file_name[256];
-    time_t curtime;
-    struct tm *loctime;
-    /* Get the current time.  */
-    curtime = time (NULL);
-    /* Convert it to local time representation.  */
-    loctime = localtime (&curtime);
-    //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
-    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_state_%u.dot",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec,state->id);
+    sprintf(file_name,"%s%s_state_%u.dot",state->graph->tracer->base_output_directory,state->graph->tracer->base_output_file_name,state->id);
 
     gds_stream_t * stream = stream_create_file(file_name);
 
@@ -469,6 +462,7 @@ int state_export_dot_to_file(state_t * state)
     stream_destroy(&stream);
     char commande[1024];
     sprintf(commande,"neato -Tpng %s -o%s.png",file_name, file_name);
+    //sprintf(commande,"neato -Tps %s -o%s.ps",file_name, file_name);
     system(commande);
     return 0;
 }

@@ -4,6 +4,10 @@
 #include <config.h>
 #endif
 
+
+#include <time.h>
+
+
 #include <assert.h>
 #include <libgds/str_util.h>
 #include <libgds/memory.h>
@@ -392,10 +396,11 @@ int _tracer_dump(gds_stream_t * stream, tracer_t * tracer)
     }
 }
 
+/*
 int FOR_TESTING_PURPOSE_tracer_graph_state_dump(gds_stream_t * stream, tracer_t * self , unsigned int num_state)
 {
     return FOR_TESTING_PURPOSE_graph_state_dump(stream,self->graph,num_state);
-}
+}*/
 
 /*int FOR_TESTING_PURPOSE_tracer_graph_current_state_dump(gds_stream_t * stream, tracer_t * self)
 {
@@ -465,6 +470,17 @@ tracer_t * tracer_create(network_t * network)
   tracer->nodes = NULL;
   tracer->nb_nodes = 0;
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
+
+  time_t curtime;
+  struct tm * loctime;
+  /* Get the current time.  */
+  curtime = time (NULL);
+  /* Convert it to local time representation.  */
+  loctime = localtime (&curtime);
+  //tracer->base_output_file_name = (char *) MALLOC ( 256 * sizeof(char));
+  sprintf(tracer->base_output_directory,"/home/yo/tmp/tracer_cbgp/");
+  sprintf(tracer->base_output_file_name,"%d_%d_%d_%d:%d:%d",
+      loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
   return tracer;
 }
 

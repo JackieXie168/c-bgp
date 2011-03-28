@@ -77,6 +77,32 @@ if(get_state_type_of_dump()!=DUMP_ONLY_CONTENT)
 }
 
 
+void _queue_state_flat_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state)
+{
+  _event_t * event;
+  uint32_t depth;
+  uint32_t max_depth;
+  uint32_t start;
+  unsigned int index;
+
+  depth= queue_state->events->current_depth;
+  max_depth= queue_state->events->max_depth;
+  start= queue_state->events->start_index;
+
+  for (index= 0; index < depth; index++) {
+    event= (_event_t *) queue_state->events->items[(start+index) % max_depth];
+    //stream_printf(stream, "-- Event:%p - ctx:%p - msg:%p - bgpmsg:%p --\n\t\t", event, event->ctx, ((net_send_ctx_t *)event->ctx)->msg,((net_msg_t *)((net_send_ctx_t *)event->ctx)->msg)->payload);
+    stream_flush(stream);
+    if (event->ops->dump != NULL) {
+      event->ops->dump(stream, event->ctx);
+    } else {
+      stream_printf(stream, "unknown");
+    }
+    stream_printf(stream, "<BR/>");
+  }
+}
+
+
 static net_addr_t get_dst_addr(_event_t * ev)
 {
      return ((net_send_ctx_t *) ev->ctx)->msg->dst_addr;
