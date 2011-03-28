@@ -275,7 +275,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
     
   graph_mark_states_for_can_lead_to_final_state(graph);
 
-  net_export_dot(gdsout, graph->tracer->network);
+  //net_export_dot(gdsout, graph->tracer->network);
 
   // Header
   stream_printf(stream, "/**\n");

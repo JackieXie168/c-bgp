@@ -268,7 +268,7 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
             && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
              != NULL )
     {
-        printf("Min_state = %u \n",min_state->id);
+        //printf("Min_state = %u \n",min_state->id);
 
         // traiter toutes ses transitions.
         // ici quand on prend un état, on traite toutes ses transitions !
@@ -276,7 +276,7 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
 
         for( i = 0 ; i < nbtrans ; i++)
         {
-            printf("\t Transition num %u \n",i);
+           // printf("\t Transition num %u \n",i);
 
             tracer_trace_from_state_using_transition(self,min_state->id,i);
             transition++;
