@@ -352,7 +352,7 @@ static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_sess
 }
 
 static int bgp_router_inject_loc_rib_info(bgp_router_t * router, local_rib_info_t * loc_rib_info)
-    {
+{
         unsigned int i;
         rib_destroy(&(router->loc_rib));
         router->loc_rib = rib_create(0);
@@ -362,7 +362,7 @@ static int bgp_router_inject_loc_rib_info(bgp_router_t * router, local_rib_info_
             rib_add_route(router->loc_rib, route_copy(loc_rib_info->bgp_route_[i]));
         }
         return i;
-    }
+}
 
 static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing_info )
 {
@@ -430,8 +430,6 @@ if(STATE_DEBBUG==1){
   }
   return i;
 }
-
-
 
 // 0 --> identical
 //other valuer -->otherwize
@@ -576,7 +574,8 @@ void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs)
   stream_printf(stream, " */\n");
   stream_printf(stream, "digraph Tracer_state_%u_C_BGP {\n",rs->state->id);
 
-  stream_printf(stream, "  overlap=scale\n");
+  stream_printf(stream, "  overlap=false\n");
+ stream_printf(stream, "  sep=\"+20,20\"\n");
 
     //size = "100,100";
     //nodesep="0.6";
@@ -602,10 +601,11 @@ void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs)
 
   // Links
 
-  link_type * edges_t[rs->state->graph->tracer->nb_nodes * rs->state->graph->tracer->nb_nodes];
+  unsigned int max_m = rs->state->graph->tracer->nb_nodes * (rs->state->graph->tracer->nb_nodes - 1) /2;
+
+  link_type * edges_t[max_m];
   
   unsigned int m ;
-  unsigned int max_m = rs->state->graph->tracer->nb_nodes * rs->state->graph->tracer->nb_nodes;
   for(m = 0 ; m < max_m ; m++)
   { 
       edges_t[m] = NULL;
@@ -661,16 +661,32 @@ void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs)
         // soit on vient de le créer, soit on a trouvé le bon,
         // et il se trouve en place m !
 
-            //1-ajouter flèche simple
+        //1-ajouter flèche simple
 
         edges_t[m]->type = edges_t[m]->type | EDGE_TYPE_SIMPLE;
 
         //2-voir si c'est dans ma loc rib, si oui, ajouter une vraie flèche. (attention au sens si invert==1)
         // TODO !!!!
 
-        *************************
-
-
+        unsigned int l;
+        bgp_route_t * one_route;
+        for(l = 0 ; l < rinfo->bgp_router_loc_rib_t->nb_local_rib_elem ; l++)
+        {
+            one_route = rinfo->bgp_router_loc_rib_t->bgp_route_[l];
+            if( one_sess_info->neighbor_addr == one_route->attr->next_hop )
+            {
+                // ajouter la flèche
+                if(invert == 1)
+                {
+                     edges_t[m]->type = edges_t[m]->type | EDGE_TYPE_BACKWARD;
+                }
+                else
+                {
+                    edges_t[m]->type = edges_t[m]->type | EDGE_TYPE_FORWARD;
+                }
+                break;
+            }
+        }
     }
   }
 
@@ -687,10 +703,25 @@ void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs)
        ip_address_dump(stream, edges_t[m]->to);
        stream_printf(stream, "\"");
        stream_printf(stream, "[ ");
-       
-***********************************
+       //stream_printf(stream, "dir=");
+       if( edges_t[m]->type &  EDGE_TYPE_FORWARD    &&   edges_t[m]->type & EDGE_TYPE_BACKWARD )
+       {
+          stream_printf(stream, "dir=both");
+       }
+       else if( edges_t[m]->type & EDGE_TYPE_FORWARD    )
+       {
+          stream_printf(stream, "dir=forward");
+       }
+       else if( edges_t[m]->type & EDGE_TYPE_BACKWARD  )
+       {
+          stream_printf(stream, "dir=back");
+       }
+       else
+       {
+          stream_printf(stream, "dir=none");
+       }
 
-       stream_printf(stream, "]");
+       stream_printf(stream, "];\n");
 
        m++;
     }

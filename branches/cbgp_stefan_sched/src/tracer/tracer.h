@@ -30,6 +30,8 @@ typedef struct tracer_t {
   net_node_t             ** nodes;
   unsigned int              nb_nodes;
   int                      started ;
+  char                  base_output_file_name[256];
+  char                  base_output_directory[256];
 } tracer_t;
 
 
