@@ -42,7 +42,7 @@
 #include "graph.h"
 
 
-
+#define IMAGE_GRAPHVIZ_FORMAT "eps"
 
 
 
@@ -107,7 +107,7 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
 
     _tracer_start(self);
 
-    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
+    list_of_state_trans = fifo_create(MAXDEPTH, destroy_struct_state_trans);
 
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -264,7 +264,8 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
     unsigned int transition = 0;
     state_t * min_state;
 
-    while( transition < 100
+    unsigned int nb_trans_limit = 100;
+    while( transition < nb_trans_limit
             && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
              != NULL )
     {
@@ -372,6 +373,7 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
         // free(state) ???
         // ajouter une transition entrante
         // ne pas valider le numéro state-id
+        FREE(new_state);
     }
 
      if(debug==1) printf("2: tracing : end of tracing\n");
@@ -478,9 +480,16 @@ tracer_t * tracer_create(network_t * network)
   /* Convert it to local time representation.  */
   loctime = localtime (&curtime);
   //tracer->base_output_file_name = (char *) MALLOC ( 256 * sizeof(char));
-  sprintf(tracer->base_output_directory,"/home/yo/tmp/tracer_cbgp/");
-  sprintf(tracer->base_output_file_name,"%d_%d_%d_%d:%d:%d",
+
+  sprintf(tracer->base_output_directory,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d/",
       loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
+  char commande[1024];
+  sprintf(commande,"mkdir %s",tracer->base_output_directory);
+  system(commande);
+
+  sprintf(tracer->base_output_file_name,"tracer_");
+  sprintf(tracer->IMAGE_FORMAT,IMAGE_GRAPHVIZ_FORMAT);
+  
   return tracer;
 }
 

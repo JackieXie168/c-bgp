@@ -94,9 +94,11 @@ int graph_init(graph_t * graph)
 {
     // nettoyer le reste si déjà été utilisé ... (pas pour l'instant)
   assert(graph->state_root == NULL && graph->nb_states == 0);
-  graph->state_root= state_create(graph->tracer,NULL);
+  graph->state_root= state_create_isolated(graph->tracer);
+  state_attach_to_graph(graph->state_root, NULL);
+
   //graph->FOR_TESTING_PURPOSE_current_state = graph->state_root;
-  graph->nb_states = 1;
+  //graph->nb_states = 1;
   graph->state_root->type = graph->state_root->type | STATE_ROOT;
   //struct state_t        **    list_of_states;
   return 0;
@@ -251,7 +253,7 @@ int graph_allstates_dump(gds_stream_t * stream, graph_t * graph)
 
 static void transition_short_dump(gds_stream_t * stream, transition_t * trans)
 {
-    _event_t * ev =  trans->event;
+    _event_t * ev =  (_event_t *)trans->event;
     net_send_ctx_t * sendctx = ev->ctx;
     net_msg_t * msg = sendctx->msg;
 
@@ -328,12 +330,35 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       //stream_printf(stream, "label=<<IMG SRC=\"%s_state_%u.dot.png\"/><BR/><B>%u</B><BR/>%u msg : <BR/>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
 
 
-    // si l'image existe 
-      stream_printf(stream, "label=<<TABLE><TR><TD><IMG SRC=\"%s%s_state_%u.dot.png\"/></TD></TR><TR><TD><b>%u</b> : %u msg</TD></TR>",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
+    // si l'image existe
+      int retour;
+      char commande[1024];
+      sprintf(commande,"if [ -f \"%s%s_state_%u.dot.%s\" ];then exit 0; else exit 1; fi;",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id, graph->tracer->IMAGE_FORMAT);
+      retour = system(commande);
+      unsigned int affichage = 1;
+
+      stream_printf(stream, "label=<<TABLE>");
+      stream_printf(stream, "<TR><TD><B>STATE %u</B><BR/>Profondeur : %u</TD></TR>",graph->list_of_states[i]->id ,graph->list_of_states[i]->depth );
+
+      if(retour == 0  && affichage !=0 )
+      {
+          //printf("image OK!! \n");
+          stream_printf(stream, "<TR><TD><IMG SRC=\"%s%s_state_%u.dot.%s\"/></TD></TR>",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id, graph->tracer->IMAGE_FORMAT);
+      }
+      stream_printf(stream, "<TR><TD>%u msg</TD></TR>",graph->list_of_states[i]->queue_state->events->current_depth );
       stream_printf(stream, "<TR><TD>");
-      _queue_state_flat_HTML_dump(stream,graph->list_of_states[i]->queue_state);
-        stream_printf(stream, "</TD></TR>");
-      stream_printf(stream, "</TABLE>>");
+      _queue_state_flat_simple_HTML_dump(stream,graph->list_of_states[i]->queue_state);
+      stream_printf(stream, "</TD></TR>");
+      stream_printf(stream, "<TR><TD>");
+      state_tag_waiting_time_HTML_dump(stream, graph->list_of_states[i]);
+      stream_printf(stream, "</TD></TR>");
+
+
+      stream_printf(stream, "</TABLE>>,");
+
+      if(retour == 0 )
+          stream_printf(stream, " URL=\"%s_state_%u.dot.%s\" ",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->tracer->IMAGE_FORMAT);
+
       stream_printf(stream, "]\n");
     }
 
@@ -482,7 +507,7 @@ int graph_export_dot_to_file(graph_t * graph)
 
     stream_destroy(&stream);
     char commande[1024];
-    sprintf(commande,"dot -Tpng %s -o%s.png",file_name, file_name);
+    sprintf(commande,"dot -T%s %s -o%s.%s",graph->tracer->IMAGE_FORMAT,file_name, file_name,graph->tracer->IMAGE_FORMAT);
     //sprintf(commande,"dot -Tps %s -o%s.ps",file_name, file_name);
     system(commande);
     return 0;

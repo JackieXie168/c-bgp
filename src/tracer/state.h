@@ -43,6 +43,14 @@ struct state_t;
 
 
 
+typedef struct session_waiting_time_t
+{
+    net_addr_t  from;
+    net_addr_t  to;
+    int         max_waiting_time;
+    int         min_waiting_time;
+}session_waiting_time_t;
+
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
 typedef struct state_t {
@@ -57,8 +65,13 @@ typedef struct state_t {
   struct graph_t         *    graph;
   unsigned int          id;
   uint8_t                type;
+
   unsigned int          marking_sequence_number;
   unsigned int          blocked;
+  unsigned int          depth;
+
+  session_waiting_time_t   ** session_waiting_time;
+
 } state_t;
 
 // ----- Global BGP options --------
@@ -75,7 +88,7 @@ extern "C" {
     
 
 
-    state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input_transition);
+    //state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input_transition);
 
     state_t * state_create_isolated(struct tracer_t * tracer);
 
@@ -102,6 +115,9 @@ extern "C" {
 
 
     int get_state_type_of_dump();
+    session_waiting_time_t * search_waiting_time_value_for_this_session(state_t * state, net_addr_t from, net_addr_t to);
+
+void state_tag_waiting_time_HTML_dump(gds_stream_t * stream, state_t * state);
 
 #ifdef	__cplusplus
 }

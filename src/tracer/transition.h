@@ -34,6 +34,7 @@ typedef struct transition_t{
   struct state_t         * from;
   struct state_t         * to;
   unsigned int          num_trans;
+  unsigned int          depth;
 } transition_t;
 
 #ifdef	__cplusplus

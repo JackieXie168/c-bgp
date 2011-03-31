@@ -219,9 +219,70 @@ static inline void _bgp_msg_update_dump(gds_stream_t * stream,
   }
   stream_printf(stream, "|");
 }
+// -----[ _bgp_msg_update_dump ]-------------------------------------
+static inline void _bgp_msg_update_flat_simple_HTML_dump(gds_stream_t * stream,
+					bgp_msg_update_t * msg)
+{
+  unsigned int index;
+  uint32_t comm;
+  bgp_route_t * route= msg->route;
+
+  // Prefix
+  //stream_printf(stream, "|");
+  //ip_prefix_dump(stream, route->prefix);
+  // AS-PATH
+  stream_printf(stream, " : <B><FONT COLOR=\"#A80039\">");
+  path_dump(stream, route_get_path(route), 1);
+  stream_printf(stream, "</FONT></B>");
+  // ORIGIN
+  //stream_printf(stream, "|");
+  //stream_printf(stream, bgp_origin_to_str(route->attr->origin));
+  // NEXT-HOP
+  //stream_printf(stream, "|");
+  //ip_address_dump(stream, route->attr->next_hop);
+  // LOCAL-PREF
+  //stream_printf(stream, "|%u", route->attr->local_pref);
+  // MULTI-EXIT-DISCRIMINATOR
+  /*
+  if (route->attr->med == ROUTE_MED_MISSING)
+    stream_printf(stream, "|");
+  else
+    stream_printf(stream, "|%u", route->attr->med);
+  // COMMUNITY
+  stream_printf(stream, "|");
+  if (route->attr->comms != NULL) {
+    for (index= 0; index < route->attr->comms->num; index++) {
+      comm= (uint32_t) route->attr->comms->values[index];
+      stream_printf(stream, "%u ", comm);
+    }
+  }
+
+  // Route-reflectors: Originator
+  if (route->attr->originator != NULL) {
+    stream_printf(stream, "originator:");
+    ip_address_dump(stream, *route->attr->originator);
+  }
+  stream_printf(stream, "|");
+
+  if (route->attr->cluster_list != NULL) {
+    stream_printf(stream, "cluster_id_list:");
+    cluster_list_dump(stream, route->attr->cluster_list);
+  }
+  stream_printf(stream, "|");
+   * */
+}
 
 // -----[ _bgp_msg_withdraw_dump ]-----------------------------------
 static inline void _bgp_msg_withdraw_dump(gds_stream_t * stream,
+					  bgp_msg_withdraw_t * msg)
+{
+  // Prefix
+  stream_printf(stream, "|");
+  ip_prefix_dump(stream, ((bgp_msg_withdraw_t *) msg)->prefix);
+}
+
+// -----[ _bgp_msg_withdraw_dump ]-----------------------------------
+static inline void _bgp_msg_withdraw_flat_simple_HTML_dump(gds_stream_t * stream,
 					  bgp_msg_withdraw_t * msg)
 {
   // Prefix
@@ -370,7 +431,7 @@ void bgp_msg_dump(gds_stream_t * stream,
 		  bgp_msg_t * msg)
 {
     
-     bgp_msg_update_t * bgpupdate = (bgp_msg_update_t *) msg;
+     //bgp_msg_update_t * bgpupdate = (bgp_msg_update_t *) msg;
 
   assert(msg->type < BGP_MSG_TYPE_MAX);
 
@@ -394,6 +455,38 @@ void bgp_msg_dump(gds_stream_t * stream,
   default:
     stream_printf(stream, "should never reach this code");
   } 
+}
+
+// ----- bgp_msg_dump -----------------------------------------------
+/**
+ *
+ */
+void bgp_msg_flat_simple_HTML_dump(gds_stream_t * stream,
+		  //net_node_t * node,
+		  bgp_msg_t * msg)
+{
+
+  //bgp_msg_update_t * bgpupdate = (bgp_msg_update_t *) msg;
+
+  assert(msg->type < BGP_MSG_TYPE_MAX);
+
+  /* Dump header */
+  //_bgp_msg_header_dump(stream, node, msg);
+
+  /* Dump message content */
+  switch (msg->type) {
+  case BGP_MSG_TYPE_UPDATE:
+    _bgp_msg_update_flat_simple_HTML_dump(stream, (bgp_msg_update_t *) msg);
+    break;
+  case BGP_MSG_TYPE_WITHDRAW:
+    _bgp_msg_withdraw_flat_simple_HTML_dump(stream, (bgp_msg_withdraw_t *) msg);
+    break;
+  case BGP_MSG_TYPE_OPEN:
+  case BGP_MSG_TYPE_CLOSE:
+      default:
+     stream_printf(stream, "In tracer : should never reach this code !! \n");
+     
+  }
 }
 
 //0 = identical !
