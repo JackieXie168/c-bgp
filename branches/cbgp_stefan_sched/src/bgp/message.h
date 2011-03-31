@@ -61,7 +61,9 @@ extern "C" {
   // ----- bgp_msg_dump ---------------------------------------------
   void bgp_msg_dump(gds_stream_t * stream, net_node_t * node,
 		    bgp_msg_t * msg);
-
+  void bgp_msg_flat_simple_HTML_dump(gds_stream_t * stream,
+		  //net_node_t * node,
+		  bgp_msg_t * msg);
   // ----- bgp_msg_monitor_open -------------------------------------
   int bgp_msg_monitor_open(const char * file_name);
   // -----[ bgp_msg_monitor_close ]----------------------------------

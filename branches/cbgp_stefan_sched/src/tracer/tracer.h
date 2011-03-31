@@ -32,6 +32,7 @@ typedef struct tracer_t {
   int                      started ;
   char                  base_output_file_name[256];
   char                  base_output_directory[256];
+  char                  IMAGE_FORMAT[10];
 } tracer_t;
 
 

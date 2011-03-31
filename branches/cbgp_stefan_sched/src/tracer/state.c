@@ -110,6 +110,7 @@ unsigned int state_calculate_allowed_output_transitions(state_t * state)
     return state->nb_allowed_output_transitions;
 }
 
+/*
 // ----- state_create ------------------------------------------------
 state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input_transition)
 {
@@ -145,7 +146,7 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
   state->type = 0x0;
   state->type = 0x0;
   state->marking_sequence_number = 0;
-
+  state->depth = 0;
   
   state_calculate_allowed_output_transitions(state);
   graph_add_state(state->graph,state,state->id);
@@ -153,6 +154,8 @@ state_t * state_create(struct tracer_t * tracer, struct transition_t * the_input
 
   return state;
 }
+*/
+
 
 // ----- state_create ------------------------------------------------
 state_t * state_create_isolated(struct tracer_t * tracer)
@@ -175,40 +178,92 @@ state_t * state_create_isolated(struct tracer_t * tracer)
   state->nb_output = 0;
   state->type = 0x0;
   state->marking_sequence_number = 0;
+  state->depth = 0;
   return state;
+}
+
+
+void state_tag_newly_added_state_session_waiting_time(state_t * state)
+{
+    assert(state->session_waiting_time == NULL);
+
+    state->session_waiting_time = create_session_waiting_time_container(state->queue_state);
+    
+    if(state->nb_input == 0)
+    {
+        assert(state->input_transitions == NULL);
+        unsigned int i;
+        for (i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+        {
+            state->session_waiting_time[i]->max_waiting_time=0;
+            state->session_waiting_time[i]->min_waiting_time=0;
+        }
+    }
+    else
+    {
+        assert(state->nb_input == 1 && state->input_transitions != NULL);
+        unsigned int i;
+        for (i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+        {
+            if(  state->session_waiting_time[i]->from == get_src_addr(state->input_transitions[0]->event)
+                    && state->session_waiting_time[i]->to == get_dst_addr(state->input_transitions[0]->event))
+            {
+                state->session_waiting_time[i]->max_waiting_time=0;
+                state->session_waiting_time[i]->min_waiting_time=0;
+            }
+            else
+            {
+                // chercher cette session dans l'état d'ou on vient
+                session_waiting_time_t * swt = search_waiting_time_value_for_this_session(
+                   state->input_transitions[0]->from, state->session_waiting_time[i]->from,state->session_waiting_time[i]->to);
+                if(swt == NULL) // c'est donc un nouveau msg
+                {
+                    state->session_waiting_time[i]->max_waiting_time=0;
+                    state->session_waiting_time[i]->min_waiting_time=0;
+                }
+                else
+                {
+                    state->session_waiting_time[i]->max_waiting_time = swt->max_waiting_time + 1;
+                    state->session_waiting_time[i]->min_waiting_time = swt->min_waiting_time + 1;
+                }
+            }
+        }
+    }
 }
 
 void state_attach_to_graph(state_t * state, struct transition_t * the_input_transition)
 {
   if(the_input_transition != NULL)
-  { if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 1 \n");
+  { 
 
     assert(state->input_transitions == NULL);
-     if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 2 \n");
     state->input_transitions = (struct transition_t **) MALLOC( 1 * sizeof(struct transition_t *));
-    if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 3 \n");
-    state->nb_input=1; if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 4 \n");
-    state->input_transitions[0]=the_input_transition; if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 5 \n");
-    state->input_transitions[0]->to = state; if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 6 \n");
+    state->nb_input=1; 
+    state->input_transitions[0]=the_input_transition; 
+    state->input_transitions[0]->to = state;
+    state->depth = the_input_transition->depth;
   }
   else
-  { if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 7 \n");
-    state->input_transitions = NULL; if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph :8 \n");
-    state->nb_input=0; if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 9 \n");
+  {
+    state->input_transitions = NULL; 
+    state->nb_input=0;
+    state->depth = 0;
   }
 
   state->output_transitions = NULL;
   state->nb_output=0;
- if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 10 \n");
+ 
   //state->allowed_output_transitions=NULL;
   //state->nb_allowed_output_transitions=0;
 
   state_calculate_allowed_output_transitions(state);
- if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 11 \n");
+ 
   state_next_available_id++;
-   if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 12 \n");
+ 
   graph_add_state(state->graph,state,state->id);
-   if(STATE_DEBBUG==STATE_DEBBUG_YES) printf("3: state attach to graph : 13 \n");
+
+  state_tag_newly_added_state_session_waiting_time(state);
+  
 
 }
 
@@ -242,6 +297,43 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
 
     if(the_output_transition->from ==NULL)
             the_output_transition->from=state;
+    the_output_transition->depth = state->depth + 1;
+}
+
+void state_with_new_input_tag_session_waiting_time_(state_t * state, struct transition_t * the_input_transition)
+{
+    assert(state->session_waiting_time != NULL);
+
+    // si c'est root, c'est possible que le nb de transition soit = 1
+
+        assert(state->nb_input >= 1 && state->input_transitions != NULL);
+        unsigned int i;
+        for (i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+        {
+            if(  state->session_waiting_time[i]->from == get_src_addr(the_input_transition->event)
+                    && state->session_waiting_time[i]->to == get_dst_addr(the_input_transition->event))
+            {
+                state->session_waiting_time[i]->min_waiting_time=0;
+            }
+            else
+            {
+                // chercher cette session dans l'état d'ou on vient
+                session_waiting_time_t * swt = search_waiting_time_value_for_this_session(
+                   the_input_transition->from, state->session_waiting_time[i]->from,state->session_waiting_time[i]->to);
+                if(swt == NULL) // c'est donc un nouveau msg
+                {
+                    state->session_waiting_time[i]->min_waiting_time=0;
+                }
+                else
+                {
+                    if( state->session_waiting_time[i]->max_waiting_time < swt->max_waiting_time + 1)
+                        state->session_waiting_time[i]->max_waiting_time = swt->max_waiting_time + 1;
+                    if( state->session_waiting_time[i]->min_waiting_time > swt->min_waiting_time + 1)
+                        state->session_waiting_time[i]->min_waiting_time = swt->min_waiting_time + 1;
+                }
+            }
+        }
+    
 }
 
 void state_add_input_transition(state_t * state,  struct transition_t * the_input_transition)
@@ -263,6 +355,12 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
     state->nb_input = state->nb_input + 1 ;
     state->input_transitions[state->nb_input-1]=the_input_transition;
     state->input_transitions[state->nb_input-1]->to=state;
+
+    if(the_input_transition->depth > 0  &&
+            the_input_transition->depth < state->depth)
+        state->depth = the_input_transition->depth;
+
+   state_with_new_input_tag_session_waiting_time_(state, the_input_transition);
 }
 
 struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
@@ -416,7 +514,7 @@ int state_export_to_file(state_t * state)
 
 
     //sprintf(file_name,"/home/yo/tmp/tracer_cbgp/tracer_state_%u",state->id);
-    sprintf(file_name,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d_state_%u.txt",loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec,state->id);
+    sprintf(file_name,"%s%s_state_%u.txt",state->graph->tracer->base_output_directory,state->graph->tracer->base_output_file_name,state->id);
     
     gds_stream_t * stream = stream_create_file(file_name);
 
@@ -461,8 +559,54 @@ int state_export_dot_to_file(state_t * state)
 
     stream_destroy(&stream);
     char commande[1024];
-    sprintf(commande,"neato -Tpng %s -o%s.png",file_name, file_name);
-    //sprintf(commande,"neato -Tps %s -o%s.ps",file_name, file_name);
+    //sprintf(commande,"neato -Tpng %s -o%s.png",file_name, file_name);
+    //system(commande);
+
+    sprintf(commande,"neato -T%s %s -o%s.%s",state->graph->tracer->IMAGE_FORMAT,file_name, file_name,state->graph->tracer->IMAGE_FORMAT);
     system(commande);
     return 0;
+}
+
+
+session_waiting_time_t * search_waiting_time_value_for_this_session(state_t * state, net_addr_t from, net_addr_t to)
+{
+    unsigned int i = 0;
+    if(state->session_waiting_time == NULL)
+    {
+        return NULL;
+    }
+
+    for(i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+    {
+        if( state->session_waiting_time[i]->from == from
+                && state->session_waiting_time[i]->to == to )
+            return state->session_waiting_time[i];
+    }
+    return NULL;
+}
+
+
+void state_tag_waiting_time_HTML_dump(gds_stream_t * stream, state_t * state)
+{
+    unsigned int i;
+
+    if(state->queue_state->nb_oriented_bgp_session == 0)
+        return;
+
+    stream_printf(stream, "<TABLE>");
+    for(i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+    {
+        stream_printf(stream, "<TR>");
+        stream_printf(stream, "<TD>");
+        ip_address_dump(stream,state->session_waiting_time[i]->from);
+        stream_printf(stream, "</TD>");
+        stream_printf(stream, "<TD>--&gt;</TD>");
+        stream_printf(stream, "<TD>");
+        ip_address_dump(stream,state->session_waiting_time[i]->to);
+        stream_printf(stream, "</TD>");
+        stream_printf(stream, "<TD>%u</TD>",state->session_waiting_time[i]->min_waiting_time );
+        stream_printf(stream, "<TD>%u</TD>",state->session_waiting_time[i]->max_waiting_time );
+        stream_printf(stream, "</TR>");
+    }
+    stream_printf(stream, "</TABLE>");
 }

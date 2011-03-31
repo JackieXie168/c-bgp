@@ -379,7 +379,7 @@ static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing
     if (protocol == NULL)
     {
         printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
-        return NULL;
+        return -3;
     }
     router = (bgp_router_t *) protocol->handler;
 

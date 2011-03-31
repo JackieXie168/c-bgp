@@ -15,6 +15,7 @@
 #include <tracer/transition.h>
 
 #include "transition.h"
+#include "state.h"
 
 transition_t * transition_create(  struct _event_t * event, unsigned int num_trans)
 {
@@ -23,6 +24,7 @@ transition_t * transition_create(  struct _event_t * event, unsigned int num_tra
     transi->from=NULL;
     transi->to=NULL;
     transi->num_trans=num_trans;
+    transi->depth = 0;
     return transi;
 }
 transition_t * transition_create_from(  struct _event_t * event , struct state_t * from, unsigned int num_trans)
@@ -32,5 +34,6 @@ transition_t * transition_create_from(  struct _event_t * event , struct state_t
     transi->from=from;
     transi->to=NULL;
     transi->num_trans=num_trans;
+    transi->depth = from->depth + 1;
     return transi;
 }

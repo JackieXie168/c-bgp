@@ -77,7 +77,7 @@ if(get_state_type_of_dump()!=DUMP_ONLY_CONTENT)
 }
 
 
-void _queue_state_flat_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state)
+void _queue_state_flat_simple_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state)
 {
   _event_t * event;
   uint32_t depth;
@@ -93,21 +93,31 @@ void _queue_state_flat_HTML_dump(gds_stream_t * stream, queue_state_t * queue_st
     event= (_event_t *) queue_state->events->items[(start+index) % max_depth];
     //stream_printf(stream, "-- Event:%p - ctx:%p - msg:%p - bgpmsg:%p --\n\t\t", event, event->ctx, ((net_send_ctx_t *)event->ctx)->msg,((net_msg_t *)((net_send_ctx_t *)event->ctx)->msg)->payload);
     stream_flush(stream);
-    if (event->ops->dump != NULL) {
-      event->ops->dump(stream, event->ctx);
-    } else {
-      stream_printf(stream, "unknown");
+    if (event->ops->dump != NULL ) {
+       // event->ops->dump == _network_send_ctx_dump  (from network.c)
+      net_send_ctx_t * send_ctx= (net_send_ctx_t *) event->ctx;
+         //message_dump(stream, send_ctx->msg);
+         const net_protocol_def_t * proto_def;
+         ip_address_dump(stream, send_ctx->msg->src_addr);
+         stream_printf(stream, " --&gt; ");
+         ip_address_dump(stream, send_ctx->msg->dst_addr);
+         assert(send_ctx->msg->protocol == NET_PROTOCOL_BGP);
+         proto_def= net_protocols_get_def(send_ctx->msg->protocol);
+         if (proto_def->ops.dump_msg != NULL){
+            //proto_def->ops.dump_msg(stream, msg);
+            bgp_msg_flat_simple_HTML_dump(stream,(bgp_msg_t *) send_ctx->msg->payload);
+            }
     }
     stream_printf(stream, "<BR/>");
   }
 }
 
 
-static net_addr_t get_dst_addr(_event_t * ev)
+net_addr_t get_dst_addr(_event_t * ev)
 {
      return ((net_send_ctx_t *) ev->ctx)->msg->dst_addr;
 }
-static net_addr_t get_src_addr(_event_t * ev)
+net_addr_t get_src_addr(_event_t * ev)
 {
      return ((net_send_ctx_t *) ev->ctx)->msg->src_addr;
 }
@@ -210,6 +220,8 @@ queue_state_t * _queue_state_create(state_t * state, sched_tunable_t * tunable_s
   queue_state->events=fifo_tunable_copy( tunable_scheduler->events , fifo_tunable_event_deep_copy   ) ;
   queue_state->max_nb_of_msg_in_one_oriented_session=0;
   _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(queue_state);
+  queue_state->nb_oriented_bgp_session = 0;
+  
   return queue_state;
 }
 
@@ -403,4 +415,104 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 )
 
     }
     return 0;
+}
+
+unsigned int count_nb_oriented_sessions(queue_state_t * qs)
+{
+
+    if(qs->nb_oriented_bgp_session != 0 ||  qs->events->current_depth == 0)
+    {
+        return qs->nb_oriented_bgp_session;
+    }
+
+    net_addr_t src;
+    net_addr_t dst;
+
+    unsigned int index1;
+    unsigned int nb_msg = 0;
+    qs->nb_oriented_bgp_session = 0;
+    int tab1_visited[qs->events->current_depth];
+
+    for(index1=0; index1<qs->events->current_depth ; index1++)
+    {
+        tab1_visited[index1] = 0;
+    }
+
+
+    while( nb_msg != qs->events->current_depth)
+    {
+        //trouver le premier message de la session bgp (dirigée) suivante dans file 1:
+        index1 = 0;
+        while(index1<qs->events->current_depth && tab1_visited[index1]==1)
+        {
+            index1++;
+        }
+        assert(index1<qs->events->current_depth);
+
+        // en index1 : premier message d'une session bgp dirigée
+        // identifier la session bgp dirigée :
+        src = get_src_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        dst = get_dst_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        tab1_visited[index1] = 1;
+
+        nb_msg++;
+        (qs->nb_oriented_bgp_session)++;
+
+        // la suite de cette session bgp dirigée
+        index1 = _next_of_bgp_session_oriented(src,dst,qs->events,index1, tab1_visited);
+
+        while(index1<qs->events->current_depth)
+        {
+            // dans index1= le suivant de la session bgp dirigée.
+            nb_msg++;
+            tab1_visited[index1]=1;
+            index1 = _next_of_bgp_session_oriented(src,dst,qs->events,index1, tab1_visited);
+        }
+
+        assert(index1 == qs->events->current_depth);
+    }
+
+    // nb de sessions : nb_session_oriented
+    return qs->nb_oriented_bgp_session;
+}
+
+session_waiting_time_t ** create_session_waiting_time_container(queue_state_t * qs)
+{
+
+   
+   // 1er parcours : calculer
+    count_nb_oriented_sessions(qs);
+     // 2eme parcours = remplir
+
+    // technique à revoir pour améliorer la complexité.!!!
+
+    net_addr_t src;
+    net_addr_t dst;
+
+    unsigned int index1;
+    session_waiting_time_t **  swt  = (session_waiting_time_t **) MALLOC ( qs->nb_oriented_bgp_session * sizeof(session_waiting_time_t *));
+    unsigned int current_nb_of_sessions = 0;
+    unsigned int i = 0;
+
+    for(index1 = 0 ; index1 <  qs->events->current_depth ; index1++)
+    {
+        src = get_src_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        dst = get_dst_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+
+        // chercher parmis ceux déjà présents pour savoir si on a déjà ajouté cette session
+        for(i = 0 ; i < current_nb_of_sessions && (swt[i]->from != src || swt[i]->to != dst ); i++)
+        {
+        }
+        // non présent
+        if(i == current_nb_of_sessions )
+        {
+            swt[current_nb_of_sessions] = (session_waiting_time_t *) MALLOC ( sizeof(session_waiting_time_t ));
+            swt[current_nb_of_sessions]->from = src;
+            swt[current_nb_of_sessions]->to = dst;
+            swt[current_nb_of_sessions]->max_waiting_time=-1;
+            swt[current_nb_of_sessions]->min_waiting_time=-1;
+            current_nb_of_sessions++;
+        }
+    }
+    return swt;
 }

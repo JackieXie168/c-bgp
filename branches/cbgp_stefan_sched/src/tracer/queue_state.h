@@ -33,6 +33,7 @@ typedef struct  queue_state_t {
     struct state_t              * state;
     gds_fifo_tunable_t          * events;
     unsigned int                max_nb_of_msg_in_one_oriented_session;
+    unsigned int                nb_oriented_bgp_session;
 }  queue_state_t;
 
 
@@ -60,7 +61,11 @@ int _queue_states_equivalent_v2(queue_state_t * qs1, queue_state_t  * qs2 );
 
 int same_tcp_session(_event_t * event1 , _event_t * event2 );
 
-void _queue_state_flat_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state);
+void _queue_state_flat_simple_HTML_dump(gds_stream_t * stream, queue_state_t * queue_state);
+
+net_addr_t get_dst_addr(_event_t * ev);
+
+net_addr_t get_src_addr(_event_t * ev);
 
 
 #ifdef	__cplusplus
