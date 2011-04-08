@@ -337,7 +337,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       retour = system(commande);
       unsigned int affichage = 1;
 
-      stream_printf(stream, "label=<<TABLE>");
+      stream_printf(stream, "label=<<TABLE BORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
       stream_printf(stream, "<TR><TD><B>STATE %u</B><BR/>Profondeur : %u</TD></TR>",graph->list_of_states[i]->id ,graph->list_of_states[i]->depth );
 
       if(retour == 0  && affichage !=0 )
@@ -523,7 +523,8 @@ state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph
 
    for(i = 0 ; i < graph->nb_states ; i++)
    {
-       if(state_calculate_allowed_output_transitions(graph->list_of_states[i]) > graph->list_of_states[i]->nb_output)
+       if(state_calculate_allowed_output_transitions(graph->list_of_states[i]) > graph->list_of_states[i]->nb_output
+               && !(graph->list_of_states[i]->blocked & STATE_DEFINITELY_BLOCKED) )
        {
            if(min_state == NULL || 
                    graph->list_of_states[i]->queue_state->max_nb_of_msg_in_one_oriented_session
@@ -532,5 +533,4 @@ state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph
        }
    }
    return min_state;
-
 }
