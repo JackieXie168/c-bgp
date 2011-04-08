@@ -67,6 +67,7 @@ net_addr_t get_dst_addr(_event_t * ev);
 
 net_addr_t get_src_addr(_event_t * ev);
 
+unsigned int nb_of_msg_of_this_oriented_bgp_session(net_addr_t src, net_addr_t dst, queue_state_t * qs );
 
 #ifdef	__cplusplus
 }

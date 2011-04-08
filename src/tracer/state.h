@@ -67,7 +67,9 @@ typedef struct state_t {
   uint8_t                type;
 
   unsigned int          marking_sequence_number;
-  unsigned int          blocked;
+
+  uint8_t                blocked;
+
   unsigned int          depth;
 
   session_waiting_time_t   ** session_waiting_time;
@@ -80,6 +82,14 @@ typedef struct state_t {
 #define STATE_MEMBER_OF_A_CYCLE         0x04
 #define STATE_CAN_LEAD_TO_A_CYCLE       0x08
 #define STATE_CAN_LEAD_TO_A_FINAL_STATE 0x10
+
+// ----- Global BGP options --------
+#define STATE_NOT_BLOCKED                   0x00
+#define STATE_DEFINITELY_BLOCKED            0x01
+#define STATE_BLOCKED_BECAUSE_OF_TOO_DEEP   0x02
+#define STATE_TOTALY_EXPLORED               0x04
+
+
 
 #ifdef	__cplusplus
 extern "C" {

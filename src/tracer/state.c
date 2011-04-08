@@ -179,9 +179,37 @@ state_t * state_create_isolated(struct tracer_t * tracer)
   state->type = 0x0;
   state->marking_sequence_number = 0;
   state->depth = 0;
+  state->blocked = STATE_NOT_BLOCKED;
+
+  state->session_waiting_time = NULL;
+
   return state;
 }
 
+
+void state_block_if_too_long_waiting_time_and_too_many_msg(state_t * state)
+{
+    // grande proportion des msg sont des messages d'une meme session
+    // cette session à un long temps d'attente, et bcp de messages
+    unsigned int i;
+    unsigned int wt;
+    unsigned int nbmsg;
+    for(i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
+    {
+         wt = state->session_waiting_time[i]->min_waiting_time;
+         nbmsg = nb_of_msg_of_this_oriented_bgp_session(
+                 state->session_waiting_time[i]->from,
+                 state->session_waiting_time[i]->to,
+                 state->queue_state);
+
+         if(wt > 4 && nbmsg > 4 )// && nbmsg > state->queue_state->events->current_depth/2 )
+         {
+             state->blocked = STATE_DEFINITELY_BLOCKED;
+             printf("state %u BLOCKED",state->id);
+             break;
+         }
+    }
+}
 
 void state_tag_newly_added_state_session_waiting_time(state_t * state)
 {
@@ -263,7 +291,8 @@ void state_attach_to_graph(state_t * state, struct transition_t * the_input_tran
   graph_add_state(state->graph,state,state->id);
 
   state_tag_newly_added_state_session_waiting_time(state);
-  
+
+  state_block_if_too_long_waiting_time_and_too_many_msg(state);
 
 }
 
@@ -281,6 +310,7 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
     // TO DO  TODO
     // vérifier que la transition n'est pas déjà présente.
 
+    assert(state->nb_output < state->nb_allowed_output_transitions);
 
     if(state->output_transitions == NULL)
     {
@@ -298,6 +328,11 @@ void state_add_output_transition(state_t * state,  struct transition_t * the_out
     if(the_output_transition->from ==NULL)
             the_output_transition->from=state;
     the_output_transition->depth = state->depth + 1;
+
+    if(state->nb_output == state->nb_allowed_output_transitions)
+    {
+        state->blocked = state->blocked | STATE_TOTALY_EXPLORED ;
+    }
 }
 
 void state_with_new_input_tag_session_waiting_time_(state_t * state, struct transition_t * the_input_transition)
@@ -332,8 +367,7 @@ void state_with_new_input_tag_session_waiting_time_(state_t * state, struct tran
                         state->session_waiting_time[i]->min_waiting_time = swt->min_waiting_time + 1;
                 }
             }
-        }
-    
+        }    
 }
 
 void state_add_input_transition(state_t * state,  struct transition_t * the_input_transition)
@@ -361,6 +395,8 @@ void state_add_input_transition(state_t * state,  struct transition_t * the_inpu
         state->depth = the_input_transition->depth;
 
    state_with_new_input_tag_session_waiting_time_(state, the_input_transition);
+   
+   //state_block_if_too_long_waiting_time_and_too_many_msg;
 }
 
 struct transition_t * state_generate_transition(state_t * state, unsigned int trans)
@@ -593,7 +629,7 @@ void state_tag_waiting_time_HTML_dump(gds_stream_t * stream, state_t * state)
     if(state->queue_state->nb_oriented_bgp_session == 0)
         return;
 
-    stream_printf(stream, "<TABLE>");
+    stream_printf(stream, "<TABLE BORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
     for(i = 0 ; i < state->queue_state->nb_oriented_bgp_session ; i++)
     {
         stream_printf(stream, "<TR>");

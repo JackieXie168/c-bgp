@@ -148,6 +148,21 @@ static  int _next_of_bgp_session_oriented(net_addr_t src, net_addr_t dst ,
     return index;
 }
 
+
+  unsigned int nb_of_msg_of_this_oriented_bgp_session(net_addr_t src, net_addr_t dst, queue_state_t * qs )
+{
+   unsigned int index = 0;
+   unsigned int count = 0;
+    while(index < qs->events->current_depth)
+    {
+        if ( get_src_addr((_event_t *) qs->events->items[(qs->events->start_index + index)% qs->events->max_depth]) == src &&
+             get_dst_addr((_event_t *) qs->events->items[(qs->events->start_index + index)% qs->events->max_depth]) == dst)
+            count++;
+        index++;
+    }
+    return count;
+}
+
 unsigned int  _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(queue_state_t * qs)
 {
     if(qs->max_nb_of_msg_in_one_oriented_session != 0 || qs->events->current_depth == 0)

@@ -264,7 +264,7 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
     unsigned int transition = 0;
     state_t * min_state;
 
-    unsigned int nb_trans_limit = 100;
+    unsigned int nb_trans_limit = 100000;
     while( transition < nb_trans_limit
             && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
              != NULL )
@@ -283,6 +283,7 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
             transition++;
         }
     }
+    printf("nb transition : %u \n",transition);
     return self->graph->nb_states;
 }
 
