@@ -697,11 +697,15 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
       return -1;
     }
     // Avoid loop creation (SSLD, Sender-Side Loop Detection)
+  //*/
     if (route_path_contains(new_route, dst_peer->asn)) {
       STREAM_DEBUG(STREAM_LEVEL_DEBUG, "out-filtered(ssld)\n");
       route_destroy(&new_route);
       return -1;
     }
+   
+    
+   //*/
     // Clear Originator and Cluster-ID-List fields
     route_originator_clear(new_route);
     route_cluster_list_clear(new_route);
