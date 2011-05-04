@@ -46,6 +46,7 @@
 
 
 
+
 static tracer_t  * _default_tracer= NULL;
 
 /*
@@ -90,6 +91,12 @@ void destroy_struct_state_trans(void ** structstatetrans)
 
 
 static unsigned int MAXDEPTH = 10000;
+
+int tracer_trace_whole_graph(tracer_t * self)
+{
+   return  tracer_trace_whole_graph_v1bis(self);
+}
+
 
 int tracer_trace_whole_graph_v0(tracer_t * self)
 {
@@ -250,6 +257,92 @@ return;
 }
 
 
+// same as v1 but with a max graph depth.
+// should be refactored with the v1
+int tracer_trace_whole_graph_v1bis(tracer_t * self)
+{
+    if(self->started == 1)
+        return -1;
+
+    unsigned int work = 0;
+    unsigned int nbtrans;
+    unsigned int current_state_id;
+    unsigned int i;
+    state_t * current_state;
+    gds_lifo_t * list_of_state_trans;
+
+    state_trans_t * state_trans;
+
+    _tracer_start(self);
+
+    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
+    
+    //amorce :
+    // ajouter toutes les transitions dispo de l'état 0 dans la fifo
+    current_state_id=0;
+    current_state = self->graph->list_of_states[current_state_id];
+    nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+    for( i = 0 ; i < nbtrans ; i++ )
+    {
+        state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
+        state_trans->state=current_state_id;
+        state_trans->trans=i;
+        lifo_push(list_of_state_trans, state_trans);
+    }
+//  fin de l'amorce
+    
+    unsigned int MAX_DEPTH = 20;
+    while(lifo_depth(list_of_state_trans)!=0)
+    {   
+        state_trans = (state_trans_t *) lifo_pop(list_of_state_trans);       
+
+        work++;
+        printf("Generated transition : %u\n",work);
+       // if(work>18)
+       //         tracer_graph_export_dot(gdsout,self);
+if(work==200)
+{
+return;
+} 
+        printf("2: before tracing");
+        tracer_trace_from_state_using_transition(self, state_trans->state, state_trans->trans);
+        printf("2: after tracing");
+        // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
+        // c'est un nouvel état si
+        // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
+        // si cet état a une seule input_transition alors c'est un nouveau.
+        printf("ici\n");//,current_state->depth);
+        current_state = self->graph->list_of_states[state_trans->state];
+        // trouver la transition qui porte le numéro state_trans->trans
+        for(i=current_state->nb_output-1; i>=0; i--)
+        {
+            if(current_state->output_transitions[i]->num_trans==state_trans->trans)
+                break;
+        }
+        assert(i>=0);
+        if( current_state->output_transitions[i]->to->nb_input == 1)
+        {
+            current_state = current_state->output_transitions[i]->to;
+            current_state_id = current_state->id;
+            nbtrans = state_calculate_allowed_output_transitions(current_state);
+            printf("state depth :\n");//,current_state->depth);
+
+            if(current_state->depth < MAX_DEPTH)
+            {
+              for( i = 0 ; i < nbtrans ; i++ )
+              {
+                state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+                state_trans->state=current_state_id;
+                state_trans->trans=i;
+                lifo_push(list_of_state_trans, state_trans);
+              }
+            }
+        }
+    }
+    return self->graph->nb_states;
+}
+
 
 
 int tracer_trace_whole_graph_v2(tracer_t * self)
@@ -301,8 +394,8 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 {
     state_t * origin_state;
 
-    int debug = 0;
-
+    int debug = 1;
+    printf("debug = %d\n",debug);
     if(self->started == 0)
         return -1;
 
