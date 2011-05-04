@@ -82,7 +82,8 @@ extern "C" {
     int tracer_trace_whole_graph(tracer_t * self);
 
 
-   // int tracer_trace_whole_graph_v2(tracer_t * self);
+   int tracer_trace_whole_graph_v2(tracer_t * self);
+   int tracer_trace_whole_graph_v1bis(tracer_t * self);
 
 
 
