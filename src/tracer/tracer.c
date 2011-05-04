@@ -94,7 +94,7 @@ static unsigned int MAXDEPTH = 10000;
 
 int tracer_trace_whole_graph(tracer_t * self)
 {
-   return  tracer_trace_whole_graph_v1bis(self);
+   return  tracer_trace_whole_graph_v2(self);
 }
 
 
