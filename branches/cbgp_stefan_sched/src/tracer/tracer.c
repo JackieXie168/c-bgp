@@ -94,7 +94,7 @@ static unsigned int MAXDEPTH = 10000;
 
 int tracer_trace_whole_graph(tracer_t * self)
 {
-   return  tracer_trace_whole_graph_v2(self);
+   return  tracer_trace_whole_graph_v1bis(self);
 }
 
 
@@ -271,7 +271,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
     state_t * current_state;
     gds_lifo_t * list_of_state_trans;
 
-    state_trans_t * state_trans;
+    struct state_trans_t * state_trans;
 
     _tracer_start(self);
 
@@ -292,27 +292,26 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
     }
 //  fin de l'amorce
     
-    unsigned int MAX_DEPTH = 20;
+    unsigned int MAX_GRAPH_DEPTH = 8;
     while(lifo_depth(list_of_state_trans)!=0)
     {   
-        state_trans = (state_trans_t *) lifo_pop(list_of_state_trans);       
-
+        state_trans = (struct state_trans_t *) lifo_pop(list_of_state_trans);
         work++;
-        printf("Generated transition : %u\n",work);
+        printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",work, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-if(work==200)
+if(work==10000)
 {
 return;
 } 
-        printf("2: before tracing");
+        //printf("2: before tracing :  state %u , trans %u\n",state_trans->state ,state_trans->trans);
         tracer_trace_from_state_using_transition(self, state_trans->state, state_trans->trans);
-        printf("2: after tracing");
+        //printf("2: after tracing\n");
         // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
         // c'est un nouvel état si
         // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
         // si cet état a une seule input_transition alors c'est un nouveau.
-        printf("ici\n");//,current_state->depth);
+        //printf("ici\n");//,current_state->depth);
         current_state = self->graph->list_of_states[state_trans->state];
         // trouver la transition qui porte le numéro state_trans->trans
         for(i=current_state->nb_output-1; i>=0; i--)
@@ -326,9 +325,9 @@ return;
             current_state = current_state->output_transitions[i]->to;
             current_state_id = current_state->id;
             nbtrans = state_calculate_allowed_output_transitions(current_state);
-            printf("state depth :\n");//,current_state->depth);
+            printf("state depth :%u\n",current_state->depth);
 
-            if(current_state->depth < MAX_DEPTH)
+            if(current_state->depth < MAX_GRAPH_DEPTH)
             {
               for( i = 0 ; i < nbtrans ; i++ )
               {
@@ -394,8 +393,8 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 {
     state_t * origin_state;
 
-    int debug = 1;
-    printf("debug = %d\n",debug);
+    int debug = 0;
+    
     if(self->started == 0)
         return -1;
 
