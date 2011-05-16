@@ -123,5 +123,12 @@ bgp router 5.0.0.1
 
 sim openSessions
 tracer trace whole_graph
+tracer graph export_all_states_to_file
+#tracer graph export_dot_all_states_to_file
+#tracer graph export_dot_to_file
+
+
+
+
 
 print "Done.\n"
