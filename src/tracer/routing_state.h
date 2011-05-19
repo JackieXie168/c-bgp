@@ -28,6 +28,12 @@ typedef struct bgp_session_info_t{
    unsigned int          nb_adj_rib_in_routes;
    unsigned int          nb_adj_rib_out_routes;
 
+   net_addr_t            next_hop;
+   /** Optional source IP address. */
+   net_addr_t            src_addr;
+   int                   last_error;
+
+
    //bgp_rib_t           * adj_rib[RIB_MAX];
 
 }bgp_session_info_t;
@@ -43,7 +49,7 @@ typedef struct local_rib_info_t{
 }local_rib_info_t;
 
 typedef struct routing_info_t{
-   //net_rt_t        * node_rt_t;
+   net_rt_t            *  node_rt_t;
    local_rib_info_t    *  bgp_router_loc_rib_t;
    //bgp_peers_t         * bgp_router_peers;
    bgp_sessions_info_t * bgp_sessions_info;

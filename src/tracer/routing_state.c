@@ -36,6 +36,8 @@
 
 #include <libgds/trie.h>
 #include <../net/net_types.h>
+#include <bgp/types.h>
+
 
 #include "state.h"
 #include "transition.h"
@@ -58,6 +60,9 @@ bgp_session_info_t * _one_session_info_create(bgp_peer_t * peer )
     thesessioninfo->recv_seq_num=peer->recv_seq_num;
     thesessioninfo->send_seq_num=peer->send_seq_num;
     thesessioninfo->neighbor_addr=peer->addr;
+    thesessioninfo->last_error=peer->last_error;
+    thesessioninfo->next_hop=peer->next_hop;
+    thesessioninfo->src_addr=peer->src_addr;
     
     thesessioninfo->nb_adj_rib_in_routes = trie_num_nodes(peer->adj_rib[RIB_IN],1);
     bgp_route_array = (bgp_route_t **) (_trie_get_array(peer->adj_rib[RIB_IN])->data) ;
@@ -327,6 +332,16 @@ static int bgp_router_inject_bgp_session_information(bgp_peer_t * peer, bgp_sess
 
     peer->send_seq_num = info->send_seq_num;
     peer->recv_seq_num = info->recv_seq_num;
+    
+    if(peer->addr != info->neighbor_addr) printf("peer->addr UTILE !!\n");
+    peer->addr = info->neighbor_addr;
+    if(peer->last_error != info->last_error) printf("peer>last_error UTILE !!\n");
+    peer->last_error=info->last_error;
+    if(peer->next_hop != info->next_hop) printf("peer->next_hop UTILE !!\n");
+    peer->next_hop=info->next_hop;
+    if(peer->src_addr != info->src_addr) printf("peer->src_addr UTILE !!\n");
+    peer->src_addr=info->src_addr;
+
 
     rib_destroy(&(peer->adj_rib[RIB_IN]));
     peer->adj_rib[RIB_IN] = rib_create(0);
