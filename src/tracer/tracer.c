@@ -300,7 +300,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
         printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",work, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-if(work==47)
+if(work==10000)
 {
 return;
 } 
