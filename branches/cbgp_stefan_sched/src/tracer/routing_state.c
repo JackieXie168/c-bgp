@@ -613,9 +613,12 @@ int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * r
         return -650;
 
     // compare node_rt_t !!!
-    printf("TODO : compare node_rt_t !!!\n");
-    if ( 0!= (_compare_node_rt_t(ri1->node_rt_t, ri2->node_rt_t )))   
+    
+    if ( 0!= (_compare_node_rt_t(ri1->node_rt_t, ri2->node_rt_t )))
+    {
+        printf("CE FUT UTILE !!!!\n");
         return -670;
+    }
 
     return 0;
 }
