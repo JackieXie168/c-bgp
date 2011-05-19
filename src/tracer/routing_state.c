@@ -230,12 +230,19 @@ local_rib_info_t * _routing_local_rib_create(net_node_t * node)
     return loc_rib_info;
 }
 
+/*
+_routing_node_rt_create(net_node_t * node)
+{
+
+
+}*/
+
 routing_info_t * _routing_info_create(net_node_t * node)
 {
   routing_info_t * info = (routing_info_t *) MALLOC( sizeof(routing_info_t) );
 
 
-  //info->node_rt_t = rt_deep_copy(node->rt);
+  info->node_rt_t = rt_deep_copy(node->rt);
 
   info->bgp_router_loc_rib_t = _routing_local_rib_create(node);
 
@@ -418,6 +425,14 @@ static int _node_inject_routing_info(net_node_t * node, routing_info_t * routing
 
     // local_rib
     bgp_router_inject_loc_rib_info(router,loc_rib_info);
+
+
+    // node_rt_t
+// TODO compare before copying !  in order to see if it is accurate.
+    //
+    rt_destroy(&(node->rt));
+    node->rt = rt_deep_copy(routing_info->node_rt_t );
+
 
     return index;
 }
