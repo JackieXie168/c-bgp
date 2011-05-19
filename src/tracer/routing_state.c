@@ -528,6 +528,76 @@ int _rib_compare(local_rib_info_t * rib1, local_rib_info_t * rib2)
 
 // 0 = identical
 // other value, otherwise
+int _compare_rt_entries(rt_entries_t * entries1, rt_entries_t * entries2)
+{
+    if (ptr_array_length(entries1) != ptr_array_length(entries2))
+        return -678;
+
+    unsigned int taille = ptr_array_length(entries1);
+
+    unsigned int i;
+    for(i=0; i<taille; i++)
+    {
+       rt_entry_t * entry1 = (rt_entry_t *) entries1->data[i];
+       rt_entry_t * entry2 = (rt_entry_t *) entries2->data[i];
+       if(0 != rt_entry_compare(entry1, entry2))
+           return -679;
+    }
+
+    return 0;
+}
+// 0 = identical
+// other value, otherwise
+int _compare_rt_infos_t(rt_infos_t * rtinfos1,rt_infos_t * rtinfos2)
+{
+    unsigned int taille1 = ptr_array_length((ptr_array_t *) rtinfos1);
+    unsigned int taille2 = ptr_array_length((ptr_array_t *) rtinfos2);
+    if(taille1 != taille2)
+        return -673;
+
+    unsigned int i = 0;
+    for(i=0; i < taille1 ; i++)
+    {
+        rt_info_t * rtinfo1 =  rtinfos1->data[i];
+        rt_info_t * rtinfo2 =  rtinfos2->data[i];
+
+        if(rtinfo1->prefix != rtinfo2->prefix)
+            return -674;
+        if( rtinfo1->metric != rtinfo2->metric)
+            return -675;
+        if(rtinfo1->type != rtinfo2->type)
+            return -676;
+        if ( 0 != _compare_rt_entries(rtinfo1->entries, rtinfo2->entries))
+            return -677;
+    }
+
+    return 0;
+}
+
+// 0 = identical
+// other value, otherwise
+int _compare_node_rt_t(net_rt_t * rt1, net_rt_t * rt2)
+{
+    unsigned int num1, num2;
+    num1 = trie_num_nodes(rt1,1);
+    num2 = trie_num_nodes(rt2,1);
+    if(num1 != num2)
+        return -671;
+
+    rt_infos_t ** rt_infosss1 = (rt_infos_t **) (_trie_get_array(rt1)->data) ;
+    rt_infos_t ** rt_infosss2 = (rt_infos_t **) (_trie_get_array(rt2)->data) ;
+
+    unsigned index;
+    for (index= 0; index < num1 ; index++) {
+        if( 0 != _compare_rt_infos_t(rt_infosss1[index],rt_infosss2[index]))
+          return -672;
+    }
+    return 0;
+}
+
+
+// 0 = identical
+// other value, otherwise
 int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * ri2)
 {
     // local rib :
@@ -538,6 +608,11 @@ int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * r
 
     if( _bgp_sessions_compare(ri1->bgp_sessions_info, ri2->bgp_sessions_info  ) !=0)
         return -650;
+
+    // compare node_rt_t !!!
+    printf("TODO : compare node_rt_t !!!\n");
+    if ( 0!= (_compare_node_rt_t(ri1->node_rt_t, ri2->node_rt_t )))   
+        return -670;
 
     return 0;
 }
