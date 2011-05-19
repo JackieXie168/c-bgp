@@ -561,9 +561,9 @@ int _compare_rt_infos_t(rt_infos_t * rtinfos1,rt_infos_t * rtinfos2)
         rt_info_t * rtinfo1 =  rtinfos1->data[i];
         rt_info_t * rtinfo2 =  rtinfos2->data[i];
 
-        if(rtinfo1->prefix->mask != rtinfo2->prefix->mask)
+        if(rtinfo1->prefix.mask != rtinfo2->prefix.mask)
             return -674;
-        if(rtinfo1->prefix->network != rtinfo2->prefix->network)
+        if(rtinfo1->prefix.network != rtinfo2->prefix.network)
             return -674;
 
         if( rtinfo1->metric != rtinfo2->metric)
