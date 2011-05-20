@@ -341,7 +341,7 @@ return;
     }
    if(lifo_depth(list_of_state_trans)==0)
    {
-       printf("All transitions treated untill depth %u ", MAX_GRAPH_DEPTH);
+       printf("All transitions treated untill depth %u \n", MAX_GRAPH_DEPTH);
    }
 
     return self->graph->nb_states;
