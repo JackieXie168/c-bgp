@@ -241,7 +241,8 @@ routing_info_t * _routing_info_create(net_node_t * node)
 {
   routing_info_t * info = (routing_info_t *) MALLOC( sizeof(routing_info_t) );
 
-
+  if(node->rt == NULL)  printf("ndoe->rt == NULL !!!\n");
+  
   info->node_rt_t = rt_deep_copy(node->rt);
 
   info->bgp_router_loc_rib_t = _routing_local_rib_create(node);
@@ -550,6 +551,30 @@ int _compare_rt_entries(rt_entries_t * entries1, rt_entries_t * entries2)
 // other value, otherwise
 int _compare_rt_infos_t(rt_infos_t * rtinfos1,rt_infos_t * rtinfos2)
 {
+    if(rtinfos1 == NULL)
+    {
+        printf("rtinfos1 NULL   ");
+        if(rtinfos2 == NULL)
+        {
+             printf("ET   rtinfos2 NULL\n");
+             return 0;
+        }
+        else
+        {
+            printf("ET   rtinfos2 pas NULL !!!\n");
+            return -662;
+        }
+    }
+    else
+    {
+        if(rtinfos2 == NULL)
+        {
+              printf("rtinfos1 pas NULL   ET rtinfos2 NULL !!!\n");
+              return -663;
+        }
+    }
+
+
     unsigned int taille1 = ptr_array_length((ptr_array_t *) rtinfos1);
     unsigned int taille2 = ptr_array_length((ptr_array_t *) rtinfos2);
     if(taille1 != taille2)
@@ -581,6 +606,29 @@ int _compare_rt_infos_t(rt_infos_t * rtinfos1,rt_infos_t * rtinfos2)
 // other value, otherwise
 int _compare_node_rt_t(net_rt_t * rt1, net_rt_t * rt2)
 {
+    if(rt1 == NULL)
+    {
+        printf("rt1 NULL   ");
+        if(rt2 == NULL)
+        {
+             printf("ET   rt2 NULL\n");
+             return 0;
+        }
+        else
+        {
+            printf("ET   rt2 pas NULL !!!\n");
+            return -660;
+        }
+    }
+    else
+    {
+        if(rt2 == NULL)
+        {
+              printf("rt1 pas NULL   ET rt2 NULL !!!\n");
+              return -661;
+        }
+    }
+    
     unsigned int num1, num2;
     num1 = trie_num_nodes(rt1,1);
     num2 = trie_num_nodes(rt2,1);
