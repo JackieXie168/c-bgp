@@ -527,6 +527,29 @@ int _rib_compare(local_rib_info_t * rib1, local_rib_info_t * rib2)
     return 0;
 }
 
+int _compare_rt_entry(rt_entry_t * entry1, rt_entry_t * entry2)
+{
+
+  if (entry1->gateway != entry2->gateway)
+      return -665;
+  /* The following comparison is required as the outgoing interface
+     might be left unspecified, i.e. NULL. This is the case for
+     gateway routes that require a recursive lookup. */
+  if (entry1->oif != entry2->oif)
+      return -666;
+
+  if(entry1->oif != NULL && entry2->oif != NULL)
+  {
+      if (entry1->oif->addr != entry2->oif->addr)
+          return - 667;
+  }
+
+  if(entry1->ref_cnt != entry2->ref_cnt)
+      return -668;
+  
+  return 0;
+}
+
 // 0 = identical
 // other value, otherwise
 int _compare_rt_entries(rt_entries_t * entries1, rt_entries_t * entries2)
@@ -541,7 +564,7 @@ int _compare_rt_entries(rt_entries_t * entries1, rt_entries_t * entries2)
     {
        rt_entry_t * entry1 = (rt_entry_t *) entries1->data[i];
        rt_entry_t * entry2 = (rt_entry_t *) entries2->data[i];
-       if(0 != rt_entry_compare(entry1, entry2))
+       if(0 != _compare_rt_entry(entry1, entry2))
            return -679;
     }
 
@@ -664,7 +687,7 @@ int _routing_info_compare(int nb_nodes, routing_info_t * ri1, routing_info_t * r
     
     if ( 0!= (_compare_node_rt_t(ri1->node_rt_t, ri2->node_rt_t )))
     {
-        printf("CE FUT UTILE !!!!\n");
+        printf("*****************\n\n\nCE FUT UTILE !!!!\n**********\n\n\n");
         return -670;
     }
 
