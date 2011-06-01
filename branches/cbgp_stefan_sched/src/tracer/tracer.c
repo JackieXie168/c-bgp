@@ -292,7 +292,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
     }
 //  fin de l'amorce
     
-    unsigned int MAX_GRAPH_DEPTH = 38;
+    unsigned int MAX_GRAPH_DEPTH = 11;
     while(lifo_depth(list_of_state_trans)!=0)
     {   
         state_trans = (struct state_trans_t *) lifo_pop(list_of_state_trans);
@@ -300,7 +300,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
         printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",work, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-if(work==10000)
+if(work==1000)
 {
 return;
 } 

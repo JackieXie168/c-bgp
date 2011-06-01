@@ -26,11 +26,14 @@ struct graph_t;
 static unsigned int MAX_STATE = 1000000;
 static unsigned int MAX_FINAL_STATES = 100;
 
+
 #define STATE_FINAL_DOT_STYLE  "peripheries=3,style=filled, colorscheme=blues4,color=4"
 #define STATE_ROOT_DOT_STYLE  "shape=box,peripheries=2"
 #define STATE_CAN_LEAD_TO_A_FINAL_STATE_DOT_STYLE  "style=filled, colorscheme=blues4,color=2"
 #define GRAPH_EDGE_DOT_STYLE  "color=\"#666666\",colorscheme=blues4,labelfontsize=10,labelfontcolor=4"
 #define STATE_NOT_COMPLETELY_TREATED_DOT_STYLE  "peripheries=8"
+
+#define STATE_COLOR_BASED_ON_ROUTING_INFO  "style=filled,color="
 
 
 #define TRANSITION_DOT_DUMP_VERSION_ID 1
@@ -58,6 +61,8 @@ typedef struct graph_t {
 
   struct state_t        **  list_of_active_states;
   unsigned int              nb_of_active_states;
+
+  net_node_t             ** original_advertisers;
 
 } graph_t;
 

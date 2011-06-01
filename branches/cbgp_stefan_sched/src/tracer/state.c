@@ -183,6 +183,9 @@ state_t * state_create_isolated(struct tracer_t * tracer)
 
   state->session_waiting_time = NULL;
 
+  state->scolor.r=1;
+  state->scolor.g=1;
+  state->scolor.b=1;
   return state;
 }
 
@@ -583,6 +586,139 @@ int state_export_to_file(state_t * state)
     }
 */
 
+
+unsigned int _state_get_color_for_node(state_t * state, unsigned int node , unsigned int max_value)
+{
+    // nb peers (voisins)
+    net_protocol_t * protocol;
+    bgp_router_t * router;
+    protocol= protocols_get(state->routing_state->couples_node_routing_info[node]->node->protocols, NET_PROTOCOL_BGP);
+    if (protocol == NULL)
+    {
+        printf("ouille ouille ouille ..., ce noeud n'est pas un bgp router");
+        return max_value;
+    }
+    router = (bgp_router_t *) protocol->handler;
+
+    unsigned int nbVoisin = state->routing_state->couples_node_routing_info[node]->routing_info->bgp_sessions_info->nb_bgp_session_info_;
+    unsigned int possibilite = nbVoisin + 1;
+
+
+    if(state->routing_state->couples_node_routing_info[node]->routing_info->bgp_router_loc_rib_t->nb_local_rib_elem == 0)
+        return max_value;
+
+
+    // normalement une seule info dans loc_rib (puisque un seul reseau annoncé)
+    assert(state->routing_state->couples_node_routing_info[node]->routing_info->bgp_router_loc_rib_t->nb_local_rib_elem == 1);
+
+    bgp_peer_t* peer_choosed = state->routing_state->couples_node_routing_info[node]->routing_info->bgp_router_loc_rib_t->bgp_route_[0]->peer;
+
+
+    unsigned int i = 0;
+    while(i < nbVoisin)
+    {
+        // si c'est le bgp-peer qui est choisi dans la loc-rib, alors stop
+        assert(state->routing_state->couples_node_routing_info[node]->routing_info->bgp_sessions_info->bgp_session_info[i]->nb_adj_rib_in_routes<=1);
+
+        if(state->routing_state->couples_node_routing_info[node]->routing_info->bgp_sessions_info->bgp_session_info[i]->nb_adj_rib_in_routes==1
+                && state->routing_state->couples_node_routing_info[node]->routing_info->bgp_sessions_info->bgp_session_info[i]->adj_rib_IN_routes[0]->peer == peer_choosed)
+        {
+            //trouvé !!!
+            break;
+        }
+        i++;
+    }
+    return i*max_value/possibilite;
+}
+
+
+
+    /**
+     *    retourne valeur entre 0 et 1 
+     */
+ float _state_compute_based_color(state_t * state, unsigned int num)
+ {
+     // ceci concerne les noeuds numéros :
+     /*
+      * si n noeuds :
+      * ca concerne les noeuds de numéros  i tels que
+      *     i%3 == num
+      * 1er noeud h = num
+      * et puis les suivants h + 3
+      *
+      * nb de noeud par couleur :  state->graph->tracer->nb_nodes / 3
+      *
+      * combien de bits par noeuds :
+      *
+      *
+      */
+     unsigned int h = num;
+     float color = 1;
+     // nb bit en tout pour cette couleur : 16 )
+
+
+     uint16_t deux_exp_16_moins_1 = 65535;  // ( 2^16 -1)
+
+     uint16_t color_int = 65535;  // ( 2^16 -1)
+     unsigned int nb_node_dans_couleur = (state->graph->tracer->nb_nodes -1 ) / 3  +1 ;
+     // soit 16 bit dans cette couleur
+     unsigned int nbbit_pour_un_noeud = 16 / nb_node_dans_couleur;
+     unsigned int nb_valeur_diff = (1 << nbbit_pour_un_noeud) - 1;
+     //si 4 bits, ca doit retourner une valeur entre 0 et 2^4 -1, soit 2^4 valeurs au total.
+     unsigned int color_for_node;
+     while( h < state->graph->tracer->nb_nodes)
+     {
+        printf("couleur %u : noeud %u\n",num,h  );
+        color_for_node = _state_get_color_for_node(state, h, nb_valeur_diff) ;
+        printf("nb valeur diff possibles : %u,   valeur choisie : %u\n", nb_valeur_diff, color_for_node);
+
+        color_int = color_int << nbbit_pour_un_noeud ;
+        color_int = color_int | color_for_node ;
+        h = h + 3;
+     }
+
+     printf("total  : %u    sur  %u\n", color_int,deux_exp_16_moins_1);
+     return ((float)color_int)/ deux_exp_16_moins_1;
+ }
+
+ void state_compute_color_following_routing_info(state_t * state)
+ {
+     /* soit la décomposition en 3 couleurs de base.
+      * un noeud influe sur une seule couleur
+      * une couleur peut etre modifiée par plusieurs noeuds.
+      * une couleur de bases représentée sur k bits.  (disons 8)
+      * 
+      * exemple avec 8 noeuds dans la topologie :
+      * num de la couleur :     0     |     1     |    2   
+      * num des noeuds    :  0  3  6     1  4  7    2  5
+      * 
+      * soit n noeuds en tout
+      * une couleur de base sur k bits 
+      * 
+      * num de la couleur de base sur laquelle le noeud i influe : 
+      * couleur = i % 3 
+      * 
+      * une couleur peut représenter combien de noeuds ? 
+      * nombre de noeuds qui se partagent une couleur pour la représentation :
+      *    ((n-1)/3) +1
+      * dans une couleur, nombre de bits disponibles pour un noeud : 
+      *     k / ((n-1)/3) +1
+      * 
+      * 
+      * pour influencer
+      *   
+      * 
+      * 
+      * 
+      * 
+      */ 
+
+     state->scolor.r =  _state_compute_based_color(state, 0);
+     state->scolor.g =  _state_compute_based_color(state, 1);
+     state->scolor.b =  _state_compute_based_color(state, 2);
+     
+     
+ }
 
 int state_export_dot_to_file(state_t * state)
 {
