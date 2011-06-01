@@ -51,6 +51,13 @@ typedef struct session_waiting_time_t
     int         min_waiting_time;
 }session_waiting_time_t;
 
+typedef struct 
+{
+    float   r;
+    float   g;
+    float   b;
+} state_color;
+
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
 typedef struct state_t {
@@ -73,6 +80,8 @@ typedef struct state_t {
   unsigned int          depth;
 
   session_waiting_time_t   ** session_waiting_time;
+
+  state_color       scolor;
 
 } state_t;
 

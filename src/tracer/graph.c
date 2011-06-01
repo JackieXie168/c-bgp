@@ -54,6 +54,7 @@ graph_t * graph_create(tracer_t * tracer)
       graph->list_of_final_states[i]=NULL;
 
   graph->marking_sequence_number = 1;
+  graph->original_advertisers = NULL;
 
   return graph;
 }
@@ -266,6 +267,16 @@ static void transition_short_dump(gds_stream_t * stream, transition_t * trans)
 
 }
 
+void graph_set_original_advertisers(graph_t * graph)
+{
+    assert(graph->nb_states>0);
+
+    // browse the nodes, and check if original advertiser.
+    
+}
+
+
+
 // -----[ net_export_dot ]-------------------------------------------
 void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 {
@@ -359,9 +370,145 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       stream_printf(stream, "</TABLE>>,");
 
       if(retour == 0 )
-          stream_printf(stream, " URL=\"%s_state_%u.dot.%s\" ",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->tracer->IMAGE_FORMAT);
+          stream_printf(stream, " URL=\"%s_state_%u.dot.%s\", ",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->tracer->IMAGE_FORMAT);
 
-      stream_printf(stream, "]\n");
+
+      // mettre la couleur pour l'équivalence des choix de routes ...
+      state_compute_color_following_routing_info(graph->list_of_states[i]);
+
+
+      //stream_printf(stream, " style=filled, color=\"%0.3f %0.3f %0.3f\" ",graph->list_of_states[i]->scolor.r, \
+                                                    graph->list_of_states[i]->scolor.g, \
+                                                    graph->list_of_states[i]->scolor.b);
+
+//méthode 1 :
+      /*/
+      // si r le plus grand, alors dans reds9
+      stream_printf(stream, " style=filled,");
+
+      if(graph->list_of_states[i]->scolor.r >= graph->list_of_states[i]->scolor.g
+              && graph->list_of_states[i]->scolor.r >= graph->list_of_states[i]->scolor.b)
+      {
+               stream_printf(stream, " colorscheme=reds9,");
+               if(graph->list_of_states[i]->scolor.g >= graph->list_of_states[i]->scolor.b)
+               {
+                 //r -- g -- b
+                   //dans le début des nums  2->5
+                   //b est inférieur à g, le max c'est g
+                   if(graph->list_of_states[i]->scolor.g > 0)
+                   stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.b / graph->list_of_states[i]->scolor.g )) +2);
+                   else
+                      stream_printf(stream, "color=2,");
+
+               }
+               else
+               {
+                   // dans la fin des nums 6->9
+                    if(graph->list_of_states[i]->scolor.b > 0)
+
+            stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.g / graph->list_of_states[i]->scolor.b )) +6);
+                                   else
+                      stream_printf(stream, "color=6,");
+               }
+      }
+      else if (graph->list_of_states[i]->scolor.g >= graph->list_of_states[i]->scolor.r
+              && graph->list_of_states[i]->scolor.g >= graph->list_of_states[i]->scolor.b)
+      {
+          stream_printf(stream, " colorscheme=greens9,");
+          if(graph->list_of_states[i]->scolor.r >= graph->list_of_states[i]->scolor.b)
+               {
+                 //g -- r -- b
+                   //dans le début des nums  2->5
+                                 if(graph->list_of_states[i]->scolor.r > 0)
+
+   stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.b / graph->list_of_states[i]->scolor.r )) +2);
+                   else
+                      stream_printf(stream, "color=2,");
+               }
+               else
+               {
+                  // g -- b -- r
+                   // dans la fin des nums 6->9
+                                 if(graph->list_of_states[i]->scolor.b > 0)
+
+   stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.r / graph->list_of_states[i]->scolor.b )) +6);
+               else
+                      stream_printf(stream, "color=6,");
+               }
+
+      }
+      else // b est le plus grand
+      {
+          stream_printf(stream, " colorscheme=blues9,");
+          if(graph->list_of_states[i]->scolor.r >= graph->list_of_states[i]->scolor.g)
+               {
+                 //b -- r  -- g
+                   //dans le début des nums  2->5
+                                 if(graph->list_of_states[i]->scolor.r > 0)
+
+   stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.g / graph->list_of_states[i]->scolor.r )) +2);
+                   else
+                      stream_printf(stream, "color=2,");
+               }
+               else
+               {
+                  // b -- g -- r
+                   // dans la fin des nums 6->9
+                                 if(graph->list_of_states[i]->scolor.g > 0)
+
+   stream_printf(stream, "color=%d,", ( int)(4 * (graph->list_of_states[i]->scolor.r / graph->list_of_states[i]->scolor.g )) +6);
+               else
+                      stream_printf(stream, "color=6,");
+               }
+
+      }*/
+
+
+      //méthode 2 :
+      stream_printf(stream, " style=filled,");
+
+      if(graph->list_of_states[i]->scolor.g<=0.333)
+      {
+          stream_printf(stream, " colorscheme=blues9,");
+
+      }else if(graph->list_of_states[i]->scolor.g<=0.666)
+      {
+          stream_printf(stream, " colorscheme=reds9,");
+      }
+      else
+      {
+          stream_printf(stream, " colorscheme=greens9,");
+      }
+      unsigned int base_color = 0;
+      if(graph->list_of_states[i]->scolor.b<=0.333)
+      {
+         base_color = 2;
+      }else if(graph->list_of_states[i]->scolor.b<=0.666)
+      {
+         base_color = 5;
+      }
+      else
+      {
+         base_color = 8;
+      }
+       if(graph->list_of_states[i]->scolor.r<=0.333)
+       {
+           //base_color++;
+       }else if(graph->list_of_states[i]->scolor.r<=0.666)
+      {
+         base_color++;
+      }
+       else
+       {
+          base_color+=2;
+           if(base_color==10) base_color=9;
+       }
+      stream_printf(stream, " color=%u,", base_color);
+
+
+
+
+      stream_printf(stream, "]\n\n");
     }
 
     // each state : its transition (with a state at the end of the transition ...
