@@ -362,9 +362,9 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       stream_printf(stream, "<TR><TD>");
       _queue_state_flat_simple_HTML_dump(stream,graph->list_of_states[i]->queue_state);
       stream_printf(stream, "</TD></TR>");
-      stream_printf(stream, "<TR><TD>");
-      state_tag_waiting_time_HTML_dump(stream, graph->list_of_states[i]);
-      stream_printf(stream, "</TD></TR>");
+      //stream_printf(stream, "<TR><TD>");
+      //state_tag_waiting_time_HTML_dump(stream, graph->list_of_states[i]);
+      //stream_printf(stream, "</TD></TR>");
 
 
       stream_printf(stream, "</TABLE>>,");
@@ -463,7 +463,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 
       }*/
 
-
+/*/
       //méthode 2 :
       stream_printf(stream, " style=filled,");
 
@@ -505,11 +505,13 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
        }
       stream_printf(stream, " color=%u,", base_color);
 
-
+        //*/
 
 
       stream_printf(stream, "]\n\n");
     }
+
+
 
     // each state : its transition (with a state at the end of the transition ...
 
