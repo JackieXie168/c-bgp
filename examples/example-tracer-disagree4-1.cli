@@ -1,0 +1,34 @@
+print "\e[37;1mEXAMPLE DISAGREE\e[0m\n"
+print "================\n"
+
+
+bgp topology load "examples/example-ebgp-4-routers1.topo"
+bgp topology install
+
+bgp router AS1 add network 0.1/16
+
+bgp router AS2 peer AS3 filter in add-rule
+	match any
+	action "local-pref 100"
+
+#bgp router AS4 peer AS3 filter in add-rule
+#	match any
+#	action "local-pref 100"
+
+bgp router AS3 peer AS2 filter in add-rule
+	match any
+	action "local-pref 100"
+
+#bgp router AS3 peer AS4 filter in add-rule
+#	match any
+#	action "local-pref 100"
+
+bgp topology run
+
+
+sim openSessions
+tracer trace whole_graph
+tracer graph export_all_states_to_file
+tracer graph export_dot_to_file
+
+
