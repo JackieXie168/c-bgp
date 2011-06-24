@@ -746,9 +746,6 @@ static int _rt_del_for_each(uint32_t key, uint8_t key_len,
   ip_pfx_t prefix;
   int result;
 
-  if (list == NULL)
-    return -1;
-
   prefix.network= key;
   prefix.mask= key_len;
 
@@ -758,7 +755,7 @@ static int _rt_del_for_each(uint32_t key, uint8_t key_len,
 
   /* If we use wildcards, the call never fails, otherwise, it depends
      on the '_rt_info_list_del' call */
-  return ((filter->prefix != NULL) &&
+    return ((filter->prefix != NULL) &&
 	  (filter->oif != NULL) &&
 	  (filter->gateway != NULL)) ? result : 0;
 }
