@@ -281,11 +281,6 @@ net_error_t ip_opt_hook_msg_in(net_node_t * node,
 
   ___ip_opt_debug("IN node=%n, iif=%i opts=%o\n", node, iif, msg->opts);
 
-  // Forward according to alternate dest ?
-  error= _process_msg_alt_fwd(node, msg, rtentries);
-  if (error != ESUCCESS)
-    return error;
-
   if (msg->opts->flags & IP_OPT_TRACE) {
     last_item= ip_trace_last_item(msg->opts->trace);
     if ((last_item != NULL) &&
@@ -303,6 +298,11 @@ net_error_t ip_opt_hook_msg_in(net_node_t * node,
     }
 
   }
+
+  // Forward according to alternate dest ?
+  error= _process_msg_alt_fwd(node, msg, rtentries);
+  if (error != ESUCCESS)
+    return error;
 
   return ESUCCESS;
 }
