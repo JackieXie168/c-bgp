@@ -1,0 +1,40 @@
+
+
+First run cbgp (as usual).
+
+
+yo@berry:~$ cbgp
+C-BGP Routing Solver version 2.0.0-rc3
+
+  Copyright (C) 2002-2010 Bruno Quoitin
+  Networking Lab
+  Computer Science Institute
+  University of Mons (UMONS)
+  Mons, Belgium
+  
+  This software is free for personal and educational uses.
+  See file COPYING for details.
+
+help is bound to '?' key
+cbgp> init.
+cbgp> 
+
+The main steps are :
+1 - set the system (topology and policies)
+2 - open the bgp sessions (this makes cbgp simulate the "bgp open session" messages exchange)
+3 - use the tracer in manual or automated mode
+
+
+1 - Set the system : 
+    This is done the same way as the original cbgp
+
+2 - In order to open the bgp sessions, use the new command :
+    cbgp> sim openSessions
+    This makes cbgp simulate every "bgp open session" messages
+
+3A - Automated Mode :
+    The behavior of the only automated mode is to trace the whole graph (with a limited depth fixed in the source code).
+    cbgp> tracer trace whole_graph
+
+3B - Manual Mode :
+    The manual mode allows to direct the graph building.
