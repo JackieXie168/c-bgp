@@ -23,6 +23,11 @@ The main steps are :
 1 - set the system (topology and policies)
 2 - open the bgp sessions (this makes cbgp simulate the "bgp open session" messages exchange)
 3 - use the tracer in manual or automated mode
+    There are two constraints for the tracer to run correctly : 
+    - the internal caracteristics of the system (topology and policies) cannot change anymore
+    - all bgp sessions have to be opened.
+4 - get information on states, and the graph
+
 
 
 1 - Set the system : 
@@ -38,3 +43,32 @@ The main steps are :
 
 3B - Manual Mode :
     The manual mode allows to direct the graph building.
+    The first step is to start the tracer : 
+.       cbgp> tracer start 
+    It creates the graph with the current state of the system as the origin.
+    We can now manipulate the system.
+    In order to direct the system, we have to know the states ids, and the allowed transitions from these states (see point 4).
+    Use the following command to direct the system   
+.       cbgp> tracer trace from <state-id> <transition-id>
+    It sets the state <state-id> as the current state of cbgp, sets the message corresponding to the <transition-id> as the next message to be received, simulate the reception of this message, takes the resulting state of cbgp and connects it to the graph.
+
+4 - Get information on states and the graph :
+4A - Get information on states :
+.       cbgp> tracer graph dump allStates
+        allows to have textual information on every state (including ingoing and outgoing transitions, and the non-already-simulated transitions)
+.       cbgp> tracer graph dump state <state-id>
+        allows to have textual information on a specific state
+.       cbgp> tracer graph dump root
+        allows to have textual information on the root (original) state of the graph
+.       cbgp> tracer graph export_dot_all_states_to_file
+        allows to export information of states in dot format to a file (filename specified in the source code), and run the graphviz (neato) command in order to create eps file.
+
+4B - Get information on the graph :
+.       cbgp> tracer graph export_dot_to_file
+        allows to export the graphical drawing of the graph in dot format to a file (filename specified in the source code), and run the graphviz (dot) command in order to create eps file. The generated eps file includes the graphical representation of each state (if the previous command has been run). When the eps file is converted into a pdf file (with epstopdf), the states become clickable.
+
+
+
+
+
+
