@@ -85,7 +85,7 @@ extern "C" {
    int tracer_trace_whole_graph_v2(tracer_t * self);
    int tracer_trace_whole_graph_v1bis(tracer_t * self);
 
-
+   void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer);
 
 #ifdef	__cplusplus
 }

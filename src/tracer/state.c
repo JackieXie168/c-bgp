@@ -668,16 +668,16 @@ unsigned int _state_get_color_for_node(state_t * state, unsigned int node , unsi
      unsigned int color_for_node;
      while( h < state->graph->tracer->nb_nodes)
      {
-        printf("couleur %u : noeud %u\n",num,h  );
+        //printf("couleur %u : noeud %u\n",num,h  );
         color_for_node = _state_get_color_for_node(state, h, nb_valeur_diff) ;
-        printf("nb valeur diff possibles : %u,   valeur choisie : %u\n", nb_valeur_diff, color_for_node);
+        //printf("nb valeur diff possibles : %u,   valeur choisie : %u\n", nb_valeur_diff, color_for_node);
 
         color_int = color_int << nbbit_pour_un_noeud ;
         color_int = color_int | color_for_node ;
         h = h + 3;
      }
 
-     printf("total  : %u    sur  %u\n", color_int,deux_exp_16_moins_1);
+     //printf("total  : %u    sur  %u\n", color_int,deux_exp_16_moins_1);
      return ((float)color_int)/ deux_exp_16_moins_1;
  }
 
