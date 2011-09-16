@@ -325,7 +325,7 @@ return;
             current_state = current_state->output_transitions[i]->to;
             current_state_id = current_state->id;
             nbtrans = state_calculate_allowed_output_transitions(current_state);
-            printf("new state : %u - depth :%u\n",current_state->id, current_state->depth);
+            //printf("new state : %u - depth :%u\n",current_state->id, current_state->depth);
 
             if(current_state->depth < MAX_GRAPH_DEPTH)
             {
@@ -457,7 +457,6 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 
         state_attach_to_graph(new_state, transition);
                 if(debug==1) printf("2: tracing : after attach state to graph\n");
-
     }
     else
     {
@@ -472,6 +471,21 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
         // ajouter une transition entrante
         // ne pas valider le numéro state-id
         FREE(new_state);
+
+        // vérifier si un cycle a été créé :
+        cycle_t * a_cycle = NULL ;
+        a_cycle = graph_detect_one_cycle(self->graph);
+        if(a_cycle != NULL)
+        {
+            printf("\nCycle detected : \n[ ");
+            int j=0;
+            for(j = 0 ; j < a_cycle->nodes_cycles_length ; j++ )
+            {
+                printf("%u -> ", a_cycle->nodes_cycles[j]);
+            }
+            printf("%u ] \n", a_cycle->nodes_cycles[0]);
+        }
+
     }
 
      if(debug==1) printf("2: tracing : end of tracing\n");
@@ -480,6 +494,32 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
 
     return 0;
 }
+
+   void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer)
+   {
+       graph_detect_every_cycle(tracer->graph);
+       int i = 0;
+       for(i = 0; i< tracer->graph->nb_cycles ; i++)
+       {
+            stream_printf(stream,"Cycle %d detected : [ ",i);
+            int j=0;
+            for(j = 0 ; j < tracer->graph->cycles[i]->origine_to_cycle_length ; j++ )
+            {
+                if(j == tracer->graph->cycles[i]->origine_to_cycle_length -1 )
+                    stream_printf(stream,"%u ", tracer->graph->cycles[i]->from_origine_to_cycle[j]);
+                else
+                    stream_printf(stream,"%u -> ", tracer->graph->cycles[i]->from_origine_to_cycle[j]);
+            }
+
+            stream_printf(stream,"] -> [ ");
+            for(j = 0 ; j < tracer->graph->cycles[i]->nodes_cycles_length ; j++ )
+            {
+                stream_printf(stream,"%u -> ", tracer->graph->cycles[i]->nodes_cycles[j]);
+            }
+            stream_printf(stream,"%u ] \n", tracer->graph->cycles[i]->nodes_cycles[0]);
+       }
+   }
+
 
 int _tracer_dump(gds_stream_t * stream, tracer_t * tracer)
 {
@@ -545,7 +585,6 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
    {
        graph_export_dot(stream,tracer->graph);
    }
-
 
 
 

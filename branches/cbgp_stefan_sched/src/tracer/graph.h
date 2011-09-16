@@ -26,6 +26,8 @@ struct graph_t;
 static unsigned int MAX_STATE = 1000000;
 static unsigned int MAX_FINAL_STATES = 100;
 
+#define NOT_VISITED 0
+#define VISITED 1
 
 #define STATE_FINAL_DOT_STYLE  "peripheries=3,style=filled, colorscheme=blues4,color=4"
 #define STATE_ROOT_DOT_STYLE  "shape=box,peripheries=2"
@@ -43,6 +45,13 @@ static unsigned int MAX_FINAL_STATES = 100;
 /*\definecolor{turquoise}{rgb}{0,0.6666,0.8}
 \definecolor{turquoiseLight}{rgb}{0,0.7333,0.88}
 \definecolor{bordeau}{rgb}{0.65882353,0,0.22352941}*/
+
+typedef struct cycle_t {
+    unsigned int     * nodes_cycles;
+    int                nodes_cycles_length;
+    unsigned int     * from_origine_to_cycle;
+    int                origine_to_cycle_length;
+}cycle_t;
 
 
 // -----[ sched_t ]--------------------------------------------------
@@ -64,6 +73,9 @@ typedef struct graph_t {
 
   net_node_t             ** original_advertisers;
 
+  cycle_t               * cycle;
+  cycle_t               ** cycles;
+  unsigned int          nb_cycles;
 } graph_t;
 
 
@@ -96,6 +108,9 @@ extern "C" {
     int graph_export_dot_to_file(graph_t * graph);
 
     struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph);
+
+    cycle_t * graph_detect_one_cycle(graph_t * graph);
+    void graph_detect_every_cycle(graph_t * graph);
 
 
 #ifdef	__cplusplus

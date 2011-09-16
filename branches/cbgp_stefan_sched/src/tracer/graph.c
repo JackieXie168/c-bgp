@@ -275,7 +275,174 @@ void graph_set_original_advertisers(graph_t * graph)
     
 }
 
+//void add_to_
 
+cycle_t * graph_visit_list_for_one_cycle(graph_t * graph, unsigned int x, unsigned int * nodes_list, int list_length, unsigned int * visited)
+{
+    int i = 0;
+    for(i=0; i < list_length ; i++)
+    {
+        if( x == nodes_list[i])
+        {
+            // create a nodes list that owns the cycle.
+            cycle_t * the_cycle = (cycle_t *) MALLOC( sizeof(cycle_t));
+            the_cycle->nodes_cycles = (unsigned int *) MALLOC( (list_length - i ) * sizeof(unsigned int));
+            the_cycle->nodes_cycles_length = list_length - i;
+            the_cycle->from_origine_to_cycle = (unsigned int *) MALLOC( i * sizeof(unsigned int));
+            the_cycle->origine_to_cycle_length = i;
+            
+            int j = 0;
+            for(j=0; j<i ; j++)
+            {
+                the_cycle->from_origine_to_cycle[j]=nodes_list[j];
+            }
+
+            for(j=0;j+i<list_length;j++)
+            {
+                the_cycle->nodes_cycles[j]=nodes_list[j+i];
+            }
+            return the_cycle;
+        }
+    }
+    visited[x] = VISITED ;
+    
+    nodes_list[list_length] = x;
+    list_length++;
+    // for each successor of node x, graph_visit this node
+    state_t * stateX = graph->list_of_states[x];
+    for(i=0; i< stateX->nb_output; i++)
+    {
+        cycle_t *  a_cycle = NULL;
+        a_cycle = graph_visit_list_for_one_cycle(graph, stateX->output_transitions[i]->to->id, nodes_list, list_length, visited);
+        if(a_cycle != NULL)
+             return a_cycle;
+    }
+    list_length--;
+    return NULL;
+}
+
+// ----- state_create ------------------------------------------------
+cycle_t * graph_detect_one_cycle(graph_t * graph)
+{
+    if(graph->cycle != NULL)
+        return graph->cycle;
+
+    unsigned int * visited    = (unsigned int *) MALLOC( graph->nb_states * sizeof(unsigned int));
+    unsigned int * nodes_list = (unsigned int *) MALLOC( graph->nb_states * sizeof(unsigned int));
+    int i=0;
+
+    int list_length = 0;
+    for(i=0; i< graph->nb_states ; i++)
+    {
+        visited[i] = NOT_VISITED;
+    }
+
+    for(i=0 ; i< graph->nb_states ; i++)
+    {
+        cycle_t * cycle = NULL;
+        if(visited[i] == NOT_VISITED)
+        {
+            cycle = graph_visit_list_for_one_cycle(graph, i, nodes_list, list_length, visited);
+            if(cycle != NULL)
+            {
+                graph->cycle = cycle;
+                FREE(visited);
+                FREE(nodes_list);
+                return cycle;
+            }
+        }
+    }
+    FREE(visited);
+    FREE(nodes_list);
+    return NULL;
+}
+
+
+void graph_visit_list_for_every_cycle(graph_t * graph, unsigned int x, unsigned int * nodes_list, int list_length, unsigned int * visited)
+{
+    int i = 0;
+    for(i=0; i < list_length ; i++)
+    {
+        if( x == nodes_list[i])
+        {  //printf("cycle found : from %u ", x);
+            // a new cycle is found !!
+            // add to the list of cycle, and go on with other neighbor (not the current node x)
+            cycle_t * the_cycle = (cycle_t *) MALLOC( sizeof(cycle_t));
+            the_cycle->nodes_cycles = (unsigned int *) MALLOC( (list_length - i ) * sizeof(unsigned int));
+            the_cycle->nodes_cycles_length = list_length - i;
+            the_cycle->from_origine_to_cycle = (unsigned int *) MALLOC( i * sizeof(unsigned int));
+            the_cycle->origine_to_cycle_length = i;
+
+            int j = 0;
+            for(j=0; j<i ; j++)
+            {
+                the_cycle->from_origine_to_cycle[j]=nodes_list[j];
+            }
+
+            for(j=0;j+i<list_length;j++)
+            {
+                the_cycle->nodes_cycles[j]=nodes_list[j+i];
+            }
+            if(graph->nb_cycles == 0)
+            {
+                graph->cycles = (cycle_t **) MALLOC(1 * sizeof(cycle_t *));
+            }
+            else
+            {
+                graph->cycles = (cycle_t **) REALLOC(graph->cycles,(graph->nb_cycles +1) * sizeof(cycle_t *));
+            }
+            graph->cycles[graph->nb_cycles] = the_cycle;
+            graph->nb_cycles ++ ;
+            return;
+        }
+    }
+    visited[x] = VISITED ;
+
+    nodes_list[list_length] = x;
+    list_length++;
+    // for each successor of node x, graph_visit this node
+    state_t * stateX = graph->list_of_states[x];
+    for(i=0; i< stateX->nb_output; i++)
+    {
+        graph_visit_list_for_every_cycle(graph, stateX->output_transitions[i]->to->id, nodes_list, list_length, visited);
+    }
+    list_length--;    
+}
+
+// ----- state_create ------------------------------------------------
+void graph_detect_every_cycle(graph_t * graph)
+{
+    if(graph->cycles != NULL)
+    {   
+        assert(graph->nb_cycles != 0);
+        FREE(graph->cycles);
+        graph->nb_cycles = 0;
+        graph->cycles = NULL;
+    }
+
+    unsigned int * visited    = (unsigned int *) MALLOC( graph->nb_states * sizeof(unsigned int));
+    unsigned int * nodes_list = (unsigned int *) MALLOC( graph->nb_states * sizeof(unsigned int));
+    int i=0;
+
+    int list_length = 0;
+    for(i=0; i< graph->nb_states ; i++)
+    {
+        visited[i] = NOT_VISITED;
+    }
+
+    
+    for(i=0 ; i< graph->nb_states ; i++)
+    {
+        if(visited[i] == NOT_VISITED)
+        {
+            graph_visit_list_for_every_cycle(graph, i, nodes_list, list_length, visited);
+            
+        }
+    }
+    FREE(visited);
+    FREE(nodes_list);
+    
+}
 
 // -----[ net_export_dot ]-------------------------------------------
 void graph_export_dot(gds_stream_t * stream, graph_t * graph)
