@@ -33,8 +33,14 @@ typedef struct tracer_t {
   char                  base_output_file_name[256];
   char                  base_output_directory[256];
   char                  IMAGE_FORMAT[10];
+  unsigned int       filter_depth;
+  unsigned int       filter_nb_max_msg;
+  unsigned int       filter_maxNbOfTreatedTransitions;
 } tracer_t;
 
+
+#define FILTER_OK 1
+#define FILTER_NOK 0
 
 #ifdef	__cplusplus
 extern "C" {
@@ -86,6 +92,16 @@ extern "C" {
    int tracer_trace_whole_graph_v1bis(tracer_t * self);
 
    void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer);
+
+   void filter_set_limit_on_depth(tracer_t * self, unsigned int depth);
+
+   void filter_unset_limit_on_depth(tracer_t * self);
+
+   void filter_set_limit_on_max_nb_in_oriented_session(tracer_t * self, unsigned int nb_msg);
+
+   void filter_unset_limit_on_max_nb_in_oriented_session(tracer_t * self);
+
+
 
 #ifdef	__cplusplus
 }
