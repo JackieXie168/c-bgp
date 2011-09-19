@@ -90,14 +90,94 @@ void destroy_struct_state_trans(void ** structstatetrans)
 }
 
 
-static unsigned int MAXDEPTH = 10000;
+
+/**
+ * 1 : FILTER_OK
+ * 0 : FILTER_NOK
+ *
+ * @param state
+ * @param depth
+ * @return
+ */
+int filter_limit_on_depth(state_t * state, unsigned int depth)
+{
+    if(state->depth<depth)
+        return FILTER_OK;
+    else
+        return FILTER_NOK;
+}
+
+int filter_limit_on_max_nb_msg_in_oriented_bgp_session(state_t * state, unsigned int nbmsgmax)
+{
+    if( _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(state->queue_state) < nbmsgmax)
+        return FILTER_OK;
+    else
+        return FILTER_NOK;
+}
+
+
+void filter_set_limit_on_depth(tracer_t * self, unsigned int depth)
+{
+    self->filter_depth = depth;
+}
+
+void filter_unset_limit_on_depth(tracer_t * self)
+{
+    self->filter_depth = 0;
+}
+
+void filter_set_limit_on_max_nb_in_oriented_session(tracer_t * self, unsigned int nb_msg)
+{
+    self->filter_nb_max_msg = nb_msg;
+}
+
+void filter_unset_limit_on_max_nb_in_oriented_session(tracer_t * self)
+{
+    self->filter_nb_max_msg = 0;
+}
+
+int filter_filtre_depth(tracer_t * self, state_t * state)
+{
+    if(self->filter_depth == 0)
+        return FILTER_OK;
+    return filter_limit_on_depth(state, self->filter_depth);
+}
+
+int filter_filtre_max_queue(tracer_t * self, state_t * state)
+{
+    if(self->filter_nb_max_msg == 0)
+        return FILTER_OK;
+    return filter_limit_on_max_nb_msg_in_oriented_bgp_session(state, self->filter_nb_max_msg);
+}
+
+void filter_set_maxNbOfTreatedTransitions(tracer_t * self, unsigned int max)
+{
+    self->filter_maxNbOfTreatedTransitions = max;
+}
+
+void filter_unset_maxNbOfTreatedTransitions(tracer_t * self)
+{
+    self->filter_maxNbOfTreatedTransitions = 0;
+}
+
+int filter_filtre_maxNbOfTreatedTransitions(tracer_t * self, unsigned int nboftrans)
+{
+    if(self->filter_maxNbOfTreatedTransitions == 0 ||
+            nboftrans < self->filter_maxNbOfTreatedTransitions )
+        return FILTER_OK;
+    else
+        return FILTER_NOK;
+
+}
+
+static unsigned int MAXFIFODEPTH = 10000;
 
 int tracer_trace_whole_graph(tracer_t * self)
 {
    return  tracer_trace_whole_graph_v1bis(self);
 }
 
-
+// FIFO ==> une file ==> parcours en largeur d'abord
 int tracer_trace_whole_graph_v0(tracer_t * self)
 {
     if(self->started == 1)
@@ -114,7 +194,10 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
 
     _tracer_start(self);
 
-    list_of_state_trans = fifo_create(MAXDEPTH, destroy_struct_state_trans);
+    list_of_state_trans = fifo_create(MAXFIFODEPTH, destroy_struct_state_trans);
+
+
+    filter_set_maxNbOfTreatedTransitions(self, 200);
 
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -137,13 +220,7 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
         state_trans = (state_trans_t *) fifo_pop(list_of_state_trans);
         work++;
         printf("Generated transition : %u\n",work);
-       // if(work>18)
-       //         tracer_graph_export_dot(gdsout,self);
-if(work==200)
-{
-return;
-}
-        //printf("2: before tracing");
+
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
         //printf("2: after tracing");
         // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
@@ -164,12 +241,17 @@ return;
             current_state_id = current_state->id;
             nbtrans = state_calculate_allowed_output_transitions(current_state);
 
-            for( i = 0 ; i < nbtrans ; i++ )
+            if(  filter_filtre_depth(self, current_state) == FILTER_OK
+              && filter_filtre_max_queue(self, current_state) == FILTER_OK
+              && filter_filtre_maxNbOfTreatedTransitions(self, work ) == FILTER_OK )
             {
+              for( i = 0 ; i < nbtrans ; i++ )
+              {
                 state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
                 state_trans->state=current_state_id;
                 state_trans->trans=i;
                 fifo_push(list_of_state_trans, state_trans);
+              }
             }
         }
     }
@@ -178,6 +260,8 @@ return;
 
 // same as v0 but use a lifo instead of a fifo
 // should be refactored with the v0 (because it's just a copy/paste)
+// LIFO ==> une pile ==> parcours en profondeur d'abord
+
 int tracer_trace_whole_graph_v1(tracer_t * self)
 {
     if(self->started == 1)
@@ -194,7 +278,7 @@ int tracer_trace_whole_graph_v1(tracer_t * self)
 
     _tracer_start(self);
 
-    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
+    list_of_state_trans = lifo_create(MAXFIFODEPTH, destroy_struct_state_trans);
 
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -244,12 +328,16 @@ return;
             current_state_id = current_state->id;
             nbtrans = state_calculate_allowed_output_transitions(current_state);
 
-            for( i = 0 ; i < nbtrans ; i++ )
+            if(  filter_filtre_depth(self, current_state) == FILTER_OK
+              && filter_filtre_max_queue(self, current_state) == FILTER_OK  )
             {
+              for( i = 0 ; i < nbtrans ; i++ )
+              {
                 state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
                 state_trans->state=current_state_id;
                 state_trans->trans=i;
                 lifo_push(list_of_state_trans, state_trans);
+              }
             }
         }
     }
@@ -259,6 +347,7 @@ return;
 
 // same as v1 but with a max graph depth.
 // should be refactored with the v1
+// LIFO ==> une pile ==> parcours en profondeur d'abord
 int tracer_trace_whole_graph_v1bis(tracer_t * self)
 {
     if(self->started == 1)
@@ -275,7 +364,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
 
     _tracer_start(self);
 
-    list_of_state_trans = lifo_create(MAXDEPTH, destroy_struct_state_trans);
+    list_of_state_trans = lifo_create(MAXFIFODEPTH, destroy_struct_state_trans);
     
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -292,7 +381,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
     }
 //  fin de l'amorce
     
-    unsigned int MAX_GRAPH_DEPTH = 11;
+    //unsigned int MAX_GRAPH_DEPTH = 11;
     while(lifo_depth(list_of_state_trans)!=0)
     {   
         state_trans = (struct state_trans_t *) lifo_pop(list_of_state_trans);
@@ -300,10 +389,10 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
         printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",work, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-if(work==1000)
-{
-return;
-} 
+        if(work==1000)
+        {
+                return;
+        }
         //printf("2: before tracing :  state %u , trans %u\n",state_trans->state ,state_trans->trans);
         tracer_trace_from_state_using_transition(self, state_trans->state, state_trans->trans);
         //printf("2: after tracing\n");
@@ -327,8 +416,9 @@ return;
             nbtrans = state_calculate_allowed_output_transitions(current_state);
             //printf("new state : %u - depth :%u\n",current_state->id, current_state->depth);
 
-            if(current_state->depth < MAX_GRAPH_DEPTH)
-            {
+            if(  filter_filtre_depth(self, current_state) == FILTER_OK
+              && filter_filtre_max_queue(self, current_state) == FILTER_OK  )
+                        {
               for( i = 0 ; i < nbtrans ; i++ )
               {
                 state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
@@ -339,11 +429,7 @@ return;
             }
         }
     }
-   if(lifo_depth(list_of_state_trans)==0)
-   {
-       printf("All transitions treated untill depth %u \n", MAX_GRAPH_DEPTH);
-   }
-
+  
     return self->graph->nb_states;
 }
 
@@ -608,6 +694,9 @@ tracer_t * tracer_create(network_t * network)
   tracer->started = 0;
   tracer->nodes = NULL;
   tracer->nb_nodes = 0;
+  tracer->filter_depth=0;
+  tracer->filter_nb_max_msg=0;
+
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
 
   time_t curtime;

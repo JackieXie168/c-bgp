@@ -193,6 +193,39 @@ int cli_tracer_graph_dump_allStates(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+int cli_tracer_filter_bgpsessionqueue_unset(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    filter_unset_limit_on_max_nb_in_oriented_session(tracer_get_default());
+    return CLI_SUCCESS;
+}
+int cli_tracer_filter_depth_unset(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    filter_unset_limit_on_depth(tracer_get_default());
+    return CLI_SUCCESS;
+}
+int cli_tracer_filter_bgpsessionqueue_set(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    const char * arg1= cli_get_arg_value(cmd, 0);
+    unsigned int nummmm;
+    if (str_as_uint(arg1, &nummmm)) {
+        cli_set_user_error(cli_get(), "invalid bgpsessionqueue value \"%s\".", arg1);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+    filter_set_limit_on_max_nb_in_oriented_session(tracer_get_default(), nummmm);
+    return CLI_SUCCESS;
+}
+int cli_tracer_filter_depth_set(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    const char * arg1= cli_get_arg_value(cmd, 0);
+    unsigned int nummmm;
+    if (str_as_uint(arg1, &nummmm)) {
+        cli_set_user_error(cli_get(), "invalid depth value \"%s\".", arg1);
+    return CLI_ERROR_COMMAND_FAILED;
+  }
+    filter_set_limit_on_depth(tracer_get_default(), nummmm);
+    return CLI_SUCCESS;
+}
+
 int cli_tracer_trace(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg1= cli_get_arg_value(cmd, 0);
@@ -249,7 +282,6 @@ static void _register_tracer_graph_inject(cli_cmd_t * parent)
 static void _register_tracer_graph_cycle(cli_cmd_t * parent)
 {
   cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("cycle"));
-
   cli_cmd_t * cmd= cli_add_cmd(group, cli_cmd("detectAll", cli_tracer_graph_cycle_detectAll));
   //cli_add_arg(cmd, cli_arg("state number", NULL));
 
@@ -270,6 +302,40 @@ static void _register_tracer_graph(cli_cmd_t * parent)
 
 }
 
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_tracer_filter_depth(cli_cmd_t * parent)
+{
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("depth"));
+  cli_cmd_t * cmd ;
+  cmd = cli_add_cmd(group, cli_cmd("unset", cli_tracer_filter_depth_unset));
+  cmd= cli_add_cmd(group, cli_cmd("set", cli_tracer_filter_depth_set));
+  cli_add_arg(cmd, cli_arg("depth", NULL));
+}
+
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_tracer_filter_bgpsessionqueue(cli_cmd_t * parent)
+{
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("bgpsessionqueue"));
+  cli_cmd_t * cmd ;
+  cmd = cli_add_cmd(group, cli_cmd("unset", cli_tracer_filter_bgpsessionqueue_unset));
+  cmd= cli_add_cmd(group, cli_cmd("set", cli_tracer_filter_bgpsessionqueue_set));
+  cli_add_arg(cmd, cli_arg("depth", NULL));
+}
+
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_tracer_filter(cli_cmd_t * parent)
+{
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("filter"));
+  //_register_tracer_graph_dump(group);
+  /*cli_add_cmd(group, cli_cmd("exportDot", cli_tracer_graph_export_dot));
+  cli_add_cmd(group, cli_cmd("export_dot_to_file", cli_tracer_graph_export_dot_to_file));
+  cli_add_cmd(group, cli_cmd("export_all_states_to_file", cli_tracer_graph_export_allStates_to_file));
+  cli_add_cmd(group, cli_cmd("export_dot_all_states_to_file", cli_tracer_graph_export_dot_allStates_to_file));
+  */
+  _register_tracer_filter_depth(group);
+  _register_tracer_filter_bgpsessionqueue(group);
+
+}
 
 
 // -----[ _register_sim_run ]----------------------------------------
