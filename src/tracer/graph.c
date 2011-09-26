@@ -1055,22 +1055,23 @@ int graph_export_dot_to_file(graph_t * graph)
 }
 
 
-state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph)
+struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session
+        (int nb_states /* = 0 */, state_t ** list_of_states /* = NULL */)
 {
     //se balader parmi tous les états 'actifs' cad non complètement traités, cad nballowed > nboutput
-   unsigned int i;
-   assert(graph->nb_states > 0);
+   int i;
+   assert(nb_states > 0);
    state_t * min_state = NULL;
 
-   for(i = 0 ; i < graph->nb_states ; i++)
+   for(i = 0 ; i < nb_states ; i++)
    {
-       if(state_calculate_allowed_output_transitions(graph->list_of_states[i]) > graph->list_of_states[i]->nb_output
-               && !(graph->list_of_states[i]->blocked & STATE_DEFINITELY_BLOCKED) )
+       if(state_calculate_allowed_output_transitions(list_of_states[i]) > list_of_states[i]->nb_output
+               && !(list_of_states[i]->blocked & STATE_DEFINITELY_BLOCKED) )
        {
            if(min_state == NULL || 
-                   graph->list_of_states[i]->queue_state->max_nb_of_msg_in_one_oriented_session
+                   list_of_states[i]->queue_state->max_nb_of_msg_in_one_oriented_session
                    < min_state->queue_state->max_nb_of_msg_in_one_oriented_session)
-               min_state = graph->list_of_states[i];
+               min_state = list_of_states[i];
        }
    }
    return min_state;

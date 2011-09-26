@@ -106,8 +106,8 @@ extern "C" {
 
 
     int graph_export_dot_to_file(graph_t * graph);
-
-    struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(graph_t * graph);
+    
+    struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(int nb_states, struct state_t ** list_of_states);
 
     cycle_t * graph_detect_one_cycle(graph_t * graph);
     void graph_detect_every_cycle(graph_t * graph);
