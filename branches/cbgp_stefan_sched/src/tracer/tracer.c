@@ -170,20 +170,376 @@ int filter_filtre_maxNbOfTreatedTransitions(tracer_t * self, unsigned int nboftr
 
 }
 
+void tracer_scheduler_set(tracer_t * self, tracing_scheduler_type_t type)
+{
+    assert(type < TRACING_SCHEDULER_MAX );
+    self->tracing_scheduler_type = type;
+}
+
 static unsigned int MAXFIFODEPTH = 10000;
+
+tracing_scheduler_t * tracing_scheduler_1_fifo_create()
+{
+   tracing_scheduler_1_fifo_t * sched =
+    (tracing_scheduler_1_fifo_t *) MALLOC(sizeof(tracing_scheduler_1_fifo_t));
+  sched->header.type= TRACING_SCHEDULER_1_FIFO;
+  
+  sched->list_of_state_trans = fifo_create(MAXFIFODEPTH, destroy_struct_state_trans);
+        
+   
+  return (tracing_scheduler_t *) sched;
+}
+
+tracing_scheduler_t * tracing_scheduler_2_lifo_create()
+{
+   tracing_scheduler_2_lifo_t * sched =
+    (tracing_scheduler_2_lifo_t *) MALLOC(sizeof(tracing_scheduler_2_lifo_t));
+  sched->header.type= TRACING_SCHEDULER_2_LIFO;
+  
+  sched->list_of_state_trans = lifo_create(MAXFIFODEPTH, destroy_struct_state_trans);  
+  
+  
+  return (tracing_scheduler_t *) sched;
+}
+
+tracing_scheduler_t * tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_create(tracer_t * tracer)
+{
+   tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t * sched =
+    (tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t *) MALLOC(sizeof(tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t));
+  sched->header.type= TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION;
+  
+  // choses propres à ce scheduler : 
+  sched->current_working_state = NULL;
+  sched->next_trans = 0;
+  sched->started = FALSE;
+  
+  sched->nb_states = 0;
+  sched->max_states = MAX_STATE;
+  sched->list_of_states = (state_t **) MALLOC(sched->max_states * sizeof(state_t *));
+  
+  return (tracing_scheduler_t *) sched;
+}
+
+tracing_scheduler_t * tracing_scheduler_create(tracing_scheduler_type_t type, tracer_t * tracer )
+{
+    assert(type < TRACING_SCHEDULER_MAX);
+
+  switch (type) {
+  case TRACING_SCHEDULER_1_FIFO:
+    return  tracing_scheduler_1_fifo_create();
+    break;
+  case TRACING_SCHEDULER_2_LIFO:
+    return  tracing_scheduler_2_lifo_create();
+    break;
+  case TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION:
+    return  tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_create(tracer);
+    break;
+  case TRACING_SCHEDULER_4:
+    return NULL;
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    return NULL;
+}
+}
+
+
+int tracing_scheduler_1_fifo_empty(tracing_scheduler_1_fifo_t * sched )
+{
+    if( fifo_depth(sched->list_of_state_trans)==0 )
+        return TRUE;
+    else return FALSE;
+}
+
+int tracing_scheduler_2_lifo_empty(tracing_scheduler_2_lifo_t * sched )
+{
+    if( lifo_depth(sched->list_of_state_trans)==0 )
+        return TRUE;
+    else return FALSE;
+}
+
+int tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_empty(tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t * sched )
+{
+    if(sched->current_working_state == NULL)
+       return TRUE;        
+    else return FALSE;
+}
+int tracing_scheduler_4_empty(tracing_scheduler_4_t * sched )
+{
+    return TRUE;
+}
+
+int tracing_scheduler_empty(tracing_scheduler_t * sched)
+{
+  assert(sched->type < TRACING_SCHEDULER_MAX);
+
+  switch (sched->type) {
+  case TRACING_SCHEDULER_1_FIFO:
+    return tracing_scheduler_1_fifo_empty((tracing_scheduler_1_fifo_t *) sched);
+    break;
+  case TRACING_SCHEDULER_2_LIFO:
+    return tracing_scheduler_2_lifo_empty((tracing_scheduler_2_lifo_t *) sched);
+    break;
+  case TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION:
+    return tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_empty((tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t *) sched);
+    break;
+  case TRACING_SCHEDULER_4:
+    return tracing_scheduler_4_empty((tracing_scheduler_4_t *) sched);
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    return TRACING_SCHEDULER_MAX;
+  }
+}
+
+void tracing_scheduler_1_fifo_push(tracing_scheduler_1_fifo_t * sched, state_trans_t * state_trans)
+{
+    fifo_push(sched->list_of_state_trans, state_trans);
+}
+void tracing_scheduler_2_lifo_push(tracing_scheduler_2_lifo_t * sched, state_trans_t * state_trans)
+{    //printf("LIFO_push\n");
+
+    lifo_push(sched->list_of_state_trans, state_trans);
+}
+
+void tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_push(tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t * sched, state_trans_t * state_trans)
+{
+    // ce qui nous intéresse ce sont les states qu'on visite, (pas les transitions associées)
+    // donc on ajoute l'état s'il n'est pas encore dans notre liste d'états.
+    printf("1.sched : nbstates %d\n", sched->nb_states);
+    sched->current_working_state;
+    sched->header;
+    sched->list_of_states;
+    sched->max_states;
+    sched->nb_states;
+    sched->next_trans;
+    sched->started;
+    sched->tracer;
+     
+    sched->nb_states = 0;
+    
+    int i=0;
+    printf("2. i = %d\n",i);
+    i;
+    while( i < sched->nb_states )
+    {
+        printf("3.\n");
+        if(sched->list_of_states[i] == sched->tracer->graph->list_of_states[state_trans->state])
+        {
+            // si présent, ne rien faire ...
+            // s'arrêter !
+            return;
+        }
+        i++;
+    }
+    // on a tout parcouru, et il n'est pas là 
+    sched->list_of_states[sched->nb_states] = sched->tracer->graph->list_of_states[state_trans->state];
+    sched->nb_states ++;
+    
+    if(sched->started == FALSE)
+    {
+         sched->current_working_state = get_state_with_mininum_bigger_number_of_msg_in_session(sched->nb_states, sched->list_of_states);
+         sched->next_trans = 0;
+    }
+        
+    //lifo_push(sched->list_of_state_trans, state_trans);
+    
+}
+void tracing_scheduler_4_push(tracing_scheduler_4_t * sched, state_trans_t * state_trans)
+{
+    //lifo_push(sched->list_of_state_trans, state_trans);
+}
+
+void tracing_scheduler_push(tracing_scheduler_t * sched, state_trans_t * state_trans)
+{
+  assert(sched->type < TRACING_SCHEDULER_MAX);
+
+  switch (sched->type) {
+  case TRACING_SCHEDULER_1_FIFO:
+       tracing_scheduler_1_fifo_push((tracing_scheduler_1_fifo_t *) sched, state_trans);
+    break;
+  case TRACING_SCHEDULER_2_LIFO:
+       tracing_scheduler_2_lifo_push((tracing_scheduler_2_lifo_t *) sched, state_trans);
+    break;
+  case TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION:
+       tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_push((tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t *) sched, state_trans);
+    break;
+  case TRACING_SCHEDULER_4:
+       tracing_scheduler_4_push((tracing_scheduler_4_t *) sched, state_trans);
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    
+  }
+}
+
+state_trans_t *  tracing_scheduler_1_fifo_pop(tracing_scheduler_1_fifo_t * sched)
+{
+    return (state_trans_t *) fifo_pop(sched->list_of_state_trans);
+}
+
+state_trans_t *  tracing_scheduler_2_lifo_pop(tracing_scheduler_2_lifo_t * sched)
+{
+    printf("LIFO_pop\n");
+    return (state_trans_t *) lifo_pop(sched->list_of_state_trans);
+}
+
+state_trans_t *  tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_pop(tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t * sched)
+{
+    if(sched->started == FALSE)
+        sched->started = TRUE;
+    
+    if(sched->current_working_state == NULL)
+    {
+        return NULL;        
+    }
+    else
+    {
+        state_trans_t * state_trans = ( state_trans_t *) MALLOC ( sizeof( state_trans_t));
+        state_trans->state= sched->current_working_state->id;
+        state_trans->trans=sched->next_trans;        
+        
+        if(sched->next_trans < state_calculate_allowed_output_transitions(sched->current_working_state) )
+        {
+            // il faut passer au state suivant, on a traité toutes les transitions !
+            sched->current_working_state = get_state_with_mininum_bigger_number_of_msg_in_session(sched->tracer->graph->nb_states, sched->tracer->graph->list_of_states);
+            sched->next_trans = 0;
+
+        }
+        else
+        {
+            sched->next_trans ++ ;
+        }
+        
+        return state_trans;
+    }
+}
+
+state_trans_t *  tracing_scheduler_4_pop(tracing_scheduler_4_t * sched)
+{
+    return NULL;//(state_trans_t *) lifo_pop(sched->list_of_state_trans);
+}
+
+state_trans_t * tracing_scheduler_pop(tracing_scheduler_t * sched)
+{
+  assert(sched->type < TRACING_SCHEDULER_MAX);
+
+  switch (sched->type) {
+  case TRACING_SCHEDULER_1_FIFO:
+    return tracing_scheduler_1_fifo_pop((tracing_scheduler_1_fifo_t *) sched);
+    break;
+  case TRACING_SCHEDULER_2_LIFO:
+    return tracing_scheduler_2_lifo_pop((tracing_scheduler_2_lifo_t *) sched);
+    break;
+  case TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION:
+    return tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_pop((tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t *) sched);
+    break;
+  case TRACING_SCHEDULER_4:
+    return tracing_scheduler_4_pop((tracing_scheduler_4_t *) sched);
+    break;
+  default:
+    printf("should never reach this code!!!! \n");
+    return NULL;
+  }
+}
+
+
 
 int tracer_trace_whole_graph(tracer_t * self)
 {
-   return  tracer_trace_whole_graph_v1bis(self);
+    return tracer_trace_whole_graph___GENERIC(self);
+    //return  tracer_trace_whole_graph_v1bis(self);
 }
 
-// FIFO ==> une file ==> parcours en largeur d'abord
-int tracer_trace_whole_graph_v0(tracer_t * self)
+int tracer_trace_whole_graph___GENERIC(tracer_t * self)
 {
     if(self->started == 1)
         return -1;
 
-    unsigned int work = 0;
+    unsigned int treated_transitions = 0;
+    unsigned int nbtrans;
+    unsigned int current_state_id;
+    unsigned int i;
+    state_t * current_state;
+    
+    tracing_scheduler_t * scheduler = tracing_scheduler_create(self->tracing_scheduler_type, self);
+    
+    state_trans_t * state_trans;
+
+    _tracer_start(self);
+
+    filter_set_maxNbOfTreatedTransitions(self, 200);
+
+    //amorce :
+    // ajouter toutes les transitions dispo de l'état 0 dans la fifo
+    current_state_id=0;
+    current_state = self->graph->list_of_states[current_state_id];
+    nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+    for( i = 0 ; i < nbtrans ; i++ )
+    {
+        state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
+        state_trans->state=current_state_id;
+        state_trans->trans=i;        
+        tracing_scheduler_push(scheduler , state_trans);
+        
+    }
+//  fin de l'amorce
+
+
+    while(tracing_scheduler_empty(scheduler) == FALSE )
+    {
+        state_trans =  tracing_scheduler_pop(scheduler);
+        treated_transitions++;
+        printf("Generated transition : %u\n",treated_transitions);
+
+        tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
+        //printf("2: after tracing");
+        // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
+        // c'est un nouvel état si
+        // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
+        // si cet état a une seule input_transition alors c'est un nouveau.
+        current_state = self->graph->list_of_states[state_trans->state];
+        // trouver la transition qui porte le numéro state_trans->trans
+        for(i=current_state->nb_output-1; i>=0; i--)
+        {
+            if(current_state->output_transitions[i]->num_trans==state_trans->trans)
+                break;
+        }
+        assert(i>=0);
+        if( current_state->output_transitions[i]->to->nb_input == 1)
+        {
+            current_state = current_state->output_transitions[i]->to;
+            current_state_id = current_state->id;
+            nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+            if(  filter_filtre_depth(self, current_state) == FILTER_OK
+              && filter_filtre_max_queue(self, current_state) == FILTER_OK
+              && filter_filtre_maxNbOfTreatedTransitions(self, treated_transitions ) == FILTER_OK )
+            {
+              for( i = 0 ; i < nbtrans ; i++ )
+              {
+                state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+                state_trans->state=current_state_id;
+                state_trans->trans=i;
+                tracing_scheduler_push(scheduler , state_trans);
+              }
+            }
+        }
+    }
+    return self->graph->nb_states;
+}
+
+
+
+
+// FIFO ==> une file ==> parcours en largeur d'abord
+int tracer_trace_whole_graph_v0_FIFO(tracer_t * self)
+{
+    if(self->started == 1)
+        return -1;
+
+    unsigned int treated_transitions = 0;
     unsigned int nbtrans;
     unsigned int current_state_id;
     unsigned int i;
@@ -218,8 +574,8 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
     while(fifo_depth(list_of_state_trans)!=0)
     {
         state_trans = (state_trans_t *) fifo_pop(list_of_state_trans);
-        work++;
-        printf("Generated transition : %u\n",work);
+        treated_transitions++;
+        printf("Generated transition : %u\n",treated_transitions);
 
         tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
         //printf("2: after tracing");
@@ -243,7 +599,7 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
 
             if(  filter_filtre_depth(self, current_state) == FILTER_OK
               && filter_filtre_max_queue(self, current_state) == FILTER_OK
-              && filter_filtre_maxNbOfTreatedTransitions(self, work ) == FILTER_OK )
+              && filter_filtre_maxNbOfTreatedTransitions(self, treated_transitions ) == FILTER_OK )
             {
               for( i = 0 ; i < nbtrans ; i++ )
               {
@@ -262,12 +618,12 @@ int tracer_trace_whole_graph_v0(tracer_t * self)
 // should be refactored with the v0 (because it's just a copy/paste)
 // LIFO ==> une pile ==> parcours en profondeur d'abord
 
-int tracer_trace_whole_graph_v1(tracer_t * self)
+int tracer_trace_whole_graph_v1_LIFO(tracer_t * self)
 {
     if(self->started == 1)
         return -1;
 
-    unsigned int work = 0;
+    unsigned int treated_transitions = 0;
     unsigned int nbtrans;
     unsigned int current_state_id;
     unsigned int i;
@@ -299,11 +655,11 @@ int tracer_trace_whole_graph_v1(tracer_t * self)
     while(lifo_depth(list_of_state_trans)!=0)
     {
         state_trans = (state_trans_t *) lifo_pop(list_of_state_trans);
-        work++;
-        printf("Generated transition : %u\n",work);
+        treated_transitions++;
+        printf("Generated transition : %u\n",treated_transitions);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-if(work==200)
+if(treated_transitions==200)
 {
 return;
 }
@@ -348,12 +704,12 @@ return;
 // same as v1 but with a max graph depth.
 // should be refactored with the v1
 // LIFO ==> une pile ==> parcours en profondeur d'abord
-int tracer_trace_whole_graph_v1bis(tracer_t * self)
+int tracer_trace_whole_graph_v1bis_LIFO_AND_MAX_GRAPH_DEPTH(tracer_t * self)
 {
     if(self->started == 1)
         return -1;
 
-    unsigned int work = 0;
+    unsigned int treated_transitions = 0;
     unsigned int nbtrans;
     unsigned int current_state_id;
     unsigned int i;
@@ -385,11 +741,11 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
     while(lifo_depth(list_of_state_trans)!=0)
     {   
         state_trans = (struct state_trans_t *) lifo_pop(list_of_state_trans);
-        work++;
-        printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",work, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
+        treated_transitions++;
+        printf("Treated transitions : %u, From state %u at depth %u using transition nb %u\n",treated_transitions, state_trans->state,  self->graph->list_of_states[state_trans->state]->depth, state_trans->trans);
        // if(work>18)
        //         tracer_graph_export_dot(gdsout,self);
-        if(work==1000)
+        if(treated_transitions==1000)
         {
                 return;
         }
@@ -435,7 +791,7 @@ int tracer_trace_whole_graph_v1bis(tracer_t * self)
 
 
 
-int tracer_trace_whole_graph_v2(tracer_t * self)
+int tracer_trace_whole_graph_v2_TYPE3_MINBGPSESSION(tracer_t * self)
 {
     if(self->started == 1)
         return -1;
@@ -444,12 +800,12 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
 
     unsigned int nbtrans;
     unsigned int i;
-    unsigned int transition = 0;
+    unsigned int treated_transitions = 0;
     state_t * min_state;
 
     unsigned int nb_trans_limit = 1000;
-    while( transition < nb_trans_limit
-            && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph))
+    while( treated_transitions < nb_trans_limit
+            && (min_state = get_state_with_mininum_bigger_number_of_msg_in_session(self->graph->nb_states, self->graph->list_of_states))
              != NULL )
     {
         //printf("Min_state = %u \n",min_state->id);
@@ -463,10 +819,10 @@ int tracer_trace_whole_graph_v2(tracer_t * self)
            // printf("\t Transition num %u \n",i);
 
             tracer_trace_from_state_using_transition(self,min_state->id,i);
-            transition++;
+            treated_transitions++;
         }
     }
-    printf("nb transition : %u \n",transition);
+    printf("nb transition : %u \n",treated_transitions);
     return self->graph->nb_states;
 }
 
@@ -696,7 +1052,11 @@ tracer_t * tracer_create(network_t * network)
   tracer->nb_nodes = 0;
   tracer->filter_depth=0;
   tracer->filter_nb_max_msg=0;
-
+  tracer->tracing_scheduler = NULL;
+  //default : 
+  tracer->tracing_scheduler_type = TRACING_SCHEDULER_2_LIFO;
+          
+          
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
 
   time_t curtime;

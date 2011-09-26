@@ -226,6 +226,27 @@ int cli_tracer_filter_depth_set(cli_ctx_t * ctx, cli_cmd_t * cmd)
     return CLI_SUCCESS;
 }
 
+int cli_tracer_scheduler_set_type1(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    tracer_scheduler_set(tracer_get_default(),TRACING_SCHEDULER_1_FIFO);
+    return CLI_SUCCESS;
+}
+int cli_tracer_scheduler_set_type2(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    tracer_scheduler_set(tracer_get_default(),TRACING_SCHEDULER_2_LIFO);
+    return CLI_SUCCESS;
+}
+int cli_tracer_scheduler_set_type3(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    tracer_scheduler_set(tracer_get_default(),TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION);
+    return CLI_SUCCESS;
+}
+int cli_tracer_scheduler_set_type4(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+    tracer_scheduler_set(tracer_get_default(),TRACING_SCHEDULER_4);
+    return CLI_SUCCESS;
+}
+
 int cli_tracer_trace(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   const char * arg1= cli_get_arg_value(cmd, 0);
@@ -302,6 +323,7 @@ static void _register_tracer_graph(cli_cmd_t * parent)
 
 }
 
+
 // -----[ _register_sim_run ]----------------------------------------
 static void _register_tracer_filter_depth(cli_cmd_t * parent)
 {
@@ -336,6 +358,15 @@ static void _register_tracer_filter(cli_cmd_t * parent)
   _register_tracer_filter_bgpsessionqueue(group);
 
 }
+ static void  _register_tracer_scheduler(cli_cmd_t * parent)
+ {
+       cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("scheduler"));
+       cli_cmd_t * cmd;
+       cmd = cli_add_cmd(group, cli_cmd("fifo", cli_tracer_scheduler_set_type1));
+       cmd = cli_add_cmd(group, cli_cmd("lifo", cli_tracer_scheduler_set_type2));
+       cmd = cli_add_cmd(group, cli_cmd("minBgpSession", cli_tracer_scheduler_set_type3));
+       cmd = cli_add_cmd(group, cli_cmd("_type4<unimplemented>", cli_tracer_scheduler_set_type4));
+ }
 
 
 // -----[ _register_sim_run ]----------------------------------------
@@ -388,6 +419,8 @@ void cli_register_tracer(cli_cmd_t * parent)
   _register_tracer_graph(group);
   _register_tracer_go1step(group);
   _register_tracer_trace(group);
+  _register_tracer_filter(group);
+  _register_tracer_scheduler(group);
 
 
 /*  _register_sim_debug(group);

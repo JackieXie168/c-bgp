@@ -14,12 +14,77 @@
 #include <libgds/stream.h>
 #include <net/error.h>
 #include <libgds/fifo_tunable.h>
+#include <libgds/lifo.h>
 #include <net/network.h>
 
 struct tracer_t;
 
 #include <tracer/graph.h>
 #include <tracer/state.h>
+
+// -----[ tracing scheduler type ]-------------------------------------------
+/** BGP message types. */
+typedef enum {
+  /** Update message. */
+  TRACING_SCHEDULER_1_FIFO,
+  /** Withdraw message. */
+  TRACING_SCHEDULER_2_LIFO,
+  /** Close message. */
+  TRACING_SCHEDULER_3_MIN_MAX_NBMSGBGPSESSION,
+  /** Open message. */
+  TRACING_SCHEDULER_4,
+  TRACING_SCHEDULER_MAX,
+} tracing_scheduler_type_t;
+
+
+// -----[ bgp_msg_t ]------------------------------------------------
+/** Definition of a BGP message (abstract). */
+typedef struct {
+  /** Message type. */
+  tracing_scheduler_type_t type;
+  
+  /** ASN of the source. */
+  //uint16_t       peer_asn;
+  /** "TCP" sequence number (used for checking ordering). */
+  //unsigned int   seq_num;
+} tracing_scheduler_t;
+
+
+
+typedef struct {  
+  tracing_scheduler_t     header;  
+  gds_fifo_t *           list_of_state_trans;
+  
+} tracing_scheduler_1_fifo_t;
+
+
+typedef struct {
+  tracing_scheduler_t       header;  
+  gds_lifo_t * list_of_state_trans;  
+} tracing_scheduler_2_lifo_t;
+
+typedef struct {
+  tracing_scheduler_t header;
+  struct state_t *    current_working_state;
+  unsigned int        next_trans ;
+  struct tracer_t *    tracer;
+  
+  struct state_t **   list_of_states;
+  int          nb_states;
+  int          max_states;
+  int           started;
+  
+} tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t;
+
+
+// -----[ bgp_msg_open_t ]-------------------------------------------
+/** Definition of a BGP open message. */
+typedef struct {
+  /** Common BGP message header. */
+  tracing_scheduler_t  header;
+  /** Router-ID of the source. */
+  //net_addr_t router_id;
+} tracing_scheduler_4_t;
 
 
 
@@ -36,11 +101,15 @@ typedef struct tracer_t {
   unsigned int       filter_depth;
   unsigned int       filter_nb_max_msg;
   unsigned int       filter_maxNbOfTreatedTransitions;
+  tracing_scheduler_t *   tracing_scheduler;
+  tracing_scheduler_type_t tracing_scheduler_type;
 } tracer_t;
 
 
 #define FILTER_OK 1
 #define FILTER_NOK 0
+#define TRUE 1
+#define FALSE 0
 
 #ifdef	__cplusplus
 extern "C" {
@@ -88,8 +157,9 @@ extern "C" {
     int tracer_trace_whole_graph(tracer_t * self);
 
 
-   int tracer_trace_whole_graph_v2(tracer_t * self);
-   int tracer_trace_whole_graph_v1bis(tracer_t * self);
+   int tracer_trace_whole_graph_v2_TYPE3_MINBGPSESSION(tracer_t * self);
+   int tracer_trace_whole_graph_v1bis_LIFO_AND_MAX_GRAPH_DEPTH(tracer_t * self);
+   int tracer_trace_whole_graph___GENERIC(tracer_t * self);
 
    void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer);
 
@@ -101,6 +171,7 @@ extern "C" {
 
    void filter_unset_limit_on_max_nb_in_oriented_session(tracer_t * self);
 
+   void tracer_scheduler_set(tracer_t * self, tracing_scheduler_type_t type);
 
 
 #ifdef	__cplusplus
