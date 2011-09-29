@@ -2,11 +2,11 @@
 # ===================================================================
 # @(#)CBGP.pm
 #
-# @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # @date 19/02/2004
-# @lastdate 18/02/2008
+# @lastdate 29/09/2011
 #
-# @version 0.5
+# @version 0.6
 # ===================================================================
 # This package is an helper for Perl scripts that want to use C-BGP in
 # an interactive way. The package uses a pair of pipes created thanks
@@ -46,7 +46,7 @@ require Exporter;
 	    get_rib
 	    trace_route
 	    );
-$VERSION= '0.5';
+$VERSION= '0.6';
 
 use strict;
 use warnings;
@@ -127,7 +127,7 @@ sub new(@)
 sub thread_reader($)
 {
     my $self= shift;
-    my $tin= 1;
+    my $timeout= 0.1;
     my $input_buffer= "";
     my $thread_terminate= 0;
 
@@ -139,13 +139,13 @@ sub thread_reader($)
     $self->{ready}->up(1);
 
     # Loop while the input descriptor is open...
-    while ($thread_terminate != 1) {
+    while (${$self->{thread_status}} == THREAD_RUNNING) {
 
         # Create handle set for reading and add input file descriptor
         my $read_set = new IO::Select();
         $read_set->add($self->{in_file});
 
-	my $rh_set = IO::Select->select($read_set, undef, undef, $tin);
+	my $rh_set = IO::Select->select($read_set, undef, undef, $timeout);
 	if ($rh_set > 0) {
 
 	    # We use sysread in order to bypass the buffering
@@ -166,7 +166,7 @@ sub thread_reader($)
 		    push @new_lines, ($input_buffer);
 		}
 		$input_buffer= "";
-		$thread_terminate= 1;
+		${$self->{thread_status}}= THREAD_TERMINATED;
 
 	    } elsif ($n > 0) {
 
@@ -186,7 +186,6 @@ sub thread_reader($)
 		print STDERR "Error (CBGP thread): sysread: $!\n";
 		print STDERR "Debug (CBGP thread): aborted\n";
 		${$self->{thread_running}}= THREAD_ABORTED;
-		return -1;
 
 	    }
 
@@ -198,17 +197,14 @@ sub thread_reader($)
 	    print STDERR "Error (CBGP thread): select: $!\n";
 	    print STDERR "Debug (CBGP thread): aborted\n";
 	    ${$self->{thread_status}}= THREAD_ABORTED;
-	    return -1;
 
 	}
     }
 
-    close $self->{in_file} or
-	 die "Error: unable to close input pipe";
+    #close $self->{in_file} or
+    #  die "Error: unable to close input pipe";
 
     #print STDERR "Debug (CBGP thread): terminated\n";
-    ${$self->{thread_status}}= THREAD_TERMINATED;
-
     return 0;
 }
 
@@ -334,23 +330,26 @@ sub finalize()
 {
   my $self= shift;
 
-    #print STDERR "Debug: finalize\n";
+  ${$self->{thread_status}}= THREAD_TERMINATED;
 
-    close $self->{out_file} or
-	  die "Error: unable to close output pipe";
+  while ($self->{thread}->is_running()) {
+    select(undef, undef, undef, 0.1);
+  }
 
-    # Wait for the thread termination
-    if ($self->{thread}) {
-	my $res= $self->{thread}->join();
-	if ($res != 0) {
-	    print STDERR "Error: CBGP thread exited abnormaly\n";
-	}
+  # Wait for the thread termination
+  if ($self->{thread}) {
+    my $res= $self->{thread}->join();
+    if ($res != 0) {
+      print STDERR "Error: CBGP thread exited abnormaly\n";
     }
+  }
 
-    # Wait until the C-BGP instance has terminated. This avoids an
-    # accumulation of defunct processes
-    waitpid($self->{pid}, 0);
+  close $self->{out_file} or
+    die "Error: unable to close output pipe";
 
+  # Wait until the C-BGP instance has terminated. This avoids an
+  # accumulation of defunct processes
+  waitpid($self->{pid}, 0);
 }
 
 # -----[ get_rt ]----------------------------------------------------
