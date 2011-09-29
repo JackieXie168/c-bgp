@@ -3,6 +3,7 @@
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
+// @author Pradeep Bangera (pradeep.bangera@imdea.org)
 // @date 22/11/2002
 // $Id: as.c,v 1.79 2009-06-25 14:25:36 bqu Exp $
 // ==================================================================
@@ -1996,11 +1997,38 @@ int bgp_router_scan_rib_for_each(uint32_t key, uint8_t key_len,
   return 0;
 }
 
-// -----[ bgp_router_clear_adjrib ]----------------------------------
+// -----[ bgp_router_clear_rib ]-------------------------------------
 /**
- *
+ * This function clears the Loc-RIB and the Adj-RIBs of a router.
  */
-int bgp_router_clear_adjrib(bgp_router_t * router)
+int bgp_router_clear_rib(bgp_router_t * router)
+{
+  unsigned int index;
+  bgp_peer_t * peer;
+
+  //---Edited by Pradeep Bangera ---------------
+  //remove the local ribs
+  rib_destroy(&router->loc_rib);
+  router->loc_rib= rib_create(0);
+  //--------------------------------------------
+
+  for (index= 0; index < bgp_peers_size(router->peers); index++) {
+    peer= bgp_peers_at(router->peers, index);
+    rib_destroy(&peer->adj_rib[RIB_IN]);
+    rib_destroy(&peer->adj_rib[RIB_OUT]);
+    //----------Edited by Pradeep Bangera ---------------------------
+    peer->adj_rib[RIB_OUT]= rib_create(0);
+    peer->adj_rib[RIB_IN]= rib_create(0);
+    //---------------------------------------------------------------
+  }
+  return 0;
+}
+
+// -----[ bgp_router_clear_adj_rib ]----------------------------------
+/**
+ * This function only clears the Adj-RIBs of a router.
+ */
+int bgp_router_clear_adj_rib(bgp_router_t * router)
 {
   unsigned int index;
   bgp_peer_t * peer;
@@ -2009,6 +2037,10 @@ int bgp_router_clear_adjrib(bgp_router_t * router)
     peer= bgp_peers_at(router->peers, index);
     rib_destroy(&peer->adj_rib[RIB_IN]);
     rib_destroy(&peer->adj_rib[RIB_OUT]);
+    //----------Edited by Pradeep Bangera ---------------------------
+    peer->adj_rib[RIB_OUT]= rib_create(0);
+    peer->adj_rib[RIB_IN]= rib_create(0);
+    //---------------------------------------------------------------
   }
   return 0;
 }
