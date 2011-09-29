@@ -104,8 +104,10 @@ extern "C" {
 				 ip_pfx_t prefix);
   // ----- bgp_router_info ------------------------------------------
   void bgp_router_info(gds_stream_t * stream, bgp_router_t * router);
-  // -----[ bgp_router_clear_adjrib ]--------------------------------
-  int bgp_router_clear_adjrib(bgp_router_t * router);
+  // -----[ bgp_router_clear_rib ]-------------------------------
+  int bgp_router_clear_rib(bgp_router_t * router);
+  // -----[ bgp_router_clear_adj_rib ]-------------------------------
+  int bgp_router_clear_adj_rib(bgp_router_t * router);
   
   // ----- bgp_router_decision_process_dop --------------------------
   /*void bgp_router_decision_process_dop(bgp_router_t * router,
