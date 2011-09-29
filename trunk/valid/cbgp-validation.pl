@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!perl -w
 # ===================================================================
 # @(#)cbgp-validation.pl
 #
@@ -65,6 +65,7 @@
 # ===================================================================
 
 use strict;
+use warnings;
 
 use Getopt::Long;
 use CBGP;
@@ -147,7 +148,6 @@ if (!GetOptions(\%opts,
 }
 
 if (exists($opts{'help'})) {
-  sub help();
   help();
   exit;
 }
@@ -849,7 +849,7 @@ sub cbgp_topo_check_static_routes($$)
 
 # -----[ cbgp_peering ]----------------------------------------------
 # Setup a BGP peering between a 'router' and a 'peer' in AS 'asn'.
-# Possible options are supported:
+# Possible options:
 #   - virtual
 #   - next-hop-self
 #   - soft-restart
