@@ -1376,22 +1376,38 @@ int cli_bgp_show_sessions(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
-// -----[ cli_bgp_clearadjrib ]--------------------------------------
+// -----[ cli_bgp_clearrib ]-----------------------------------------
 /**
  * context: ---
  * tokens : ---
  */
-int cli_bgp_clearadjrib(cli_ctx_t * ctx,
-			cli_cmd_t * cmd)
+int cli_bgp_clearrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   bgp_router_t * router;
   int iState= 0;
 
   while ((router= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
-    bgp_router_clear_adjrib(router);
+    bgp_router_clear_rib(router);
   }
 
-  return CLI_ERROR_COMMAND_FAILED;
+  return CLI_SUCCESS;
+}
+
+// -----[ cli_bgp_clearadjrib ]--------------------------------------
+/**
+ * context: ---
+ * tokens : ---
+ */
+int cli_bgp_clearadjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  bgp_router_t * router;
+  int iState= 0;
+
+  while ((router= cli_enum_bgp_routers(NULL, iState++)) != NULL) {
+    bgp_router_clear_adj_rib(router);
+  }
+
+  return CLI_SUCCESS;
 }
 
 
@@ -1656,5 +1672,6 @@ void cli_register_bgp(cli_cmd_t * parent)
   cli_register_bgp_topology(group);
   _register_bgp_router(group);
   _register_bgp_show(group);
+  cli_add_cmd(group, cli_cmd("clear-rib", cli_bgp_clearrib));
   cli_add_cmd(group, cli_cmd("clear-adj-rib", cli_bgp_clearadjrib));
 }
