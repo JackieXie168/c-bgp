@@ -565,7 +565,7 @@ int cli_net_link_show_info(cli_ctx_t * ctx, cli_cmd_t * cmd)
  */
 int cli_net_links_load_clear(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  network_ifaces_load_clear();
+  network_ifaces_load_clear(network_get_default());
   return CLI_SUCCESS;
 }
 

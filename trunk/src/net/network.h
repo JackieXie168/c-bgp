@@ -238,7 +238,7 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // -----[ network_ifaces_load_clear ]------------------------------
-  void network_ifaces_load_clear();
+  void network_ifaces_load_clear(network_t * network);
   // ----- network_links_save ---------------------------------------
   int network_links_save(gds_stream_t * stream, network_t * network);
 
