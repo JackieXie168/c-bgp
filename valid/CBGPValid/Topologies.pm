@@ -1,7 +1,7 @@
 # ===================================================================
 # CBGPValid:Topologies.pm
 #
-# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # $Id: Topologies.pm,v 1.2 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 

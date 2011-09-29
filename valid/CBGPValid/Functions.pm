@@ -4,7 +4,7 @@
 # Functions to retrieve information (nodes, links, routes, BGP
 # routes) from a C-BGP instance.
 #
-# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # $Id: Functions.pm,v 1.7 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
