@@ -1,7 +1,7 @@
 # ===================================================================
 # CBGPValid::Tests.pm
 #
-# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # $Id: Tests.pm,v 1.15 2009-08-31 09:49:29 bqu Exp $
 # ===================================================================
 #

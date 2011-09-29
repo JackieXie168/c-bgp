@@ -5,7 +5,7 @@
 # This script is used to validate C-BGP. It performs various tests in
 # order to detect erroneous behaviour.
 #
-# @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # $Id: cbgp-validation.pl,v 1.47 2009-08-31 09:49:12 bqu Exp $
 # ===================================================================
 # Syntax:

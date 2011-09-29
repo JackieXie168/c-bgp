@@ -4,7 +4,7 @@
 # Functions to check constraints on information (links, routes, BGP
 # routes) retrieved from a C-BGP instance.
 #
-# author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+# author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # $Id: Checking.pm,v 1.5 2009-06-25 14:36:27 bqu Exp $
 # ===================================================================
 
