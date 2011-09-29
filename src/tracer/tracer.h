@@ -73,6 +73,7 @@ typedef struct {
   int          nb_states;
   int          max_states;
   int           started;
+  int           change_state;
   
 } tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_t;
 
