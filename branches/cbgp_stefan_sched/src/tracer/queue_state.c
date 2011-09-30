@@ -531,3 +531,71 @@ session_waiting_time_t ** create_session_waiting_time_container(queue_state_t * 
     }
     return swt;
 }
+
+//  TRUE  : 1 
+//  FALSE : 0
+int queue_state_has_withdrawMsg(queue_state_t * qs)
+{
+    unsigned int i=0;     
+    for(i=0 ; i< fifo_depth(qs->events) ; i++)
+    {
+       _event_t *  event = (_event_t *)  fifo_get_at(qs->events, i );
+       assert(((net_send_ctx_t *) event->ctx)->msg->protocol == NET_PROTOCOL_BGP);
+       bgp_msg_t * bgp_msg = (bgp_msg_t *) ((net_send_ctx_t *) event->ctx)->msg->payload ;
+       if ( bgp_msg->type == BGP_MSG_TYPE_WITHDRAW )
+           return 1;        
+    }    
+    return 0;
+}
+
+//  TRUE  : 1 
+//  FALSE : 0
+int queue_state_multiple_msg_in_oriented_bgp_session(queue_state_t * qs)
+{
+    if(qs->max_nb_of_msg_in_one_oriented_session > 1 )
+        return 1;
+    
+    
+    net_addr_t src;
+    net_addr_t dst;
+
+    unsigned int index1;
+    unsigned int nb_msg = 0;
+    unsigned int temp = 0;
+    int tab1_visited[ fifo_depth(qs->events) ];
+
+    for(index1=0; index1< fifo_depth(qs->events) ; index1++)
+    {
+        tab1_visited[index1] = 0;
+    }
+
+
+    while( nb_msg != qs->events->current_depth)
+    {
+        //trouver le premier message de la session bgp (dirigée) suivante dans file 1:
+        index1 = 0;
+        while(index1 < fifo_depth(qs->events)  && tab1_visited[index1]==1)
+        {
+            index1++;
+        }
+        assert(index1 < fifo_depth(qs->events) );
+
+        // en index1 : premier message d'une session bgp dirigée
+        // identifier la session bgp dirigée :
+        src = get_src_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        dst = get_dst_addr((_event_t *) qs->events->items[(qs->events->start_index + index1)% qs->events->max_depth]);
+        tab1_visited[index1] = 1;
+
+        nb_msg++;
+        temp = 1;
+
+        // la suite de cette session bgp dirigée
+        index1 = _next_of_bgp_session_oriented(src,dst,qs->events,index1, tab1_visited);
+
+        if (index1 != fifo_depth(qs->events) )
+        {
+            return 1;
+        }        
+    }
+    return 0;
+}

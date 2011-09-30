@@ -107,6 +107,16 @@ int filter_limit_on_depth(state_t * state, unsigned int depth)
         return FILTER_NOK;
 }
 
+/*
+int filter_limit_on_diff_depth(tracer_t * tracer, state_t * state)
+{
+    if(state->depth <= tracer->graph->list_of_states[tracer->initial_state_for_tracing]->depth + tracer->filter_diff_depth)
+        return FILTER_OK;
+    else
+        return FILTER_NOK;
+}
+*/
+
 int filter_limit_on_max_nb_msg_in_oriented_bgp_session(state_t * state, unsigned int nbmsgmax)
 {
     if( _queue_state_calculate_max_nb_of_msg_in_oriented_bgp_session(state->queue_state) < nbmsgmax)
@@ -118,56 +128,150 @@ int filter_limit_on_max_nb_msg_in_oriented_bgp_session(state_t * state, unsigned
 
 void filter_set_limit_on_depth(tracer_t * self, unsigned int depth)
 {
-    self->filter_depth = depth;
+    self->filter->depth = depth;
 }
 
 void filter_unset_limit_on_depth(tracer_t * self)
 {
-    self->filter_depth = 0;
+    self->filter->depth = 0;
+}
+
+void filter_set_limit_on_diff_depth(tracer_t * self, unsigned int depth)
+{
+    self->filter->diff_depth = depth;
+}
+
+void filter_unset_limit_on_diff_depth(tracer_t * self)
+{
+    self->filter->depth = 0;
 }
 
 void filter_set_limit_on_max_nb_in_oriented_session(tracer_t * self, unsigned int nb_msg)
 {
-    self->filter_nb_max_msg = nb_msg;
+    self->filter->nb_max_msg = nb_msg;
 }
 
 void filter_unset_limit_on_max_nb_in_oriented_session(tracer_t * self)
 {
-    self->filter_nb_max_msg = 0;
+    self->filter->nb_max_msg = 0;
 }
 
-int filter_filtre_depth(tracer_t * self, state_t * state)
+
+void tracer_set_initial_state_for_tracing(tracer_t * self, unsigned int numstate)
 {
-    if(self->filter_depth == 0)
+    self->initial_state_for_tracing = numstate;
+}
+
+unsigned int tracer_howManyStatesCurrently(tracer_t * self)
+{
+    return self->graph->nb_states;
+}
+
+int filter_filtre_depth(filter_t * filter, state_t * state)
+{
+    if(filter->depth == 0)
         return FILTER_OK;
-    return filter_limit_on_depth(state, self->filter_depth);
+    return filter_limit_on_depth(state, filter->depth);
 }
 
-int filter_filtre_max_queue(tracer_t * self, state_t * state)
+int filter_filtre_diff_depth(filter_t * filter, state_t * state)
 {
-    if(self->filter_nb_max_msg == 0)
+    if(filter->diff_depth == 0)
         return FILTER_OK;
-    return filter_limit_on_max_nb_msg_in_oriented_bgp_session(state, self->filter_nb_max_msg);
+    return filter_limit_on_depth(state, filter->tracer->graph->list_of_states[filter->tracer->initial_state_for_tracing]->depth + filter->diff_depth );
 }
 
-void filter_set_maxNbOfTreatedTransitions(tracer_t * self, unsigned int max)
+
+int filter_filtre_max_queue(filter_t * filter, state_t * state)
 {
-    self->filter_maxNbOfTreatedTransitions = max;
+    if(filter->nb_max_msg == 0)
+        return FILTER_OK;
+    return filter_limit_on_max_nb_msg_in_oriented_bgp_session(state, filter->nb_max_msg);
 }
 
-void filter_unset_maxNbOfTreatedTransitions(tracer_t * self)
+int filter_filter_withdrawMsg(filter_t * filter, state_t * state)
 {
-    self->filter_maxNbOfTreatedTransitions = 0;
+   if(filter->rejectWithdrawMsg == FALSE)
+       return FILTER_OK;
+
+   if(state_has_withdrawMsg(state) == 0)
+       return FILTER_OK;
+   else
+       return FILTER_NOK;
 }
 
-int filter_filtre_maxNbOfTreatedTransitions(tracer_t * self, unsigned int nboftrans)
+
+int filter_filter_multipleMsgInSameSession(filter_t * filter, state_t * state)
 {
-    if(self->filter_maxNbOfTreatedTransitions == 0 ||
-            nboftrans < self->filter_maxNbOfTreatedTransitions )
+   if(filter->rejectmultipleMsgInSameSession == FALSE)
+       return FILTER_OK;
+
+   if ( state_multiple_msg_in_oriented_bgp_session(state) == 0 )
+       return FILTER_OK;
+   else
+       return FILTER_NOK;
+
+}
+
+
+void filter_set_maxNbOfTreatedTransitions(tracer_t * tracer, unsigned int max)
+{
+    tracer->filter->maxNbOfTreatedTransitions = max;
+}
+
+void filter_unset_maxNbOfTreatedTransitions(tracer_t * tracer)
+{
+    tracer->filter->maxNbOfTreatedTransitions = 0;
+}
+
+void filter_withdrawMsg_accept(tracer_t * tracer)
+{
+    tracer->filter->rejectWithdrawMsg = FALSE;
+}
+
+void filter_withdrawMsg_reject(tracer_t * tracer)
+{
+    tracer->filter->rejectWithdrawMsg = TRUE;
+}
+
+
+void filter_multipleMsgInSameSession_accept(tracer_t * tracer)
+{
+    tracer->filter->rejectmultipleMsgInSameSession = FALSE;
+}
+
+void filter_multipleMsgInSameSession_reject(tracer_t * tracer)
+{
+    tracer->filter->rejectmultipleMsgInSameSession = TRUE;
+}
+
+int filter_filtre_maxNbOfTreatedTransitions(filter_t * filter, unsigned int nboftrans)
+{
+    if(filter->maxNbOfTreatedTransitions == 0 ||
+            nboftrans < filter->maxNbOfTreatedTransitions )
         return FILTER_OK;
     else
         return FILTER_NOK;
 
+}
+
+int filter_apply_on_state(filter_t * filter, state_t * state )
+{
+    if ( state == NULL )
+        return FILTER_NOK;
+    if ( filter_filtre_depth(filter, state) == FILTER_NOK )
+        return FILTER_NOK;        
+    if ( filter_filtre_diff_depth(filter, state) == FILTER_NOK )
+        return FILTER_NOK;
+    if ( filter_filtre_max_queue(filter, state) == FILTER_NOK )
+        return FILTER_NOK;
+    if ( filter_filter_withdrawMsg(filter, state) == FILTER_NOK )
+        return FILTER_NOK;
+    if ( filter_filter_multipleMsgInSameSession(filter, state) == FILTER_NOK )
+        return FILTER_NOK;
+
+
+    return FILTER_OK;
 }
 
 void tracer_scheduler_set(tracer_t * self, tracing_scheduler_type_t type)
@@ -294,7 +398,7 @@ void tracing_scheduler_3_MIN_MAX_NBMSGBGPSESSION_set_empty(tracing_scheduler_3_M
 }
 void tracing_scheduler_4_set_empty(tracing_scheduler_4_t * sched )
 {
-    return TRUE;
+    //
 }
 
 int tracing_scheduler_empty(tracing_scheduler_t * sched)
@@ -340,7 +444,7 @@ void tracing_scheduler_set_empty(tracing_scheduler_t * sched)
     break;
   default:
     printf("should never reach this code!!!! \n");
-    return TRACING_SCHEDULER_MAX;
+    
   }
 }
 
@@ -419,7 +523,7 @@ state_trans_t *  tracing_scheduler_1_fifo_pop(tracing_scheduler_1_fifo_t * sched
 
 state_trans_t *  tracing_scheduler_2_lifo_pop(tracing_scheduler_2_lifo_t * sched)
 {
-    printf("LIFO_pop\n");
+    //printf("LIFO_pop\n");
     return (state_trans_t *) lifo_pop(sched->list_of_state_trans);
 }
 
@@ -513,7 +617,7 @@ int tracer_trace_whole_graph___GENERIC(tracer_t * self)
 
     _tracer_start(self);
 
-    filter_set_maxNbOfTreatedTransitions(self, 200);
+    //filter_set_maxNbOfTreatedTransitions(self, 200);
 
     //amorce :
     // ajouter toutes les transitions dispo de l'état 0 dans la fifo
@@ -536,7 +640,7 @@ int tracer_trace_whole_graph___GENERIC(tracer_t * self)
     {
         state_trans =  tracing_scheduler_pop(scheduler);
         
-        if( filter_filtre_maxNbOfTreatedTransitions(self, treated_transitions ) == FILTER_OK ) 
+        if( filter_filtre_maxNbOfTreatedTransitions(self->filter, treated_transitions ) == FILTER_OK ) 
         {
             treated_transitions++;
             printf("Generated transition : %u    %u(%u)\n",treated_transitions, state_trans->state, state_trans->trans);
@@ -563,9 +667,105 @@ int tracer_trace_whole_graph___GENERIC(tracer_t * self)
                 current_state_id = current_state->id;
                 nbtrans = state_calculate_allowed_output_transitions(current_state);
 
-                if(  filter_filtre_depth(self, current_state) == FILTER_OK
+                /*if(  filter_filtre_depth(self, current_state) == FILTER_OK
                   && filter_filtre_max_queue(self, current_state) == FILTER_OK
                   && filter_filtre_maxNbOfTreatedTransitions(self, treated_transitions ) == FILTER_OK )
+                 * */
+                if ( filter_apply_on_state( self->filter, current_state))        
+                {
+                  for( i = 0 ; i < nbtrans ; i++ )
+                  {
+                    state_trans = (state_trans_t *) MALLOC ( sizeof(state_trans_t));
+                    state_trans->state=current_state_id;
+                    state_trans->trans=i;
+                    tracing_scheduler_push(scheduler , state_trans);
+                  }
+                }
+            }
+        }
+        else
+        {
+            tracing_scheduler_set_empty(scheduler);
+        }
+    }
+    return self->graph->nb_states;
+}
+
+
+
+int tracer_trace_auto(tracer_t * self)
+{
+    if(self->started == 0)
+        return -1;
+// le tracer doit etre démarré !!
+    
+    unsigned int treated_transitions = 0;
+    unsigned int nbtrans;
+    unsigned int current_state_id = 0;
+    unsigned int i;
+    state_t * current_state;
+    
+    tracing_scheduler_t * scheduler = tracing_scheduler_create(self->tracing_scheduler_type, self);
+    
+    state_trans_t * state_trans;
+
+    //_tracer_start(self);
+    //filter_set_maxNbOfTreatedTransitions(self, 200);
+    
+    
+
+    //amorce :
+    // ajouter toutes les transitions dispo de l'état "initial" dans le scheduler
+    //current_state_id=0;
+    current_state = self->graph->list_of_states[self->initial_state_for_tracing];
+    nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+    for( i = 0 ; i < nbtrans ; i++ )
+    {
+        state_trans = (struct state_trans_t *) MALLOC ( sizeof(struct state_trans_t));
+        state_trans->state=self->initial_state_for_tracing;
+        state_trans->trans=i;        
+        tracing_scheduler_push(scheduler , state_trans);        
+    }
+//  fin de l'amorce
+
+
+    while(tracing_scheduler_empty(scheduler) == FALSE )
+    {
+        state_trans =  tracing_scheduler_pop(scheduler);
+        
+        if( filter_filtre_maxNbOfTreatedTransitions(self->filter, treated_transitions ) == FILTER_OK ) 
+        {
+            treated_transitions++;
+            printf("Generated transition : %u    %u(%u)\n",treated_transitions, state_trans->state, state_trans->trans);
+
+            tracer_trace_from_state_using_transition(self, state_trans->state,state_trans->trans);
+            //printf("2: after tracing");
+            // si nouvel état créé, on l'ajoute dans la file, sinon on passe!
+            // c'est un nouvel état si
+            // a partir de l'état créé, on prend la transition créée, on prend l'état au bout de la transition
+            // si cet état a une seule input_transition alors c'est un nouveau.
+            current_state = self->graph->list_of_states[state_trans->state];
+
+            // trouver la transition qui porte le numéro state_trans->trans
+            for( i=0 ; i < current_state->nb_output ; i++) // -1; i>=0 ; i--)
+            {
+                if(current_state->output_transitions[i]->num_trans==state_trans->trans)
+                    break;
+            }
+            assert(i < current_state->nb_output);
+
+            if( current_state->output_transitions[i]->to->nb_input == 1)
+            {
+                current_state = current_state->output_transitions[i]->to;
+                current_state_id = current_state->id;
+                nbtrans = state_calculate_allowed_output_transitions(current_state);
+
+                /*if(  filter_filtre_depth(self, current_state) == FILTER_OK
+                  && filter_filtre_diff_depth(self, current_state) == FILTER_OK
+                  && filter_filtre_max_queue(self, current_state) == FILTER_OK
+                  && filter_filtre_maxNbOfTreatedTransitions(self, treated_transitions ) == FILTER_OK )*/
+                if ( filter_apply_on_state(self->filter, current_state))
                 {
                   for( i = 0 ; i < nbtrans ; i++ )
                   {
@@ -588,6 +788,7 @@ int tracer_trace_whole_graph___GENERIC(tracer_t * self)
 
 
 
+/*/
 // FIFO ==> une file ==> parcours en largeur d'abord
 int tracer_trace_whole_graph_v0_FIFO(tracer_t * self)
 {
@@ -668,7 +869,9 @@ int tracer_trace_whole_graph_v0_FIFO(tracer_t * self)
     }
     return self->graph->nb_states;
 }
+//*/
 
+/*/
 // same as v0 but use a lifo instead of a fifo
 // should be refactored with the v0 (because it's just a copy/paste)
 // LIFO ==> une pile ==> parcours en profondeur d'abord
@@ -754,7 +957,9 @@ return;
     }
     return self->graph->nb_states;
 }
+//*/
 
+/*/
 
 // same as v1 but with a max graph depth.
 // should be refactored with the v1
@@ -843,9 +1048,9 @@ int tracer_trace_whole_graph_v1bis_LIFO_AND_MAX_GRAPH_DEPTH(tracer_t * self)
   
     return self->graph->nb_states;
 }
+//*/
 
-
-
+/*/
 int tracer_trace_whole_graph_v2_TYPE3_MINBGPSESSION(tracer_t * self)
 {
     if(self->started == 1)
@@ -880,6 +1085,7 @@ int tracer_trace_whole_graph_v2_TYPE3_MINBGPSESSION(tracer_t * self)
     printf("nb transition : %u \n",treated_transitions);
     return self->graph->nb_states;
 }
+//*/
 
 
 int tracer_trace_whole_branch_from_state(tracer_t * self, unsigned int state_id)
@@ -1093,6 +1299,24 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
 
 // -----[ _network_init ]--------------------------------------------
 
+   
+   filter_t * tracer_filter_create(tracer_t * tracer)
+   {
+        filter_t * filter;
+        filter=(filter_t *) MALLOC(sizeof(filter_t));
+        
+        filter->tracer = tracer;
+        
+        filter->depth=0;
+        filter->nb_max_msg=0;
+        filter->maxNbOfTreatedTransitions = 0;
+        filter->diff_depth=0;
+        filter->rejectWithdrawMsg = FALSE;
+        filter->rejectmultipleMsgInSameSession = FALSE;
+        return filter;
+   }
+   
+   
 // concider the simulator current state as the initial state.
 
 
@@ -1105,12 +1329,12 @@ tracer_t * tracer_create(network_t * network)
   tracer->started = 0;
   tracer->nodes = NULL;
   tracer->nb_nodes = 0;
-  tracer->filter_depth=0;
-  tracer->filter_nb_max_msg=0;
+  
   tracer->tracing_scheduler = NULL;
   //default : 
   tracer->tracing_scheduler_type = TRACING_SCHEDULER_2_LIFO;
-          
+  tracer->initial_state_for_tracing = 0;
+  tracer->filter = tracer_filter_create(tracer);
           
           //(net_node_t **) MALLOC(sizeof(net_node_t *) * trie_num_nodes(network->nodes, 1));
 
@@ -1124,6 +1348,10 @@ tracer_t * tracer_create(network_t * network)
 
   sprintf(tracer->base_output_directory,"/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d/",
       loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
+  
+  printf("OUTPUT DIRECTORY : \n/home/yo/tmp/tracer_cbgp/%d_%d_%d_%d:%d:%d/\n",
+      loctime->tm_year,loctime->tm_mon,loctime->tm_mday,loctime->tm_hour,loctime->tm_min,loctime->tm_sec);
+  
   char commande[1024];
   sprintf(commande,"mkdir %s",tracer->base_output_directory);
   system(commande);

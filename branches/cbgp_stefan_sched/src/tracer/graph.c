@@ -1050,6 +1050,8 @@ int graph_export_dot_to_file(graph_t * graph)
     //sprintf(commande,"dot -Tps %s -o%s.ps",file_name, file_name);
     system(commande);
     
+    sprintf(commande,"epstopdf %s.%s",file_name,graph->tracer->IMAGE_FORMAT);
+    system(commande);
 
     return 0;
 }

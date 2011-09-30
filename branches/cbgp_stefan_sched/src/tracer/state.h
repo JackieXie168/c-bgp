@@ -138,6 +138,9 @@ extern "C" {
 
 void state_tag_waiting_time_HTML_dump(gds_stream_t * stream, state_t * state);
 
+int state_has_withdrawMsg(state_t * state);
+int state_multiple_msg_in_oriented_bgp_session(state_t * state);
+
 #ifdef	__cplusplus
 }
 #endif

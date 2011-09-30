@@ -428,6 +428,17 @@ struct transition_t * state_generate_transition(state_t * state, unsigned int tr
       return transition;
   }
 
+
+int state_has_withdrawMsg(state_t * state)
+{
+    return queue_state_has_withdrawMsg(state->queue_state);
+}
+
+int state_multiple_msg_in_oriented_bgp_session(state_t * state)
+{
+    return queue_state_multiple_msg_in_oriented_bgp_session(state->queue_state);
+}
+
 /*
 int state_generate_all_transitions(state_t * state)
   {
@@ -782,3 +793,4 @@ void state_tag_waiting_time_HTML_dump(gds_stream_t * stream, state_t * state)
     }
     stream_printf(stream, "</TABLE>");
 }
+
