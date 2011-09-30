@@ -21,6 +21,7 @@
 #include <net/netflow.h>
 #include <net/network.h>
 #include <net/node.h>
+#include <net/spt.h>
 #include <net/subnet.h>
 
 // ----- node_create ------------------------------------------------
@@ -89,6 +90,7 @@ void node_destroy(net_node_t ** node_ref)
     uint16_array_destroy(&(*node_ref)->domains);
     if ((*node_ref)->name)
       str_destroy(&(*node_ref)->name);
+    spt_destroy(&((*node_ref)->spt));
     FREE(*node_ref);
     *node_ref= NULL;
   }
