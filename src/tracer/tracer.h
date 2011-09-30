@@ -88,22 +88,35 @@ typedef struct {
 } tracing_scheduler_4_t;
 
 
+typedef struct filter_t {    
+   struct tracer_t            * tracer;
+    
+  unsigned int       depth;
+  unsigned int       diff_depth;
+  unsigned int       nb_max_msg;
+  unsigned int       maxNbOfTreatedTransitions;
+  unsigned int       rejectWithdrawMsg;
+  unsigned int       rejectmultipleMsgInSameSession;
+}filter_t ;
+
 
 
 typedef struct tracer_t {
   struct graph_t         * graph;
   network_t              * network;
   net_node_t             ** nodes;
-  unsigned int              nb_nodes;
-  int                      started ;
-  char                  base_output_file_name[256];
-  char                  base_output_directory[256];
-  char                  IMAGE_FORMAT[10];
-  unsigned int       filter_depth;
-  unsigned int       filter_nb_max_msg;
-  unsigned int       filter_maxNbOfTreatedTransitions;
+  unsigned int           nb_nodes;
+  int                    started ;
+  char                   base_output_file_name[256];
+  char                   base_output_directory[256];
+  char                   IMAGE_FORMAT[10];
+
+  
+  unsigned int          initial_state_for_tracing;
   tracing_scheduler_t *   tracing_scheduler;
   tracing_scheduler_type_t tracing_scheduler_type;
+  filter_t              * filter;
+  
 } tracer_t;
 
 
@@ -111,6 +124,7 @@ typedef struct tracer_t {
 #define FILTER_NOK 0
 #define TRUE 1
 #define FALSE 0
+
 
 #ifdef	__cplusplus
 extern "C" {
@@ -167,13 +181,26 @@ extern "C" {
    void filter_set_limit_on_depth(tracer_t * self, unsigned int depth);
 
    void filter_unset_limit_on_depth(tracer_t * self);
+   
+   void filter_set_limit_on_diff_depth(tracer_t * self, unsigned int depth);
+
+   void filter_unset_limit_on_diff_depth(tracer_t * self);
 
    void filter_set_limit_on_max_nb_in_oriented_session(tracer_t * self, unsigned int nb_msg);
 
    void filter_unset_limit_on_max_nb_in_oriented_session(tracer_t * self);
 
+   void filter_set_maxNbOfTreatedTransitions(tracer_t * self, unsigned int max);
+   void filter_unset_maxNbOfTreatedTransitions(tracer_t * self);
+   
+        void filter_withdrawMsg_accept(tracer_t * tracer);
+        void filter_withdrawMsg_reject(tracer_t * tracer);
+   
    void tracer_scheduler_set(tracer_t * self, tracing_scheduler_type_t type);
 
+   void tracer_set_initial_state_for_tracing(tracer_t * self, unsigned int numstate);
+   unsigned int tracer_howManyStatesCurrently(tracer_t * self);
+   int tracer_trace_auto(tracer_t * self);
 
 #ifdef	__cplusplus
 }

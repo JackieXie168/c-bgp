@@ -69,6 +69,10 @@ net_addr_t get_src_addr(_event_t * ev);
 
 unsigned int nb_of_msg_of_this_oriented_bgp_session(net_addr_t src, net_addr_t dst, queue_state_t * qs );
 
+int queue_state_has_withdrawMsg(queue_state_t * qs);
+int queue_state_multiple_msg_in_oriented_bgp_session(queue_state_t * qs);
+
+
 #ifdef	__cplusplus
 }
 #endif
