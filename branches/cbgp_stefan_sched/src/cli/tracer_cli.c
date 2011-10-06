@@ -112,6 +112,19 @@ int cli_tracer_graph_cycle_detectAll(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
+int cli_tracer_graph_cycle_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  tracer_graph_cycle_dump(gdsout,tracer_get_default());
+  return CLI_SUCCESS;
+}
+
+int cli_tracer_graph_final_state_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
+{
+  tracer_graph_final_state_dump(gdsout,tracer_get_default());
+  return CLI_SUCCESS;
+}
+
+
 int cli_tracer_graph_export_dot_to_file(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   tracer_graph_export_dot_to_file(tracer_get_default());
@@ -385,13 +398,22 @@ static void _register_tracer_graph_inject(cli_cmd_t * parent)
   
 }
 
+
 // -----[ _register_sim_run ]----------------------------------------
 static void _register_tracer_graph_cycle(cli_cmd_t * parent)
 {
-  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("cycle"));
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("cycles"));
   cli_cmd_t * cmd= cli_add_cmd(group, cli_cmd("detectAll", cli_tracer_graph_cycle_detectAll));
+  cmd= cli_add_cmd(group, cli_cmd("dump", cli_tracer_graph_cycle_dump));
   //cli_add_arg(cmd, cli_arg("state number", NULL));
-
+}
+// -----[ _register_sim_run ]----------------------------------------
+static void _register_tracer_graph_final_state(cli_cmd_t * parent)
+{
+  cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("final_states"));
+  cli_cmd_t * cmd= cli_add_cmd(group, cli_cmd("dump", cli_tracer_graph_final_state_dump));
+  //cmd= cli_add_cmd(group, cli_cmd("dump", cli_tracer_graph_cycle_dump));
+  //cli_add_arg(cmd, cli_arg("state number", NULL));
 }
 
 // -----[ _register_sim_run ]----------------------------------------
@@ -406,6 +428,8 @@ static void _register_tracer_graph(cli_cmd_t * parent)
 
   _register_tracer_graph_inject(group);
   _register_tracer_graph_cycle(group);
+  _register_tracer_graph_final_state(group);
+
 
 }
 

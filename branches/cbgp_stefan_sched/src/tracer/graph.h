@@ -53,18 +53,27 @@ typedef struct cycle_t {
     int                origine_to_cycle_length;
 }cycle_t;
 
+typedef struct final_state_t {
+    struct state_t          * state;
+    unsigned int     * path_to_final_state;
+    int                path_to_final_state_length;    
+}final_state_t;
+
 
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
 typedef struct graph_t {
   struct tracer_t       *   tracer;
   net_node_t            **  list_of_nodes;
-  struct state_t        **  list_of_states;
+  
   struct state_t        *   state_root;
-  struct state_t        **  list_of_final_states;
+
+  struct state_t        **  list_of_states;
+  unsigned int          nb_states;
+
+  
   //struct state_t        *   FOR_TESTING_PURPOSE_current_state;
-  unsigned int         nb_states;
-  unsigned int         nb_final_states;
+  
 
   unsigned int          marking_sequence_number;
 
@@ -72,6 +81,9 @@ typedef struct graph_t {
   unsigned int              nb_of_active_states;
 
   net_node_t             ** original_advertisers;
+
+  struct final_state_t   **  list_of_final_states;
+  unsigned int              nb_final_states;
 
   cycle_t               * cycle;
   cycle_t               ** cycles;
@@ -111,6 +123,8 @@ extern "C" {
 
     cycle_t * graph_detect_one_cycle(graph_t * graph);
     void graph_detect_every_cycle(graph_t * graph);
+        void graph_cycle_dump(gds_stream_t * stream, graph_t * graph);
+    void graph_final_state_dump(gds_stream_t * stream, graph_t * graph);
 
 
 #ifdef	__cplusplus
