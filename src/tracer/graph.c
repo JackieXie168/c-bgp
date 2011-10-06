@@ -49,7 +49,7 @@ graph_t * graph_create(tracer_t * tracer)
   unsigned int i;
   for (i=0;i<MAX_STATE;i++)
       graph->list_of_states[i]=NULL;
-  graph->list_of_final_states = (state_t **) MALLOC( MAX_FINAL_STATES * sizeof(state_t *) );
+  graph->list_of_final_states = (final_state_t **) MALLOC( MAX_FINAL_STATES * sizeof(final_state_t *) );
   for (i=0;i<MAX_FINAL_STATES;i++)
       graph->list_of_final_states[i]=NULL;
 
@@ -74,14 +74,63 @@ int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned in
     }
 }
 
+state_t * state_get_ancestor(state_t * state)
+{
+    int i = 0;
+    for(i = 0 ; i < state->nb_input ; i++)
+    {
+        if(state->input_transitions[i]->from->depth == state->depth - 1)
+        {
+            return state->input_transitions[i]->from;
+        }
+    }
+    return NULL;
+}
+
+void graph_create_path_to_final_state(final_state_t * fs)
+{
+    
+    fs->path_to_final_state_length = fs->state->depth;
+    fs->path_to_final_state = (unsigned int * ) MALLOC( fs->path_to_final_state_length * sizeof(unsigned int));
+    
+    int i = 0 ; 
+    state_t * curr_state = fs->state;
+    for (i = fs->path_to_final_state_length - 1 ; i >= 0 ; i--)
+    {
+        curr_state = state_get_ancestor(curr_state) ;
+        fs->path_to_final_state[i] = curr_state->id;
+        assert(curr_state->depth == i);        
+    }
+    
+}
+final_state_t * graph_final_state_create(state_t * state)
+{
+    final_state_t * fs = (final_state_t *) MALLOC( sizeof(final_state_t) );
+    fs->state = state;
+    fs->path_to_final_state = NULL;
+    fs->path_to_final_state_length = 0;     
+    graph_create_path_to_final_state(fs);
+    return fs;
+}
 
 int graph_add_final_state(graph_t * the_graph, struct state_t * the_state)
 {
     //assert (index == the_graph->nb_states);
     if( the_graph->nb_final_states < MAX_FINAL_STATES )
     {
-        the_graph->list_of_final_states[the_graph->nb_final_states]=the_state;
+        the_graph->list_of_final_states[the_graph->nb_final_states]= graph_final_state_create(the_state);
         (the_graph->nb_final_states)++;
+        
+        printf("final state found : [") ;
+        
+        int i = 0;
+        for (i = 0 ; i < the_graph->list_of_final_states[the_graph->nb_final_states -1 ]->path_to_final_state_length ; i++)
+        {
+            printf(" %u", the_graph->list_of_final_states[the_graph->nb_final_states -1 ]->path_to_final_state[i] );
+        }
+        
+        printf( " ] -> %u\n",the_graph->list_of_final_states[the_graph->nb_final_states -1 ]->state->id);
+        
         return 0;
     }
     else
@@ -442,6 +491,48 @@ void graph_detect_every_cycle(graph_t * graph)
     FREE(visited);
     FREE(nodes_list);
     
+}
+
+// ----- state_create ------------------------------------------------
+void graph_cycle_dump(gds_stream_t * stream, graph_t * graph)
+{
+       int i = 0;
+       for(i = 0; i< graph->nb_cycles ; i++)
+       {
+            stream_printf(stream,"Cycle %d detected : [ ",i);
+            int j=0;
+            for(j = 0 ; j < graph->cycles[i]->origine_to_cycle_length ; j++ )
+            {
+                if(j == graph->cycles[i]->origine_to_cycle_length -1 )
+                    stream_printf(stream,"%u ", graph->cycles[i]->from_origine_to_cycle[j]);
+                else
+                    stream_printf(stream,"%u -> ", graph->cycles[i]->from_origine_to_cycle[j]);
+            }
+
+            stream_printf(stream,"] -> [ ");
+            for(j = 0 ; j < graph->cycles[i]->nodes_cycles_length ; j++ )
+            {
+                stream_printf(stream,"%u -> ", graph->cycles[i]->nodes_cycles[j]);
+            }
+            stream_printf(stream,"%u ] \n", graph->cycles[i]->nodes_cycles[0]);
+       }
+}
+
+void graph_final_state_dump(gds_stream_t * stream, graph_t * graph)
+{
+   int i,j = 0;
+   for( j = 0 ; j < graph->nb_final_states ; j++)
+   {
+      for (i = 0 ; i < graph->list_of_final_states[j]->path_to_final_state_length ; i++)
+      {
+         stream_printf(stream," %u", graph->list_of_final_states[j]->path_to_final_state[i] );
+      }
+      stream_printf(stream, " ] -> %u\n",graph->list_of_final_states[j]->state->id);
+   }
+        
+        
+        
+        
 }
 
 // -----[ net_export_dot ]-------------------------------------------

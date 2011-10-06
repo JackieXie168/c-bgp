@@ -177,6 +177,8 @@ extern "C" {
    int tracer_trace_whole_graph___GENERIC(tracer_t * self);
 
    void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer);
+   void tracer_graph_cycle_dump(gds_stream_t * stream,tracer_t * tracer);
+   void tracer_graph_final_state_dump(gds_stream_t * stream,tracer_t * tracer);
 
    void filter_set_limit_on_depth(tracer_t * self, unsigned int depth);
 

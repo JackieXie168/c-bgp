@@ -1201,26 +1201,16 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
    void tracer_graph_detect_every_cycle(gds_stream_t * stream,tracer_t * tracer)
    {
        graph_detect_every_cycle(tracer->graph);
-       int i = 0;
-       for(i = 0; i< tracer->graph->nb_cycles ; i++)
-       {
-            stream_printf(stream,"Cycle %d detected : [ ",i);
-            int j=0;
-            for(j = 0 ; j < tracer->graph->cycles[i]->origine_to_cycle_length ; j++ )
-            {
-                if(j == tracer->graph->cycles[i]->origine_to_cycle_length -1 )
-                    stream_printf(stream,"%u ", tracer->graph->cycles[i]->from_origine_to_cycle[j]);
-                else
-                    stream_printf(stream,"%u -> ", tracer->graph->cycles[i]->from_origine_to_cycle[j]);
-            }
+       graph_cycle_dump(stream,tracer->graph);
+   }
 
-            stream_printf(stream,"] -> [ ");
-            for(j = 0 ; j < tracer->graph->cycles[i]->nodes_cycles_length ; j++ )
-            {
-                stream_printf(stream,"%u -> ", tracer->graph->cycles[i]->nodes_cycles[j]);
-            }
-            stream_printf(stream,"%u ] \n", tracer->graph->cycles[i]->nodes_cycles[0]);
-       }
+   void tracer_graph_cycle_dump(gds_stream_t * stream,tracer_t * tracer)
+   {
+       graph_cycle_dump(stream,tracer->graph);
+   }
+   void tracer_graph_final_state_dump(gds_stream_t * stream,tracer_t * tracer)
+   {
+       graph_final_state_dump(stream,tracer->graph);
    }
 
 
