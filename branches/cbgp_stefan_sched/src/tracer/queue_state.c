@@ -98,6 +98,7 @@ void _queue_state_flat_simple_HTML_dump(gds_stream_t * stream, queue_state_t * q
       net_send_ctx_t * send_ctx= (net_send_ctx_t *) event->ctx;
          //message_dump(stream, send_ctx->msg);
          const net_protocol_def_t * proto_def;
+         stream_printf(stream, "\t\t\t\t\t");
          ip_address_dump(stream, send_ctx->msg->src_addr);
          stream_printf(stream, " --&gt; ");
          ip_address_dump(stream, send_ctx->msg->dst_addr);
@@ -108,7 +109,7 @@ void _queue_state_flat_simple_HTML_dump(gds_stream_t * stream, queue_state_t * q
             bgp_msg_flat_simple_HTML_dump(stream,(bgp_msg_t *) send_ctx->msg->payload);
             }
     }
-    stream_printf(stream, "<BR/>");
+    stream_printf(stream, "<BR/>\n");
   }
 }
 
