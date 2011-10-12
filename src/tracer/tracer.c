@@ -1414,6 +1414,11 @@ void tracer_graph_export_dot_to_file(tracer_t * tracer)
     graph_export_dot_to_file(tracer->graph);
 }
 
+void tracer_graph_export_condensed_dot_to_file(tracer_t * tracer)
+{
+    graph_export_condensed_dot_to_file(tracer->graph);
+}
+
     void tracer_graph_export_dot_allStates_to_file_OLD(tracer_t * tracer)
     {
          graph_export_allStates_dot_to_file_OLD(tracer->graph);

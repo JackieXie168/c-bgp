@@ -121,13 +121,16 @@ extern "C" {
 
 
     int graph_export_dot_to_file(graph_t * graph);
+    int graph_export_condensed_dot_to_file(graph_t * graph);
     
     struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(int nb_states, struct state_t ** list_of_states);
 
     cycle_t * graph_detect_one_cycle(graph_t * graph);
     void graph_detect_every_cycle(graph_t * graph);
-        void graph_cycle_dump(gds_stream_t * stream, graph_t * graph);
+    void graph_cycle_dump(gds_stream_t * stream, graph_t * graph);
     void graph_final_state_dump(gds_stream_t * stream, graph_t * graph);
+
+    void graph_export_condensed_dot_to_stream(gds_stream_t * stream, graph_t * graph);
 
 
 #ifdef	__cplusplus
