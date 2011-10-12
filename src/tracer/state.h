@@ -61,16 +61,17 @@ typedef struct
 // -----[ sched_t ]--------------------------------------------------
 /** Definition of a state. */
 typedef struct state_t {
-  routing_state_t *    routing_state;
+  unsigned int          id;
+  struct graph_t         *    graph;
   queue_state_t   *    queue_state;
+  routing_state_t *    routing_state;
   unsigned int *                allowed_output_transitions;
   unsigned int                  nb_allowed_output_transitions;
   struct transition_t    **   output_transitions;
   struct transition_t    **   input_transitions;
   unsigned int nb_output;
   unsigned int nb_input;
-  struct graph_t         *    graph;
-  unsigned int          id;
+
   uint8_t                type;
 
   unsigned int          marking_sequence_number;
@@ -130,7 +131,7 @@ extern "C" {
 
     int state_export_to_file(state_t * state);
 
-    int state_export_dot_to_file(state_t * state);
+    int state_export_dot_to_file_OLD(state_t * state);
 
 
     int get_state_type_of_dump();

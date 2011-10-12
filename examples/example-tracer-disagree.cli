@@ -17,6 +17,7 @@ bgp topology run
 
 
 sim openSessions
+tracer scheduler minBgpSession
 tracer trace whole_graph
 tracer graph export_dot_all_states_to_file
 tracer graph export_dot_to_file

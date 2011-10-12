@@ -33,6 +33,8 @@
 
 
 
+extern local_rib_information_summary_t * the_loc_rib_information_summary;
+ 
 // ----- state_create ------------------------------------------------
 graph_t * graph_create(tracer_t * tracer)
 {
@@ -46,19 +48,32 @@ graph_t * graph_create(tracer_t * tracer)
   graph->nb_final_states = 0;
 
   graph->list_of_states = (state_t **) MALLOC( MAX_STATE * sizeof(state_t *) );
+  
+  
   unsigned int i;
   for (i=0;i<MAX_STATE;i++)
       graph->list_of_states[i]=NULL;
+  
   graph->list_of_final_states = (final_state_t **) MALLOC( MAX_FINAL_STATES * sizeof(final_state_t *) );
   for (i=0;i<MAX_FINAL_STATES;i++)
       graph->list_of_final_states[i]=NULL;
 
+
+  
   graph->marking_sequence_number = 1;
   graph->original_advertisers = NULL;
 
   return graph;
 }
 
+/** lors de l'ajout de l'état, on fait un filtre 
+ * quand il a été créé, l'état est une copie de l'état courant du système, si ce n'est que 
+ * les infos des noeuds qui n'ont pas changé par rapport à l'état précédent sont une référence
+ * vers les memes infos que l'état précédent.
+ * s'il s'avère que l'état est identique qu'un autre état on ne l'ajoute pas au graphe et on libère la mémoire
+ * si on l'ajoute au graphe, c'est un nouvel état, il faut l'ajouter aussi à la liste des locRib_states_t
+ 
+ */
 int graph_add_state(graph_t * the_graph, struct state_t * the_state, unsigned int index)
 {
     assert (index == the_graph->nb_states);
@@ -188,7 +203,7 @@ int graph_mark_states_for_can_lead_to_final_state(graph_t * graph)
 
     for(i = 0 ; i < graph->nb_final_states ; i++)
     {
-        state_mark_for_can_lead_to_final_state(graph->list_of_final_states[i],graph->marking_sequence_number );
+        state_mark_for_can_lead_to_final_state(graph->list_of_final_states[i]->state,graph->marking_sequence_number );
     }
     return graph->marking_sequence_number;
 }
@@ -529,14 +544,10 @@ void graph_final_state_dump(gds_stream_t * stream, graph_t * graph)
       }
       stream_printf(stream, " ] -> %u\n",graph->list_of_final_states[j]->state->id);
    }
-        
-        
-        
-        
 }
 
 // -----[ net_export_dot ]-------------------------------------------
-void graph_export_dot(gds_stream_t * stream, graph_t * graph)
+void graph_export_dot_to_stream(gds_stream_t * stream, graph_t * graph)
 {
   gds_enum_t * nodes, * subnets;
   net_node_t * node;
@@ -601,21 +612,39 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       //stream_printf(stream, "label=<<IMG SRC=\"%s_state_%u.dot.png\"/><BR/><B>%u</B><BR/>%u msg : <BR/>",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->list_of_states[i]->id,graph->list_of_states[i]->queue_state->events->current_depth );
 
 
-    // si l'image existe
-      int retour;
-      char commande[1024];
-      sprintf(commande,"if [ -f \"%s%s_state_%u.dot.%s\" ];then exit 0; else exit 1; fi;",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id, graph->tracer->IMAGE_FORMAT);
-      retour = system(commande);
-      unsigned int affichage = 1;
-
+      
       stream_printf(stream, "label=<<TABLE BORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
       stream_printf(stream, "<TR><TD><B>STATE %u</B><BR/>Profondeur : %u</TD></TR>",graph->list_of_states[i]->id ,graph->list_of_states[i]->depth );
-
+      
+    // si l'image existe
+      int retour;
+      char imagefilename[256];
+      sprintf(imagefilename,"%s_LOC_RIB_Common_%u.dot.%s",graph->tracer->base_output_file_name, 
+                 graph->list_of_states[i]->routing_state->the_common_loc_rib->id,
+                 graph->tracer->IMAGE_FORMAT);
+      char commande[1024];
+      sprintf(commande,"if [ -f \"%s%s\" ];then exit 0; else exit 1; fi;",graph->tracer->base_output_directory,imagefilename);
+      retour = system(commande);
+      unsigned int affichage = 1;
+      
       if(retour == 0  && affichage !=0 )
       {
           //printf("image OK!! \n");
-          stream_printf(stream, "<TR><TD><IMG SRC=\"%s%s_state_%u.dot.%s\"/></TD></TR>",graph->tracer->base_output_directory,graph->tracer->base_output_file_name,graph->list_of_states[i]->id, graph->tracer->IMAGE_FORMAT);
+          stream_printf(stream, "<TR><TD><IMG SRC=\"%s%s\"/></TD></TR>",graph->tracer->base_output_directory,imagefilename);
       }
+      else  // pour l'ancienne version 
+      {
+         sprintf(imagefilename,"%s_state_%u.dot.%s",graph->tracer->base_output_file_name,graph->list_of_states[i]->id, graph->tracer->IMAGE_FORMAT);
+         sprintf(commande,"if [ -f \"%s%s\" ];then exit 0; else exit 1; fi;",graph->tracer->base_output_directory,imagefilename);
+         retour = system(commande);
+         if(retour == 0  && affichage !=0 )
+         {
+           //printf("image OK!! \n");
+           stream_printf(stream, "<TR><TD><IMG SRC=\"%s%s\"/></TD></TR>",graph->tracer->base_output_directory,imagefilename);
+         }
+      }
+      
+      
       stream_printf(stream, "<TR><TD>%u msg</TD></TR>",graph->list_of_states[i]->queue_state->events->current_depth );
       stream_printf(stream, "<TR><TD>");
       _queue_state_flat_simple_HTML_dump(stream,graph->list_of_states[i]->queue_state);
@@ -628,7 +657,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
       stream_printf(stream, "</TABLE>>,");
 
       if(retour == 0 )
-          stream_printf(stream, " URL=\"%s_state_%u.dot.%s\", ",graph->tracer->base_output_file_name,graph->list_of_states[i]->id,graph->tracer->IMAGE_FORMAT);
+          stream_printf(stream, " URL=\"%s\", ",imagefilename);
 
 
       // mettre la couleur pour l'équivalence des choix de routes ...
@@ -885,7 +914,7 @@ void graph_export_dot(gds_stream_t * stream, graph_t * graph)
 
 
 // -----[ net_export_dot ]-------------------------------------------
-void graph_export_dot_SIMPLE(gds_stream_t * stream, graph_t * graph)
+void graph_export_dot_SIMPLE_to_stream(gds_stream_t * stream, graph_t * graph)
 {
   gds_enum_t * nodes, * subnets;
   net_node_t * node;
@@ -1106,26 +1135,41 @@ void graph_export_dot_SIMPLE(gds_stream_t * stream, graph_t * graph)
 
     }
 
-   void graph_export_allStates_dot_to_file(graph_t * graph)
+   void graph_export_allStates_dot_to_file_OLD(graph_t * graph)
     {
         unsigned int i;
         for(i=0; i< graph->nb_states; i++)
         {
-           state_export_dot_to_file(graph->list_of_states[i]);
+           state_export_dot_to_file_OLD(graph->list_of_states[i]);
         }
 
     }
+
+   
+void graph_export_allStates_loc_rib_dot(graph_t * graph)
+{
+        int i;
+        //printf("DOT : il y a %u loc rib differents \n", the_loc_rib_information_summary->nb_loc_rib_by_states);
+
+        for(i=0; i< the_loc_rib_information_summary->nb_loc_rib_by_states ; i++)
+        {
+           //printf("DOT : %d\n", i);
+           assert(the_loc_rib_information_summary->list_of_loc_rib_by_states[i]->nb_routing_states>0);
+           routing_state_export_loc_rib_dot(the_loc_rib_information_summary->list_of_loc_rib_by_states[i]->routing_states[0]);
+        }
+}
 
 
 
 int graph_export_dot_to_file(graph_t * graph)
 {
+    //SIMPLE : 
     char file_name[256];
     sprintf(file_name,"%s%s_graph_SIMPLE.dot",graph->tracer->base_output_directory,graph->tracer->base_output_file_name);
     
     gds_stream_t * stream = stream_create_file(file_name);
 
-    graph_export_dot_SIMPLE(stream,graph);
+    graph_export_dot_SIMPLE_to_stream(stream,graph);
 
     stream_destroy(&stream);
     char commande[1024];
@@ -1133,9 +1177,10 @@ int graph_export_dot_to_file(graph_t * graph)
     //sprintf(commande,"dot -Tps %s -o%s.ps",file_name, file_name);
     system(commande);
 
+    // COMPLETE :
     sprintf(file_name,"%s%s_graph.dot",graph->tracer->base_output_directory,graph->tracer->base_output_file_name);
     stream = stream_create_file(file_name);
-    graph_export_dot(stream,graph);
+    graph_export_dot_to_stream(stream,graph);
     stream_destroy(&stream);
     sprintf(commande,"dot -T%s %s -o%s.%s",graph->tracer->IMAGE_FORMAT,file_name, file_name,graph->tracer->IMAGE_FORMAT);
     //sprintf(commande,"dot -Tps %s -o%s.ps",file_name, file_name);
