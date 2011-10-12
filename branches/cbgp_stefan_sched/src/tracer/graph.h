@@ -23,7 +23,7 @@ struct graph_t;
 #include <tracer/state.h>
 #include <tracer/transition.h>
 
-static unsigned int MAX_STATE = 1000000;
+static unsigned int MAX_STATE = 100000;
 static unsigned int MAX_FINAL_STATES = 100;
 
 #define NOT_VISITED 0
@@ -88,6 +88,9 @@ typedef struct graph_t {
   cycle_t               * cycle;
   cycle_t               ** cycles;
   unsigned int          nb_cycles;
+  
+
+  
 } graph_t;
 
 
@@ -108,7 +111,7 @@ extern "C" {
     int graph_state_dump(gds_stream_t * stream, graph_t * graph, unsigned int num_state);
 
 
-    void graph_export_dot(gds_stream_t * stream, graph_t * graph);
+    void graph_export_dot_to_stream(gds_stream_t * stream, graph_t * graph);
 
     struct state_t * graph_search_identical_state(graph_t * graph, struct state_t * state);
 

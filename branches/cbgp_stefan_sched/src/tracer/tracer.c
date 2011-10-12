@@ -44,7 +44,9 @@
 
 #define IMAGE_GRAPHVIZ_FORMAT "eps"
 
-
+#define VERSION_1 1
+#define VERSION_2 2
+#define STATE_STORAGE_METHOD VERSION_2
 
 
 static tracer_t  * _default_tracer= NULL;
@@ -1145,7 +1147,11 @@ int tracer_trace_from_state_using_transition(tracer_t * self, unsigned int state
     sim_step(tracer_get_simulator(self), 1);
     if(debug==1) printf("2: tracing : before create state\n");
 
-    state_t * new_state = state_create_isolated(self);
+    state_t * new_state;
+    if( STATE_STORAGE_METHOD == VERSION_1 )
+        new_state = state_create_isolated(self);
+    else if ( STATE_STORAGE_METHOD == VERSION_2 )
+        new_state = state_create_isolated_from_ST_TR(self, self->graph->list_of_states[state_id] , transition );
 
     // vérifier si l'état n'est pas déjà présent
      if(debug==1) printf("2: tracing : before check identical state\n");
@@ -1276,7 +1282,7 @@ simulator_t * tracer_get_simulator(tracer_t * tracer)
 
    void tracer_graph_export_dot(gds_stream_t * stream,tracer_t * tracer)
    {
-       graph_export_dot(stream,tracer->graph);
+       graph_export_dot_to_stream(stream,tracer->graph);
    }
 
 
@@ -1408,7 +1414,12 @@ void tracer_graph_export_dot_to_file(tracer_t * tracer)
     graph_export_dot_to_file(tracer->graph);
 }
 
-    void tracer_graph_export_dot_allStates_to_file(tracer_t * tracer)
+    void tracer_graph_export_dot_allStates_to_file_OLD(tracer_t * tracer)
     {
-         graph_export_allStates_dot_to_file(tracer->graph);
+         graph_export_allStates_dot_to_file_OLD(tracer->graph);
+    }
+    
+    void tracer_graph_export_allStates_loc_rib_dot(tracer_t * tracer)
+    {
+        graph_export_allStates_loc_rib_dot(tracer->graph);
     }

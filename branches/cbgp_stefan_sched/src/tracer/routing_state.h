@@ -19,6 +19,9 @@
 
 
 
+typedef struct loc_rib_States_t;
+
+
 typedef struct bgp_session_info_t{
    net_addr_t            neighbor_addr;
    unsigned int          send_seq_num;
@@ -66,6 +69,7 @@ typedef struct routing_state_t{
   struct state_t              * state;
   couple_node_routinginfo_t **    couples_node_routing_info;
 
+  struct loc_rib_States_t *     the_common_loc_rib;
     // les rib   (des couples de [node,rib]   )
     // adj-rib-in and -out pour chaque voisin de chaque noeud.
     // pour chaque noeud :  - rib
@@ -76,6 +80,34 @@ typedef struct routing_state_t{
 }  routing_state_t;
 
 
+typedef struct nodes_locrib_t {
+     net_node_t          * node;
+     unsigned int          nb_local_rib_elem;
+     bgp_route_t        ** bgp_route_;
+}nodes_locrib_t;
+
+
+typedef struct loc_rib_States_t{    
+    nodes_locrib_t      ** nodes_locribs;
+    routing_state_t     ** routing_states;
+    unsigned int        nb_routing_states;
+    unsigned int        id;
+    // ajouter lien vers l'image commune 
+    // ou mettre un id (position dans le summary)
+    // pour qu'on puisse identifier l'image qui correspond à cette state's locrib
+    char                * filename;
+    int                   exported;  // TRUE or FALSE
+    
+}loc_rib_States_t;
+
+
+typedef struct local_rib_information_summary_t{
+  loc_rib_States_t **    list_of_loc_rib_by_states;
+  unsigned int              nb_loc_rib_by_states;
+}local_rib_information_summary_t ;
+  
+
+
 
 
 #ifdef	__cplusplus
@@ -84,6 +116,7 @@ extern "C" {
 
 
 routing_state_t * _routing_state_create(struct state_t * state);
+routing_state_t *_routing_state_create_from_ST_TR(struct state_t * state, routing_state_t * from_routing_state, net_addr_t node_receiving_msg);
 
 void _routing_state_flat_dump(gds_stream_t * stream,  routing_state_t * routing_state);
 
@@ -97,8 +130,9 @@ int _routing_state_inject(routing_state_t * routing_state);
 // other value, otherwise
 int _routing_states_equivalent(routing_state_t * rs1, routing_state_t * rs2 );
 
-void routing_state_export_dot(gds_stream_t * stream, routing_state_t * rs);
+void routing_state_export_dot_OLD(gds_stream_t * stream, routing_state_t * rs);
 
+void routing_state_export_loc_rib_dot(routing_state_t * rs);
 
 #ifdef	__cplusplus
 }

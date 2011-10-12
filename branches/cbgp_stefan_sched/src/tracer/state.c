@@ -49,6 +49,9 @@
 
 
 static unsigned int state_next_available_id= 0;
+
+
+
 static int Type_Of_Dump = DUMP_DEFAULT;
 
 unsigned int state_calculate_allowed_output_transitions(state_t * state)
@@ -189,6 +192,32 @@ state_t * state_create_isolated(struct tracer_t * tracer)
   return state;
 }
 
+// ----- state_create ------------------------------------------------
+state_t * state_create_isolated_from_ST_TR(struct tracer_t * tracer, state_t * fromState, transition_t * fromTrans)
+{
+  state_t * state;
+  state=(state_t *) MALLOC(sizeof(state_t));
+  state->id= state_next_available_id;
+  state->graph = tracer->graph;
+  state->queue_state = _queue_state_create(state, tracer_get_tunable_scheduler(tracer));
+  state->routing_state = _routing_state_create_from_ST_TR(state, fromState->routing_state, get_dst_addr(fromTrans->event) );
+  state->allowed_output_transitions=NULL;
+  state->nb_allowed_output_transitions = 0;
+  state->input_transitions=NULL;
+  state->output_transitions=NULL;
+  state->nb_input = 0;
+  state->nb_output = 0;
+  state->type = 0x0;
+  state->marking_sequence_number = 0;
+  state->depth = 0;
+  state->blocked = STATE_NOT_BLOCKED;
+  state->session_waiting_time = NULL;
+  state->scolor.r=1;
+  state->scolor.g=1;
+  state->scolor.b=1;
+  return state;
+}
+
 
 void state_block_if_too_long_waiting_time_and_too_many_msg(state_t * state)
 {
@@ -292,6 +321,8 @@ void state_attach_to_graph(state_t * state, struct transition_t * the_input_tran
   state_next_available_id++;
  
   graph_add_state(state->graph,state,state->id);
+  
+  add_state_to_local_rib_information_summary(state->routing_state);
 
   state_tag_newly_added_state_session_waiting_time(state);
 
@@ -731,8 +762,31 @@ unsigned int _state_get_color_for_node(state_t * state, unsigned int node , unsi
      
  }
 
-int state_export_dot_to_file(state_t * state)
+int state_export_dot_to_file_OLD(state_t * state)
 {
+    char file_name[256];
+    sprintf(file_name,"%s%s_state_%u.dot",state->graph->tracer->base_output_directory,state->graph->tracer->base_output_file_name,state->id);
+
+    gds_stream_t * stream = stream_create_file(file_name);
+
+    routing_state_export_dot_OLD(stream,state->routing_state);
+
+    stream_destroy(&stream);
+    char commande[1024];
+    //sprintf(commande,"neato -Tpng %s -o%s.png",file_name, file_name);
+    //system(commande);
+
+    sprintf(commande,"neato -T%s %s -o%s.%s",state->graph->tracer->IMAGE_FORMAT,file_name, file_name,state->graph->tracer->IMAGE_FORMAT);
+    system(commande);
+    
+    return 0;
+}
+
+int state_export_dot(state_t * state)
+{
+    
+    routing_state_export_loc_rib_dot(state->routing_state);
+    /*
     char file_name[256];
     sprintf(file_name,"%s%s_state_%u.dot",state->graph->tracer->base_output_directory,state->graph->tracer->base_output_file_name,state->id);
 
@@ -746,7 +800,7 @@ int state_export_dot_to_file(state_t * state)
     //system(commande);
 
     sprintf(commande,"neato -T%s %s -o%s.%s",state->graph->tracer->IMAGE_FORMAT,file_name, file_name,state->graph->tracer->IMAGE_FORMAT);
-    system(commande);
+    system(commande);*/
     return 0;
 }
 
