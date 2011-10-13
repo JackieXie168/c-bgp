@@ -636,9 +636,9 @@ static int _net_flow_src_ip_handler(flow_t * flow, flow_field_map_t * map,
 				    void * ctx)
 {
   flow_stats_t * stats= (flow_stats_t *) ctx;
-  ip_trace_t * trace;
+  ip_trace_t * trace= NULL;
   net_error_t result;
-  ip_opt_t * opts;
+  ip_opt_t opts;
 
   net_node_t * src_node= network_find_node(network_get_default(), flow->src_addr);
   if (src_node == NULL) {
@@ -646,17 +646,17 @@ static int _net_flow_src_ip_handler(flow_t * flow, flow_field_map_t * map,
     return -1;
   }
 
-  opts= ip_options_create();
+  ip_options_init(&opts);
   if (flow_field_map_isset(map, FLOW_FIELD_DST_MASK)) {
     ip_pfx_t pfx= {
       .network=flow->dst_addr,
       .mask=flow->dst_mask,
     };
-    ip_options_alt_dest(opts, pfx);
+    ip_options_alt_dest(&opts, pfx);
   }
 
   result= node_load_flow(src_node, NET_ADDR_ANY, flow->dst_addr, flow->bytes,
-			 stats, &trace, opts);
+			 stats, &trace, &opts);
   if (result < 0)
     return 0;
 
