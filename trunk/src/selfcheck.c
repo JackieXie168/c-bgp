@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)selfcheck.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 03/04/08
 // $Id: selfcheck.c,v 1.5 2009-08-31 09:33:43 bqu Exp $
 // ==================================================================
@@ -1449,6 +1449,8 @@ static int test_net_tunnel()
   net_link_destroy(&tunnel);
   UTEST_ASSERT(tunnel == NULL,
 		"destroyed link should be NULL");
+  node_destroy(&node1);
+  node_destroy(&node2);
   return UTEST_SUCCESS;
 }
 
@@ -1464,6 +1466,7 @@ static int test_net_tunnel_forward()
   simulator_t * sim= network_get_simulator(network_get_default());
   net_error_t error;
   net_send_ctx_t * ctx;
+
   net_link_create_rtr(node1, node2, BIDIR, &iface);
   node_rt_add_route_link(node1, IPV4PFX(2,0,0,0,32), iface,
 			 NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
@@ -1496,91 +1499,57 @@ static int test_net_tunnel_forward()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_net_tunnel_recv ]-------------------------------------
-/*static int test_net_tunnel_recv()
+static int _msg_delivered;
+static int _debug_proto_handler(net_msg_t * msg)
 {
-  net_node_t * node1= __node_create(IPV4(1,0,0,0));
-  net_node_t * node2= __node_create(IPV4(2,0,0,0));
-  net_iface_t * iface= NULL;
-  net_iface_t * tunnel= NULL;
-  net_msg_t * msg= message_create(NET_ADDR_ANY, NET_ADDR_ANY, 0, 0,
-				  (void *) 12345, NULL);
-  simulator_t * sim= network_get_simulator(network_get_default());
-  net_error_t error;
-  net_send_ctx_t * ctx;
-  net_link_create_rtr(node1, node2, BIDIR, &iface);
-  node_rt_add_route_link(node1, IPV4PFX(2,0,0,0,32), iface,
-			 NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
-  node_ipip_enable(node2);
-  UTEST_ASSERT((ipip_link_create(node1, IPV4(2,0,0,0),
-				  IPV4(2,0,0,0),
-				  NULL,
-				  NET_ADDR_ANY,
-				  &tunnel) == ESUCCESS) &&
-		(tunnel != NULL),
-		"ipip_link_create() should succeed");
-  thread_set_simulator(sim);
-  UTEST_ASSERT((error= net_iface_send(tunnel, NET_ADDR_ANY, msg))
-		== ESUCCESS,
-		"tunnel forward should succeed (%s)",
-		network_strerror(error));
-  UTEST_ASSERT(sim_get_num_events(sim) == 1,
-		"incorrect number of queued events");
-  ctx= (net_send_ctx_t *) sim_get_event(sim, 0);
-  UTEST_ASSERT(ctx->msg->protocol == NET_PROTOCOL_IPIP,
-		"incorrect protocol for outer header");
-  UTEST_ASSERT(ctx->msg->payload == msg,
-		"incorrect payload for encapsulated packet");
-  sim_step(sim, 1);
-  net_link_destroy(&tunnel);
-  UTEST_ASSERT(tunnel == NULL, "destroyed tunnel should be NULL");
-  sim_clear(sim);
-  node_destroy(&node1);
-  node_destroy(&node2);
-  
-  return UTEST_SKIPPED;
-  }*/
+  _msg_delivered= 1;
+  return ESUCCESS;
+}
 
-// -----[ test_net_tunnel_forward_broken ]---------------------------
-static int test_net_tunnel_forward_broken()
+// -----[ test_net_tunnel_recv ]---------------------------
+static int test_net_tunnel_recv()
 {
   net_node_t * node1= __node_create(IPV4(1,0,0,0));
   net_node_t * node2= __node_create(IPV4(2,0,0,0));
   net_iface_t * iface= NULL;
-  net_iface_t * tunnel= NULL;
-  net_msg_t * msg= message_create(NET_ADDR_ANY, NET_ADDR_ANY, 0, 0,
+  net_msg_t * msg= message_create(NET_ADDR_ANY, IPV4(2,0,0,0),
+				  NET_PROTOCOL_DEBUG, 255,
 				  (void *) 12345, NULL);
   simulator_t * sim= network_get_simulator(network_get_default());
   net_error_t error;
-  net_send_ctx_t * ctx;
+
+  _msg_delivered= 0;
+
   net_link_create_rtr(node1, node2, BIDIR, &iface);
-  node_rt_add_route_link(node1, IPV4PFX(2,0,0,0,32), iface,
-			 NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
-  UTEST_ASSERT((ipip_link_create(node1, IPV4(2,0,0,0),
-				  IPV4(2,0,0,0),
-				  NULL,
-				  NET_ADDR_ANY,
-				  &tunnel) == ESUCCESS) &&
-		(tunnel != NULL),
-		"ipip_link_create() should succeed");
+  error= node_add_tunnel(node1, IPV4(2,0,0,1), IPV4(1,0,0,1),
+			 NULL, NET_ADDR_ANY);
+  UTEST_ASSERT(error == ESUCCESS, "node_add_tunnel should succeed (%s)",
+	       network_strerror(error));
+  error= node_add_tunnel(node2, IPV4(1,0,0,1), IPV4(2,0,0,1),
+			 NULL, NET_ADDR_ANY);
+  UTEST_ASSERT(error == ESUCCESS, "node_add_tunnel should succeed (%s)",
+	       network_strerror(error));
+  error= node_rt_add_route(node1, IPV4PFX(2,0,0,0,32), IPV4PFX(1,0,0,1,32),
+			   NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
+  UTEST_ASSERT(error == ESUCCESS, "node_rt_add_route should succeed (%s)",
+	       network_strerror(error));
+  error= node_rt_add_route(node1, IPV4PFX(2,0,0,1,32), IPV4PFX(2,0,0,0,32),
+		    NET_ADDR_ANY, 1, NET_ROUTE_STATIC);
+  UTEST_ASSERT(error == ESUCCESS, "node_rt_add_route should succeed (%s)",
+	       network_strerror(error));
+  error= node_register_protocol(node2, NET_PROTOCOL_DEBUG,
+				_debug_proto_handler);
+  UTEST_ASSERT(error == ESUCCESS, "node_register_protocol should succeed (%s)",
+	       network_strerror(error));
+
+  error= node_send(node1, msg, NULL, sim);
+  UTEST_ASSERT(error == ESUCCESS, "node_send_msg should succeed");
   thread_set_simulator(sim);
-  UTEST_ASSERT((error= net_iface_send(tunnel, NET_ADDR_ANY, msg))
-		== ESUCCESS,
-		"tunnel forward should succeed (%s)",
-		network_strerror(error));
-  UTEST_ASSERT(sim_get_num_events(sim) == 1,
-		"incorrect number of queued events");
-  ctx= (net_send_ctx_t *) sim_get_event(sim, 0);
-  UTEST_ASSERT(ctx->msg->protocol == NET_PROTOCOL_IPIP,
-		"incorrect protocol for outer header");
-  UTEST_ASSERT(ctx->msg->payload == msg,
-		"incorrect payload for encapsulated packet");
-  net_link_destroy(&tunnel);
-  UTEST_ASSERT(tunnel == NULL, "destroyed tunnel should be NULL");
-  sim_clear(sim);
+  sim_run(sim);
+  UTEST_ASSERT(_msg_delivered == 1, "message has not been delivered");
   node_destroy(&node1);
   node_destroy(&node2);
-  return UTEST_SKIPPED;
+  return UTEST_SUCCESS;
 }
 
 // -----[ test_net_tunnel_src ]--------------------------------------
@@ -2310,26 +2279,29 @@ static int test_net_traces_recordroute()
 {
   ez_topo_t * eztopo= _ez_topo_triangle_rtr();
   ip_trace_t * trace= NULL;
+  array_t * traces;
   ez_topo_igp_compute(eztopo, 1);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
 				ez_topo_get_node(eztopo, 1)->rid,
-				255, NULL, &trace) == ESUCCESS,
-		"record-route should succeed");
-  UTEST_ASSERT(trace != NULL,
-		"record-route trace should not be NULL");
+			   255, NULL);
+  UTEST_ASSERT(traces != NULL,
+		"icmp_trace_send should not return NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "should contain a single trace")
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
-		"trace's status should be success");
+	       "trace's status should be success");
   UTEST_ASSERT(ip_trace_length(trace) == 3,
-		"record-route trace's length should be 3 (%d)",
-		ip_trace_length(trace));
+	       "record-route trace's length should be 3 (%d)",
+	       ip_trace_length(trace));
   UTEST_ASSERT((ip_trace_item_at(trace, 0)->elt.node ==
-		 ez_topo_get_node(eztopo, 0)) &&
-		(ip_trace_item_at(trace, 1)->elt.node ==
-		 ez_topo_get_node(eztopo, 2)) &&
-		(ip_trace_item_at(trace, 2)->elt.node ==
-		 ez_topo_get_node(eztopo, 1)),
-		"record-route trace's content is not correct");
-  ip_trace_destroy(&trace);
+		ez_topo_get_node(eztopo, 0)) &&
+	       (ip_trace_item_at(trace, 1)->elt.node ==
+		ez_topo_get_node(eztopo, 2)) &&
+	       (ip_trace_item_at(trace, 2)->elt.node ==
+		ez_topo_get_node(eztopo, 1)),
+	       "record-route trace's content is not correct");
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2339,16 +2311,27 @@ static int test_net_traces_recordroute_unreach()
 {
   ez_topo_t * eztopo= _ez_topo_triangle_ptp();
   ip_trace_t * trace= NULL;
+  array_t * traces;
+
   ez_topo_igp_compute(eztopo, 1);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				IPV4(1,0,0,4),
-				255, NULL, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   IPV4(1,0,0,4),
+			   255, NULL);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "there should be a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ENET_HOST_UNREACH,
-		"trace's status should be host-unreach");
-  ip_trace_destroy(&trace);
+	       "trace's status should be host-unreach");
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
+}
+
+// -----[ test_net_traces_recordroute_broken ]-----------------------
+static int test_net_traces_recordroute_broken()
+{
+  return UTEST_SKIPPED;
 }
 
 // -----[ test_net_traces_recordroute_load ]-------------------------
@@ -2356,14 +2339,18 @@ static int test_net_traces_recordroute_load()
 {
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
   ez_topo_t * eztopo= _ez_topo_triangle_rtr();
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_load(opts, 1000);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				ez_topo_get_node(eztopo, 1)->rid,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   ez_topo_get_node(eztopo, 1)->rid,
+			   255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "there should be a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 0)) == 0,
@@ -2373,6 +2360,7 @@ static int test_net_traces_recordroute_load()
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 2)->dest.iface) == 1000,
 		"load of link 2 should be 1000");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2386,21 +2374,26 @@ static int test_net_traces_recordroute_prefix()
   net_subnet_t * subnet= subnet_create(IPV4(255,0,0,0), 8,
 				       NET_SUBNET_TYPE_STUB);
   net_iface_t * link;
+  array_t * traces;
   network_add_subnet(eztopo->network, subnet);
-  net_link_create_ptmp(ez_topo_get_node(eztopo, 2), subnet,
+  net_link_create_ptmp(ez_topo_get_node(eztopo, 1), subnet,
 		       IPV4(255,0,0,1), &link);
   net_iface_set_metric(link, 0, 1, 0);
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_alt_dest(opts, IPV4PFX(255,0,0,0,8));
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				NET_ADDR_ANY,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
-  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   NET_ADDR_ANY, 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
-  ip_trace_destroy(&trace);
+  // Trace should contain 4 elements: 3 hops + 1 subnet
+  // (0.0.0.1 0.0.0.3 0.0.0.2 255.0.0.0/8)
+  UTEST_ASSERT(ip_trace_length(trace) == 4, "trace should contain 4 elements");
+  _array_destroy(&traces);
   ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
@@ -2412,17 +2405,23 @@ static int test_net_traces_recordroute_prefix_unreach()
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
   ez_topo_t * eztopo= _ez_topo_triangle_rtr();
+  array_t * traces;
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_alt_dest(opts, IPV4PFX(255,0,0,0,8));
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				NET_ADDR_ANY,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
-  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   NET_ADDR_ANY, 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ENET_NET_UNREACH,
 		"trace's status should be net-unreach");
+  // Trace should contain 1 element: 1 hop (0.0.0.1)
+  UTEST_ASSERT(ip_trace_length(trace) == 1,
+	       "trace should contain 1 element");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2436,6 +2435,7 @@ static int test_net_traces_recordroute_prefix_load()
   net_subnet_t * subnet= subnet_create(IPV4(255,0,0,0), 8,
 				       NET_SUBNET_TYPE_STUB);
   net_iface_t * link;
+  array_t * traces;
   network_add_subnet(eztopo->network, subnet);
   net_link_create_ptmp(ez_topo_get_node(eztopo, 2), subnet,
 		       IPV4(255,0,0,1), &link);
@@ -2444,16 +2444,18 @@ static int test_net_traces_recordroute_prefix_load()
   opts= ip_options_create();
   ip_options_alt_dest(opts, IPV4PFX(255,0,0,0,8));
   ip_options_load(opts, 1000);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				NET_ADDR_ANY,
-				255, opts, &trace) == ESUCCESS,
-	       "record-route should succeed");
-  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   NET_ADDR_ANY, 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(net_iface_get_load(link) == 1000,
 		"last mile's load should be 1000");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2464,18 +2466,20 @@ static int test_net_traces_recordroute_qos()
   ez_topo_t * eztopo= _ez_topo_triangle_rtr();
   ip_trace_t * trace= NULL;
   ip_opt_t * opts;
+  array_t * traces;
 
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_CAPACITY);
   ip_options_set(opts, IP_OPT_DELAY);
   ip_options_set(opts, IP_OPT_WEIGHT);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				ez_topo_get_node(eztopo, 1)->rid,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
-  UTEST_ASSERT(trace != NULL,
-		"record-route trace should not be NULL");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   ez_topo_get_node(eztopo, 1)->rid,
+			   255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a unique trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(ip_trace_length(trace) == 3,
@@ -2496,7 +2500,7 @@ static int test_net_traces_recordroute_qos()
   UTEST_ASSERT(trace->capacity == 512,
 		"record-route trace's max capacity is not correct");
   ip_options_destroy(&opts);
-  ip_trace_destroy(&trace);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;  
 }
@@ -2507,24 +2511,48 @@ static int test_net_traces_recordroute_ecmp()
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
   ez_topo_t * eztopo= _ez_topo_square();
-  gds_enum_t * traces;
+  array_t * traces;
+
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_ECMP);
-  traces= icmp_trace_send2(ez_topo_get_node(eztopo, 0),
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
 			   ez_topo_get_node(eztopo, 3)->rid,
 			   255, opts);
-  UTEST_ASSERT(traces != NULL, "icmp_trace_send2() should succeed");
-  UTEST_ASSERT(enum_has_next(traces), "first path should exist");
-  trace= *((ip_trace_t **) enum_get_next(traces));
+  UTEST_ASSERT(traces != NULL, "icmp_trace_send() should succeed");
+  UTEST_ASSERT(_array_length(traces) == 2, "there should be 2 paths");
+
+  // Check first trace (0.0.0.1 0.0.0.2 0.0.0.4)
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
-  UTEST_ASSERT(enum_has_next(traces), "second path should exist");
-  trace= *((ip_trace_t **) enum_get_next(traces));
+  UTEST_ASSERT(ip_trace_length(trace) == 3,
+	       "record-route trace's length should be 3 (%d)",
+	       ip_trace_length(trace));
+  UTEST_ASSERT((ip_trace_item_at(trace, 0)->elt.node ==
+		ez_topo_get_node(eztopo, 0)) &&
+	       (ip_trace_item_at(trace, 1)->elt.node ==
+		ez_topo_get_node(eztopo, 1)) &&
+	       (ip_trace_item_at(trace, 2)->elt.node ==
+		ez_topo_get_node(eztopo, 3)),
+	       "record-route trace's content is not correct");
+
+  // Check first trace (0.0.0.1 0.0.0.3 0.0.0.4)
+  _array_get_at(traces, 1, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
-  UTEST_ASSERT(!enum_has_next(traces), "no more path should exist");
-  enum_destroy(&traces);
+  UTEST_ASSERT(ip_trace_length(trace) == 3,
+	       "record-route trace's length should be 3 (%d)",
+	       ip_trace_length(trace));
+  UTEST_ASSERT((ip_trace_item_at(trace, 0)->elt.node ==
+		ez_topo_get_node(eztopo, 0)) &&
+	       (ip_trace_item_at(trace, 1)->elt.node ==
+		ez_topo_get_node(eztopo, 2)) &&
+	       (ip_trace_item_at(trace, 2)->elt.node ==
+		ez_topo_get_node(eztopo, 3)),
+	       "record-route trace's content is not correct");
+
+  _array_destroy(&traces);
   ip_options_destroy(&opts);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
@@ -2535,30 +2563,35 @@ static int test_net_traces_recordroute_ecmp_unreach()
 {
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
   ez_topo_t * eztopo= _ez_topo_square();
   ez_topo_igp_compute(eztopo, 1);
   net_iface_set_enabled(ez_topo_get_link(eztopo, 2), 0);
-  net_iface_set_enabled(ez_topo_get_link(eztopo, 3), 0);
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_ECMP);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
 				ez_topo_get_node(eztopo, 3)->rid,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
-  UTEST_ASSERT(trace != NULL, "trace should not be NULL");
-  UTEST_ASSERT(trace->status == ENET_NO_REPLY,
-		"trace's status should be no-reply");
-  trace= icmp_trace_send_next(opts);
-  UTEST_ASSERT(trace != NULL,
-	       "a second equal-cost path should exist");
-  UTEST_ASSERT(trace->status == ENET_NO_REPLY,
-		"trace's status should be no-reply");
-  trace= icmp_trace_send_next(opts);
-  UTEST_ASSERT(trace == NULL,
-	       "no more equal-cost path should exist");
+			   255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 2, "there should be 2 traces");
+  _array_get_at(traces, 0, &trace);
+  UTEST_ASSERT(trace->status == ENET_LINK_DOWN,
+	       "1st trace's status should be link-down (%s)",
+	       network_strerror(trace->status));
+  _array_get_at(traces, 1, &trace);
+  UTEST_ASSERT(trace->status == ESUCCESS,
+	       "2nd trace's status should be success (%s)",
+	       network_strerror(trace->status));
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
+}
+
+// -----[ test_net_traces_recordroute_ecmp_broken ]------------------
+static int test_net_traces_recordroute_ecmp_broken()
+{
+  return UTEST_SKIPPED;
 }
 
 // -----[ test_net_traces_recordroute_ecmp_load ]--------------------
@@ -2566,23 +2599,24 @@ static int test_net_traces_recordroute_ecmp_load()
 {
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
   ez_topo_t * eztopo= _ez_topo_square();
   ez_topo_igp_compute(eztopo, 1);
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_ECMP);
   ip_options_load(opts, 1000);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				ez_topo_get_node(eztopo, 3)->rid,
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   ez_topo_get_node(eztopo, 3)->rid,
+			   255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 2,
+	       "there should be 2 traces");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
-  UTEST_ASSERT((trace= icmp_trace_send_next(opts)) != NULL,
-		"a second equal-cost path should exist");
+  _array_get_at(traces, 1, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
-  UTEST_ASSERT((trace= icmp_trace_send_next(opts)) == NULL,
-		"no more equal-cost path should exist");
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 0)) == 500,
 		"load of link 0 should be 500");
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 1)) == 500,
@@ -2592,6 +2626,7 @@ static int test_net_traces_recordroute_ecmp_load()
   UTEST_ASSERT(net_iface_get_load(ez_topo_get_link(eztopo, 3)) == 500,
 		"load of link 3 should be 500");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2602,6 +2637,7 @@ static int test_net_traces_recordroute_tunnel()
   ez_topo_t * eztopo= _ez_topo_line_ptp();
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
   node_add_tunnel(ez_topo_get_node(eztopo, 0), IPV4(255,0,0,2),
 		  IPV4(255,0,0,1), NULL, NET_ADDR_ANY);
   node_add_tunnel(ez_topo_get_node(eztopo, 1), IPV4(255,0,0,1),
@@ -2612,12 +2648,15 @@ static int test_net_traces_recordroute_tunnel()
   node_rt_add_route(ez_topo_get_node(eztopo, 0), IPV4PFX(255,0,0,255,32),
 		    IPV4PFX(255,0,0,1,32), NET_ADDR_ANY, 0, NET_ROUTE_STATIC);
   opts= ip_options_create();
-  ip_options_set(opts, IP_OPT_ECMP);
   ip_options_set(opts, IP_OPT_TUNNEL);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				IPV4(255,0,0,255),
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   IPV4(255,0,0,255),
+			   255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "there should be a unique trace");
+
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success");
   UTEST_ASSERT(ip_trace_length(trace) == 3,
@@ -2630,7 +2669,9 @@ static int test_net_traces_recordroute_tunnel()
   UTEST_ASSERT(ip_trace_item_at(trace, 2)->elt.node ==
 		ez_topo_get_node(eztopo, 1),
 		"last hop should be 0.0.0.2");
+
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2641,6 +2682,8 @@ static int test_net_traces_recordroute_tunnel_ecmp()
   ez_topo_t * eztopo= _ez_topo_square();
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
+
   node_add_tunnel(ez_topo_get_node(eztopo, 0), IPV4(255,0,0,3),
 		  IPV4(255,0,0,1), NULL, NET_ADDR_ANY);
   node_add_tunnel(ez_topo_get_node(eztopo, 3), IPV4(255,0,0,1),
@@ -2653,27 +2696,55 @@ static int test_net_traces_recordroute_tunnel_ecmp()
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_ECMP);
   ip_options_set(opts, IP_OPT_TUNNEL);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				IPV4(255,0,0,255),
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   IPV4(255,0,0,255), 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 2, "there should be 2 traces");
+
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
-		"trace's status should be success");
-  UTEST_ASSERT((trace= icmp_trace_send_next(opts)) != NULL,
-		"record-route should succeed");
-  UTEST_ASSERT(icmp_trace_send_next(opts) == NULL,
-		"record-route should fail");
+		"1st trace's status should be success");
+  // Trace should contain 3 elements: 2 nodes, 1 trace
+  // (0.0.0.1 [0.0.0.1 0.0.0.2 0.0.0.4] 0.0.0.4)
+  UTEST_ASSERT(ip_trace_length(trace) == 3,
+	       "1st trace should contain 3 elements");
+  UTEST_ASSERT(ip_trace_item_at(trace, 1)->elt.type == TRACE,
+	       "1st trace's middle item should be a trace");
+  UTEST_ASSERT(ip_trace_length(ip_trace_item_at(trace, 1)->elt.trace) == 3,
+	       "1st trace's middle item should contain 3 elements");
+
+  _array_get_at(traces, 1, &trace);
+  UTEST_ASSERT(trace->status == ESUCCESS,
+		"2nd trace's status should be success");
+  // Trace should contain 3 elements: 2 nodes, 1 trace
+  // (0.0.0.1 [0.0.0.1 0.0.0.3 0.0.0.4] 0.0.0.4)
+  UTEST_ASSERT(ip_trace_length(trace) == 3,
+	       "2nd trace should contain 3 elements");
+  UTEST_ASSERT(ip_trace_item_at(trace, 1)->elt.type == TRACE,
+	       "2nd trace's middle item should be a trace");
+  UTEST_ASSERT(ip_trace_length(ip_trace_item_at(trace, 1)->elt.trace) == 3,
+	       "2nd trace's middle item should contain 3 elements");
+
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
 
 // -----[ test_net_traces_recordroute_tunnel_unreach ]---------------
+/**
+ *    n0 ------------ n1
+ *  0.0.0.1         0.0.0.2
+ * 255.0.0.1       255.0.0.2
+ *                255.0.0.255
+ */
 static int test_net_traces_recordroute_tunnel_unreach()
 {
-  ez_topo_t * eztopo= _ez_topo_line_ptp();
+   ez_topo_t * eztopo= _ez_topo_line_ptp();
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
+
   node_add_tunnel(ez_topo_get_node(eztopo, 0), IPV4(255,0,0,2),
 		  IPV4(255,0,0,1), NULL, NET_ADDR_ANY);
   node_add_tunnel(ez_topo_get_node(eztopo, 1), IPV4(255,0,0,1),
@@ -2687,13 +2758,16 @@ static int test_net_traces_recordroute_tunnel_unreach()
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_ECMP);
   ip_options_set(opts, IP_OPT_TUNNEL);
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				IPV4(255,0,0,255),
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			   IPV4(255,0,0,255), 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a single trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status != ESUCCESS,
-		"trace's status should be success");
+	       "trace's status should not be success");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -2716,6 +2790,7 @@ static int test_net_traces_recordroute_tunnel_prefix()
   ez_topo_t * eztopo= _ez_topo_line_ptp();
   ip_opt_t * opts;
   ip_trace_t * trace= NULL;
+  array_t * traces;
   net_subnet_t * subnet= subnet_create(IPV4(255,0,0,255), 30,
 				       NET_SUBNET_TYPE_STUB);
   node_add_tunnel(ez_topo_get_node(eztopo, 0), IPV4(255,0,0,2),
@@ -2733,10 +2808,12 @@ static int test_net_traces_recordroute_tunnel_prefix()
   opts= ip_options_create();
   ip_options_set(opts, IP_OPT_TUNNEL);
   ip_options_alt_dest(opts, IPV4PFX(255,0,0,255,30));
-  UTEST_ASSERT(icmp_trace_send(ez_topo_get_node(eztopo, 0),
-				IPV4(255,0,0,255),
-				255, opts, &trace) == ESUCCESS,
-		"record-route should succeed");
+  traces= icmp_trace_send(ez_topo_get_node(eztopo, 0),
+			  IPV4(255,0,0,255), 255, opts);
+  UTEST_ASSERT(traces != NULL, "traces should not be NULL");
+  UTEST_ASSERT(_array_length(traces) == 1,
+	       "traces should contain a single trace");
+  _array_get_at(traces, 0, &trace);
   UTEST_ASSERT(trace->status == ESUCCESS,
 		"trace's status should be success (%s)",
 		network_strerror(trace->status));
@@ -2751,6 +2828,7 @@ static int test_net_traces_recordroute_tunnel_prefix()
 		ez_topo_get_node(eztopo, 1),
 		"last hop should be 0.0.0.2");
   ip_options_destroy(&opts);
+  _array_destroy(&traces);
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
@@ -4370,7 +4448,7 @@ unit_test_t TEST_NET_RT[]= {
 unit_test_t TEST_NET_TUNNEL[]= {
   {test_net_tunnel, "tunnel"},
   {test_net_tunnel_forward, "tunnel forward"},
-  {test_net_tunnel_forward_broken, "tunnel forward (broken)"},
+  {test_net_tunnel_recv, "tunnel recv"},
   {test_net_tunnel_src, "tunnel (src)"},
 };
 #define TEST_NET_TUNNEL_SIZE ARRAY_SIZE(TEST_NET_TUNNEL)
@@ -4425,6 +4503,7 @@ unit_test_t TEST_NET_TRACES[]= {
   {test_net_traces_ping_no_reply, "ping (no reply)"},
   {test_net_traces_recordroute, "record-route"},
   {test_net_traces_recordroute_unreach, "record-route (unreach)"},
+  {test_net_traces_recordroute_broken, "record-route (broken)"},
   {test_net_traces_recordroute_load, "record-route (load)"},
   {test_net_traces_recordroute_qos, "record-route (qos)"},
   {test_net_traces_recordroute_prefix, "record-route (prefix)"},
@@ -4433,6 +4512,7 @@ unit_test_t TEST_NET_TRACES[]= {
   {test_net_traces_recordroute_prefix_load, "record-route prefix (load)"},
   {test_net_traces_recordroute_ecmp, "record-route ECMP"},
   {test_net_traces_recordroute_ecmp_unreach, "record-route ECMP (unreach)"},
+  {test_net_traces_recordroute_ecmp_broken, "record-route ECMP (broken)"},
   {test_net_traces_recordroute_ecmp_load, "record-route ECMP (load)"},
   {test_net_traces_recordroute_tunnel, "record-route tunnel"},
   {test_net_traces_recordroute_tunnel_ecmp, "record-route tunnel+ECMP"},
@@ -4602,7 +4682,23 @@ unit_test_suite_t TEST_SUITES[]= {
 #define TEST_SUITES_SIZE ARRAY_SIZE(TEST_SUITES)
 
 unit_test_t SINGLE_TEST[]= {
-  {test_mrtd_parse_miss_fields, "single test"},
+  {test_net_traces_recordroute, "record-route"},
+  {test_net_traces_recordroute_unreach, "record-route (unreach)"},
+  {test_net_traces_recordroute_load, "record-route (load)"},
+  {test_net_traces_recordroute_tunnel, "record-route (tunnel)"},
+  {test_net_traces_recordroute_tunnel_ecmp, "record-route (tunnel,ecmp)"},
+  {test_net_traces_recordroute_ecmp, "record-route (ecmp)"},
+  {test_net_traces_recordroute_ecmp_load, "record-route (ecmp,load)"},
+  {test_net_traces_recordroute_ecmp_unreach, "record-route (ecmp,unreach)"},
+  {test_net_traces_recordroute_qos, "record-route (qos)"},
+  {test_net_traces_recordroute_prefix, "record-route (prefix)"},
+  {test_net_traces_recordroute_prefix_unreach,
+  "record-route prefix (unreach)"},
+  {test_net_traces_recordroute_prefix_load, "record-route prefix (load)"},
+  {test_net_traces_recordroute_tunnel_qos, "record-route (tunnel,qos)"},
+  {test_net_traces_recordroute_tunnel_unreach,
+  "record-route tunnel (unreach)"},
+  {test_net_traces_recordroute_tunnel_prefix, "record-route tunnel (prefix)"},
 };
 #define SINGLE_TEST_SIZE ARRAY_SIZE(SINGLE_TEST)
 
