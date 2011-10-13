@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)peer.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 //
 // @date 24/11/2002
@@ -197,6 +197,7 @@ int bgp_peer_session_ok(bgp_peer_t * peer)
   int result;
   ip_dest_t dest;
   ip_trace_t * trace= NULL;
+  array_t * traces;
 
   if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
     dest.type= NET_DEST_ADDRESS;
@@ -204,10 +205,13 @@ int bgp_peer_session_ok(bgp_peer_t * peer)
 
     // This must be updated: the router is not necessarily
     // adjacent... need to perform a kind of traceroute...
-    result= icmp_trace_send(peer->router->node,
-			    peer->addr, 255, NULL, &trace);
-    result= (result == ESUCCESS) && (trace->status == ESUCCESS);
-    ip_trace_destroy(&trace);
+    traces= icmp_trace_send(peer->router->node,
+			     peer->addr, 255, NULL);
+    assert(traces != NULL);
+    assert(_array_length(traces) == 1); // ECMP is not enabled
+    _array_get_at(traces, 0, &trace);
+    result= (trace->status == ESUCCESS);
+    _array_destroy(&traces);
   } else {
     result= icmp_ping_send_recv(peer->router->node,
 				 0, peer->addr, 0);
