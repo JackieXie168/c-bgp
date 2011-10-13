@@ -7,7 +7,7 @@ dnl =================================================================
 
 AC_REVISION($Revision: 1.88 $)
 
-AC_INIT([cbgp], [2.0.0-rc3], [bruno.quoitin@uclouvain.be])
+AC_INIT([cbgp], [2.0.0-rc3], [bruno.quoitin@umons.ac.be])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -135,60 +135,67 @@ if test "$with_jni" != "no"; then
 
    AC_PATH_PROG(JAVAH, javah)
 
-   jni_paths=""
-   if test "$with_jni" != "yes"; then
-     jni_paths="$with_jni"
-   fi
-   for jni_path in "$JAVA_HOME/include" "$jni_paths"; do
-     AC_MSG_CHECKING([for jni.h in $jni_path])
-     if test -e "$jni_path/jni.h"; then
-       AC_MSG_RESULT([ok])
-       AC_MSG_CHECKING([for jni_md.h in $jni_path])
-       if test -e "$jni_path/jni_md.h"; then
-         AC_MSG_RESULT([ok])
-         jni_cflags="-I$jni_path"
-         break
-       else
-         ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,' | sed 's,linux-gnu,linux,'`
-         AC_MSG_CHECKING([for jni_md.h in $jni_path/$ac_machdep])
-         if test -e "$jni_path/$ac_machdep/jni_md.h"; then
-           AC_MSG_RESULT([ok])
-           jni_cflags="-I$jni_path -I$jni_path/$ac_machdep"
-           break
-         fi
-       fi
-     fi
+   AX_JNI_INCLUDE_DIR
+   for JNI_INCLUDE_DIR in $JNI_INCLUDE_DIRS
+   do
+     CPPFLAGS="$CPPFLAGS -I$JNI_INCLUDE_DIR"
    done
 
-   if test -z "$jni_cflags"; then
-     AC_MSG_RESULT([no])
-     echo "Error: no jni.h could be found at the given location(s).";
-     echo "       Specified path: $jni_paths";
-     exit -1;
-   else
-     CFLAGS="$CFLAGS $jni_cflags"
-     CPPFLAGS="$CPPFLAGS $jni_cflags"
-   fi
 
-   dnl Check that jni_md.h header can be compiled
-   AC_CHECK_HEADERS(jni_md.h, [jni_md_header_ok=yes], [jni_md_header_ok=no])
-   if test "$jni_md_header_ok" != "yes"; then
-     AC_MSG_WARN([could not find jni_md.h (machine dependent part of jni.h)])
-     dnl TODO: add machine dependent sub-directory
-     dnl (where jni_md.h might be located)
-   fi
-
-   dnl Check that jni.h header can be compiled
-   AC_CHECK_HEADERS(jni.h, [jni_header_ok=yes], [jni_header_ok=no])
-   if test "$jni_header_ok" != yes; then
-      with_jni="no"
-      echo "Error: could not find java native interface header (jni.h)";
-      echo "       You have requested the JNI of C-BGP.";
-      echo "       Use --with-jni=DIR to mention the path to jni.h";
-      exit -1;
-   else
-      AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
-   fi
+#   jni_paths=""
+#   if test "$with_jni" != "yes"; then
+#     jni_paths="$with_jni"
+#   fi
+#   for jni_path in "$JAVA_HOME/include" "$jni_paths"; do
+#     AC_MSG_CHECKING([for jni.h in $jni_path])
+#     if test -e "$jni_path/jni.h"; then
+#       AC_MSG_RESULT([ok])
+#       AC_MSG_CHECKING([for jni_md.h in $jni_path])
+#       if test -e "$jni_path/jni_md.h"; then
+#         AC_MSG_RESULT([ok])
+#         jni_cflags="-I$jni_path"
+#         break
+#       else
+#         ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,' | sed 's,linux-gnu,linux,'`
+#         AC_MSG_CHECKING([for jni_md.h in $jni_path/$ac_machdep])
+#         if test -e "$jni_path/$ac_machdep/jni_md.h"; then
+#           AC_MSG_RESULT([ok])
+#           jni_cflags="-I$jni_path -I$jni_path/$ac_machdep"
+#           break
+#         fi
+#       fi
+#     fi
+#   done
+#
+#   if test -z "$jni_cflags"; then
+#     AC_MSG_RESULT([no])
+#     echo "Error: no jni.h could be found at the given location(s).";
+#     echo "       Specified path: $jni_paths";
+#     exit -1;
+#   else
+#     CFLAGS="$CFLAGS $jni_cflags"
+#     CPPFLAGS="$CPPFLAGS $jni_cflags"
+#   fi
+#
+#   dnl Check that jni_md.h header can be compiled
+#   AC_CHECK_HEADERS(jni_md.h, [jni_md_header_ok=yes], [jni_md_header_ok=no])
+#   if test "$jni_md_header_ok" != "yes"; then
+#     AC_MSG_WARN([could not find jni_md.h (machine dependent part of jni.h)])
+#     dnl TODO: add machine dependent sub-directory
+#     dnl (where jni_md.h might be located)
+#   fi
+#
+#   dnl Check that jni.h header can be compiled
+#   AC_CHECK_HEADERS(jni.h, [jni_header_ok=yes], [jni_header_ok=no])
+#   if test "$jni_header_ok" != yes; then
+#      with_jni="no"
+#      echo "Error: could not find java native interface header (jni.h)";
+#      echo "       You have requested the JNI of C-BGP.";
+#      echo "       Use --with-jni=DIR to mention the path to jni.h";
+#      exit -1;
+#   else
+#      AC_DEFINE(HAVE_JNI, 1, [Define to 1 if jni is properly configured])
+#   fi
 fi
 AM_CONDITIONAL([WITH_JNI], [test "$with_jni" != no])
 
@@ -471,6 +478,8 @@ AC_SUBST(CFLAGS)
 
 AC_OUTPUT(
 Makefile
+doc/Makefile
+doc/txt/Makefile
 examples/Makefile
 lib/Makefile
 src/Makefile
