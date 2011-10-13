@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)icmp.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 25/02/2004
 // $Id: icmp.c,v 1.15 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -22,6 +22,21 @@
 #include <net/protocol.h>
 #include <net/network.h>
 #include <net/net_types.h>
+
+//#define ICMP_DEBUG
+
+static inline void __debug(const char * msg, ...) {
+#ifdef ICMP_DEBUG
+  va_list ap;
+
+  va_start(ap, msg);
+  stream_printf(gdsout, "ICMP_DBG::");
+  stream_vprintf(gdsout, msg, ap);
+  stream_printf(gdsout, "\n");
+  stream_flush(gdsout);
+  va_end(ap);
+#endif
+}
 
 static struct {
   net_node_t * node;      // Node that received the message
@@ -61,7 +76,7 @@ void icmp_perror(gds_stream_t * stream, icmp_error_type_t error)
  */
 int is_icmp_error(net_msg_t * msg)
 {
-  return ((msg->protocol != NET_PROTOCOL_ICMP) &&
+  return ((msg->protocol == NET_PROTOCOL_ICMP) &&
 	  (((icmp_msg_t *) msg->payload)->type == ICMP_ERROR));
 }
 
@@ -70,16 +85,19 @@ static inline icmp_msg_t * _icmp_msg_create(icmp_msg_type_t type,
 					    icmp_error_type_t sub_type,
 					    net_node_t * node)
 {
+  __debug("_icmp_msg_create");
   icmp_msg_t * icmp_msg= MALLOC(sizeof(icmp_msg_t));
   icmp_msg->type= type;
   icmp_msg->sub_type= sub_type;
   icmp_msg->node= node;
+  icmp_msg->trace= NULL;
   return icmp_msg;
 }
 
 // -----[ _icmp_msg_destroy ]----------------------------------------
 static inline void _icmp_msg_destroy(icmp_msg_t ** msg_ref)
 {
+  __debug("_icmp_msg_destroy");
   if (*msg_ref != NULL) {
     FREE(*msg_ref);
     *msg_ref= NULL;
@@ -111,6 +129,7 @@ static inline int _icmp_send(net_node_t * node,
 			     simulator_t * sim,
 			     ip_opt_t * opts)
 {
+  __debug("_icmp_send");
   return node_send_msg(node, src_addr, dst_addr, NET_PROTOCOL_ICMP,
 		       ttl, msg,
 		       (FPayLoadDestroy) _icmp_msg_destroy, opts, sim);
@@ -189,6 +208,7 @@ static int _icmp_proto_handle(simulator_t * sim,
 			      void * handler,
 			      net_msg_t * msg)
 {
+  __debug("_icmp_proto_handle");
   net_node_t * node= (net_node_t *) handler;
   icmp_msg_t * icmp_msg= (icmp_msg_t *) msg->payload;
 
@@ -330,7 +350,7 @@ net_error_t icmp_trace_route(gds_stream_t * stream,
 			     net_addr_t dst_addr, uint8_t max_ttl,
 			     ip_trace_t ** trace_ref)
 {
-  ip_trace_t * trace= ip_trace_create();
+  ip_trace_t * trace= ip_trace_create(NULL);
   net_error_t error= EUNEXPECTED;
   uint8_t ttl= 1;
 
@@ -395,82 +415,7 @@ net_error_t icmp_trace_route(gds_stream_t * stream,
 }
 
 // -----[ icmp_trace_send ]------------------------------------------
-int icmp_trace_send(net_node_t * node, net_addr_t dst_addr,
-		    uint8_t max_ttl, ip_opt_t * opts,
-		    ip_trace_t ** trace)
-{
-  simulator_t * sim= sim_create(SCHEDULER_STATIC);
-  icmp_msg_t * icmp_msg= _icmp_msg_create(ICMP_TRACE, 0, node);
-  net_error_t error;
-  ip_opt_t * _opts;
-
-  if (opts != NULL)
-    _opts= ip_options_copy(opts);
-  else
-    _opts= ip_options_create();
-  ip_options_trace(_opts);
-  ip_options_add_ref(_opts);
-  
-  if (opts != NULL)
-    opts->fifo_trace= _opts->fifo_trace;
-
-  // Send ICMP record-route probe
-  error= _icmp_send(node, NET_ADDR_ANY, dst_addr, max_ttl,
-		    icmp_msg, sim, _opts);
-
-  // Propagate trace message
-  sim_run(sim);
-  sim_destroy(&sim);
-
-  if (error != ESUCCESS)
-    _opts->trace->status= error;
-
-  if (trace != NULL) {
-    *trace= _opts->trace;
-    _opts->trace= NULL;
-  }
-  ip_options_destroy(&_opts);
-  return ESUCCESS;
-}
-
-// -----[ icmp_trace_send_next ]-------------------------------------
-ip_trace_t * icmp_trace_send_next(ip_opt_t * opts)
-{
-  if (!ip_opt_ecmp_has_next(opts))
-    return NULL;
-
-  ip_trace_t ** trace_ptr= ip_opt_ecmp_get_next(opts);
-  assert(trace_ptr != NULL);
-  return *trace_ptr;
-}
-
-static int _icmp_trace_has_next(void * ctx)
-{
-  return ip_opt_ecmp_has_next((ip_opt_t *) ctx);
-}
-
-static void * _icmp_trace_get_next(void * ctx)
-{
-  return ip_opt_ecmp_get_next((ip_opt_t *) ctx);
-}
-
-static void _icmp_trace_destroy(void * ctx)
-{
-  ip_opt_t * opts= (ip_opt_t *) ctx;
-  fifo_destroy(&opts->fifo_trace);
-}
-
-// -----[ icmp_trace_send2 ]---------------------------------------
 /**
- * In comparison with the above 'icmp_trace_send' function, this
- * one performs the following additional tasks.
- * 1). It creates an enumerator for retrieving multiple IP traces
- *     in case of equal-cost multiple paths (ECMP)
- * 2). It does not send the ICMP messages directly, but rather
- *     prepares the sending by pushing an initial probe message
- *     on the FIFO queue. This FIFO queue is linked to the probe
- *     message through its IP options.
- *
  * How to handle the IP options ?
  * - the caller provider IP options must be non-NULL
  * - shall the caller allocate the options on the stack on the heap ?
@@ -480,14 +425,19 @@ static void _icmp_trace_destroy(void * ctx)
  *
  * To enable ECMP search, the caller must set the IP_OPT_ECMP option.
  */
-gds_enum_t * icmp_trace_send2(net_node_t * node, net_addr_t dst_addr,
-			      uint8_t max_ttl, ip_opt_t * opts)
+array_t * icmp_trace_send(net_node_t * node, net_addr_t dst_addr,
+			  uint8_t max_ttl, ip_opt_t * opts)
 {
+  __debug("_icmp_trace_send");
   net_msg_t * msg;
   icmp_msg_t * icmp_msg= _icmp_msg_create(ICMP_TRACE, 0, node);
-  ip_opt_t *_opts= ip_options_copy(opts);
+  ip_opt_t *_opts;
+
+  if (opts != NULL)
+    _opts= ip_options_copy(opts, 1);
+  else
+    _opts= ip_options_create();
   ip_options_trace(_opts);
-  opts->fifo_trace= _opts->fifo_trace;
  
   // Prepare the ICMP message and associate the IP options
   msg= message_create(NET_ADDR_ANY, dst_addr,
@@ -495,14 +445,12 @@ gds_enum_t * icmp_trace_send2(net_node_t * node, net_addr_t dst_addr,
 		      icmp_msg, (FPayLoadDestroy) _icmp_msg_destroy);
   message_set_options(msg, _opts);
 
-  // Push the initial message onto the FIFO queue
-  ip_opt_ecmp_push(_opts, node, msg, NULL);
 
-  // Return an enumeration
-  return enum_create(opts,
-		     _icmp_trace_has_next,
-		     _icmp_trace_get_next,
-		     _icmp_trace_destroy);
+  array_t * traces= ip_opt_ecmp_run(_opts, msg, node);
+
+  ip_options_destroy(&_opts);
+  __debug("_icmp_trace_send::END");
+  return traces;
 }
 
 // -----[ _icmp_record_route_dump ]----------------------------------
@@ -568,14 +516,15 @@ int icmp_record_route(gds_stream_t * stream,
 		      ip_dest_t dest, net_tos_t tos,
 		      ip_opt_t * opts)
 {
+  int i;
   ip_trace_t * trace= NULL;
-  gds_enum_t * traces= icmp_trace_send2(node, dest.addr, 255, opts);
+  array_t * traces= icmp_trace_send(node, dest.addr, 255, opts);
 
-  while (enum_has_next(traces)) {
-    trace= *((ip_trace_t **) enum_get_next(traces));
+  for (i= 0; i < _array_length(traces); i++) {
+    _array_get_at(traces, i, &trace);
     _icmp_record_route_dump(stream, node, dest, opts, trace);
   }
-  enum_destroy(&traces);
+  _array_destroy(&traces);
   return ESUCCESS;
 }
 

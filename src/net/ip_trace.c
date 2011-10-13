@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)ip_trace.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 01/03/2008
 // $Id: ip_trace.c,v 1.7 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -49,7 +49,7 @@ _ip_trace_item_trace(ip_trace_t * trace)
 {
   ip_trace_item_t * item= (ip_trace_item_t *) MALLOC(sizeof(ip_trace_item_t));
   item->elt.type= TRACE;
-  item->elt.trace= (struct ip_trace_t *) trace;
+  item->elt.trace= trace;
   item->iif= NULL;
   item->oif= NULL;
   return item;
@@ -66,8 +66,7 @@ _ip_trace_item_copy(ip_trace_item_t * item)
   switch (item->elt.type) {
   case TRACE:
     new_item->elt.type= item->elt.type;
-    new_item->elt.trace=
-      (struct ip_trace_t *) ip_trace_copy((ip_trace_t *) item->elt.trace);
+    new_item->elt.trace= ip_trace_copy(item->elt.trace);
     break;
   default:
     new_item->elt.type= item->elt.type;
@@ -79,7 +78,12 @@ _ip_trace_item_copy(ip_trace_item_t * item)
 // -----[ _ip_trace_item_destroy ]-----------------------------------
 static void _ip_trace_item_destroy(void * item, const void * ctx)
 {
-  FREE(*((ip_trace_item_t **) item));
+  ip_trace_item_t * trace_item= *((ip_trace_item_t **) item);
+  if (trace_item->elt.type == TRACE) {
+    ip_trace_t * trace= (ip_trace_t *) trace_item->elt.trace;
+    ip_trace_destroy(&trace);
+  }
+  FREE(trace_item);
 }
 
 // -----[ ip_trace_create ]------------------------------------------
@@ -190,7 +194,20 @@ void ip_trace_dump(gds_stream_t * stream, ip_trace_t * trace,
     space= 0;
     switch (item->elt.type) {
     case NODE:
+      //if (item->iif != NULL) {
+      //  stream_printf(stream, "[");
+      //  net_iface_dump_id(stream, item->iif);
+      //  stream_printf(stream, "]");
+      //}
+
       node_dump_id(stream, item->elt.node);
+
+      //if (item->oif != NULL) {
+      //  stream_printf(stream, "[");
+      //  net_iface_dump_id(stream, item->oif);
+      //  stream_printf(stream, "]");
+      //}
+
       space= 1;
       break;
     case SUBNET:

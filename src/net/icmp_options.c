@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)icmp_options.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 01/04/2008
 // $Id: icmp_options.c,v 1.6 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -158,6 +158,8 @@ net_error_t _process_msg_alt_fwd(net_node_t * node,
   rt_info_t * rtinfo= NULL;
   net_error_t error= ESUCCESS;
 
+  ___ip_opt_debug("ALT-FWD opts=%o\n", msg->opts);
+
   if (*rtentries != NULL)
     return ESUCCESS;
 
@@ -190,19 +192,21 @@ net_error_t ip_opt_hook_msg_error(net_msg_t * msg, net_error_t error)
   if (!_has_option(msg))
     return ESUCCESS;
 
-  ___ip_opt_debug("ERROR\n");
+  ___ip_opt_debug("ERROR (%s)\n", network_strerror(error));
   
   if (!(msg->opts->flags & IP_OPT_TRACE))
     return ESUCCESS;
 
   msg->opts->trace->status= error;
-  // ???? What is the goal of the following code ????
-  /*while (msg->protocol == NET_PROTOCOL_IPIP) {
-    ip_trace_add_trace(((net_msg_t *) msg->payload)->opts->trace,
-		       msg->opts->trace);
-    msg= (net_msg_t *) msg->payload;
-    msg->opts->trace->status= error;
-    }*/
+
+  // In case of encapsulated messages, we need to propagate the error
+  // status from the most outer message to the inner message.
+  while (msg->protocol == NET_PROTOCOL_IPIP) {
+    net_msg_t * inner_msg= (net_msg_t *) msg->payload;
+    ip_trace_add_trace(inner_msg->opts->trace, msg->opts->trace);
+    msg= inner_msg;
+    msg->opts->trace->status= ENET_NO_REPLY;
+  }
   return error;
 }
 
@@ -220,19 +224,21 @@ net_error_t ip_opt_hook_msg_sent(net_node_t * node,
 
   ___ip_opt_debug("SENT node=%n opts=%o\n", node, msg->opts);
 
-  // Forward according to alternate dest ?
-  error= _process_msg_alt_fwd(node, msg, rtentries);
-  if (error != ESUCCESS)
-    return error;
-  
   /* Need to update trace ? */
   if (msg->opts->flags & IP_OPT_TRACE) {
     last_item= ip_trace_last_item(msg->opts->trace);
     if ((last_item == NULL) ||
 	(last_item->elt.type != NODE) ||
-	(last_item->elt.node != node))
+	(last_item->elt.node != node)) {
       ip_trace_add_node(msg->opts->trace, node, NET_ADDR_ANY, NET_ADDR_ANY);
+    }
   }
+
+  // Forward according to alternate dest ?
+  error= _process_msg_alt_fwd(node, msg, rtentries);
+  if (error != ESUCCESS)
+    return error;
+  
   return ESUCCESS;
 }
 
@@ -379,14 +385,18 @@ net_error_t ip_opt_hook_msg_encap(net_node_t * node,
   if (!(inner_msg->opts->flags & IP_OPT_TUNNEL))
     return ESUCCESS;
 
-  // Create new inside trace. Set status to no-reply.
+  // Create new inside trace for outer message. Set status to no-reply.
+  // Clear flag IP_OPT_ALT_DEST as the outer message is forwarded based
+  // on longest match and not exact match.
+  outer_msg->opts= ip_options_copy(inner_msg->opts, 0);
+  outer_msg->opts->flags&= ~IP_OPT_ALT_DEST;
   outer_msg->opts->trace= ip_trace_create();
   outer_msg->opts->trace->status= ENET_NO_REPLY;
 
   return ESUCCESS;
 }
 
-// -----[ ip_opt_hook_msg_decap ]---------------------------------
+// -----[ ip_opt_hook_msg_decap ]------------------------------------
 net_error_t ip_opt_hook_msg_decap(net_node_t * node,
 				  net_msg_t * outer_msg,
 				  net_msg_t * inner_msg)
@@ -404,7 +414,7 @@ net_error_t ip_opt_hook_msg_decap(net_node_t * node,
   assert(outer_msg->opts->trace != NULL);
   outer_msg->opts->trace->status= ESUCCESS;
 
-  // Connect inside trace (outer msg)  to outside trace (inner msg)
+  // Connect inside trace (outer msg) to outside trace (inner msg)
   ip_trace_add_trace(inner_msg->opts->trace, outer_msg->opts->trace);
 
   return ESUCCESS;
@@ -441,9 +451,11 @@ net_error_t ip_opt_hook_msg_ecmp(net_node_t * node,
   msg->opts->load/= num_entries;
 
   for (index= 1; index < num_entries; index++) {
+    // Note: message_copy() is responsible for copying the ip_opt
+    //       data structure through ip_options_copy().
+    //       On its side, ip_options_copy() is responsible for
+    //       duplicating the ip_trace data structure.
     msg_copy= message_copy(msg);
-    if (msg->opts->trace != NULL)
-      msg_copy->opts->trace= ip_trace_copy(msg->opts->trace);
     ip_opt_ecmp_push(msg->opts, node, msg_copy,
 		     rt_entries_get_at(*rtentries, index));
   }
@@ -467,47 +479,6 @@ void ip_opt_ecmp_push(ip_opt_t * opts, net_node_t * node,
   fifo_push(opts->fifo_trace, ctx);
 }
 
-// -----[ ip_opt_ecmp_has_next ]-------------------------------------
-int ip_opt_ecmp_has_next(ip_opt_t * opts)
-{
-  return (fifo_depth(opts->fifo_trace) > 0);
-}
-
-// -----[ ip_opt_ecmp_get_next ]-------------------------------------
-ip_trace_t ** ip_opt_ecmp_get_next(ip_opt_t * opts)
-{
-  simulator_t * sim;
-  _ecmp_ctx_t * ctx;
-  net_msg_t * msg;
-  ip_trace_t ** trace_ptr;
-
-  // Process next ECMP path ?
-  if (fifo_depth(opts->fifo_trace) <= 0)
-    return NULL;
-
-  ctx= fifo_pop(opts->fifo_trace);
-
-  ___ip_opt_debug("process ECMP trace %o\n", ctx->msg->opts);
-
-  msg= ctx->msg;
-  while ((msg != NULL) && (msg->protocol == NET_PROTOCOL_IPIP))
-    msg= (net_msg_t *) msg->payload;
-  trace_ptr= &msg->opts->trace;
-
-  ip_options_add_ref(ctx->msg->opts);
-  sim= sim_create(SCHEDULER_STATIC);
-  net_error_t error= node_send(ctx->node, ctx->msg, ctx->rtentries, sim);
-  if (error != ESUCCESS)
-    ___ip_opt_debug("could not send (%s)\n", network_strerror(error));
-
-  sim_run(sim);
-  sim_destroy(&sim);
-  rt_entries_destroy(&ctx->rtentries);
-  FREE(ctx);
-
-  return trace_ptr;
-}
-
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -524,7 +495,7 @@ void ip_options_init(ip_opt_t * opts)
 {
   opts->flags= 0;
   opts->load= 0;
-  opts->ref_cnt= 0;
+  opts->ref_cnt= 0x80000001;
   opts->trace= NULL;
   opts->fifo_trace= NULL;
 }
@@ -546,27 +517,40 @@ void ip_options_destroy(ip_opt_t ** opts_ref)
 {
   ip_opt_t * opts= *opts_ref;
 
-  if (opts != NULL) {
-    assert(opts->ref_cnt > 0);
-    opts->ref_cnt--;
+#ifdef IP_OPT_DEBUG
+  stream_printf(gdsout, "IP_OPT_DBG::ip_options_destroy %p:ref_cnt=%u\n", opts, opts->ref_cnt);
+#endif
 
-    if (opts->ref_cnt > 0)
+  if (opts != NULL) {
+    assert((opts->ref_cnt & 0x7FFFFFFF) > 0);
+    opts->ref_cnt= ((opts->ref_cnt & 0x80000000) |
+		    ((opts->ref_cnt & 0x7FFFFFFF)-1));
+
+    if ((opts->ref_cnt & 0x7FFFFFFF) > 0)
       return;
 
-    FREE(opts);
-    *opts_ref= NULL;
+    if ((opts->ref_cnt & 0x80000000) == 0) {
+#ifdef IP_OPT_DEBUG
+      stream_printf(gdsout, "IP_OPT_DBG::  destroy %p (all)\n", *opts_ref);
+#endif
+      FREE(opts);
+      *opts_ref= NULL;
+    }
   }
 }
 
 // -----[ ip_options_copy ]-----------------------------------------
-ip_opt_t * ip_options_copy(ip_opt_t * opts)
+ip_opt_t * ip_options_copy(ip_opt_t * opts, int with_trace)
 {
   ip_opt_t * new_opts= MALLOC(sizeof(ip_opt_t));
+#ifdef IP_OPT_DEBUG
+  stream_printf(gdsout, "IP_OPT_DEBUG::ip_options_copy %p:ref_cnt=%u -> %p\n", opts, opts->ref_cnt, new_opts);
+#endif
   new_opts->flags= opts->flags;
   new_opts->alt_dest= opts->alt_dest;
   new_opts->load= opts->load;
   new_opts->ref_cnt= 1;
-  if (opts->trace != NULL)
+  if (with_trace && (opts->trace != NULL))
     new_opts->trace= ip_trace_copy(opts->trace);
   else
     new_opts->trace= NULL;
@@ -577,8 +561,12 @@ ip_opt_t * ip_options_copy(ip_opt_t * opts)
 // -----[ ip_options_add_ref ]---------------------------------------
 void ip_options_add_ref(ip_opt_t * opts)
 {
-  assert(opts->ref_cnt < UINT_MAX);
-  opts->ref_cnt++;
+#ifdef IP_OPT_DEBUG
+  stream_printf(gdsout, "IP_OPT_DBG::ip_options_add_ref %p:ref_cnt=%u\n", opts, opts->ref_cnt);
+#endif
+  assert((opts->ref_cnt & 0x7FFFFFFF) < UINT_MAX-0x80000000);
+  opts->ref_cnt= ((opts->ref_cnt & 0x80000000) |
+		  ((opts->ref_cnt & 0x7FFFFFFF)+1));
 }
 
 // -----[ ip_options_load ]------------------------------------------
@@ -613,16 +601,77 @@ void ip_options_alt_dest(ip_opt_t * opts, ip_pfx_t alt_dest)
   opts->alt_dest= alt_dest;
 }
 
-// -----[ _fifo_trace_destroy ]--------------------------------------
-static void _fifo_trace_destroy(void ** item)
-{
-  // TODO: free stored ECMP trace context
-}
-
 // -----[ ip_options_trace ]-----------------------------------------
 void ip_options_trace(ip_opt_t * opts)
 {
   opts->flags|= IP_OPT_TRACE;
   opts->trace= ip_trace_create();
-  opts->fifo_trace= fifo_create(MAX_TRACE_FIFO_DEPTH, _fifo_trace_destroy);
+}
+
+// -----[ _fifo_trace_destroy ]--------------------------------------
+static void _fifo_trace_destroy(void ** item)
+{
+  // TODO: free stored ECMP trace context
+#ifdef IP_OPT_DEBUG
+  stream_printf(gdsout, "IP_OPT_DBG::_fifo_trace_destroy %p\n", *item);
+#endif
+}
+
+// -----[ _array_trace_destroy ]-------------------------------------
+static void _array_trace_destroy(void * item, const void * ctx)
+{
+  ip_trace_t * trace= *((ip_trace_t **) item);
+#ifdef IP_OPT_DEBUG
+  stream_printf(gdsout, "IP_OPT_DBG::_array_trace_destroy %p\n", trace);
+#endif
+  ip_trace_destroy(&trace);
+}
+
+// -----[ ip_opt_ecmp_run ]------------------------------------------
+array_t * ip_opt_ecmp_run(ip_opt_t * opts, net_msg_t * init_msg,
+			  net_node_t * node)
+{
+  simulator_t * sim;
+  net_msg_t * msg;
+  ip_trace_t ** trace_ptr;
+  _ecmp_ctx_t * ctx;
+  gds_fifo_t * fifo_trace= fifo_create(MAX_TRACE_FIFO_DEPTH, _fifo_trace_destroy);
+  array_t * traces= _array_create(sizeof(ip_trace_t *),
+				  0, 0, NULL, _array_trace_destroy, NULL);
+  opts->fifo_trace= fifo_trace;
+
+  // Push the initial message onto the FIFO queue
+  ip_opt_ecmp_push(opts, node, init_msg, NULL);
+
+  while (fifo_depth(fifo_trace) > 0) {
+    ctx= fifo_pop(fifo_trace);
+    ___ip_opt_debug("process ECMP trace %o\n", ctx->msg->opts);
+    
+    msg= ctx->msg;
+    while ((msg != NULL) && (msg->protocol == NET_PROTOCOL_IPIP))
+      msg= (net_msg_t *) msg->payload;
+    trace_ptr= &msg->opts->trace;
+
+    opts= msg->opts;
+    ip_options_add_ref(opts);
+
+    sim= sim_create(SCHEDULER_STATIC);
+    net_error_t error= node_send(ctx->node, ctx->msg, ctx->rtentries, sim);
+    if (error != ESUCCESS) {
+      (*trace_ptr)->status= error;
+      ___ip_opt_debug("could not send (%s)\n", network_strerror(error));
+    } else {
+      sim_run(sim);
+    }
+    sim_destroy(&sim);
+    rt_entries_destroy(&ctx->rtentries);
+    FREE(ctx);
+
+    _array_append(traces, trace_ptr);
+
+    ip_options_destroy(&opts);
+  }
+
+  fifo_destroy(&fifo_trace);
+  return traces;
 }

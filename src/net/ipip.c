@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)ipip.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 25/02/2004
 // $Id: ipip.c,v 1.10 2009-03-24 16:14:28 bqu Exp $
 // ==================================================================
@@ -82,9 +82,10 @@ typedef struct {
   net_addr_t    src_addr;
 } ipip_data_t;
 
-// -----[ _ipip_link_destroy ]---------------------------------------
-static void _ipip_link_destroy(void * ctx)
+// -----[ _ipip_iface_destroy ]--------------------------------------
+static void _ipip_iface_destroy(void * ctx)
 {
+  // Destroy iface->user_data (ctx)
   FREE(ctx);
 }
 
@@ -94,29 +95,15 @@ static void _ipip_link_destroy(void * ctx)
  */
 static void _ipip_msg_destroy(void ** payload_ref)
 {
-  //net_msg_t * msg= *((net_msg_t **) payload_ref);
-  //message_destroy(&msg);
-}
+  net_msg_t * msg= *((net_msg_t **) payload_ref);
 
-// -----[ _ipip_proto_dump_msg ]-------------------------------------
-static void _ipip_proto_dump_msg(gds_stream_t * stream, net_msg_t * msg)
-{
-  net_msg_t * encap_msg= (net_msg_t *) msg->payload;
-  stream_printf(stream, "msg:[");
-  message_dump(stream, encap_msg);
-  stream_printf(stream, "]");
-}
-
-// -----[ _ipip_proto_copy_payload ]---------------------------------
-static void * _ipip_proto_copy_payload(net_msg_t * msg)
-{
-  net_msg_t * inner_msg= message_copy((net_msg_t *) msg->payload);
-  return inner_msg;
+  ___ipip_debug("_ipip_msg_destroy msg=%m\n", msg);
+  message_destroy(&msg);
 }
 
 // -----[ ipip_iface_send ]------------------------------------------
 /**
- *
+ * This is the tunnel interface send function.
  */
 static int _ipip_iface_send(net_iface_t * self,
 			    net_addr_t next_hop,
@@ -126,7 +113,7 @@ static int _ipip_iface_send(net_iface_t * self,
   net_addr_t src_addr= ctx->src_addr;
   net_msg_t * outer_msg;
 
-  ___ipip_debug("send msg=%m\n", msg);
+  ___ipip_debug("_ipip_iface_send msg=%m\n", msg);
 
   if (ctx->oif != NULL) {
     // Default IP encap source address = outgoing interface's address.
@@ -141,24 +128,28 @@ static int _ipip_iface_send(net_iface_t * self,
     outer_msg= message_create(src_addr, self->dest.end_point,
 			      NET_PROTOCOL_IPIP, 255, msg,
 			      _ipip_msg_destroy);
-    if (msg->opts != NULL) {
-      outer_msg->opts= ip_options_copy(msg->opts);
-      outer_msg->opts->flags&= ~IP_OPT_ALT_DEST;
-    }
+
     ip_opt_hook_msg_encap(self->owner, outer_msg, msg);
 
-    return node_send(self->owner, outer_msg,
-		     NULL, NULL);
+    node_send(self->owner, outer_msg, NULL, NULL);
+    return ESUCCESS;
   }
 }
 
 // -----[ ipip_iface_recv ]------------------------------------------
 /**
- * TODO: destroy payload.
+ * This is the tunnel interface receive function.
+ *
+ * Note: this function is responsible for destroying the received
+ *       message. This is a bit different from a protocol handler,
+ *       but is exactly the same behavior as an interface.
  */
 static int _ipip_iface_recv(net_iface_t * self, net_msg_t * msg)
 {
-  ___ipip_debug("rcvd msg=%m\n", msg);
+  net_msg_t * outer_msg;
+  net_msg_t * inner_msg;
+
+  ___ipip_debug("_ipip_iface_recv msg=%m\n", msg);
 
   if (msg->protocol != NET_PROTOCOL_IPIP) {
     /* Discard packet silently ? should log */
@@ -166,9 +157,15 @@ static int _ipip_iface_recv(net_iface_t * self, net_msg_t * msg)
     return -1;
   }
 
-  ip_opt_hook_msg_decap(self->owner, msg, (net_msg_t *) msg->payload);
+  outer_msg= msg;
+  inner_msg= (net_msg_t *) outer_msg->payload;
 
-  return node_recv_msg(self->owner, self, (net_msg_t *) msg->payload);
+  ip_opt_hook_msg_decap(self->owner, outer_msg, inner_msg);
+
+  outer_msg->payload= NULL;
+  message_destroy(&outer_msg);
+
+  return node_recv_msg(self->owner, self, inner_msg);
 }
 
 // -----[ ipip_link_create ]-----------------------------------------
@@ -187,7 +184,7 @@ net_error_t ipip_link_create(net_node_t * node,
 			     net_addr_t addr,
 			     net_iface_t * oif,
 			     net_addr_t src_addr,
-			     net_iface_t ** ppLink)
+			     net_iface_t ** iface_ref)
 {
   net_iface_t * tunnel;
   ipip_data_t * ctx;
@@ -210,7 +207,7 @@ net_error_t ipip_link_create(net_node_t * node,
   tunnel->dest.end_point= end_point;
   tunnel->connected= 1;
 
-  // Create the IPIP context
+  // Create the IPIP context (will be destroyed by _ipip_iface_destroy)
   ctx= (ipip_data_t *) MALLOC(sizeof(ipip_data_t));
   ctx->oif= oif;
   ctx->gateway= NET_ADDR_ANY;
@@ -219,72 +216,60 @@ net_error_t ipip_link_create(net_node_t * node,
   tunnel->user_data= ctx;
   tunnel->ops.send= _ipip_iface_send;
   tunnel->ops.recv= _ipip_iface_recv;
-  tunnel->ops.destroy= _ipip_link_destroy;
+  tunnel->ops.destroy= _ipip_iface_destroy;
 
-  *ppLink= tunnel;
+  *iface_ref= tunnel;
 
   return ESUCCESS;
 }
 
-// ----- ipip_send --------------------------------------------------
+
+
+// -----[ _ipip_proto_handle ]---------------------------------------
 /**
- * Encapsulate the given message and sent it to the given tunnel
- * endpoint address.
+ * This handler is used when an IPIP packet is delivered for
+ * processing to the destination node. This is not the expected way
+ * to receive IPIP packets. The normal way is through the tunnel
+ * endpoint, i.e. a tunnel interface on the destination node.
+ *
+ * When a packet is received by this function it is discarded. It's
+ * main purpose is to free IPIP packets from memory.
  */
-int ipip_send(net_node_t * node, net_addr_t dst_addr,
-	      net_msg_t * msg)
+static int _ipip_proto_handle(simulator_t * sim,
+			      void * handler,
+			      net_msg_t * msg)
 {
+  ___ipip_debug("_ipip_proto_handle msg=%m\n", msg);
+
+  net_msg_t * inner_msg= (net_msg_t *) msg->payload;
+  message_destroy(&inner_msg);
   return ESUCCESS;
+
 }
 
-// -----[ ipip_event_handler ]---------------------------------------
-/**
- * IP-in-IP protocol handler. Decapsulate IP-in-IP messages and send
- * to encapsulated message's destination.
- */
-int ipip_event_handler(simulator_t * sim,
-		       void * handler,
-		       net_msg_t * msg)
+// -----[ _ipip_proto_dump_msg ]-------------------------------------
+static void _ipip_proto_dump_msg(gds_stream_t * stream, net_msg_t * msg)
 {
-  net_node_t * node= (net_node_t *) handler;
-  net_iface_t * iif= NULL;
-  gds_stream_t * syslog= node_syslog(node);
+  net_msg_t * encap_msg= (net_msg_t *) msg->payload;
+  stream_printf(stream, "msg:[");
+  if (encap_msg != NULL)
+    message_dump(stream, encap_msg);
+  else
+    stream_printf(stream, "null");
+  stream_printf(stream, "]");
+}
 
-  /*
-  stream_printf(gdserr, "IPIP msg handling {");
-  message_dump(gdserr, msg);
-  stream_printf(gdserr, "}\n");
-*/
-
-  /* Check that the receiving interface exists */
-  iif= node_find_iface(node, net_prefix(msg->dst_addr, 32));
-  if (iif == NULL) {
-    stream_printf(syslog, "IP-IP msg dst is not a local interface\n");
-    return EUNSUPPORTED;
-  }
-
-  /* Check that the receiving interface is VIRTUAL */
-  if (iif->type != NET_IFACE_VIRTUAL) {
-    stream_printf(syslog, "In node ");
-    ip_address_dump(syslog, node->rid);
-    stream_printf(syslog, ",\nIP-IP message received but addressed "
-	       "to wrong interface ");
-    ip_address_dump(syslog, msg->dst_addr);
-    stream_printf(syslog, "\n");
-    return EUNSUPPORTED;
-  }
-
-  /* Note: in the future, we shall check that the receiving interface
-   * is IP-in-IP enabled */
-
-  /* Deliver to node (forward if required ) */
-  return node_recv_msg(node, iif, (net_msg_t *) msg->payload);
+// -----[ _ipip_proto_copy_payload ]---------------------------------
+static void * _ipip_proto_copy_payload(net_msg_t * msg)
+{
+  net_msg_t * inner_msg= message_copy((net_msg_t *) msg->payload);
+  return inner_msg;
 }
 
 const net_protocol_def_t PROTOCOL_IPIP= {
   .name= "ipip",
   .ops= {
-    .handle      = NULL,
+    .handle      = _ipip_proto_handle,
     .destroy     = NULL,
     .dump_msg    = _ipip_proto_dump_msg,
     .destroy_msg = NULL,

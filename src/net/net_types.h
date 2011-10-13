@@ -2,7 +2,7 @@
 // @(#)net_types.h
 //
 // @author Stefano Iasi (stefanoia@tin.it)
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 30/06/2005
 // $Id: net_types.h,v 1.18 2009-03-24 16:18:43 bqu Exp $
 // ==================================================================
@@ -65,6 +65,8 @@ typedef struct {
 typedef enum {
   /** Raw data protocol. */
   NET_PROTOCOL_RAW,
+  /** Protocol used for debug purposes. */
+  NET_PROTOCOL_DEBUG,
   /** ICMP protocol. */
   NET_PROTOCOL_ICMP,
   /** BGP protocol. */
@@ -111,7 +113,7 @@ typedef struct {
 /** Virtual methods of a network protocol. */
 typedef struct {
   int    (*handle)      (simulator_t * sim, void * handler,
-			      net_msg_t * msg);
+			 net_msg_t * msg);
   void   (*destroy)     (void ** handler);
   void   (*dump_msg)    (gds_stream_t * stream, net_msg_t * msg);
   void   (*destroy_msg) (net_msg_t * msg);
@@ -367,7 +369,8 @@ typedef int (*net_iface_recv_f)(struct net_iface_t * self,
 
 // -----[ net_iface_destroy_f ]--------------------------------------
 /**
- * Interface disposal callback function.
+ * Interface disposal callback function. This function is used to
+ * free the memory reference by iface->user_data.
  */
 typedef void (*net_iface_destroy_f)(void * ctx);
 
@@ -484,6 +487,22 @@ typedef struct {
 } net_send_ctx_t;
 
 
+// -----[ ip_trace_t ]-----------------------------------------------
+/** Definition of an IP trace. */
+typedef struct ip_trace_t {
+  /** Array of traversed hops. */
+  ptr_array_t       * items;
+  /** QoS info: delay. */
+  net_link_delay_t    delay;
+  /** QoS info: IGP weight. */
+  igp_weight_t        weight;
+  /** QoS info: max capacity. */
+  net_link_load_t     capacity;
+  /** General status of trace. */
+  net_error_t         status;
+} ip_trace_t;
+
+
 // -----[ net_elem_type_t ]------------------------------------------
 /**
  * This type defines a union of network elements: iface, node, subnet,
@@ -515,9 +534,10 @@ typedef struct {
     /** Element as a subnet. */
     net_subnet_t      * subnet;
     /** Element as an IP trace. */
-    struct ip_trace_t * trace;
+    /*struct */ip_trace_t * trace;
   };
 } net_elem_t;
+
 
 
 /////////////////////////////////////////////////////////////////////

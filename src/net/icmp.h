@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)icmp.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 25/02/2004
 // $Id: icmp.h,v 1.7 2009-03-24 16:09:09 bqu Exp $
 // ==================================================================
@@ -19,6 +19,7 @@
 #ifndef __NET_ICMP_H__
 #define __NET_ICMP_H__
 
+#include <libgds/array.h>
 #include <libgds/enumerator.h>
 
 #include <net/ip_trace.h>
@@ -56,6 +57,7 @@ typedef struct {
   icmp_msg_type_t     type;     /* ICMP type */
   icmp_error_type_t   sub_type; /* ICMP subtype (error) */
   net_node_t        * node;     /* Origin node */
+  ip_trace_t        * trace;
 } icmp_msg_t;
 
 
@@ -80,14 +82,8 @@ extern "C" {
   int icmp_ping_send_recv(net_node_t * node, net_addr_t src_addr,
 			  net_addr_t dst_addr, uint8_t ttl);
   // -----[ icmp_trace_send ]----------------------------------------
-  int icmp_trace_send(net_node_t * node, net_addr_t dst_addr,
-		      uint8_t max_ttl, ip_opt_t * opts,
-		      ip_trace_t ** trace_ref);
-  // -----[ icmp_trace_send_next ]-----------------------------------
-  ip_trace_t * icmp_trace_send_next(ip_opt_t * opts);
-  // -----[ icmp_trace_send2 ]----------------------------------------
-  gds_enum_t * icmp_trace_send2(net_node_t * node, net_addr_t dst_addr,
-				uint8_t max_ttl, ip_opt_t * opts);
+  array_t * icmp_trace_send(net_node_t * node, net_addr_t dst_addr,
+			    uint8_t max_ttl, ip_opt_t * opts);
   
   
   ///////////////////////////////////////////////////////////////////
