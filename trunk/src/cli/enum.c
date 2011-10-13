@@ -165,7 +165,7 @@ bgp_peer_t * cli_enum_aslevel_links(const char * text, int state)
     assert(snprintf(str_asn, ASN_STR_LEN, "%u", link->neighbor->asn) >= 0);
     index++;
     if (!strncmp(text, str_asn, strlen(text)))
-      return link;
+      return link->peer;
   }
 
   return NULL;
@@ -213,14 +213,14 @@ char * cli_enum_net_nodes_addr(const char * text, int state)
 char * cli_enum_aslevel_links_addr(const char * text, int state)
 {
   char asn_addr[ASN_STR_LEN+2];
-  as_level_link_t * link= NULL;
+  bgp_peer_t * peer= NULL;
   
-  while ((link= cli_enum_aslevel_links(text, state++)) != NULL) {
-    if (link == NULL)
+  while ((peer= cli_enum_aslevel_links(text, state++)) != NULL) {
+    if (peer == NULL)
       continue;
     asn_addr[0]= 'A';
     asn_addr[1]= 'S';
-    assert(snprintf(asn_addr+2, sizeof(asn_addr)-2, "%u", link->neighbor->asn) >= 0);
+    assert(snprintf(asn_addr+2, sizeof(asn_addr)-2, "%u", peer->asn) >= 0);
     return strdup(asn_addr);
   }
   return NULL;
