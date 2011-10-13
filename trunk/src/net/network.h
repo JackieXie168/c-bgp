@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)network.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 4/07/2003
 // $Id: network.h,v 1.33 2009-03-24 16:20:17 bqu Exp $
 // ==================================================================
@@ -40,7 +40,8 @@ extern "C" {
   void thread_set_simulator(simulator_t * sim);
 
   // -----[ network_drop ]-------------------------------------------
-  void network_drop(net_msg_t * msg, const char * reason, ...);
+  void network_drop(net_msg_t * msg, net_error_t error,
+		    const char * reason, ...);
   // -----[ network_send ]-------------------------------------------
   void network_send(net_iface_t * dst_iface, net_msg_t * msg);
 

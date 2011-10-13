@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)protocol.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 25/02/2004
 // $Id: protocol.c,v 1.8 2009-03-24 16:23:40 bqu Exp $
 // ==================================================================
@@ -35,8 +35,35 @@ const net_protocol_def_t PROTOCOL_RAW= {
   }
 };
 
+typedef int (*debug_proto_handler)(net_msg_t * msg);
+
+static int _debug_proto_handle(simulator_t * sim,
+			      void * handler,
+			      net_msg_t * msg)
+{
+  return ((debug_proto_handler) handler)(msg);
+}
+
+static void _debug_proto_destroy_msg(net_msg_t * msg)
+{
+  if (msg->payload != NULL)
+    FREE(msg->payload);
+}
+
+const net_protocol_def_t PROTOCOL_DEBUG= {
+  .name= "debug",
+  .ops= {
+    .handle      = _debug_proto_handle,
+    .destroy     = NULL,
+    .dump_msg    = NULL,
+    .destroy_msg = _debug_proto_destroy_msg,
+    .copy_payload= NULL,
+  }
+};
+
 const net_protocol_def_t * PROTOCOL_DEFS[NET_PROTOCOL_MAX]= {
   &PROTOCOL_RAW,
+  &PROTOCOL_DEBUG,
   &PROTOCOL_ICMP,
   &PROTOCOL_BGP,
   &PROTOCOL_IPIP,

@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)message.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 23/02/2004
 // $Id: message.c,v 1.10 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -16,6 +16,16 @@
 #include <net/icmp_options.h>
 #include <net/message.h>
 #include <net/protocol.h>
+
+//#define NET_MSG_DEBUG
+
+static inline void __debug(const char * msg)
+{
+#ifdef NET_MSG_DEBUG
+  stream_printf(gdsout, "NET_MSG::%s\n", msg);
+  stream_flush(gdsout);
+#endif
+}
 
 // -----[ message_create ]-------------------------------------------
 net_msg_t * message_create(net_addr_t src_addr, net_addr_t dst_addr,
@@ -37,6 +47,8 @@ net_msg_t * message_create(net_addr_t src_addr, net_addr_t dst_addr,
 // -----[ message_destroy ]------------------------------------------
 void message_destroy(net_msg_t ** msg_ref)
 {
+  __debug("message_destroy");
+
   net_msg_t * msg= *msg_ref;
 
   if (msg != NULL) {
@@ -48,6 +60,7 @@ void message_destroy(net_msg_t ** msg_ref)
     FREE(msg);
     *msg_ref= NULL;
   }
+  __debug("message_destroy::END");
 }
 
 // -----[ message_set_options ]--------------------------------------
@@ -76,7 +89,7 @@ net_msg_t * message_copy(net_msg_t * msg)
 			  proto_def->ops.copy_payload(msg),
 			  msg->ops.destroy);
   if (msg->opts != NULL)
-    new_msg->opts= ip_options_copy(msg->opts);
+    new_msg->opts= ip_options_copy(msg->opts, 1);
   return new_msg;
 }
 
@@ -91,6 +104,7 @@ void message_dump(gds_stream_t * stream, net_msg_t * msg)
   stream_printf(stream, ", proto:%s, ttl:%d",
 	     net_protocol2str(msg->protocol), msg->ttl);
   stream_printf(stream, ", payload:");
+  stream_flush(stream);
   proto_def= net_protocols_get_def(msg->protocol);
   if (proto_def->ops.dump_msg != NULL)
     proto_def->ops.dump_msg(stream, msg);

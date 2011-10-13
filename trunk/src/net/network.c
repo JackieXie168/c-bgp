@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)network.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 4/07/2003
 // $Id: network.c,v 1.59 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -219,21 +219,24 @@ static sim_event_ops_t _network_send_ops= {
  * The function can write an optional error message on the standard
  * output stream.
  */
-void network_drop(net_msg_t * msg, const char * reason, ...)
+void network_drop(net_msg_t * msg, net_error_t error,
+		  const char * reason, ...)
 {
+  ___network_debug("network_drop\n");
   va_list ap;
-
   va_start(ap, reason);
 
-  ip_opt_hook_msg_error(msg, ENET_NO_REPLY);
-  /*
+  ip_opt_hook_msg_error(msg, error);
+
+#ifdef NETWORK_DEBUG
   stream_printf(gdserr, "*** \033[31;1mMESSAGE DROPPED\033[0m ***\n");
   stream_printf(gdserr, "message: ");
   message_dump(gdserr, msg);
   stream_printf(gdserr, "\nreason : ");
   stream_vprintf(gdserr, reason, ap);
   stream_printf(gdserr, "\n");
-  */
+#endif /* NETWORK_DEBUG */
+
   message_destroy(&msg);
   va_end(ap);
 }
@@ -381,7 +384,7 @@ _node_ip_fwd_error(net_node_t * node,
     icmp_send_error(node, NET_ADDR_ANY, msg->src_addr,
 		    icmp_error, _thread_get_simulator());
 
-  network_drop(msg, "forwarding error \"%s\"", network_strerror(error));
+  network_drop(msg, error, "forwarding error \"%s\"", network_strerror(error));
   return error;
 }
 
@@ -398,6 +401,8 @@ _node_ip_process_msg(net_node_t * node, net_msg_t * msg)
 {
   net_protocol_t * proto;
   net_error_t error;
+
+  ___network_debug("node_ip_process_msg node=%n\n", node);
 
   // Find protocol (based on message field)
   proto= protocols_get(node->protocols, msg->protocol);
@@ -458,6 +463,10 @@ net_error_t _node_ip_input(net_node_t * node, net_iface_t * iif,
  * \param msg       is the message to be sent.
  * \retval ESUCCESS in case of success, a negative error code
  *         otherwize.
+ *
+ * Note: if the message cannot be sent through the outgoing interface,
+ *       then it is the responsibility of this function (_node_ip_output)
+ *       to destroy the message !!!
  */
 static inline net_error_t
 _node_ip_output(net_node_t * node, net_iface_t * iif,
@@ -480,7 +489,8 @@ _node_ip_output(net_node_t * node, net_iface_t * iif,
     return error;
 
   // Recursive lookup ? resolving the real outgoing interface
-  // is done for protocols such as BGP
+  // is done for protocols such as BGP where the next-hop is
+  // not necessarily adjacent and requires an IGP/static route
   if (rtentry->oif == NULL) {
     dst= rtentry->gateway;
     rtentries= node_rt_lookup(node, dst);
@@ -523,7 +533,24 @@ _node_ip_output(net_node_t * node, net_iface_t * iif,
 
   // Forward along this link...
   ___network_debug("node_ip_output oif:%i\n", rtentry->oif);
-  return net_iface_send(rtentry->oif, l2_addr, msg);
+  error= net_iface_send(rtentry->oif, l2_addr, msg);
+
+  // If the message could not be sent through that interface,
+  // i.e. an error code is received, then the message is destroyed.
+  if (error != ESUCCESS) {
+    if (error == ENET_HOST_UNREACH) {
+      network_drop(msg, error, "message could not be output (%s)",
+		   network_strerror(error));
+      return error;
+    } else
+      network_drop(msg, error, "message could not be output (%s)",
+		   network_strerror(error));
+  }
+
+  // Even if the message was sent on the link but the link was broken,
+  // a success is returned as the node can't figure that the message
+  // was not delivered by the link.
+  return ESUCCESS;
 }
 
 // -----[ node_recv_msg ]--------------------------------------------
@@ -631,6 +658,8 @@ net_error_t node_send(net_node_t * node, net_msg_t * msg,
 		      const rt_entries_t * rtentries,
 		      simulator_t * sim)
 {
+  ___network_debug("node_send node=%n msg=%m\n", node, msg);
+
   net_error_t error;
   net_iface_t * lif;
 
@@ -639,8 +668,11 @@ net_error_t node_send(net_node_t * node, net_msg_t * msg,
 
   // Process IP options
   error= ip_opt_hook_msg_sent(node, msg, &rtentries);
-  if (error != ESUCCESS)
+  if (error != ESUCCESS) {
+    network_drop(msg, error, "ip opt hook reported an error (%s)",
+		 network_strerror(error));
     return error;
+  }
 
   if (rtentries != NULL)
     ___network_debug("SEND rtentry=%r\n", rtentries->data[0]);

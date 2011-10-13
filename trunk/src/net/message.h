@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)message.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 23/02/2004
 // $Id: message.h,v 1.8 2009-03-24 16:17:40 bqu Exp $
 // ==================================================================

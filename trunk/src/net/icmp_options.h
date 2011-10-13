@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)icmp_options.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 01/0/2008
 // $Id: icmp_options.h,v 1.4 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -11,6 +11,7 @@
 
 #include <assert.h>
 
+#include <libgds/array.h>
 #include <libgds/fifo.h>
 #include <libgds/stack.h>
 
@@ -48,12 +49,14 @@ extern "C" {
   // IP OPTIONS SETUP
   ///////////////////////////////////////////////////////////////////
 
+  // -----[ ip_options_init ]----------------------------------------
+  void ip_options_init(ip_opt_t * opts);
   // -----[ ip_options_create ]--------------------------------------
   ip_opt_t * ip_options_create(void);
   // -----[ ip_options_destroy ]-------------------------------------
   void ip_options_destroy(ip_opt_t ** opts_ref);
   // -----[ ip_options_copy ]----------------------------------------
-  ip_opt_t * ip_options_copy(ip_opt_t * opts);
+  ip_opt_t * ip_options_copy(ip_opt_t * opts, int with_trace);
   // -----[ ip_options_add_ref ]-------------------------------------
   void ip_options_add_ref(ip_opt_t * opts);
   // -----[ ip_options_set ]-----------------------------------------
@@ -114,6 +117,8 @@ extern "C" {
   int ip_opt_ecmp_has_next(ip_opt_t * opts);
   // -----[ ip_opt_ecmp_get_next ]-----------------------------------
   ip_trace_t ** ip_opt_ecmp_get_next(ip_opt_t * opts);
+  
+  array_t * ip_opt_ecmp_run(ip_opt_t * opts, net_msg_t * init_msg, net_node_t * node);
 
 #ifdef __cplusplus
 }

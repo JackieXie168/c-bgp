@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)node.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 08/08/2005
 // $Id: node.c,v 1.19 2009-08-31 09:48:28 bqu Exp $
 // ==================================================================
@@ -747,13 +747,18 @@ int node_load_flow(net_node_t * node, net_addr_t src_addr,
 {
   ip_trace_t * trace;
   net_error_t result= ESUCCESS;
+  array_t * traces;
 
   flow_stats_count(stats, bytes);
 
   if (opts == NULL)
     opts= ip_options_create();
   ip_options_load(opts, bytes);
-  icmp_trace_send(node, dst_addr, 255, opts, &trace);
+  traces= icmp_trace_send(node, dst_addr, 255, opts);
+  assert(traces != NULL);
+  assert(_array_length(traces) == 1); // ECMP is not enabled
+
+  _array_get_at(traces, 0, &trace);
 
   // No trace returned. Update statistics.
   if (trace == NULL) {
@@ -765,15 +770,15 @@ int node_load_flow(net_node_t * node, net_addr_t src_addr,
     result= trace->status;
 
   // If trace not requested by caller, free
-  if (trace_ref == NULL)
-    ip_trace_destroy(&trace);
-  else
+  if (trace_ref != NULL) {
     *trace_ref= trace;
+    trace= NULL;
+    _array_set_at(traces, 0, &trace);
+  }
+  _array_destroy(&traces);
 
-  /**
-   * \todo In the future, additional checks could be added here...
-   * \li destination reached ?
-   */
+  // \todo In the future, additional checks could be added here...
+  // \li destination reached ?
 
   if (result != ESUCCESS)
     flow_stats_failure(stats, bytes);

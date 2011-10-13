@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)ip_trace.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 01/03/2008
 // $Id: ip_trace.h,v 1.6 2009-03-24 16:13:52 bqu Exp $
 // ==================================================================
@@ -36,22 +36,6 @@ typedef struct {
   /** User-data (e.g. hop QoS data). */
   void        * user_data;
 } ip_trace_item_t;
-
-// -----[ ip_trace_t ]-----------------------------------------------
-/** Definition of an IP trace. */
-typedef struct {
-  /** Array of traversed hops. */
-  ptr_array_t      * items;
-  /** QoS info: delay. */
-  net_link_delay_t   delay;
-  /** QoS info: IGP weight. */
-  igp_weight_t       weight;
-  /** QoS info: max capacity. */
-  net_link_load_t    capacity;
-  /** General status of trace. */
-  net_error_t        status;
-} ip_trace_t;
-
 
 #define IP_TRACE_DUMP_LENGTH  0x01
 #define IP_TRACE_DUMP_SUBNETS 0x02

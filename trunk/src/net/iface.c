@@ -108,9 +108,14 @@ static net_iface_t * _iface_new_virtual(net_node_t * node, net_addr_t addr)
 // -----[ net_iface_destroy ]----------------------------------------
 void net_iface_destroy(net_iface_t ** iface_ref)
 {
+  net_iface_t * iface;
+
   if (*iface_ref != NULL) {
-    net_igp_weights_destroy(&(*iface_ref)->weights);
-    FREE(*iface_ref);
+    iface= *iface_ref;
+    net_igp_weights_destroy(&iface->weights);
+    if (iface->ops.destroy != NULL)
+      iface->ops.destroy(iface->user_data);
+    FREE(iface);
     *iface_ref= NULL;
   }    
 }
@@ -335,6 +340,10 @@ int net_iface_recv(net_iface_t * iface, net_msg_t * msg)
 }
 
 // -----[ net_iface_send ]-------------------------------------------
+/**
+ * Note: this function MUST NOT destroy a message. In case of error
+ *       the message will be destroyed by the caller.
+ */
 int net_iface_send(net_iface_t * iface, net_addr_t l2_addr,
 		   net_msg_t * msg)
 {
@@ -342,10 +351,8 @@ int net_iface_send(net_iface_t * iface, net_addr_t l2_addr,
   
   // Check link's state
   if (!net_iface_is_connected(iface) ||
-      !net_iface_is_enabled(iface)) {
-    network_drop(msg, "link not connected or disabled");
+      !net_iface_is_enabled(iface))
     return ENET_LINK_DOWN;
-  }
   
   return iface->ops.send(iface, l2_addr, msg);
 }

@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)ipip.h
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 25/02/2004
 // $Id: ipip.h,v 1.5 2009-03-24 16:14:28 bqu Exp $
 // ==================================================================
@@ -20,12 +20,6 @@ extern const net_protocol_def_t PROTOCOL_IPIP;
 extern "C" {
 #endif
 
-  // ----- ipip_send ------------------------------------------------
-  int ipip_send(net_node_t * node, net_addr_t dst_addr,
-		net_msg_t * msg);
-  // ----- ipip_event_handler ---------------------------------------
-  int ipip_event_handler(simulator_t * sim,
-			 void * handler, net_msg_t * msg);
   // -----[ ipip_link_create ]---------------------------------------
   int ipip_link_create(net_node_t * node, net_addr_t end_point,
 		       net_addr_t addr, net_iface_t * oif,
