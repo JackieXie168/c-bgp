@@ -1782,9 +1782,9 @@ int bgp_router_decision_process(bgp_router_t * router,
  * payload). It should however not destroy the encapsulating network
  * message !!!
  */
- int bgp_router_handle_message(simulator_t * sim,
-			       void * handler,
-			       net_msg_t * msg)
+int bgp_router_handle_message(simulator_t * sim,
+			      void * handler,
+			      net_msg_t * msg)
 {
   bgp_router_t * router= (bgp_router_t *) handler;
   bgp_msg_t * bgp_msg= (bgp_msg_t *) msg->payload;
