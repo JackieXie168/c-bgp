@@ -64,7 +64,7 @@ typedef struct couple_node_routinginfo_t{
 } couple_node_routinginfo_t;
 
 
-
+// TODO : brol
 typedef struct routing_state_t{
   struct state_t              * state;
   couple_node_routinginfo_t **    couples_node_routing_info;

@@ -231,7 +231,7 @@ static inline void _bgp_msg_update_flat_simple_HTML_dump(gds_stream_t * stream,
   //stream_printf(stream, "|");
   //ip_prefix_dump(stream, route->prefix);
   // AS-PATH
-  stream_printf(stream, " : <B><FONT COLOR=\"#A80039\">");
+  stream_printf(stream, " : <B><FONT COLOR=\"#00A839\"> A ");
   path_dump(stream, route_get_path(route), 1);
   stream_printf(stream, "</FONT></B>");
   // ORIGIN
@@ -285,9 +285,13 @@ static inline void _bgp_msg_withdraw_dump(gds_stream_t * stream,
 static inline void _bgp_msg_withdraw_flat_simple_HTML_dump(gds_stream_t * stream,
 					  bgp_msg_withdraw_t * msg)
 {
-  // Prefix
-  stream_printf(stream, "|");
-  ip_prefix_dump(stream, ((bgp_msg_withdraw_t *) msg)->prefix);
+  stream_printf(stream, " : <B><FONT COLOR=\"#A80039\">");
+  stream_printf(stream, " W ");
+  //path_dump(stream, route_get_path(route), 1);
+  stream_printf(stream, "</FONT></B>");
+    // Prefix
+  //stream_printf(stream, "|");
+  //ip_prefix_dump(stream, ((bgp_msg_withdraw_t *) msg)->prefix);
 }
 
 // -----[ _bgp_msg_close_dump ]--------------------------------------

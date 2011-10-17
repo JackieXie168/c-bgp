@@ -169,6 +169,8 @@ extern "C" {
 
     void tracer_graph_export_dot_to_file(tracer_t * tracer);
     void tracer_graph_export_condensed_dot_to_file(tracer_t * tracer);
+    void tracer_graph_export_condensed_cluster_dot_to_file(tracer_t * tracer);
+
 
     int tracer_trace_whole_graph(tracer_t * self);
 
