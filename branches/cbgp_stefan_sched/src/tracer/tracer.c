@@ -1428,3 +1428,9 @@ void tracer_graph_export_condensed_dot_to_file(tracer_t * tracer)
     {
         graph_export_allStates_loc_rib_dot(tracer->graph);
     }
+    
+   void tracer_graph_export_condensed_cluster_dot_to_file(tracer_t * tracer)
+   {
+      graph_export_condensed_cluster_dot_to_file(tracer->graph);
+
+   }

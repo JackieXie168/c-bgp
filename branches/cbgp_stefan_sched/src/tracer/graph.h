@@ -122,6 +122,8 @@ extern "C" {
 
     int graph_export_dot_to_file(graph_t * graph);
     int graph_export_condensed_dot_to_file(graph_t * graph);
+    int graph_export_condensed_cluster_dot_to_file(graph_t * graph);
+
     
     struct state_t * get_state_with_mininum_bigger_number_of_msg_in_session(int nb_states, struct state_t ** list_of_states);
 
