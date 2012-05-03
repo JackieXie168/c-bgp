@@ -130,7 +130,6 @@ static int _cli_help_cmd_str(const char * str)
  * Display help for a context: gives the available sub-commands and
  * their parameters.
  */
-#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_cmd(cli_cmd_t * cmd)
 {
   char * cmd_filename= _cli_cmd_get_path(cmd);
@@ -143,10 +142,8 @@ static void _cli_help_cmd(cli_cmd_t * cmd)
 #endif  
   return;
 }
-#endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_option ]-----------------------------------------
-#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_option(cli_arg_t * option)
 {
   fprintf(stdout, "\n");
@@ -160,10 +157,8 @@ static void _cli_help_option(cli_arg_t * option)
   rl_on_new_line();
 #endif
 }
-#endif /* HAVE_LIBREADLINE */
 
 // -----[ _cli_help_param ]------------------------------------------
-#if defined(HAVE_LIBREADLINE) && defined(HAVE_READLINE_READLINE_H)
 static void _cli_help_param(cli_arg_t * arg)
 {
   fprintf(stdout, "\n");
@@ -177,7 +172,6 @@ static void _cli_help_param(cli_arg_t * arg)
   rl_on_new_line();
 #endif
 }
-#endif /* HAVE_LIBREADLINE */
 
 // -----[ cli_help ]-------------------------------------------------
 void cli_help(const char * str)
