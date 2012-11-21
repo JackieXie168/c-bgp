@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)net_node.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 15/05/2007
 // $Id: net_node.c,v 1.11 2009-08-31 09:37:56 bqu Exp $
 // ==================================================================
@@ -210,6 +210,7 @@ static int cli_net_node_ping(cli_ctx_t * ctx, cli_cmd_t * cmd)
  *          [--ecmp]
  *          [--load=V]
  *          [--tos]
+ *          [--ttl=]
  *          [--tunnel]
  *          [--weight]
  */
@@ -222,6 +223,7 @@ static int cli_net_node_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
   net_tos_t tos= 0;
   ip_opt_t * opts;
   net_link_load_t load= 0;
+  uint8_t ttl= 255;
 
   opts= ip_options_create();
 
@@ -244,6 +246,15 @@ static int cli_net_node_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
   // All equal-cost paths ?
   if (cli_has_opt_value(cmd, "ecmp"))
     ip_options_set(opts, IP_OPT_ECMP);
+
+  // TTL value provided ?
+  opt= cli_get_opt_value(cmd, "ttl");
+  if (opt != NULL) {
+    if (str2ttl(opt, &ttl)) {
+      cli_set_user_error(cli_get(), "invalid TTL \"%s\"", opt);
+      return CLI_ERROR_COMMAND_FAILED;
+    }
+  }    
 
   // Show path inside tunnels ?
   if (cli_has_opt_value(cmd, "tunnel"))
@@ -286,7 +297,7 @@ static int cli_net_node_recordroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
 
   if (dest.type == NET_DEST_PREFIX)
     ip_options_alt_dest(opts, dest.prefix);
-  icmp_record_route(gdsout, node, IP_ADDR_ANY, dest, tos, opts);
+  icmp_record_route(gdsout, node, IP_ADDR_ANY, dest, ttl, tos, opts);
 
   return CLI_SUCCESS;
 }
@@ -723,6 +734,7 @@ void cli_register_net_node(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("delay", NULL));
   cli_add_opt(cmd, cli_opt("ecmp", NULL));
   cli_add_opt(cmd, cli_opt("load=", NULL));
+  cli_add_opt(cmd, cli_opt("ttl=", NULL));
   cli_add_opt(cmd, cli_opt("tos=", NULL));
   cli_add_opt(cmd, cli_opt("tunnel", NULL));
   cli_add_opt(cmd, cli_opt("weight", NULL));
