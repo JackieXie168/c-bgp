@@ -42,8 +42,12 @@ sub cbgp_valid_nasty_bgp_session_segment_ordering($) {
   $cbgp->send_cmd("bgp router 1.0.0.1 del network 254/8");
   $cbgp->send_cmd("net node 1.0.0.1 route del 1.0.0.2/32 1.0.0.3");
   $cbgp->send_cmd("bgp router 1.0.0.1 add network 254/8");
-  $cbgp->send_cmd("sim run");
 
-  return TEST_FAILURE;
+  $reason= cbgp_check_error($cbgp, "sim run");
+	print "[[$reason]]\n";
+  return TEST_FAILURE
+    if !check_has_error($reason, "BGP message received out-of-sequence");
+
+  return TEST_SUCCESS;
 }
 
