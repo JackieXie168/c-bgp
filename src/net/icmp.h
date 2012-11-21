@@ -164,6 +164,7 @@ extern "C" {
    *   If a source address is specified, it must be assigned to one
    *   of the node's network interfaces.
    * \param dest     is a destination (IP address or IP prefix).
+   * \param ttl      is the initial TTL value (0 < ttl <= 255)
    * \param tos      is a type of service. It identifies which
    *   topology must be used (if available).
    * \param opts     is a set of options.
@@ -177,8 +178,8 @@ extern "C" {
    */
   int icmp_record_route(gds_stream_t * stream,
 			net_node_t * node, net_addr_t src_addr,
-			ip_dest_t dest, net_tos_t tos,
-			ip_opt_t * opts);
+			ip_dest_t dest, uint8_t ttl,
+			net_tos_t tos, ip_opt_t * opts);
   
 #ifdef __cplusplus
 }
