@@ -285,8 +285,11 @@ sub check_has_error($;$) {
     $tests->debug("no error message found.");
     return 0;
   }
+
   if (defined($error) && !($msg =~ m/$error/)) {
     $tests->debug("error message defined, but does not match.");
+    $tests->debug("received=[$msg]");
+    $tests->debug("expected=[$error]");
     return 0;
   }
   return 1;
