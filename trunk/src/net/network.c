@@ -437,13 +437,13 @@ net_error_t _node_ip_input(net_node_t * node, net_iface_t * iif,
     if (error != ESUCCESS)
       return error;
 
-    _node_ip_process_msg(node, msg);
+    return _node_ip_process_msg(node, msg);
 
   } else {
 
     ___network_debug("node_ip_input [loopback] node=%n, lif=%i\n", node, lif);
 
-    net_iface_recv(lif, msg);
+    return net_iface_recv(lif, msg);
 
   }
   return ESUCCESS;
@@ -492,21 +492,29 @@ _node_ip_output(net_node_t * node, net_iface_t * iif,
   // is done for protocols such as BGP where the next-hop is
   // not necessarily adjacent and requires an IGP/static route
   if (rtentry->oif == NULL) {
+    ___network_debug("recursive lookup\n");
     dst= rtentry->gateway;
     rtentries= node_rt_lookup(node, dst);
     if (rtentries == NULL)
       return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
-
     // Default is to use entry 0
-    rtentry= rt_entries_get_at(rtentries, 0);
+    rt_entry_t * next_rtentry= rt_entries_get_at(rtentries, 0);
+    if (rtentry == next_rtentry)
+      return _node_ip_fwd_error(node, msg, ENET_HOST_UNREACH, 0);
+    rtentry= next_rtentry;
   }
 
   // Check that the outgoing interface is different from the
   // incoming interface. A normal router should send an ICMP Redirect
   // if it is the first hop. We don't handle this case in C-BGP.
-  if (iif == rtentry->oif)
+  // Note: the following code has been disabled as it causes a different
+  //       behaviour in record-route when used over a 1-hop loop.
+  //       The expected behaviour is to receive a TTL-expired error
+  //       unless the --check-loop option is enabled. In the later case
+  //       a ENET_FWD_LOOP error is returned.
+  /*if (iif == rtentry->oif)
     return _node_ip_fwd_error(node, msg, ENET_FWD_LOOP,
-			      ICMP_ERROR_NET_UNREACH);
+    ICMP_ERROR_NET_UNREACH);*/
 
   l2_addr= rtentry->gateway;
 
