@@ -513,12 +513,12 @@ void _icmp_record_route_dump(gds_stream_t * stream, net_node_t * node,
 // -----[ icmp_record_route ]----------------------------------------
 int icmp_record_route(gds_stream_t * stream,
 		      net_node_t * node, net_addr_t src_addr,
-		      ip_dest_t dest, net_tos_t tos,
+		      ip_dest_t dest, uint8_t ttl, net_tos_t tos,
 		      ip_opt_t * opts)
 {
   int i;
   ip_trace_t * trace= NULL;
-  array_t * traces= icmp_trace_send(node, dest.addr, 255, opts);
+  array_t * traces= icmp_trace_send(node, dest.addr, ttl, opts);
 
   for (i= 0; i < _array_length(traces); i++) {
     _array_get_at(traces, i, &trace);
