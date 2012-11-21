@@ -27,7 +27,7 @@ typedef gzFile FILE_TYPE;
 # define FILE_GETC(F) gzgetc(F)
 # define FILE_EOF(F) gzeof(F)
 #else
-typedef FILE FILE_TYPE;
+typedef FILE * FILE_TYPE;
 # define FILE_OPEN(N,A) fopen(N, A)
 # define FILE_DOPEN(N,A) fdopen(N,A)
 # define FILE_CLOSE(F) fclose(F)
@@ -51,7 +51,7 @@ struct reader_t {
   void   (*flush)  (reader_t * reader);
   char * (*gets)   (reader_t * reader, char * buf, size_t buf_size);
   union {
-    FILE_TYPE * file;
+    FILE_TYPE file;
     FILE      * stream;
   };
 };
