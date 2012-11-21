@@ -156,7 +156,7 @@ static int _network_send_callback(simulator_t * sim,
   // the message cannot be forwarded.
   FREE(ctx);
 
-  return (error == ESUCCESS)?0:-1;
+  return error/*(error == ESUCCESS)?0:-1*/;
 }
 
 // -----[ _network_send_ctx_dump ]-----------------------------------
@@ -380,9 +380,10 @@ _node_ip_fwd_error(net_node_t * node,
 
   ip_opt_hook_msg_error(msg, error);
 
-  if ((icmp_error != 0) && !is_icmp_error(msg))
+  if ((icmp_error != 0) && !is_icmp_error(msg)) {
     icmp_send_error(node, NET_ADDR_ANY, msg->src_addr,
 		    icmp_error, _thread_get_simulator());
+  }
 
   network_drop(msg, error, "forwarding error \"%s\"", network_strerror(error));
   return error;
@@ -615,20 +616,24 @@ net_error_t node_recv_msg(net_node_t * node,
 
   // Decrement TTL (if TTL is less than or equal to 1,
   // discard and raise ICMP time exceeded message)
-  if (msg->ttl <= 1)
-    return _node_ip_fwd_error(node, msg,
-			      ENET_TIME_EXCEEDED,
-			      ICMP_ERROR_TIME_EXCEEDED);
+  if (msg->ttl <= 1) {
+    /*return*/ _node_ip_fwd_error(node, msg,
+				  ENET_TIME_EXCEEDED,
+				  ICMP_ERROR_TIME_EXCEEDED);
+    return ESUCCESS;
+  }
   msg->ttl--;
 
   // Find route to destination (if no route is found,
   // discard and raise ICMP host unreachable message)
   if (rtentries == NULL) {
     rtentries= node_rt_lookup(node, msg->dst_addr);
-    if (rtentries == NULL)
-      return _node_ip_fwd_error(node, msg,
+    if (rtentries == NULL) {
+      /*return*/ _node_ip_fwd_error(node, msg,
 				ENET_HOST_UNREACH,
 				ICMP_ERROR_HOST_UNREACH);
+      return ESUCCESS;
+    }
   }
 
   // DEBUG order BGP
