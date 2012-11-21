@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)as.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @author Sebastien Tandel (standel@info.ucl.ac.be)
 // @author Pradeep Bangera (pradeep.bangera@imdea.org)
 // @date 22/11/2002
@@ -1789,9 +1789,12 @@ int bgp_router_handle_message(simulator_t * sim,
   bgp_router_t * router= (bgp_router_t *) handler;
   bgp_msg_t * bgp_msg= (bgp_msg_t *) msg->payload;
   bgp_peer_t * peer;
+  net_error_t error;
 
   if ((peer= bgp_router_find_peer(router, msg->src_addr)) != NULL) {
-    bgp_peer_handle_message(peer, bgp_msg);
+    error= bgp_peer_handle_message(peer, bgp_msg);
+    if (error != ESUCCESS)
+      return error;
     _bgp_router_msg_listener(msg);
     bgp_msg_destroy(&bgp_msg);
   } else {
