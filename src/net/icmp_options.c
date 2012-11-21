@@ -142,6 +142,8 @@ _check_loop(net_msg_t * msg, net_node_t * node)
   if (!(msg->opts->flags & IP_OPT_QUICK_LOOP))
     return ESUCCESS;
 
+  ___ip_opt_debug("_check_loop\n");
+
   if (ip_trace_search(msg->opts->trace, node)) {
     msg->opts->trace->status= ENET_FWD_LOOP;
     return ENET_FWD_LOOP;
