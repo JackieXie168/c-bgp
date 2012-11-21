@@ -110,7 +110,7 @@ const char * network_strerror(int error)
   case EBGP_PEER_INVALID_STATE:
     return "peer state incompatible with operation";
   case EBGP_PEER_OUT_OF_SEQ:
-    return "message received out-of-sequence";
+    return "BGP message received out-of-sequence";
   case ENET_RT_NH_UNREACH:
     return "next-hop is unreachable";
   case ENET_RT_IFACE_UNKNOWN:
