@@ -963,13 +963,13 @@ static inline void _bgp_peer_process_withdraw(bgp_peer_t * peer,
  *     virtual peering
  *   
  */
-static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
+static inline int _bgp_peer_seqnum_check(bgp_peer_t * peer,
 					  bgp_msg_t * msg)
 {
   if ((bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL) == 0) &&
       (peer->recv_seq_num != msg->seq_num)) {
     if (msg->type != BGP_MSG_TYPE_CLOSE) {
-      stream_printf(gdserr, "Error: out-of-sequence BGP message\n");
+      stream_printf(gdserr, "BGP session sequence number check failed\n");
       stream_printf(gdserr, "  router       = ");
       bgp_router_dump_id(gdserr, peer->router);
       stream_printf(gdserr, "\n");
@@ -988,9 +988,11 @@ static inline void _bgp_peer_seqnum_check(bgp_peer_t * peer,
       stream_printf(gdserr, "        The most common case for this error is when the underlying route of a\n");
       stream_printf(gdserr, "        BGP session changes during the simulation convergence (sim run).\n");
       stream_printf(gdserr, "\n");
-      abort();
+      stream_flush(gdserr);
+      return -1;
     }
   }
+  return 0;
 }
 
 // ----- bgp_peer_handle_message ------------------------------------
@@ -1010,7 +1012,8 @@ int bgp_peer_handle_message(bgp_peer_t * peer, bgp_msg_t * msg)
     stream_printf(gdsdebug, "\n");
   }
 
-  _bgp_peer_seqnum_check(peer, msg);
+  if (_bgp_peer_seqnum_check(peer, msg) < 0)
+    return EBGP_PEER_OUT_OF_SEQ;
   peer->recv_seq_num++;
 
   switch (msg->type) {
