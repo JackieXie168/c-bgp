@@ -50,6 +50,7 @@ typedef enum {
   EBGP_PEER_INCOMPATIBLE  = -403, /* Peer not compatible with operation */
   EBGP_PEER_UNREACHABLE   = -404, /* Peer could not be reached */
   EBGP_PEER_INVALID_STATE = -405, /* Peer state incompatible with operation */
+  EBGP_PEER_OUT_OF_SEQ    = -406, /* Message received out-of-sequence */
 
   EBGP_NETWORK_DUPLICATE  = -420, /* Network already originated from router */
 
