@@ -1,7 +1,7 @@
 // ==================================================================
 // @(#)domain.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 13/02/2002
 // $Id: domain.c,v 1.11 2009-03-24 14:11:53 bqu Exp $
 // ==================================================================
@@ -167,7 +167,7 @@ static int _record_route_for_each(uint32_t key, uint8_t key_len,
   _record_route_ctx_t * rr_ctx = (_record_route_ctx_t *) ctx;
   
   icmp_record_route(rr_ctx->stream, node, IP_ADDR_ANY, rr_ctx->dest,
-		    0, rr_ctx->opts);
+		    255, 0, rr_ctx->opts);
   return 0;
 }
 
