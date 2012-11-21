@@ -38,7 +38,8 @@ sub show_testing($)
 {
   my ($msg)= @_;
 
-  print STDERR "Testing: \033[37;1m$msg\033[0m";
+  #print STDERR "Testing: \033[37;1m$msg\033[0m";
+  print STDERR "Testing: $msg";
 }
 
 # -----[ show_testing_success ]--------------------------------------
@@ -253,7 +254,7 @@ sub get_cbgp_instance($$) {
 
   my $cbgp= CBGP->new($cbgp_cmd);
   my $log_file= ".$test_name.log";
-  ($log_file =~ tr[\ -][___]);
+  ($log_file =~ tr[\ -][__]);
   unlink $log_file;
   $cbgp->{log_file}= $log_file;
   $cbgp->{log}= 1;
