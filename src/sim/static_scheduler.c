@@ -135,6 +135,7 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
 {
   sched_static_t * sched= (sched_static_t *) self;
   _event_t * event;
+  net_error_t error;
 
   sched->cancelled= 0;
 
@@ -143,8 +144,10 @@ static net_error_t _run(sched_t * self, unsigned int num_steps)
 
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "=====<<< EVENT %2.2f >>>=====\n",
 	      (double) sched->cur_time);
-    event->ops->callback(sched->sim, event->ctx);
+    error= event->ops->callback(sched->sim, event->ctx);
     _event_destroy(&event);
+    if (error != ESUCCESS)
+      return error;
     STREAM_DEBUG(STREAM_LEVEL_DEBUG, "\n");
 
     // Update simulation time
