@@ -33,7 +33,7 @@ typedef FILE * FILE_TYPE;
 # define FILE_DOPEN(N,A) fdopen(N,A)
 # define FILE_CLOSE(F) fclose(F)
 # define FILE_GETS(F,B,L) fgets(B,L,F)
-# define FILE_GETC(F) fgets(F)
+# define FILE_GETC(F) fgetc(F)
 # define FILE_EOF(F) feof(F)
 #endif
 
