@@ -2,6 +2,7 @@
 // @(#)reader.c
 //
 // @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author David Hauweele (david.hauweele@student.umons.ac.be)
 // @date 22/12/2008
 // $Id: reader.c,v 1.1 2009-08-31 09:57:31 bqu Exp $
 // ==================================================================
