@@ -4100,6 +4100,7 @@ static int test_bgp_peer_open_error_proto()
   ez_topo_sim_run(eztopo);
   UTEST_ASSERT(peer1->session_state == SESSION_STATE_OPENWAIT,
 		"session state should be OPENWAIT");
+  ez_topo_sim_run(eztopo); // consumes ICMP error message (dst proto unreach)
   ez_topo_destroy(&eztopo);
   return UTEST_SUCCESS;
 }
