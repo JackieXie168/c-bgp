@@ -58,7 +58,7 @@ typedef gzFile FILE_TYPE;
 # define FILE_GETS(F,B,L) gzgets(F, B, L)
 # define FILE_EOF(F) gzeof(F)
 #else
-typedef FILE FILE_TYPE;
+typedef FILE * FILE_TYPE;
 # define FILE_OPEN(N,A) fopen(N, A)
 # define FILE_DOPEN(N,A) fdopen(N,A)
 # define FILE_CLOSE(F) fclose(F)
@@ -520,7 +520,7 @@ int mrtd_msg_from_line(bgp_router_t * router, bgp_peer_t * peer,
 int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
 		    void * ctx)
 {
-  FILE_TYPE * file;
+  FILE_TYPE file;
   char line[MRT_MAX_LINE_LEN];
   bgp_route_t * route;
   int error= BGP_INPUT_SUCCESS;
