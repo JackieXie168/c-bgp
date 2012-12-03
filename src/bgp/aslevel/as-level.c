@@ -620,20 +620,31 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
   AS_SET_DEFINE(uASReached);
   AS_SET_DEFINE(uASVisited);
 
-  top_domains= aslevel_topo_get_top(topo);
-
   // No nodes => no cycle
   if (aslevel_topo_num_nodes(topo) == 0)
     return ASLEVEL_SUCCESS;
 
-  // No top domain => topology is composed of a unique cycle
-  if (ptr_array_length(top_domains) == 0)
+  // Identify top domains, i.e. domains without a provider:
+  //   the search will start from those providers and go down
+  //   the topology along P2C relationships.
+  top_domains= aslevel_topo_get_top(topo);
+
+  if (verbose)
+    stream_printf(gdsout, "number of top domains: %d\n",
+		  ptr_array_length(top_domains));
+
+  // No top domain => cycle of provider-customer relationships
+  // Note: * if there is a single node, it is a top-domain.
+  //       * if there is more than one node and no top-domain, there
+  //         must be a cycle of P2C relationships
+  if (ptr_array_length(top_domains) == 0) {
+    if (verbose)
+      stream_printf(gdsout, "(> 1 node) & (no top-domain) => cycle\n");
     return ASLEVEL_ERROR_CYCLE_DETECTED;
+  }
 
   // Initialize array of visited ASes
   AS_SET_INIT(uASInCycle);
-
-  //fprintf(stderr, "# top domains: %d\n", ptr_array_length(pTopDomains));
 
   // Starting from each top AS, traverse all the p2c edges
   cycle= 0;
@@ -644,7 +655,7 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
     assert(stack_push(stack, _ctx_create(domain)) == 0);
 
     if (verbose)
-      fprintf(stderr, "-> from AS%d", domain->asn);
+      stream_printf(gdsout, "-> from AS%d", domain->asn);
 
     AS_SET_INIT(uASReached);
     AS_SET_PUT(uASReached, domain->asn);
@@ -664,11 +675,11 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
 	if (ctx->index < ptr_array_length(ctx->domain->neighbors)) {
 	  link= (as_level_link_t *) ctx->domain->neighbors->data[ctx->index];
 	  if (verbose)
-	    fprintf(stderr, "\r-> from AS%d (%d:AS%d)",
-		    domain->asn, ctx->index, link->neighbor->asn);
+	    stream_printf(gdsout, "\r-> from AS%d (%d:AS%d)",
+			  domain->asn, ctx->index, link->neighbor->asn);
 	} else
 	  if (verbose)
-	    fprintf(stderr, "\r-> from AS%d (completed)", domain->asn);
+	    stream_printf(gdsout, "\r-> from AS%d (completed)", domain->asn);
       }
 
       if (ctx->index < ptr_array_length(ctx->domain->neighbors)) {
@@ -683,16 +694,16 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
 	    for (index= 0; index < stack_depth(stack); index++)
 	      if (((SGTCtx *) stack_get_at(stack, index))->domain == link->neighbor) {
 		if (verbose)
-		  stream_printf(gdserr, "\rcycle detected:");
+		  stream_printf(gdsout, "\rcycle detected:");
 		// Mark all ASes in the cycle
 		for (index2= index; index2 < stack_depth(stack); index2++) {
 		  cycle_domain= ((SGTCtx *) stack_get_at(stack, index2))->domain;
 		  if (verbose)
-		    stream_printf(gdserr, " %u", cycle_domain->asn);
+		    stream_printf(gdsout, " %u", cycle_domain->asn);
 		  AS_SET_PUT(uASInCycle, cycle_domain->asn);
 		}
 		if (verbose)
-		  stream_printf(gdserr, " %u\n", link->neighbor->asn);
+		  stream_printf(gdsout, " %u\n", link->neighbor->asn);
 		
 		cycle= 1;
 		num_cycles++;
@@ -720,17 +731,17 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
     }
 
     if (verbose) {
-      fprintf(stderr, "\n");
+      stream_printf(gdsout, "\n");
 
       num_reached= 0;
       for (index2= 0; index2 < MAX_AS; index2++) {
 	if (IS_IN_AS_SET(uASReached, index2))
 	  num_reached++;
       }
-      fprintf(stderr, "\tnumber of paths traversed : %d\n", num_paths);
-      fprintf(stderr, "\tmax path length           : %d\n", max_path_length);
-      fprintf(stderr, "\tnumber of domains reached : %d\n", num_reached);
-      fprintf(stderr, "\tnumber of direct customers: %d\n",
+      stream_printf(gdsout, "\tnumber of paths traversed : %d\n", num_paths);
+      stream_printf(gdsout, "\tmax path length           : %d\n", max_path_length);
+      stream_printf(gdsout, "\tnumber of domains reached : %d\n", num_reached);
+      stream_printf(gdsout, "\tnumber of direct customers: %d\n",
 	      aslevel_as_num_customers(domain));
     }
       
