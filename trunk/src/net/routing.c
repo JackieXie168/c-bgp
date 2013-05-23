@@ -136,14 +136,19 @@ int rt_entry_compare(const rt_entry_t * entry1,
   if (entry1->gateway < entry2->gateway)
     return -1;
 
-  /* The following comparison is required as the outgoing interface
-     might be left unspecified, i.e. NULL. This is the case for
-     gateway routes that require a recursive lookup. */
-  if (entry1->oif > entry2->oif)
+  /* At this stage, the gateway is common for both entries.
+     We are going to compare based on the address of the outgoing
+     interface.
+     However, it is possible that one of the entries has an
+     unspecified outgoing interface (i.e. NULL). In this case, 
+     the unspecified interface wins (i.e. appears first). */
+  if (entry1->oif == NULL)
     return 1;
-  if (entry1->oif < entry2->oif)
+  if (entry2->oif == NULL)
     return -1;
-  
+
+  /* At this stage, both entries have valid outgoing interfaces,
+     we can compare their addresses. */
   if (entry1->oif->addr > entry2->oif->addr)
     return 1;
   if (entry1->oif->addr < entry2->oif->addr)
