@@ -75,20 +75,24 @@ else
 endif
 
 cbgp_SOURCES = main.c
-cbgp_LDADD = libcsim.la
+cbgp_LDADD = libcsim.la 
 cbgp_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
+cbgp_LDFLAGS = $(LIBGDS_LIBS)
 
 cbgp_dump_SOURCES = main-dump.c
 cbgp_dump_LDADD = libcsim.la
 cbgp_dump_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
+cbgp_dump_LDFLAGS = $(LIBGDS_LIBS)
 
 cbgp_test_SOURCES = main-test.c
 cbgp_test_LDADD = libcsim.la
 cbgp_test_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
+cbgp_test_LDFLAGS = $(LIBGDS_LIBS)
 
 cbgp_perf_SOURCES = main-perf.c
 cbgp_perf_LDADD = libcsim.la
 cbgp_perf_CFLAGS = $(LIBGDS_CFLAGS) $(AM_CFLAGS)
+cbgp_perf_LDFLAGS = $(LIBGDS_LIBS)
 
 TESTS = \
 	cbgp-test
