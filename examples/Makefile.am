@@ -1,7 +1,5 @@
 EXTRA_DIST = \
 	as.relation \
-	subra-2004.topo \
-	$(wildcard *.topo) \
-	$(wildcard *.cli) \
+	@EXAMPLES_EXTRA_DIST@ \
 	run-all.sh
 
