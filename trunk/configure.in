@@ -49,6 +49,7 @@ AC_TYPE_SIZE_T
 
 
 dnl Now arrange the build libtool
+AC_CONFIG_MACRO_DIR([m4])
 AC_PROG_LIBTOOL
 AC_SUBST(CBGP_LT_RELEASE, [$PACKAGE_VERSION])
 
@@ -471,6 +472,10 @@ esac
 AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 
 TESTS="src/checks/basic"
+
+dnl Files to be distributed as part of the examples
+EXAMPLES_EXTRA_DIST=`ls $top_dir/examples/*.topo $top_dir/examples/*.cli`
+AC_SUBST([EXAMPLES_EXTRA_DIST])
 
 #CFLAGS="$CFLAGS -Wall -Werror -O2"
 CFLAGS="$CFLAGS -Wall -O2"
