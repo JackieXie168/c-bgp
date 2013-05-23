@@ -6,17 +6,12 @@ EXTRA_DIST= \
 	valid-record-route.ntf \
 	simple-rib.ascii \
 	abilene-rib.ascii \
-	abilene-rib.gz \
 	abilene-rib.marco \
 	valid-bgp-topology.subramanian \
-	as-rel.20070416.a0.01000.txt \
 	as-level-inconsistent.txt \
 	as-level-cycle.txt \
 	as-level-disconnected.txt \
 	as-level-topo-small.txt \
-	data/subra-2004.txt \
-	data/small.topology.txt \
-	data/large.topology.txt \
 	valid-net-tm.tm \
 	valid-net-tm-missing-field.tm \
 	valid-net-tm-number-fields.tm \
