@@ -417,7 +417,7 @@ net_error_t icmp_trace_route(gds_stream_t * stream,
 // -----[ icmp_trace_send ]------------------------------------------
 /**
  * How to handle the IP options ?
- * - the caller provider IP options must be non-NULL
+ * - the caller provided IP options must be non-NULL
  * - shall the caller allocate the options on the stack on the heap ?
  *   => both must be supported
  * - if a copy of the IP options is performed, it should be released
