@@ -643,6 +643,8 @@ array_t * ip_opt_ecmp_run(ip_opt_t * opts, net_msg_t * init_msg,
   opts->fifo_trace= fifo_trace;
 
   // Push the initial message onto the FIFO queue
+  // When an ECMP route is found, the node will push additional
+  // traces onto the FIFO queue by using 'ip_opt_hook_msg_ecmp'
   ip_opt_ecmp_push(opts, node, init_msg, NULL);
 
   while (fifo_depth(fifo_trace) > 0) {
