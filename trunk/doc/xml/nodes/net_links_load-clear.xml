@@ -3,9 +3,11 @@
   <name>load-clear</name>
   <id>net_links_load-clear</id>
   <context>net links</context>
-  
-  <abstract/>
-  <description/>
-  
-  
+  <abstract>clear the load of all links</abstract>
+  <description>
+<p>This command can be used to clear the load of every link/interface in the network topology.</p>
+  </description>
+  <see-also>
+<p>You can use the <cmd><name>net node record-route</name><link>net_node_record-route</link></cmd> command with the <i>--load</i> option to put the provided amount of "traffic" on every link/interface traversed by the record-route probe.</p>
+  </see-also>
 </command>

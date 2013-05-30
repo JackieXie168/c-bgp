@@ -5,7 +5,15 @@
   <context>bgp router peer</context>
   <abstract>send the router ID as next-hop to this peer</abstract>
   <description>
-<p>This command configure a router to replace the next-hop of routes sent to the specified peer by its own router ID.</p>
+<p>This command configures a router to replace the next-hop of routes received from the specified peer by its own router ID when these routes are redistributed. This is useful to distribute routes from an external peer that has an eBGP session over a static route. The next-hop announced by this peer is probably unreachable from the other routers in the domain.</p>
+<p>In the following example, router 1.0.0.1 has two peers: 2.0.0.1 is an external peer (in AS2) while 1.0.0.2 is an internal peer. The command <b>next-hop-self</b> instructs router 1.0.0.1 to send routes received from 2.0.0.1 to 1.0.0.2 with a modified next-hop: its own router-ID (1.0.0.1 in this case). Without <b>next-hop-self</b>, the next-hop would not have been modified (it could for example be 2.0.0.1).
+<code>
+bgp router 1.0.0.1<br/>
+<tab count="1"/>add peer 2 2.0.0.1<br/>
+<tab count="1"/>peer 2.0.0.1 next-hop-self<br/>
+<tab count="1"/>add peer 1 1.0.0.2
+</code>
+</p>
   </description>
   <see-also>
 <p>In place of the router ID, another next-hop value can be configured by using command <cmd><name>next-hop</name><link>bgp_router_peer_next-hop</link></cmd>.</p>
