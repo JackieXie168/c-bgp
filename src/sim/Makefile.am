@@ -5,12 +5,10 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-AM_CFLAGS = $(OPT_EXPERIMENTAL)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) -I..
 
 noinst_LTLIBRARIES = libsim.la
 libsim_la_CFLAGS = $(LIBGDS_CFLAGS)
-
-INCLUDES = -I..
 
 libsim_la_SOURCES = \
 	scheduler.c \

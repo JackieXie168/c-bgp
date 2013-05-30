@@ -17,12 +17,10 @@ else
   OPT_WALTON = 
 endif
 
-AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) -I../..
 
 noinst_LTLIBRARIES = libbgp_aslevel.la
 libbgp_aslevel_la_CFLAGS = $(LIBGDS_CFLAGS)
-
-INCLUDES = -I../..
 
 libbgp_aslevel_la_SOURCES = \
 	as-level.c \
