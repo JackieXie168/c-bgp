@@ -1,9 +1,7 @@
-AM_CFLAGS = $(OPT_EXPERIMENTAL)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) -I../..
 
 noinst_LTLIBRARIES = libjni_impl.la
 libjni_impl_la_CFLAGS = $(LIBGDS_CFLAGS)
-
-INCLUDES = -I../..
 
 libjni_impl_la_SOURCES = \
 	net_IPTrace.c \

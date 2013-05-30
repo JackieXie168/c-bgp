@@ -20,7 +20,7 @@ endif
 SUBDIRS = aslevel attr filter
 DIST_SUBDIRS = aslevel attr filter
 
-AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_EXTERNAL_BEST) $(OPT_WALTON) -I..
 
 noinst_LTLIBRARIES = libbgp.la
 libbgp_la_CFLAGS = $(LIBGDS_CFLAGS)
@@ -28,8 +28,6 @@ libbgp_la_LIBADD = \
 	aslevel/libbgp_aslevel.la \
 	attr/libbgp_attr.la \
 	filter/libbgp_filter.la
-
-INCLUDES = -I..
 
 libbgp_la_SOURCES = \
 	as.c \

@@ -20,7 +20,7 @@ AC_CANONICAL_SYSTEM
 
 dnl Version setting up for Automake
 AM_INIT_AUTOMAKE([no-define])
-AM_CONFIG_HEADER(src/config.h)
+AC_CONFIG_HEADER(src/config.h)
 #AM_MAINTAINER_MODE
 
 
@@ -474,7 +474,7 @@ AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 TESTS="src/checks/basic"
 
 dnl Files to be distributed as part of the examples
-EXAMPLES_EXTRA_DIST=`ls $top_dir/examples/*.topo $top_dir/examples/*.cli`
+EXAMPLES_EXTRA_DIST=`echo [$top_dir]; ls $top_dir/examples/*.topo $top_dir/examples/*.cli`
 AC_SUBST([EXAMPLES_EXTRA_DIST])
 
 #CFLAGS="$CFLAGS -Wall -Werror -O2"

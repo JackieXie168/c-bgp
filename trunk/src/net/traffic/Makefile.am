@@ -5,12 +5,10 @@ else
   OPT_EXPERIMENTAL =
 endif
 
-AM_CFLAGS = $(OPT_EXPERIMENTAL)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) -I..
 
 noinst_LTLIBRARIES = libnet_traffic.la
 libnet_traffic_la_CFLAGS= $(LIBGDS_CFLAGS)
-
-INCLUDES = -I..
 
 libnet_traffic_la_SOURCES = \
 	stats.h \

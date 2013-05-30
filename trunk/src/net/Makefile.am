@@ -11,7 +11,7 @@ else
   OPT_WITH_OSPF =
 endif
 
-AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF)
+AM_CFLAGS = $(OPT_EXPERIMENTAL) $(OPT_WITH_OSPF) -I..
 
 SUBDIRS = traffic
 DIST_SUBDIRS = traffic
@@ -20,8 +20,6 @@ noinst_LTLIBRARIES = libnet.la
 libnet_la_CFLAGS= $(LIBGDS_CFLAGS)
 libnet_la_LIBADD = \
 	traffic/libnet_traffic.la
-
-INCLUDES = -I..
 
 libnet_la_SOURCES = \
 	error.c \
