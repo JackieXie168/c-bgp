@@ -33,7 +33,13 @@ sub cbgp_valid_net_record_route_loop($)
 
     $cbgp->send_cmd("net domain 1 compute");
 
-    my $trace= cbgp_record_route($cbgp, "1.0.0.1", "2.0.0.1",
+    my $trace;
+
+    $trace= cbgp_record_route($cbgp, "1.0.0.1", "2.0.0.1");
+    return TEST_FAILURE
+      if (!check_recordroute($trace, -status=>"UNREACH"));
+
+    $trace= cbgp_record_route($cbgp, "1.0.0.1", "2.0.0.1",
 					 -checkloop=>1);
     return TEST_FAILURE
       if (!check_recordroute($trace, -status=>"LOOP"));
