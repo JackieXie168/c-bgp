@@ -47,7 +47,7 @@ sub cbgp_valid_net_igp_ecmp($) {
   $cbgp->send_cmd("net link 0.0.0.3 0.0.0.4 igp-weight --bidir 1");
   $cbgp->send_cmd("net domain 1 compute");
 
-  # Note: the first next-hop is through the highest interface address
+  # Note: the first next-hop is through the lowest interface address
   #       this is deterministic and due to how c-bgp orders routing
   #       table entries
 
@@ -55,10 +55,10 @@ sub cbgp_valid_net_igp_ecmp($) {
   return TEST_FAILURE
     if (!check_has_route($rt, '0.0.0.4/32',
 			 -nexthop=>'0.0.0.0',
-			 -iface=>'0.0.0.3',
+			 -iface=>'0.0.0.2',
 			 -ecmp=>{
 				 -nexthop=>'0.0.0.0',
-				 -iface=>'0.0.0.2'
+				 -iface=>'0.0.0.3'
 				 }
 			));
 

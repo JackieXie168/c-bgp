@@ -48,7 +48,7 @@ sub cbgp_valid_net_record_route_ecmp($) {
   return TEST_FAILURE
     if (scalar(@$traces) != 2);
 
-  # Note: the path through 1.0.0.3 is returned first. This is
+  # Note: the path through 1.0.0.2 is returned first. This is
   #       deterministic and due to the internal ordering of routing
   #       table entries in c-bgp.
 	
@@ -56,13 +56,13 @@ sub cbgp_valid_net_record_route_ecmp($) {
     if (!check_recordroute($traces->[0],
 			   -status=>'SUCCESS',
 			   -path=>[[0,'1.0.0.1'],
-				   [1,'1.0.0.3'],
+				   [1,'1.0.0.2'],
 				   [2,'1.0.0.4']]));
   return TEST_FAILURE
     if (!check_recordroute($traces->[1],
 			   -status=>'SUCCESS',
 			   -path=>[[0,'1.0.0.1'],
-				   [1,'1.0.0.2'],
+				   [1,'1.0.0.3'],
 				   [2,'1.0.0.4']]));
   return TEST_SUCCESS;
 }
