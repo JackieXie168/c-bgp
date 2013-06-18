@@ -72,9 +72,11 @@ void usage()
 	 "format\n"
 	 "                      MRT ASCII. Available file formats are:\n"
 	 "                        (cisco)      CISCO's show ip bgp format\n"
-	 "                        (mrt-ascii)  MRT ASCII format\n"
-	 "                        (mrt-binary) MRT binary\n"
-	 "  --out-fmt=FORMAT    specifies the output format. The default "
+	 "                        (mrt-ascii)  MRT ASCII format\n");
+#ifdef HAVE_BGPDUMP
+  printf("                        (mrt-binary) MRT binary\n");
+#endif
+  printf("  --out-fmt=FORMAT    specifies the output format. The default "
 	 "format is\n"
 	 "                      CISCO's show ip bgp. Available file formats "
 	 "are:\n"
