@@ -1485,7 +1485,7 @@ char *print_asn(as_t asn) {
   /* This function is here because we don't yet know what the final
      presentation format for 32-bit ASNs will be. If in the end it turns out to
      be a 32-bit integer, it can simply be removed. */
-	static char asn_str[strlen("65535.65535") + 1];
+	static char asn_str[sizeof("65535.65535")];
 	if(asn >> 16) {
 		sprintf(asn_str, "%d.%d", (asn >> 16) & 0xFFFF, asn & 0xFFFF);
 	} else {
