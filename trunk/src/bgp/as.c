@@ -2351,35 +2351,64 @@ typedef struct {
   bgp_router_t * router;
   gds_stream_t * stream;
   char * cDump;
-} bgp_route_tDumpCtx;
+} bgp_route_dump_ctx_t;
 
 // ----- _bgp_router_dump_route -------------------------------------
 /**
  *
  */
-static int _bgp_router_dump_route(uint32_t uKey, uint8_t uKeyLen,
-				  void * pItem, void * pContext)
+static int _bgp_router_dump_route(uint32_t key, uint8_t key_len,
+				  void * item, void * context)
 {
-  bgp_route_tDumpCtx * pCtx= (bgp_route_tDumpCtx *) pContext;
+  bgp_route_dump_ctx_t * ctx= (bgp_route_dump_ctx_t *) context;
 
-  route_dump(pCtx->stream, (bgp_route_t *) pItem);
-  stream_printf(pCtx->stream, "\n");
-
-  stream_flush(pCtx->stream);
-
+  route_dump(ctx->stream, (bgp_route_t *) item);
+  stream_printf(ctx->stream, "\n");
+  stream_flush(ctx->stream);
   return 0;
 }
 
 // ----- bgp_router_dump_rib ----------------------------------------
 /**
- *
+ * Dump the content of the Loc-RIB on the provided output stream.
  */
-void bgp_router_dump_rib(gds_stream_t * stream, bgp_router_t * router)
+ void bgp_router_dump_rib(gds_stream_t * stream, bgp_router_t * router)
 {
-  bgp_route_tDumpCtx sCtx;
-  sCtx.router= router;
-  sCtx.stream= stream;
-  rib_for_each(router->loc_rib, _bgp_router_dump_route, &sCtx);
+  bgp_route_dump_ctx_t ctx= { .router= router, .stream= stream };
+
+  rib_for_each(router->loc_rib, _bgp_router_dump_route, &ctx);
+  stream_flush(stream);
+}
+
+// ----- bgp_router_dump_adjrib -------------------------------------
+/**
+ * Dump the content of Adj-RIB-ins/-outs.
+ *
+ * Arguments:
+ * @param dir    selects between Adj-RIB-in and Adj-RIB-out
+ * @param peer   selects a specific peer or all peers (NULL)
+ * @param prefix selects a specific prefix (prefix length < 32),
+ *               the longest prefix matching an address (prefix length >= 32),
+ *               or all prefixes (prefix length == 0)
+ */
+void bgp_router_dump_adjrib(gds_stream_t * stream, bgp_router_t * router,
+			    bgp_peer_t * peer, ip_pfx_t prefix,
+			    bgp_rib_dir_t dir)
+{
+  unsigned int i;
+
+  // All peers
+  if (peer == NULL) {
+    for (i= 0; i < bgp_peers_size(router->peers); i++) {
+      bgp_peer_dump_adjrib(stream, bgp_peers_at(router->peers, i),
+			   prefix, dir);
+    }
+  }
+
+  // Single peer
+  else {
+    bgp_peer_dump_adjrib(stream, peer, prefix, dir);
+  }
 
   stream_flush(stream);
 }
@@ -2432,27 +2461,6 @@ void bgp_router_dump_rib_prefix(gds_stream_t * stream, bgp_router_t * router,
   stream_flush(stream);
 }
 
-// ----- bgp_router_dump_adjrib -------------------------------------
-/**
- *
- */
-void bgp_router_dump_adjrib(gds_stream_t * stream, bgp_router_t * router,
-			    bgp_peer_t * peer, ip_pfx_t prefix,
-			    bgp_rib_dir_t dir)
-{
-  unsigned int index;
-
-  if (peer == NULL) {
-    for (index= 0; index < bgp_peers_size(router->peers); index++) {
-      bgp_peer_dump_adjrib(stream, bgp_peers_at(router->peers, index),
-			   prefix, dir);
-    }
-  } else {
-    bgp_peer_dump_adjrib(stream, peer, prefix, dir);
-  }
-  stream_flush(stream);
-}
-
 // ----- bgp_router_info --------------------------------------------
 void bgp_router_info(gds_stream_t * stream, bgp_router_t * router)
 {
@@ -2480,6 +2488,10 @@ int bgp_router_show_route_info(gds_stream_t * stream, bgp_router_t * router,
 {
   bgp_routes_t * routes;
 
+  stream_printf(stream, "prefix: ");
+  ip_prefix_dump(stream, route->prefix);
+  stream_printf(stream, "\n");
+
 #ifdef __BGP_ROUTE_INFO_DP__
   if (route->rank <= 0) {
     stream_printf(stream, "decision-process-rule: %d [ Single choice ]\n",
@@ -2506,18 +2518,15 @@ int bgp_router_show_route_info(gds_stream_t * stream, bgp_router_t * router,
 /**
  *
  */
-static int _bgp_router_show_route_info(uint32_t uKey, uint8_t uKeyLen,
-				       void * pItem, void * pContext)
+static int _bgp_router_show_route_info(uint32_t key, uint8_t key_len,
+				       void * item, void * context)
 {
-  bgp_route_tDumpCtx * pCtx= (bgp_route_tDumpCtx *) pContext;
-  bgp_route_t * route= (bgp_route_t *) pItem;
+  bgp_route_dump_ctx_t * ctx= (bgp_route_dump_ctx_t *) context;
+  bgp_route_t * route= (bgp_route_t *) item;
 
-  stream_printf(pCtx->stream, "prefix: ");
-  ip_prefix_dump(pCtx->stream, route->prefix);
-  stream_printf(pCtx->stream, "\n");
-  bgp_router_show_route_info(pCtx->stream, pCtx->router, route);
+  bgp_router_show_route_info(ctx->stream, ctx->router, route);
 
-  stream_flush(pCtx->stream);
+  stream_flush(ctx->stream);
 
   return 0;
 }
@@ -2526,50 +2535,51 @@ static int _bgp_router_show_route_info(uint32_t uKey, uint8_t uKeyLen,
 /**
  *
  */
-int bgp_router_show_routes_info(gds_stream_t * stream, bgp_router_t * router,
-				ip_dest_t dest)
+void bgp_router_show_routes_info(gds_stream_t * stream, bgp_router_t * router,
+				 ip_dest_t dest)
 {
-  bgp_route_tDumpCtx sCtx;
+  bgp_route_dump_ctx_t ctx;
   bgp_route_t * route;
 
   switch (dest.type) {
+
   case NET_DEST_ANY:
-    sCtx.router= router;
-    sCtx.stream= stream;
-    return rib_for_each(router->loc_rib, _bgp_router_show_route_info, &sCtx);
+    ctx.router= router;
+    ctx.stream= stream;
+    rib_for_each(router->loc_rib, _bgp_router_show_route_info, &ctx);
     break;
+
   case NET_DEST_ADDRESS:
 //TODO : implements to support walton
 #if ! (defined __EXPERIMENTAL_WALTON__)
+    dest.prefix.network= dest.addr;
+    dest.prefix.mask= 32;
     route= rib_find_best(router->loc_rib, dest.prefix);
-    if (route == NULL)
-      return -1;
-    bgp_router_show_route_info(stream, router, route);
+    if (route != NULL)
+      bgp_router_show_route_info(stream, router, route);
 #endif
-    return 0;
     break;
+
   case NET_DEST_PREFIX:
-    
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
     route= rib_find_one_exact(router->loc_rib, dest.prefix, NULL);
 #else
     route= rib_find_exact(router->loc_rib, dest.prefix);
 #endif
-    
-    if (route == NULL)
-      return -1;
-    bgp_router_show_route_info(stream, router, route);
-    return 0;
+    if (route != NULL)
+      bgp_router_show_route_info(stream, router, route);
     break;
+
   default:
     return -1;
   }
-  return -1;
+
+  return 0;
 }
 
 
 /////////////////////////////////////////////////////////////////////
-// LOAD/SAVE FUNCTIONS
+// LOAD FUNCTIONS
 /////////////////////////////////////////////////////////////////////
 
 typedef struct {
@@ -2726,34 +2736,14 @@ int bgp_router_load_rib(bgp_router_t * router, const char * filename,
 /**
  *
  */
-static int _bgp_router_save_route_mrtd(uint32_t uKey, uint8_t uKeyLen,
-				       void * pItem, void * pContext)
+static int _bgp_router_save_route_mrtd(uint32_t key, uint8_t key_len,
+				       void * item, void * context)
 {
-  bgp_route_tDumpCtx * pCtx= (bgp_route_tDumpCtx *) pContext;
+  bgp_route_dump_ctx_t * ctx= (bgp_route_dump_ctx_t *) context;
 
-  stream_printf(pCtx->stream, "TABLE_DUMP|%u|", 0);
-  route_dump_mrt(pCtx->stream, (bgp_route_t *) pItem);
-  stream_printf(pCtx->stream, "\n");
-  return 0;
-}
-
-// ----- bgp_router_save_rib ----------------------------------------
-/**
- *
- */
-int bgp_router_save_rib(bgp_router_t * router, const char * filename)
-{
-  gds_stream_t * stream;
-  bgp_route_tDumpCtx sCtx;
-
-  stream= stream_create_file((char *) filename);
-  if (stream == NULL)
-    return -1;
-
-  sCtx.stream= stream;
-  sCtx.router= router;
-  rib_for_each(router->loc_rib, _bgp_router_save_route_mrtd, &sCtx);
-  stream_destroy(&stream);
+  stream_printf(ctx->stream, "TABLE_DUMP|%u|", 0);
+  route_dump_mrt(ctx->stream, (bgp_route_t *) item);
+  stream_printf(ctx->stream, "\n");
   return 0;
 }
 
