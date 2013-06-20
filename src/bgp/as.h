@@ -200,15 +200,12 @@ extern "C" {
 			      bgp_rib_dir_t dir);
 
   ///////////////////////////////////////////////////////////////////
-  // LOAD/SAVE FUNCTIONS
+  // LOAD FUNCTIONS
   ///////////////////////////////////////////////////////////////////
 
   // ----- bgp_router_load_rib --------------------------------------
   int bgp_router_load_rib(bgp_router_t * router, const char * filename,
 			  bgp_input_type_t format, uint8_t options);
-  // ----- bgp_router_save_rib --------------------------------------
-  int bgp_router_save_rib(bgp_router_t * router, const char * filename);
-
 
   ///////////////////////////////////////////////////////////////////
   // MISCELLANEOUS FUNCTIONS
@@ -217,9 +214,9 @@ extern "C" {
   // -----[ bgp_router_show_stats ]----------------------------------
   void bgp_router_show_stats(gds_stream_t * stream, bgp_router_t * router);
   // -----[ bgp_router_show_routes_info ]----------------------------
-  int bgp_router_show_routes_info(gds_stream_t * stream,
-				  bgp_router_t * router,
-				  ip_dest_t dest);
+  void bgp_router_show_routes_info(gds_stream_t * stream,
+				   bgp_router_t * router,
+				   ip_dest_t dest);
   // -----[ bgp_router_set_msg_listener ]----------------------------
   void bgp_router_set_msg_listener(FBGPMsgListener f, void * p);
 
