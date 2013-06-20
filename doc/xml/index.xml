@@ -245,18 +245,6 @@
     <id>bgp_router_reset</id>
   </index>
   <index>
-    <name>bgp router save</name>
-    <id>bgp_router_save</id>
-  </index>
-  <index>
-    <name>bgp router save rib</name>
-    <id>bgp_router_save_rib</id>
-  </index>
-  <index>
-    <name>bgp router save rib-in</name>
-    <id>bgp_router_save_rib-in</id>
-  </index>
-  <index>
     <name>bgp router set</name>
     <id>bgp_router_set</id>
   </index>
