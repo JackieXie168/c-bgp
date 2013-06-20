@@ -298,6 +298,16 @@ cli_arg_t * cli_arg_file(const char * name, cli_arg_check_f check)
 #endif
 }
 
+// -----[ cli_opt_file ]---------------------------------------------
+cli_arg_t * cli_opt_file(const char * name, cli_arg_check_f check)
+{
+#ifdef _FILENAME_COMPLETION_FUNCTION
+  return cli_opt2(name, check, _FILENAME_COMPLETION_FUNCTION);
+#else
+  return cli_opt(name, check);
+#endif
+}
+
 // -----[ cli_require_param ]----------------------------------------
 /**
  * context: {}

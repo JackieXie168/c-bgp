@@ -31,6 +31,8 @@ extern "C" {
 
   // -----[ cli_arg_file ]-------------------------------------------
   cli_arg_t * cli_arg_file(const char * name, cli_arg_check_f check);
+  // -----[ cli_opt_file ]---------------------------------------------
+  cli_arg_t * cli_opt_file(const char * name, cli_arg_check_f check);
 
   // ----- cli_get --------------------------------------------------
   cli_t * cli_get();
