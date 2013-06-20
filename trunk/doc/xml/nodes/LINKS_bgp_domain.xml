@@ -19,8 +19,8 @@
     </child>
   </childs>
   <prev>
-    <name>clear-adj-rib</name>
-    <id>bgp_clear-adj-rib</id>
+    <name>clear-rib</name>
+    <id>bgp_clear-rib</id>
   </prev>
   <next>
     <name>options</name>
