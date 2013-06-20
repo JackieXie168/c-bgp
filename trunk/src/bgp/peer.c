@@ -1186,19 +1186,16 @@ void bgp_peer_show_info(gds_stream_t * stream, bgp_peer_t * peer)
 typedef struct {
   bgp_peer_t * peer;
   gds_stream_t * stream;
-} bgp_route_tDumpCtx;
+} bgp_route_dump_ctx_t;
 
 // ----- bgp_peer_dump_route ----------------------------------------
-/**
- *
- */
-int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
-			void * pItem, void * pContext)
+static int bgp_peer_dump_route(uint32_t key, uint8_t key_len,
+			       void * item, void * context)
 {
-  bgp_route_tDumpCtx * pCtx= (bgp_route_tDumpCtx *) pContext;
+  bgp_route_dump_ctx_t * ctx= (bgp_route_dump_ctx_t *) context;
 
-  route_dump(pCtx->stream, (bgp_route_t *) pItem);
-  stream_printf(pCtx->stream, "\n");
+  route_dump(ctx->stream, (bgp_route_t *) item);
+  stream_printf(ctx->stream, "\n");
   return 0;
 }
 
@@ -1207,58 +1204,52 @@ int bgp_peer_dump_route(uint32_t uKey, uint8_t uKeyLen,
  * Dump Adj-RIB-In/Out.
  *
  * Parameters:
- * - iInOut, if 1, dump Adj-RIB-In, otherwize, dump Adj-RIB-Out.
+ * @param dir    selects between Adj-RIB-in and Adj-RIB-out
+ * @param prefix selects a specific prefix (prefix length < 32),
+ *               the longest prefix matching an address (prefix length >= 32),
+ *               or all prefixes (prefix length == 0)
  */
 void bgp_peer_dump_adjrib(gds_stream_t * stream, bgp_peer_t * peer,
 			  ip_pfx_t prefix, bgp_rib_dir_t dir)
 {
-  bgp_route_tDumpCtx sCtx;
+  bgp_route_dump_ctx_t ctx= { .stream=stream, .peer=peer };
   bgp_route_t * route;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   bgp_route_ts * routes;
-  uint16_t uIndexRoute;
+  uint16_t i;
 #endif
 
-  sCtx.stream= stream;
-  sCtx.peer= peer;
-
+  // All prefixes
   if (prefix.mask == 0) {
-    rib_for_each(peer->adj_rib[dir], bgp_peer_dump_route, &sCtx);
-  } else if (prefix.mask >= 32) {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    routes = rib_find_best(peer->adj_rib[dir], prefix);
-    if (routes != NULL) {
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(routes); uIndexRoute++) {
-	route = routes_list_get_at(routes, uIndexRoute);
-#else
-    route= rib_find_best(peer->adj_rib[dir], prefix);
-#endif
-    if (route != NULL) {
-      route_dump(stream, route);
-      stream_printf(stream, "\n");
-    }
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      }
-    }
-#endif
-  } else {
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-    routes = rib_find_exact(peer->adj_rib[dir], prefix);
-    if (routes != NULL) {
-      for (uIndexRoute = 0; uIndexRoute < routes_list_get_num(routes); uIndexRoute++) {
-	route = routes_list_get_at(routes, uIndexRoute);
-#else
-    route= rib_find_exact(peer->adj_rib[dir], prefix);
-#endif
-    if (route != NULL) {
-      route_dump(stream, route);
-      stream_printf(stream, "\n");
-    }
-#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
-      }
-    }
-#endif
+    rib_for_each(peer->adj_rib[dir], bgp_peer_dump_route, &ctx);
+    return;
   }
+
+  // Single address (best match) or single prefix (exact match)
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
+  if (prefix.mask >= 32) // Single address (best match)
+    routes = rib_find_best(peer->adj_rib[dir], prefix);
+  else // single prefix (exact match)
+    routes = rib_find_exact(peer->adj_rib[dir], prefix);
+  if (routes != NULL) {
+    for (i= 0; i < routes_list_get_num(routes); i++) {
+      route = routes_list_get_at(routes, i);
+      if (route != NULL) {
+	route_dump(stream, route);
+	stream_printf(stream, "\n");
+      }
+    }
+  }
+#else
+  if (prefix.mask >= 32) // Single address (best match)
+    route= rib_find_best(peer->adj_rib[dir], prefix);
+  else // single prefix (exact match)
+    route= rib_find_exact(peer->adj_rib[dir], prefix);
+  if (route != NULL) {
+    route_dump(stream, route);
+    stream_printf(stream, "\n");
+  }
+#endif
 }
 
 // ----- bgp_peer_dump_filters -----------------------------------
