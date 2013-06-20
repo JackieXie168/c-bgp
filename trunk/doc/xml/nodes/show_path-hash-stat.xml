@@ -5,7 +5,7 @@
   <context>show</context>
   <parameters>
     <parameter>
-      <name>filename</name>
+      <name>output</name>
       <description/>
     </parameter>
   </parameters>
