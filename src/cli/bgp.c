@@ -614,43 +614,6 @@ static int cli_bgp_router_load_rib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
   }*/
 
-// ----- cli_bgp_router_save_rib ------------------------------------
-/**
- * This function saves the Loc-RIB of the given BGP instance in a
- * file. The file format is MRTD.
- *
- * context: {router}
- * tokens: {file}
- */
-static int cli_bgp_router_save_rib(cli_ctx_t * ctx, cli_cmd_t * cmd)
-{
-  bgp_router_t * router= _router_from_context(ctx);
-  const char * filename= cli_get_arg_value(cmd, 0);
-
-  // Save the Loc-RIB
-  if (bgp_router_save_rib(router, filename)) {
-    cli_set_user_error(cli_get(), "unable to save into \"%s\"",
-		       filename);
-    return CLI_ERROR_COMMAND_FAILED;
-  }
-
-  return CLI_SUCCESS;
-}
-
-// ----- cli_bgp_router_save_ribin ----------------------------------
-/**
- * This function saves the Adj-RIB-Ins of the given BGP instance in a
- * file. The file format is MRTD.
- *
- * context: {router}
- * tokens: {file}
- */
-static int cli_bgp_router_save_ribin(cli_ctx_t * ctx, cli_cmd_t * cmd)
-{
-  cli_set_user_error(cli_get(), "sorry, not implemented");
-  return CLI_ERROR_COMMAND_FAILED;
-}
-
 // ----- cli_bgp_router_show_info -----------------------------------
 /**
  * context: {router}
@@ -699,6 +662,30 @@ int cli_bgp_router_show_peers(cli_ctx_t * ctx,
   return CLI_SUCCESS;
 }
 
+static inline int _opt_output_init(const cli_cmd_t * cmd, gds_stream_t ** stream_ref) {
+  const char * output;
+  gds_stream_t * stream= gdsout;
+
+  if (cli_has_opt_value(cmd, "output")) {
+    output= cli_get_opt_value(cmd, "output");
+    stream= stream_create_file(output);
+    if (stream == NULL) {
+      cli_set_user_error(cli_get(), "could not create \"%d\"", output);	\
+      return -1;
+    }
+  }
+
+  *stream_ref= stream;
+  return 0;
+}
+
+static inline void _opt_output_release(gds_stream_t ** stream_ref) {
+  if (*stream_ref != gdsout) {
+    stream_destroy(stream_ref);
+    *stream_ref= gdsout;
+  }
+}
+
 // ----- cli_bgp_router_show_rib ------------------------------------
 /**
  * This function shows the list of routes in the given BGP instance's
@@ -711,24 +698,32 @@ int cli_bgp_router_show_peers(cli_ctx_t * ctx,
  *
  * context: {router}
  * tokens: {prefix|address|*}
+ * options: {--output=filename}
  */
 int cli_bgp_router_show_rib(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
   bgp_router_t * router= _router_from_context(ctx);
   const char * arg= cli_get_arg_value(cmd, 0);
   ip_pfx_t prefix;
+  gds_stream_t * stream;
+  
+  if (_opt_output_init(cmd, &stream))
+    return CLI_ERROR_COMMAND_FAILED;
 
   // Get the prefix/address/*
   if (!strcmp(arg, "*")) {
-    bgp_router_dump_rib(gdsout, router);
+    bgp_router_dump_rib(stream, router);
   } else if (!str2prefix(arg, &prefix)) {
-    bgp_router_dump_rib_prefix(gdsout, router, prefix);
+    bgp_router_dump_rib_prefix(stream, router, prefix);
   } else if (!str2address(arg, &prefix.network)) {
-    bgp_router_dump_rib_address(gdsout, router, prefix.network);
+    bgp_router_dump_rib_address(stream, router, prefix.network);
   } else {
     cli_set_user_error(cli_get(), "invalid prefix|address|* \"%s\"", arg);
+    _opt_output_release(&stream);
     return CLI_ERROR_COMMAND_FAILED;
   }
+
+  _opt_output_release(&stream);
 
   return CLI_SUCCESS;
 }
@@ -750,6 +745,7 @@ int cli_bgp_router_show_rib(cli_ctx_t * ctx, cli_cmd_t * cmd)
  *
  * context: {router}
  * tokens: {in|out, addr, prefix|address|*}
+ * options: {--output=filename}
  */
 static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -759,6 +755,7 @@ static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   bgp_peer_t * peer;
   ip_pfx_t prefix;
   bgp_rib_dir_t dir;
+  gds_stream_t * stream;
 
   // Get the adjrib direction: in|out
   arg= cli_get_arg_value(cmd, 0);
@@ -798,7 +795,13 @@ static int cli_bgp_router_show_adjrib(cli_ctx_t * ctx, cli_cmd_t * cmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  bgp_router_dump_adjrib(gdsout, router, peer, prefix, dir);
+    if (_opt_output_init(cmd, &stream))
+    return CLI_ERROR_COMMAND_FAILED;
+  
+  bgp_router_dump_adjrib(stream, router, peer, prefix, dir);
+
+  _opt_output_release(&stream);
+
   return CLI_SUCCESS;
 }
 
@@ -816,8 +819,7 @@ static int cli_bgp_router_show_routeinfo(cli_ctx_t * ctx, cli_cmd_t * cmd)
   bgp_router_t * router= _router_from_context(ctx);
   const char * arg;
   ip_dest_t dest;
-  const char * output;
-  gds_stream_t * stream= gdsout;
+  gds_stream_t * stream;
 
   // Get the destination
   arg= cli_get_arg_value(cmd, 0);
@@ -826,25 +828,13 @@ static int cli_bgp_router_show_routeinfo(cli_ctx_t * ctx, cli_cmd_t * cmd)
     return CLI_ERROR_COMMAND_FAILED;
   }
 
-  // Get the optional parameter
-  if (cli_has_opt_value(cmd, "output")) {
-    output= cli_get_opt_value(cmd, "output");
-    stream= stream_create_file(output);
-    if (stream == NULL) {
-      cli_set_user_error(cli_get(), "could not create \"%d\"", output);
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-  }
-
   // Show the route information
-  if (bgp_router_show_routes_info(stream, router, dest) != 0) {
-    cli_set_user_error(cli_get(), "failed to show info for route(s)");
-    if (stream != gdsout)
-      stream_destroy(&stream);
+  if (_opt_output_init(cmd, &stream))
     return CLI_ERROR_COMMAND_FAILED;
-  }
-  if (stream != gdsout)
-    stream_destroy(&stream);
+
+  bgp_router_show_routes_info(stream, router, dest);
+
+  _opt_output_release(&stream);
 
   return CLI_SUCCESS;
 }
@@ -1341,23 +1331,14 @@ int cli_bgp_show_routers(cli_ctx_t * ctx, cli_cmd_t * cmd)
  */
 int cli_bgp_show_sessions(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-  const char * output;
   bgp_router_t * router;
   bgp_peer_t * peer;
   int state= 0;
-  gds_stream_t * stream= gdsout;
+  gds_stream_t * stream;
   unsigned int index;
 
-  // Get optional "output" parameter
-  output= cli_get_opt_value(cmd, "output");
-  if (output != NULL) {
-    stream= stream_create_file(output);
-    if (stream == NULL) {
-      cli_set_user_error(cli_get(), "could not open file \"%s\" for writing",
-			 output);
-      return CLI_ERROR_COMMAND_FAILED;
-    }
-  }
+  if (_opt_output_init(cmd, &stream))
+    return CLI_ERROR_COMMAND_FAILED;
 
   while ((router= cli_enum_bgp_routers(NULL, state++)) != NULL) {
     for (index= 0; index < bgp_peers_size(router->peers); index++) {
@@ -1370,8 +1351,7 @@ int cli_bgp_show_sessions(cli_ctx_t * ctx, cli_cmd_t * cmd)
     }
   }
 
-  if (stream != gdsout)
-    stream_destroy(&stream);
+  _opt_output_release(&stream);
 
   return CLI_SUCCESS;
 }
@@ -1570,19 +1550,6 @@ static void _register_bgp_router_load(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("summary", NULL));
 }
 
-// ----- _register_bgp_router_save -------------------------------
-static void _register_bgp_router_save(cli_cmd_t * parent)
-{
-  cli_cmd_t * group, * cmd;
-
-  group= cli_add_cmd(parent, cli_cmd_group("save"));
-  cmd= cli_add_cmd(group, cli_cmd("rib", cli_bgp_router_save_rib));
-  cli_add_arg(cmd, cli_arg_file("file", NULL));
-  cmd= cli_add_cmd(group, cli_cmd("rib-in", cli_bgp_router_save_ribin));
-  cli_add_arg(cmd, cli_arg("peer", NULL));
-  cli_add_arg(cmd, cli_arg_file("file", NULL));
-}
-
 // ----- _register_bgp_router_set --------------------------------
 static void _register_bgp_router_set(cli_cmd_t * parent)
 {
@@ -1606,12 +1573,14 @@ static void _register_bgp_router_show(cli_cmd_t * parent)
   cli_add_arg(cmd, cli_arg("in|out", NULL));
   cli_add_arg(cmd, cli_arg2("peer", NULL, cli_enum_bgp_peers_addr));
   cli_add_arg(cmd, cli_arg("prefix|address|*", NULL));
+  cli_add_opt(cmd, cli_opt("output=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("rib", cli_bgp_router_show_rib));
   cli_add_arg(cmd, cli_arg("prefix|address|*", NULL));
+  cli_add_opt(cmd, cli_opt("output=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("route-info",
 				  cli_bgp_router_show_routeinfo));
   cli_add_arg(cmd, cli_arg("prefix|address|*", NULL));
-  cli_add_opt(cmd, cli_opt("output", NULL));
+  cli_add_opt(cmd, cli_opt("output=", NULL));
   cmd= cli_add_cmd(group, cli_cmd("stats", cli_bgp_router_show_stats));
 }
 
@@ -1630,7 +1599,6 @@ static void _register_bgp_router(cli_cmd_t * parent)
   _register_bgp_router_del(group);
   cli_register_bgp_router_peer(group);
   _register_bgp_router_load(group);
-  _register_bgp_router_save(group);
   _register_bgp_router_set(group);
   _register_bgp_router_show(group);
   cmd= cli_add_cmd(group, cli_cmd("record-route", cli_bgp_router_recordroute));
