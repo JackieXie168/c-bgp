@@ -1,5 +1,5 @@
 # ===================================================================
-# @(#)sync-cmd-nodes.pl
+# @(#)cbgp2doc.pl
 #
 # Generate documentation nodes for C-BGP.
 #
@@ -28,8 +28,8 @@ use constant COLOR_WHITE => "\033[37;1m";
 use constant COLOR_YELLOW => "\033[1;33m";
 
 # -----[ configuration parameters ]----------------------------------
-my $cfg_prefix= "xml";
-my $cfg_nodes_prefix= "$cfg_prefix/nodes";
+my $cfg_path= "xml";
+my $cfg_nodes_path= "$cfg_path/nodes";
 
 # -----[ show_error ]------------------------------------------------
 sub show_error($)
@@ -90,23 +90,10 @@ sub node_file_exists($)
   {
     my ($node)= @_;
 
-    my $filename= $cfg_nodes_prefix.'/'.node_to_filename($node, 'xml');
+    my $filename= $cfg_nodes_path.'/'.$node->{filename}.".xml";
 
     return ( -e "$filename" );
   }
-
-# -----[ node_file_update ]------------------------------------------
-#
-# -------------------------------------------------------------------
-sub node_file_update($) {
-  my ($node)= @_;
-
-  my $filename= $cfg_nodes_prefix.'/'.node_to_filename($node, 'xml');
-
-  ( ! -e "$filename" ) and return;
-
-  print "comparing template for node \"$_\"...\n";
-}
 
 # -----[ template_params ]-------------------------------------------
 #
@@ -152,9 +139,7 @@ sub template_params($$) {
 #   ---
 # -------------------------------------------------------------------
 sub node_file_create_template($$) {
-  my ($node, $path)= @_;
-
-  my $filename= $path.'/'.node_to_filename($node, 'xml');
+  my ($node, $filename)= @_;
 
   ( -e "$filename" ) and return;
 
@@ -240,7 +225,7 @@ sub node_file_create_links($)
   {
     my ($node)= @_;
 
-    my $filename= $cfg_nodes_prefix.'/LINKS_'.node_to_filename($node, 'xml');
+    my $filename= $cfg_nodes_path.'/LINKS_'.$node->{filename}.".xml";
 
     print "creating links for node \"$_\"...\n";
 
@@ -361,6 +346,7 @@ sub parse_show_commands($) {
 
     my $cmd_full= _parse_cmd_full_name(\@stack, $cmd_current);
     my $cmd_params= \@fields;
+
     my $cmd_struct=
       {
        full_name => $cmd_full,
@@ -371,7 +357,9 @@ sub parse_show_commands($) {
        childs    => {},
        next      => undef,
        pref      => undef,
+       filename  => undef,
       };
+    $cmd_struct->{filename}= node_to_filename($cmd_struct);
     (exists($nodes{$cmd_full})) and
       show_error("duplicate command \"$cmd_full\" at line $line_number");
     $nodes{$cmd_full}= $cmd_struct;
@@ -405,34 +393,39 @@ sub parse_show_commands($) {
 #
 # -------------------------------------------------------------------
 sub main_run($) {
-  my ($nodes)= @_;
+    my ($nodes)= @_;
 
-  show_info("Check existing nodes");
-  foreach (sort keys %$nodes) {
-    if (!node_file_exists($nodes->{$_})) {
-      print "creating template for node \"$_\"...\n";
-      node_file_create_template($nodes->{$_}, $cfg_nodes_prefix);
+    show_info("Check existing nodes");
+    foreach (sort keys %$nodes) {
+	my $node= $nodes->{$_};
+	# If CONTENT file already exist, don't overwrite !
+	if (!node_file_exists($node)) {
+	    print "creating template for node \"$_\"...\n";
+	    my $filename= $cfg_nodes_path.'/'.$node->{filename}.".xml";
+	    node_file_create_template($node, $filename);
+	}
+	# LINKS file are always re-generated
+	node_file_create_links($node);
     }
-    node_file_create_links($nodes->{$_});
-  }
 
 
   show_info("Creating Index");
   my %index;
-  (open(INDEX, ">$cfg_prefix/index.xml")) or
+  (open(INDEX, ">$cfg_path/index.xml")) or
     show_error("could not create index");
   print INDEX "<?xml version=\"1.0\"?>\n";
   print INDEX "<docindex>\n";
   foreach (sort keys %$nodes) {
+      my $node= $nodes->{$_};
     #if (node_file_exists($nodes->{$_})) {
     print INDEX "  <index>\n";
     print INDEX "    <name>";
-    if ($nodes->{$_}->{context} ne '') {
-      print INDEX $nodes->{$_}->{context}." ";
+    if ($node->{context} ne '') {
+      print INDEX $node->{context}." ";
     }
-    print INDEX $nodes->{$_}->{name};
+    print INDEX $node->{name};
     print INDEX "</name>\n";
-    print INDEX "    <id>".node_to_filename($nodes->{$_})."</id>\n";
+    print INDEX "    <id>".$node->{filename}."</id>\n";
     print INDEX "  </index>\n";
     #}
   }
@@ -447,7 +440,7 @@ sub main_run($) {
      'sim' => 'Simulation-related commands',
      '*'   => 'Miscellaneaous commands'
     );
-  open(TOC, ">$cfg_prefix/toc.xml") or
+  open(TOC, ">$cfg_path/toc.xml") or
     show_error("cound not create table-of-content");
   print TOC "<?xml version=\"1.0\"?>\n";
   print TOC "<toc>";
@@ -464,30 +457,58 @@ sub main_run($) {
   close(TOC);
 }
 
+sub xsltproc_extract_params($$) {
+    my ($src_filename, $dst_filename)= @_;
+
+    my $cmd= "xsltproc xml/xsl/extract-params.xsl".
+	" $src_filename > $dst_filename";
+    (system($cmd) == 0) or die "could not run \"$cmd\"";
+}
+
 # -----[ main_check ]------------------------------------------------
-#
+# For every supported C-BGP command,
+# 1). check if a corresponding XML file exists
+# 2). compare the list of arguments and options between the current
+#     command and existing XML file.
 # -------------------------------------------------------------------
 sub main_check($) {
-  my ($nodes)= @_;
+    my ($nodes)= @_;
+    my $needs_update= 0;
 
-  show_info("Checking documentation");
-  foreach (sort keys %$nodes) {
-    node_file_create_template($nodes->{$_}, "/tmp");
-    my $node= $nodes->{$_};
-    my $cmd= "xsltproc xml/nodes_src/extract-params.xsl /tmp/".node_to_filename($node, 'xml')." > /tmp/".node_to_filename($node, 'params');
-    (system($cmd) == 0) or die "could not run \"$cmd\"";
+    show_info("Checking documentation");
+    foreach (sort keys %$nodes) {
+	my $node= $nodes->{$_};
+	my $filename= $node->{filename};
 
-    $cmd= "xsltproc xml/nodes_src/extract-params.xsl xml/nodes/".node_to_filename($node, 'xml')." > /tmp/".node_to_filename($node, 'params2');
-    (system($cmd) == 0) or die "could not run \"$cmd\"";
+	if (!(-e "$cfg_nodes_path/$filename.xml")) {
+	    show_warning("new command \"$filename\"");
+	    $needs_update= 1;
+	    next;
+	}
+	
+	node_file_create_template($node, "/tmp/$filename.xml");
+	xsltproc_extract_params("/tmp/$filename.xml", "/tmp/$filename.params");
+	xsltproc_extract_params("$cfg_nodes_path/$filename.xml", "/tmp/$filename.params2");
 
-    $cmd= "diff /tmp/".node_to_filename($node, 'params')." /tmp/".node_to_filename($node, 'params2');
-
-    my $result= `$cmd`;
-    if (length($result > 0)) {
-      show_warning("parameters outdated in \"".node_to_filename($node)."\"");
-      template_params(*STDERR, $node);
+	my $cmd= "diff /tmp/$filename.params /tmp/$filename.params2";
+	
+	my $result= `$cmd`;
+	if (length($result > 0)) {
+	    show_warning("parameters outdated in \"$filename.xml\"");
+	    $needs_update= 1;
+	    template_params(*STDERR, $node);
+	}
+	
+	# Remove temporary files
+	unlink("/tmp/$filename.xml");
+	unlink("/tmp/$filename.params");
+	unlink("/tmp/$filename.params2");
     }
-  }
+    if ($needs_update) {
+	show_info("-> needs to be updated");
+    } else {
+	show_info("-> up-to-date");
+    }
 }
 
 # -----[ main ]------------------------------------------------------
