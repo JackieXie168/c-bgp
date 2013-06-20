@@ -6,8 +6,8 @@ SUBDIRS = nodes
 all: html txt
 
 html:
-	xsltproc index2html.xsl index.xml > $(HTML_PATH)/index.html
-	xsltproc toc2html.xsl toc.xml > $(HTML_PATH)/toc.html
+	xsltproc xsl/index2html.xsl index.xml > $(HTML_PATH)/index.html
+	xsltproc xsl/toc2html.xsl toc.xml > $(HTML_PATH)/toc.html
 	for subdir in $(SUBDIRS); do \
 	  cd $$subdir && $(MAKE) html; \
 	done
