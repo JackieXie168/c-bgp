@@ -9,7 +9,7 @@
     <id>bgp_router_rescan</id>
   </prev>
   <next>
-    <name>save</name>
-    <id>bgp_router_save</id>
+    <name>set</name>
+    <id>bgp_router_set</id>
   </next>
 </command>

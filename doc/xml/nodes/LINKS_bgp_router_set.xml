@@ -11,8 +11,8 @@
     </child>
   </childs>
   <prev>
-    <name>save</name>
-    <id>bgp_router_save</id>
+    <name>reset</name>
+    <id>bgp_router_reset</id>
   </prev>
   <next>
     <name>show</name>

@@ -46,10 +46,6 @@
       <id>bgp_router_reset</id>
     </child>
     <child>
-      <name>save</name>
-      <id>bgp_router_save</id>
-    </child>
-    <child>
       <name>set</name>
       <id>bgp_router_set</id>
     </child>

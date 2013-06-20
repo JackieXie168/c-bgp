@@ -14,6 +14,10 @@
       <id>bgp_clear-adj-rib</id>
     </child>
     <child>
+      <name>clear-rib</name>
+      <id>bgp_clear-rib</id>
+    </child>
+    <child>
       <name>domain</name>
       <id>bgp_domain</id>
     </child>
