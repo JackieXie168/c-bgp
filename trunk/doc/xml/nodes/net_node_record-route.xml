@@ -33,6 +33,10 @@
       <description>optionally use a different forwarding plane</description>
     </option>
     <option>
+      <name>--ttl=</name>
+      <description>optional TTL limit</description>
+    </option>
+    <option>
       <name>--tunnel</name>
       <description>optionally discover the path within tunnels</description>
     </option>
