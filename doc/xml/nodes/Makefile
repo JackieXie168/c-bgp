@@ -23,19 +23,19 @@ tex: $(TEX_NODES)
 .PHONY: clean
 
 .xml.html:
-	xsltproc --stringparam filename "LINKS_$<" node2html.xsl $< > $(HTML_PATH)/nodes/$@
+	xsltproc --stringparam filename "../nodes/LINKS_$<" ../xsl/node2html.xsl $< > $(HTML_PATH)/nodes/$@
 
 .xml.txt:
-	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< | groff -Tascii -m mdoc - > $(TXT_PATH)/$@
+	xsltproc --stringparam filename "../nodes/LINKS_$<" ../xsl/node2groff.xsl $< | groff -Tascii -m mdoc - > $(TXT_PATH)/$@
 
 #.xml.groff:
-#	xsltproc --stringparam filename "LINKS_$<" node2groff.xsl $< > $@
+#	xsltproc --stringparam filename "LINKS_$<" ../xsl/node2groff.xsl $< > $@
 
 #.groff.txt:
 #	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
 
 .xml.tex:
-	xsltproc node2tex.xsl $< > $@
+	xsltproc ../xsl/node2tex.xsl $< > $@
 
 clean:
 	rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))
