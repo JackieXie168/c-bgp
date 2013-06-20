@@ -4,6 +4,10 @@
   <id>bgp_router_show_rib</id>
   <context>bgp router show</context>
   <parameters>
+    <option>
+      <name>--output=</name>
+      <description>optional output file</description>
+    </option>
     <parameter>
       <name>prefix|address|*</name>
       <description>destination to show</description>

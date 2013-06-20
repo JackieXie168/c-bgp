@@ -5,8 +5,8 @@
   <context>bgp router show</context>
   <parameters>
     <option>
-      <name>--output</name>
-      <description>name of output file</description>
+      <name>--output=</name>
+      <description>optional output file</description>
     </option>
     <parameter>
       <name>prefix|address|*</name>
