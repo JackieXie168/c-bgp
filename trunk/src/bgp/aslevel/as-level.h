@@ -155,6 +155,8 @@ extern "C" {
   int aslevel_topo_check(int verbose);
   // -----[ aslevel_topo_dump ]--------------------------------------
   int aslevel_topo_dump(gds_stream_t * stream);
+  // -----[ aslevel_topo_dump_graphviz ]-----------------------------
+  int aslevel_topo_dump_graphviz(gds_stream_t * stream);
   // -----[ aslevel_topo_filter_as ]---------------------------------
   int aslevel_topo_filter_as(asn_t asn);
   // -----[ aslevel_topo_filter_group ]------------------------------
@@ -181,6 +183,8 @@ extern "C" {
 
   // -----[ aslevel_str2peer_type ]----------------------------------
   peer_type_t aslevel_str2peer_type(const char * pcStr);
+  // -----[ aslevel_peer_type2str ]----------------------------------
+  const char * aslevel_peer_type2str(peer_type_t peer_type);
   // -----[ aslevel_reverse_relation ]-------------------------------
   peer_type_t aslevel_reverse_relation(peer_type_t peer_type);
   // -----[ aslevel_filter_in ]--------------------------------------

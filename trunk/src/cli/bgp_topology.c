@@ -300,7 +300,7 @@ static int cli_bgp_topology_run(cli_ctx_t * ctx, cli_cmd_t * cmd)
 /**
  * context: {}
  * tokens : {}
- * options: {--output=FILE}
+ * options: {--output=FILE, --format=graphviz}
  */
 static int cli_bgp_topology_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
@@ -318,7 +318,11 @@ static int cli_bgp_topology_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
   }
 
   //  result= aslevel_topo_dump_stubs(stream);
-  result= aslevel_topo_dump(stream);
+  arg= cli_get_opt_value(cmd, "format");
+  if ((arg != NULL) && !strcmp(arg, "graphviz"))
+    result= aslevel_topo_dump_graphviz(stream);
+  else
+    result= aslevel_topo_dump(stream);
 
   if (stream != gdsout)
     stream_destroy(&stream);
@@ -392,6 +396,7 @@ void cli_register_bgp_topology(cli_cmd_t * parent)
   cli_add_opt(cmd, cli_opt("verbose", NULL));
   cmd= cli_add_cmd(group, cli_cmd("dump", cli_bgp_topology_dump));
   cli_add_opt(cmd, cli_opt("output=", NULL));
+  cli_add_opt(cmd, cli_opt("format=", NULL));
   _cli_register_bgp_topology_filter(group);
   cmd= cli_add_cmd(group, cli_cmd("info", cli_bgp_topology_info));
   cmd= cli_add_cmd(group, cli_cmd("install", cli_bgp_topology_install));
