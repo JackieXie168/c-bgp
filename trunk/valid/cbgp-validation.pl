@@ -81,7 +81,7 @@ use CBGPValid::XMLReport;
 use POSIX;
 
 
-use constant CBGP_VALIDATION_VERSION => '1.12';
+use constant CBGP_VALIDATION_VERSION => '1.13';
 
 # -----[ Error messages ]-----
 my $CBGP_ERROR_INVALID_SUBNET    = "invalid subnet";
@@ -126,7 +126,7 @@ my $validation= {
 		};
 
 show_info("c-bgp CLI validation v".$validation->{'program_version'});
-show_info("(c) 2008-2009, Bruno Quoitin (bruno.quoitin\@uclouvain.be)");
+show_info("(c) 2008-2013, Bruno Quoitin (bruno.quoitin\@umons.ac.be)");
 
 my %opts;
 if (!GetOptions(\%opts,
