@@ -5,7 +5,7 @@
   <context>net node iface</context>
   <abstract>disable an interface</abstract>
   <description>
-<p>This command disables a network interface. Messages sent by this interface will be dropped. If routes are re-computed by the IGP model, the link conencted to that interface will be disabled.</p>
+<p>This command disables a network interface. Messages sent by this interface will be dropped. If routes are re-computed by the IGP model, the link connected to that interface will be disabled.</p>
   </description>
   <see-also>
 <p>This can also be achieved using commands such as <cmd><name>net link X down</name><link>net_link_down</link></cmd>.</p>
