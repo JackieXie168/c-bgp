@@ -58,19 +58,19 @@ enclosed with < > while optional arguments are enclosed with [ ].
 
 Subdirectory structure
 ----------------------
+The documentation directories are organized as follows
 
-doc/
-  xml/
-    index.xml
-    toc.xml
-    nodes/
-      LINKS_<cmd>.xml
-      <cmd>.xml
-    xsl/
-  html/
-    generated HTML files
-  txt/
-    generated TXT files
+  doc/
+    xml/
+      index.xml           -> source index (generated)
+      toc.xml             -> source table of content (generated)
+      nodes/              -> source XML documentation files (edited)
+        LINKS_<cmd>.xml
+        <cmd>.xml
+      xsl/                -> XSL transformation scripts
+    html/                 -> generated HTML files
+    tex/                  -> generated LaTeX files + PDF documentation
+    txt/                  -> generated TXT files
 
 
 Generating documentation
@@ -86,20 +86,17 @@ while all LINKS_<cmd>.xml and <cmd>.xml files are generated in
 'xml/nodes'. If a <cmd>.xml file already exists, it will not be
 overwritten.
 
+Then, from the 'doc/xml' directory, generate the output files in HTML,
+text and LaTeX, using the provided Makefile as follows
 
-HTML output
------------
-To generate the HTML documentation, move to the 'xml' directory and
-run
+    make
 
-	make html
+Alternatively, you can generate the output separately for the various
+formats, using
 
-
-TXT output
-----------
-To generate the TXT documentation, move to the 'xml' directory and run
-
-   make txt
+    make html     -> produces the HTML output
+    make tex      -> produces the LaTeX output
+    make txt      -> produces the text output, for use within c-bgp
 
 
 Install documentation on SF server
