@@ -1171,7 +1171,7 @@ int aslevel_topo_filter_group(uint8_t filter)
 }
 
 // -----[ aslevel_topo_dump ]----------------------------------------
-int aslevel_topo_dump(gds_stream_t * stream)
+int aslevel_topo_dump(gds_stream_t * stream, int verbose)
 {
   unsigned int index, index2;
   as_level_domain_t * domain;
@@ -1187,7 +1187,8 @@ int aslevel_topo_dump(gds_stream_t * stream)
       if (domain->asn < link->neighbor->asn) {
 	stream_printf(stream, "%u\t%u\t%d", domain->asn, link->neighbor->asn,
 		      link->peer_type);
-	stream_printf(stream, "\t%s", aslevel_peer_type2str(link->peer_type));
+	if (verbose)
+	  stream_printf(stream, "\t%s", aslevel_peer_type2str(link->peer_type));
 	stream_printf(stream, "\n");
       }
     }
