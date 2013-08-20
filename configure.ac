@@ -474,7 +474,7 @@ AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 TESTS="src/checks/basic"
 
 dnl Files to be distributed as part of the examples
-EXAMPLES_EXTRA_DIST=`echo [$top_dir]; ls $top_dir/examples/*.topo $top_dir/examples/*.cli`
+EXAMPLES_EXTRA_DIST=`ls ./examples/*.topo ./examples/*.cli | tr '\n' ' '`
 AC_SUBST([EXAMPLES_EXTRA_DIST])
 
 #CFLAGS="$CFLAGS -Wall -Werror -O2"
