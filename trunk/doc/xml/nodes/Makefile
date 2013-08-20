@@ -6,7 +6,7 @@ HTML_NODES=$(patsubst %.xml, %.html, $(XML_NODES))
 TXT_PATH=../../txt
 TXT_NODES=$(patsubst %.xml, %.txt, $(XML_NODES))
 
-TEX_PATH=./
+TEX_PATH=../../tex
 TEX_NODES=$(patsubst %.xml, %.tex, $(XML_NODES))
 
 all: html txt tex
@@ -16,8 +16,20 @@ html: $(HTML_NODES)
 txt: $(TXT_NODES)
 
 tex: $(TEX_NODES)
+	OLD_PWD=$(shell pwd) ; \
+	cd $(TEX_PATH) ; \
+	for CMD in bgp net sim ; do \
+		echo Generating "$$CMD"_commands.tex ; \
+		rm "$$CMD"_commands.tex ; \
+		ls -1 "nodes/$$CMD"_*.tex | awk '{ print "\\input{"$$0"}" }' >> "$$CMD"_commands.tex; \
+	done ; \
+	echo Generating other_commands.tex ; \
+	rm -f other_commands.tex ; \
+	ls -1 nodes/*.tex | grep -v -E '^nodes/(bgp|net|sim)' | awk '{ print "\\input{"$$0"}" }' >> other_commands.tex ; \
+	cd $$OLD_PWD
 
-#.SUFFIXES: .xml .html .txt .groff
+#echo `ls -1 "$$CMD"_*.tex | awk '{ print "\input{"$0"}" }' >> "$$CMD"_commands.tex` ; \
+
 .SUFFIXES: .xml .html .txt .groff .tex
 
 .PHONY: clean
@@ -35,7 +47,7 @@ tex: $(TEX_NODES)
 #	groff $< -Tascii -m mdoc > $(TXT_PATH)/$@
 
 .xml.tex:
-	xsltproc ../xsl/node2tex.xsl $< > $@
+	xsltproc ../xsl/node2tex.xsl $< > $(TEX_PATH)/nodes/$@
 
 clean:
 	rm -f $(patsubst %, $(HTML_PATH)/nodes/%, $(HTML_NODES))

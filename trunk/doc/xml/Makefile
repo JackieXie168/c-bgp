@@ -3,7 +3,7 @@ TXT_PATH=../txt
 
 SUBDIRS = nodes
 
-all: html txt
+all: html tex txt
 
 html:
 	xsltproc xsl/index2html.xsl index.xml > $(HTML_PATH)/index.html
@@ -13,8 +13,19 @@ html:
 	done
 	@echo "HTML documentation generated"
 
+tex:
+	for subdir in $(SUBDIRS); do \
+	  cd $$subdir && $(MAKE) tex; \
+	done
+	@echo "LaTeX documentation generated"
+	OLD_PWD=$(shell pwd) ; \
+	cd ../tex ; \
+	$(MAKE) ; \
+	cd $$OLD_PWD
+	@echo "PDF output generated"
+
 txt:
-	for subdir in $(SUBDIRE); do \
+	for subdir in $(SUBDIRS); do \
 	  cd $$subdir && $(MAKE) txt; \
 	done
 	@echo "TXT documentation generated"
