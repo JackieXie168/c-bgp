@@ -154,7 +154,7 @@ extern "C" {
   // -----[ aslevel_topo_check ]-------------------------------------
   int aslevel_topo_check(int verbose);
   // -----[ aslevel_topo_dump ]--------------------------------------
-  int aslevel_topo_dump(gds_stream_t * stream);
+  int aslevel_topo_dump(gds_stream_t * stream, int verbose);
   // -----[ aslevel_topo_dump_graphviz ]-----------------------------
   int aslevel_topo_dump_graphviz(gds_stream_t * stream);
   // -----[ aslevel_topo_filter_as ]---------------------------------

@@ -322,7 +322,7 @@ static int cli_bgp_topology_dump(cli_ctx_t * ctx, cli_cmd_t * cmd)
   if ((arg != NULL) && !strcmp(arg, "graphviz"))
     result= aslevel_topo_dump_graphviz(stream);
   else
-    result= aslevel_topo_dump(stream);
+    result= aslevel_topo_dump(stream, cli_get_opt_value(cmd, "verbose") != NULL);
 
   if (stream != gdsout)
     stream_destroy(&stream);
@@ -397,6 +397,7 @@ void cli_register_bgp_topology(cli_cmd_t * parent)
   cmd= cli_add_cmd(group, cli_cmd("dump", cli_bgp_topology_dump));
   cli_add_opt(cmd, cli_opt("output=", NULL));
   cli_add_opt(cmd, cli_opt("format=", NULL));
+  cli_add_opt(cmd, cli_opt("verbose", NULL));
   _cli_register_bgp_topology_filter(group);
   cmd= cli_add_cmd(group, cli_cmd("info", cli_bgp_topology_info));
   cmd= cli_add_cmd(group, cli_cmd("install", cli_bgp_topology_install));
