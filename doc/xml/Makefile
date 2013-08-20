@@ -1,7 +1,10 @@
 HTML_PATH=../html
 TXT_PATH=../txt
+TEX_PATH=../tex
 
 SUBDIRS = nodes
+
+VERSION=$(shell grep PACKAGE_VERSION ../../src/config.h | sed -e 's/.*"\(.*\)"/\1/')
 
 all: html tex txt
 
@@ -19,7 +22,8 @@ tex:
 	done
 	@echo "LaTeX documentation generated"
 	OLD_PWD=$(shell pwd) ; \
-	cd ../tex ; \
+	cd $(TEX_PATH) ; \
+	echo $(VERSION) > version.tex ; \
 	$(MAKE) ; \
 	cd $$OLD_PWD
 	@echo "PDF output generated"
