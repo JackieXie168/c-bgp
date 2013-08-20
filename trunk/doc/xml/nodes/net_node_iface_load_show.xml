@@ -15,7 +15,7 @@ cbgp&gt;
 </p>
   </description>
   <see-also>
-<p>To obtain the load of all the links, consider using command <cmd><name>net ltraffic save</name><link>net_traffic_save</link></cmd>.</p>
+<p>To obtain the load of all the links, consider using command <cmd><name>net traffic save</name><link>net_traffic_save</link></cmd>.</p>
 <p>The capacity of a link can be specified when the link is created (see command <cmd><name>net add link</name><link>net_add_link</link></cmd>.</p>
   </see-also>
 </command>

@@ -5,12 +5,27 @@
   <context>bgp topology</context>
   <parameters>
     <option>
+      <name>--format=</name>
+      <description>alternate output format</description>
+    </option>
+    <option>
       <name>--output=</name>
-      <description/>
+      <description>name of output file</description>
+    </option>
+    <option>
+      <name>--verbose</name>
+      <description>produce verbose output</description>
     </option>
   </parameters>
-  <abstract/>
-  <description/>
+  <abstract>show AS-level topology</abstract>
+  <description>
+<p>This command shows the AS-level topology previously loaded with the command <cmd><name>bgp topology load</name><link>bgp_topology_load</link></cmd>. The default output format (obtained without using the <i>--format</i> option) shows a single AS relationship per line. For each AS relationship, a code identifies the relationship type. A textual description of the AS relationship type can be obtained by mentioning the <i>--verbose</i> option.
+</p>
+<p>An alternate output format can be obtained by using the <i>--format=</i> option. A single alternate format is supported : "graphviz". This allows to obtain an output file suitable for use with AT&amp;T's graphviz tools, in particulat <b>dot</b> and <b>neato</b>.
+</p>
+<p>The <i>--output=</i> option allows to redirect the command's output to a file. The file name is provided as the value of the <i>--output=</i> option.
+</p>
+  </description>
   
   
 </command>
