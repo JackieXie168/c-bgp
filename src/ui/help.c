@@ -97,7 +97,7 @@ static int _cli_help_cmd_str(const char * str)
 {
   char * cmd_filename= str_create(str);
   char * filename;
-  int result;
+  int result= -1;
   unsigned int index;
   char * r_filename;
 
@@ -110,15 +110,38 @@ static int _cli_help_cmd_str(const char * str)
     filename= str_create(_help_paths->data[index]);
     filename= str_append(filename, cmd_filename);
     result= params_replace(filename, libcbgp_get_param_lookup(),
-			   &r_filename, PARAM_OPT_ALLOW_UNDEF);
-    assert(result == 0);
-    result= pager_run(r_filename);
-    if (result != PAGER_SUCCESS)
-      stream_printf(gdserr, "Trying %s... [failed]\n", filename);
-    FREE(r_filename);
+			   &r_filename, 0);
+    // Only use paths with all variables resolved
+    // (do not accept unknown variables, result != 0)
+    if (result == 0) {
+      result= pager_run(r_filename);
+      FREE(r_filename);
+    }
     str_destroy(&filename);
     if (result == PAGER_SUCCESS)
       break;
+  }
+
+  // If the help file could not be found in any of the search paths
+  // display short error message with list of search paths. If paths
+  // contain variables, resolve them. Display an error if a path
+  // contains unknown variables.
+  if (result != PAGER_SUCCESS) {
+    stream_printf(gdserr, "Help file \"\%s\" not found.\n", cmd_filename);
+    stream_printf(gdserr, "The following locations were searched :\n");
+    for (index= 0; index < str_array_size(_help_paths); index++) {
+      filename= str_create(_help_paths->data[index]);
+      stream_printf(gdserr, "* %s", filename);
+      result= params_replace(filename, libcbgp_get_param_lookup(),
+			     &r_filename, 0);
+      if (result == 0) {
+	stream_printf(gdserr, " (%s)", r_filename);
+	FREE(r_filename);
+      } else
+	stream_printf(gdserr, " (undefined variable(s))");
+      stream_printf(gdserr, "\n");
+      str_destroy(&filename);
+    }
   }
 
   str_destroy(&cmd_filename);
@@ -159,24 +182,23 @@ static void _cli_help_option(cli_arg_t * option)
 }
 
 // -----[ _cli_help_param ]------------------------------------------
-static void _cli_help_param(cli_arg_t * arg)
+/*static void _cli_help_param(cli_arg_t * arg)
 {
-  fprintf(stdout, "\n");
-  /*if (arg->info == NULL)*/
-    fprintf(stdout, "No help available for parameter \"%s\"\n",
-	    arg->name);
-    /*else
-      fprintf(stdout, "%s\n", arg->info);*/
-
 #ifdef HAVE_RL_ON_NEW_LINE
   rl_on_new_line();
 #endif
-}
+  fprintf(stdout, "\n");
+  //if (arg->info == NULL)
+  fprintf(stdout, "No help available for parameter \"%s\"\n",
+	  arg->name);
+  //else
+  //  fprintf(stdout, "%s\n", arg->info);
+}*/
 
 // -----[ cli_help ]-------------------------------------------------
 void cli_help(const char * str)
 {
-  fprintf(stdout, "CLI_HELP [%s]\n", str);
+  //fprintf(stdout, "CLI_HELP [%s]\n", str);
 
   unsigned int index;
   cli_t * cli= cli_get();
@@ -240,7 +262,8 @@ void cli_help(const char * str)
     case CLI_ERROR_MISSING_ARG:
       // Works but we should find command instead of argument
       // (would it be possible to get cmd from arg ? currently not)
-      _cli_help_param(el.arg);
+      //_cli_help_param(el.arg);
+      _cli_help_cmd(el.arg->parent);
       break;
 
     case CLI_ERROR_UNKNOWN_OPT:
@@ -258,7 +281,10 @@ void cli_help(const char * str)
       break;
 
     default:
-      printf("STATUS=%d\n", status);
+#ifdef HAVE_RL_ON_NEW_LINE
+      rl_on_new_line();
+#endif
+      stream_printf(gdsout, "\nNo help available\n", str);
       
     }
     
