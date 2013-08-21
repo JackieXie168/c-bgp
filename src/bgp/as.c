@@ -2571,10 +2571,8 @@ void bgp_router_show_routes_info(gds_stream_t * stream, bgp_router_t * router,
     break;
 
   default:
-    return -1;
+    ;
   }
-
-  return 0;
 }
 
 
@@ -2736,7 +2734,7 @@ int bgp_router_load_rib(bgp_router_t * router, const char * filename,
 /**
  *
  */
-static int _bgp_router_save_route_mrtd(uint32_t key, uint8_t key_len,
+/*static int _bgp_router_save_route_mrtd(uint32_t key, uint8_t key_len,
 				       void * item, void * context)
 {
   bgp_route_dump_ctx_t * ctx= (bgp_route_dump_ctx_t *) context;
@@ -2745,7 +2743,7 @@ static int _bgp_router_save_route_mrtd(uint32_t key, uint8_t key_len,
   route_dump_mrt(ctx->stream, (bgp_route_t *) item);
   stream_printf(ctx->stream, "\n");
   return 0;
-}
+  }*/
 
 // -----[ bgp_router_show_stats ]------------------------------------
 /**
