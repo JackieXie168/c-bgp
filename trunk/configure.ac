@@ -90,21 +90,21 @@ fi
 dnl *****************************************************************
 dnl JAVA CHECK
 dnl *****************************************************************
-AC_DEFUN([AC_PROG_JAVAH],[
-AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
-AC_REQUIRE([AC_PROG_CPP])dnl
-AC_PATH_PROG(JAVAH,javah)
-   ac_save_CPPFLAGS="$CPPFLAGS"
-changequote(, )dnl
-   ac_dir=`echo $ac_cv_path_JAVAH | sed 's,\(.*\)/[^/]*/[^/]*$,\1/include,'`
-   ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
-changequote([, ])dnl
-   CPPFLAGS="$ac_save_CPPFLAGS -I$ac_dir -I$ac_dir/$ac_machdep"
-   AC_TRY_CPP([#include <jni.h>],
-              ac_save_CPPFLAGS="$CPPFLAGS",
-              AC_MSG_WARN([unable to include <jni.h>]))
-   CPPFLAGS="$ac_save_CPPFLAGS"
-])
+dnl AC_DEFUN([AC_PROG_JAVAH],[
+dnl AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
+dnl AC_REQUIRE([AC_PROG_CPP])dnl
+dnl AC_PATH_PROG(JAVAH,javah)
+dnl    ac_save_CPPFLAGS="$CPPFLAGS"
+dnl changequote(, )dnl
+dnl    ac_dir=`echo $ac_cv_path_JAVAH | sed 's,\(.*\)/[^/]*/[^/]*$,\1/include,'`
+dnl    ac_machdep=`echo $build_os | sed 's,[-0-9].*,,' | sed 's,cygwin,win32,'`
+dnl changequote([, ])dnl
+dnl    CPPFLAGS="$ac_save_CPPFLAGS -I$ac_dir -I$ac_dir/$ac_machdep"
+dnl    AC_TRY_CPP([#include <jni.h>],
+dnl               ac_save_CPPFLAGS="$CPPFLAGS",
+dnl               AC_MSG_WARN([unable to include <jni.h>]))
+dnl    CPPFLAGS="$ac_save_CPPFLAGS"
+dnl ])
 
 
 dnl *****************************************************************
@@ -118,17 +118,18 @@ AC_ARG_WITH(jni,dnl
 
 if test "$with_jni" != "no"; then
 
-   AC_MSG_CHECKING([for JAVA_HOME])
-   if test -z "$JAVA_HOME"; then
-     AC_MSG_ERROR([undefined])
-     echo "Error: environment variable JAVA_HOME is not set."
-     echo "       This variable should point to your Java SDK."
-     exit -1
-   fi
-   AC_MSG_RESULT([$JAVA_HOME])
+   AX_CHECK_HAVA_HOME()
+   dnl AC_MSG_CHECKING([for JAVA_HOME])
+   dnl if test -z "$JAVA_HOME"; then
+   dnl   AC_MSG_ERROR([undefined])
+   dnl   echo "Error: environment variable JAVA_HOME is not set."
+   dnl   echo "       This variable should point to your Java SDK."
+   dnl   exit -1
+   dnl fi
+   dnl AC_MSG_RESULT([$JAVA_HOME])
 
-   JAVA=java
-   JAVAC=javac
+#   JAVA=java
+#   JAVAC=javac
    AC_CHECK_CLASSPATH
    AC_PROG_JAVAC
    AC_PROG_JAVA
@@ -142,6 +143,8 @@ if test "$with_jni" != "no"; then
    do
      CPPFLAGS="$CPPFLAGS -I$JNI_INCLUDE_DIR"
    done
+
+   AX_PROG_JAVAH
 
 
 #   jni_paths=""
@@ -475,8 +478,10 @@ AM_CONDITIONAL([HOST_IS_CYGWIN], [test "$test_cygwin" = "yes"])
 TESTS="src/checks/basic"
 
 dnl Files to be distributed as part of the examples
-EXAMPLES_EXTRA_DIST=`ls ./examples/*.topo ./examples/*.cli | tr '\n' ' '`
+EXAMPLES_EXTRA_DIST=`OLDPWD=$PWD; cd examples; ls *.topo *.cli | tr '\n' ' '; cd $OLDPWD`
 AC_SUBST([EXAMPLES_EXTRA_DIST])
+HELP_EXTRA_DIST=`OLDPWD=$PWD; cd doc/txt; ls *.txt | tr '\n' ' '; cd $OLDPWD`
+AC_SUBST([HELP_EXTRA_DIST])
 
 #CFLAGS="$CFLAGS -Wall -Werror -O2"
 CFLAGS="$CFLAGS -Wall -O2"
