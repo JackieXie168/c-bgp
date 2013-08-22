@@ -205,7 +205,7 @@ Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   if (dest.type == NET_DEST_PREFIX)
     ip_options_alt_dest(opts, dest.prefix);
 
-  traces= icmp_trace_send2(node, dest.addr, 255, opts);
+  traces= icmp_trace_send(node, dest.addr, 255, opts);
 
   joVector= cbgp_jni_new_Vector(env);
   if (joVector == NULL)
