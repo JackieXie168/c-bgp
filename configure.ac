@@ -1,13 +1,14 @@
 dnl =================================================================
 dnl configure.in for cbgp
 dnl
-dnl @author Bruno Quoitin
+dnl @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 dnl $Id: configure.in,v 1.88 2009-08-31 15:04:31 bqu Exp $
 dnl =================================================================
 
 AC_REVISION($Revision: 1.88 $)
 
-AC_INIT([cbgp], [2.0.0-rc3], [bruno.quoitin@umons.ac.be])
+m4_include([version.m4])
+AC_INIT([cbgp], [VERSION_NUMBER], [bruno.quoitin@umons.ac.be])
 AC_CONFIG_SRCDIR(src/main.c)
 AC_PREREQ(2.57)
 AC_PREFIX_DEFAULT(/usr/local)
@@ -56,7 +57,7 @@ AC_SUBST(CBGP_LT_RELEASE, [$PACKAGE_VERSION])
 dnl *****************************************************************
 dnl LIBGDS CHECK
 dnl *****************************************************************
-LIBGDS_VERSION="2.0.0"
+LIBGDS_VERSION="2.2.0"
 AC_SUBST(LIBGDS_VERSION, [$LIBGDS_VERSION])
 PKG_CHECK_MODULES([LIBGDS], [libgds >= $LIBGDS_VERSION],[],[
   AC_MSG_ERROR([libgds >= $LIBGDS_VERSION is needed to compile cbgp])
