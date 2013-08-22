@@ -18,28 +18,25 @@ MODULE="cbgp"
 # VC (mandatory)
 #   is the version control system (cvs / svn)
 #
-VC=cvs
+VC=svn
 #
 # SVN_URL (optional)
 #   is the SVN URL of the project (this needs only be configured
 #   for SVN projects)
 #
-#SVN_URL=
+SVN_URL=`svn info | grep URL | cut -c 7-`
 #
-# MAIN_VERSION (mandatory)
-#   is the project main version (major)
+# MAIN_VERSION
 #
-MAIN_VERSION=1
+MAIN_VERSION=2
 #
-# RELEASE_VERSION (mandatory)
-#   is the release main version (minor)
+# RELEASE_VERSION
 #
 RELEASE_VERSION=2
 #
-# BUILD_VERSION (mandatory)
-#   is the build number
+# BUILD_VERSION
 #
-BUILD_VERSION=5
+BUILD_VERSION=0
 #
 # VERSION
 #   
@@ -57,7 +54,7 @@ CONF_OPTIONS[2]="--with-jni"
 # CONF_OPTIONS_COMMON (optional)
 #   is a set of common configure options
 #                            
-CONF_OPTIONS_COMMON="--with-libgds-dir=$HOME/local --with-readline=/sw"
+CONF_OPTIONS_COMMON="--with-readline=/opt/local"
 #
 # VALID_EXEC (optional)
 #   is the name of a command used to validate the project.
@@ -82,6 +79,14 @@ PUBLISH_FILES="$MODULE-$VERSION.tar.gz \
     $MODULE-$VERSION-valid.html \
     $MODULE-$VERSION-valid-doc.html"
 #
+# BUILDROOT
+#
+BUILDROOT=/tmp/build
+#
+# PKG_CONFIG_PATH
+#
+PKG_CONFIG_PATH=$HOME/local/lib/pkgconfig
+export PKG_CONFIG_PATH
 #####################################################################
 # ----->>>> YOU SHOULDN'T CHANGE THE SCRIPT PAST THIS LINE <<<<------
 #####################################################################
