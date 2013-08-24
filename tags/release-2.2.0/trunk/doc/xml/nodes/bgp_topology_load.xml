@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>bgp_topology_load</id>
+  <context>bgp topology</context>
+  <parameters>
+    <option>
+      <name>--addr-sch=</name>
+      <description>router addressing scheme (default/local)</description>
+    </option>
+    <option>
+      <name>--format=</name>
+      <description>format of the AS-level topology file</description>
+    </option>
+    <parameter>
+      <name>file</name>
+      <description>name of the AS-level topology file</description>
+    </parameter>
+  </parameters>
+  <abstract>load an AS-level topology</abstract>
+  <description>
+<p>
+This command loads an AS-level topology from the specified <b>file</b>. Different input file formats can be used.</p>
+
+<p>The <b>--format</b> option specifies the expected format of the input file. The default is "rexford". The other possible formats are "caida" and "meulle". Each of these file formats was used by different authors of AS-level topology inferrence algorithms.</p>
+<p><dl>
+<dt>rexford</dt>
+<dd>is based on work by L. Subramanian et al ("Characterizing the Internet Hierarchy from Multiple Vantage Points", INFOCOM 2002). I you are wondering where the name "rexford" comes from, it is the name of one of the paper's authors.</dd>
+<dt>caida</dt>
+<dd>was used by the Cooperative Association for Internet Data Analysis (CAIDA) to publish its AS relationships files. See <url>http://www.caida.org/data/active/as-relationships</url> for more details.</dd>
+<dt>meulle</dt>
+<dd>was proposed by Mickael Meulle (from France Telecom RD, now Orange Labs). See <url>http://perso.rd.francetelecom.fr/meulle</url> for more details.</dd>
+</dl>
+</p>
+<p>
+Once an AS-level topology has been loaded, <i>C-BGP</i> can optionnally build a network where each domain (AS) is composed of a single router (see the command <cmd><name>bgp topology install</name><link>bgp_topology_install</link></cmd>). The identifier (IP address) of each router is derived from its domain's number (ASN) according to an addressing scheme. There are currently two possible addressing schemes that can be selected using the <b>--addr-sch</b> option. The default addressing scheme will derive a router's IP address by multiplying the ASN by 65536. For instance, if the router is in AS7018, then its IP address will be 27.106.0.0. This can be changed if the <i>--addr-sch</i> option is used with the value "local". In this case the IP address of our example would become 0.0.27.106.</p>
+<p>In the "rexford" file format, each line of the file specifies a relationship between two Internet domains, as follows:
+<code>&lt;domain-1&gt; &lt;domain-2&gt; &lt;relationship&gt; [&lt;delay&gt;]
+</code>
+The <b>relationship</b> field can be one of the following:
+<table>
+<trh><th>Value</th><th>Meaning</th></trh>
+<tr><td>0</td><td>peer-to-peer relationship</td></tr>
+<tr><td>1</td><td>provider-to-customer relationship</td></tr>
+</table>
+</p>
+  </description>
+  <see-also>
+<p>The following commands are also important to setup a simulation based on an AS-level topology: <cmd><name>bgp topology install</name><link>bgp_topology_install</link></cmd>, <cmd><name>bgp topology policies</name><link>bgp_topology_policies</link></cmd> and <cmd><name>bgp topology run</name><link>bgp_topology_run</link></cmd>.</p>
+  </see-also>  
+</command>

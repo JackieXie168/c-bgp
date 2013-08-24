@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>net_traffic_load</id>
+  <context>net traffic</context>
+  <parameters>
+    <option>
+      <name>--dst=</name>
+      <description>optionally mention a destination type</description>
+    </option>
+    <option>
+      <name>--src=</name>
+      <description>optionally mention a source type</description>
+    </option>
+    <option>
+      <name>--summary</name>
+      <description>optionally request a summary of the operation</description>
+    </option>
+    <parameter>
+      <name>file</name>
+      <description>the traffic matrix file</description>
+    </parameter>
+  </parameters>
+  <abstract>load a traffic matrix</abstract>
+  <description>
+<p>This command loads a traffic matrix out of a text file. The text file does not contain a "real" matrix, but instead a series of flows. A flow mentions a source and a destination as well as a volume. There are different ways to identify the source and the destination of a flow.</p>
+<p>To clarify the notion of flows, let's use the following example traffic matrix file. The file has 5 lines, 4 of which describe traffic flows. The first line is a header line that informs C-BGP of the columns provided in the file. In the example, a flow has an IP address as source (<i>srcIP</i>) and an IP address as destination (<i>dstIP</i>). Flows shown in the example also mention a destination mask (prefix length - <i>dstMask</i>) and a volume (<i>octets</i>).
+<code>
+srcIP dstIP dstMask octets<br/>
+1.0.0.1 3.0.0.1 32 1<br/>
+1.0.0.1 3.0.0.3 32 2<br/>
+1.0.0.3 2.0.0.1 32 4<br/>
+2.0.0.3 1.0.0.3 32 8
+</code>
+</p>
+<p>When the above traffic matrix is loaded, the following actions are performed by C-BGP. For each flow, C-BGP identifies a source node based on the flow's source. From that node, a lookup is performed in the routing table to find an entry towards the flow's destination. The link between the node and the routing table entry's next-hop is loaded with the flow's volume. Then, the process continues from the next-hop node until the destination is reached or a node on the path has no entry in its routing table.</p>
+<p>Actually, for each flow, the operations performed by C-BGP are equivalent to a call of the <cmd><name>record-route</name><link>net_node_record-route</link></cmd> command with the <i>--load</i> option. The following example illustrate how the use of <b>record-route</b> could be used to load the first flow in the above traffic matrix file.
+<code>
+cbgp&gt; net node 1.0.0.1 record-route --load=1 3.0.0.1<br/>
+cbgp&gt;
+</code>
+</p>
+<p>The columns/fields that can be specified in the traffic matrix header line are shown in the following table along with a short description. The field names are inspired from those used in the flow-tools utility (see <url>http://code.google.com/p/flow-tools/</url>).
+<table>
+<trh><th>Field name</th><th>Description</th></trh>
+<tr><td>srcAS</td><td>source AS number</td></tr>
+<tr><td>dstAS</td><td>destination AS number</td></tr>
+<tr><td>srcIP</td><td>source IP address</td></tr>
+<tr><td>dstIP</td><td>destination IP address</td></tr>
+<tr><td>srcMask</td><td>source IP prefix length (ignored)</td></tr>
+<tr><td>dstMask</td><td>destination IP prefix length</td></tr>
+<tr><td>octets</td><td>volume</td></tr>
+<tr><td>packets</td><td>number of packets (ignored)</td></tr>
+<tr><td>srcPort</td><td>source transport layer port (ignored)</td></tr>
+<tr><td>dstPort</td><td>destination transport layer port (ignored)</td></tr>
+<tr><td>prot</td><td>transport-layer protocol (ignored)</td></tr>
+</table>
+</p>
+<p>The default flow source identifier is provided by the <i>srcIP</i> field. This behaviour can be modified by using the <i>--src</i> option. This option can take the following values: <b>ip</b> if the source is an IP address (default) or <b>asn</b> if the source is an AS number (ASN).</p>
+<p>The default flow destination identifier is provided by the <i>dstIP</i> field. This behaviour can be modified by using the <i>--dst</i> option. This option can take the following values: <b>ip</b> if the destination is an IP address (default) or <b>pfx</b> if the destination is an IP prefix. In the later case, an exact-match search is performed in each node's routing table to find the next-hop.</p>
+  </description>
+  <see-also>
+<p>To obtain the load of a link, see command <cmd><name>net link X Y show info</name><link>net_link_show_info</link></cmd> or command <cmd><name>net node X iface Y load show</name><link>net_node_iface_load_show</link></cmd>.</p>
+  </see-also>
+</command>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>stop</name>
+  <id>sim_stop</id>
+  <context>sim</context>
+  <parameters>
+    <option>
+      <name>--at=</name>
+      <description>simulation time</description>
+    </option>
+  </parameters>  
+  <abstract>defines a limit on the number of simulation steps</abstract>
+  <description>
+<p>This command sets a limit on the number of simulation steps. Subsequent calls of <cmd><name>sim run</name><link>sim_run</link></cmd> will not process events past the specified simulation time.</p>
+  </description>
+</command>

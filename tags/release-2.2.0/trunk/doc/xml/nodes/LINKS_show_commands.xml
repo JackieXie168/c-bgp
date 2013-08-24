@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <prev>
+    <name>comm-hash-stat</name>
+    <id>show_comm-hash-stat</id>
+  </prev>
+  <next>
+    <name>mem-limit</name>
+    <id>show_mem-limit</id>
+  </next>
+</command>

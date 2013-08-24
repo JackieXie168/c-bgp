@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>stop</name>
+  <id>bgp_router_stop</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

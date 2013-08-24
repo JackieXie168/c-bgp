@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>commands</name>
+  <id>show_commands</id>
+  <context>show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

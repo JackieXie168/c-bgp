@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<command>
+  <name>clear-rib</name>
+  <id>bgp_clear-rib</id>
+  <context>bgp</context>
+  <abstract>clear the routes from all the routers</abstract>
+  <description>
+<p>This command clears the routes from all the routers. That means that every router's Loc-RIB and Adj-RIBs are emptied.</p>
+  </description>
+  <see-also>
+<p>A similar command clears the routing Adj-RIBs but keeps the content of the Loc-RIBs: <cmd><name>bgp clear-adj-rib</name><link>bgp_clear-adj-rib</link></cmd>.</p>
+  </see-also>
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>debug</name>
+  <id>bgp_router_debug</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

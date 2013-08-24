@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<command>
+  <name>full-mesh</name>
+  <id>bgp_domain_full-mesh</id>
+  <context>bgp domain</context>
+  
+  <abstract>create a full-mesh of BGP sessions</abstract>
+  <description>
+<p>
+This command creates a full-mesh of iBGP sessions between the routers that are member of the specified domain.
+</p>
+<p>
+Example:
+<code>
+bgp add router 1 0.1.0.0<br/>
+bgp add router 1 0.1.0.1<br/>
+bgp add router 1 0.1.0.2<br/>
+bgp add router 1 0.1.0.3<br/>
+bgp domain 1 full-mesh
+</code>
+</p>
+  </description>
+  
+  
+</command>

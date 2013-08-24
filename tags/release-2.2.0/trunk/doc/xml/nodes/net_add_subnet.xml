@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>subnet</name>
+  <id>net_add_subnet</id>
+  <context>net add</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>subnet identifier (an IP prefix)</description>
+    </parameter>
+    <parameter>
+      <name>transit|stub</name>
+      <description>conditions traversal by IGP computed paths</description>
+    </parameter>
+  </parameters>
+  <abstract>add a subnet (model of a LAN)</abstract>
+  <description>
+<p>This command adds a new subnet to the simulation. A subnet is a simplified model of a LAN where multiple nodes can connect. The subnet is identified by an IP <i>prefix</i>.</p>
+<p>A subnet can have two different behaviours: "transit" or "stub", as specified with the <i>transit|stub</i> argument. If the subnet is in transit mode, that means that the IGP model can compute shortest-paths that traverse this subnet. Otherwise, if the subnet is in stub mode, no shortest-path can traverse the subnet (it will only be a leaf in shortest-paths trees).</p>
+  </description>
+  <see-also>
+<p>See command <cmd><name>net domain X compute</name><link>net_domain_compute</link></cmd> for more information about IGP computed paths.</p>
+  </see-also>
+</command>

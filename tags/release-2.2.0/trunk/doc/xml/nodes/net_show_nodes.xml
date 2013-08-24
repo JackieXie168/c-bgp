@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>nodes</name>
+  <id>net_show_nodes</id>
+  <context>net show</context>
+  <parameters>
+    <parameter>
+      <name>prefix|*</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>ntf</name>
+  <id>net_ntf</id>
+  <context>net</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

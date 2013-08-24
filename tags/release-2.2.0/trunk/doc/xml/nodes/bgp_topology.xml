@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>topology</name>
+  <id>bgp_topology</id>
+  <context>bgp</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

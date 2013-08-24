@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>name</name>
+  <id>net_node_name</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>name</name>
+      <description>new name of the node</description>
+    </parameter>
+  </parameters>
+  <abstract>change one node's name</abstract>
+  <description>
+<p>
+This is a very complex command that relies on really advanced artificial intelligence algorithms. It allows you to set the name of a node.
+</p>
+  </description>
+  
+  
+</command>

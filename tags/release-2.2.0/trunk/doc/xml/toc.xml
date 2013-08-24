@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<toc>  <categories>
+    <category>
+      <name>sim</name>
+      <description>Simulation-related commands</description>
+      <id>sim</id>
+    </category>
+    <category>
+      <name>bgp</name>
+      <description>BGP-related commands</description>
+      <id>bgp</id>
+    </category>
+    <category>
+      <name>*</name>
+      <description>Miscellaneaous commands</description>
+      <id>*</id>
+    </category>
+    <category>
+      <name>net</name>
+      <description>Network- and topology-related commands</description>
+      <id>net</id>
+    </category>
+  </categories>
+</toc>

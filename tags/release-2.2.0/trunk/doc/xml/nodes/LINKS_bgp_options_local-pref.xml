@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>options</name>
+    <id>bgp_options</id>
+  </father>
+  <prev>
+    <name>auto-create</name>
+    <id>bgp_options_auto-create</id>
+  </prev>
+  <next>
+    <name>med</name>
+    <id>bgp_options_med</id>
+  </next>
+</command>

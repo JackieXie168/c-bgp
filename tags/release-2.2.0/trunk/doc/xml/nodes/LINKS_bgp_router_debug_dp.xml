@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>debug</name>
+    <id>bgp_router_debug</id>
+  </father>
+</command>

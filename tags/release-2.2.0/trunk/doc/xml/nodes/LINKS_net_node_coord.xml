@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <prev>
+    <name>add</name>
+    <id>net_node_add</id>
+  </prev>
+  <next>
+    <name>domain</name>
+    <id>net_node_domain</id>
+  </next>
+</command>

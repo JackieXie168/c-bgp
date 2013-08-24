@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<command>
+  <name>rib</name>
+  <id>bgp_router_show_rib</id>
+  <context>bgp router show</context>
+  <parameters>
+    <option>
+      <name>--output=</name>
+      <description>optional output file</description>
+    </option>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description>destination to show</description>
+    </parameter>
+  </parameters>
+  <abstract>show the best BGP routes of one BGP router</abstract>
+  <description>
+<p>
+This command shows the routes installed into the Loc-RIB of one router. The command takes one parameter to filter the output. The filter can be an IP address, an IP prefix or a wildcard (*). If the filter parameter is an IP address, the result will contain the routes that match the address (best-match). If the filter is an IP prefix, the result will only contain the routes towards the specified prefic (exact-match). Finally, if  a wildcard is given, all the routes will be dumped.
+</p>
+<p>
+The output format depends on the current mode, specified with the <cmd><name>bgp options show-mode</name><link>bgp_options_show-mode</link></cmd>. We show only examples in the CISCO-like output format.
+</p>
+<p>
+CISCO-like output format:
+<code>
+&lt;flags&gt; &lt;prefix&gt; &lt;peer&gt; &lt;pref&gt; &lt;metric&gt; &lt;AS-Path&gt; &lt;origin&gt;
+</code>
+where the <i>flags</i> field can contain the following items:
+<table>
+<trh><th>Flags</th><th>Description</th></trh>
+<tr><td><b>*</b></td><td>the route's next-hop is reachable.</td></tr>
+<tr><td><b>&gt;</b></td><td>the route is a best route (installed in the Loc-RIB).</td></tr>
+<tr><td><b>i</b></td><td>the route is local (installed with the <cmd><name>bgp router add network</name><link>bgp_router_add_network</link></cmd> command).</td></tr>
+</table>
+Moreover, the <i>origin</i> field tells how the origin router learned the network prefix and it can take one of the following values:
+<table>
+<trh><th>Origin</th><th>Description</th></trh>
+<tr><td><b>i</b></td><td>the route was learned through an <cmd><name>bgp router add network</name><link>bgp_router_add_network</link></cmd> statement.</td></tr>
+<tr><td><b>e</b></td><td>the route was learned from an EGP protocol.</td></tr>
+<tr><td><b>?</b></td><td>the route was learned through redistribution from another protocol.</td></tr>
+</table>
+</p>
+<p>
+Note: since the only way to learn a BGP route in <i>C-BGP</i> is currently through the <cmd><name>bgp router add network</name><link>bgp_router_add_network</link></cmd> statement, the <i>origin</i> field will always be <b>i</b>.
+</p>
+<p>
+Example:
+<code>
+cbgp&gt; bgp router 0.0.0.1 show rib *<br/>
+i&gt; 0.0.0.1/32   0.0.0.1 0       0       null    i<br/>
+*&gt; 0.1.0.1/32   0.2.0.2 0       0       2 1     i<br/>
+*&gt; 0.2.0.1/32   0.2.0.2 0       0       2       i<br/>
+*&gt; 0.2.0.2/32   0.2.0.2 0       0       2       i
+</code>
+</p>
+  </description>
+  
+  
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>net</name>
+  <id>net</id>
+  <context/>
+  
+  <abstract>network and topology related commands</abstract>
+  
+  
+  
+</command>

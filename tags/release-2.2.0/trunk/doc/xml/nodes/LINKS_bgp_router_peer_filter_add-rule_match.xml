@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>add-rule</name>
+    <id>bgp_router_peer_filter_add-rule</id>
+  </father>
+  <prev>
+    <name>action</name>
+    <id>bgp_router_peer_filter_add-rule_action</id>
+  </prev>
+</command>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<command>
+  <name>nodes</name>
+  <id>net_domain_show_nodes</id>
+  <context>net domain show</context>
+  
+  <abstract>show the nodes that belong to one domain</abstract>
+  <description>
+<p>
+This command lists the nodes that belong to one domain.
+</p>
+<p>
+Example:
+<code>
+cbgp&gt; net domain 1 show<br/>
+0.1.0.0<br/>
+0.1.0.1
+</code>
+</p>
+  </description>
+  
+  
+</command>

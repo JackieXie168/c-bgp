@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<command>
+  <name>filter</name>
+  <id>bgp_router_peer_filter</id>
+  <context>bgp router peer</context>
+  <parameters>
+    <parameter>
+      <name>in|out</name>
+      <description>filter direction</description>
+    </parameter>
+  </parameters>
+  <abstract>define a session filter</abstract>
+  <description>
+<p>
+This command can be used to associate an input or an output filter to a BGP session with a peer. The direction of the filter is specified using the argument <b>in|out</b>. If the argument is "in", the filter is an input filter, i.e. it will be applied on routes received from the peer. If the argument is "out", the filter is an output filter, i.e. it will be applied on routes sent to the peer.</p>
+<p>A filter is composed of a sequence of rules. You can add rules to an existing filter using command <cmd><name>add-rule</name><link>bgp_router_peer_filter_add-rule</link></cmd>.</p>
+<p>Here is an example script that defines an output filter for routes sent by router 1.0.0.1 to its peer 1.0.0.2. The filter is composed of two rules. The first rule rejects (denies) all routes that have community 1. The second rule accepts all remaining routes.
+<code>bgp router 1.0.0.1 peer 1.0.0.2<br/>
+<tab count="1"/>filter out<br/>
+<tab count="2"/>add-rule<br/>
+<tab count="3"/>match "community is 1"<br/>
+<tab count="3"/>action "deny"<br/>
+<tab count="3"/>exit<br/>
+<tab count="2"/>add-rule<br/>
+<tab count="3"/>match "any"<br/>
+<tab count="3"/>action "accept"<br/>
+<tab count="3"/>exit
+</code>
+</p>
+  </description>
+  <see-also>
+<p>
+It is possible to show the content of a filter using the command <cmd><name>bgp router X peer Y filter in/out show</name><link>bgp_router_peer_filter_show</link></cmd>.
+</p>
+  </see-also>
+</command>

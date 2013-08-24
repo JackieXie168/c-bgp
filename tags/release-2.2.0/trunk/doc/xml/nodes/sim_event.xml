@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>event</name>
+  <id>sim_event</id>
+  <context>sim</context>
+  <parameters>
+    <parameter>
+      <name>time</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>event</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

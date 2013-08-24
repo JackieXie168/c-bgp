@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<command>
+  <name>route-maps</name>
+  <id>bgp_show_route-maps</id>
+  <context>bgp show</context>
+  
+  <abstract>list all availabel route-maps</abstract>
+  <description>
+<p>
+This command lists all defined route-maps.
+</p>
+  </description>
+  <see-also>
+<p>
+To define a route-map, use command <cmd><name>bgp route-map</name><link>bgp_route-map</link></cmd>.
+</p>
+  </see-also>
+</command>

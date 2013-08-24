@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<command>
+  <name>print</name>
+  <id>print</id>
+  <context/>
+  <parameters>
+    <parameter>
+      <name>message</name>
+      <description>message to print</description>
+    </parameter>
+  </parameters>
+  <abstract>print a message</abstract>
+  <description>
+<p>
+This command prints a <arg>message</arg> on the standard output (stdout). The print command recognizes and interprets the escape sequences described in the following table.
+<table>
+<trh><th>Escape sequence</th><th>Description</th></trh>
+<tr><td><esc>a</esc></td><td>Print an "alert" to the console. Usually, this will be transformed into an audible bell.</td></tr>
+<tr><td><esc>e</esc></td><td>Prints "<esc>033</esc>" to the console. This can be used to send ECMA-48 sequences to the console.</td></tr>
+<tr><td><esc>n</esc></td><td>Prints a new line.</td></tr>
+<tr><td><esc>r</esc></td><td>Prints a carriage return (returns to the beginning of the line).</td></tr>
+<tr><td><esc>t</esc></td><td>Prints a tabulation.</td></tr>
+</table>
+</p>
+  </description>
+  
+  
+</command>

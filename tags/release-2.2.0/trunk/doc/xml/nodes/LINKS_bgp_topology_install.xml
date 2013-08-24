@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>info</name>
+    <id>bgp_topology_info</id>
+  </prev>
+  <next>
+    <name>load</name>
+    <id>bgp_topology_load</id>
+  </next>
+</command>

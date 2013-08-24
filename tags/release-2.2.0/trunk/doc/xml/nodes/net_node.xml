@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>node</name>
+  <id>net_node</id>
+  <context>net</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description>node's address (identifier)</description>
+    </parameter>
+  </parameters>
+  <abstract>enter one node's context</abstract>
+  <description>
+<p>
+Strictly speaking, this is not really a command. It rather allows you to enter one node's context and enter commands that are specific to this context.
+</p>
+  </description>
+  
+  
+</command>
