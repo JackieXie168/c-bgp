@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>domain</name>
+    <id>bgp_domain</id>
+  </father>
+  <prev>
+    <name>full-mesh</name>
+    <id>bgp_domain_full-mesh</id>
+  </prev>
+  <next>
+    <name>rescan</name>
+    <id>bgp_domain_rescan</id>
+  </next>
+</command>

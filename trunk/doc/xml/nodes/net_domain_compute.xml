@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<command>
+  <name>compute</name>
+  <id>net_domain_compute</id>
+  <context>net domain</context>
+  <parameters>
+    <option>
+      <name>--keep-spt</name>
+      <description>optionally keep computed SPT in memory</description>
+    </option>
+  </parameters>  
+  <abstract>compute the IGP routes inside this domain</abstract>
+  <description>
+<p>This command computes the routes between all the nodes that belong to one domain. How the computation is performed depends on the domain's type. Basically, <i>C-BGP</i> only supports one domain type for the moment and it is named <b>igp</b>. In this model, the intradomain routes are the shortest-paths according to the domain's link weights (see also <cmd><name>net link igp-weight</name><link>net_link_igp-weight</link></cmd>).
+</p>
+<p>
+Example:
+<code>
+# Create IGP domain 1 and assign nodes 0.1.0.1, 0.1.0.2<br/>
+# and 0.1.0.3 to this domain<br/>
+net add domain 1 igp<br/>
+net node 0.1.0.1 domain 1<br/>
+net node 0.1.0.2 domain 1<br/>
+net node 0.1.0.3 domain 1<br/>
+<br/>
+# Compute the shortest-paths between all the domain's nodes<br/>
+net domain 1 compute
+</code>
+</p>
+<p>The computed SPTs can optionally be kept in memory if the option <i>--keep-spt</i> is used. These SPTs can later be displayed or savec in a file using command <cmd><name>net node X show spt</name><link>net_node_show_spt</link></cmd>.</p>
+  </description>
+  <see-also>
+<p>See command <cmd><name>net add domain</name><link>net_add_domain</link></cmd> to learn how to add IGP domains to the simulation.</p>
+<p>See command <cmd><name>net node X domain</name><link>net_node_domain</link></cmd> to learn how to put a node in an IGP domain.</p>
+  </see-also>
+</command>

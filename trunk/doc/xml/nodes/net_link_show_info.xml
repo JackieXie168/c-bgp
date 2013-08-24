@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<command>
+  <name>info</name>
+  <id>net_link_show_info</id>
+  <context>net link show</context>
+  <abstract>show configuration and status details</abstract>
+  <description>
+<p>This command show the configuration and status details of a link. This is useful for debugging purposes as well as for retrieving the current load of a link.</p>
+<p>The output of this command is a list of name / value pairs, each on a separate line. The value is separated from the name by a colon (':'). The following example illustrates this format.
+<code>
+cbgp&gt; net link 1.0.0.1 1.0.0.2 show info<br/>
+iface    : 1.0.0.2/32<br/>
+type     : rtr<br/>
+dest     : 1.0.0.2<br/>
+capacity : 0<br/>
+delay    : 0<br/>
+load     : 3<br/>
+igp-depth: 1<br/>
+tos00    : 1<br/>
+cbgp&gt;
+</code>
+</p>
+  </description>
+  <see-also>
+<p>To change the load of a link, see command <cmd><name>net node X record-route</name><link>net_node_record-route</link></cmd> and command <cmd><name>net traffic load</name><link>net_traffic_load</link></cmd>.</p>
+  </see-also>
+</command>

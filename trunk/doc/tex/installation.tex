@@ -1,0 +1,358 @@
+%====================================================================
+\chapter{Installation}
+%====================================================================
+
+
+\section{Introduction}
+%--------------------------------------------------------------------
+
+This chapter explains how \application{C-BGP} can be built from
+sources. The build process of \application{C-BGP} has been carefully
+generated using the GNU \application{autoconf}, \application{automake}
+and \application{libtool} utilities. There are great chances that it
+will work on most UNIX operating systems with a working C compilation
+chain. The build process has been tested on various UNIX systems,
+mainly Linux and FreeBSD workstations as well as some Solaris
+systems. From time to time, the build process is also tested under
+Microsoft Windows using the \application{Cygwin} library.
+
+However, if the build process fails on your system, don't be
+discouraged and contact the developpers on the sourceforge
+mailing-list \verb|c-bgp-users@lists.sourceforge.net|
+
+
+\section{Requirements}
+%--------------------------------------------------------------------
+
+There are a few libraries and tools required by
+\application{C-BGP}. These libraries and tools must be installed on
+your system before you attempt to build \application{C-BGP}.
+
+\begin{itemize}
+\item The GNU readline library, also known as
+  \application{libreadline}, is required to provide a user-friendly
+  command-line interface including auto-completion and input
+  history. The GNU readline library is freely available from
+  \url{http://www.gnu.org}. It is probably also available as a package
+  on your system. Note that the library and its development
+  headers are required. The GNU readline library is not mandatory as
+  \application{C-BGP} contains a minimal replacement. It is however
+  highly recommended.
+
+\item The library of {\it Perl Compatible Regular Expressions} (PCRE),
+  also known as the \application{libpcre} library is required to allow
+  AS-Path based routing filters. This library is freely available from
+  \url{http://www.pcre.org}. It is probably also available as a
+  package on your system. Note that the library and its development
+  headers are required. This library is mandatory.
+
+\item The \application{zlib} compression library is required to allow
+  reading compressed routing tables. This library is available from
+  \url{http://www.zlib.net/}. It is probably also available as a
+  package on your system. Note that the library and its development
+  headers are required. This library is mandatory.
+
+\item The \application{libbz2} compression library is recommended to
+  allow reading compressed routing tables. This library is available
+  from \url{http://bzip.org}. Is is probably also available as a
+  package on your system. Note that the library and its development
+  headers are required. This library is not mandatory.
+
+\item The \application{libgds} library is a library of generic data
+  structures developped for \application{C-BGP}. It is available from
+  Sourceforge at
+  \url{http://libgds.sourceforge.net}. Section~\ref{sec:inst-libgds}
+  explains how to setup and install this library. This library is
+  mandatory.
+
+\item The \application{pkg-config} utility is required to allow
+  \application{C-BGP} to link with the \application{libgds}
+  library. The \application{pkg-config} utility can be obtained from
+  \url{http://pkg-config.freedesktop.org/wiki/}. It is probably also
+  available as a package on your system.
+
+\end{itemize}
+
+\section{Installation of the \application{libgds} library}
+\label{sec:inst-libgds}
+%--------------------------------------------------------------------
+
+This section describes how to build the \application{libgds}
+library. This library is required by \application{C-BGP} as it
+provides most of \application{C-BGP}'s data structures. The
+\application{libgds} library is freely available from Sourceforge at
+\url{http://libgds.sourceforge.net}. 
+
+To install \application{libgds}, the following steps need to be
+followed. First, the latest source archive must be downloaded. The
+source archive has a name such as \filename{libgds-x.y.z.tar.gz} where
+\filename{x.y.z} denotes the library version. This archive must be
+uncompressed in a temporary directory. This should create a directory
+named \filename{libgds-x.y.z}. This directory must be entered, then
+the \filename{configure} script must be executed. This script will
+check that everything is available on your system to build
+\application{libgds}. This script should run without any problem. When
+the execution of \filename{configure} is finished, the build process
+can be launched with \filename{make clean} followed by
+\filename{make}. That will actually build the library.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{cd /tmp}
+\prompt{bash\$} \command{tar xvzf libgds-x.y.z.tar.gz}
+\prompt{bash\$} \command{cd libgds-x.y.z}
+\prompt{bash\$} \command{./configure}
+\prompt{bash\$} \command{make clean}
+\prompt{bash\$} \command{make}
+\end{Verbatim}
+
+Once the build process is finished, the library must be
+installed using \filename{make install}. The default installation
+prefix is \filename{/usr/local}. This means that to install, root
+privileges are required. To proceed with the installation, it is
+needed to login as root user and type \filename{make install} or to use
+\filename{sudo make install}. The installation process will install the
+library file under \filename{<prefix>/lib} and the library development
+headers under \filename{<prefix>/include/libgds}.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{sudo make install}
+Password:
+\end{Verbatim}
+
+For those users that do not have root privileges, there is a mean to
+change the installation prefix. Section~\ref{sec:inst-options}
+discusses this process at length.
+
+Once the library is installed it might be needed to check that the
+linker can find it. This is a system dependent task. Under the Linux
+operating system, there is usually a file named
+\filename{/etc/ld.so.conf} that lists the directories where the linker
+must search for libraries. The directory \filename{/usr/local/lib}
+should be added to this file if it is not yet there. Then,
+\filename{/sbin/ldconfig} must be run in order to update the linker's
+database. Running \filename{ldconfig} requires root privilege.
+
+Finally, the installation parameters of \application{libgds} are
+stored in a file under \filename{/usr/local/lib/pkgconfig}. It is
+needed to inform the \command{pkg-config} utility of this
+location. This can be done by adding this path to the
+\envar{PKG\_CONFIG\_PATH} environment variable, as follows:
+
+\begin{Verbatim}[commandchars=+\{\}]
++prompt{bash$} +command{export PKG_CONFIG_PATH= \}
+  +command{$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig}
+\end{Verbatim}
+
+
+\section{Installation of \application{C-BGP}}
+%--------------------------------------------------------------------
+
+This section describes hot to build \application{C-BGP} once every
+dependency (including \application{libgds}) have been properly
+installed. The installation process is fairly similar to that of
+\application{libgds}.
+
+First, the sources archive \filename{cbgp-x.y.z.tar.gz} must be
+downloaded from Sourceforge at \url{http://c-bgp.sourceforge.net}. The
+sources archive has a name such as \filename{cbgp-x.y.z.tar.gz} where
+\filename{x.y.z} denotes the version. This archive must be
+uncompressed in a temporary directory. This will create a new
+directory named \filename{cbgp-x.y.z}. This directory must be entered,
+then, the \filename{configure} script must be run. Once the
+\filename{configure} script has finished, the build process can be
+launched using \filename{make clean} followed by \filename{make}.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{tar xvzf cbgp-x.y.z.tar.gz}
+\prompt{bash\$} \command{cd cbgp-x.y.z}
+\prompt{bash\$} \command{./configure}
+\prompt{bash\$} \command{make clean}
+\prompt{bash\$} \command{make}
+\prompt{bash\$} \command{make install}
+\end{Verbatim}
+
+You can check that \application{C-BGP} is correctly built and
+installed by issuing the following command. This command should
+provide the version of \application{C-BGP} and list the supported
+options.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{cbgp -h}
+C-BGP Routing Solver version 2.0.0-rc3
+
+  Copyright (C) 2002-2011 Bruno Quoitin
+  Networking Lab
+  Computer Science Institute
+  University of Mons (UMONS)
+  Mons, Belgium
+  
+  This software is free for personal and educational uses.
+  See file COPYING for details.
+
+
+Usage: cbgp [OPTIONS]
+
+  -h             display this message.
+  -l LOGFILE     output log to LOGFILE instead of stderr.
+  -c SCRIPT      load and execute SCRIPT file.
+                 (without this option, commands are taken from stdin)
+  -e COMMAND     execute the given command
+  -D param=value defines a parameter
+\prompt{bash\$}
+\end{Verbatim}
+
+\section{Installation in another directory}
+\label{sec:inst-other-dir}
+%--------------------------------------------------------------------
+
+In certain cases, it is needed to install the \application{libgds}
+library and \application{C-BGP} under a non-default, non-standard,
+directory. For example, this is needed when the user has not enough
+privileges to copy files under the default install directory. This
+section explains how this can be done.
+
+When configuring \application{libgds} and \application{C-BGP}, an
+additional option \option{-{}-prefix}=\parameter{PATH} must be
+provided to the \filename{configure} script. This option will change
+the default installation prefix and use the provided \parameter{PATH}
+instead. For instance, in order to install under directory
+\filename{/home/user/projects}, the following commands would be
+needed:
+
+\begin{Verbatim}[commandchars=+\{\}]
++prompt{bash\$} +command{./configure --prefix=/home/user/projects}
++prompt{bash\$} +command{make clean}
++prompt{bash\$} +command{make}
++prompt{bash\$} +command{make install}
++prompt{bash\$} +command{export PKG_CONFIG_PATH= \}
+  +command{$PKG_CONFIG_PATH:/home/user/projects/lib/pkgconfig}
+\end{Verbatim}
+
+To install \application{C-BGP} under \filename{/home/user/projects},
+the same \option{-{}-prefix} option must be used, as shown in the following example:
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{./configure --prefix=/home/user/projects}
+\prompt{bash\$} \command{make}
+\prompt{bash\$} \command{make install}
+\end{Verbatim}
+
+The final step consists in informing the linker of the location where
+\application{libgds} library and some of \application{C-BGP}'s
+internal libraries were installed. The exact details of this operation
+depend on the operating system. Under Linux, there is a file named
+\filename{/etc/ld.so.config} which lists all the directories where the
+linker is expected to find libraries. You can add
+\filename{/home/user/projects/lib} to this file. Another approach is
+to rely on the \envar{LD\_LIBRARY\_PATH} environment variable.
+Please refer to the documentation of your operating system.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} \command{export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/user/projects/lib}
+\end{Verbatim}
+
+Under Mac OS X, there is a similar environment variable named
+\envar{DYLD\_LIBRARY\_PATH}.
+
+\section{Summary of installation options}
+\label{sec:inst-options}
+%--------------------------------------------------------------------
+
+The \verb|./configure| script accepts a large number of options. To
+get the complete list of options, just execute \verb|./configure| with
+the \option{-{}-help} option.
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\prompt{bash\$} ./configure --help
+\end{Verbatim}
+
+Table~\ref{tab:inst-options} summarizes the most important options. 
+
+\begin{table}[ht!]
+\begin{center}
+\begin{tabular}{|l|p{7cm}|}
+\hline
+\multicolumn{2}{|l|}{\application{libgds} build options:}\\
+\hline
+\hline
+\option{-{}-prefix}=\parameter{PATH} & Change the installation prefix to
+\parameter{PATH}. The default installation prefix is
+\filename{/usr/local}.\\
+\hline
+\option{-{}-help} & List all the options. \\
+\hline
+\multicolumn{2}{}{} \\
+\hline
+\multicolumn{2}{|l|}{\application{C-BGP} build options:}\\
+\hline
+\hline
+
+\option{-{}-prefix}=\parameter{PATH} &
+Change the installation prefix to \parameter{PATH}. The default
+installation prefix is \filename{/usr/local}.\\
+\hline
+
+\option{-{}-with-pcre}=\parameter{PATH} &
+Specifies the location of the \application{libpcre} library and
+headers. This is only required if they are not in the default library
+and header search paths.\\
+\hline
+
+\option{-{}-with-jni}[=\parameter{PATH}] &
+Enable the {\it Java Native Interface} (JNI). It is disabled by
+default. This option can take a \parameter{PATH} value to inform about
+the location of the \filename{jni.h} header.
+%See Chapter~\ref{ch:jni} for more information.
+\\
+\hline
+
+\option{-{}-without-jni} &
+Disable the JNI.\\
+\hline
+
+\option{-{}-with-readline}[=\parameter{PATH}] &
+Enable the use of the \command{libreadline} library. This library
+enhances the use of \application{C-BGP} in interactive mode (see
+Section~\ref{sec:user-interface-interactive}). This option can take a
+\parameter{PATH} value to inform about the location of the
+\application{libreadline} library and headers.\\
+\hline
+
+\option{-{}-without-readline} &
+Disable the use of the \application{libreadline} library.\\
+\hline
+
+\option{-{}-disable-bgpdump} &
+Disable the use of the \application{libbgpdump} library.\\
+\hline
+
+\option{-{}-disable-ipv6} &
+Disable support for IPv6 in \application{libbgpdump} library.\\
+\hline
+
+\option{-{}-enable-experimental} &
+Enable experimental features. Use with care.\\
+\hline
+
+\option{-{}-enable-walton} &
+Enable experimental support for multiple paths (draft-walton). Use
+with care.\\
+\hline
+
+\option{-{}-enable-external-best} &
+Enable experimental support for external-best. Use with care.\\
+\hline
+
+\option{-{}-enable-ospf} &
+Enable experimental support for OSPF. Do not use, this is broken.\\
+\hline
+
+
+\option{-{}-help} & List all the options. \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Summary of useful \command{./configure}
+  options.\label{tab:inst-options}}
+\end{table}
+

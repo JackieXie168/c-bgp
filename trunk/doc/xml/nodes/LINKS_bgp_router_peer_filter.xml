@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <childs>
+    <child>
+      <name>add-rule</name>
+      <id>bgp_router_peer_filter_add-rule</id>
+    </child>
+    <child>
+      <name>insert-rule</name>
+      <id>bgp_router_peer_filter_insert-rule</id>
+    </child>
+    <child>
+      <name>remove-rule</name>
+      <id>bgp_router_peer_filter_remove-rule</id>
+    </child>
+    <child>
+      <name>show</name>
+      <id>bgp_router_peer_filter_show</id>
+    </child>
+  </childs>
+  <prev>
+    <name>down</name>
+    <id>bgp_router_peer_down</id>
+  </prev>
+  <next>
+    <name>next-hop</name>
+    <id>bgp_router_peer_next-hop</id>
+  </next>
+</command>

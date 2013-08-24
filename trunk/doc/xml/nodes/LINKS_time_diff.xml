@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>time</name>
+    <id>time</id>
+  </father>
+  <next>
+    <name>save</name>
+    <id>time_save</id>
+  </next>
+</command>

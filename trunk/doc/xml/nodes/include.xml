@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>include</name>
+  <id>include</id>
+  <context/>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description>name of the C-BGP file to include</description>
+    </parameter>
+  </parameters>
+  <abstract>process another C-BGP script</abstract>
+  <description>
+<p>This command processes commands from another <arg>file</arg>. The processing of the given <arg>file</arg> stops when its end is reached or as soon as an error occurs.</p>
+  </description>
+</command>

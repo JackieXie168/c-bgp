@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>log</name>
+  <id>sim_queue_log</id>
+  <context>sim queue</context>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <name>run</name>
+  <id>bgp_topology_run</id>
+  <context>bgp topology</context>
+  
+  <abstract>establish BGP sessions</abstract>
+  <description>
+<p>
+This command establishes the BGP sessions between all the routers loaded by commands <cmd><name>bgp topology load</name><link>bgp_topology_load</link></cmd> and <cmd><name>bgp topology install</name><link>bgp_topology_install</link></cmd>. This is equivalent to calling command <cmd><name>bgp router <i>X</i> peer up</name><link>bgp_router_peer_up</link></cmd> on every session.
+</p>
+<p>
+Note that this command will set the sessions administratively up. BGP messages need to be exchanged to complete the sessions establishments. These messages will be put into the simulator's queue. You will need to issue a <cmd><name>sim run</name><link>sim_run</link></cmd> to process them.
+</p>
+
+  </description>
+</command>

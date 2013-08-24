@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<command>
+  <name>ipip-enable</name>
+  <id>net_node_ipip-enable</id>
+  <context>net node</context>
+  
+  <abstract>activate tunneling (IP-in-IP)</abstract>
+  <description>
+<p>
+This command enables the support for tunneling (IP-in-IP protocol). Once IP-in-IP is enabled, the specified node can behave as a tunnel end-point. This means that if it receives an encapsulated packet and the destination address in the encapsulation header is itself, then it will decapsulate the packet and deliver it locally or try to forward it depending on the encapsulated packet.
+</p>
+<p>
+IMPORTANT NOTE: due to changes in the network topology data structure, the tunneling feature is currently broken.
+</p>
+  </description>
+  
+  
+</command>

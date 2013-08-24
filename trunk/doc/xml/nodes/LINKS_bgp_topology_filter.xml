@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <childs>
+    <child>
+      <name>asn</name>
+      <id>bgp_topology_filter_asn</id>
+    </child>
+    <child>
+      <name>group</name>
+      <id>bgp_topology_filter_group</id>
+    </child>
+  </childs>
+  <prev>
+    <name>dump</name>
+    <id>bgp_topology_dump</id>
+  </prev>
+  <next>
+    <name>info</name>
+    <id>bgp_topology_info</id>
+  </next>
+</command>

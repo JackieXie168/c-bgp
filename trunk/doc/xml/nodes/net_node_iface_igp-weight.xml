@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>igp-weight</name>
+  <id>net_node_iface_igp-weight</id>
+  <context>net node iface</context>
+  <parameters>
+    <parameter>
+      <name>weight</name>
+      <description>new IGP weight</description>
+    </parameter>
+  </parameters>
+  <abstract>change the IGP weight of an interface</abstract>
+  <description>
+<p>This command changes the IGP weight of a network interface.</p>
+  </description>
+</command>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>iface</name>
+  <id>net_node_iface</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>address|prefix</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

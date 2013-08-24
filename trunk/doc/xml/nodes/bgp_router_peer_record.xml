@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>record</name>
+  <id>bgp_router_peer_record</id>
+  <context>bgp router peer</context>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description>name of output file</description>
+    </parameter>
+  </parameters>
+  <abstract>store all messages sent by this peer in a file</abstract>
+  <description>
+<p>This command configure a peer to store every BGP message it sends into a file whose name is specified as argument.
+</p>
+  </description>
+  <see-also>
+<p>The output format for BGP messages can be changed using command <cmd><name>bgp options show-mode</name><link>bgp_options_show-mode</link></cmd>.</p>
+  </see-also>
+</command>

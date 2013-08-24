@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <name>mrt</name>
+  <id>show_mrt</id>
+  <context>show</context>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description>name of the MRT file</description>
+    </parameter>
+    <parameter>
+      <name>predicate</name>
+      <description>route filter predicate</description>
+    </parameter>
+  </parameters>
+  <abstract>show the content of an MRT file (binary)</abstract>
+<bugs>
+<p>This command has been removed.</p>
+</bugs>  
+  
+</command>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <prev>
+    <name>next-hop-self</name>
+    <id>bgp_router_peer_next-hop-self</id>
+  </prev>
+  <next>
+    <name>recv</name>
+    <id>bgp_router_peer_recv</id>
+  </next>
+</command>

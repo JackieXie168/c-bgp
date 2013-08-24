@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>local-pref</name>
+  <id>bgp_options_local-pref</id>
+  <context>bgp options</context>
+  <parameters>
+    <parameter>
+      <name>local-pref</name>
+      <description>new default LOCAL-PREF value</description>
+    </parameter>
+  </parameters>
+  <abstract>set the default LOCAL-PREF value</abstract>
+  <description>
+<p>
+This command changes the default LOCAL-PREF value of routes. The original default value is 0.
+</p>
+  </description>
+  
+  
+</command>

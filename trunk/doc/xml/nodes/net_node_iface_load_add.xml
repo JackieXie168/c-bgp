@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>net_node_iface_load_add</id>
+  <context>net node iface load</context>
+  <parameters>
+    <parameter>
+      <name>load</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

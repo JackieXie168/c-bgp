@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>show</name>
+    <id>bgp_show</id>
+  </father>
+  <prev>
+    <name>route-maps</name>
+    <id>bgp_show_route-maps</id>
+  </prev>
+  <next>
+    <name>sessions</name>
+    <id>bgp_show_sessions</id>
+  </next>
+</command>

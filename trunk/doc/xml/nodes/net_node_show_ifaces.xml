@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>ifaces</name>
+  <id>net_node_show_ifaces</id>
+  <context>net node show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

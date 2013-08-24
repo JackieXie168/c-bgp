@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<command>
+  <name>add-rule</name>
+  <id>bgp_route-map_add-rule</id>
+  <context>bgp route-map</context>
+  <abstract>add a rule to a route-map</abstract>
+  <description>
+<p>See <cmd><name>bgp router X peer Y filter in/out add-rule</name><link>bgp_router_peer_filter_add-rule</link></cmd>.</p>
+  </description>
+</command>

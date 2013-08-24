@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>network</name>
+  <id>bgp_router_del_network</id>
+  <context>bgp router del</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description>the network's IP prefix</description>
+    </parameter>
+  </parameters>
+  <abstract>remove a network from one BGP router</abstract>
+  <description>
+<p>
+This command removes a local network previously added with <cmd><name>bgp router add network</name><link>bgp_router_add_network</link></cmd> command.
+</p>
+  </description>
+  
+  
+</command>

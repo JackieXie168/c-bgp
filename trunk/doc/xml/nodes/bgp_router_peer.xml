@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>peer</name>
+  <id>bgp_router_peer</id>
+  <context>bgp router</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>
