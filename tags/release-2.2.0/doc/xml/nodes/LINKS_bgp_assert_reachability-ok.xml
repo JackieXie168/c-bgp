@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>assert</name>
+    <id>bgp_assert</id>
+  </father>
+  <prev>
+    <name>peerings-ok</name>
+    <id>bgp_assert_peerings-ok</id>
+  </prev>
+</command>

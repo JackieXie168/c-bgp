@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>options</name>
+  <id>sim_options</id>
+  <context>sim</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

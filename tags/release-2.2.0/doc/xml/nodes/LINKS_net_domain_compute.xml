@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>domain</name>
+    <id>net_domain</id>
+  </father>
+  <next>
+    <name>show</name>
+    <id>net_domain_show</id>
+  </next>
+</command>

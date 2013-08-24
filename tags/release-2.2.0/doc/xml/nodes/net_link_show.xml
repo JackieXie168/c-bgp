@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>net_link_show</id>
+  <context>net link</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

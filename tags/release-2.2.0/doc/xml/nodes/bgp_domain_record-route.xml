@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>record-route</name>
+  <id>bgp_domain_record-route</id>
+  <context>bgp domain</context>
+  <parameters>
+    <option>
+      <name>--deflection</name>
+      <description/>
+    </option>
+    <parameter>
+      <name>address|prefix</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract>record the routes from an entire AS towards a destination</abstract>
+  <description>
+<p>This command performs a <cmd><name>record-route</name><link>bgp_router_record-route</link></cmd> for each router in the domain.</p>
+  </description>
+</command>

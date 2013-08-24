@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<command>
+  <name>info</name>
+  <id>net_domain_show_info</id>
+  <context>net domain show</context>
+  
+  <abstract>show information on one domain</abstract>
+  <description>
+<p>
+This command only shows information on one domain. The command currently shows the domain's type and whether it supports Equal-Cost-Multi-Paths (ECMP) or not. Note that the results of this command depend on the domain's type. See also <cmd><name>net domain show nodes</name><link>net_domain_show_nodes</link></cmd>
+</p>
+<p>
+Example:
+<code>
+cbgp&gt; net domain 1 show info<br/>
+model: igp<br/>
+ecmp : no
+</code>
+</p>
+  </description>
+  
+  
+</command>

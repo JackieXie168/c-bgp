@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>time</name>
+    <id>time</id>
+  </father>
+  <prev>
+    <name>diff</name>
+    <id>time_diff</id>
+  </prev>
+</command>

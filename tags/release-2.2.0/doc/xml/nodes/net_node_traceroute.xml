@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<command>
+  <name>traceroute</name>
+  <id>net_node_traceroute</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description>destination node</description>
+    </parameter>
+  </parameters>
+  <abstract>traces the route to another node</abstract>
+  <description>
+<p>
+This command traces the route from one node to another, much like the classical <i>traceroute</i> networking utility. It sends ICMP echo-request messages from the source note to the destination node with an increasing TTL value.
+</p>
+<p>The following example illustrates how to use the <b>traceroute</b> command:
+<code>cbgp&gt; net node 1.0.0.0 traceroute 1.0.0.4<br/>
+<tab count="1"/>1     1.0.0.1 (1.0.0.1)       icmp error (time-exceeded)<br/>
+<tab count="1"/>2     1.0.0.3 (1.0.0.3)       icmp error (time-exceeded)<br/>
+<tab count="1"/>3     1.0.0.4 (1.0.0.4)       reply<br/>
+cbgp&gt;
+</code>
+</p>
+<p>Although the <b>traceroute</b> command sends its probes with the same mechanisms (same protocol stack) as other messages in the simulation (especially BGP), the messages sent by <b>traceroute</b> are put in a separate simulation queue which is processed immediately. This is the reason why there is no need to run <cmd><name>sim run</name><link>sim_run</link></cmd> to process <b>traceroute</b>'s messages.</p>
+  </description>
+  <see-also>
+<p>See also commands <cmd><name>ping</name><link>net_node_ping</link></cmd> and <cmd><name>record-route</name><link>net_node_record-route</link></cmd> for alternative ways to check the reachability of nodes.</p>
+  </see-also>
+</command>

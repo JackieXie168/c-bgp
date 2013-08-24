@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>net_node_iface_load_show</id>
+  <context>net node iface load</context>
+  <abstract>show the load and capacity of a link</abstract>
+  <description>
+<p>This command shows the load and the capacity of a link. </p>
+<p>In the following example, the load of the interface 1.0.0.2 on node 1.0.0.1 is shown. The output mentions the load (value is 3) and the capacity (value is 0). 
+<code>
+cbgp&gt; net node 1.0.0.1 iface 1.0.0.2 load show<br/>
+3      0<br/>
+cbgp&gt;
+</code>
+</p>
+  </description>
+  <see-also>
+<p>To obtain the load of all the links, consider using command <cmd><name>net traffic save</name><link>net_traffic_save</link></cmd>.</p>
+<p>The capacity of a link can be specified when the link is created (see command <cmd><name>net add link</name><link>net_add_link</link></cmd>.</p>
+  </see-also>
+</command>

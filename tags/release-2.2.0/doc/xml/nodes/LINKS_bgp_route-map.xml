@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>add-rule</name>
+      <id>bgp_route-map_add-rule</id>
+    </child>
+  </childs>
+  <prev>
+    <name>options</name>
+    <id>bgp_options</id>
+  </prev>
+  <next>
+    <name>router</name>
+    <id>bgp_router</id>
+  </next>
+</command>

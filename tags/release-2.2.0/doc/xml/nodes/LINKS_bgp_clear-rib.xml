@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <prev>
+    <name>clear-adj-rib</name>
+    <id>bgp_clear-adj-rib</id>
+  </prev>
+  <next>
+    <name>domain</name>
+    <id>bgp_domain</id>
+  </next>
+</command>

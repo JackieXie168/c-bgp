@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <name>stats</name>
+  <id>bgp_router_show_stats</id>
+  <context>bgp router show</context>
+  <abstract>show statistics about a router</abstract>
+  <description>
+<p>This command shows various statistics about a router. The currently available statistics are: the number of peers, the number of locally originated networks, the number of best routes, the number of times each rule of the decision process was used and the number of prefixes learned by each peer. This command is mainly used for debugging purposes. Its output format might change without notice.</p>
+<p>Here is an example output:
+<code>cbgp&gt; bgp router 1.0.0.2 show stats<br/>
+num-peers: 2<br/>
+num-networks: 1<br/>
+num-best: 3<br/>
+rule-stats: 2 0 0 0 0 0 0 0 1 0 0 0<br/>
+num-prefixes/peer:<br/>
+AS1:1.0.0.1: 1 / 1<br/>
+AS1:1.0.0.3: 1 / 2<br/>
+</code>
+</p>
+  </description>
+</command>

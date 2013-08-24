@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>debug</name>
+  <id>set_debug</id>
+  <context>set</context>
+  <parameters>
+    <parameter>
+      <name>on|off</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

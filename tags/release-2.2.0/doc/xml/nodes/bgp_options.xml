@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>options</name>
+  <id>bgp_options</id>
+  <context>bgp</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

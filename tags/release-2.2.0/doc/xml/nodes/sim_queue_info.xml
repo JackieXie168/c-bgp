@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>info</name>
+  <id>sim_queue_info</id>
+  <context>sim queue</context>
+  
+  <abstract>show information about the simulation queue</abstract>
+  <description/>
+  
+  
+</command>

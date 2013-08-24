@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>bgp_router_load</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

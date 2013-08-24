@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>rerun</name>
+  <id>bgp_router_rerun</id>
+  <context>bgp router</context>
+  <parameters>
+    <parameter>
+      <name>prefix|*</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

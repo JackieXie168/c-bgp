@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>load</name>
+      <id>net_node_traffic_load</id>
+    </child>
+  </childs>
+  <prev>
+    <name>traceroute</name>
+    <id>net_node_traceroute</id>
+  </prev>
+  <next>
+    <name>tunnel</name>
+    <id>net_node_tunnel</id>
+  </next>
+</command>

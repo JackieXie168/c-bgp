@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<command>
+  <name>log-level</name>
+  <id>sim_options_log-level</id>
+  <context>sim options</context>
+  <parameters>
+    <parameter>
+      <name>level</name>
+      <description>new log-level</description>
+    </parameter>
+  </parameters>
+  <abstract>change the simulator log-level</abstract>
+  <description>
+<p>This command changes the verbosity of the simulator log. The available log levels are as follows:
+<table>
+<trh><th>Log-level code</th><th>Description</th></trh>
+<tr><td><b>everything</b></td><td>Every log message is written.</td></tr>
+<tr><td><b>debug</b></td><td>Debug and error messages are written.</td></tr>
+<tr><td><b>warning</b></td><td>Error messages are written.</td></tr>
+<tr><td><b>severe</b></td><td>Only severe warning and fatal error messages are written.</td></tr>
+<tr><td><b>fatal</b></td><td>Only fatal error messages are written.</td></tr>
+</table></p>
+  </description>
+  
+  
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>subnets</name>
+  <id>net_show_subnets</id>
+  <context>net show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

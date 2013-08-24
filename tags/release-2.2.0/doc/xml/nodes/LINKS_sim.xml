@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<command>
+  <childs>
+    <child>
+      <name>clear</name>
+      <id>sim_clear</id>
+    </child>
+    <child>
+      <name>debug</name>
+      <id>sim_debug</id>
+    </child>
+    <child>
+      <name>event</name>
+      <id>sim_event</id>
+    </child>
+    <child>
+      <name>options</name>
+      <id>sim_options</id>
+    </child>
+    <child>
+      <name>queue</name>
+      <id>sim_queue</id>
+    </child>
+    <child>
+      <name>run</name>
+      <id>sim_run</id>
+    </child>
+    <child>
+      <name>step</name>
+      <id>sim_step</id>
+    </child>
+    <child>
+      <name>stop</name>
+      <id>sim_stop</id>
+    </child>
+  </childs>
+</command>

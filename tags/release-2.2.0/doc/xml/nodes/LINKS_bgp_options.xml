@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>auto-create</name>
+      <id>bgp_options_auto-create</id>
+    </child>
+    <child>
+      <name>local-pref</name>
+      <id>bgp_options_local-pref</id>
+    </child>
+    <child>
+      <name>med</name>
+      <id>bgp_options_med</id>
+    </child>
+    <child>
+      <name>msg-monitor</name>
+      <id>bgp_options_msg-monitor</id>
+    </child>
+    <child>
+      <name>show-mode</name>
+      <id>bgp_options_show-mode</id>
+    </child>
+  </childs>
+  <prev>
+    <name>domain</name>
+    <id>bgp_domain</id>
+  </prev>
+  <next>
+    <name>route-map</name>
+    <id>bgp_route-map</id>
+  </next>
+</command>

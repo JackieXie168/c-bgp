@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<command>
+  <name>adj-rib</name>
+  <id>bgp_router_show_adj-rib</id>
+  <context>bgp router show</context>
+  <parameters>
+    <option>
+      <name>--output=</name>
+      <description>optional output file</description>
+    </option>
+    <parameter>
+      <name>in|out</name>
+      <description>adj-RIB direction</description>
+    </parameter>
+    <parameter>
+      <name>peer</name>
+      <description>peer whose adj-RIB must be shown</description>
+    </parameter>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description>destination of interest</description>
+    </parameter>
+  </parameters>
+  <abstract>show the content of the adj-RIB</abstract>
+  <description>
+<p>This command can be used to show the content of the input or output adj-RIB of a peer. The commands works similarly to <cmd><name>show rib</name><link>bgp_router_show_rib</link></cmd> except that a direction (<i>in|out</i>) and a <i>peer</i> can be specified.</p>
+  </description>
+</command>

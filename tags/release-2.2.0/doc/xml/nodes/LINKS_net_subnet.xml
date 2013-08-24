@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>show</name>
+      <id>net_subnet_show</id>
+    </child>
+  </childs>
+  <prev>
+    <name>show</name>
+    <id>net_show</id>
+  </prev>
+  <next>
+    <name>traffic</name>
+    <id>net_traffic</id>
+  </next>
+</command>

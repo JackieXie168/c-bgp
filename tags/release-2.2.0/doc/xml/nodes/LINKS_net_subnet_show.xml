@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>subnet</name>
+    <id>net_subnet</id>
+  </father>
+  <childs>
+    <child>
+      <name>info</name>
+      <id>net_subnet_show_info</id>
+    </child>
+    <child>
+      <name>links</name>
+      <id>net_subnet_show_links</id>
+    </child>
+  </childs>
+</command>
