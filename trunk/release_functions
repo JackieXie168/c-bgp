@@ -330,7 +330,8 @@ check_svn_status()
     if [ $? != 0 ]; then
 	error "could not get SVN status"
     fi
-    local SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | grep -v 'release.sh' | grep -v -E '^Status against revision' | grep -E '^[^ ]'`
+    # Note : sed '$d' removes the last line of a file
+    local SVN_STATUS_MODIFIED=`echo -e "$SVN_STATUS" | sed '$d' | grep -E '^[^ ]' | grep -Ev 'release_template.sh|release_functions'`
     if [ ! -z "$SVN_STATUS_MODIFIED" ]; then
 	echo -e "$SVN_STATUS_MODIFIED"
 	error "commit/update is needed before release"
@@ -415,6 +416,9 @@ src_release_check_parameters()
     fi
     if [ -z $BUILDROOT ]; then
         error "BUILDROOT variable not defined"
+    fi
+    if [ ! -d $BUILDROOT ]; then
+        error "BUILDROOT is not a directory ($BUILDROOT)"
     fi
 }
 

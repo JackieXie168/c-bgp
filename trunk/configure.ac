@@ -238,21 +238,26 @@ AC_CHECK_LIB(bz2, BZ2_bzReadOpen, [],
 dnl *****************************************************************
 dnl ENABLE/DISABLE LIBBGPDUMP ?
 dnl *****************************************************************
-AC_ARG_ENABLE(bgpdump,
-   AC_HELP_STRING([--enable-bgpdump],
-      [enable bgpdump]),
-   cbgp_config_bgpdump="$enableval",
+dnl AC_ARG_ENABLE(bgpdump,
+dnl    AC_HELP_STRING([--enable-bgpdump],
+dnl       [enable bgpdump]),
+dnl    cbgp_config_bgpdump="$enableval",
+dnl )
+dnl if test "$cbgp_config_bgpdump" == "yes"; then
+dnl     if test "$ac_cv_lib_z_gzopen" = "no"; then
+dnl         AC_WARN([libz not found, bgpdump disabled.])
+dnl     else
+dnl 	AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "1"])
+dnl 	AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
+dnl     fi
+dnl else
+dnl     AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "0"])
+dnl fi
+AC_CHECK_LIB(bgpdump, bgpdump_open_dump, [],
+  AC_MSG_ERROR([libbgpdump not found],1)
 )
-if test "$cbgp_config_bgpdump" == "yes"; then
-    if test "$ac_cv_lib_z_gzopen" = "no"; then
-        AC_WARN([libz not found, bgpdump disabled.])
-    else
-	AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "1"])
-	AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
-    fi
-else
-    AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "0"])
-fi
+
+
 
 
 dnl *****************************************************************
@@ -438,6 +443,15 @@ AC_ARG_ENABLE(ospf,
        [enable compilation of ospf support]),
    cbgp_ospf="$enableval")
 AM_CONDITIONAL([WITH_OSPF], [test "$cbgp_ospf" = "yes"])
+
+AC_ARG_ENABLE(asn32,
+   AC_HELP_STRING([--enable-asn32],
+       [define size of an ASN on 32 bits]),
+   cbgp_asn32="$enableval")
+if test "$cbgp_asn32" = "yes"; then
+  CFLAGS="$CFLAGS -DASN_SIZE_32"
+  AC_SUBST(CFLAGS)
+fi
 
 dnl Compile with debugging symbols ?
 AC_ARG_ENABLE(debug,

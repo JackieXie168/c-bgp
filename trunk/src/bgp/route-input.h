@@ -15,9 +15,9 @@
 // ----- BGP Routes Input Formats -----
 typedef enum {
   BGP_ROUTES_INPUT_MRT_ASC,
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   BGP_ROUTES_INPUT_MRT_BIN,
-#endif /* HAVE_BGPDUMP */
+#endif /* HAVE_LIBBGPDUMP */
   BGP_ROUTES_INPUT_CISCO,
   BGP_ROUTES_INPUT_MAX
 } bgp_input_type_t;

@@ -22,9 +22,9 @@
 static char * INPUT_TYPE_STR[BGP_ROUTES_INPUT_MAX]=
 {
   "mrt-ascii",
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   "mrt-binary",
-#endif /* HAVE_BGPDUMP */
+#endif /* HAVE_LIBBGPDUMP */
   "cisco"
 };
 
@@ -50,7 +50,7 @@ int bgp_routes_load(const char * filename, bgp_input_type_t format,
   switch (format) {
   case BGP_ROUTES_INPUT_MRT_ASC:
     return mrtd_ascii_load(filename, handler, ctx);
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   case BGP_ROUTES_INPUT_MRT_BIN:
     return mrtd_binary_load(filename, handler, ctx);
 #endif

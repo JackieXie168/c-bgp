@@ -470,7 +470,7 @@ int cli_set_debug(cli_ctx_t * ctx, cli_cmd_t * cmd)
  */
 int cli_show_mrt(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   /*
   char * pcPredicate;
   SFilterMatcher * pMatcher;
@@ -652,7 +652,7 @@ int cli_show_version(cli_ctx_t * ctx, cli_cmd_t * cmd)
 #ifdef HAVE_JNI
   stream_printf(gdsout, " [jni]");
 #endif
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   stream_printf(gdsout, " [bgpdump]");
 #endif
 #ifdef __ROUTER_LIST_ENABLE__

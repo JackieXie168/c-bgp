@@ -83,9 +83,9 @@ extern "C" {
   bgp_route_t * route_create(ip_pfx_t prefix, bgp_peer_t * peer,
 			     net_addr_t next_hop, bgp_origin_t origin);
   // -----[ route_create_nlri ]--------------------------------------
-  bgp_route_t * route_create_nlri(bgp_nlri_t nlri, bgp_peer_t * peer,
-				  net_addr_t next_hop, bgp_origin_t origin,
-				  bgp_attr_t * attr);
+//  bgp_route_t * route_create_nlri(bgp_nlri_t nlri, bgp_peer_t * peer,
+//				  net_addr_t next_hop, bgp_origin_t origin,
+//				  bgp_attr_t * attr);
   // ----- route_destroy --------------------------------------------
   void route_destroy(bgp_route_t ** route_ref);
   // ----- route_flag_set -------------------------------------------

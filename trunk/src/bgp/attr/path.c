@@ -25,6 +25,11 @@
 
 static gds_tokenizer_t * path_tokenizer= NULL;
 
+#define _path_num_segments(P) ((P) == NULL?0:ptr_array_length(P))
+#define _path_segment_at(P, I) (bgp_path_seg_t *) (P)->data[(I)]
+#define _path_segment_ref_at(P, I) (bgp_path_seg_t **) &((P)->data[(I)])
+
+
 // ----- _path_destroy_segment --------------------------------------
 static void _path_destroy_segment(void * item, const void * ctx)
 {
@@ -37,16 +42,8 @@ static void _path_destroy_segment(void * item, const void * ctx)
  */
 bgp_path_t * path_create()
 {
-  bgp_path_t * path;
-#ifndef  __BGP_PATH_TYPE_TREE__
-  path= (bgp_path_t *) ptr_array_create(0, NULL,
-					_path_destroy_segment, NULL);
-#else
-  path= (bgp_path_t *) MALLOC(sizeof(bgp_path_t));
-  path->segment= NULL;
-  path->pPrevious= NULL;
-#endif
-  return path;
+  return (bgp_path_t *) ptr_array_create(0, NULL,
+					 _path_destroy_segment, NULL);
 }
 
 // ----- path_destroy -----------------------------------------------
@@ -55,23 +52,16 @@ bgp_path_t * path_create()
  */
 void path_destroy(bgp_path_t ** ppath)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   ptr_array_destroy(ppath);
-#else
-  if (*ppath != NULL) {
-    if ((*ppath)->pPrevious != NULL)
-      path_hash_remove((*ppath)->pPrevious);
-    if ((*ppath)->segment != NULL)
-      path_segment_destroy(&(*ppath)->segment);
-    *ppath= NULL;
-  }
-#endif
 }
 
 // ----- path_max_value ---------------------------------------------
 /**
-  * Create a path and sets the first ASN value to the maximum
+  * Create a path and sets the first ASN value to the maximum.
+  *
+  * This is only used in experimental WALTON.
   */
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
 bgp_path_t * path_max_value()
 {
   bgp_path_t * path = path_create();
@@ -80,6 +70,7 @@ bgp_path_t * path_max_value()
   
   return path;
 } 
+#endif
 
 // ----- path_copy --------------------------------------------------
 /**
@@ -88,21 +79,14 @@ bgp_path_t * path_max_value()
 bgp_path_t * path_copy(bgp_path_t * path)
 {
   bgp_path_t * new_path= NULL;
-#ifndef __BGP_PATH_TYPE_TREE__
-  unsigned int index;
-#endif
+  unsigned int i;
 
   if (path == NULL)
     return NULL;
 
-#ifndef __BGP_PATH_TYPE_TREE__
   new_path= path_create();
-  for (index= 0; index < path_num_segments(path); index++)
-    path_add_segment(new_path, path_segment_copy((bgp_path_seg_t *) 
-						 path->data[index]));
-#else
-  cbgp_fatal("not implemented");
-#endif
+  for (i= 0; i < _path_num_segments(path); i++)
+    path_add_segment(new_path, path_segment_copy(_path_segment_at(path, i)));
   return new_path;
 }
 
@@ -112,19 +96,9 @@ bgp_path_t * path_copy(bgp_path_t * path)
  */
 int path_num_segments(const bgp_path_t * path)
 {
-  if (path != NULL) {
-#ifndef __BGP_PATH_TYPE_TREE__
-    return ptr_array_length((ptr_array_t *) path);
-#else
-    return 1;
-#endif
-  }
-  return 0;
+  return _path_num_segments(path);
 }
 
-// -----[ _path_segment_at ]-----------------------------------------
-#define _path_segment_at(P, I) (bgp_path_seg_t *) (P)->data[(I)]
-#define _path_segment_ref_at(P, I) (bgp_path_seg_t **) &((P)->data[(I)])
 
 // ----- path_length ------------------------------------------------
 /**
@@ -135,14 +109,13 @@ int path_num_segments(const bgp_path_t * path)
 int path_length(bgp_path_t * path)
 {
   int length= 0;
-#ifndef __BGP_PATH_TYPE_TREE__
   unsigned int index;
   bgp_path_seg_t * seg;
 
   if (path == NULL)
     return 0;
 
-  for (index= 0; index < path_num_segments(path); index++) {
+  for (index= 0; index < _path_num_segments(path); index++) {
     seg= _path_segment_at(path, index);
     switch (seg->type) {
     case AS_PATH_SEGMENT_SEQUENCE:
@@ -155,9 +128,6 @@ int path_length(bgp_path_t * path)
       abort();
     }
   }
-#else
-  cbgp_fatal("not implemented");
-#endif
   return length;
 }
 
@@ -171,11 +141,7 @@ int path_length(bgp_path_t * path)
  */
 int path_add_segment(bgp_path_t * path, bgp_path_seg_t * seg)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
-  return ptr_array_append((ptr_array_t *) path, seg);
-#else
-  cbgp_fatal("not implemented");
-#endif
+  return ptr_array_append(path, seg);
 }
 
 // ----- path_append ------------------------------------------------
@@ -194,7 +160,6 @@ int path_append(bgp_path_t ** ppath, asn_t asn)
 {
   int length= path_num_segments(*ppath);
 
-#ifndef __BGP_PATH_TYPE_TREE__
   bgp_path_seg_t * seg;
 
   if (length <= 0) {
@@ -222,9 +187,6 @@ int path_append(bgp_path_t ** ppath, asn_t asn)
       abort();
     }
   }
-#else
-  cbgp_fatal("not implemented");
-#endif
   return length;
 }
 
@@ -238,57 +200,53 @@ int path_append(bgp_path_t ** ppath, asn_t asn)
  */
 int path_contains(bgp_path_t * path, asn_t asn)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
-  unsigned int index;
+  unsigned int i;
 
   if (path == NULL)
     return 0;
 
-  for (index= 0; index < path_num_segments(path); index++) {
-    if (path_segment_contains((bgp_path_seg_t *) path->data[index], asn) != 0)
+  for (i= 0; i < _path_num_segments(path); i++) {
+    if (path_segment_contains(_path_segment_at(path, i), asn) != 0)
       return 1;
   }
-#else
-  cbgp_fatal("not implemented");
-#endif
   return 0;
 }
 
-// ----- path_at ----------------------------------------------------
+// ----- _path_at ---------------------------------------------------
 /**
  * Return the AS number at the given position whatever the including
  * segment is.
  */
-int path_at(bgp_path_t * path, int pos)
+static int _path_at(bgp_path_t * path, int pos, asn_t * asn_ref)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   unsigned int index, seg_index;
   bgp_path_seg_t * seg;
 
   for (index= 0; (pos > 0) && 
-	 (index < path_num_segments(path));
+	 (index < _path_num_segments(path));
        index++) {
     seg= _path_segment_at(path, index);
     switch (seg->type) {
     case AS_PATH_SEGMENT_SEQUENCE:
       for (seg_index= 0; seg_index ; seg_index++) {
-	if (pos == 0)
-	  return seg->asns[seg_index];
+	if (pos == 0) {
+	  *asn_ref= seg->asns[seg_index];
+	  return 0;
+	}
 	pos++;
       }
       break;
     case AS_PATH_SEGMENT_SET:
-      if (pos == 0)
-	return seg->asns[0];
+      if (pos == 0) {
+	*asn_ref= seg->asns[0];
+	return 0;
+      }
       pos++;
       break;
     default:
       abort();
     }
   }
-#else
-  cbgp_fatal("not implemented");
-#endif
   return -1;
 }
 
@@ -300,25 +258,21 @@ int path_at(bgp_path_t * path, int pos)
  * AS-Path is of type AS-SET since there is no ordering of the
  * AS-numbers in this case.
  */
-int path_last_as(bgp_path_t * path) {
-#ifndef __BGP_PATH_TYPE_TREE__
+int path_last_as(bgp_path_t * path, asn_t * asn_ref) {
   bgp_path_seg_t * seg;
 
   if (path_length(path) <= 0)
     return -1;
 
-  seg= (bgp_path_seg_t *)
-    path->data[ptr_array_length(path)-1];
+  seg= _path_segment_at(path, _path_num_segments(path)-1);
   
   // Check that the segment is of type AS_SEQUENCE 
   assert(seg->type == AS_PATH_SEGMENT_SEQUENCE);
   // Check that segment's size is larger than 0
   assert(seg->length > 0);
 
-  return seg->asns[seg->length-1];
-#else
-  cbgp_fatal("not implemented");
-#endif
+  *asn_ref= seg->asns[seg->length-1];
+  return 0;
 }
 
 // -----[ path_first_as ]--------------------------------------------
@@ -330,24 +284,21 @@ int path_last_as(bgp_path_t * path) {
  * AS-Path is of type AS-SET since there is no ordering of the
  * AS-numbers in this case.
  */
-int path_first_as(bgp_path_t * path) {
-#ifndef __BGP_PATH_TYPE_TREE__
+int path_first_as(bgp_path_t * path, asn_t * asn_ref) {
   bgp_path_seg_t * seg;
 
   if (path_length(path) <= 0)
     return -1;
 
-  seg= (bgp_path_seg_t *) path->data[0];
+  seg= _path_segment_at(path, 0);
 
   // Check that the segment is of type AS_SEQUENCE 
   assert(seg->type == AS_PATH_SEGMENT_SEQUENCE);
   // Check that segment's size is larger than 0
   assert(seg->length > 0);
 
-  return seg->asns[0];
-#else
-  cbgp_fatal("not implemented");
-#endif
+  *asn_ref= seg->asns[0];
+  return 0;
 }
 
 // -----[ path_to_string ]-------------------------------------------
@@ -368,13 +319,12 @@ int path_first_as(bgp_path_t * path) {
 int path_to_string(bgp_path_t * path, int reverse,
 		   char * dst, size_t dst_size)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   size_t tInitialSize= dst_size;
   unsigned int index;
   int iWritten= 0;
   unsigned int num_segs;
 
-  if ((path == NULL) || (path_num_segments(path) == 0)) {
+  if ((path == NULL) || (_path_num_segments(path) == 0)) {
     if (dst_size < 1)
       return -1;
     *dst= '\0';
@@ -382,7 +332,7 @@ int path_to_string(bgp_path_t * path, int reverse,
   }
 
   if (reverse) {
-    num_segs= path_num_segments(path);
+    num_segs= _path_num_segments(path);
     for (index= num_segs; index > 0; index--) {
       // Write space (if required)
       if (index < num_segs) {
@@ -394,7 +344,7 @@ int path_to_string(bgp_path_t * path, int reverse,
       }
 
       // Write AS-Path segment
-      iWritten= path_segment_to_string((bgp_path_seg_t *) path->data[index-1],
+      iWritten= path_segment_to_string(_path_segment_at(path, index-1),
 				       reverse, dst, dst_size);
       if (iWritten >= dst_size)
 	return -1;
@@ -403,7 +353,7 @@ int path_to_string(bgp_path_t * path, int reverse,
     }
 
   } else {
-    for (index= 0; index < path_num_segments(path);
+    for (index= 0; index < _path_num_segments(path);
 	 index++) {
       // Write space (if required)
       if (index > 0) {
@@ -414,7 +364,7 @@ int path_to_string(bgp_path_t * path, int reverse,
 	dst_size-= iWritten;
       }
       // Write AS-Path segment
-      iWritten= path_segment_to_string((bgp_path_seg_t *) path->data[index],
+      iWritten= path_segment_to_string(_path_segment_at(path, index),
 				       reverse, dst, dst_size);
       if (iWritten >= dst_size)
 	return -1;
@@ -423,9 +373,6 @@ int path_to_string(bgp_path_t * path, int reverse,
     }
   }
   return tInitialSize-dst_size;
-#else
-  cbgp_fatal("not implemented");
-#endif
 }
 
 // -----[ path_from_string ]-----------------------------------------
@@ -510,32 +457,26 @@ int path_match(bgp_path_t * path, SRegEx * pRegEx)
 void path_dump(gds_stream_t * stream, const bgp_path_t * path,
 	       int reverse)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   int index;
 
-  if ((path == NULL) || (path_num_segments(path) == 0)) {
+  if ((path == NULL) || (_path_num_segments(path) == 0)) {
     stream_printf(stream, "");
     return;
   }
 
   if (reverse) {
-    for (index= path_num_segments(path); index > 0; index--) {
-      path_segment_dump(stream, (bgp_path_seg_t *) path->data[index-1],
-			reverse);
+    for (index= _path_num_segments(path); index > 0; index--) {
+      path_segment_dump(stream, _path_segment_at(path, index-1), reverse);
       if (index > 1)
 	stream_printf(stream, " ");
     }
   } else {
-    for (index= 0; index < path_num_segments(path); index++) {
+    for (index= 0; index < _path_num_segments(path); index++) {
       if (index > 0)
 	stream_printf(stream, " ");
-      path_segment_dump(stream, (bgp_path_seg_t *) path->data[index],
-			reverse);
+      path_segment_dump(stream, _path_segment_at(path, index), reverse);
     }
   }
-#else
-  cbgp_fatal("not implemented");
-#endif
 }
 
 // ----- path_hash --------------------------------------------------
@@ -545,26 +486,22 @@ void path_dump(gds_stream_t * stream, const bgp_path_t * path,
  */
 uint32_t path_hash(const bgp_path_t * path)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   uint32_t hash, a = 31415, b = 27183, M = 65521;
-  unsigned int index, seg_index;
+  unsigned int i, seg_index;
   bgp_path_seg_t * seg;
 
   if (path == NULL)
     return 0;
 
   hash= 0;
-  for (index= 0; index < path_num_segments(path); index++) {
-    seg= (bgp_path_seg_t *) path->data[index];
+  for (i= 0; i < _path_num_segments(path); i++) {
+    seg= _path_segment_at(path, i);
     for (seg_index= 0; seg_index < seg->length; seg_index++) {
       hash= (a * hash+seg->asns[seg_index]) % M;
       a= a * b % (M-1);
     }
   }
   return hash;
-#else
-  abort();
-#endif
 }
 
 // -----[ path_hash_zebra ]------------------------------------------
@@ -575,14 +512,13 @@ uint32_t path_hash(const bgp_path_t * path)
  */
 uint32_t path_hash_zebra(const void * item, unsigned int hash_size)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   bgp_path_t * path= (bgp_path_t *) item;
   unsigned int hash= 0;
-  uint32_t index, index2;
+  uint32_t i, index2;
   bgp_path_seg_t * seg;
 
-  for (index= 0; index < path_num_segments(path); index++) {
-    seg= (bgp_path_seg_t *) path->data[index];
+  for (i= 0; i < _path_num_segments(path); i++) {
+    seg= _path_segment_at(path, i);
     // Note: segment type IDs are equal to those of Zebra
     //(1 AS_SET, 2 AS_SEQUENCE)
     hash+= seg->type;
@@ -592,9 +528,6 @@ uint32_t path_hash_zebra(const void * item, unsigned int hash_size)
     }
   }
   return hash;
-#else
-  abort();
-#endif
 }
 
 // -----[ path_hash_OAT ]--------------------------------------------
@@ -603,14 +536,13 @@ uint32_t path_hash_zebra(const void * item, unsigned int hash_size)
  */
 uint32_t path_hash_OAT(const void * item, unsigned int hash_size)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
   uint32_t hash= 0;
   bgp_path_t * path= (bgp_path_t *) item;
-  uint32_t index, index2;
+  uint32_t i, index2;
   bgp_path_seg_t * seg;
 
-  for (index= 0; index < path_num_segments(path); index++) {
-    seg= (bgp_path_seg_t *) path->data[index];
+  for (i= 0; i < _path_num_segments(path); i++) {
+    seg= _path_segment_at(path, i);
     // Note: segment type IDs are equal to those of Zebra
     //(1 AS_SET, 2 AS_SEQUENCE)
 
@@ -631,9 +563,6 @@ uint32_t path_hash_OAT(const void * item, unsigned int hash_size)
   hash^= (hash >> 11);
   hash+= (hash << 15);
   return hash % hash_size;
-#else
-  abort();
-#endif
 }
 
 // ----- path_comparison --------------------------------------------
@@ -652,18 +581,21 @@ uint32_t path_hash_OAT(const void * item, unsigned int hash_size)
 int path_comparison(bgp_path_t * path1, bgp_path_t * path2)
 {
   int length;
-  unsigned int index;
+  unsigned int i;
+  asn_t asn1, asn2;
 
   if (path_length(path1) < path_length(path2))
     length= path_length(path1);
   else
     length= path_length(path2);
 
-  for (index = 0; index < length; index++) {
-    if (path_at(path1, index) < path_at(path2, index))
+  for (i= 0; i < length; i++) {
+    _path_at(path1, i, &asn1);
+    _path_at(path2, i, &asn2);
+    if (asn1 < asn2)
       return -1;
     else
-      if (path_at(path1, index) > path_at(path2, index))
+      if (asn1 > asn2)
         return 1;
   }
   return path_equals(path1, path2);
@@ -676,24 +608,20 @@ int path_comparison(bgp_path_t * path1, bgp_path_t * path2)
  */
 int path_equals(const bgp_path_t * path1, const bgp_path_t * path2)
 {
-#ifndef __BGP_PATH_TYPE_TREE__
-  unsigned int index;
+  unsigned int i;
 
   if (path1 == path2)
     return 1;
 
-  if (path_num_segments(path1) != path_num_segments(path2))
+  if (_path_num_segments(path1) != _path_num_segments(path2))
     return 0;
 
-  for (index= 0; index < path_num_segments(path1); index++) {
-    if (!path_segment_equals((bgp_path_seg_t *) path1->data[index],
-			     (bgp_path_seg_t *) path2->data[index]))
+  for (i= 0; i < _path_num_segments(path1); i++) {
+    if (!path_segment_equals(_path_segment_at(path1, i),
+			     _path_segment_at(path2, i)))
       return 0;
   }
   return 1;
-#else
-  abort();
-#endif
 }
 
 // -----[ path_cmp ]-------------------------------------------------
@@ -708,16 +636,16 @@ int path_equals(const bgp_path_t * path1, const bgp_path_t * path2)
  */
 int path_cmp(const bgp_path_t * path1, const bgp_path_t * path2)
 {
-  unsigned int index;
-  int iCmp;
+  unsigned int i;
+  int cmp;
 
   // Null paths are equal
   if (path1 == path2)
     return 0;
 
   // Null and empty paths are equal
-  if (((path1 == NULL) && (path_num_segments(path2) == 0)) ||
-      ((path2 == NULL) && (path_num_segments(path1) == 0)))
+  if (((path1 == NULL) && (_path_num_segments(path2) == 0)) ||
+      ((path2 == NULL) && (_path_num_segments(path1) == 0)))
     return 0;
 
   if (path1 == NULL)
@@ -726,17 +654,17 @@ int path_cmp(const bgp_path_t * path1, const bgp_path_t * path2)
     return 1;
   
   // Longest is first
-  if (path_num_segments(path1) < path_num_segments(path2))
+  if (_path_num_segments(path1) < _path_num_segments(path2))
     return -1;
-  else if (path_num_segments(path1) > path_num_segments(path2))
+  else if (_path_num_segments(path1) > _path_num_segments(path2))
     return 1;
 
   // Equal size paths, inspect individual segments
-  for (index= 0; index < path_num_segments(path1); index++) {
-    iCmp= path_segment_cmp((bgp_path_seg_t *) path1->data[index],
-			   (bgp_path_seg_t *) path2->data[index]);
-    if (iCmp != 0)
-      return iCmp;
+  for (i= 0; i < _path_num_segments(path1); i++) {
+    cmp= path_segment_cmp(_path_segment_at(path1, i),
+			   _path_segment_at(path2, i));
+    if (cmp != 0)
+      return cmp;
   }
 
   return 0;
@@ -762,23 +690,23 @@ int path_str_cmp(bgp_path_t * path1, bgp_path_t * path2)
 // -----[ path_remove_private ]--------------------------------------
 void path_remove_private(bgp_path_t * path)
 {
-  unsigned int index;
+  unsigned int i;
   bgp_path_seg_t * seg;
   bgp_path_seg_t * new_seg;
 
-  index= 0;
-  while (index < path_num_segments(path)) {
-    seg= (bgp_path_seg_t *) path->data[index];
+  i= 0;
+  while (i < _path_num_segments(path)) {
+    seg= _path_segment_at(path, i);
     new_seg= path_segment_remove_private(seg);
     if (seg != new_seg) {
       if (new_seg == NULL) {
-	ptr_array_remove_at(path, index);
+	ptr_array_remove_at(path, i);
 	continue;
       } else {
-	path->data[index]= new_seg;
+	_path_segment_at(path, i)= new_seg;
       }
     }
-    index++;
+    i++;
   }
 }
 

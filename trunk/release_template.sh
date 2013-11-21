@@ -24,7 +24,7 @@ VC=svn
 #   is the SVN URL of the project (this needs only be configured
 #   for SVN projects)
 #
-SVN_URL=`svn info | grep URL | cut -c 7-`
+SVN_URL=`svn info | grep URL | sed 's/^URL[^:]*://' | sed 's/\/trunk.*//'`
 #
 # MAIN_VERSION
 #

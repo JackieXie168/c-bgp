@@ -43,7 +43,7 @@ bgp_path_seg_t * path_segment_create(uint8_t type, uint8_t length)
 {
   bgp_path_seg_t * seg=
     (bgp_path_seg_t *) MALLOC(sizeof(bgp_path_seg_t)+
-			     (length * sizeof(asn_t)));
+			      (length * sizeof(asn_t)));
   seg->type= type;
   seg->length= length;
   return seg;
@@ -69,7 +69,7 @@ bgp_path_seg_t * path_segment_copy(const bgp_path_seg_t * seg)
 {
   bgp_path_seg_t * new_seg=
     path_segment_create(seg->type, seg->length);
-  memcpy(new_seg->asns, seg->asns, new_seg->length*sizeof(asn_t));
+  memcpy(new_seg->asns, seg->asns, new_seg->length * sizeof(asn_t));
   return new_seg;
 }
 
@@ -319,8 +319,9 @@ inline int path_segment_equals(const bgp_path_seg_t * seg1,
   case AS_PATH_SEGMENT_SEQUENCE:
     // In the case of an AS-SEQUENCE, we simply compare the memory
     // regions since the ordering of the AS numbers must be equal.
-    if (memcmp(seg1->asns, seg2->asns,
-	       seg1->length*sizeof(asn_t)) == 0)
+    for (index= 0; index < seg1->length; index++)
+      if (seg1->asns[index] != seg2->asns[index])
+	return 0;
       return 1;
     break;
   case AS_PATH_SEGMENT_SET:
@@ -393,10 +394,11 @@ bgp_path_seg_t * path_segment_remove_private(bgp_path_seg_t * seg)
   while (index < seg->length) {
 
     // ASN in [64512, 65535] ?
-    if ((seg->asns[index] >= 64512)) {
+    if ((seg->asns[index] >= 64512) &&
+	(seg->asns[index] <= 65535)) {
       memmove(&seg->asns[index],
 	      &seg->asns[index+1],
-	      sizeof(asn_t)*(seg->length-index-1));
+	      sizeof(asn_t) * (seg->length-index-1));
       seg->length--;
       resize= 1;
     } else
@@ -415,8 +417,8 @@ bgp_path_seg_t * path_segment_remove_private(bgp_path_seg_t * seg)
 
     // Resize
     return (bgp_path_seg_t *) REALLOC(seg,
-				    sizeof(bgp_path_seg_t)+
-				    seg->length*sizeof(asn_t));
+				      sizeof(bgp_path_seg_t)+
+				      seg->length * sizeof(asn_t));
   }
 
   return seg;

@@ -34,7 +34,13 @@
 /** Maximum number of AS. */
 #define MAX_AS 65536
 /** Definition of an AS Number (ASN). */
+#ifndef ASN_SIZE_32
 typedef uint16_t asn_t;
+#else
+typedef uint32_t asn_t;
+#endif /* ASN_SIZE_32 */
+
+
 
 // -----[ bgp_routes_t ]---------------------------------------------
 /** Definition of a set of BGP routes. */
@@ -226,7 +232,7 @@ typedef struct bgp_route_t {
   struct bgp_router_t * pOriginRouter;
 #endif
 
-  bgp_nlri_t          nlri;
+  //bgp_nlri_t          nlri;
 } bgp_route_t;
 
 

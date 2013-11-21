@@ -80,7 +80,7 @@ extern "C" {
   // BINARY MRT FUNCTIONS
   ///////////////////////////////////////////////////////////////////
 
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
   // -----[ mrtd_binary_load ]---------------------------------------
   int mrtd_binary_load(const char * file_name, bgp_route_handler_f handler,
 		       void * ctx);
