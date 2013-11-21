@@ -89,35 +89,35 @@ _route_create2(ip_pfx_t prefix, bgp_peer_t * peer, bgp_attr_t * attr)
 }
 
 // -----[ route_create_nlri ]--------------------------------------
-bgp_route_t * route_create_nlri(bgp_nlri_t nlri, bgp_peer_t * peer,
-				net_addr_t next_hop, bgp_origin_t origin,
-				bgp_attr_t * attr)
-{
-  bgp_route_t * route;
-  size_t nlri_size= bgp_nlri_size(&nlri);
-  size_t route_size= sizeof(bgp_route_t) + nlri_size - sizeof(bgp_nlri_t);
-
-  route= (bgp_route_t *) MALLOC(route_size);
-  route->peer= peer;
-  //route->attr= attr;
-  route->flags= 0;
-
-#ifdef BGP_QOS
-  bgp_route_qos_init(route);
-#endif
-
-#ifdef __EXPERIMENTAL__
-  route->pOriginRouter= NULL;
-#endif
-
-#ifdef __BGP_ROUTE_INFO_DP__
-  route->rank= 0;
-#endif
-
-  memcpy(&route->nlri, &nlri, nlri_size);
-
-  return route;
-}
+//bgp_route_t * route_create_nlri(bgp_nlri_t nlri, bgp_peer_t * peer,
+//				net_addr_t next_hop, bgp_origin_t origin,
+//				bgp_attr_t * attr)
+//{
+//  bgp_route_t * route;
+//  size_t nlri_size= bgp_nlri_size(&nlri);
+//  size_t route_size= sizeof(bgp_route_t) + nlri_size - sizeof(bgp_nlri_t);
+//
+//  route= (bgp_route_t *) MALLOC(route_size);
+//  route->peer= peer;
+//  //route->attr= attr;
+//  route->flags= 0;
+//
+//#ifdef BGP_QOS
+//  bgp_route_qos_init(route);
+//#endif
+//
+//#ifdef __EXPERIMENTAL__
+//  route->pOriginRouter= NULL;
+//#endif
+//
+//#ifdef __BGP_ROUTE_INFO_DP__
+//  route->rank= 0;
+//#endif
+//
+//  memcpy(&route->nlri, &nlri, nlri_size);
+//
+//  return route;
+//}
 
 
 // ----- route_destroy ----------------------------------------------
@@ -331,9 +331,11 @@ inline int route_path_length(bgp_route_t * route)
  */
 inline int route_path_last_as(bgp_route_t * route)
 {
-  if (route->attr->path_ref != NULL)
-    return path_last_as(route->attr->path_ref);
-  else
+  if (route->attr->path_ref != NULL) {
+    asn_t asn;
+    assert(!path_last_as(route->attr->path_ref, asn));
+    return asn;
+  } else
     return -1;
 }
 
@@ -893,7 +895,7 @@ static int _route_dump_custom(gds_stream_t * stream, void * pContext,
 			      char cFormat)
 {
   bgp_route_t * route= (bgp_route_t *) pContext;
-  int asn;
+  asn_t asn;
   switch (cFormat) {
   case 'i':
     if (route->peer != NULL)
@@ -942,7 +944,7 @@ static int _route_dump_custom(gds_stream_t * stream, void * pContext,
       cluster_list_dump(stream, route->attr->cluster_list);
     break;
   case 'A':
-    asn= path_first_as(route->attr->path_ref);
+    assert(!path_first_as(route->attr->path_ref, &asn));
     if (asn >= 0) {
       stream_printf(stream, "%u", asn);
     } else {

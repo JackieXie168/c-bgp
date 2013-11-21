@@ -22,13 +22,13 @@ else
 endif
 
 # Compile with libgpdump ?
-if WITH_BGPDUMP
-  OPT_BGPDUMP_LIBADD = external/libexternal.la
-  OPT_BGPDUMP_DIR = external
-else
-  OPT_BGPDUMP_LIBADD =
-  OPT_BGPDUMP_DIR = 
-endif
+#if WITH_BGPDUMP
+#  OPT_BGPDUMP_LIBADD = external/libexternal.la
+#  OPT_BGPDUMP_DIR = external
+#else
+#  OPT_BGPDUMP_LIBADD =
+#  OPT_BGPDUMP_DIR = 
+#endif
 
 SUBDIRS = bgp cli net sim ui util $(OPT_JNI_DIR) $(OPT_BGPDUMP_DIR)
 DIST_SUBDIRS = bgp cli external net sim ui util jni

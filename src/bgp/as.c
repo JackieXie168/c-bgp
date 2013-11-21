@@ -2650,8 +2650,10 @@ static int _bgp_router_load_rib_handler(int status,
     // drop an error message.
     if (peer == NULL) {
       if ((pCtx->options & BGP_ROUTER_LOAD_OPTIONS_AUTOCONF) != 0) {
+	asn_t asn;
+	assert(!path_last_as(route->attr->path_ref, asn));
 	bgp_auto_config_session(router, route->attr->next_hop,
-				path_last_as(route->attr->path_ref), &peer);
+				asn, &peer);
       } else {
 	STREAM_ERR_ENABLED(STREAM_LEVEL_SEVERE) {
 	  stream_printf(gdserr, "Error: peer not found \"");

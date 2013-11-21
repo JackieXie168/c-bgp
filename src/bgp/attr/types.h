@@ -59,8 +59,12 @@ typedef struct {
   uint8_t  type;
   /** Number of ASNs in the segment. */
   uint8_t  length;
-  /** Set of ASNs. */
+  /** ASNs */
+#ifndef ASN_SIZE_32
   uint16_t asns[0];
+#else
+  uint32_t asns[0];
+#endif
 } bgp_path_seg_t;
 
 
@@ -74,15 +78,10 @@ typedef struct {
  * and is composed of a segment and a previous AS-Path (called the
  * "tail") of the path.
  */
-#ifndef __BGP_PATH_TYPE_TREE__
 typedef ptr_array_t bgp_path_t;
-#else
-typedef struct bgp_path_t {
-  bgp_attr_refcnt_t tRefCnt;
-  bgp_path_segment_t * pSegment;
-  struct bgp_path_t * pPrevious;
-} bgp_path_t;
-#endif
+/*typedef struct {
+  ptr_array_t * segments;
+  } bgp_path_t;*/
 
 
 /////////////////////////////////////////////////////////////////////

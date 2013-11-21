@@ -25,8 +25,12 @@ extern "C" {
   bgp_path_t * path_create();
   // ----- path_destroy ---------------------------------------------
   void path_destroy(bgp_path_t ** path);
+
+#if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
   // ----- path_max_value -------------------------------------------
   bgp_path_t * path_max_value();
+#endif
+
   // ----- path_copy ------------------------------------------------
   bgp_path_t * path_copy(bgp_path_t * path);
   // ----- path_num_segments ----------------------------------------
@@ -40,9 +44,9 @@ extern "C" {
   // ----- path_contains --------------------------------------------
   int path_contains(bgp_path_t * path, asn_t asn);
   // -----[ path_last_as ]-------------------------------------------
-  int path_last_as(bgp_path_t * path);
+  int path_last_as(bgp_path_t * path, asn_t * asn_ref);
   // -----[ path_first_as ]------------------------------------------
-  int path_first_as(bgp_path_t * path);
+  int path_first_as(bgp_path_t * path, asn_t * asn_ref);
   // -----[ path_to_string ]-----------------------------------------
   int path_to_string(bgp_path_t * path, int reverse,
 		     char * dst, size_t tDstSize);

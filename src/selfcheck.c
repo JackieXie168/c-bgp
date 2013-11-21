@@ -4683,23 +4683,7 @@ unit_test_suite_t TEST_SUITES[]= {
 #define TEST_SUITES_SIZE ARRAY_SIZE(TEST_SUITES)
 
 unit_test_t SINGLE_TEST[]= {
-  {test_net_traces_recordroute, "record-route"},
-  {test_net_traces_recordroute_unreach, "record-route (unreach)"},
-  {test_net_traces_recordroute_load, "record-route (load)"},
-  {test_net_traces_recordroute_tunnel, "record-route (tunnel)"},
-  {test_net_traces_recordroute_tunnel_ecmp, "record-route (tunnel,ecmp)"},
-  {test_net_traces_recordroute_ecmp, "record-route (ecmp)"},
-  {test_net_traces_recordroute_ecmp_load, "record-route (ecmp,load)"},
-  {test_net_traces_recordroute_ecmp_unreach, "record-route (ecmp,unreach)"},
-  {test_net_traces_recordroute_qos, "record-route (qos)"},
-  {test_net_traces_recordroute_prefix, "record-route (prefix)"},
-  {test_net_traces_recordroute_prefix_unreach,
-  "record-route prefix (unreach)"},
-  {test_net_traces_recordroute_prefix_load, "record-route prefix (load)"},
-  {test_net_traces_recordroute_tunnel_qos, "record-route (tunnel,qos)"},
-  {test_net_traces_recordroute_tunnel_unreach,
-  "record-route tunnel (unreach)"},
-  {test_net_traces_recordroute_tunnel_prefix, "record-route tunnel (prefix)"},
+  {test_bgp_attr_aspath, "as-path (basic)"},
 };
 #define SINGLE_TEST_SIZE ARRAY_SIZE(SINGLE_TEST)
 

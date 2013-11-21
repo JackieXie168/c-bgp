@@ -577,20 +577,21 @@ int mrtd_ascii_load(const char * filename, bgp_route_handler_f handler,
 //
 /////////////////////////////////////////////////////////////////////
 
-#ifdef HAVE_BGPDUMP
-# include <sys/types.h>
-# include <sys/socket.h>
-# include <arpa/inet.h>
-# include <external/bgpdump_lib.h>
-# include <external/bgpdump_formats.h>
-# include <netinet/in.h>
+#ifdef HAVE_LIBBGPDUMP
+//# include <sys/types.h>
+//# include <sys/socket.h>
+//# include <arpa/inet.h>
+//# include <external/bgpdump_lib.h>
+//# include <external/bgpdump_formats.h>
+//# include <netinet/in.h>
+#include <bgpdump_lib.h>
 #endif
 
 // -----[ mrtd_process_community ]-----------------------------------
 /**
  *
  */
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
 bgp_comms_t * mrtd_process_community(struct community * com)
 {
   bgp_comms_t * comms= NULL;
@@ -605,7 +606,7 @@ bgp_comms_t * mrtd_process_community(struct community * com)
   }
   return comms;
 }
-#endif
+#endif /* HAVE_LIBBGPDUMP */
 
 // -----[ mrtd_process_aspath ]--------------------------------------
 /**
@@ -615,7 +616,7 @@ bgp_comms_t * mrtd_process_community(struct community * com)
  * This function only supports SETs and SEQUENCEs. If such a segment
  * is found, the function will fail (and return NULL).
  */
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
 bgp_path_t * mrtd_process_aspath(const struct aspath * path)
 {
   bgp_path_t * cbgp_path= NULL;
@@ -630,12 +631,6 @@ bgp_path_t * mrtd_process_aspath(const struct aspath * path)
   /* empty AS-path */
   if (path->length == 0)
     return NULL;
-
-  /* ASN size == 32 bits (not supported by c-bgp) */
-  if (path->asn_len != ASN16_LEN) {
-    STREAM_ERR(STREAM_LEVEL_SEVERE, "32-bits ASN are not supported.\n");
-    return NULL;
-  }
 
   /* Set initial pointers */
   pnt= path->data;
@@ -666,8 +661,17 @@ bgp_path_t * mrtd_process_aspath(const struct aspath * path)
     /* Copy each AS number into the AS-path segment */
     for (index= 0; index < assegment->length; index++) {
       asn_pos = index * path->asn_len;
-      seg->asns[assegment->length-index-1]=
-	ntohs(*(u_int16_t *) (assegment->data + asn_pos));
+      if (path->asn_len == ASN16_LEN) {
+	seg->asns[assegment->length-index-1]=
+	  ntohs(*(u_int16_t *) (assegment->data + asn_pos));
+      } else {
+	uint32_t asn= ntohl(*(u_int32_t *) (assegment->data + asn_pos));
+#ifndef ASN_SIZE_32
+	if (asn > 65535)
+	  printf("large 32-bits ASN = %u\n", asn);
+#endif
+	seg->asns[assegment->length-index-1]= asn;
+      }
     }
 
     /* Add the segment to the AS-path */
@@ -687,7 +691,7 @@ bgp_path_t * mrtd_process_aspath(const struct aspath * path)
 
   return cbgp_path;
 }
-#endif
+#endif /* HAVE_LIBBGPDUMP */
 
 // -----[ mrtd_process_table_dump ]----------------------------------
 /**
@@ -699,130 +703,196 @@ bgp_path_t * mrtd_process_aspath(const struct aspath * path)
  *
  * todo: conversion of communities
  */
-#ifdef HAVE_BGPDUMP
-bgp_route_t * mrtd_process_table_dump(BGPDUMP_ENTRY * entry)
+#ifdef HAVE_LIBBGPDUMP
+int mrtd_process_table_dump(BGPDUMP_ENTRY * entry,
+			    bgp_route_handler_f handler,
+			    void * ctx)
 {
   BGPDUMP_MRTD_TABLE_DUMP * table_dump= &entry->body.mrtd_table_dump;
   bgp_route_t * route= NULL;
   ip_pfx_t prefix;
   bgp_origin_t origin;
   net_addr_t next_hop;
+  net_addr_t peer_addr;
+  unsigned int peer_asn;
 
-  if (entry->subtype == AFI_IP) {
+  if (entry->subtype != BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP) {
+    STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported entry.\n");
+    return -1;
+  }
 
-    prefix.network= ntohl(table_dump->prefix.v4_addr.s_addr);
-    prefix.mask= table_dump->mask;
-    if (entry->attr == NULL)
-      return NULL;
+  prefix.network= ntohl(table_dump->prefix.v4_addr.s_addr);
+  prefix.mask= table_dump->mask;
+  if (entry->attr == NULL)
+    return -1;
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0)
-      origin= (bgp_origin_t) entry->attr->origin;
-    else
-      return NULL;
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0)
+    origin= (bgp_origin_t) entry->attr->origin;
+  else
+    return -1;
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0)
-      next_hop= ntohl(entry->attr->nexthop.s_addr);
-    else
-      return NULL;
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0)
+    next_hop= ntohl(entry->attr->nexthop.s_addr);
+  else
+    return -1;
+
+  route= route_create(prefix, NULL, next_hop, origin);
+
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
+    route_set_path(route, mrtd_process_aspath(entry->attr->aspath));
+
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
+    route_localpref_set(route, entry->attr->local_pref);
+
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
+    route_med_set(route, entry->attr->med);
+
+  if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
+    route_set_comm(route, mrtd_process_community(entry->attr->community));
+
+  peer_addr= ntohl(entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
+  peer_asn= entry->body.mrtd_table_dump.peer_as;
+
+  if (handler(BGP_INPUT_STATUS_OK, route, peer_addr, peer_asn, ctx) != 0)
+    return BGP_INPUT_ERROR_UNEXPECTED;
+  
+  return BGP_INPUT_SUCCESS;
+}
+#endif /* HAVE_LIBBGPDUMP */
+
+#ifdef HAVE_LIBBGPDUMP
+// -----[ mrtd_process_table_dump_v2 ]-------------------------------
+/**
+ * Convert an MRT TABLE DUMP V2 to a C-BGP route.
+ */
+int mrtd_process_table_dump_v2(BGPDUMP_ENTRY * entry,
+			       bgp_route_handler_f handler,
+			       void * ctx)
+{
+  BGPDUMP_TABLE_DUMP_V2_PREFIX * e_prefix=
+    &entry->body.mrtd_table_dump_v2_prefix;
+  bgp_route_t * route= NULL;
+  ip_pfx_t prefix;
+  bgp_origin_t origin;
+  net_addr_t next_hop;
+  net_addr_t peer_addr;
+  unsigned int peer_asn;
+  int i;
+
+  if (e_prefix->afi != AFI_IP) {
+    STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported AFI.\n");
+    return -1;
+  }
+
+  prefix.network= ntohl(e_prefix->prefix.v4_addr.s_addr);
+  prefix.mask= e_prefix->prefix_length;
+
+  for (i= 0; i < e_prefix->entry_count; i++) {
+    BGPDUMP_TABLE_DUMP_V2_ROUTE_ENTRY * rt_entry=
+      &e_prefix->entries[i];
+    BGPDUMP_TABLE_DUMP_V2_PEER_INDEX_TABLE_ENTRY * peer=
+      rt_entry->peer;
+    attributes_t * attr= rt_entry->attr;
+
+    assert((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGIN)) != 0);
+    assert((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)) != 0);
+
+    origin= (bgp_origin_t) attr->origin;
+    next_hop= ntohl(attr->nexthop.s_addr);
 
     route= route_create(prefix, NULL, next_hop, origin);
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
-      route_set_path(route, mrtd_process_aspath(entry->attr->aspath));
+    if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AS_PATH)) != 0)
+      route_set_path(route, mrtd_process_aspath(attr->aspath));
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
-      route_localpref_set(route, entry->attr->local_pref);
+    if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) != 0)
+      route_localpref_set(route, attr->local_pref);
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
-      route_med_set(route, entry->attr->med);
+    if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) != 0)
+      route_med_set(route, attr->med);
 
-    if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
-      route_set_comm(route, mrtd_process_community(entry->attr->community));
+    if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) != 0)
+      route_set_comm(route, mrtd_process_community(attr->community));
 
+    if (rt_entry->peer->afi != AFI_IP) {
+      STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported AFI.\n");
+       route_destroy(&route);
+      continue;
+    }
+
+    peer_addr= ntohl(peer->peer_ip.v4_addr.s_addr);
+    peer_asn= peer->peer_as;
+
+    if (handler(BGP_INPUT_STATUS_OK, route, peer_addr, peer_asn, ctx) != 0)
+      return BGP_INPUT_ERROR_UNEXPECTED;
   }
 
-  return route;
+  return BGP_INPUT_SUCCESS;
 }
-#endif
+#endif /* HAVE_LIBBGPDUMP */
 
 // -----[ mrtd_process_entry ]---------------------------------------
 /**
  * Convert a bgpdump entry to a route. Only supports entries of type
  * TABLE DUMP, for adress family AF_IP (IPv4).
  */
-#ifdef HAVE_BGPDUMP
-bgp_route_t * mrtd_process_entry(BGPDUMP_ENTRY * entry,
-				 net_addr_t * peer_addr_ref,
-				 unsigned int * peer_asn_ref)
+#ifdef HAVE_LIBBGPDUMP
+int mrtd_process_entry(BGPDUMP_ENTRY * entry,
+		       bgp_route_handler_f handler,
+		       void * ctx)
 {
-  bgp_route_t * route= NULL;
+  switch (entry->type) {
 
-  if (entry->type == BGPDUMP_TYPE_MRTD_TABLE_DUMP) {
-    route= mrtd_process_table_dump(entry);
-    *peer_addr_ref= ntohl(entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr);
-    *peer_asn_ref= entry->body.mrtd_table_dump.peer_as;
-  } else {
-    STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported entry.\n");
+  case BGPDUMP_TYPE_MRTD_TABLE_DUMP:
+    return mrtd_process_table_dump(entry, handler, ctx);
+    
+  case BGPDUMP_TYPE_TABLE_DUMP_V2:
+    return mrtd_process_table_dump_v2(entry, handler, ctx);
+
+  default:
+    return -1;
   }
-  return route;
+  return 0;
 }
-#endif
+#endif /* HAVE_LIBBGPDUMP */
 
 // -----[ mrtd_binary_load ]-----------------------------------------
 /**
  *
  */
-#ifdef HAVE_BGPDUMP
+#ifdef HAVE_LIBBGPDUMP
 int mrtd_binary_load(const char * filename, bgp_route_handler_f handler,
 		     void * ctx)
 {
   BGPDUMP * dump;
   BGPDUMP_ENTRY * entry= NULL;
-  bgp_route_t * route;
   int error= BGP_INPUT_SUCCESS;
-  int status;
-  net_addr_t peer_addr;
-  unsigned int peer_asn;
 
   if ((dump= bgpdump_open_dump((char *) filename)) == NULL)
     return BGP_INPUT_ERROR_FILE_OPEN;
 
   do {
 
-    peer_addr= IP_ADDR_ANY;
-    peer_asn= 0;
-    route= NULL;
-
     entry= bgpdump_read_next(dump);
     if (entry == NULL) {
-      if (dump->parsed != dump->parsed_ok) {
+      /*if (dump->parsed != dump->parsed_ok) {
 	error= BGP_INPUT_ERROR_USER;
 	bgp_input_set_user_error("malformed binary MRT entry");
 	break;
-      }
+	}*/
       continue;
     }
 
-    route= mrtd_process_entry(entry, &peer_addr, &peer_asn);
+    error= mrtd_process_entry(entry, handler, ctx);
     bgpdump_free_mem(entry);
-
-    if (route == NULL)
-      status= BGP_INPUT_STATUS_IGNORED;
-    else
-      status= BGP_INPUT_STATUS_OK;
       
-    if (handler(status, route, peer_addr, peer_asn, ctx) != 0) {
-      error= BGP_INPUT_ERROR_UNEXPECTED;
-      break;
-    }
-      
-  } while (dump->eof == 0);
+  } while ((dump->eof == 0) && (error == BGP_INPUT_SUCCESS));
   
   bgpdump_close_dump(dump);
 
   return error;
 }
-#endif
+#endif /* HAVE_LIBBGPDUMP */
 
 
 /////////////////////////////////////////////////////////////////////
