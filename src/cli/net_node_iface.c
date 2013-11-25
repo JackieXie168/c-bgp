@@ -120,20 +120,6 @@ static int cli_iface_up(cli_ctx_t * ctx, cli_cmd_t * cmd)
   return CLI_SUCCESS;
 }
 
-// -----[ cli_iface_connect ]----------------------------------------
-/**
- * context: {iface}
- * tokens: {}
- */
-static int cli_iface_connect(cli_ctx_t * ctx, cli_cmd_t * cmd)
-{
-  net_iface_t * iface= _iface_from_context(ctx);
-
-  iface= NULL;
-
-  return CLI_SUCCESS;
-}
-
 // -----[ cli_iface_load_clear ]-------------------------------------
 /**
  * context: {iface}
@@ -257,7 +243,6 @@ void cli_register_net_node_iface(cli_cmd_t * parent)
 					 cli_ctx_create_iface,
 					 cli_ctx_destroy_iface));
   cli_add_arg(group, cli_arg("address|prefix", NULL));
-  cmd= cli_add_cmd(group, cli_cmd("connect", cli_iface_connect));
   cmd= cli_add_cmd(group, cli_cmd("igp-weight", cli_iface_igpweight));
   cli_add_arg(cmd, cli_arg("weight", NULL));
   cmd= cli_add_cmd(group, cli_cmd("down", cli_iface_down));
