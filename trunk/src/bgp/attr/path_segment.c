@@ -394,8 +394,12 @@ bgp_path_seg_t * path_segment_remove_private(bgp_path_seg_t * seg)
   while (index < seg->length) {
 
     // ASN in [64512, 65535] ?
-    if ((seg->asns[index] >= 64512) &&
-	(seg->asns[index] <= 65535)) {
+#ifndef ASN_SIZE_32
+    if (seg->asns[index] >= 64512) {
+#else
+      if ((seg->asns[index] >= 64512) &&
+	  (seg->asns[index] <= 65535) {
+#endif /* ASN_SIZE_32 */
       memmove(&seg->asns[index],
 	      &seg->asns[index+1],
 	      sizeof(asn_t) * (seg->length-index-1));
