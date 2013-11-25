@@ -44,11 +44,14 @@
 #include <bgp/attr/comm.h>
 #include <bgp/attr/ecomm.h>
 #include <bgp/attr/path.h>
+#include <bgp/attr/types.h>
 #include <bgp/filter/filter.h>
 #include <bgp/route.h>
 
 
 typedef union {
+  bgp_ft_matcher_t matcher;
+  bgp_ft_matcher_t matchers[2];
   net_addr_t addr;
   bgp_comm_t comm;
   ip_pfx_t   pfx;
@@ -57,7 +60,19 @@ typedef union {
     uint8_t  len;
   } pfx_len;
   int        index;
-} plop_t;
+} _matcher_params_t;
+
+typedef union {
+  bgp_comm_t  comm;
+  bgp_ecomm_t ecomm;
+  uint8_t     count;
+  struct {
+    asn_t     asn;
+    uint8_t   count;
+  } asn_count;
+  uint32_t    pref;
+  uint32_t    med;
+} _action_params_t;
 
 
 ptr_array_t * paPathExpr = NULL;
@@ -310,64 +325,41 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 			 bgp_route_t * route)
 {
   SPathMatch * pPathMatcher;
-  bgp_ft_matcher_t * matcher1;
-  bgp_ft_matcher_t * matcher2;
 
-  //bgp_comm_t comm;
-  //net_addr_t addr;
-  //ip_pfx_t pfx;
-  //uint8_t len;
-  //int index;
-
-  plop_t * plop= (plop_t *) matcher->params;
+  _matcher_params_t * params= (_matcher_params_t *) matcher->params;
 
   if (matcher != NULL) {
     switch (matcher->code) {
     case FT_MATCH_ANY:
       return 1;
     case FT_MATCH_OP_AND:
-      matcher1= (bgp_ft_matcher_t *) matcher->params;
-      matcher2= (bgp_ft_matcher_t *) &matcher->params[sizeof(bgp_ft_matcher_t)+
-							  matcher1->size];
-      return (filter_matcher_apply(matcher1, router, route) &&
-	      filter_matcher_apply(matcher2, router, route));
+      return (filter_matcher_apply(&params->matchers[0], router, route) &&
+	      filter_matcher_apply(&params->matchers[1], router, route));
     case FT_MATCH_OP_OR:
-      matcher1= (bgp_ft_matcher_t *) matcher->params;
-      matcher2= (bgp_ft_matcher_t *) &matcher->params[sizeof(bgp_ft_matcher_t)+
-							  matcher1->size];
-	return (filter_matcher_apply(matcher1, router, route) ||
-		filter_matcher_apply(matcher2, router, route));
+      return (filter_matcher_apply(&params->matchers[0], router, route) ||
+	      filter_matcher_apply(&params->matchers[1], router, route));
     case FT_MATCH_OP_NOT:
-      return !filter_matcher_apply((bgp_ft_matcher_t *) matcher->params,
-				   router, route);
+      return !filter_matcher_apply(&params->matcher, router, route);
     case FT_MATCH_COMM_CONTAINS:
-      //memcpy(&comm, matcher->params, sizeof(comm));
-      return route_comm_contains(route, plop->comm)?1:0;
+      return route_comm_contains(route, params->comm)?1:0;
     case FT_MATCH_NEXTHOP_IS:
-      //memcpy(&addr, matcher->params, sizeof(net_addr_t));
-      return (route->attr->next_hop == plop->addr)?1:0;
+      return (route->attr->next_hop == params->addr)?1:0;
     case FT_MATCH_NEXTHOP_IN:
-      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
-      return ip_address_in_prefix(route->attr->next_hop, plop->pfx)?1:0;
+      return ip_address_in_prefix(route->attr->next_hop, params->pfx)?1:0;
     case FT_MATCH_PREFIX_IS:
-      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
-      return ip_prefix_cmp(&route->prefix, &plop->pfx)?0:1;
+      return ip_prefix_cmp(&route->prefix, &params->pfx)?0:1;
     case FT_MATCH_PREFIX_IN:
-      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
-      return ip_prefix_in_prefix(route->prefix, plop->pfx)?1:0;
+      return ip_prefix_in_prefix(route->prefix, params->pfx)?1:0;
     case FT_MATCH_PREFIX_GE:
-      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
-      //memcpy(&len, matcher->params+sizeof(ip_pfx_t), sizeof(uint8_t));
-      return ip_prefix_ge_prefix(route->prefix, plop->pfx_len.pfx,
-				 plop->pfx_len.len)?1:0;
+      return ip_prefix_ge_prefix(route->prefix,
+				 params->pfx_len.pfx,
+				 params->pfx_len.len)?1:0;
     case FT_MATCH_PREFIX_LE:
-      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
-      //memcpy(&len, matcher->params+sizeof(ip_pfx_t), sizeof(uint8_t));
-      return ip_prefix_le_prefix(route->prefix, plop->pfx_len.pfx,
-				 plop->pfx_len.len)?1:0;
+      return ip_prefix_le_prefix(route->prefix,
+				 params->pfx_len.pfx,
+				 params->pfx_len.len)?1:0;
     case FT_MATCH_PATH_MATCHES:
-      //memcpy(&index, matcher->params, sizeof(index));
-      assert(ptr_array_get_at(paPathExpr, plop->index, &pPathMatcher) >= 0);
+      assert(ptr_array_get_at(paPathExpr, params->index, &pPathMatcher) >= 0);
       return path_match(route_get_path(route), pPathMatcher->pRegEx)?1:0;
     default:
       cbgp_fatal("invalid filter matcher byte code (%u)\n", matcher->code);
@@ -386,18 +378,7 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
 			bgp_route_t * route)
 {
-  typedef union {
-    bgp_comm_t comm;
-    uint8_t    count;
-    struct {
-      asn_t    asn;
-      uint8_t  count;
-    } asn_count;
-    uint32_t   pref;
-    uint32_t   med;
-  } aplop_t;
-
-  aplop_t * plop= (aplop_t *) action->params;
+  _action_params_t * params= (_action_params_t *) action->params;
 
   rt_info_t * rtinfo;
   while (action != NULL) {
@@ -407,30 +388,30 @@ int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
     case FT_ACTION_DENY:
       return 0;
     case FT_ACTION_COMM_APPEND:
-      route_comm_append(route, plop->comm);
+      route_comm_append(route, params->comm);
       break;
     case FT_ACTION_COMM_STRIP:
       route_comm_strip(route);
       break;
     case FT_ACTION_COMM_REMOVE:
-      route_comm_remove(route, plop->comm);
+      route_comm_remove(route, params->comm);
       break;
     case FT_ACTION_PATH_PREPEND:
-      route_path_prepend(route, router->asn, plop->count);
+      route_path_prepend(route, router->asn, params->count);
       break;
 //-------Added by pradeep bangera----------------------------------
     case FT_ACTION_PATH_INSERT:
-      route_path_prepend(route, plop->asn_count.asn, plop->asn_count.count);
+      route_path_prepend(route, params->asn_count.asn, params->asn_count.count);
       break;
 //-----------------------------------------------------------------
     case FT_ACTION_PATH_REM_PRIVATE:
       route_path_rem_private(route);
       break;
     case FT_ACTION_PREF_SET:
-      route_localpref_set(route, plop->pref);
+      route_localpref_set(route, params->pref);
       break;
     case FT_ACTION_METRIC_SET:
-      route_med_set(route, plop->med);
+      route_med_set(route, params->med);
       break;
     case FT_ACTION_METRIC_INTERNAL:
       if (!node_has_address(router->node, route->attr->next_hop)) {
@@ -443,14 +424,13 @@ int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
       }
       break;
     case FT_ACTION_ECOMM_APPEND:
-      route_ecomm_append(route, ecomm_val_copy((bgp_ecomm_t *)
-						action->params));
+      route_ecomm_append(route, ecomm_val_copy(&params->ecomm));
       break;
     case FT_ACTION_JUMP:
-      return filter_jump((bgp_filter_t *)action->params, router, route);
+      return filter_jump((bgp_filter_t *) action->params, router, route);
       break;
     case FT_ACTION_CALL:
-      return filter_call((bgp_filter_t *)action->params, router, route);
+      return filter_call((bgp_filter_t *) action->params, router, route);
     default:
       cbgp_fatal("invalid filter action byte code (%u)\n", action->code);
     }
@@ -584,13 +564,11 @@ bgp_ft_matcher_t * filter_match_not(bgp_ft_matcher_t * matcher)
 
   // Simplify operation: in the case of "not(not(expr))", return "expr"
   if ((matcher != NULL) && (matcher->code == FT_MATCH_OP_NOT)) {
-
+    _matcher_params_t * params= (_matcher_params_t *) matcher->params;
     new_matcher=
-      _ft_matcher_create(((bgp_ft_matcher_t *) matcher->params)->code,
-			    ((bgp_ft_matcher_t *) matcher->params)->size);
-    memcpy(new_matcher->params,
-	   ((bgp_ft_matcher_t *) matcher->params)->params,
-	   ((bgp_ft_matcher_t *) matcher->params)->size);
+      _ft_matcher_create(params->matcher.code, params->matcher.size);
+    memcpy(new_matcher->params, params->matcher.params, params->matcher.size);
+
     filter_matcher_destroy(&matcher);
     return new_matcher;
   }
@@ -864,9 +842,10 @@ bgp_ft_action_t * filter_action_path_rem_private()
 // ----- filter_matcher_dump ----------------------------------------
 void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
 {
-  bgp_comm_t comm;
   SPathMatch * pPathMatch;
   bgp_ft_matcher_t * matcher1, * matcher2;
+
+  _matcher_params_t * params= (_matcher_params_t *) matcher->params;
 
   if (matcher != NULL) {
     switch (matcher->code) {
@@ -899,38 +878,37 @@ void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
       stream_printf(stream, ")");
       break;
     case FT_MATCH_COMM_CONTAINS:
-      memcpy(&comm, matcher->params, sizeof(comm));
       stream_printf(stream, "community is ");
-      comm_value_dump(stream, comm, COMM_DUMP_TEXT);
+      comm_value_dump(stream, params->comm, COMM_DUMP_TEXT);
       break;
     case FT_MATCH_NEXTHOP_IS:
       stream_printf(stream, "next-hop is ");
-      ip_address_dump(stream, *((net_addr_t *) matcher->params));
+      ip_address_dump(stream, params->addr);
       break;
     case FT_MATCH_NEXTHOP_IN:
       stream_printf(stream, "next-hop in ");
-      ip_prefix_dump(stream, *((ip_pfx_t *) matcher->params));
+      ip_prefix_dump(stream, params->pfx);
       break;
     case FT_MATCH_PREFIX_IS:
       stream_printf(stream, "prefix is ");
-      ip_prefix_dump(stream, *((ip_pfx_t *) matcher->params));
+      ip_prefix_dump(stream, params->pfx);
       break;
     case FT_MATCH_PREFIX_IN:
       stream_printf(stream, "prefix in ");
-      ip_prefix_dump(stream, *((ip_pfx_t *) matcher->params));
+      ip_prefix_dump(stream, params->pfx);
       break;
     case FT_MATCH_PREFIX_GE:
       stream_printf(stream, "prefix ge ");
-      ip_prefix_dump(stream, *((ip_pfx_t *) matcher->params));
-      stream_printf(stream, " %u", matcher->params[sizeof(ip_pfx_t)]);
+      ip_prefix_dump(stream, params->pfx_len.pfx);
+      stream_printf(stream, " %u", params->pfx_len.len);
       break;
     case FT_MATCH_PREFIX_LE:
       stream_printf(stream, "prefix le ");
-      ip_prefix_dump(stream, *((ip_pfx_t *) matcher->params));
-      stream_printf(stream, " %u", matcher->params[sizeof(ip_pfx_t)]);
+      ip_prefix_dump(stream, params->pfx_len.pfx);
+      stream_printf(stream, " %u", params->pfx_len.len);
       break;
     case FT_MATCH_PATH_MATCHES:
-      ptr_array_get_at(paPathExpr, *((int *) matcher->params), &pPathMatch);
+      ptr_array_get_at(paPathExpr, params->index, &pPathMatch);
       if (pPathMatch != NULL)
 	stream_printf(stream, "path \\\"%s\\\"", pPathMatch->pcPattern);
       else
@@ -949,7 +927,7 @@ void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
  */
 void filter_action_dump(gds_stream_t * stream, bgp_ft_action_t * action)
 {
-  bgp_ecomm_t * ecomm;
+  _action_params_t * params= (_action_params_t *) action->params;
 
   switch (action->code) {
   case FT_ACTION_ACCEPT:
@@ -960,48 +938,43 @@ void filter_action_dump(gds_stream_t * stream, bgp_ft_action_t * action)
     break;
   case FT_ACTION_COMM_APPEND:
     stream_printf(stream, "community add ");
-    comm_value_dump(stream, *((uint32_t *) action->params),
-		    COMM_DUMP_TEXT);
+    comm_value_dump(stream, params->comm, COMM_DUMP_TEXT);
     break;
   case FT_ACTION_COMM_STRIP:
     stream_printf(stream, "community strip");
     break;
   case FT_ACTION_COMM_REMOVE:
     stream_printf(stream, "community remove ");
-    comm_value_dump(stream, *((uint32_t *) action->params),
-		    COMM_DUMP_TEXT);
+    comm_value_dump(stream, params->comm, COMM_DUMP_TEXT);
     break;
   case FT_ACTION_PATH_PREPEND:
-    stream_printf(stream, "as-path prepend %u",
-		  *((uint8_t *) action->params));
+    stream_printf(stream, "as-path prepend %u", params->count);
     break;
 //-----------Added by pradeep bangera----------------------------
 //***The command "as-path insert <asn>" will insert user specified 
 //***AS number into the AS PATH before suffixing the its own AS ID
   case FT_ACTION_PATH_INSERT:
     stream_printf(stream, "as-path insert %u %u",
-		  *((asn_t *) action->params),
-		  *((uint8_t *) (action->params+sizeof(asn_t))));
+		  params->asn_count.asn, params->asn_count.count);
     break;
     //---------------------------------------------------------------
   case FT_ACTION_PATH_REM_PRIVATE:
     stream_printf(stream, "as-path remove-private");
     break;
   case FT_ACTION_PREF_SET:
-    stream_printf(stream, "local-pref %u", *((uint32_t *) action->params));
+    stream_printf(stream, "local-pref %u", params->pref);
     break;
   case FT_ACTION_METRIC_SET:
-    stream_printf(stream, "metric %u", *((uint32_t *) action->params));
+    stream_printf(stream, "metric %u", params->med);
     break;
   case FT_ACTION_METRIC_INTERNAL:
     stream_printf(stream, "metric internal");
     break;
   case FT_ACTION_ECOMM_APPEND:
-    ecomm= (bgp_ecomm_t *) action->params;
-    switch (ecomm->type_high) {
+    switch (params->ecomm.type_high) {
     case ECOMM_RED:
       stream_printf(stream, "red-community add ");
-      ecomm_red_dump(stream, ecomm);
+      ecomm_red_dump(stream, &params->ecomm);
       break;
     default:
       stream_printf(stream, "ext-community");
