@@ -119,8 +119,6 @@ extern "C" {
   int route_path_contains(bgp_route_t * route, asn_t asn);
   // ----- route_path_length ----------------------------------------
   int route_path_length(bgp_route_t * route);
-  // ----- route_path_last_as ---------------------------------------
-  int route_path_last_as(bgp_route_t * route);
   
   // ----- route_set_comm -------------------------------------------
   void route_set_comm(bgp_route_t * route, bgp_comms_t * comms);
