@@ -312,7 +312,6 @@ static int cli_net_node_traceroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
   const char * arg= cli_get_arg_value(cmd, 0);
   net_node_t * node= _node_from_context(ctx);
   net_addr_t dst_addr;
-  int error;
 
   // Get destination address
   if (str2address(arg, &dst_addr) != 0) {
@@ -321,7 +320,7 @@ static int cli_net_node_traceroute(cli_ctx_t * ctx, cli_cmd_t * cmd)
   }
 
   // Perform traceroute (note that errors are ignored)
-  error= icmp_trace_route(gdsout, node, NET_ADDR_ANY, dst_addr, 0, NULL);
+  icmp_trace_route(gdsout, node, NET_ADDR_ANY, dst_addr, 0, NULL);
   return CLI_SUCCESS;
 }
 
