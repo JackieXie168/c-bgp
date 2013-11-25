@@ -230,32 +230,13 @@ AC_SUBST(PCRE_CFLAGS)
 AC_DEFINE([HAVE_LIBPCRE], 1, [Define to 1 if PCRE library was found ])
 
 
-# Check for libbz2
-AC_CHECK_LIB(bz2, BZ2_bzReadOpen, [],
-  AC_MSG_ERROR([libbz2 is required to build libbgpdump],1)
-)
+dnl libbz2 is required by mrtd/bgpdump
+AC_CHECK_LIB(bz2, BZ2_bzReadOpen, [],)
 
-dnl *****************************************************************
-dnl ENABLE/DISABLE LIBBGPDUMP ?
-dnl *****************************************************************
-dnl AC_ARG_ENABLE(bgpdump,
-dnl    AC_HELP_STRING([--enable-bgpdump],
-dnl       [enable bgpdump]),
-dnl    cbgp_config_bgpdump="$enableval",
-dnl )
-dnl if test "$cbgp_config_bgpdump" == "yes"; then
-dnl     if test "$ac_cv_lib_z_gzopen" = "no"; then
-dnl         AC_WARN([libz not found, bgpdump disabled.])
-dnl     else
-dnl 	AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "1"])
-dnl 	AC_DEFINE(HAVE_BGPDUMP, 1, [Define to 1 if bgpdump can be used])
-dnl     fi
-dnl else
-dnl     AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "0"])
-dnl fi
+dnl Since version 2.3.0, bgpdump is not provided with c-bgp.
+dnl If it is installed on the system, c-bgp will happily use it
+dnl (hopefully).
 AC_CHECK_LIB(bgpdump, bgpdump_open_dump, [],)
-
-
 
 
 dnl *****************************************************************
@@ -357,43 +338,6 @@ if test "$with_readline" != no; then
     esac
     AC_MSG_WARN([Although C-BGP will still compile, some features
                  will not be available.])
-  fi
-fi
-
-dnl *****************************************************************
-dnl CHECK FOR IPV6 SUPPORT (BGPDUMP)
-dnl *****************************************************************
-AC_ARG_ENABLE(ipv6,
-  AC_HELP_STRING([--disable-ipv6], [disable support for IPv6])
-)
-if test "$enable_ipv6" != "no"; then
-        disable_ipv6=no
-fi
-AC_MSG_CHECKING(for IPv6 support)
-if test "$disable_ipv6" != no; then
-  AC_MSG_RESULT(disabled)
-else
-  AC_TRY_RUN([ /* AF_INET6 available check */
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-main()
-{
- struct in6_addr src;
- char buf[128];
- if (inet_ntop(AF_INET6,&src,buf,128)==NULL)
-   exit(1);
- else
-   exit(0);
-}
-    ],ipv6=yes,ipv6=no,ipv6=yes)
-  if test "$ipv6" = "yes"; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(BGPDUMP_HAVE_IPV6, 1, [The library will be compiled with IPv6 support])
-  else
-    AC_MSG_RESULT(no)
   fi
 fi
 
