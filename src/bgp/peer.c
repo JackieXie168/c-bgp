@@ -195,13 +195,13 @@ static int _bgp_peer_prefix_disseminate(uint32_t uKey, uint8_t uKeyLen,
 int bgp_peer_session_ok(bgp_peer_t * peer)
 {
   int result;
-  ip_dest_t dest;
+  //ip_dest_t dest;
   ip_trace_t * trace= NULL;
   array_t * traces;
 
   if (bgp_peer_flag_get(peer, PEER_FLAG_VIRTUAL)) {
-    dest.type= NET_DEST_ADDRESS;
-    dest.addr= peer->addr;
+    //dest.type= NET_DEST_ADDRESS;
+    //dest.addr= peer->addr;
 
     // This must be updated: the router is not necessarily
     // adjacent... need to perform a kind of traceroute...
