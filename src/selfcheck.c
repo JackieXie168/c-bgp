@@ -34,6 +34,7 @@
 #include <bgp/as.h>
 #include <bgp/attr/comm.h>
 #include <bgp/attr/comm_hash.h>
+#include <bgp/attr/ecomm.h>
 #include <bgp/attr/path.h>
 #include <bgp/attr/path_hash.h>
 #include <bgp/attr/path_segment.h>
@@ -2859,7 +2860,16 @@ static int test_bgp_attr_aspath_prepend()
   UTEST_ASSERT(path_append(&path, 1) >= 0,
 		"path_prepend() should return >= 0 on success");
   UTEST_ASSERT(path_length(path) == 1,
-		"prepended path must have length of 1");
+	       "prepended path must have length of 1");
+  bgp_path_seg_t * seg= path_segment_at(path, 0);
+  UTEST_ASSERT(seg != NULL,
+	       "first segment should exist");
+  UTEST_ASSERT(seg->type == AS_PATH_SEGMENT_SEQUENCE,
+	       "first segment should be of type AS-SEQUENCE");
+  UTEST_ASSERT(seg->length == 1,
+	       "first segment should have length equal to 1");
+  UTEST_ASSERT(seg->asns[0] == 1,
+	       "first segment should contain ASN 1");
   path_destroy(&path);
   UTEST_ASSERT(path == NULL,
 		"destroyed path must be null");
@@ -2882,6 +2892,21 @@ static int test_bgp_attr_aspath_prepend_too_much()
 		"destroyed path must be null");
   return UTEST_SUCCESS;
 }
+
+// -----[ test_bgp_attr_aspath_prepend_asn32 ]-----------------------
+#ifdef ASN_SIZE_32
+static int test_bgp_attr_aspath_prepend_asn32()
+{
+  bgp_path_t * path= path_create();
+  UTEST_ASSERT(sizeof(asn_t) >= 4,
+	       "sizeof(asn_t) should be greater or equal to 4 bytes");
+  UTEST_ASSERT(path_append(&path, 128342) >= 0,
+		"path_prepend() should return >= 0 on success");
+  UTEST_ASSERT(path_segment_at(path, 0)->asns[0] == 128342,
+	       "path should contain 32-bits ASN value");
+  return UTEST_SUCCESS;
+}
+#endif /* ASN_SIZE_32 */
 
 // -----[ test_bgp_attr_aspath_2str ]--------------------------------
 static int test_bgp_attr_aspath_2str()
@@ -2923,6 +2948,46 @@ static int test_bgp_attr_aspath_str2()
   path_destroy(&path);
   return UTEST_SUCCESS;
 }
+
+// -----[ test_bgp_attr_aspath_2str_asn32 ]--------------------------
+#ifdef ASN_SIZE_32
+static int test_bgp_attr_aspath_2str_asn32()
+{
+  bgp_path_t * path= NULL;
+  char acBuffer[13]= "ABCDEFGHIJKL";
+  int result;
+  path= path_create();
+  path_append(&path, 65536);
+  path_append(&path, 128432);
+  result= path_to_string(path, 1, acBuffer, sizeof(acBuffer));
+  UTEST_ASSERT(result == 12,
+	       "path_to_string() should return 12");
+  UTEST_ASSERT(strcmp(acBuffer, "128432 65536") == 0,
+	       "incorrect content");
+  path_destroy(&path);
+  return UTEST_SUCCESS;
+}
+#endif /* ASN_SIZE_32 */
+
+// -----[ test_bgp_attr_aspath_str2_asn32 ]--------------------------
+#ifdef ASN_SIZE_32
+static int test_bgp_attr_aspath_str2_asn32()
+{
+  bgp_path_t * path;
+  path= path_from_string("65536 128432");
+  UTEST_ASSERT(path != NULL,
+	       "path sould be parseable");
+  UTEST_ASSERT(path_num_segments(path) == 1,
+	       "path should contain a single segment");
+  UTEST_ASSERT(path_segment_at(path, 0)->length == 2,
+	       "path segment should be of size 2");
+  UTEST_ASSERT((path_segment_at(path, 0)->asns[0] == 128432) &&
+	       (path_segment_at(path, 0)->asns[1] == 65536),
+	       "incorrect content");
+  path_destroy(&path);
+  return UTEST_SUCCESS;
+}
+#endif /* ASN_SIZE_32 */
 
 // -----[ test_bgp_attr_aspath_set_str2 ]----------------------------
 static int test_bgp_attr_aspath_set_str2()
@@ -3261,6 +3326,15 @@ static int test_bgp_attr_cluster_list_contains()
 		== 0,
 		"Cluster-Id-List should not contain 255.255.255.255");
   cluster_list_destroy(&cl);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_attr_red_comm ]-----------------------------------
+static int test_bgp_attr_red_comm()
+{
+  bgp_ecomm_t * rc1= ecomm_red_create_as(ECOMM_RED_ACTION_PREPEND,
+					 2, 2611);
+  ecomm_val_destroy(&rc1);
   return UTEST_SUCCESS;
 }
 
@@ -4529,8 +4603,15 @@ unit_test_t TEST_BGP_ATTR[]= {
   {test_bgp_attr_aspath, "as-path"},
   {test_bgp_attr_aspath_prepend, "as-path prepend"},
   {test_bgp_attr_aspath_prepend_too_much, "as-path prepend (too much)"},
+#ifdef ASN_SIZE_32
+  {test_bgp_attr_aspath_prepend_asn32, "as-path prepend (32-bits ASN)"},
+#endif /* ASN_SIZE_32 */
   {test_bgp_attr_aspath_2str, "as-path (-> string)"},
   {test_bgp_attr_aspath_str2, "as-path (<- string)"},
+#ifdef ASN_SIZE_32
+  {test_bgp_attr_aspath_2str_asn32, "as-path (-> string, 32-bits ASN)"},
+  {test_bgp_attr_aspath_str2_asn32, "as-path (<- string, 32-bits ASN)"},
+#endif /* ASN_SIZE_32 */
   {test_bgp_attr_aspath_set_str2, "as-path set (<- string)"},
   {test_bgp_attr_aspath_cmp, "as-path (compare)"},
   {test_bgp_attr_aspath_contains, "as-path (contains)"},
@@ -4546,6 +4627,7 @@ unit_test_t TEST_BGP_ATTR[]= {
   {test_bgp_attr_cluster_list, "cluster-id-list"},
   {test_bgp_attr_cluster_list_append, "cluster-id-list append"},
   {test_bgp_attr_cluster_list_contains, "cluster-id-list contains"},
+  {test_bgp_attr_red_comm, "redistribution communities"},
 };
 #define TEST_BGP_ATTR_SIZE ARRAY_SIZE(TEST_BGP_ATTR)
 
