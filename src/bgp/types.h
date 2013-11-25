@@ -32,12 +32,13 @@
 
 // -----[ asn_t ]----------------------------------------------------
 /** Maximum number of AS. */
-#define MAX_AS 65536
 /** Definition of an AS Number (ASN). */
 #ifndef ASN_SIZE_32
 typedef uint16_t asn_t;
+#define MAX_AS 65536
 #else
 typedef uint32_t asn_t;
+#define MAX_AS 4294967295
 #endif /* ASN_SIZE_32 */
 
 
