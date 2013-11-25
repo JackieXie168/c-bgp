@@ -816,7 +816,7 @@ int mrtd_process_table_dump_v2(BGPDUMP_ENTRY * entry,
 
     if (rt_entry->peer->afi != AFI_IP) {
       STREAM_ERR(STREAM_LEVEL_SEVERE, "Error: mrtd input contains an unsupported AFI.\n");
-       route_destroy(&route);
+      route_destroy(&route);
       continue;
     }
 
