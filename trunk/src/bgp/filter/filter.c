@@ -47,6 +47,19 @@
 #include <bgp/filter/filter.h>
 #include <bgp/route.h>
 
+
+typedef union {
+  net_addr_t addr;
+  bgp_comm_t comm;
+  ip_pfx_t   pfx;
+  struct {
+    ip_pfx_t pfx;
+    uint8_t  len;
+  } pfx_len;
+  int        index;
+} plop_t;
+
+
 ptr_array_t * paPathExpr = NULL;
 gds_hash_set_t * pHashPathExpr = NULL;
 static unsigned int  uHashPathRegExSize= 64;
@@ -296,10 +309,17 @@ int filter_call(bgp_filter_t * filter, bgp_router_t * router, bgp_route_t * rout
 int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 			 bgp_route_t * route)
 {
-  bgp_comm_t comm;
   SPathMatch * pPathMatcher;
   bgp_ft_matcher_t * matcher1;
   bgp_ft_matcher_t * matcher2;
+
+  //bgp_comm_t comm;
+  //net_addr_t addr;
+  //ip_pfx_t pfx;
+  //uint8_t len;
+  //int index;
+
+  plop_t * plop= (plop_t *) matcher->params;
 
   if (matcher != NULL) {
     switch (matcher->code) {
@@ -321,32 +341,33 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
       return !filter_matcher_apply((bgp_ft_matcher_t *) matcher->params,
 				   router, route);
     case FT_MATCH_COMM_CONTAINS:
-      memcpy(&comm, matcher->params, sizeof(comm));
-      return route_comm_contains(route, comm)?1:0;
+      //memcpy(&comm, matcher->params, sizeof(comm));
+      return route_comm_contains(route, plop->comm)?1:0;
     case FT_MATCH_NEXTHOP_IS:
-      return (route->attr->next_hop == *((net_addr_t *) matcher->params))?1:0;
+      //memcpy(&addr, matcher->params, sizeof(net_addr_t));
+      return (route->attr->next_hop == plop->addr)?1:0;
     case FT_MATCH_NEXTHOP_IN:
-      return ip_address_in_prefix(route->attr->next_hop,
-				  *((ip_pfx_t*) matcher->params))?1:0;
+      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
+      return ip_address_in_prefix(route->attr->next_hop, plop->pfx)?1:0;
     case FT_MATCH_PREFIX_IS:
-      return ip_prefix_cmp(&route->prefix,
-			    ((ip_pfx_t*) matcher->params))?0:1;
+      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
+      return ip_prefix_cmp(&route->prefix, &plop->pfx)?0:1;
     case FT_MATCH_PREFIX_IN:
-      return ip_prefix_in_prefix(route->prefix,
-				 *((ip_pfx_t*) matcher->params))?1:0;
+      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
+      return ip_prefix_in_prefix(route->prefix, plop->pfx)?1:0;
     case FT_MATCH_PREFIX_GE:
-      return ip_prefix_ge_prefix(route->prefix,
-				 *((ip_pfx_t*) matcher->params),
-				 *((uint8_t *) (matcher->params+
-						sizeof(ip_pfx_t))))?1:0;
+      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
+      //memcpy(&len, matcher->params+sizeof(ip_pfx_t), sizeof(uint8_t));
+      return ip_prefix_ge_prefix(route->prefix, plop->pfx_len.pfx,
+				 plop->pfx_len.len)?1:0;
     case FT_MATCH_PREFIX_LE:
-      return ip_prefix_le_prefix(route->prefix,
-				 *((ip_pfx_t*) matcher->params),
-				 *((uint8_t *) (matcher->params+
-						sizeof(ip_pfx_t))))?1:0;
+      //memcpy(&pfx, matcher->params, sizeof(ip_pfx_t));
+      //memcpy(&len, matcher->params+sizeof(ip_pfx_t), sizeof(uint8_t));
+      return ip_prefix_le_prefix(route->prefix, plop->pfx_len.pfx,
+				 plop->pfx_len.len)?1:0;
     case FT_MATCH_PATH_MATCHES:
-      assert(ptr_array_get_at(paPathExpr, *((int *) matcher->params),
-			      &pPathMatcher) >= 0);
+      //memcpy(&index, matcher->params, sizeof(index));
+      assert(ptr_array_get_at(paPathExpr, plop->index, &pPathMatcher) >= 0);
       return path_match(route_get_path(route), pPathMatcher->pRegEx)?1:0;
     default:
       cbgp_fatal("invalid filter matcher byte code (%u)\n", matcher->code);
