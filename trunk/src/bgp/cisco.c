@@ -97,7 +97,7 @@ int cisco_record_parser(const char * line)
 int cisco_parser(FILE * stream)
 {
   gds_tokenizer_t * tokenizer;
-  const gds_tokens_t * tokens;
+  //const gds_tokens_t * tokens;
   char line[80];
   unsigned int line_number= 0;
   int error= CISCO_SUCCESS;
@@ -114,7 +114,7 @@ int cisco_parser(FILE * stream)
       continue;
 
     
-    tokens= tokenizer_get_tokens(tokenizer);
+    //tokens= tokenizer_get_tokens(tokenizer);
 
   }
   tokenizer_destroy(&tokenizer);
