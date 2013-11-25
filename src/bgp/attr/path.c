@@ -28,7 +28,7 @@ static gds_tokenizer_t * path_tokenizer= NULL;
 #define _path_num_segments(P) ((P) == NULL?0:ptr_array_length(P))
 #define _path_segment_at(P, I) (bgp_path_seg_t *) (P)->data[(I)]
 #define _path_segment_ref_at(P, I) (bgp_path_seg_t **) &((P)->data[(I)])
-
+#define _path_segment_set(P, I, V) (P)->data[(I)]= (V)
 
 // ----- _path_destroy_segment --------------------------------------
 static void _path_destroy_segment(void * item, const void * ctx)
@@ -66,7 +66,7 @@ bgp_path_t * path_max_value()
 {
   bgp_path_t * path = path_create();
 
-  path_append(&path, 65535U);
+  path_append(&path, MAX_AS);
   
   return path;
 } 
@@ -99,6 +99,15 @@ int path_num_segments(const bgp_path_t * path)
   return _path_num_segments(path);
 }
 
+
+// ----- path_segment_at ------------------------------------------
+bgp_path_seg_t * path_segment_at(bgp_path_t * path, int index)
+{
+  assert(index >= 0);
+  if (index > _path_num_segments(path))
+    return 0;
+  return _path_segment_at(path, index);
+}
 
 // ----- path_length ------------------------------------------------
 /**
@@ -703,7 +712,7 @@ void path_remove_private(bgp_path_t * path)
 	ptr_array_remove_at(path, i);
 	continue;
       } else {
-	_path_segment_at(path, i)= new_seg;
+	_path_segment_set(path, i, new_seg);
       }
     }
     i++;
