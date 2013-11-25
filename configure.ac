@@ -497,9 +497,17 @@ AC_SUBST([EXAMPLES_EXTRA_DIST])
 HELP_EXTRA_DIST=`OLDPWD=$PWD; cd doc/txt; ls *.txt | tr '\n' ' '; cd $OLDPWD`
 AC_SUBST([HELP_EXTRA_DIST])
 
-#CFLAGS="$CFLAGS -Wall -Werror -O2"
 CFLAGS="$CFLAGS -Wall -O2"
 AC_SUBST(CFLAGS)
+
+AC_ARG_ENABLE(Werror,
+    AC_HELP_STRING([--enable-Werror], [enable C compiler --Werror flag]),
+    cbgp_enable_werror=$enableval
+)
+if test "$cbgp_enable_werror" = "yes"; then
+    CFLAGS="$CFLAGS -Werror"
+    AC_SUBST(CFLAGS)
+fi
 
 AC_OUTPUT(
 Makefile
