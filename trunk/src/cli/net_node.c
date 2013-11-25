@@ -176,7 +176,6 @@ static int cli_net_node_ping(cli_ctx_t * ctx, cli_cmd_t * cmd)
   const char * opt;
   net_node_t * node= _node_from_context(ctx);
   net_addr_t dst_addr;
-  int error;
   uint8_t ttl= 0;
 
   // Get destination address
@@ -195,7 +194,7 @@ static int cli_net_node_ping(cli_ctx_t * ctx, cli_cmd_t * cmd)
   }
 
   // Perform ping (note that errors are ignored)
-  error= icmp_ping(gdsout, node, NET_ADDR_ANY, dst_addr, ttl);
+  icmp_ping(gdsout, node, NET_ADDR_ANY, dst_addr, ttl);
   return CLI_SUCCESS;
 }
 
