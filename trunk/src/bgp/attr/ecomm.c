@@ -155,6 +155,9 @@ void ecomms_strip_non_transitive(bgp_ecomms_t ** comms_ref)
 // -----[ ecomm_red_dump ]-------------------------------------------
 void ecomm_red_dump(gds_stream_t * stream, bgp_ecomm_t * comm)
 {
+  asn_t asn1, asn2;
+  ip_pfx_t pfx;
+
   switch ((comm->type_low >> 3) & 0x07) {
   case ECOMM_RED_ACTION_PREPEND:
     stream_printf(stream, "prepend %u", (comm->type_low & 0x07));
@@ -171,17 +174,24 @@ void ecomm_red_dump(gds_stream_t * stream, bgp_ecomm_t * comm)
   stream_printf(stream, " ");
   switch (comm->value[0]) {
   case ECOMM_RED_FILTER_AS:
-    stream_printf(stream, "%u", *(asn_t *) &comm->value[4]);
+    asn1= (comm->value[4] << 8) + comm->value[5];
+    stream_printf(stream, "%u", asn1);
     break;
   case ECOMM_RED_FILTER_2AS:
-    stream_printf(stream, "%u/%u", *(asn_t *) &comm->value[2],
-	    *(asn_t *) &comm->value[4]);
+    asn1= (comm->value[2] << 8) + comm->value[3];
+    asn2= (comm->value[4] << 8) + comm->value[5];
+    stream_printf(stream, "%u/%u", asn1, asn2);
     break;
   case ECOMM_RED_FILTER_CIDR:
-    ip_prefix_dump(stream, *(ip_pfx_t *) &comm->value[1]);
+    pfx.network= (comm->value[1] << 24) + (comm->value[2] << 16) +
+      (comm->value[3] << 8) + comm->value[4];
+    pfx.mask= comm->value[5];
+    ip_prefix_dump(stream, pfx);
     break;
   case ECOMM_RED_FILTER_AS4:
-    stream_printf(stream, "%u", *(uint32_t *) &comm->value[2]);
+    asn1= (comm->value[2] << 24) + (comm->value[3] << 16) +
+      (comm->value[4] << 8) + comm->value[5];
+    stream_printf(stream, "%u", asn1);
     break;
   default:
     stream_printf(stream, "???");
@@ -269,19 +279,24 @@ bgp_ecomm_t * ecomm_red_create_as(unsigned char action_type,
  */
 int ecomm_red_match(bgp_ecomm_t * comm, bgp_peer_t * peer)
 {
-  STREAM_DEBUG(STREAM_LEVEL_DEBUG, "ecomm_red_match(AS%u <=> AS%u)\n",
-	    *((asn_t *) &comm->value[4]), peer->asn);
+  asn_t asn;
   
   switch (comm->value[0]) {
   case ECOMM_RED_FILTER_AS:
-    if (memcmp(&comm->value[4], &peer->asn, sizeof(asn_t)) == 0)
+    asn= (comm->value[4] << 8) + comm->value[5];
+    STREAM_DEBUG(STREAM_LEVEL_DEBUG, "ecomm_red_match(AS%u <=> AS%u)\n",
+		 asn, peer->asn);
+    if (asn == peer->asn)
       return 1;
     break;
   case ECOMM_RED_FILTER_2AS:
+    // not implemented
     break;
   case ECOMM_RED_FILTER_CIDR:
+    // not implemented
     break;
   case ECOMM_RED_FILTER_AS4:
+    // not implemented
     break;
   }
   return 0;
