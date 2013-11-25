@@ -868,9 +868,8 @@ static void _register_net_ntf(cli_cmd_t * parent)
 static void  _register_net_subnet_show(cli_cmd_t * parent)
 {
   cli_cmd_t * group= cli_add_cmd(parent, cli_cmd_group("show"));
-  cli_cmd_t * cmd= cli_add_cmd(group, cli_cmd("info",
-					      cli_net_subnet_show_info));
-  cmd= cli_add_cmd(group, cli_cmd("links", cli_net_subnet_show_links));
+  cli_add_cmd(group, cli_cmd("info", cli_net_subnet_show_info));
+  cli_add_cmd(group, cli_cmd("links", cli_net_subnet_show_links));
 }
 
 // -----[ _register_net_subnet ]-------------------------------------
