@@ -386,6 +386,19 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
 			bgp_route_t * route)
 {
+  typedef union {
+    bgp_comm_t comm;
+    uint8_t    count;
+    struct {
+      asn_t    asn;
+      uint8_t  count;
+    } asn_count;
+    uint32_t   pref;
+    uint32_t   med;
+  } aplop_t;
+
+  aplop_t * plop= (aplop_t *) action->params;
+
   rt_info_t * rtinfo;
   while (action != NULL) {
     switch (action->code) {
@@ -394,31 +407,30 @@ int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
     case FT_ACTION_DENY:
       return 0;
     case FT_ACTION_COMM_APPEND:
-      route_comm_append(route, *((uint32_t *) action->params));
+      route_comm_append(route, plop->comm);
       break;
     case FT_ACTION_COMM_STRIP:
       route_comm_strip(route);
       break;
     case FT_ACTION_COMM_REMOVE:
-      route_comm_remove(route, *((uint32_t *) action->params));
+      route_comm_remove(route, plop->comm);
       break;
     case FT_ACTION_PATH_PREPEND:
-      route_path_prepend(route, router->asn, *((uint8_t *) action->params));
+      route_path_prepend(route, router->asn, plop->count);
       break;
 //-------Added by pradeep bangera----------------------------------
     case FT_ACTION_PATH_INSERT:
-      route_path_prepend(route, *((asn_t *) action->params),
-			 *((uint8_t *) (action->params+sizeof(asn_t))));
+      route_path_prepend(route, plop->asn_count.asn, plop->asn_count.count);
       break;
 //-----------------------------------------------------------------
     case FT_ACTION_PATH_REM_PRIVATE:
       route_path_rem_private(route);
       break;
     case FT_ACTION_PREF_SET:
-      route_localpref_set(route, *((uint32_t *) action->params));
+      route_localpref_set(route, plop->pref);
       break;
     case FT_ACTION_METRIC_SET:
-      route_med_set(route, *((uint32_t *) action->params));
+      route_med_set(route, plop->med);
       break;
     case FT_ACTION_METRIC_INTERNAL:
       if (!node_has_address(router->node, route->attr->next_hop)) {
