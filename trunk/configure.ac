@@ -253,9 +253,7 @@ dnl     fi
 dnl else
 dnl     AM_CONDITIONAL([WITH_BGPDUMP], [test "1" = "0"])
 dnl fi
-AC_CHECK_LIB(bgpdump, bgpdump_open_dump, [],
-  AC_MSG_ERROR([libbgpdump not found],1)
-)
+AC_CHECK_LIB(bgpdump, bgpdump_open_dump, [],)
 
 
 
