@@ -408,7 +408,7 @@ int dp_rule_lowest_origin(bgp_router_t * router, bgp_routes_t * routes)
 int dp_rule_lowest_med(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index, index2;
-  int iLastAS;
+  //int iLastAS;
   bgp_route_t * route, * route2;
   uint32_t uMinMED= UINT_MAX;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -464,15 +464,14 @@ int dp_rule_lowest_med(bgp_router_t * router, bgp_routes_t * routes)
       route= bgp_routes_at(routes, index);
       
       if (route != NULL) {
-      
-	iLastAS= route_path_last_as(route);
-	
+
 	index2= index+1;
 	while (index2 < bgp_routes_size(routes)) {
 	  route2= bgp_routes_at(routes, index2);
 	  
 	  if (route2 != NULL) {
-	    if (iLastAS == route_path_last_as(route2)) {
+
+	    if (route2->peer->asn == route->peer->asn) {
 	      if (route->attr->med < route2->attr->med) {
 		routes->data[index2]= NULL;
 	      } else if (route->attr->med > route2->attr->med) {

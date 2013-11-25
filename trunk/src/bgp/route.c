@@ -319,26 +319,6 @@ inline int route_path_length(bgp_route_t * route)
     return 0;
 }
 
-// ----- route_path_last_as -----------------------------------------
-/**
- * Return the last AS-number in the AS-Path. This function is
- * currently used in dp_rules.c in order to implement the MED-based
- * rule.
- *
- * Note: this function is EXPERIMENTAL and should be updated. It does
- * not work if the last segment in the AS-Path is of type AS-SET since
- * there is no ordering of the AS-numbers in this case.
- */
-inline int route_path_last_as(bgp_route_t * route)
-{
-  if (route->attr->path_ref != NULL) {
-    asn_t asn;
-    assert(!path_last_as(route->attr->path_ref, asn));
-    return asn;
-  } else
-    return -1;
-}
-
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -944,8 +924,7 @@ static int _route_dump_custom(gds_stream_t * stream, void * pContext,
       cluster_list_dump(stream, route->attr->cluster_list);
     break;
   case 'A':
-    assert(!path_first_as(route->attr->path_ref, &asn));
-    if (asn >= 0) {
+    if (path_first_as(route->attr->path_ref, &asn) >= 0) {
       stream_printf(stream, "%u", asn);
     } else {
       stream_printf(stream, "*");

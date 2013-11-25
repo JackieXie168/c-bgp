@@ -35,12 +35,14 @@ extern "C" {
   bgp_path_t * path_copy(bgp_path_t * path);
   // ----- path_num_segments ----------------------------------------
   int path_num_segments(const bgp_path_t * path);
-  // ----- path_length ----------------------------------------------
-  int path_length(bgp_path_t * path);
   // ----- path_add_segment -----------------------------------------
   int path_add_segment(bgp_path_t * path, bgp_path_seg_t * segment);
+  // ----- path_segment_at ------------------------------------------
+  bgp_path_seg_t * path_segment_at(bgp_path_t * path, int index);
   // ----- path_append ----------------------------------------------
   int path_append(bgp_path_t ** path, asn_t asn);
+  // ----- path_length ----------------------------------------------
+  int path_length(bgp_path_t * path);
   // ----- path_contains --------------------------------------------
   int path_contains(bgp_path_t * path, asn_t asn);
   // -----[ path_last_as ]-------------------------------------------
