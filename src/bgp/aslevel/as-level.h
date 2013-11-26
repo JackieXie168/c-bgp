@@ -140,6 +140,10 @@ extern "C" {
   // -----[ aslevel_as_num_providers ]-------------------------------
   unsigned int aslevel_as_num_providers(as_level_domain_t * domain);
 
+  // -----[ aslevel_topo_setup_policies ]------------------------------
+  int aslevel_topo_setup_policies(as_level_topo_t * topo);
+
+
 
   ///////////////////////////////////////////////////////////////////
   // TOPOLOGY API
