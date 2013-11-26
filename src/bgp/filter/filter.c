@@ -313,8 +313,10 @@ int filter_call(bgp_filter_t * filter, bgp_router_t * router, bgp_route_t * rout
 }
 
 
-#define _sub_matcher_1(M) (bgp_ft_matcher_t *) ((M)->params)
-#define _sub_matcher_2(M) (bgp_ft_matcher_t *) ((M)->params + sizeof(bgp_ft_matcher_t) + ((bgp_ft_matcher_t *) ((M)->params))->size)
+#define _sub_matcher_first(M) \
+  (bgp_ft_matcher_t *) ((M)->params)
+#define _sub_matcher_next(M) \
+  (bgp_ft_matcher_t *) (((char *) M) + sizeof(bgp_ft_matcher_t) + (M)->size)
 
 // ----- filter_matcher_apply ---------------------------------------
 /**
@@ -325,6 +327,7 @@ int filter_call(bgp_filter_t * filter, bgp_router_t * router, bgp_route_t * rout
 int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 			 bgp_route_t * route)
 {
+  bgp_ft_matcher_t * matcher1, * matcher2;
   SPathMatch * pPathMatcher;
 
   _matcher_params_t * params= (_matcher_params_t *) matcher->params;
@@ -334,13 +337,18 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
     case FT_MATCH_ANY:
       return 1;
     case FT_MATCH_OP_AND:
-      return (filter_matcher_apply(_sub_matcher_1(matcher), router, route) &&
-	      filter_matcher_apply(_sub_matcher_2(matcher), router, route));
+      matcher1= _sub_matcher_first(matcher);
+      matcher2= _sub_matcher_next(matcher1);
+      return (filter_matcher_apply(matcher1, router, route) &&
+	      filter_matcher_apply(matcher2, router, route));
     case FT_MATCH_OP_OR:
-      return (filter_matcher_apply(_sub_matcher_1(matcher), router, route) ||
-	      filter_matcher_apply(_sub_matcher_2(matcher), router, route));
+      matcher1= _sub_matcher_first(matcher);
+      matcher2= _sub_matcher_next(matcher1);
+      return (filter_matcher_apply(matcher1, router, route) ||
+	      filter_matcher_apply(matcher2, router, route));
     case FT_MATCH_OP_NOT:
-      return !filter_matcher_apply(_sub_matcher_1(matcher), router, route);
+      matcher1= _sub_matcher_first(matcher);
+      return !filter_matcher_apply(matcher1, router, route);
     case FT_MATCH_COMM_CONTAINS:
       return route_comm_contains(route, params->comm)?1:0;
     case FT_MATCH_NEXTHOP_IS:
@@ -379,10 +387,11 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
 int filter_action_apply(bgp_ft_action_t * action, bgp_router_t * router,
 			bgp_route_t * route)
 {
-  _action_params_t * params= (_action_params_t *) action->params;
+  _action_params_t * params;
 
   rt_info_t * rtinfo;
   while (action != NULL) {
+    params= (_action_params_t *) action->params;
     switch (action->code) {
     case FT_ACTION_ACCEPT:
       return 1;
@@ -843,6 +852,7 @@ bgp_ft_action_t * filter_action_path_rem_private()
 // ----- filter_matcher_dump ----------------------------------------
 void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
 {
+  bgp_ft_matcher_t * matcher1, * matcher2;
   SPathMatch * pPathMatch;
 
   _matcher_params_t * params= (_matcher_params_t *) matcher->params;
@@ -853,22 +863,27 @@ void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
       stream_printf(stream, "any");
       break;
     case FT_MATCH_OP_AND:
+      matcher1= _sub_matcher_first(matcher);
+      matcher2= _sub_matcher_next(matcher1);
       stream_printf(stream, "(");
-      filter_matcher_dump(stream, _sub_matcher_1(matcher));
+      filter_matcher_dump(stream, matcher1);
       stream_printf(stream, ") & (");
-      filter_matcher_dump(stream, _sub_matcher_2(matcher));
+      filter_matcher_dump(stream, matcher2);
       stream_printf(stream, ")");
       break;
     case FT_MATCH_OP_OR:
+      matcher1= _sub_matcher_first(matcher);
+      matcher2= _sub_matcher_next(matcher1);
       stream_printf(stream, "(");
-      filter_matcher_dump(stream, _sub_matcher_1(matcher));
+      filter_matcher_dump(stream, matcher1);
       stream_printf(stream, ") | (");
-      filter_matcher_dump(stream, _sub_matcher_2(matcher));
+      filter_matcher_dump(stream, matcher2);
       stream_printf(stream, ")");
       break;
-    case FT_MATCH_OP_NOT:
+    case FT_MATCH_OP_NOT: 
+      matcher1= _sub_matcher_first(matcher);
       stream_printf(stream, "NOT(");
-      filter_matcher_dump(stream, _sub_matcher_1(matcher));
+      filter_matcher_dump(stream, matcher1);
       stream_printf(stream, ")");
       break;
     case FT_MATCH_COMM_CONTAINS:
