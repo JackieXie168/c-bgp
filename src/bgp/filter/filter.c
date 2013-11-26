@@ -50,8 +50,6 @@
 
 
 typedef union {
-  bgp_ft_matcher_t matcher;
-  bgp_ft_matcher_t matchers[2];
   net_addr_t addr;
   bgp_comm_t comm;
   ip_pfx_t   pfx;
@@ -315,6 +313,9 @@ int filter_call(bgp_filter_t * filter, bgp_router_t * router, bgp_route_t * rout
 }
 
 
+#define _sub_matcher_1(M) (bgp_ft_matcher_t *) ((M)->params)
+#define _sub_matcher_2(M) (bgp_ft_matcher_t *) ((M)->params + sizeof(bgp_ft_matcher_t) + ((bgp_ft_matcher_t *) ((M)->params))->size)
+
 // ----- filter_matcher_apply ---------------------------------------
 /**
  * result:
@@ -333,13 +334,13 @@ int filter_matcher_apply(bgp_ft_matcher_t * matcher, bgp_router_t * router,
     case FT_MATCH_ANY:
       return 1;
     case FT_MATCH_OP_AND:
-      return (filter_matcher_apply(&params->matchers[0], router, route) &&
-	      filter_matcher_apply(&params->matchers[1], router, route));
+      return (filter_matcher_apply(_sub_matcher_1(matcher), router, route) &&
+	      filter_matcher_apply(_sub_matcher_2(matcher), router, route));
     case FT_MATCH_OP_OR:
-      return (filter_matcher_apply(&params->matchers[0], router, route) ||
-	      filter_matcher_apply(&params->matchers[1], router, route));
+      return (filter_matcher_apply(_sub_matcher_1(matcher), router, route) ||
+	      filter_matcher_apply(_sub_matcher_2(matcher), router, route));
     case FT_MATCH_OP_NOT:
-      return !filter_matcher_apply(&params->matcher, router, route);
+      return !filter_matcher_apply(_sub_matcher_1(matcher), router, route);
     case FT_MATCH_COMM_CONTAINS:
       return route_comm_contains(route, params->comm)?1:0;
     case FT_MATCH_NEXTHOP_IS:
@@ -564,10 +565,10 @@ bgp_ft_matcher_t * filter_match_not(bgp_ft_matcher_t * matcher)
 
   // Simplify operation: in the case of "not(not(expr))", return "expr"
   if ((matcher != NULL) && (matcher->code == FT_MATCH_OP_NOT)) {
-    _matcher_params_t * params= (_matcher_params_t *) matcher->params;
+    bgp_ft_matcher_t * sub_matcher= (bgp_ft_matcher_t *) matcher->params;
     new_matcher=
-      _ft_matcher_create(params->matcher.code, params->matcher.size);
-    memcpy(new_matcher->params, params->matcher.params, params->matcher.size);
+      _ft_matcher_create(sub_matcher->code, sub_matcher->size);
+    memcpy(new_matcher->params, sub_matcher->params, sub_matcher->size);
 
     filter_matcher_destroy(&matcher);
     return new_matcher;
@@ -843,7 +844,6 @@ bgp_ft_action_t * filter_action_path_rem_private()
 void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
 {
   SPathMatch * pPathMatch;
-  bgp_ft_matcher_t * matcher1, * matcher2;
 
   _matcher_params_t * params= (_matcher_params_t *) matcher->params;
 
@@ -853,28 +853,22 @@ void filter_matcher_dump(gds_stream_t * stream, bgp_ft_matcher_t * matcher)
       stream_printf(stream, "any");
       break;
     case FT_MATCH_OP_AND:
-      matcher1= (bgp_ft_matcher_t *) matcher->params;
-      matcher2= (bgp_ft_matcher_t *) &matcher->params[sizeof(bgp_ft_matcher_t)+
-						      matcher1->size];
       stream_printf(stream, "(");
-      filter_matcher_dump(stream, matcher1);
+      filter_matcher_dump(stream, _sub_matcher_1(matcher));
       stream_printf(stream, ") & (");
-      filter_matcher_dump(stream, matcher2);
+      filter_matcher_dump(stream, _sub_matcher_2(matcher));
       stream_printf(stream, ")");
       break;
     case FT_MATCH_OP_OR:
-      matcher1= (bgp_ft_matcher_t *) matcher->params;
-      matcher2= (bgp_ft_matcher_t *) &matcher->params[sizeof(bgp_ft_matcher_t)+
-						      matcher1->size];
       stream_printf(stream, "(");
-      filter_matcher_dump(stream, matcher1);
+      filter_matcher_dump(stream, _sub_matcher_1(matcher));
       stream_printf(stream, ") | (");
-      filter_matcher_dump(stream, matcher2);
+      filter_matcher_dump(stream, _sub_matcher_2(matcher));
       stream_printf(stream, ")");
       break;
     case FT_MATCH_OP_NOT:
       stream_printf(stream, "NOT(");
-      filter_matcher_dump(stream, (bgp_ft_matcher_t *) matcher->params);
+      filter_matcher_dump(stream, _sub_matcher_1(matcher));
       stream_printf(stream, ")");
       break;
     case FT_MATCH_COMM_CONTAINS:
