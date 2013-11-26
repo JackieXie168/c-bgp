@@ -32,6 +32,7 @@
 #include <api.h>
 #include <selfcheck.h>
 #include <bgp/as.h>
+#include <bgp/aslevel/as-level.h>
 #include <bgp/attr/comm.h>
 #include <bgp/attr/comm_hash.h>
 #include <bgp/attr/ecomm.h>
@@ -4438,6 +4439,67 @@ static int test_traffic_replay_unreach()
 
 /////////////////////////////////////////////////////////////////////
 //
+// AS-LEVEL PART
+//
+/////////////////////////////////////////////////////////////////////
+
+// -----[ test_aslevel_smoke ]---------------------------------------
+/**
+ *      AS1 --- AS2
+ *      / \       \
+ *    AS3  AS4    AS5
+ */
+static int test_aslevel_smoke()
+{
+  int index;
+  as_level_topo_t * topo= aslevel_topo_create(ASLEVEL_ADDR_SCH_GLOBAL);
+
+  as_level_domain_t * as1= aslevel_topo_add_as(topo, 1);
+  as_level_domain_t * as2= aslevel_topo_add_as(topo, 2);
+  as_level_domain_t * as3= aslevel_topo_add_as(topo, 3);
+  as_level_domain_t * as4= aslevel_topo_add_as(topo, 4);
+  as_level_domain_t * as5= aslevel_topo_add_as(topo, 5);
+
+  as_level_link_t * link;
+  aslevel_as_add_link(as1, as2, ASLEVEL_PEER_TYPE_PEER, &link);
+  aslevel_as_add_link(as2, as1, ASLEVEL_PEER_TYPE_PEER, &link);
+  aslevel_as_add_link(as1, as3, ASLEVEL_PEER_TYPE_CUSTOMER, &link);
+  aslevel_as_add_link(as3, as1, ASLEVEL_PEER_TYPE_PROVIDER, &link);
+  aslevel_as_add_link(as1, as4, ASLEVEL_PEER_TYPE_CUSTOMER, &link);
+  aslevel_as_add_link(as4, as1, ASLEVEL_PEER_TYPE_PROVIDER, &link);
+  aslevel_as_add_link(as2, as5, ASLEVEL_PEER_TYPE_CUSTOMER, &link);
+  aslevel_as_add_link(as5, as2, ASLEVEL_PEER_TYPE_PROVIDER, &link);
+
+  UTEST_ASSERT(aslevel_topo_build_network(topo) == 0,
+	       "could not build network");
+
+  UTEST_ASSERT(aslevel_topo_check_consistency(topo) == 0,
+	       "topology not consistent");
+
+  UTEST_ASSERT(aslevel_topo_setup_policies(topo) == 0,
+	       "could not setup policies");
+
+  for (index= 0; index < aslevel_topo_num_nodes(topo); index++) {
+    as_level_domain_t * domain=
+      (as_level_domain_t *) topo->domains->data[index];
+    UTEST_ASSERT(bgp_router_start(domain->router) == 0,
+		 "could not start router");
+  }
+
+  ip_pfx_t pfx= { IPV4(192,168,0,0), 24 };
+  UTEST_ASSERT(bgp_router_add_network(as3->router, pfx) == 0,
+	       "could not add network to router");
+
+  simulator_t * sim= network_get_simulator(network_get_default());
+  sim_run(sim);
+
+  aslevel_topo_destroy(&topo);
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // MAIN PART
 //
 /////////////////////////////////////////////////////////////////////
@@ -4737,6 +4799,11 @@ unit_test_t TEST_TRAFFIC[]= {
 };
 #define TEST_TRAFFIC_SIZE ARRAY_SIZE(TEST_TRAFFIC)
 
+unit_test_t TEST_AS_LEVEL[]= {
+  {test_aslevel_smoke, "smoke"},
+};
+#define TEST_AS_LEVEL_SIZE ARRAY_SIZE(TEST_AS_LEVEL)
+
 unit_test_suite_t TEST_SUITES[]= {
   {"Simulator", TEST_SIM_SIZE, TEST_SIM},
   {"Net Attributes", TEST_NET_ATTR_SIZE, TEST_NET_ATTR},
@@ -4761,6 +4828,7 @@ unit_test_suite_t TEST_SUITES[]= {
   {"MRTD", TEST_MRTD_SIZE, TEST_MRTD},
   {"CLI", TEST_CLI_SIZE, TEST_CLI},
   {"Traffic", TEST_TRAFFIC_SIZE, TEST_TRAFFIC},
+  {"AS-level", TEST_AS_LEVEL_SIZE, TEST_AS_LEVEL},
 };
 #define TEST_SUITES_SIZE ARRAY_SIZE(TEST_SUITES)
 
