@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>sim</name>
+  <id>sim</id>
+  <context/>
+  
+  <abstract>simulator related commands</abstract>
+  
+  
+  
+</command>

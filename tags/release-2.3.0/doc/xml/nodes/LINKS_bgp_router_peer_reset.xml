@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <prev>
+    <name>recv</name>
+    <id>bgp_router_peer_recv</id>
+  </prev>
+  <next>
+    <name>rr-client</name>
+    <id>bgp_router_peer_rr-client</id>
+  </next>
+</command>

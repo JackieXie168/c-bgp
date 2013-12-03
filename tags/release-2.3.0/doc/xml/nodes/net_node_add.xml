@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>add</name>
+  <id>net_node_add</id>
+  <context>net node</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

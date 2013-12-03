@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<command>
+  <name>run</name>
+  <id>sim_run</id>
+  <context>sim</context>
+  
+  <abstract>process the queued events</abstract>
+  <description>
+<p>
+This command starts the simulator, i.e. it starts processing the queued events until no more event is available or the simulator is stopped.
+</p>
+  </description>
+  <see-also>
+<p>
+Instead of processing all the events until the simulator's pending events set is empty, it is also possible to process one event at a time or a limited number of events at a time. To do this, use command <cmd><name>sim step</name><link>sim_step</link></cmd>.
+</p>
+  </see-also>
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>mem-limit</name>
+  <id>show_mem-limit</id>
+  <context>show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

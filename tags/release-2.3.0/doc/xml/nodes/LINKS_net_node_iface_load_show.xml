@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>load</name>
+    <id>net_node_iface_load</id>
+  </father>
+  <prev>
+    <name>clear</name>
+    <id>net_node_iface_load_clear</id>
+  </prev>
+</command>

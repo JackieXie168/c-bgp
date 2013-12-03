@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>assert</name>
+  <id>bgp_router_assert</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

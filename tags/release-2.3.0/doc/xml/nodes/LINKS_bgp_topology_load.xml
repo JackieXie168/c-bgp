@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>install</name>
+    <id>bgp_topology_install</id>
+  </prev>
+  <next>
+    <name>policies</name>
+    <id>bgp_topology_policies</id>
+  </next>
+</command>

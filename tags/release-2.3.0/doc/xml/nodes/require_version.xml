@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>version</name>
+  <id>require_version</id>
+  <context>require</context>
+  <parameters>
+    <parameter>
+      <name>version</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>net</name>
+    <id>net</id>
+  </father>
+  <childs>
+    <child>
+      <name>compute</name>
+      <id>net_domain_compute</id>
+    </child>
+    <child>
+      <name>show</name>
+      <id>net_domain_show</id>
+    </child>
+  </childs>
+  <prev>
+    <name>add</name>
+    <id>net_add</id>
+  </prev>
+  <next>
+    <name>export</name>
+    <id>net_export</id>
+  </next>
+</command>

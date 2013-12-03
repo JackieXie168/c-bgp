@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>bgp_router_peer_show</id>
+  <context>bgp router peer</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>subnet</name>
+  <id>net_subnet</id>
+  <context>net</context>
+  <parameters>
+    <parameter>
+      <name>prefix</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

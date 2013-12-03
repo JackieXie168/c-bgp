@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<command>
+  <name>match</name>
+  <id>bgp_router_peer_filter_add-rule_match</id>
+  <context>bgp router peer filter add-rule</context>
+  <parameters>
+    <parameter>
+      <name>predicate</name>
+      <description>the predicate associated with the rule</description>
+    </parameter>
+  </parameters>
+  <abstract>defines the predicate of a rule in a filter</abstract>
+  <description>
+<p>This command defines the predicate of the current rule. The predicate is provided as the command argument. The predicate is a logical combination of atomic predicates. Each atomic predicate can be used to test a single attribute of a route.</p>
+<p>The following atomic predicates are supported:
+<table>
+<trh><th>Predicate expression</th><th>Description</th></trh>
+<tr><td>any</td><td>all routes</td></tr>
+<tr><td>community is <i>C</i></td><td>routes that contain community <i>C</i></td></tr>
+<tr><td>next-hop is <i>N</i></td><td>routes whose next-hop is <i>N</i></td></tr>
+<tr><td>next-hop in <i>P</i></td><td>routes whose next-hop is in <i>P</i></td></tr>
+<tr><td>prefix is <i>P</i></td><td>routes whose prefix is <i>P</i></td></tr>
+<tr><td>prefix in <i>P</i></td><td>routes whose prefix is in <i>P</i></td></tr>
+<tr><td>path <i>R</i></td><td>routes whose AS-path matches regexp <i>R</i></td></tr>
+</table>
+</p>
+<p>The following example defines a filter rule that discards routes originated by AS11537 (11537 is the latest ASN in the AS-path):
+<code>add-rule<br/>
+<tab count="1"/>match 'path "11537$"'<br/>
+<tab count="1"/>action deny<br/>
+</code>
+</p>
+<p>When providing the predicate expression, care must be taken to correctly enclose it with quotes. The <i>C-BGP</i> parser relies on a simple tokenization mechanism that splits a line into tokens separated by spaces. There is an exception for spaces that appear in quoted text. If you want to provide an expression that contains multiple words, you need to quote it (using " or '). Actually, all the predicate expressions except "any" (which is a single word) need to be quoted.</p>
+<p>Sometimes, quoting is also required by the atomic predicate. An example is "path <i>R</i>" where <i>R</i> is a regular expression that needs to be quoted if it includes spaces. In this case, two levels of quoting are required. One option is to write "path \"...reg-exp...\"". Another possibility is to use different quotes, e.g. 'path "...reg-exp..."' as shown in the above example.</p>
+<p>Atomic predicates can be combined using logic operators to form more complex predicates. The supported operators are as follows:
+<table>
+<trh><th>Symbol</th><th>Operator</th></trh>
+<tr><td>|</td><td>or</td></tr>
+<tr><td>&amp;</td><td>and</td></tr>
+<tr><td>!</td><td>not</td></tr>
+</table></p>
+<p>The following example defines a filter rule that prepends twice the AS-path of routes with community 1 or community 2:
+<code>add-rule<br/>
+<tab count="1"/>match "community is 1 | community is 2"<br/>
+<tab count="1"/>action "as-path prepend 2"<br/>
+</code>
+</p>
+  </description>
+</command>

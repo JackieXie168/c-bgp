@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <name>pause</name>
+  <id>pause</id>
+  <context/>
+  
+  <abstract>wait for user input</abstract>
+  <description>
+<p>
+This command displays the message <i>``Paused: hit 'Enter' to continue...''</i> and consistently waits until the user press the <i>Enter</i> key. This command can be used in verbose simulation scripts so that the user is able to read the results.
+</p>
+  </description>
+  
+  
+</command>

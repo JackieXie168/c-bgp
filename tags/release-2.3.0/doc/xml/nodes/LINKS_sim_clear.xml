@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <next>
+    <name>debug</name>
+    <id>sim_debug</id>
+  </next>
+</command>

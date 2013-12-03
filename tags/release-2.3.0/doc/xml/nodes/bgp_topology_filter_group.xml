@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>group</name>
+  <id>bgp_topology_filter_group</id>
+  <context>bgp topology filter</context>
+  <parameters>
+    <parameter>
+      <name>what</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

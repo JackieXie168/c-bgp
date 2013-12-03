@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>links</name>
+    <id>net_links</id>
+  </father>
+</command>

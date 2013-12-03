@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>run</name>
+    <id>bgp_topology_run</id>
+  </prev>
+</command>

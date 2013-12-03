@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>router</name>
+  <id>bgp_router</id>
+  <context>bgp</context>
+  <parameters>
+    <parameter>
+      <name>addr</name>
+      <description>the address (identifier) of the BGP router</description>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

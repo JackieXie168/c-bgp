@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>cluster-id</name>
+  <id>bgp_router_set_cluster-id</id>
+  <context>bgp router set</context>
+  <parameters>
+    <parameter>
+      <name>cluster-id</name>
+      <description>new cluster-id of the router</description>
+    </parameter>
+  </parameters>
+  <abstract>change the cluster-id of one BGP router</abstract>
+  <description>
+<p>
+This command changes the cluster-id of one BGP router.
+</p>
+  </description>
+  
+  
+</command>

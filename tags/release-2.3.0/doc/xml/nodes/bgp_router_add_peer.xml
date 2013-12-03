@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<command>
+  <name>peer</name>
+  <id>bgp_router_add_peer</id>
+  <context>bgp router add</context>
+  <parameters>
+    <parameter>
+      <name>as-num</name>
+      <description>ASN of the new neighbor</description>
+    </parameter>
+    <parameter>
+      <name>addr</name>
+      <description>IP address of the new neighbor</description>
+    </parameter>
+  </parameters>
+  <abstract>add a new neighbor to a BGP router</abstract>
+  <description>
+<p>
+This command adds a new neighbor to one BGP router. The new neighbor has the address <arg>addr</arg> and belongs to the domain with ASN <arg>as-num</arg>. This command also configures for this neighbor default input and output filters that will accept any route. See the <cmd><name>bgp router peer filter</name><link>bgp_router_peer_filter</link></cmd> for more information about the route filters.
+</p>
+<p>
+The following example illustrates how to declare an internal (iBGP) session between two routers. The <cmd><name>bgp add router</name><link>bgp_add_router</link></cmd> is used to declare both routers in AS1. The <b>add peer</b> command is used to declare the BGP neighbors. On router 1.0.0.1, the command declares neighbor 1.0.0.2 in AS1. There is no explicit mention that it is an iBGP session. This is derived from the fact that the local router and the neighbor are in the same AS.
+</p>
+<code>
+bgp add router 1 1.0.0.1<br/>
+bgp router 1.0.0.1<br/>
+<tab count="1"/>add peer 1 1.0.0.2<br/>
+<tab count="1"/>peer 1.0.0.2 up<br/>
+<tab count="1"/>exit<br/>
+<br/>
+bgp add router 1 1.0.0.2<br/>
+bgp router 1.0.0.2<br/>
+<tab count="1"/>add peer 1 1.0.0.1<br/>
+<tab count="1"/>peer 1.0.0.1 up<br/>
+<tab count="1"/>exit<br/>
+</code>
+  </description>
+  
+  
+</command>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>add</name>
+    <id>net_add</id>
+  </father>
+  <prev>
+    <name>link-ptp</name>
+    <id>net_add_link-ptp</id>
+  </prev>
+  <next>
+    <name>subnet</name>
+    <id>net_add_subnet</id>
+  </next>
+</command>

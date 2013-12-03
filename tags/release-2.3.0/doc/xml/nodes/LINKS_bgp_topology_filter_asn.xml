@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>filter</name>
+    <id>bgp_topology_filter</id>
+  </father>
+  <next>
+    <name>group</name>
+    <id>bgp_topology_filter_group</id>
+  </next>
+</command>
