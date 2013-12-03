@@ -463,7 +463,6 @@ src/bgp/aslevel/Makefile
 src/bgp/attr/Makefile
 src/bgp/filter/Makefile
 src/cli/Makefile
-src/external/Makefile
 src/jni/Makefile
 src/jni/impl/Makefile
 src/net/Makefile
