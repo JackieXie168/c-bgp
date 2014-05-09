@@ -8,7 +8,7 @@
 // - remove all peer-to-peer links
 // - remove all but top-level domains
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // @date 21/06/2007
 // $Id: filter.h,v 1.2 2009-08-31 09:35:40 bqu Exp $
 // ==================================================================

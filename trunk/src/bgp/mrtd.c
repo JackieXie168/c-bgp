@@ -831,6 +831,42 @@ int mrtd_process_table_dump_v2(BGPDUMP_ENTRY * entry,
 }
 #endif /* HAVE_LIBBGPDUMP */
 
+#ifdef HAVE_LIBBGPDUMP
+int mrtd_process_zebra(BGPDUMP_ENTRY * entry,
+		       bgp_route_handler_f handler,
+		       void * ctx)
+{
+  BGPDUMP_ZEBRA_MESSAGE * msg;
+  printf("mrtd_process_zebra subtype=%d\n", entry->subtype);
+
+  switch (entry->subtype) {
+    
+  case BGPDUMP_SUBTYPE_ZEBRA_BGP_MESSAGE:
+  case BGPDUMP_SUBTYPE_ZEBRA_BGP_MESSAGE_AS4:
+    msg= &entry->body.zebra_message;
+    switch (msg->type) {
+    case BGP_MSG_UPDATE:
+      printf("  msg update\n");
+      break;
+    case BGP_MSG_OPEN:
+      break;
+    case BGP_MSG_NOTIFY:
+      break;
+    case BGP_MSG_KEEPALIVE:
+      break;
+      }
+    break;
+
+  case BGPDUMP_SUBTYPE_ZEBRA_BGP_STATE_CHANGE:
+  case BGPDUMP_SUBTYPE_ZEBRA_BGP_STATE_CHANGE_AS4:
+    break;
+  }
+
+  return BGP_INPUT_SUCCESS;
+}
+#endif /* HAVE_LIBBGPDUMP */
+
+
 // -----[ mrtd_process_entry ]---------------------------------------
 /**
  * Convert a bgpdump entry to a route. Only supports entries of type
@@ -841,6 +877,8 @@ int mrtd_process_entry(BGPDUMP_ENTRY * entry,
 		       bgp_route_handler_f handler,
 		       void * ctx)
 {
+  printf("mrtd_process_entry %d\n", entry->type);
+
   switch (entry->type) {
 
   case BGPDUMP_TYPE_MRTD_TABLE_DUMP:
@@ -849,7 +887,11 @@ int mrtd_process_entry(BGPDUMP_ENTRY * entry,
   case BGPDUMP_TYPE_TABLE_DUMP_V2:
     return mrtd_process_table_dump_v2(entry, handler, ctx);
 
+  case BGPDUMP_TYPE_ZEBRA_BGP:
+    return mrtd_process_zebra(entry, handler, ctx);
+
   default:
+    printf("unsupported entry type %d\n", entry->type);
     return -1;
   }
   return 0;
@@ -868,10 +910,14 @@ int mrtd_binary_load(const char * filename, bgp_route_handler_f handler,
   BGPDUMP_ENTRY * entry= NULL;
   int error= BGP_INPUT_SUCCESS;
 
+  printf("mrt_binary_load\n");
+
   if ((dump= bgpdump_open_dump((char *) filename)) == NULL)
     return BGP_INPUT_ERROR_FILE_OPEN;
 
   do {
+
+    printf("do ...\n");
 
     entry= bgpdump_read_next(dump);
     if (entry == NULL) {

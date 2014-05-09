@@ -44,7 +44,7 @@ extern "C" {
 #endif
 
   // ----- bgp_peer_create ------------------------------------------
-  bgp_peer_t * bgp_peer_create(uint16_t asn,
+  bgp_peer_t * bgp_peer_create(asn_t asn,
 			       net_addr_t addr,
 			       bgp_router_t * router);
   // ----- bgp_peer_destroy -----------------------------------------

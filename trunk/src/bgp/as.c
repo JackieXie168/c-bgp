@@ -240,7 +240,7 @@ static inline int _bgp_router_select_rid(net_node_t * node, net_addr_t * addr)
 /**
  *
  */
-int bgp_add_router(uint16_t asn, net_node_t * node,
+int bgp_add_router(asn_t asn, net_node_t * node,
 		   bgp_router_t ** router_ref)
 {
   int result;
@@ -268,7 +268,7 @@ int bgp_add_router(uint16_t asn, net_node_t * node,
  * - the AS-number of the domain the router will belong to
  * - the underlying node
  */
-int bgp_router_create(uint16_t asn, net_node_t * node,
+int bgp_router_create(asn_t asn, net_node_t * node,
 		      bgp_router_t ** router_ref)
 {
   bgp_router_t * router;
@@ -354,7 +354,7 @@ bgp_peer_t * bgp_router_find_peer(bgp_router_t * router, net_addr_t addr)
  *                                peer if ppeer != NULL)
  *   < 0 in case of failure
  */
-int bgp_router_add_peer(bgp_router_t * router, uint16_t asn,
+int bgp_router_add_peer(bgp_router_t * router, asn_t asn,
 			net_addr_t addr, bgp_peer_t ** peer_ref)
 {
   bgp_peer_t * new_peer;

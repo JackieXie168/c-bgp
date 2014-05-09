@@ -63,18 +63,18 @@ extern "C" {
   ///////////////////////////////////////////////////////////////////
 
   // -----[ bgp_add_router ]-----------------------------------------
-  net_error_t bgp_add_router(uint16_t asn, net_node_t * node,
+  net_error_t bgp_add_router(asn_t asn, net_node_t * node,
 			     bgp_router_t ** router_ref);
 
   // ----- bgp_router_create ----------------------------------------
-  int bgp_router_create(uint16_t asn, net_node_t * node,
+  int bgp_router_create(asn_t asn, net_node_t * node,
 			bgp_router_t ** router_ref);
   // ----- bgp_router_destroy ---------------------------------------
   void bgp_router_destroy(bgp_router_t ** router_ref);
   // ----- bgp_router_get_name --------------------------------------
   char * bgp_router_get_name(bgp_router_t * router);
   // ----- bgp_router_add_peer --------------------------------------
-  int bgp_router_add_peer(bgp_router_t * router, uint16_t remote_asn,
+  int bgp_router_add_peer(bgp_router_t * router, asn_t remote_asn,
 			  net_addr_t addr, bgp_peer_t ** peer_ref);
   // ----- bgp_router_find_peer -------------------------------------
   bgp_peer_t * bgp_router_find_peer(bgp_router_t * router, net_addr_t addr);

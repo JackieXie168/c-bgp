@@ -11,6 +11,7 @@
 #endif
 
 #include <assert.h>
+#include <libgds/array.h>
 #include <libgds/memory.h>
 #include <libgds/radix-tree.h>
 
@@ -21,7 +22,39 @@
 #include <net/network.h>
 
 #define BGP_DOMAINS_MAX 65536
+#ifndef ASN_SIZE_32
 static bgp_domain_t * _domains[BGP_DOMAINS_MAX];
+#else
+static ptr_array_t * _domains;
+#endif /* ASN_SIZE_32 */
+
+// ----- _domains_compare -------------------------------------------
+#ifdef ASN_SIZE_32
+static int _domains_compare(const void * item1,
+			    const void * item2,
+			    unsigned int elt_size)
+{
+  bgp_domain_t * domain1= *((bgp_domain_t **) item1);
+  bgp_domain_t * domain2= *((bgp_domain_t **) item2);
+
+  if (domain1->asn < domain2->asn)
+    return -1;
+  else if (domain1->asn > domain2->asn)
+    return 1;
+  else
+    return 0;
+}
+#endif ASN_SIZE_32
+
+// ----- _domains_destroy -------------------------------------------
+#ifdef ASN_SIZE_32
+static void _domains_destroy(void * item, const void * ctx)
+{
+  bgp_domain_t * domain= *((bgp_domain_t **) item);
+  bgp_domain_destroy(&domain);
+}
+#endif /* ASN_SIZE_32 */
+
 
 // ----- bgp_domain_create ------------------------------------------
 /**
@@ -61,6 +94,7 @@ int bgp_domains_for_each(FBGPDomainsForEach for_each, void * ctx)
   unsigned int index;
   int result;
 
+#ifndef ASN_SIZE_32
   for (index= 0; index < BGP_DOMAINS_MAX; index++) {
     if (_domains[index] != NULL) {
       result= for_each(_domains[index], ctx);
@@ -68,6 +102,15 @@ int bgp_domains_for_each(FBGPDomainsForEach for_each, void * ctx)
 	return result;
     }
   }
+#else
+  bgp_domain_t * domain;
+  for (index= 0; index < ptr_array_length(_domains); index++) {
+    domain= (bgp_domain_t*) _domains->data[index];
+    result= for_each(domain, ctx);
+    if (result != 0)
+      return result;
+  }
+#endif /* ASN_32_SIZE */
   return 0;
 }
 
@@ -106,7 +149,16 @@ int bgp_domain_routers_for_each(bgp_domain_t * domain,
  */
 int exists_bgp_domain(asn_t asn)
 {
+#ifndef ASN_SIZE_32
   return (_domains[asn] != NULL);
+#else
+  bgp_domain_t dummy= { .asn= asn };
+  bgp_domain_t * domain= &dummy;
+  unsigned int index;
+  if (ptr_array_sorted_find_index(_domains, &domain, &index) == 0)
+    return 1;
+  return 0;
+#endif /* ASN_SIZE_32 */
 }
 
 // ----- get_bgp_domain ---------------------------------------------
@@ -116,9 +168,20 @@ int exists_bgp_domain(asn_t asn)
  */
 bgp_domain_t * get_bgp_domain(asn_t asn)
 {
+#ifndef ASN_SIZE_32
   if (_domains[asn] == NULL)
     _domains[asn]= bgp_domain_create(asn);
   return _domains[asn];
+#else
+  bgp_domain_t dummy= { .asn= asn };
+  bgp_domain_t * domain= &dummy;
+  unsigned int index;
+  if (ptr_array_sorted_find_index(_domains, &domain, &index) == 0)
+    return (bgp_domain_t *) _domains->data[index];
+  domain= bgp_domain_create(asn);
+  register_bgp_domain(domain);
+  return domain;
+#endif /* ASN_SIZE_32 */
 }
 
 // ----- register_bgp_domain ----------------------------------------
@@ -131,8 +194,12 @@ bgp_domain_t * get_bgp_domain(asn_t asn)
  */
 void register_bgp_domain(bgp_domain_t * domain)
 {
+#ifndef ASN_SIZE_32
   assert(_domains[domain->asn] == NULL);
   _domains[domain->asn]= domain;
+#else
+  assert(ptr_array_add(_domains, &domain) >= 0);
+#endif /* ASN_SIZE_32 */
 }
 
 // -----[ _rescan_for_each ]-----------------------------------------
@@ -274,11 +341,16 @@ int bgp_domain_full_mesh(bgp_domain_t * domain)
  */
 void _bgp_domain_init()
 {
+#ifndef ASN_SIZE_32
   unsigned int index;
-
-  for (index= 0; index < BGP_DOMAINS_MAX; index++) {
+  for (index= 0; index < BGP_DOMAINS_MAX; index++)
     _domains[index]= NULL;
-  }
+#else
+  _domains= ptr_array_create(ARRAY_OPTION_SORTED | ARRAY_OPTION_UNIQUE,
+    _domains_compare,
+    _domains_destroy,
+    NULL);
+#endif /* ASN_SIZE_32 */
 }
 
 // ----- _bgp_domain_destroy ----------------------------------------
@@ -287,9 +359,12 @@ void _bgp_domain_init()
  */
 void _bgp_domain_destroy()
 {
+#ifndef ASN_SIZE_32
   unsigned int index;
-
   for (index= 0; index < BGP_DOMAINS_MAX; index++) {
     bgp_domain_destroy(&_domains[index]);
   }
+#else
+  ptr_array_destroy(&_domains);
+#endif /* ASN_SIZE_32 */
 }

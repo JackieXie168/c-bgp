@@ -658,6 +658,9 @@ int cli_show_version(cli_ctx_t * ctx, cli_cmd_t * cmd)
 #ifdef __ROUTER_LIST_ENABLE__
   stream_printf(gdsout, " [router-list]");
 #endif
+#ifdef ASN_SIZE_32
+  stream_printf(gdsout, " [asn32]");
+#endif
 #ifdef __EXPERIMENTAL_ADVERTISE_BEST_EXTERNAL_TO_INTERNAL__
   stream_printf(gdsout, " [external-best]");
 #endif
