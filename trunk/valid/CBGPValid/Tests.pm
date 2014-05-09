@@ -227,6 +227,7 @@ sub set_result($$;$)
 # -----[ is_included ]-----------------------------------------------
 sub is_included($$) {
   my ($self, $name)= @_;
+  return 1 if ($name eq "show version");
   return 1 if (!defined($self->{'include'}));
   foreach my $include (@{$self->{'include'}}) {
     return 1 if ($name =~ m/$include/);

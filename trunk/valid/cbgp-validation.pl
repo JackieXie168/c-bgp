@@ -117,6 +117,7 @@ my $report_prefix= DEFAULT_REPORT_PREFIX;
 
 my $validation= {
 		 'cbgp_version'    => undef,
+		 'cbgp_options'    => undef,
 		 'libgds_version'  => undef,
 		 'program_args'    => (join " ", @ARGV),
 		 'program_name'    => $0,
@@ -963,6 +964,51 @@ sub cbgp_check_bgp_route($$$)
     }
   }
 
+# -----[ cbgp_version ]----------------------------------------------
+sub cbgp_version($)
+{
+    my ($cbgp)= @_;
+    my ($cbgp_version, $libgds_version)= (undef, undef);
+
+    $cbgp->send_cmd("show version");
+    $cbgp->send_cmd("print \"DONE\\n\"");
+    while (!((my $result= $cbgp->expect(1)) =~ m/^DONE/)) {
+      if ($result =~ m/^([a-z]+)\s+version:\s+([0-9]+)\.([0-9]+)\.([0-9]+)(\-([^ ]+))?((\s+.+)?)$/) {
+	my $component= $1;
+	my $major= $2;
+	my $minor= $3;
+	my $build= $4;
+	my $release= "";
+	if (defined($5)) {
+	  $release= $5;
+	}
+	my $options= "";
+	if (defined($8)) {
+	    $options= $8;
+	}
+	my $text= "$major.$minor.$build";
+	$text.= "-$release" if ($release ne '');
+	my $version= {'major'=>$major,
+		      'minor'=>$minor,
+		      'build'=>$build,
+		      'release'=>$release,
+		      'options'=>$options,
+		      'text'=>$text};
+	if ($component eq "cbgp") {
+	    $cbgp_version= $version; 
+	} elsif ($component eq "libgds") {
+	    $libgds_version= $version;
+	} else {
+	  die "unknown component version \"$component\"";
+	}
+      } else {
+	  die "version syntax error";
+      }
+    }
+    return ($cbgp_version, $libgds_version);
+}
+
+
 #####################################################################
 #
 # VALIDATION TESTS
@@ -981,42 +1027,26 @@ sub cbgp_valid_version($)
   {
     my ($cbgp)= @_;
 
-    $cbgp->send_cmd("show version");
-    $cbgp->send_cmd("print \"DONE\\n\"");
-    while (!((my $result= $cbgp->expect(1)) =~ m/^DONE/)) {
-      if ($result =~ m/^([a-z]+)\s+version:\s+([0-9]+)\.([0-9]+)\.([0-9]+)(\-([^ ]+))?(\s+.+)*$/) {
-	my $component= $1;
-	my $version= "$2.$3.$4";
-	if (defined($5)) {
-	  $version.= " ($5)";
-	}
-	if ($component eq "cbgp") {
-	  (defined($validation->{'cbgp_version'})) and
-	    return TEST_FAILURE;
-	  if (($2 < CBGP_MAJOR_MIN()) ||
-	      (($2 == CBGP_MAJOR_MIN()) && ($3 < CBGP_MINOR_MIN))) {
-	    show_warning("this validation script was designed for version ".
-			 CBGP_MAJOR_MIN().".".CBGP_MINOR_MIN().".x");
-	  }
-	  $validation->{'cbgp_version'}= $version;
-	  if ($report_prefix eq DEFAULT_REPORT_PREFIX) {
-	    $report_prefix= "cbgp-$2.$3.$4";
-	    (defined($5)) and $report_prefix.= $5;
-	    $report_prefix.= '-valid';
-	  }
-	} elsif ($component eq "libgds") {
-	  (defined($validation->{'libgds_version'})) and
-	    return TEST_FAILURE;
-	  $validation->{'libgds_version'}= $version;
-	} else {
-	  show_warning("unknown component \"$component\"");
-	  return TEST_FAILURE;
-	}
-      } else {
-	show_warning("syntax error");
-	return TEST_FAILURE;
-      }
+    my ($cbgp_version, $libgds_version)= cbgp_version($cbgp);
+
+    # Check cbgp version
+    my $major= $cbgp_version->{'major'};
+    my $minor= $cbgp_version->{'minor'};
+    my $build= $cbgp_version->{'build'};
+    if (($major < CBGP_MAJOR_MIN()) ||
+	(($major == CBGP_MAJOR_MIN()) && ($minor < CBGP_MINOR_MIN))) {
+	show_warning("this validation script was designed for version ".
+		     CBGP_MAJOR_MIN().".".CBGP_MINOR_MIN().".x");
     }
+    $validation->{'cbgp_version'}= $cbgp_version->{'text'};
+    $validation->{'cbgp_options'}= $cbgp_version->{'options'};
+    $validation->{'libgds_version'}= $libgds_version->{'text'};
+    if ($report_prefix eq DEFAULT_REPORT_PREFIX) {
+	$report_prefix= "cbgp-$major.$minor.$build";
+	(defined($5)) and $report_prefix.= $5;
+	$report_prefix.= '-valid';
+    }
+
     return (defined($validation->{'cbgp_version'}) &&
 	    defined($validation->{'libgds_version'}))?TEST_SUCCESS:TEST_FAILURE;
   }

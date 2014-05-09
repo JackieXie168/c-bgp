@@ -57,7 +57,8 @@ sub cbgp_valid_bgp_topology_filter_group_stubs($) {
   }
 
   # Filter single-homed stub domains
-  $cbgp->send_cmd("bgp topology filter group stubs");
+  my $msg= cbgp_check_error($cbgp, "bgp topology filter group stubs");
+  return TEST_FAILURE if ($msg);
 
   # Obtain topology from cbgp
   $topo= cbgp_bgp_topology($cbgp, C_TOPO_ADDR_SCH_ASN);
