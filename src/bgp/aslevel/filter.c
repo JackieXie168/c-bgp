@@ -53,6 +53,9 @@ int aslevel_filter_str2filter(const char * str,
  */
 int aslevel_filter_topo(as_level_topo_t * topo, aslevel_filter_t filter)
 {
+#ifdef ASN_SIZE_32
+  return ASLEVEL_ERROR_NOT_IMPLEMENTED;
+#else
   unsigned int index, index2;
   as_level_domain_t * domain;
   as_level_link_t * link;
@@ -154,4 +157,5 @@ int aslevel_filter_topo(as_level_topo_t * topo, aslevel_filter_t filter)
   //stream_printf(gdserr, "\tnumber of edges removed: %d\n", num_edges_removed);
 
   return ASLEVEL_SUCCESS;
+#endif /* ASN_SIZE_32 */
 }

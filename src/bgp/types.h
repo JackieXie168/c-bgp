@@ -135,7 +135,7 @@ typedef struct bgp_peer_t {
   /** IP address used to reach the neighbor. */
   net_addr_t            addr;
   /** AS Number (ASN) of the neighbor. */
-  uint16_t              asn;
+  asn_t                 asn;
   /** Reference to the local router (owner). */
   struct bgp_router_t * router;    
   /* Configuration flags. */
@@ -266,7 +266,7 @@ typedef struct {
   /** Message type. */
   bgp_msg_type_t type;
   /** ASN of the source. */
-  uint16_t       peer_asn;
+  asn_t          peer_asn;
   /** "TCP" sequence number (used for checking ordering). */
   unsigned int   seq_num;
 } bgp_msg_t;

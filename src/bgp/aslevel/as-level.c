@@ -101,7 +101,7 @@ static void _aslevel_as_destroy_link(void * item, const void * ctx)
 }
 
 // -----[ _aslevel_as_create ]---------------------------------------
-static inline as_level_domain_t * _aslevel_as_create(uint16_t asn)
+static inline as_level_domain_t * _aslevel_as_create(asn_t asn)
 {
   as_level_domain_t * domain= MALLOC(sizeof(as_level_domain_t));
   domain->asn= asn;
@@ -213,6 +213,8 @@ char * aslevel_strerror(int error)
     return "topology is already installed";
   case ASLEVEL_ERROR_ALREADY_RUNNING:
     return "topology is already running";
+  case ASLEVEL_ERROR_NOT_IMPLEMENTED:
+    return "not implemented";
   }
   return NULL;
 }
@@ -255,7 +257,7 @@ static inline void _aslevel_topo_cache_update_as(as_level_topo_t * topo,
 // -----[ _aslevel_topo_cache_lookup_as ]----------------------------
 static inline
 as_level_domain_t * _aslevel_topo_cache_lookup_as(as_level_topo_t * topo,
-						  uint16_t asn)
+						  asn_t asn)
 {
   unsigned int index;
   
@@ -276,9 +278,11 @@ as_level_topo_t * aslevel_topo_create(uint8_t addr_scheme)
   as_level_topo_t * topo= MALLOC(sizeof(as_level_topo_t));
   topo->domains= _aslevel_create_array_domains(0);
   switch (addr_scheme) {
+#ifndef ASN_SIZE_32
   case ASLEVEL_ADDR_SCH_DEFAULT:
     topo->addr_mapper= aslevel_addr_sch_default_get;
     break;
+#endif /* ASN_SIZE_32 */
   case ASLEVEL_ADDR_SCH_LOCAL:
     topo->addr_mapper= aslevel_addr_sch_local_get;
     break;
@@ -321,7 +325,7 @@ unsigned int aslevel_topo_num_edges(as_level_topo_t * topo)
 }
 
 // -----[ aslevel_topo_add_as ]------------------------------------
-as_level_domain_t * aslevel_topo_add_as(as_level_topo_t * topo, uint16_t asn)
+as_level_domain_t * aslevel_topo_add_as(as_level_topo_t * topo, asn_t asn)
 {
   as_level_domain_t * domain= _aslevel_as_create(asn);
   if (ptr_array_add(topo->domains, &domain) < 0) {
@@ -372,7 +376,7 @@ int aslevel_topo_remove_as(as_level_topo_t * topo, asn_t asn)
 
 // -----[ aslevel_topo_get_as ]--------------------------------------
 as_level_domain_t * aslevel_topo_get_as(as_level_topo_t * topo,
-					uint16_t asn)
+					asn_t asn)
 {
   as_level_domain_t dummy_domain= { .asn= asn };
   as_level_domain_t * domain;
@@ -540,6 +544,9 @@ static inline void _ctx_destroy(SGTCtx ** ppCtx)
  */
 int aslevel_topo_check_connectedness(as_level_topo_t * topo)
 {
+#ifdef ASN_SIZE_32
+  return ASLEVEL_ERROR_NOT_IMPLEMENTED;
+#else
 #define MAX_QUEUE_SIZE MAX_AS
   as_level_domain_t * domain;
   as_level_link_t * link;
@@ -594,6 +601,7 @@ int aslevel_topo_check_connectedness(as_level_topo_t * topo)
 
   return ASLEVEL_SUCCESS;
 #undef MAX_QUEUE_SIZE
+#endif /* ASN_SIZE_32 */
 }
 
 // -----[ aslevel_topo_check_cycle ]---------------------------------
@@ -604,6 +612,9 @@ int aslevel_topo_check_connectedness(as_level_topo_t * topo)
  */
 int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
 {
+#ifdef ASN_SIZE_32
+  return ASLEVEL_ERROR_NOT_IMPLEMENTED;
+#else
 #define MAX_QUEUE_SIZE 100
   ptr_array_t * top_domains;
   as_level_domain_t * domain, * cycle_domain;
@@ -760,6 +771,7 @@ int aslevel_topo_check_cycle(as_level_topo_t * topo, int verbose)
     return ASLEVEL_ERROR_CYCLE_DETECTED;
 
   return ASLEVEL_SUCCESS;
+#endif /* ASN_SIZE_32 */
 }
 
 // -----[ aslevel_topo_check_consistency ]---------------------------
@@ -796,7 +808,7 @@ int aslevel_topo_check_consistency(as_level_topo_t * topo)
 
 // -----[ _aslevel_build_bgp_router ]--------------------------------
 static inline bgp_router_t * _aslevel_build_bgp_router(net_addr_t addr,
-						       uint16_t asn)
+						       asn_t asn)
 {
   net_node_t * node;
   bgp_router_t * router= NULL;
@@ -1467,10 +1479,17 @@ bgp_filter_t * aslevel_filter_out(peer_type_t tPeerType)
 // -----[ aslevel_str2addr_sch ]-------------------------------------
 int aslevel_str2addr_sch(const char * pcStr, uint8_t * puAddrScheme)
 {
-  if (!strcmp(pcStr, "global") || !strcmp(pcStr, "default")) {
+  if (!strcmp(pcStr, "default")) {
+    *puAddrScheme= ASLEVEL_ADDR_SCH_DEFAULT;
+    return ASLEVEL_SUCCESS;
+  }
+#ifndef ASN_SIZE_32
+  if (!strcmp(pcStr, "global")) {
     *puAddrScheme= ASLEVEL_ADDR_SCH_GLOBAL;
     return ASLEVEL_SUCCESS;
-  } else if (!strcmp(pcStr, "local")) {
+  }
+#endif /* ASN_SIZE_32 */
+  if (!strcmp(pcStr, "local")) {
     *puAddrScheme= ASLEVEL_ADDR_SCH_LOCAL;
     return ASLEVEL_SUCCESS;
   }
@@ -1486,23 +1505,29 @@ int aslevel_str2addr_sch(const char * pcStr, uint8_t * puAddrScheme)
  *
  * where ASNH is composed of the 8 most significant bits of the ASN
  * while ASNL is composed of the 8 less significant bits of the ASN.
+ *
+ * This scheme is not available if 32-bits ASN are enabled.
  */
-net_addr_t aslevel_addr_sch_default_get(uint16_t asn)
+#ifndef ASN_SIZE_32
+net_addr_t aslevel_addr_sch_default_get(asn_t asn)
 {
   return (asn << 16);
 }
+#endif
 
 // -----[ aslevel_addr_sch_local_get ]-------------------------------
 /**
- * Return an IP address in the local prefix 0.0.0.0/8. The address is
+ * Return an IP address in the local prefix 0.0.0.0/16. The address is
  * derived from the AS number as follows:
  *
  *   addr = 0.0.ASNH.ASNL
  *
  * where ASNH is composed of the 8 most significant bits of the ASN
  * while ASNL is composed of the 8 less significant bits of the ASN.
+ *
+ * if 32-bits ASNs are allowed, the IP address and ASN are equal.
  */
-net_addr_t aslevel_addr_sch_local_get(uint16_t asn)
+net_addr_t aslevel_addr_sch_local_get(asn_t asn)
 {
   return asn;
 }

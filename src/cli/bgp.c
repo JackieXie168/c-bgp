@@ -145,7 +145,7 @@ int cli_ctx_create_bgp_domain(cli_ctx_t * ctx, cli_cmd_t * cmd, void ** item)
   }
 
   /* Check that the BGP domain exists */
-  if (!exists_bgp_domain((uint16_t) asn)) {
+  if (!exists_bgp_domain(asn)) {
     cli_set_user_error(cli_get(), "domain \"%u\" does not exist.", asn);
     return CLI_ERROR_CTX_CREATE;
   }

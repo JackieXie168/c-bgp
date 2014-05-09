@@ -4011,6 +4011,46 @@ int test_bgp_filter_predicate_expr_str2()
 //
 /////////////////////////////////////////////////////////////////////
 
+// -----[ test_bgp_filter_create ]-----------------------------------
+static int test_bgp_filter_create()
+{
+  bgp_filter_t * f= filter_create();
+  filter_destroy(&f);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_add_rule ]---------------------------------
+static int test_bgp_filter_add_rule()
+{
+  bgp_filter_t * f= filter_create();
+  bgp_ft_matcher_t * predicate= filter_match_comm_contains(1234);
+  bgp_ft_action_t * action= filter_action_comm_append(1235);
+  filter_add_rule(f, predicate, action);
+  UTEST_ASSERT(f->rules->size == 1, "Number of rules is incorrect");
+  filter_destroy(&f);
+  return UTEST_SUCCESS;
+}
+
+// -----[ test_bgp_filter_remove_rule ]------------------------------
+static int test_bgp_filter_remove_rule()
+{
+  bgp_filter_t * f= filter_create();
+  bgp_ft_matcher_t * predicate= filter_match_comm_contains(1234);
+  bgp_ft_action_t * action= filter_action_comm_append(1235);
+  filter_add_rule(f, predicate, action);
+  filter_remove_rule(f, 0);
+  UTEST_ASSERT(f->rules->size == 0, "Number of rules is incorrect");
+  filter_destroy(&f);
+  return UTEST_SUCCESS;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// BGP ROUTER
+//
+/////////////////////////////////////////////////////////////////////
+
 // -----[ test_bgp_router ]------------------------------------------
 static int test_bgp_router()
 {
@@ -4212,6 +4252,23 @@ static int test_bgp_peer_close()
 
 /////////////////////////////////////////////////////////////////////
 //
+// BGP PEER FILTER
+//
+/////////////////////////////////////////////////////////////////////
+
+static int test_bgp_peer_filter_add()
+{
+  return UTEST_SKIPPED;
+}
+
+static int test_bgp_peer_filter_remove()
+{
+  return UTEST_SKIPPED;
+}
+
+
+/////////////////////////////////////////////////////////////////////
+//
 // BGP DOMAIN
 //
 /////////////////////////////////////////////////////////////////////
@@ -4315,10 +4372,18 @@ static int test_mrtd_parse_inv_peerip()
 // -----[ test_mrtd_parse_inv_peerasn ]------------------------------
 static int test_mrtd_parse_inv_peerasn()
 {
+#ifndef ASN_SIZE_32
   int result= mrtd_route_from_line("TABLE_DUMP|1122859488|B|198.32.12.9|"
 				   "181537|128.61.32.0/19|10490 2637|IGP|"
 				   "199.77.193.9|200|0|11537:950|NAG||",
 				   NULL, NULL, NULL);
+#else
+  int result= mrtd_route_from_line("TABLE_DUMP|1122859488|B|198.32.12.9|"
+				   "4294967296|128.61.32.0/19|10490 2637|IGP|"
+				   "199.77.193.9|200|0|11537:950|NAG||",
+				   NULL, NULL, NULL);
+  
+#endif /* ASN_SIZE_32 */
   UTEST_ASSERT(result == MRTD_INVALID_PEER_ASN,
 	       "should fail with invalid-peer-ASN");
   return UTEST_SUCCESS;
@@ -4452,7 +4517,7 @@ static int test_traffic_replay_unreach()
 static int test_aslevel_smoke()
 {
   int index;
-  as_level_topo_t * topo= aslevel_topo_create(ASLEVEL_ADDR_SCH_GLOBAL);
+  as_level_topo_t * topo= aslevel_topo_create(ASLEVEL_ADDR_SCH_DEFAULT);
 
   as_level_domain_t * as1= aslevel_topo_add_as(topo, 1);
   as_level_domain_t * as2= aslevel_topo_add_as(topo, 2);
@@ -4747,6 +4812,13 @@ unit_test_t TEST_BGP_FILTER_PRED[]= {
 };
 #define TEST_BGP_FILTER_PRED_SIZE ARRAY_SIZE(TEST_BGP_FILTER_PRED)
 
+unit_test_t TEST_BGP_FILTER[]= {
+  {test_bgp_filter_create, "create"},
+  {test_bgp_filter_add_rule, "add rule"},
+  {test_bgp_filter_remove_rule, "remove rule"},
+};
+#define TEST_BGP_FILTER_SIZE ARRAY_SIZE(TEST_BGP_FILTER)
+
 unit_test_t TEST_BGP_ROUTE_MAPS[]= {
 };
 #define TEST_BGP_ROUTE_MAPS_SIZE ARRAY_SIZE(TEST_BGP_ROUTE_MAPS)
@@ -4759,6 +4831,12 @@ unit_test_t TEST_BGP_PEER[]= {
   {test_bgp_peer_close, "close"},
 };
 #define TEST_BGP_PEER_SIZE ARRAY_SIZE(TEST_BGP_PEER)
+
+unit_test_t TEST_BGP_PEER_FILTER[]= {
+  {test_bgp_peer_filter_add, "add"},
+  {test_bgp_peer_filter_remove, "remove"},
+};
+#define TEST_BGP_PEER_FILTER_SIZE ARRAY_SIZE(TEST_BGP_PEER_FILTER)
 
 unit_test_t TEST_BGP_ROUTER[]= {
   {test_bgp_router, "create"},
@@ -4821,9 +4899,11 @@ unit_test_suite_t TEST_SUITES[]= {
   {"BGP Routes", TEST_BGP_ROUTE_SIZE, TEST_BGP_ROUTE},
   {"BGP Filter Actions", TEST_BGP_FILTER_ACTION_SIZE, TEST_BGP_FILTER_ACTION},
   {"BGP Filter Predicates", TEST_BGP_FILTER_PRED_SIZE, TEST_BGP_FILTER_PRED},
+  {"BGP Filters", TEST_BGP_FILTER_SIZE, TEST_BGP_FILTER},
   {"BGP Route Maps", TEST_BGP_ROUTE_MAPS_SIZE, TEST_BGP_ROUTE_MAPS},
   {"BGP Router", TEST_BGP_ROUTER_SIZE, TEST_BGP_ROUTER},
   {"BGP Peer", TEST_BGP_PEER_SIZE, TEST_BGP_PEER},
+  {"BGP Peer Filter", TEST_BGP_PEER_FILTER_SIZE, TEST_BGP_PEER_FILTER},
   {"BGP Domain", TEST_BGP_DOMAIN_SIZE, TEST_BGP_DOMAIN},
   {"MRTD", TEST_MRTD_SIZE, TEST_MRTD},
   {"CLI", TEST_CLI_SIZE, TEST_CLI},
