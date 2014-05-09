@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>options</name>
+    <id>bgp_options</id>
+  </father>
+  <prev>
+    <name>local-pref</name>
+    <id>bgp_options_local-pref</id>
+  </prev>
+  <next>
+    <name>msg-monitor</name>
+    <id>bgp_options_msg-monitor</id>
+  </next>
+</command>

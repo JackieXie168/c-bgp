@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <childs>
+    <child>
+      <name>info</name>
+      <id>sim_queue_info</id>
+    </child>
+    <child>
+      <name>log</name>
+      <id>sim_queue_log</id>
+    </child>
+    <child>
+      <name>show</name>
+      <id>sim_queue_show</id>
+    </child>
+  </childs>
+  <prev>
+    <name>options</name>
+    <id>sim_options</id>
+  </prev>
+  <next>
+    <name>run</name>
+    <id>sim_run</id>
+  </next>
+</command>

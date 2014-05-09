@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>define</name>
+  <id>define</id>
+  <context/>
+  <parameters>
+    <parameter>
+      <name>name</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>value</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

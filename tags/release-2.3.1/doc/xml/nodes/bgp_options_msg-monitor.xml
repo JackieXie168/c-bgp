@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<command>
+  <name>msg-monitor</name>
+  <id>bgp_options_msg-monitor</id>
+  <context>bgp options</context>
+  <parameters>
+    <parameter>
+      <name>output-file</name>
+      <description>the trace output file</description>
+    </parameter>
+  </parameters>
+  <abstract>activate the recording of BGP messages</abstract>
+  <description>
+<p>
+This command activates the recording of exchanged BGP messages. The messages are written in the specified <b>output-file</b>. If the file does not exist, it is created. If it already exists, the file is overwritten. The BGP messages are written in MRTd format. Each message is prefixed with the IP address of the router that received the message. It should therefore be easy to extract messages sent to a specific destination using the first field. Existing MRT analysis script can then directly be used with the MRTD output.
+</p>
+<p>
+Output format for an UPDATE message:
+<code>
+dest-ip|BGP4|time|A|peer-ip|peer-as|prefix|as-path|origin|next-hop|local-pref|med|communities
+</code>
+</p>
+<p>
+Output format for a WITHDRAW message:
+<code>
+dest-ip|BGP4|time|W|peer-ip|peer-as|prefix
+</code>
+</p>
+<p>
+Example:
+<code>
+0.2.0.0|BGP4|0.00|A|0.1.0.0|1|0.1.0.0/16|1|IGP|0.1.0.0|100|0|
+</code>
+</p>
+  </description>
+  
+  
+</command>

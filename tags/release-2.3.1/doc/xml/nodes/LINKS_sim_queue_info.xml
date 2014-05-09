@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>queue</name>
+    <id>sim_queue</id>
+  </father>
+  <next>
+    <name>log</name>
+    <id>sim_queue_log</id>
+  </next>
+</command>

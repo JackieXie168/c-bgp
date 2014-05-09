@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<command>
+  <name>coord</name>
+  <id>net_node_coord</id>
+  <context>net node</context>
+  <parameters>
+    <parameter>
+      <name>latitude</name>
+      <description/>
+    </parameter>
+    <parameter>
+      <name>longitude</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

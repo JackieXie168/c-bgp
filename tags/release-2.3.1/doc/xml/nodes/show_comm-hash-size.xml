@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>comm-hash-size</name>
+  <id>show_comm-hash-size</id>
+  <context>show</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

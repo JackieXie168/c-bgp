@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <name>remove-rule</name>
+  <id>bgp_router_peer_filter_remove-rule</id>
+  <context>bgp router peer filter</context>
+  <parameters>
+    <parameter>
+      <name>index</name>
+      <description>index of rule to remove</description>
+    </parameter>
+  </parameters>
+  <abstract>remove a rule from a filter</abstract>
+  <description>
+<p>This command removes the rule at the <i>index</i> specified as argument.
+</p>
+  </description>
+</command>

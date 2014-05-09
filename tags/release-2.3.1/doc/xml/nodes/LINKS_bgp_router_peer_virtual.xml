@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <prev>
+    <name>update-source</name>
+    <id>bgp_router_peer_update-source</id>
+  </prev>
+</command>

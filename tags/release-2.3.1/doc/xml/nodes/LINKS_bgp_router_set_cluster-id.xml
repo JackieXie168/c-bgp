@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>set</name>
+    <id>bgp_router_set</id>
+  </father>
+</command>

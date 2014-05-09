@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>net_ntf_load</id>
+  <context>net ntf</context>
+  <parameters>
+    <parameter>
+      <name>filename</name>
+      <description>name of the NTF file</description>
+    </parameter>
+  </parameters>
+  <abstract>load the topology of a domain in NTF format</abstract>
+  <description>
+<p>
+This command loads the given NTF file into the simulator. An NTF
+file contains a description of a topology. Each line of the file
+specifies an adjacency between two nodes. The nodes are identified by
+their IP addresses. In addition, the file also specifies the IGP
+metric associated with the adjacency. It can also optionally define
+the propagation delay along this adjacency.
+</p>
+<p>
+When <i>C-BGP</i> loads the NTF file, it creates all the
+unexisting nodes and links. It will not worry if some nodes or links
+already exist before the <cmd><name>net ntf load</name><link/></cmd> command was called.
+</p>
+<p>
+Input format:
+<code>
+&lt;node-1&gt; &lt;node-2&gt; &lt;weight&gt; [&lt;delay&gt;]
+</code>
+</p>
+  </description>
+  
+  
+</command>

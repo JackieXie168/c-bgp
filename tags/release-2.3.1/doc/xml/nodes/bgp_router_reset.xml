@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>reset</name>
+  <id>bgp_router_reset</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

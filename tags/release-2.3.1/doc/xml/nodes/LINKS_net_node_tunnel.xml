@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>add</name>
+      <id>net_node_tunnel_add</id>
+    </child>
+  </childs>
+  <prev>
+    <name>traffic</name>
+    <id>net_node_traffic</id>
+  </prev>
+</command>

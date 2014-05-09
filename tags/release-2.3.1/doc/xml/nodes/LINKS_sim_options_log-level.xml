@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>options</name>
+    <id>sim_options</id>
+  </father>
+  <next>
+    <name>scheduler</name>
+    <id>sim_options_scheduler</id>
+  </next>
+</command>

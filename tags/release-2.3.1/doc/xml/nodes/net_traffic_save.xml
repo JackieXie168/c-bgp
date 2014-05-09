@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>save</name>
+  <id>net_traffic_save</id>
+  <context>net traffic</context>
+  <parameters>
+    <parameter>
+      <name>file</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

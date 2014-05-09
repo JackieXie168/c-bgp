@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<command>
+  <name>rib</name>
+  <id>bgp_router_load_rib</id>
+  <context>bgp router load</context>
+  <parameters>
+    <option>
+      <name>--autoconf</name>
+      <description>optionally autoconfigure new peers</description>
+    </option>
+    <option>
+      <name>--force</name>
+      <description>optionally force routes to load</description>
+    </option>
+    <option>
+      <name>--format=</name>
+      <description>optionally specify an alternate input format</description>
+    </option>
+    <option>
+      <name>--summary</name>
+      <description>optionally report a summary of the operation</description>
+    </option>
+    <parameter>
+      <name>file</name>
+      <description>name of the RIB dump file</description>
+    </parameter>
+  </parameters>
+  <abstract>load a real router's RIB into C-BGP</abstract>
+  <description>
+<p>
+This command is used to load into one BGP router a dump of a <i>Routing Information Base</i> (RIB) captured on a real router. The RIB dump must be provided in ASCII MRT format.
+</p>
+<p>
+Note: <i>C-BGP</i> performs some consistency checks on the routes that are loaded. First, the IP address and the AS number of the peer router specified in the MRT route records must correspond to the given router. Second, the IP address of the BGP next-hop must correspond to an existing peer of the router. This constraint might be too strong and might be relaxed in the future.
+</p>
+  </description>
+  
+  
+</command>

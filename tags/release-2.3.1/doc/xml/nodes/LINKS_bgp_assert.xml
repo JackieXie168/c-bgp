@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>peerings-ok</name>
+      <id>bgp_assert_peerings-ok</id>
+    </child>
+    <child>
+      <name>reachability-ok</name>
+      <id>bgp_assert_reachability-ok</id>
+    </child>
+  </childs>
+  <prev>
+    <name>add</name>
+    <id>bgp_add</id>
+  </prev>
+  <next>
+    <name>clear-adj-rib</name>
+    <id>bgp_clear-adj-rib</id>
+  </next>
+</command>

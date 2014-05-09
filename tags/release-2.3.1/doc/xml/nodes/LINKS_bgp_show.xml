@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>route-maps</name>
+      <id>bgp_show_route-maps</id>
+    </child>
+    <child>
+      <name>routers</name>
+      <id>bgp_show_routers</id>
+    </child>
+    <child>
+      <name>sessions</name>
+      <id>bgp_show_sessions</id>
+    </child>
+  </childs>
+  <prev>
+    <name>router</name>
+    <id>bgp_router</id>
+  </prev>
+  <next>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </next>
+</command>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <name>rr-client</name>
+  <id>bgp_router_peer_rr-client</id>
+  <context>bgp router peer</context>
+  
+  <abstract>configure a BGP neighbor as route-reflector client</abstract>
+  <description>
+<p>
+This command configures one BGP neighbor as a route-reflector client. The router where the BGP session is defined implicitly becomes a route-reflector.
+</p>
+  </description>
+  
+  
+</command>

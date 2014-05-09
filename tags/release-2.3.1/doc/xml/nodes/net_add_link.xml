@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<command>
+  <name>link</name>
+  <id>net_add_link</id>
+  <context>net add</context>
+  <parameters>
+    <option>
+      <name>--bw=</name>
+      <description>optional bandwidth</description>
+    </option>
+    <option>
+      <name>--delay=</name>
+      <description>optional link delay</description>
+    </option>
+    <option>
+      <name>--depth=</name>
+      <description>optional number of IGP weights</description>
+    </option>
+    <parameter>
+      <name>addr-src</name>
+      <description>address of source node</description>
+    </parameter>
+    <parameter>
+      <name>addr-dst</name>
+      <description>address of destination node</description>
+    </parameter>
+  </parameters>
+  <abstract>add a link to the topology</abstract>
+  <description>
+<p>This command adds a new link between two existing nodes whose
+identifiers are <i>addr-src</i> and <i>addr-dst</i> in the topology. The new link is bidirectional.</p>
+<p>Link bandwidth and delay can be specified optionally using the following options <i>--bw=</i> and <i>--delay=</i>.</p>
+<p>The option <i>--depth</i> specifies the number of different IGP weights that can be defined for this link. The default (without the option) is to support a single IGP weight. IGP weights are used to compute shortest-path routes. See commands <cmd><name>net add domain</name><link>net_add_domain</link></cmd> and <cmd><name>net domain compute</name><link>net_domain_compute</link></cmd> for more details.</p>
+<p>The following example shows how to add link between 2 nodes to create a simple topology:
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add link 1.0.0.1 1.0.0.2
+</code>
+With the above example, nodes 1.0.0.1 and 1.0.0.2 will both have 2 interfaces: one loopback interface and one rtr interface which correspond to the loopback of the linked node. This can be verified using command <cmd><name>net node X show ifaces</name><link>net_node_show_ifaces</link></cmd> as show in the following example:
+<code>cbgp&gt; net node 1.0.0.1 show ifaces<br/>
+lo      1.0.0.1/32<br/>
+rtr     1.0.0.2/32
+</code>
+</p>
+<p>This command can also be used to add a link between a node and a "subnet" (model of a LAN). To do this, the second node address (<i>addr-dst</i>) has a different meaning. It is the identifier of the target subnet combined with the address of the node's future interface on this subnet. This is specified in a prefix form. The address part is the interface address. The masked address and prefix length is the subnet identifier.</p>
+<p>The following example show how to add a link between 2 nodes and a subnet. Nodes 1.0.0.1 and 1.0.0.2 will get new interfaces numbered 192.168.0.5 and 192.168.0.7 respectively.
+<code>net add node 1.0.0.1<br/>
+net add node 1.0.0.2<br/>
+net add subnet 192.168.0.0/16<br/>
+net add link 1.0.0.1 192.168.0.5/16<br/>
+net add link 1.0.0.2 192.168.0.7/16<br/>
+</code>
+In this case, nodes will also have 2 interfaces: one loopback interface and one ptmp interface:
+<code>cbgp&gt; net node 1.0.0.1 show ifaces<br/>
+lo      1.0.0.1/32<br/>
+ptmp    192.168.0.5/16
+</code>
+</p>
+  </description>
+  <see-also>
+<p>To create a subnet, use command <cmd><name>net add subnet</name><link>net_add_subnet</link></cmd>.</p>
+<p>To add more detailled links (with specific interfaces and subnetting), see command <cmd><name>net add link-ptp</name><link>net_add_link-ptp</link></cmd>.</p>
+  </see-also>
+</command>

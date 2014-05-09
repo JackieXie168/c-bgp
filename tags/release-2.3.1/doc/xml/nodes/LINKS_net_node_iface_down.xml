@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>iface</name>
+    <id>net_node_iface</id>
+  </father>
+  <prev>
+    <name>connect</name>
+    <id>net_node_iface_connect</id>
+  </prev>
+  <next>
+    <name>igp-weight</name>
+    <id>net_node_iface_igp-weight</id>
+  </next>
+</command>

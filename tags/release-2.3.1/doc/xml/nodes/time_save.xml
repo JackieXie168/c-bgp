@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>save</name>
+  <id>time_save</id>
+  <context>time</context>
+  
+  <abstract>save current time</abstract>
+  <description/>
+  
+  
+</command>

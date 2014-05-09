@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <childs>
+    <child>
+      <name>router</name>
+      <id>bgp_add_router</id>
+    </child>
+  </childs>
+  <next>
+    <name>assert</name>
+    <id>bgp_assert</id>
+  </next>
+</command>

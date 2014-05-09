@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>show</name>
+    <id>show</id>
+  </father>
+  <prev>
+    <name>commands</name>
+    <id>show_commands</id>
+  </prev>
+  <next>
+    <name>mrt</name>
+    <id>show_mrt</id>
+  </next>
+</command>

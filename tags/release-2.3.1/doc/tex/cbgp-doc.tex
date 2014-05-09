@@ -1,0 +1,109 @@
+\documentclass[a4paper]{report}
+\usepackage{a4wide}
+\usepackage{titlesec}
+\usepackage{amssymb}
+\usepackage{a4wide}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{calc}
+\usepackage{fancyvrb}
+\usepackage{color}
+\usepackage{times}
+\usepackage{verbatim}
+\usepackage{multirow}
+\usepackage{moreverb}
+\usepackage{hyperref}
+
+\newcommand{\cmdtitle}[1]{\subsubsection*{#1}}
+\newcommand{\application}[1]{\textbf{#1}}
+\newcommand{\filename}[1]{\texttt{#1}}
+\newcommand{\command}[1]{\textbf{#1}}
+\newcommand{\parameter}[1]{\textit{#1}}
+\newcommand{\envar}[1]{\texttt{#1}}
+\newcommand{\option}[1]{\textbf{#1}}
+\newcommand{\argument}[1]{{\it #1}}
+\newenvironment{note}[1]{
+\vspace{5mm}
+\noindent
+\begin{tabular*}{\textwidth}{cc}
+\begin{minipage}[]{1.2cm}
+\includegraphics{note.eps}
+\end{minipage}&
+\begin{minipage}[]{\textwidth-1.7cm}
+\paragraph{#1}
+}{
+\end{minipage}
+\end{tabular*}
+}
+\newenvironment{warning}[1]{
+\vspace{5mm}
+\noindent
+\begin{tabular*}{\textwidth}{cc}
+\begin{minipage}[]{1.2cm}
+\includegraphics{warning.eps}
+\end{minipage}&
+\begin{minipage}[]{\textwidth-1.7cm}
+\paragraph{#1}
+}{
+\end{minipage}
+\end{tabular*}
+}
+
+\definecolor{gray}{gray}{0.4}
+\newcommand{\prompt}[1]{\textcolor{gray}{#1}}
+\newenvironment{example}[1]{\paragraph{$\blacktriangleright$~#1}}{}
+
+\begin{document}
+
+\titleformat{\section}
+	    {\normalfont\Large\bfseries}{\thesection.}{.8em}{}
+\titleformat{\subsection}
+	    {\normalfont\large\bfseries}{\thesubsection.}{.8em}{}
+\titleformat{\subsubsection}
+	    {\normalfont\normalsize\bfseries}{\thesubsubsection.}{.8em}{}
+\titleformat{\paragraph}[runin]
+	    {\normalfont\normalsize\bfseries}{\theparagraph}{.8em}{}
+\titleformat{\subparagraph}[runin]
+	    {\normalfont\normalsize\bfseries}{\thesubparagraph}{.8em}{}
+
+\titleformat{\subsection}
+  {\titlerule\vspace{.8ex}\large}
+  {\thesubsection.}
+  {.8em}
+  {\large\bf}
+
+\setcounter{secnumdepth}{3}
+
+\title{{\Huge C-BGP \input{version}}\\-- User Manual --}
+
+\author{{\bf Bruno Quoitin}\\Networking Lab\\Computer Science Department\\University of Mons}
+
+\maketitle
+
+\include{abstract}
+
+\tableofcontents
+
+\include{installation}
+
+\include{user-interface}
+
+\chapter{Commands Reference}
+\label{ch:cmd-ref}
+
+\section{BGP commands}
+\input{bgp_commands}
+
+\section{Network commands}
+\input{net_commands}
+
+\section{Simulation commands}
+\input{sim_commands}
+
+\section{Other commands}
+\input{other_commands}
+
+\end{document}

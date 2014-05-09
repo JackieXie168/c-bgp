@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>set</name>
+  <id>set</id>
+  <context/>
+  
+  <abstract>set general options</abstract>
+  
+  
+  
+</command>

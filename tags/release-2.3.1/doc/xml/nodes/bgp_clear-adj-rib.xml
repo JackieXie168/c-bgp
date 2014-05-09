@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>clear-adj-rib</name>
+  <id>bgp_clear-adj-rib</id>
+  <context>bgp</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>
