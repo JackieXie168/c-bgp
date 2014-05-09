@@ -267,6 +267,21 @@ sub topo_from_ntf($)
     return \%topo;
   }
 
+sub topo_asn2ip($;$)
+{
+    my ($asn, $addr_sch)= @_;
+    if (!defined($addr_sch) || ($addr_sch eq C_TOPO_ADDR_SCH_DEFAULT)) {
+	die "ASN too large (32-bits ASN enabled ?)" if ($asn >= 65536);
+	return int($asn / 256).".".($asn % 256).".0.0";
+    } elsif ($addr_sch eq C_TOPO_ADDR_SCH_LOCAL) {
+	return int(($asn >> 24) & 255).".".int(($asn >> 16) & 255).".".int(($asn >> 8) & 255).".".($asn & 255);
+    } elsif ($addr_sch eq C_TOPO_ADDR_SCH_ASN) {
+	return $asn;
+    } else {
+	die "invalid addr-sch option \"$addr_sch\"";
+    }
+}
+
 # -----[ topo_from_subramanian_line ]--------------------------------
 # This function is responsible for parsing a single line of AS-level
 # topology in the "Subramanian" format. If the line can be parsed
@@ -288,18 +303,8 @@ sub topo_from_subramanian_line($$;$)
 
   # Convert ASN to IP address according to addressing scheme
   my ($ip0, $ip1);
-  if (!defined($addr_sch) || ($addr_sch eq C_TOPO_ADDR_SCH_DEFAULT)) {
-    $ip0= int($fields[0] / 256).".".($fields[0] % 256).".0.0";
-    $ip1= int($fields[1] / 256).".".($fields[1] % 256).".0.0";
-  } elsif ($addr_sch eq C_TOPO_ADDR_SCH_LOCAL) {
-    $ip0= "0.0.".int($fields[0] / 256).".".($fields[0] % 256);
-    $ip1= "0.0.".int($fields[1] / 256).".".($fields[1] % 256);
-  } elsif ($addr_sch eq C_TOPO_ADDR_SCH_ASN) {
-    $ip0= $fields[0];
-    $ip1= $fields[1];
-  } else {
-    die "invalid addr-sch option \"$addr_sch\"";
-  }
+  $ip0= topo_asn2ip($fields[0], $addr_sch);
+  $ip1= topo_asn2ip($fields[1], $addr_sch);
 
   # Add relationship to topology data structure
   $topo->{$ip0}{$ip1}= [0, 0];
