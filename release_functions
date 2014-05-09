@@ -357,6 +357,7 @@ svn_tag()
     local TAG_NAME=$1
     info "Creating a SVN tag"
     echo "  tag: $TAG_NAME"
+    echo "  url: [$SVN_URL]"
     svn copy $SVN_URL/trunk $SVN_URL/tags/release-$VERSION \
         -m "Creating release tag \"release-$VERSION\""
     if [ $? != 0 ]; then
