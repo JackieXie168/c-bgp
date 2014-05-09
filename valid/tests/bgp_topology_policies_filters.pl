@@ -56,32 +56,32 @@ sub cbgp_valid_bgp_topology_policies_filters($) {
   $cbgp->send_cmd("sim run");
 
   # Originate prefixes and propagate
-  $cbgp->send_cmd("bgp router 0.1.0.0 add network 252/8");
-  $cbgp->send_cmd("bgp router 0.2.0.0 add network 253/8");
-  $cbgp->send_cmd("bgp router 0.4.0.0 add network 254/8");
-  $cbgp->send_cmd("bgp router 0.6.0.0 add network 255/8");
+  $cbgp->send_cmd("bgp router AS1 add network 252/8");
+  $cbgp->send_cmd("bgp router AS2 add network 253/8");
+  $cbgp->send_cmd("bgp router AS4 add network 254/8");
+  $cbgp->send_cmd("bgp router AS6 add network 255/8");
   $cbgp->send_cmd("sim run");
 
   # Check valley-free property for 252-255/8
-  my $rib= cbgp_get_rib($cbgp, "0.1.0.0");
+  my $rib= cbgp_get_rib($cbgp, "AS1");
   if (!exists($rib->{"252.0.0.0/8"}) || !exists($rib->{"253.0.0.0/8"}) ||
       !exists($rib->{"254.0.0.0/8"}) || !exists($rib->{"255.0.0.0/8"})) {
     $tests->debug("AS1 should have all routes");
     return TEST_FAILURE;
   }
-  $rib= cbgp_get_rib($cbgp, "0.3.0.0");
+  $rib= cbgp_get_rib($cbgp, "AS3");
   if (!exists($rib->{"252.0.0.0/8"}) || exists($rib->{"253.0.0.0/8"}) ||
       exists($rib->{"254.0.0.0/8"}) || !exists($rib->{"255.0.0.0/8"})) {
     $tests->debug("AS3 should only receive route from AS1 and AS6");
     return TEST_FAILURE;
   }
-  $rib= cbgp_get_rib($cbgp, "0.5.0.0");
+  $rib= cbgp_get_rib($cbgp, "AS5");
   if (!exists($rib->{"252.0.0.0/8"}) || exists($rib->{"253.0.0.0/8"}) ||
       exists($rib->{"254.0.0.0/8"}) || !exists($rib->{"255.0.0.0/8"})) {
     $tests->debug("AS5 should only receive route from AS1 and AS6");
     return TEST_FAILURE;
   }
-  $rib= cbgp_get_rib($cbgp, "0.7.0.0");
+  $rib= cbgp_get_rib($cbgp, "AS7");
   if (!exists($rib->{"252.0.0.0/8"}) || !exists($rib->{"253.0.0.0/8"}) ||
       !exists($rib->{"254.0.0.0/8"}) || !exists($rib->{"255.0.0.0/8"})) {
     $tests->debug("AS7 should receive all routes");
@@ -89,28 +89,32 @@ sub cbgp_valid_bgp_topology_policies_filters($) {
   }
 
   # Originate prefixes and propagate
-  $cbgp->send_cmd("bgp router 0.3.0.0 add network 251/8");
-  $cbgp->send_cmd("bgp router 0.5.0.0 add network 251/8");
-  $cbgp->send_cmd("bgp router 0.7.0.0 add network 251/8");
-  $cbgp->send_cmd("bgp router 0.3.0.0 add network 250/8");
-  $cbgp->send_cmd("bgp router 0.5.0.0 add network 250/8");
-  $cbgp->send_cmd("bgp router 0.5.0.0 add network 249/8");
-  $cbgp->send_cmd("bgp router 0.7.0.0 add network 249/8");
-  $cbgp->send_cmd("bgp router 0.3.0.0 add network 248/8");
-  $cbgp->send_cmd("bgp router 0.7.0.0 add network 248/8");
+  $cbgp->send_cmd("bgp router AS3 add network 251/8");
+  $cbgp->send_cmd("bgp router AS5 add network 251/8");
+  $cbgp->send_cmd("bgp router AS7 add network 251/8");
+  $cbgp->send_cmd("bgp router AS3 add network 250/8");
+  $cbgp->send_cmd("bgp router AS5 add network 250/8");
+  $cbgp->send_cmd("bgp router AS5 add network 249/8");
+  $cbgp->send_cmd("bgp router AS7 add network 249/8");
+  $cbgp->send_cmd("bgp router AS3 add network 248/8");
+  $cbgp->send_cmd("bgp router AS7 add network 248/8");
   $cbgp->send_cmd("sim run");
 
   # Check preferences for 248-251/8
-  $rib= cbgp_get_rib($cbgp, "0.1.0.0");
+  $rib= cbgp_get_rib($cbgp, "AS1");
   if (!exists($rib->{"248.0.0.0/8"}) || !exists($rib->{"249.0.0.0/8"}) ||
       !exists($rib->{"250.0.0.0/8"}) || !exists($rib->{"251.0.0.0/8"})) {
     $tests->debug("AS1 should receive all routes");
     return TEST_FAILURE;
   }
-  if (($rib->{"248.0.0.0/8"}->[F_RIB_NEXTHOP] ne '0.7.0.0') ||
-      ($rib->{"249.0.0.0/8"}->[F_RIB_NEXTHOP] ne '0.7.0.0') ||
-      ($rib->{"250.0.0.0/8"}->[F_RIB_NEXTHOP] ne '0.5.0.0') ||
-      ($rib->{"251.0.0.0/8"}->[F_RIB_NEXTHOP] ne '0.7.0.0')) {
+  my $info= cbgp_node_info($cbgp, "AS7");
+  my $node7= $info->{'id'};
+  $info= cbgp_node_info($cbgp, "AS5");
+  my $node5= $info->{'id'};
+  if (($rib->{"248.0.0.0/8"}->[F_RIB_NEXTHOP] ne $node7) ||
+      ($rib->{"249.0.0.0/8"}->[F_RIB_NEXTHOP] ne $node7) ||
+      ($rib->{"250.0.0.0/8"}->[F_RIB_NEXTHOP] ne $node5) ||
+      ($rib->{"251.0.0.0/8"}->[F_RIB_NEXTHOP] ne $node7)) {
     $tests->debug("AS1's route selection is incorrect");
     return TEST_FAILURE;
   }
