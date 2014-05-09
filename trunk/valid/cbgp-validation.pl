@@ -81,7 +81,7 @@ use CBGPValid::XMLReport;
 use POSIX;
 
 
-use constant CBGP_VALIDATION_VERSION => '1.13';
+use constant CBGP_VALIDATION_VERSION => '1.14';
 
 # -----[ Error messages ]-----
 my $CBGP_ERROR_INVALID_SUBNET    = "invalid subnet";
@@ -105,8 +105,8 @@ use constant MRT_NEXTHOP => 8;
 # These are the expected major/minor versions of the C-BGP instance
 # we are going to test.If these versions are lower than reported by
 # the C-BGP instance, a warning will be issued.
-use constant CBGP_MAJOR_MIN => 1;
-use constant CBGP_MINOR_MIN => 4;
+use constant CBGP_MAJOR_MIN => 2;
+use constant CBGP_MINOR_MIN => 3;
 
 use constant DEFAULT_REPORT_PREFIX => "cbgp-valid";
 
@@ -927,6 +927,7 @@ sub cbgp_topo_check_links($$)
 	    $attr[F_TOPO_LINK_DELAY]= $link->[F_LINK_DELAY];
 	    $attr[F_TOPO_LINK_WEIGHT]= $link->[F_LINK_WEIGHT];
 	    $cbgp_topo{$node1}{$link->[F_LINK_DST]}= \@attr;
+	    #print "$node1 $link->[F_LINK_DST]\n"
 	  }
 	}
 	if (!exists($nodes{$node2})) {
@@ -938,6 +939,7 @@ sub cbgp_topo_check_links($$)
 	    $attr[F_TOPO_LINK_DELAY]= $link->[F_LINK_DELAY];
 	    $attr[F_TOPO_LINK_WEIGHT]= $link->[F_LINK_WEIGHT];
 	    $cbgp_topo{$node2}{$link->[F_LINK_DST]}= \@attr;
+	    #print "$node2 $link->[F_LINK_DST]\n"
 	  }
 	}
       }
