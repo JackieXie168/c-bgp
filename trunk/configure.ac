@@ -20,7 +20,7 @@ dnl times :(
 AC_CANONICAL_SYSTEM
 
 dnl Version setting up for Automake
-AM_INIT_AUTOMAKE([no-define])
+AM_INIT_AUTOMAKE([no-define serial-tests])
 AC_CONFIG_HEADER(src/config.h)
 #AM_MAINTAINER_MODE
 
