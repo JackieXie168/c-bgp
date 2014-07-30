@@ -1000,6 +1000,9 @@ int aslevel_topo_load(const char * filename, uint8_t format,
   int result;
   int line_num= -1;
 
+  if (line_number != NULL)
+    *line_number= line_num;
+
   if (_the_topo != NULL)
     return ASLEVEL_ERROR_TOPOLOGY_LOADED;
 
