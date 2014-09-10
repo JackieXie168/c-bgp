@@ -80,6 +80,7 @@ JAVAFILES= \
 	net/Subnet.java
 
 JAVATESTFILES= \
+	testing/TestCommon.java \
 	testing/TestBGPDomain.java \
 	testing/TestBGPRouter.java \
 	testing/TestIGPDomain.java \
@@ -125,7 +126,7 @@ EXTRA_DIST = \
 	$(METAFILE) \
 	jni-test-wrapper.sh
 
-CP = .:$(top_builddir)/lib/junit-4.4.jar
+CP = .:$(top_builddir)/lib/junit-4.9.jar
 if HOST_IS_CYGWIN
   CLASSPATH = `cygpath -wp $(CP)`
 else
