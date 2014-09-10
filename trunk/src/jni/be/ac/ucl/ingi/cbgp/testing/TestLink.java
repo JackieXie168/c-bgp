@@ -21,7 +21,7 @@ import be.ac.ucl.ingi.cbgp.net.Interface;
 import be.ac.ucl.ingi.cbgp.net.Node;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
 
-public class TestLink {
+public class TestLink extends TestCommon {
 
 	CBGP cbgp;
 	

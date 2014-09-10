@@ -19,7 +19,7 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
-public class TestTraceRoute {
+public class TestTraceRoute extends TestCommon {
 	
 	protected CBGP cbgp;
 	protected IGPDomain domain;

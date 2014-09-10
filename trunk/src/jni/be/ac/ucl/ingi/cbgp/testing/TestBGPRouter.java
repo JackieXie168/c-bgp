@@ -19,7 +19,7 @@ import be.ac.ucl.ingi.cbgp.bgp.Router;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 
-public class TestBGPRouter {
+public class TestBGPRouter extends TestCommon {
 	
 	CBGP cbgp;
 	

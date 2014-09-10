@@ -25,7 +25,7 @@ import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Interface;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
-public class TestMisc {
+public class TestMisc extends TestCommon {
 	
 	CBGP cbgp;
 	

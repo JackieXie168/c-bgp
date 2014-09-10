@@ -20,7 +20,7 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
-public class TestIGPDomain {
+public class TestIGPDomain extends TestCommon {
 
 	CBGP cbgp;
 	

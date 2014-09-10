@@ -22,7 +22,7 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
-public class TestRecordRoute {
+public class TestRecordRoute extends TestCommon {
 
 	protected CBGP cbgp;
 	protected IGPDomain domain;
@@ -48,16 +48,16 @@ public class TestRecordRoute {
 	
 	@Test
 	public void testBasic() throws CBGPException {
-		Vector<IPTrace> traces= node1.recordRoute("1.0.0.2");
-		IPTrace trace= traces.get(0);
-		assertNotNull(trace);
-		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
-		assertEquals((int) 2, trace.getElementsCount());
-		traces= node1.recordRoute("1.0.0.3");
-		trace= traces.get(0);
-		assertNotNull(trace);
-		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
-		assertEquals((int) 3, trace.getElementsCount());
+	    Vector<IPTrace> traces= node1.recordRoute("1.0.0.2");
+	    IPTrace trace= traces.get(0);
+	    assertNotNull(trace);
+	    assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
+	    assertEquals((int) 2, trace.getElementsCount());
+	    traces= node1.recordRoute("1.0.0.3");
+	    trace= traces.get(0);
+	    assertNotNull(trace);
+	    assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
+	    assertEquals((int) 3, trace.getElementsCount());
 	}
 	
 }

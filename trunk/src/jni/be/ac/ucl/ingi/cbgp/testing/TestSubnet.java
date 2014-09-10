@@ -16,7 +16,7 @@ import be.ac.ucl.ingi.cbgp.CBGP;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.Subnet;
 
-public class TestSubnet {
+public class TestSubnet extends TestCommon {
 	
 	CBGP cbgp;
 	
