@@ -1246,8 +1246,8 @@ JNI_OnUnload(JavaVM * jVM, void *reserved)
   JNIEnv * jEnv= NULL;
   void * ppEnv= &jEnv;
 
-  /*fprintf(stdout, "C-BGP JNI library unloaded.\n");
-    fflush(stdout);*/
+  fprintf(stdout, "C-BGP JNI library unloaded.\n");
+    fflush(stdout);
 
   // Get JNI environment
   if ((*jVM)->GetEnv(jVM, ppEnv, JNI_VERSION_1_2) != JNI_OK)
