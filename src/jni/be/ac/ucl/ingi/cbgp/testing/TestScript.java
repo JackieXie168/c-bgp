@@ -22,7 +22,7 @@ import be.ac.ucl.ingi.cbgp.CBGP;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.exceptions.CBGPScriptException;
 
-public class TestScript {
+public class TestScript extends TestCommon {
 
 	CBGP cbgp;
 	

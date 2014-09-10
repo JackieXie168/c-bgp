@@ -16,6 +16,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
+import org.junit.Rule;
+import org.junit.runner.Description;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+
 @RunWith(Suite.class)
 @SuiteClasses({
 	TestSession.class,
@@ -32,17 +37,16 @@ import org.junit.runners.Suite.SuiteClasses;
 	TestTraceRoute.class
 })
 public class AllTests {
-	
-	public static void main(String[] args) {
-		System.out.println("Running JUnit tests (version:"+(new JUnitCore()).getVersion()+")");
-		/*TestResult result = new TestResult();
-		suite().run(result);*/
-		Result result= JUnitCore.runClasses(new Class [] {AllTests.class});
-		System.out.println(result.toString());
-	}
-	
-	public static Test suite() {
-		return new JUnit4TestAdapter(AllTests.class);
-	}
+
+    @Rule
+    public TestRule watcher = new TestWatcher() {
+	    protected void starting(Description description) {
+		System.out.println("Starting test: " + description.getMethodName());
+	    }
+	};
+    
+    public static Test suite() {
+	return new JUnit4TestAdapter(AllTests.class);
+    }
 		
 }

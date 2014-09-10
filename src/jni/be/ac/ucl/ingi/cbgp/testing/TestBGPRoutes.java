@@ -25,7 +25,7 @@ import be.ac.ucl.ingi.cbgp.exceptions.CBGPException;
 import be.ac.ucl.ingi.cbgp.net.IGPDomain;
 import be.ac.ucl.ingi.cbgp.net.Node;
 
-public class TestBGPRoutes {
+public class TestBGPRoutes extends TestCommon {
 	
 	CBGP cbgp;
 	IGPDomain domain;
