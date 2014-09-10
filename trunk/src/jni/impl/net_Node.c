@@ -170,12 +170,14 @@ Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
  jstring jsDestination
 )
 {
+  int i;
+  uint8_t ttl= 255;
   net_node_t * node;
   jobject joVector;
   jobject joTrace;
   ip_dest_t dest;
   ip_trace_t * trace;
-  gds_enum_t * traces;
+  array_t * traces;
   ip_opt_t * opts;
 
   jni_lock(env);
@@ -205,14 +207,14 @@ Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
   if (dest.type == NET_DEST_PREFIX)
     ip_options_alt_dest(opts, dest.prefix);
 
-  traces= icmp_trace_send(node, dest.addr, 255, opts);
+  traces= icmp_trace_send(node, dest.addr, ttl, opts);
 
   joVector= cbgp_jni_new_Vector(env);
   if (joVector == NULL)
     return_jni_unlock(env, NULL);
 
-  while (enum_has_next(traces)) {
-    trace= *((ip_trace_t **) enum_get_next(traces));
+  for (i= 0; i < _array_length(traces); i++) {
+    _array_get_at(traces, i, &trace);
 
     joTrace= cbgp_jni_new_IPTrace(env, trace);
     if (joTrace == NULL)
@@ -220,10 +222,8 @@ Java_be_ac_ucl_ingi_cbgp_net_Node_recordRoute
 
     if (cbgp_jni_Vector_add(env, joVector, joTrace) < 0)
       return_jni_unlock(env, NULL);
-    
-    ip_trace_destroy(&trace);
   }
-  enum_destroy(&traces);
+  _array_destroy(&traces);
 
   return_jni_unlock(env, joVector);
 }
