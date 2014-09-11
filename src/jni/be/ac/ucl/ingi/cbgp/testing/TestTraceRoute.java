@@ -33,8 +33,10 @@ public class TestTraceRoute extends TestCommon {
 		node1= domain.addNode("1.0.0.1");
 		node2= domain.addNode("1.0.0.2");
 		node3= domain.addNode("1.0.0.3");
-		node1.addLTLLink(node2, true).setWeight(1);
-		node2.addLTLLink(node3, true).setWeight(2);
+		node1.addLTLLink(node2, false).setWeight(1);
+		node2.addLTLLink(node1, false).setWeight(1);
+		node2.addLTLLink(node3, false).setWeight(2);
+		node3.addLTLLink(node2, false).setWeight(2);
 		domain.compute();
 	}
 	
