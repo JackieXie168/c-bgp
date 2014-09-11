@@ -86,7 +86,7 @@ void throw_CBGPException(JNIEnv * jEnv, const char * pcMsg, ...)
   va_start(ap, pcMsg);
 
   // Allocate string dynamically, using malloc()
-  vasprintf(&pcFinalMsg, pcMsg, ap);
+  assert(vasprintf(&pcFinalMsg, pcMsg, ap) >= 0);
   assert(pcFinalMsg != NULL);
 
   jcException= (*jEnv)->FindClass(jEnv, CLASS_CBGPException);
