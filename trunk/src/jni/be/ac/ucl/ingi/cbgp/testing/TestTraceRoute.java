@@ -47,14 +47,20 @@ public class TestTraceRoute extends TestCommon {
 	
 	@Test
 	public void testBasic() throws CBGPException {
-		IPTrace trace= node1.traceRoute("1.0.0.2");
-		assertNotNull(trace);
-		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
-		assertEquals((int) 2, trace.getElementsCount());
-		trace= node1.traceRoute("1.0.0.3");
-		assertNotNull(trace);
-		assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
-		assertEquals((int) 3, trace.getElementsCount());
+	    /* A trace's length is >= 1 as it always includes the source node */
+	    IPTrace trace= node1.traceRoute("1.0.0.2");
+	    assertNotNull(trace);
+	    assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
+	    assertEquals((int) 2, trace.getElementsCount());
+
+	    trace= node1.traceRoute("1.0.0.3");
+	    assertNotNull(trace);
+	    assertEquals(IPTrace.IP_TRACE_SUCCESS, trace.getStatus());
+	    assertEquals((int) 3, trace.getElementsCount());
+
+	    trace= node1.traceRoute("1.0.0.4"); // node does not exist
+	    assertEquals(IPTrace.IP_TRACE_HOST_UNREACH, trace.getStatus());
+	    assertEquals((int) 2, trace.getElementsCount());
 	}
 	
 }
