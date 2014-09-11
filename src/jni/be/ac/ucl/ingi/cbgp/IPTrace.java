@@ -21,16 +21,19 @@ import be.ac.ucl.ingi.cbgp.net.Element;
 public class IPTrace {
 
     // -----[ error code constants ]---------------------------------
-    public static final int IP_TRACE_SUCCESS           =  0;
-    public static final int IP_TRACE_UNKNOWN           = -1;
-    public static final int IP_TRACE_TOO_LONG          = -2;
-    public static final int IP_TRACE_UNREACH           = -3;
-    public static final int IP_TRACE_DOWN              = -4;
-    public static final int IP_TRACE_TUNNEL_UNREACH    = -5;
-    public static final int IP_TRACE_TUNNEL_BROKEN     = -6;
-    public static final int IP_TRACE_ICMP_TIME_EXP     = -7;
-    public static final int IP_TRACE_ICMP_HOST_UNREACH = -8;
-    public static final int IP_TRACE_ICMP_NET_UNREACH  = -9;
+    public static final int IP_TRACE_SUCCESS            =  0;
+    // Errors on the local node
+    public static final int IP_TRACE_NET_UNREACH        = -100;
+    public static final int IP_TRACE_HOST_UNREACH       = -101;
+    public static final int IP_TRACE_PROTO_UNREACH      = -102;
+    public static final int IP_TRACE_TIME_EXCEEDED      = -103;
+    public static final int IP_TRACE_LINK_DOWN          = -104;
+    // Errors reported by ICMP
+    public static final int IP_TRACE_ICMP_NET_UNREACH   = -601;
+    public static final int IP_TRACE_ICMP_HOST_UNREACH  = -602;
+    public static final int IP_TRACE_ICMP_PROTO_UNREACH = -603;
+    public static final int IP_TRACE_ICMP_TIME_EXCEEDED = -604;
+    public static final int IP_TRACE_NO_REPLY           = -606;
 
     // -----[ protected attributes ]---------------------------------
     protected final int status;
@@ -126,25 +129,33 @@ public class IPTrace {
     	//CBGPStatic.getErrorMsg(status);
     	switch (status) {
     	case IP_TRACE_SUCCESS:
-    		return "SUCCESS";
-    	case IP_TRACE_TOO_LONG:
-    		return "TOO_LONG";
-    	case IP_TRACE_UNREACH:
-    		return "UNREACH";
-    	case IP_TRACE_DOWN:
-    		return "DOWN";
-    	case IP_TRACE_TUNNEL_UNREACH:
-    		return "TUNNEL_UNREACH";
-    	case IP_TRACE_TUNNEL_BROKEN:
-    		return "TUNNEL_BROKEN";
-    	case IP_TRACE_ICMP_TIME_EXP:
-    		return "ICMP error (time-expired)";
-    	case IP_TRACE_ICMP_HOST_UNREACH:
-    		return "ICMP error (host-unreachable)";
+	    return "SUCCESS";
+	    /*case IP_TRACE_TOO_LONG:
+	      return "TOO_LONG";*/
+    	case IP_TRACE_NET_UNREACH:
+	    return "Network unreachable";
+    	case IP_TRACE_HOST_UNREACH:
+	    return "Host unreachable";
+    	case IP_TRACE_PROTO_UNREACH:
+	    return "Protocol unreachable";
+    	case IP_TRACE_TIME_EXCEEDED:
+	    return "Time exceeded";
+    	case IP_TRACE_LINK_DOWN:
+	    return "Link down";
+	    /*case IP_TRACE_TUNNEL_UNREACH:
+	      return "TUNNEL_UNREACH";
+	      case IP_TRACE_TUNNEL_BROKEN:
+	      return "TUNNEL_BROKEN";*/
     	case IP_TRACE_ICMP_NET_UNREACH:
-    		return "ICMP error (network-unreachable)";
+	    return "ICMP error (network-unreachable)";
+    	case IP_TRACE_ICMP_HOST_UNREACH:
+	    return "ICMP error (host-unreachable)";
+    	case IP_TRACE_ICMP_PROTO_UNREACH:
+	    return "ICMP error (protocol-unreachable)";
+    	case IP_TRACE_ICMP_TIME_EXCEEDED:
+	    return "ICMP error (time-expired)";
     	default:
-    		return "UNKNOWN";
+	    return "UNKNOWN";
     	}
     }
 
