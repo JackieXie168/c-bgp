@@ -8,7 +8,8 @@
 # - CBGP jar file
 # - junit jar file
 # - user-defined CLASSPATH
-CLASSPATH=@top_builddir@/src/jni/CBGP.jar:@top_builddir@/lib/junit-4.4.jar:$CLASSPATH
+JUNIT_VERSION=4.9
+CLASSPATH=@top_builddir@/src/jni/CBGP.jar:@top_builddir@/lib/junit-$JUNIT_VERSION.jar:$CLASSPATH
 
 # List of temporary files (to be removed later)
 CLEAN=""
