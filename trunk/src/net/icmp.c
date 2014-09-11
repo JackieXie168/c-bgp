@@ -390,9 +390,9 @@ net_error_t icmp_trace_route(gds_stream_t * stream,
 
     if (stream != NULL) {
       stream_printf(stream, "\t");
-      if (error == ESUCCESS)
+      if (error == ESUCCESS) {
 	stream_printf(stream, "reply");
-      else
+      } else
 	network_perror(stream, error);
       stream_printf(stream, "\n");
     }
@@ -402,6 +402,8 @@ net_error_t icmp_trace_route(gds_stream_t * stream,
       
     ttl++;
   }
+
+  trace->status= error;
 
   if (stream != NULL)
     stream_flush(stream);
