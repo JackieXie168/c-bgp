@@ -39,6 +39,10 @@ extern char * SESSION_STATES[SESSION_STATE_MAX];
 /* This flag is set if this session was configured automatically */ 
 #define PEER_FLAG_AUTOCONF      0x10
 
+/* This flag is set if the next-hop advertised to the peer
+   is initialized to a predefined value (stored in peer->next_hop). */
+#define PEER_FLAG_NEXT_HOP_OV   0x20
+
 #ifdef __cplusplus
 extern "C" {
 #endif

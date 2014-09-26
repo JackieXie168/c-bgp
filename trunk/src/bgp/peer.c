@@ -141,6 +141,7 @@ int bgp_peer_set_nexthop(bgp_peer_t * peer, net_addr_t next_hop)
     return -1;
 
   peer->next_hop= next_hop;
+  bgp_peer_flag_set(peer, PEER_FLAG_NEXT_HOP_OV, (next_hop != NET_ADDR_ANY));
 
   return 0;
 }
@@ -299,11 +300,19 @@ int bgp_peer_open_session(bgp_peer_t * peer)
     error= _bgp_peer_send(peer, msg);
     if (error == ESUCCESS) {
       peer->session_state= SESSION_STATE_OPENWAIT;
+      if (!bgp_peer_flag_get(peer, PEER_FLAG_NEXT_HOP_OV)) {
+	const rt_entries_t * rtentries=
+	  node_rt_lookup(peer->router->node, peer->addr);
+	const rt_entry_t * rtentry= rt_entries_get_at(rtentries, 0);
+	peer->next_hop= net_iface_src_address(rtentry->oif);
+      }
     } else {
       peer->session_state= SESSION_STATE_ACTIVE;
       peer->router_id= NET_ADDR_ANY;
       peer->send_seq_num= 0;
       peer->recv_seq_num= 0;
+      if (!bgp_peer_flag_get(peer, PEER_FLAG_NEXT_HOP_OV))
+	peer->next_hop= NET_ADDR_ANY;
     }
     peer->last_error= error;
   } else {

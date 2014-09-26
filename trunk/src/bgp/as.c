@@ -798,7 +798,10 @@ static inline int _bgp_router_advertise_to_peer(bgp_router_t * router,
       if (bgp_peer_flag_get(route_peer_get(new_route),
 			    PEER_FLAG_NEXT_HOP_SELF)) {
 	route_set_nexthop(new_route, router->rid);
-      } else if (dst_peer->next_hop != NET_ADDR_ANY) {
+      } else if (bgp_peer_flag_get(dst_peer,
+				   PEER_FLAG_NEXT_HOP_OV)) {
+	/* If the next-hop value has been set through the CLI
+	   with command "bgp router peer next-hop" */
 	route_set_nexthop(new_route, dst_peer->next_hop);
       }
     }
