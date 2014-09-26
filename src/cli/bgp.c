@@ -71,7 +71,7 @@ int cli_bgp_add_router(cli_ctx_t * ctx, cli_cmd_t * cmd)
 
   // Check AS-Number
   if (str2asn(arg_asn, &asn)) {
-    cli_set_user_error(cli_get(), "invalid AS number (%u)", arg_asn);
+    cli_set_user_error(cli_get(), "invalid AS number (%s)", arg_asn);
     return CLI_ERROR_COMMAND_FAILED;
   }
 
