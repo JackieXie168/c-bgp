@@ -151,7 +151,9 @@ typedef struct bgp_peer_t {
   bgp_rib_t           * adj_rib[RIB_MAX];    
   /** Session state (handled by the FSM). */
   bgp_peer_state_t      session_state;
-  /** Optional next-hop to advertise to this peer. */
+  /** Next-hop to advertise to this peer.
+      (initialized during session start;
+       see also PEER_FLAG_NEXT_HOP_OV) */
   net_addr_t            next_hop;
   /** Optional source IP address. */
   net_addr_t            src_addr; 
