@@ -33,7 +33,8 @@ sub cbgp_valid_bgp_topology_load_asn32($) {
 
   my $topo= topo_from_subramanian_file($topo_file, C_TOPO_ADDR_SCH_LOCAL);
 
-  $cbgp->send_cmd("bgp topology load \"$topo_file\"");
+  cbgp_check_error($cbgp, "bgp topology load \"$topo_file\"")
+      and return TEST_FAILURE;
   $cbgp->send_cmd("bgp topology install");
 
   # Check that all links are created
