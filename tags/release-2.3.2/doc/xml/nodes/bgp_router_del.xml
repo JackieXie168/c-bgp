@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>del</name>
+  <id>bgp_router_del</id>
+  <context>bgp router</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

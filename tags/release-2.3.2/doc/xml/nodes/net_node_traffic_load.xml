@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<command>
+  <name>load</name>
+  <id>net_node_traffic_load</id>
+  <context>net node traffic</context>
+  <parameters>
+    <option>
+      <name>--details</name>
+      <description/>
+    </option>
+    <option>
+      <name>--summary</name>
+      <description/>
+    </option>
+    <parameter>
+      <name>filename</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

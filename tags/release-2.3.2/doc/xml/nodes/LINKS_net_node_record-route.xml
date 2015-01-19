@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <prev>
+    <name>ping</name>
+    <id>net_node_ping</id>
+  </prev>
+  <next>
+    <name>route</name>
+    <id>net_node_route</id>
+  </next>
+</command>

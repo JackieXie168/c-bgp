@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>add</name>
+    <id>net_node_add</id>
+  </father>
+</command>

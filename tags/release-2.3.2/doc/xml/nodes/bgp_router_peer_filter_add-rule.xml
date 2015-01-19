@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>add-rule</name>
+  <id>bgp_router_peer_filter_add-rule</id>
+  <context>bgp router peer filter</context>
+  
+  <abstract>add a rule to a filter</abstract>
+  <description>
+<p>This command adds a rule to a filter. The rule will be added at the end of the sequence of rules of the filter. When a rule is added, two sub-commands can be used to define its predicate and actions. These sub-commands are <cmd><name>match</name><link>bgp_router_peer_filter_add-rule_match</link></cmd> and <cmd><name>action</name><link>bgp_router_peer_filter_add-rule_action</link></cmd> respectively.</p>
+  </description>
+</command>

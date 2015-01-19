@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>comm-hash-content</name>
+  <id>show_comm-hash-content</id>
+  <context>show</context>
+  <parameters>
+    <parameter>
+      <name>output</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

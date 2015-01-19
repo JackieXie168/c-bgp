@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>connect</name>
+      <id>net_node_iface_connect</id>
+    </child>
+    <child>
+      <name>down</name>
+      <id>net_node_iface_down</id>
+    </child>
+    <child>
+      <name>igp-weight</name>
+      <id>net_node_iface_igp-weight</id>
+    </child>
+    <child>
+      <name>load</name>
+      <id>net_node_iface_load</id>
+    </child>
+    <child>
+      <name>up</name>
+      <id>net_node_iface_up</id>
+    </child>
+  </childs>
+  <prev>
+    <name>domain</name>
+    <id>net_node_domain</id>
+  </prev>
+  <next>
+    <name>ipip-enable</name>
+    <id>net_node_ipip-enable</id>
+  </next>
+</command>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>topology</name>
+    <id>bgp_topology</id>
+  </father>
+  <prev>
+    <name>record-route</name>
+    <id>bgp_topology_record-route</id>
+  </prev>
+  <next>
+    <name>stat-degree</name>
+    <id>bgp_topology_stat-degree</id>
+  </next>
+</command>

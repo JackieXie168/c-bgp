@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>show</name>
+  <id>bgp_show</id>
+  <context>bgp</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

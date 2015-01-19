@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>bgp</name>
+    <id>bgp</id>
+  </father>
+  <prev>
+    <name>assert</name>
+    <id>bgp_assert</id>
+  </prev>
+  <next>
+    <name>clear-rib</name>
+    <id>bgp_clear-rib</id>
+  </next>
+</command>

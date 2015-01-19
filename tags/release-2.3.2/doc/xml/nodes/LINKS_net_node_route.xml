@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>node</name>
+    <id>net_node</id>
+  </father>
+  <childs>
+    <child>
+      <name>add</name>
+      <id>net_node_route_add</id>
+    </child>
+    <child>
+      <name>del</name>
+      <id>net_node_route_del</id>
+    </child>
+  </childs>
+  <prev>
+    <name>record-route</name>
+    <id>net_node_record-route</id>
+  </prev>
+  <next>
+    <name>show</name>
+    <id>net_node_show</id>
+  </next>
+</command>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>bgp</name>
+  <id>bgp</id>
+  <context/>
+  
+  <abstract>bgp related commands</abstract>
+  
+  
+  
+</command>

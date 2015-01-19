@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <name>traffic</name>
+  <id>net_traffic</id>
+  <context>net</context>
+  
+  <abstract/>
+  <description/>
+  
+  
+</command>

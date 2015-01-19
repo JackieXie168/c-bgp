@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>ntf</name>
+    <id>net_ntf</id>
+  </father>
+</command>

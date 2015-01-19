@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>traffic</name>
+    <id>net_traffic</id>
+  </father>
+  <next>
+    <name>save</name>
+    <id>net_traffic_save</id>
+  </next>
+</command>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>asn</name>
+  <id>bgp_topology_filter_asn</id>
+  <context>bgp topology filter</context>
+  <parameters>
+    <parameter>
+      <name>asn</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

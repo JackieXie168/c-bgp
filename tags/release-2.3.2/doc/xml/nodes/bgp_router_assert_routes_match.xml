@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<command>
+  <name>match</name>
+  <id>bgp_router_assert_routes_match</id>
+  <context>bgp router assert routes</context>
+  <parameters>
+    <parameter>
+      <name>predicate</name>
+      <description/>
+    </parameter>
+  </parameters>
+  <abstract/>
+  <description/>
+  
+  
+</command>

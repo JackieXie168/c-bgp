@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>peer</name>
+    <id>bgp_router_peer</id>
+  </father>
+  <childs>
+    <child>
+      <name>info</name>
+      <id>bgp_router_peer_show_info</id>
+    </child>
+  </childs>
+  <prev>
+    <name>rr-client</name>
+    <id>bgp_router_peer_rr-client</id>
+  </prev>
+  <next>
+    <name>soft-restart</name>
+    <id>bgp_router_peer_soft-restart</id>
+  </next>
+</command>

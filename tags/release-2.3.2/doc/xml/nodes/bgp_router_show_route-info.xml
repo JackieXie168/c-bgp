@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<command>
+  <name>route-info</name>
+  <id>bgp_router_show_route-info</id>
+  <context>bgp router show</context>
+  <parameters>
+    <option>
+      <name>--output=</name>
+      <description>optional output file</description>
+    </option>
+    <parameter>
+      <name>prefix|address|*</name>
+      <description>destination of interest</description>
+    </parameter>
+  </parameters>
+  <abstract>show details about the decision process outcome</abstract>
+  <description>
+<p>This command can be used to obtain details about the outcome of the decision process for a single destination or for all destinations. The destination can be specified as a prefix to perform an exact-match search in the router RIB, as an address to perform a best-match search or with a wildcard (*) if all destinations are requested.</p>
+<p>Here is an example output for this command. A wildcard has been used to request information about all known destinations. There are only 3 routes in the example. For each destination prefix, the decision process rule which made the final tie-break is displayed. The number of routes available for this prefix is also shown. In the example, the router knows a single route for the 2nd and 3rd prefixes. For this reason, no decision process rule is shown, but the message "Single choice" is displayed instead.
+<code>cbgp&gt; bgp router 1.0.0.2 show route-info *<br/>
+prefix: 1.0.1.0/24<br/>
+decision-process-rule: 8 [ Shortest CLUSTER-ID-LIST ]<br/>
+decision-process-feasibles: 2<br/>
+prefix: 1.0.2.0/24<br/>
+decision-process-rule: 0 [ Single choice ]<br/>
+decision-process-feasibles: 0<br/>
+prefix: 1.0.3.0/24<br/>
+decision-process-rule: 0 [ Single choice ]<br/>
+decision-process-feasibles: 1<br/>
+</code>
+</p>
+  </description>
+  <see-also>
+<p>If more details are needed regarding the BGP decision process outcome, command <cmd><name>debug dp</name><link>bgp_router_debug_dp</link></cmd> can be used.</p>
+  </see-also>
+</command>

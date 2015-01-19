@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>sim</name>
+    <id>sim</id>
+  </father>
+  <childs>
+    <child>
+      <name>queue</name>
+      <id>sim_debug_queue</id>
+    </child>
+  </childs>
+  <prev>
+    <name>clear</name>
+    <id>sim_clear</id>
+  </prev>
+  <next>
+    <name>event</name>
+    <id>sim_event</id>
+  </next>
+</command>

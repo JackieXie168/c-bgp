@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<command>
+  <father>
+    <name>domain</name>
+    <id>net_domain</id>
+  </father>
+  <childs>
+    <child>
+      <name>info</name>
+      <id>net_domain_show_info</id>
+    </child>
+    <child>
+      <name>nodes</name>
+      <id>net_domain_show_nodes</id>
+    </child>
+  </childs>
+  <prev>
+    <name>compute</name>
+    <id>net_domain_compute</id>
+  </prev>
+</command>
