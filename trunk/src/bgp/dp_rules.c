@@ -408,7 +408,7 @@ int dp_rule_lowest_origin(bgp_router_t * router, bgp_routes_t * routes)
 int dp_rule_lowest_med(bgp_router_t * router, bgp_routes_t * routes)
 {
   unsigned int index, index2;
-  //int iLastAS;
+  asn_t asn1, asn2;
   bgp_route_t * route, * route2;
   uint32_t uMinMED= UINT_MAX;
 #if defined __EXPERIMENTAL__ && defined __EXPERIMENTAL_WALTON__
@@ -459,33 +459,37 @@ int dp_rule_lowest_med(bgp_router_t * router, bgp_routes_t * routes)
 
   case BGP_MED_TYPE_DETERMINISTIC:
 
-    index= 0;
-    while (index < bgp_routes_size(routes)) {
+    for (index= 0; index < bgp_routes_size(routes); index++) {
       route= bgp_routes_at(routes, index);
       
-      if (route != NULL) {
+      if (route == NULL)
+	continue; // NULL is used to mark routes discarded by this rule
 
-	index2= index+1;
-	while (index2 < bgp_routes_size(routes)) {
-	  route2= bgp_routes_at(routes, index2);
-	  
-	  if (route2 != NULL) {
+      path_last_as(route->attr->path_ref, &asn1);
 
-	    if (route2->peer->asn == route->peer->asn) {
-	      if (route->attr->med < route2->attr->med) {
-		routes->data[index2]= NULL;
-	      } else if (route->attr->med > route2->attr->med) {
-		routes->data[index]= NULL;
-		break;
-	      }
-	    }
-	  }
+      
+      for (index2= index+1;index2 < bgp_routes_size(routes); index2++) {
+	route2= bgp_routes_at(routes, index2);
 	  
-	  index2++;
+	if (route2 == NULL)
+	  continue; // NULL is used to mark routes discarded by this rule
+
+	asn_t asn2;
+	path_last_as(route2->attr->path_ref, &asn2);
+
+	if (asn1 != asn2)
+	  continue; // Cannot compare routes from different neighbor AS
+	if (route->attr->med < route2->attr->med) {
+	  routes->data[index2]= NULL;
+	} else if (route->attr->med > route2->attr->med) {
+	  routes->data[index]= NULL;
+	  break;
 	}
+	  
       }
-      index++;
     }
+
+    // Remove discarded routes (marked as NULL)
     index= 0;
     while (index < bgp_routes_size(routes)) {
       if (routes->data[index] == NULL) {
