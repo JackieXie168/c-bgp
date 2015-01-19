@@ -81,7 +81,7 @@ use CBGPValid::XMLReport;
 use POSIX;
 
 
-use constant CBGP_VALIDATION_VERSION => '1.14';
+use constant CBGP_VALIDATION_VERSION => '1.15';
 
 # -----[ Error messages ]-----
 my $CBGP_ERROR_INVALID_SUBNET    = "invalid subnet";
@@ -126,64 +126,9 @@ my $validation= {
 		 'tmp_path'        => '/tmp',
 		};
 
-show_info("c-bgp CLI validation v".$validation->{'program_version'});
-show_info("(c) 2008-2013, Bruno Quoitin (bruno.quoitin\@umons.ac.be)");
-
+my $tests;
 my %opts;
-if (!GetOptions(\%opts,
-		"cbgp-path:s",
-		"cache!",
-		"debug!",
-		"glibtool!",
-		"help!",
-		"libtool!",
-		"max-failures:i",
-		"max-warnings:i",
-		"include:s@",
-		"report:s",
-	        "report-prefix:s",
-		"resources-path:s",
-	        "valgrind!")) {
-  show_error("Invalid command-line options");
-  exit(-1);
-}
-
-if (exists($opts{'help'})) {
-  help();
-  exit;
-}
-
-if (exists($opts{'cache'}) && !$opts{'cache'}) {
-  $opts{'cache'}= 0;
-} else {
-  $opts{'cache'}= 1;
-}
-
-(!exists($opts{'cbgp-path'})) and
-  $opts{'cbgp-path'}= "../src/cbgp";
-(exists($opts{'resources-path'})) and
-  $validation->{'resources_path'}= $opts{'resources-path'};
-($validation->{'resources_path'} =~ s/^(.*[^\/])$/$1\//);
-(exists($opts{"max-failures"})) and
-  $max_failures= $opts{"max-failures"};
-(exists($opts{"max-warnings"})) and
-  $max_failures= $opts{"max-warnings"};
-(exists($opts{"report-prefix"})) and
-  $report_prefix= $opts{"report-prefix"};
-
-# -----[ Validation setup parameters ]-----
-my $tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
-				 -cache=>$opts{'cache'},
-				 -cbgppath=>$opts{'cbgp-path'},
-				 -include=>$opts{'include'},
-				 -maxfailures=>$max_failures,
-				 -valgrind=>$opts{'valgrind'},
-				 -libtool=>$opts{'libtool'},
-				 -glibtool=>$opts{'glibtool'});
-CBGPValid::Checking::set_tests($tests);
-CBGPValid::Topologies::set_tests($tests);
-
-
+    
 # -----[ help ]------------------------------------------------------
 #
 # -------------------------------------------------------------------
@@ -1059,7 +1004,8 @@ sub load_tests($) {
   my ($dir)= @_;
 
   opendir(TESTS, $dir) or die "Could not read \"$dir\" directory";
- LOOP_DIR: while (my $dir_entry= readdir(TESTS)) {
+  my @files = sort { $a cmp $b } readdir(TESTS);
+ LOOP_DIR: while (my $dir_entry= shift @files) {
     # Only keep regular files
     (! -f "$dir/$dir_entry") and next LOOP_DIR;
     # Only keep files with .pl extension
@@ -1134,6 +1080,62 @@ sub build_reports() {
 # MAIN
 #
 #####################################################################
+
+show_info("c-bgp CLI validation v".$validation->{'program_version'});
+show_info("(c) 2008-2013, Bruno Quoitin (bruno.quoitin\@umons.ac.be)");
+
+if (!GetOptions(\%opts,
+		"cbgp-path:s",
+		"cache!",
+		"debug!",
+		"glibtool!",
+		"help!",
+		"libtool!",
+		"max-failures:i",
+		"max-warnings:i",
+		"include:s@",
+		"report:s",
+	        "report-prefix:s",
+		"resources-path:s",
+	        "valgrind!")) {
+  show_error("Invalid command-line options");
+  exit(-1);
+}
+
+if (exists($opts{'help'})) {
+  help();
+  exit;
+}
+
+if (exists($opts{'cache'}) && !$opts{'cache'}) {
+  $opts{'cache'}= 0;
+} else {
+  $opts{'cache'}= 1;
+}
+
+(!exists($opts{'cbgp-path'})) and
+  $opts{'cbgp-path'}= "../src/cbgp";
+(exists($opts{'resources-path'})) and
+  $validation->{'resources_path'}= $opts{'resources-path'};
+($validation->{'resources_path'} =~ s/^(.*[^\/])$/$1\//);
+(exists($opts{"max-failures"})) and
+  $max_failures= $opts{"max-failures"};
+(exists($opts{"max-warnings"})) and
+  $max_failures= $opts{"max-warnings"};
+(exists($opts{"report-prefix"})) and
+  $report_prefix= $opts{"report-prefix"};
+
+# -----[ Validation setup parameters ]-----
+$tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
+				 -cache=>$opts{'cache'},
+				 -cbgppath=>$opts{'cbgp-path'},
+				 -include=>$opts{'include'},
+				 -maxfailures=>$max_failures,
+				 -valgrind=>$opts{'valgrind'},
+				 -libtool=>$opts{'libtool'},
+				 -glibtool=>$opts{'glibtool'});
+CBGPValid::Checking::set_tests($tests);
+CBGPValid::Topologies::set_tests($tests);
 
 # -------------------------------------------------------------------
 # Note: the "show version" test has a special treatment as it is used
