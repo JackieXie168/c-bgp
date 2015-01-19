@@ -8,7 +8,7 @@
 // $Id: record-route.h,v 1.4 2009-06-25 14:27:58 bqu Exp $
 // ==================================================================
 
-#ifndef __BGP_RECORD_ROTUE_H__
+#ifndef __BGP_RECORD_ROUTE_H__
 #define __BGP_RECORD_ROUTE_H__
 
 #include <libgds/stream.h>
