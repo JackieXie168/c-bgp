@@ -1,2 +1,2 @@
 EXTRA_DIST = \
-	junit-4.4.jar
+	junit-4.9.jar
