@@ -40,7 +40,7 @@ bgp_comms_t * comms_create()
   return comms;
 }
 
-// -----[ comms_destroy °--------------------------------------------
+// -----[ comms_destroy ]--------------------------------------------
 void comms_destroy(bgp_comms_t ** comms_ref)
 {
   bgp_comms_t * comms= *comms_ref;

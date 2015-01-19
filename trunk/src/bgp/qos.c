@@ -57,8 +57,8 @@ void bgp_route_qos_copy(bgp_route_t * pNewRoute, bgp_route_t * pRoute)
   pNewRoute->qos.tDelay= pRoute->qos.tDelay;
   pNewRoute->qos.tBandwidth= pRoute->qos.tBandwidth;
   // Copy also list of aggregatable routes ??
-  // Normalement non: alloué par le decision process et références
-  // dans Adj-RIB-Outs. A vérifier !!!
+  // Normalement non: alloue par le decision process et references
+  // dans Adj-RIB-Outs. A verifier !!!
   if (pRoute->qos.pAggrRoute != NULL) {
     pNewRoute->qos.pAggrRoutes=
       (SPtrArray *) _array_copy((SArray *) pRoute->qos.pAggrRoutes);

@@ -3784,7 +3784,7 @@ int test_bgp_filter_predicate_path_regexp()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_and ]----------------------------
+// -----[ test_bgp_filter_predicate_and ]----------------------------
 int test_bgp_filter_predicate_and()
 {
   bgp_ft_matcher_t * predicate=
@@ -3798,7 +3798,7 @@ int test_bgp_filter_predicate_and()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_and_any ]------------------------
+// -----[ test_bgp_filter_predicate_and_any ]------------------------
 int test_bgp_filter_predicate_and_any()
 {
   bgp_ft_matcher_t * predicate=
@@ -3812,7 +3812,7 @@ int test_bgp_filter_predicate_and_any()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_not ]----------------------------
+// -----[ test_bgp_filter_predicate_not ]----------------------------
 int test_bgp_filter_predicate_not()
 {
   bgp_ft_matcher_t * predicate=
@@ -3825,7 +3825,7 @@ int test_bgp_filter_predicate_not()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_not_not ]------------------------
+// -----[ test_bgp_filter_predicate_not_not ]------------------------
 int test_bgp_filter_predicate_not_not()
 {
   bgp_ft_matcher_t * predicate=
@@ -3838,7 +3838,7 @@ int test_bgp_filter_predicate_not_not()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_or ]----------------------------
+// -----[ test_bgp_filter_predicate_or ]----------------------------
 int test_bgp_filter_predicate_or()
 {
   bgp_ft_matcher_t * predicate=
@@ -3852,7 +3852,7 @@ int test_bgp_filter_predicate_or()
   return UTEST_SUCCESS;
 }
 
-// -----[ test_bgp_filter_predicate_or_any ]------------------------
+// -----[ test_bgp_filter_predicate_or_any ]------------------------
 int test_bgp_filter_predicate_or_any()
 {
   bgp_ft_matcher_t * predicate=

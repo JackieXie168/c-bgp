@@ -398,12 +398,12 @@ SRadixTree * node_ospf_compute_spt(net_node_t * pNode, uint16_t IGPDomainNumber,
       if (ptr_array_length(aGrayVertexes) > 0)
         srchRes = ptr_array_sorted_find_index(aGrayVertexes, &pNewVertex, &uOldVertexPos);
       else ;
-//         fprintf(stdout, "aGrays è vuoto\n");
+//         fprintf(stdout, "aGrays e vuoto\n");
       //srchres == -1 ==> item not found
       //srchres == 0  ==> item found
       pOldVertex = NULL;
       if(srchRes == 0) {
-//         fprintf(stdout, "vertex è già in aGrayVertexes\n");
+//         fprintf(stdout, "vertex e gia in aGrayVertexes\n");
         ptr_array_get_at(aGrayVertexes, uOldVertexPos, &pOldVertex);
       }
       
