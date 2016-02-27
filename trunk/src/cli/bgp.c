@@ -574,10 +574,11 @@ static int cli_bgp_router_load_rib(cli_ctx_t * ctx, cli_cmd_t * cmd)
   if (cli_has_opt_value(cmd, "summary"))
     options|= BGP_ROUTER_LOAD_OPTIONS_SUMMARY;
 
-  // Load the MRTD file 
-  if (bgp_router_load_rib(router, filename, format, options) != 0) {
-    cli_set_user_error(cli_get(), "could not load \"%s\" (%s%s)",
-		       filename, "plop", ", at line XX");
+  // Load the MRTD file
+  int result= bgp_router_load_rib(router, filename, format, options);
+  if (result != 0) {
+    cli_set_user_error(cli_get(), "could not load \"%s\" (%s)",
+		       filename, bgp_input_strerror(result));
     return CLI_ERROR_COMMAND_FAILED;
   }
 
