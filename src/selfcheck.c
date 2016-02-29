@@ -3440,7 +3440,7 @@ static int test_bgp_route_aspath()
   route_set_path(route1, path1);
   route_set_path(route2, path2);
   UTEST_ASSERT(route1->attr->path_ref == route2->attr->path_ref,
-		"AS-Paths should not already be internet");
+		"AS-Paths should not already be interned");
 
   // Prepend first route's AS-Path
   route_path_prepend(route1, 666, 2);
