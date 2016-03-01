@@ -107,6 +107,16 @@ int cli_sim_event(cli_ctx_t * ctx, cli_cmd_t * cmd)
  */
 int cli_sim_options_loglevel(cli_ctx_t * ctx, cli_cmd_t * cmd)
 {
+  static const char * STREAM_LEVEL_NAMES[STREAM_LEVEL_MAX]= {
+    "everything", "debug", "info", "warning", "severe", "fatal"
+  };
+  
+  if (cli_get_arg_num_values(cmd, 0) == 0) {
+    assert(gdsdebug->level < STREAM_LEVEL_MAX);
+    stream_printf(gdsout, "%s\n", STREAM_LEVEL_NAMES[gdsdebug->level]);
+    return CLI_SUCCESS;
+  }
+  
   const char * arg= cli_get_arg_value(cmd, 0);
   stream_level_t level;
   if (stream_str2level(arg, &level) < 0) {
@@ -266,7 +276,7 @@ static void _register_sim_options(cli_cmd_t * parent)
   cli_cmd_t * group, * cmd;
   group= cli_add_cmd(parent, cli_cmd_group("options"));
   cmd= cli_add_cmd(group, cli_cmd("log-level", cli_sim_options_loglevel));
-  cli_add_arg(cmd, cli_arg("level", NULL));
+  cli_add_arg(cmd, cli_vararg("level", 1, NULL));
   cmd= cli_add_cmd(group, cli_cmd("scheduler", cli_sim_options_scheduler));
   cli_add_arg(cmd, cli_arg("scheduler", NULL));
 }
