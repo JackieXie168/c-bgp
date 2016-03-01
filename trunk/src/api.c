@@ -307,6 +307,7 @@ CBGP_EXP_DECL
 void libcbgp_set_debug_file(const char * filename)
 {
   gds_stream_t * debug= stream_create_file(filename);
+  debug->level= STREAM_LEVEL_WARNING;
 
   if (debug == NULL) {
     fprintf(stderr, "Warning: couln't direct debug log to \"%s\".\n",
