@@ -18,6 +18,10 @@
 #                   Specifies the path of the C-BGP binary. The
 #                   default path is "../src/valid"
 #
+#   --cbgp-log-all
+#                   Requests to log commands send to c-bgp as well as
+#                   answers returned by c-bgp
+#
 #   --no-cache
 #                   The default behaviour of the validation script is
 #                   to store (cache) the test results. When a test
@@ -138,6 +142,7 @@ sub help() {
   print "  cbgp-validation.pl\n";
   print "    [--cache|--no-cache]\n";
   print "    [--cbgp-path=PATH]\n";
+  print "    [--cbgp-log-all]\n";
   print "    [--debug]\n";
   print "    [--help]\n";
   print "    [--include=NAME]\n";
@@ -1086,6 +1091,7 @@ show_info("(c) 2008-2013, Bruno Quoitin (bruno.quoitin\@umons.ac.be)");
 
 if (!GetOptions(\%opts,
 		"cbgp-path:s",
+		"cbgp-log-all!",
 		"cache!",
 		"debug!",
 		"glibtool!",
@@ -1114,7 +1120,7 @@ if (exists($opts{'cache'}) && !$opts{'cache'}) {
 }
 
 (!exists($opts{'cbgp-path'})) and
-  $opts{'cbgp-path'}= "../src/cbgp";
+    $opts{'cbgp-path'}= "../src/cbgp";
 (exists($opts{'resources-path'})) and
   $validation->{'resources_path'}= $opts{'resources-path'};
 ($validation->{'resources_path'} =~ s/^(.*[^\/])$/$1\//);
@@ -1127,10 +1133,13 @@ if (exists($opts{'cache'}) && !$opts{'cache'}) {
 
 # -----[ Validation setup parameters ]-----
 $tests= CBGPValid::Tests->new(-debug=>$opts{'debug'},
-				 -cache=>$opts{'cache'},
-				 -cbgppath=>$opts{'cbgp-path'},
-				 -include=>$opts{'include'},
-				 -maxfailures=>$max_failures,
+			      -cache=>$opts{'cache'},
+			      -cbgppath=>$opts{'cbgp-path'},
+			      -cbgplog=>(exists($opts{'cbgp-log-all'})?
+					 CBGP::LOG_SEND_RECV:
+					 CBGP::LOG_SEND),
+			      -include=>$opts{'include'},
+			      -maxfailures=>$max_failures,
 				 -valgrind=>$opts{'valgrind'},
 				 -libtool=>$opts{'libtool'},
 				 -glibtool=>$opts{'glibtool'});

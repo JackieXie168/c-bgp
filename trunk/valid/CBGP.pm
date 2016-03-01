@@ -4,9 +4,9 @@
 #
 # @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 # @date 19/02/2004
-# @lastdate 29/09/2011
+# @lastdate 29/02/2015
 #
-# @version 0.6
+# @version 0.7
 # ===================================================================
 # This package is an helper for Perl scripts that want to use C-BGP in
 # an interactive way. The package uses a pair of pipes created thanks
@@ -46,7 +46,7 @@ require Exporter;
 	    get_rib
 	    trace_route
 	    );
-$VERSION= '0.6';
+$VERSION= '0.7';
 
 use strict;
 use warnings;
@@ -71,7 +71,9 @@ use constant THREAD_ABORTED => -1;
 
 # -----[ logging options ]-----
 use constant LOG_FILE => ".CBGP.pm.log";
-use constant LOG_DEFAULT => 0;
+use constant LOG_DISABLED  => 0;  # disable log
+use constant LOG_SEND      => 1;  # only logs output sent to c-bgp
+use constant LOG_SEND_RECV => 2;  # logs input/output to/from c-bgp
 
 # -----[ new ]-------------------------------------------------------
 # Create a new instance of a C-BGP wrapper
@@ -111,11 +113,11 @@ sub new(@)
 	'thread' => undef,                 # Reader thread
 	'thread_status' => \$thread_status,
 	'ready' => new Thread::Semaphore(0),
-	'log' => LOG_DEFAULT,
+	'log' => LOG_DISABLED,
     };
     bless $cbgp_ref;
 
-    unlink ".CBGP.pm.log";
+    unlink LOG_FILE;
 
     return $cbgp_ref;
 }
@@ -187,6 +189,13 @@ sub thread_reader($)
 		print STDERR "Debug (CBGP thread): aborted\n";
 		${$self->{thread_running}}= THREAD_ABORTED;
 
+	    }
+
+	    # Send received data to log file (as comments)
+	    if ($self->{log} == LOG_SEND_RECV) {
+		foreach my $line (@new_lines) {
+		    $self->log("# ".$line."\n");
+		}
 	    }
 
 	    $self->{queue}->enqueue(@new_lines);
@@ -273,7 +282,7 @@ sub log($)
     my $self= shift;
     my $msg= shift;
 
-    if ($self->{log}) {
+    if ($self->{log} != LOG_DISABLED) {
 	if (open(CBGP_LOG, ">>".LOG_FILE)) {
 	    print CBGP_LOG "$msg";
 	    close(CBGP_LOG);
