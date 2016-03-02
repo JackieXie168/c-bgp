@@ -104,6 +104,7 @@ void _comm_hash_item_destroy(void * item)
 void * comm_hash_add(bgp_comms_t * comms)
 {
   _comm_hash_init();
+  assert(comms != NULL);
   return hash_set_add(_global_ref.hash, comms);
 }
 
