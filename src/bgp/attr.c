@@ -1,8 +1,7 @@
 // ==================================================================
 // @(#)attr.c
 //
-// @author Bruno Quoitin (bruno.quoitin@uclouvain.be)
-// @date 21/11/2005
+// @author Bruno Quoitin (bruno.quoitin@umons.ac.be)
 // $Id: attr.c,v 1.9 2009-03-24 14:25:33 bqu Exp $
 // ==================================================================
 
@@ -185,19 +184,30 @@ int bgp_attr_path_rem_private(bgp_attr_t ** attr_ref)
  * Copy the Communities attribute and update the references into the
  * global path repository.
  *
- * Pre-condition:
- *   the source Communities must be intern, that is it must already be in
- *   the global Communities repository.
+ * Pre-conditions :
+ *   - the source Communities must be intern, that is it must already be in
+ *     the global Communities repository.
+ *   - the target attr community must be NULL beforehand
+ *   - NULL communities are allowed, their copy is NULL
+ *     (NULL communities are not stored in the global comm repo.)
+ *
+ * This function is only used by 'bgp_attr_copy'.
  */
 static inline void _bgp_attr_comm_copy(bgp_attr_t * attr,
 				       bgp_comms_t * comms)
 {
-  attr->comms= comm_hash_add(comms);
+  assert(attr->comms == NULL);
+  
+  if (comms != NULL) {
+    attr->comms= comm_hash_add(comms);
 
-  // Check that the referenced Communities is equal to the source
-  // Communities (if not, that means that the source Communities was
-  // not intern)
-  assert(attr->comms == comms);
+    // Check that the referenced Communities is equal to the source
+    // Communities (if not, that means that the source Communities was
+    // not intern)
+    assert(attr->comms == comms);
+  } else {
+    attr->comms= comms;
+  }
 }
 
 // -----[ _bgp_attr_comm_destroy ]-----------------------------------
@@ -445,7 +455,8 @@ void bgp_attr_destroy(bgp_attr_t ** attr_ref)
 
 // -----[ bgp_attr_copy ]--------------------------------------------
 /**
- *
+ * This function is used to clone an already existing attr structure
+ * (e.g. from an existing route).
  */
 bgp_attr_t * bgp_attr_copy(bgp_attr_t * attr)
 {
